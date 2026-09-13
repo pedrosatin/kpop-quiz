@@ -1,0 +1,52 @@
+[
+  {
+    "page_id": 1,
+    "title": "Alpha",
+    "wikidata_id": "Q1",
+    "instance_of": ["Q9212979"],
+    "expected_state": "accepted",
+    "expected_reason": null
+  },
+  {
+    "page_id": 2,
+    "title": "List of K-pop artists",
+    "wikidata_id": "Q2",
+    "instance_of": ["Q215380"],
+    "expected_state": "rejected",
+    "expected_reason": "list_page"
+  },
+  {
+    "page_id": 3,
+    "title": "Beta",
+    "wikidata_id": "Q3",
+    "is_disambiguation": true,
+    "instance_of": ["Q215380"],
+    "expected_state": "rejected",
+    "expected_reason": "disambiguation_page"
+  },
+  {
+    "page_id": 4,
+    "title": "Gamma",
+    "wikidata_id": null,
+    "instance_of": [],
+    "expected_state": "rejected",
+    "expected_reason": "missing_or_invalid_wikidata_id"
+  },
+  {
+    "page_id": 5,
+    "title": "Soloist",
+    "wikidata_id": "Q5",
+    "instance_of": ["Q5"],
+    "expected_state": "rejected",
+    "expected_reason": "incompatible_wikidata_instance"
+  },
+  {
+    "page_id": 6,
+    "title": "Old name",
+    "wikidata_id": "Q6",
+    "is_redirect": true,
+    "instance_of": ["Q215380"],
+    "expected_state": "rejected",
+    "expected_reason": "redirect_page"
+  }
+]
