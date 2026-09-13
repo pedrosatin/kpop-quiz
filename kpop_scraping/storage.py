@@ -346,6 +346,35 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
+    (
+        5,
+        "catalog_entity_links",
+        (
+            """
+            CREATE TABLE catalog_entity_links (
+                source_page_id INTEGER PRIMARY KEY REFERENCES catalog_entries(source_page_id),
+                entity_id INTEGER NOT NULL REFERENCES entities(id),
+                requested_wikidata_id TEXT NOT NULL,
+                resolved_wikidata_id TEXT NOT NULL,
+                fact_run_id INTEGER REFERENCES fact_runs(id),
+                linked_at TEXT NOT NULL
+            )
+            """,
+            "CREATE INDEX catalog_entity_links_entity_idx ON catalog_entity_links(entity_id)",
+            """
+            INSERT INTO catalog_entity_links(
+                source_page_id, entity_id, requested_wikidata_id,
+                resolved_wikidata_id, fact_run_id, linked_at
+            )
+            SELECT e.source_page_id, e.id, ce.analyzed_wikidata_id,
+                   e.wikidata_id, e.last_fact_run_id, e.updated_at
+            FROM entities e
+            JOIN catalog_entries ce ON ce.source_page_id = e.source_page_id
+            WHERE e.entity_type = 'group' AND e.source_page_id IS NOT NULL
+              AND ce.analyzed_wikidata_id IS NOT NULL
+            """,
+        ),
+    ),
 )
 
 

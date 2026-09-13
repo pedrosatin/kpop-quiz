@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from kpop_scraping.cli import main
 from kpop_scraping.fact_pipeline import EXTRACTOR_VERSION, extract_facts
-from kpop_scraping.fact_store import FactRunTotals
+from kpop_scraping.fact_store import FactRunTotals, FactStore
 from kpop_scraping.reports import export_fact_coverage_csv
 from kpop_scraping.storage import Repository, SnapshotIntegrityError
 from kpop_scraping.wikidata import EntityBatch, EntityDocument
@@ -50,7 +50,7 @@ class FactPipelineTest(unittest.TestCase):
                 )
             }
             version = scalar(repository, "SELECT MAX(version) FROM schema_migrations")
-        self.assertEqual(version, 4)
+        self.assertEqual(version, 5)
         self.assertTrue(
             {
                 "fact_runs",
@@ -61,6 +61,7 @@ class FactPipelineTest(unittest.TestCase):
                 "entity_aliases",
                 "facts",
                 "fact_evidence",
+                "catalog_entity_links",
             }
             <= tables
         )
@@ -331,8 +332,72 @@ class FactPipelineTest(unittest.TestCase):
                 """,
                 (resolved_id,),
             ).fetchall()
+            link = repository.connection.execute(
+                """
+                SELECT requested_wikidata_id, resolved_wikidata_id
+                FROM catalog_entity_links
+                """
+            ).fetchone()
+            report = self.root / "redirected-facts.csv"
+            row_count = export_fact_coverage_csv(repository.connection, report)
         self.assertTrue(statuses)
         self.assertNotIn("stale", {row["status"] for row in statuses})
+        self.assertEqual(tuple(link), (WONDER_GIRLS, resolved_id))
+        self.assertEqual(row_count, 12)
+        with report.open(encoding="utf-8", newline="") as handle:
+            report_qids = {row["group_wikidata_id"] for row in csv.DictReader(handle)}
+        self.assertEqual(report_qids, {resolved_id})
+
+    def test_nonaccepted_membership_retires_person_facts(self):
+        with self.repository() as repository:
+            build_catalog(repository, self.fixture)
+            extract_facts(repository, FixtureWikidataClient(self.fixture))
+            person_id = scalar(
+                repository,
+                "SELECT id FROM entities WHERE wikidata_id=?",
+                (NAYEON,),
+            )
+            repository.connection.execute(
+                "UPDATE facts SET status='rejected', status_reason='test_rejection' "
+                "WHERE predicate='has_member' AND value_entity_id=?",
+                (person_id,),
+            )
+            repository.connection.execute(
+                "UPDATE facts SET status='accepted', status_reason=NULL "
+                "WHERE subject_entity_id=?",
+                (person_id,),
+            )
+            store = FactStore(repository)
+            run_id = store.start_run(EXTRACTOR_VERSION, None)
+            store.mark_stale_facts(run_id)
+            statuses = {
+                row[0]
+                for row in repository.connection.execute(
+                    "SELECT status FROM facts WHERE subject_entity_id=?",
+                    (person_id,),
+                )
+            }
+            repository.connection.execute(
+                "UPDATE facts SET status='conflict', status_reason='test_conflict' "
+                "WHERE predicate='has_member' AND value_entity_id=?",
+                (person_id,),
+            )
+            repository.connection.execute(
+                "UPDATE facts SET status='accepted', status_reason=NULL "
+                "WHERE subject_entity_id=?",
+                (person_id,),
+            )
+            run_id = store.start_run(EXTRACTOR_VERSION, None)
+            store.mark_stale_facts(run_id)
+            conflict_statuses = {
+                row[0]
+                for row in repository.connection.execute(
+                    "SELECT status FROM facts WHERE subject_entity_id=?",
+                    (person_id,),
+                )
+            }
+        self.assertEqual(statuses, {"stale"})
+        self.assertEqual(conflict_statuses, {"stale"})
 
     def test_limited_run_does_not_promote_membership_without_group_counterpart(self):
         client = FixtureWikidataClient(self.fixture)

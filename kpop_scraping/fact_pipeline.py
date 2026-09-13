@@ -261,6 +261,13 @@ class _Run:
                 "group",
                 group.source_page_id,
             )
+            self.store.link_catalog_entity(
+                self.run_id,
+                group.source_page_id,
+                group.wikidata_id,
+                document.wikidata_id,
+                entity_id,
+            )
             self._add_subject(
                 document,
                 entity_id,

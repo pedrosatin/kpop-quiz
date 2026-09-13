@@ -284,6 +284,38 @@ class FactStore:
             self._replace_aliases(entity_id, snapshot_id, extract_aliases(document.payload))
         return entity_id, stored_type
 
+    def link_catalog_entity(
+        self,
+        run_id: int,
+        source_page_id: int,
+        requested_wikidata_id: str,
+        resolved_wikidata_id: str,
+        entity_id: int,
+    ) -> None:
+        """Persist the catalog identity resolved for one source page."""
+        self.connection.execute(
+            """
+            INSERT INTO catalog_entity_links(
+                source_page_id, entity_id, requested_wikidata_id,
+                resolved_wikidata_id, fact_run_id, linked_at
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(source_page_id) DO UPDATE SET
+                entity_id=excluded.entity_id,
+                requested_wikidata_id=excluded.requested_wikidata_id,
+                resolved_wikidata_id=excluded.resolved_wikidata_id,
+                fact_run_id=excluded.fact_run_id,
+                linked_at=excluded.linked_at
+            """,
+            (
+                source_page_id,
+                entity_id,
+                requested_wikidata_id,
+                resolved_wikidata_id,
+                run_id,
+                utc_now(),
+            ),
+        )
+
     def _replace_aliases(
         self,
         entity_id: int,
@@ -481,7 +513,7 @@ class FactStore:
             """
             UPDATE facts
             SET status=?, status_reason='subject_not_listed_by_group', fact_run_id=?
-            WHERE status != ?
+            WHERE status = ?
               AND subject_entity_id IN (
                 SELECT e.id FROM entities e
                 WHERE e.entity_type = 'person'
@@ -489,11 +521,11 @@ class FactStore:
                     SELECT 1 FROM facts member
                     WHERE member.predicate = 'has_member'
                       AND member.value_entity_id = e.id
-                      AND member.status != ?
+                      AND member.status = ?
                   )
               )
             """,
-            (STALE, run_id, STALE, STALE),
+            (STALE, run_id, ACCEPTED, ACCEPTED),
         )
         return stale + cursor.rowcount
 
