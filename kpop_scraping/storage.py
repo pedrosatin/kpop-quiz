@@ -366,12 +366,20 @@ MIGRATIONS: tuple[Migration, ...] = (
                 source_page_id, entity_id, requested_wikidata_id,
                 resolved_wikidata_id, fact_run_id, linked_at
             )
-            SELECT e.source_page_id, e.id, ce.analyzed_wikidata_id,
+            SELECT ce.source_page_id, e.id, ce.analyzed_wikidata_id,
                    e.wikidata_id, e.last_fact_run_id, e.updated_at
-            FROM entities e
-            JOIN catalog_entries ce ON ce.source_page_id = e.source_page_id
-            WHERE e.entity_type = 'group' AND e.source_page_id IS NOT NULL
-              AND ce.analyzed_wikidata_id IS NOT NULL
+            FROM catalog_entries ce
+            JOIN entities e ON e.id = (
+                SELECT candidate.id
+                FROM entities candidate
+                WHERE candidate.entity_type = 'group'
+                  AND candidate.source_page_id = ce.source_page_id
+                ORDER BY candidate.last_fact_run_id DESC,
+                         candidate.updated_at DESC,
+                         candidate.id DESC
+                LIMIT 1
+            )
+            WHERE ce.analyzed_wikidata_id IS NOT NULL
             """,
         ),
     ),

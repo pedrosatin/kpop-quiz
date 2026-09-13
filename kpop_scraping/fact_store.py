@@ -496,17 +496,19 @@ class FactStore:
             """
             UPDATE facts
             SET status=?, status_reason='subject_not_in_catalog', fact_run_id=?
-            WHERE status != ?
+            WHERE status = ?
               AND subject_entity_id IN (
                 SELECT e.id FROM entities e
                 WHERE e.entity_type = 'group'
                   AND NOT EXISTS (
-                    SELECT 1 FROM catalog_entries ce
-                    WHERE ce.state = 'accepted' AND ce.source_page_id = e.source_page_id
+                    SELECT 1
+                    FROM catalog_entity_links cel
+                    JOIN catalog_entries ce ON ce.source_page_id = cel.source_page_id
+                    WHERE cel.entity_id = e.id AND ce.state = 'accepted'
                   )
               )
             """,
-            (STALE, run_id, STALE),
+            (STALE, run_id, ACCEPTED),
         )
         stale = cursor.rowcount
         cursor = self.connection.execute(
@@ -543,13 +545,19 @@ class FactStore:
             f"""
             UPDATE facts
             SET status=?, status_reason='subject_unavailable', fact_run_id=?
-            WHERE status != ?
+            WHERE status = ?
               AND subject_entity_id IN (
-                SELECT id FROM entities
-                WHERE source_page_id IN ({placeholders})
+                SELECT cel.entity_id
+                FROM catalog_entity_links cel
+                WHERE cel.source_page_id IN ({placeholders})
+                  AND NOT EXISTS (
+                      SELECT 1 FROM catalog_entity_links current
+                      WHERE current.entity_id = cel.entity_id
+                        AND current.fact_run_id = ?
+                  )
               )
             """,
-            (STALE, run_id, STALE, *page_ids),
+            (STALE, run_id, ACCEPTED, *page_ids, run_id),
         )
         return cursor.rowcount
 

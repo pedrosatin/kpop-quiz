@@ -246,6 +246,13 @@ class _Run:
                 continue
             document, snapshot_id = documents[group.wikidata_id]
             if document.wikidata_id in processed.values():
+                self.store.link_catalog_entity(
+                    self.run_id,
+                    group.source_page_id,
+                    group.wikidata_id,
+                    document.wikidata_id,
+                    self.state.entity_ids[document.wikidata_id],
+                )
                 self.store.record_issue(
                     self.run_id,
                     group.wikidata_id,

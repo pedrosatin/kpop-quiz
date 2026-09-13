@@ -41,14 +41,24 @@ def export_fact_coverage_csv(connection: sqlite3.Connection, output_path: Path) 
     """
     groups = connection.execute(
         """
-        SELECT e.id, e.wikidata_id, e.canonical_name, sp.external_page_id, sp.title
-        FROM catalog_entity_links cel
-        JOIN catalog_entries ce ON ce.source_page_id = cel.source_page_id
-        JOIN entities e ON e.id = cel.entity_id
-        JOIN source_pages sp ON sp.id = cel.source_page_id
-        WHERE e.entity_type = 'group' AND ce.state = 'accepted'
-          AND e.last_fact_run_id IS NOT NULL
-        ORDER BY sp.provider, sp.language, sp.external_page_id
+        WITH linked_groups AS (
+            SELECT e.id, e.wikidata_id, e.canonical_name,
+                   sp.external_page_id, sp.title, sp.provider, sp.language,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY e.id
+                       ORDER BY sp.provider, sp.language, sp.external_page_id
+                   ) AS position
+            FROM catalog_entity_links cel
+            JOIN catalog_entries ce ON ce.source_page_id = cel.source_page_id
+            JOIN entities e ON e.id = cel.entity_id
+            JOIN source_pages sp ON sp.id = cel.source_page_id
+            WHERE e.entity_type = 'group' AND ce.state = 'accepted'
+              AND e.last_fact_run_id IS NOT NULL
+        )
+        SELECT id, wikidata_id, canonical_name, external_page_id, title
+        FROM linked_groups
+        WHERE position = 1
+        ORDER BY provider, language, external_page_id
         """
     ).fetchall()
     counts: Counts = {}

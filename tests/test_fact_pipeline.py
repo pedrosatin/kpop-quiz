@@ -9,7 +9,7 @@ from kpop_scraping.cli import main
 from kpop_scraping.fact_pipeline import EXTRACTOR_VERSION, extract_facts
 from kpop_scraping.fact_store import FactRunTotals, FactStore
 from kpop_scraping.reports import export_fact_coverage_csv
-from kpop_scraping.storage import Repository, SnapshotIntegrityError
+from kpop_scraping.storage import MIGRATIONS, Repository, SnapshotIntegrityError, apply_migrations
 from kpop_scraping.wikidata import EntityBatch, EntityDocument
 
 from .wikidata_fixture import (
@@ -267,7 +267,7 @@ class FactPipelineTest(unittest.TestCase):
                 """
                 SELECT COUNT(*) FROM facts f
                 JOIN entities e ON e.id = f.subject_entity_id
-                WHERE e.wikidata_id=? AND f.status != 'stale'
+                WHERE e.wikidata_id=? AND f.status = 'accepted'
                 """,
                 (WONDER_GIRLS,),
             )
@@ -291,7 +291,11 @@ class FactPipelineTest(unittest.TestCase):
         self.assertGreater(previous, 0)
         self.assertEqual(totals.groups, 0)
         self.assertGreaterEqual(totals.stale, previous)
-        self.assertEqual([tuple(row) for row in statuses], [("stale", "subject_unavailable")])
+        self.assertIn(("stale", "subject_unavailable"), [tuple(row) for row in statuses])
+        self.assertTrue(
+            {row["status"] for row in statuses}
+            <= {"rejected", "conflict", "superseded", "stale"}
+        )
         self.assertEqual(issue["issue_code"], "entity_missing")
 
     def test_redirected_group_remains_current_through_its_catalog_page(self):
@@ -340,6 +344,23 @@ class FactPipelineTest(unittest.TestCase):
             ).fetchone()
             report = self.root / "redirected-facts.csv"
             row_count = export_fact_coverage_csv(repository.connection, report)
+            repository.connection.execute(
+                """
+                INSERT INTO catalog_entity_links(
+                    source_page_id, entity_id, requested_wikidata_id,
+                    resolved_wikidata_id, fact_run_id, linked_at
+                )
+                SELECT ce.source_page_id, e.id, ce.analyzed_wikidata_id,
+                       e.wikidata_id, e.last_fact_run_id, e.updated_at
+                FROM catalog_entries ce, entities e
+                WHERE ce.analyzed_wikidata_id != ? AND e.wikidata_id = ?
+                ORDER BY ce.source_page_id LIMIT 1
+                """,
+                (WONDER_GIRLS, resolved_id),
+            )
+            deduplicated_row_count = export_fact_coverage_csv(
+                repository.connection, self.root / "deduplicated-facts.csv"
+            )
         self.assertTrue(statuses)
         self.assertNotIn("stale", {row["status"] for row in statuses})
         self.assertEqual(tuple(link), (WONDER_GIRLS, resolved_id))
@@ -347,6 +368,7 @@ class FactPipelineTest(unittest.TestCase):
         with report.open(encoding="utf-8", newline="") as handle:
             report_qids = {row["group_wikidata_id"] for row in csv.DictReader(handle)}
         self.assertEqual(report_qids, {resolved_id})
+        self.assertEqual(deduplicated_row_count, 12)
 
     def test_nonaccepted_membership_retires_person_facts(self):
         with self.repository() as repository:
@@ -365,6 +387,11 @@ class FactPipelineTest(unittest.TestCase):
             repository.connection.execute(
                 "UPDATE facts SET status='accepted', status_reason=NULL "
                 "WHERE subject_entity_id=?",
+                (person_id,),
+            )
+            repository.connection.execute(
+                "UPDATE facts SET status='rejected', status_reason='test_rejection' "
+                "WHERE subject_entity_id=? AND predicate='born_on'",
                 (person_id,),
             )
             store = FactStore(repository)
@@ -387,6 +414,11 @@ class FactPipelineTest(unittest.TestCase):
                 "WHERE subject_entity_id=?",
                 (person_id,),
             )
+            repository.connection.execute(
+                "UPDATE facts SET status='conflict', status_reason='test_conflict' "
+                "WHERE subject_entity_id=? AND predicate='born_on'",
+                (person_id,),
+            )
             run_id = store.start_run(EXTRACTOR_VERSION, None)
             store.mark_stale_facts(run_id)
             conflict_statuses = {
@@ -396,8 +428,45 @@ class FactPipelineTest(unittest.TestCase):
                     (person_id,),
                 )
             }
-        self.assertEqual(statuses, {"stale"})
-        self.assertEqual(conflict_statuses, {"stale"})
+        self.assertEqual(statuses, {"rejected", "stale"})
+        self.assertEqual(conflict_statuses, {"conflict", "stale"})
+
+    def test_migration_backfills_latest_group_when_page_identity_changed(self):
+        with self.repository() as repository:
+            build_catalog(repository, self.fixture)
+            extract_facts(repository, FixtureWikidataClient(self.fixture), group_limit=1)
+            original = repository.connection.execute(
+                "SELECT * FROM entities WHERE wikidata_id=?",
+                (WONDER_GIRLS,),
+            ).fetchone()
+            repository.connection.execute("DROP TABLE catalog_entity_links")
+            repository.connection.execute("DELETE FROM schema_migrations WHERE version=5")
+            repository.connection.execute(
+                """
+                INSERT INTO entities(
+                    wikidata_id, entity_type, canonical_name, snapshot_id,
+                    source_page_id, last_fact_run_id, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "Q999999998",
+                    original["entity_type"],
+                    "Replacement group",
+                    original["snapshot_id"],
+                    original["source_page_id"],
+                    original["last_fact_run_id"],
+                    original["created_at"],
+                    "9999-12-31T23:59:59+00:00",
+                ),
+            )
+            replacement_id = repository.connection.execute(
+                "SELECT id FROM entities WHERE wikidata_id='Q999999998'"
+            ).fetchone()[0]
+            apply_migrations(repository.connection, MIGRATIONS)
+            link = repository.connection.execute(
+                "SELECT entity_id, resolved_wikidata_id FROM catalog_entity_links"
+            ).fetchone()
+        self.assertEqual(tuple(link), (replacement_id, "Q999999998"))
 
     def test_limited_run_does_not_promote_membership_without_group_counterpart(self):
         client = FixtureWikidataClient(self.fixture)
