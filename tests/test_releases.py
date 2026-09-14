@@ -10,8 +10,12 @@ from unittest.mock import patch
 from kpop_scraping.mediawiki import MediaWikiError
 from kpop_scraping.release_discovery import WikidataQueryClient, _parse_results, build_query
 from kpop_scraping.release_facts import release_entity_type, release_fact_candidates
-from kpop_scraping.release_pipeline import _performer_entity_ids
-from kpop_scraping.storage import MIGRATIONS, apply_migrations
+from kpop_scraping.release_pipeline import (
+    _mark_stale_releases,
+    _performer_entity_ids,
+    collect_release_facts,
+)
+from kpop_scraping.storage import MIGRATIONS, Repository, apply_migrations
 
 
 def item_statement(statement_id, property_id, value, qualifiers=None):
@@ -154,6 +158,150 @@ class ReleaseMigrationTest(unittest.TestCase):
         self.assertIsNone(connection.execute(
             "SELECT 1 FROM schema_migrations WHERE version=6"
         ).fetchone())
+
+
+class ReleasePipelineScopeTest(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.root = Path(self.directory.name)
+        self.repository = Repository(self.root / "test.db", raw_dir=self.root / "raw")
+        self.connection = self.repository.connection
+        self.connection.execute(
+            """INSERT INTO wikidata_entity_snapshots(
+                id,wikidata_id,external_revision_id,request_profile,snapshot_path,
+                content_sha256,fetched_at
+            ) VALUES (1,'Q0',1,'subject-v1','fixture',?,'t')""",
+            ("0" * 64,),
+        )
+        self.connection.executemany(
+            """INSERT INTO entities(
+                id,wikidata_id,entity_type,canonical_name,snapshot_id,created_at,updated_at
+            ) VALUES (?,?,?,?,1,'t','t')""",
+            [(1, "QG1", "group", "G1"), (2, "QG2", "group", "G2"),
+             (10, "QR1", "album", "R1"), (20, "QR2", "album", "R2")],
+        )
+        self.connection.execute(
+            "INSERT INTO collection_runs(id,category,started_at,status) VALUES (1,'x','t','completed')"
+        )
+        self.connection.executemany(
+            """INSERT INTO source_pages(
+                id,provider,language,external_page_id,title,canonical_url,
+                extract,fetched_at,last_run_id
+            ) VALUES (?,'wikipedia','en',?,?,?,'','t',1)""",
+            [(1, 1, "G1", "u1"), (2, 2, "G2", "u2")],
+        )
+        self.connection.executemany(
+            """INSERT INTO source_revisions(
+                id,source_page_id,external_revision_id,snapshot_path,content_sha256,fetched_at
+            ) VALUES (?,?,?,?,?,'t')""",
+            [(1, 1, 1, "s1", "1" * 64), (2, 2, 2, "s2", "2" * 64)],
+        )
+        self.connection.execute(
+            "INSERT INTO catalog_runs(id,classifier_version,started_at,status) VALUES (1,'v','t','completed')"
+        )
+        self.connection.executemany(
+            """INSERT INTO catalog_entries(
+                source_page_id,source_revision_id,analyzed_wikidata_id,state,
+                classifier_version,classified_at
+            ) VALUES (?,?,?,'accepted','v','t')""",
+            [(1, 1, "QG1"), (2, 2, "QG2")],
+        )
+        self.connection.executemany(
+            """INSERT INTO catalog_entity_links(
+                source_page_id,entity_id,requested_wikidata_id,resolved_wikidata_id,linked_at
+            ) VALUES (?,?,?,?, 't')""",
+            [(1, 1, "QG1", "QG1"), (2, 2, "QG2", "QG2")],
+        )
+
+    def tearDown(self):
+        self.connection.close()
+        self.directory.cleanup()
+
+    def _run(self, status="completed", groups=(1,)):
+        cursor = self.connection.execute(
+            """INSERT INTO release_discovery_runs(
+                discoverer_version,query,query_sha256,endpoint,started_at,status
+            ) VALUES ('v','q',?,'e','t',?)""",
+            ("0" * 64, status),
+        )
+        run_id = int(cursor.lastrowid)
+        self.connection.executemany(
+            "INSERT INTO release_discovery_groups(run_id,group_entity_id) VALUES (?,?)",
+            [(run_id, group_id) for group_id in groups],
+        )
+        self.connection.commit()
+        return run_id
+
+    def test_rejects_unknown_incomplete_and_empty_discovery_before_fact_run(self):
+        run_ids = [999, self._run("running"), self._run("failed"), self._run(groups=())]
+        for run_id in run_ids:
+            with self.subTest(run_id=run_id), self.assertRaises(ValueError):
+                collect_release_facts(self.repository, object(), run_id)
+        self.assertEqual(
+            self.connection.execute("SELECT COUNT(*) FROM fact_runs").fetchone()[0], 0
+        )
+
+    def test_staleness_only_mutates_groups_in_discovery_scope(self):
+        old_run = self._run(groups=(1, 2))
+        self.connection.executemany(
+            """INSERT INTO release_candidates(
+                run_id,group_entity_id,requested_wikidata_id,resolved_wikidata_id,
+                entity_id,state
+            ) VALUES (?,?,?,?,?,'accepted')""",
+            [(old_run, 1, "QR1", "QR1", 10), (old_run, 2, "QR2", "QR2", 20)],
+        )
+        current_run = self._run(groups=(1,))
+        fact_run = self.connection.execute(
+            """INSERT INTO fact_runs(
+                extractor_version,source_policy_version,started_at,status
+            ) VALUES ('v','v','t','running')"""
+        ).lastrowid
+
+        _mark_stale_releases(self.connection, current_run, fact_run)
+
+        states = self.connection.execute(
+            "SELECT group_entity_id,state FROM release_candidates ORDER BY group_entity_id"
+        ).fetchall()
+        self.assertEqual([tuple(row) for row in states], [(1, "stale"), (2, "accepted")])
+
+    def test_staleness_rolls_back_with_the_fact_run(self):
+        old_run = self._run(groups=(1,))
+        self.connection.execute(
+            """INSERT INTO release_candidates(
+                run_id,group_entity_id,requested_wikidata_id,resolved_wikidata_id,
+                entity_id,state
+            ) VALUES (?,1,'QR1','QR1',10,'accepted')""",
+            (old_run,),
+        )
+        current_run = self._run(groups=(1,))
+        with patch(
+            "kpop_scraping.release_pipeline.count_statuses",
+            side_effect=RuntimeError("after staleness"),
+        ), self.assertRaisesRegex(RuntimeError, "after staleness"):
+            collect_release_facts(self.repository, object(), current_run)
+
+        state = self.connection.execute(
+            "SELECT state FROM release_candidates WHERE run_id=?", (old_run,)
+        ).fetchone()[0]
+        self.assertEqual(state, "accepted")
+        fact_run = self.connection.execute(
+            "SELECT status,error FROM fact_runs ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        self.assertEqual(tuple(fact_run), ("failed", "after staleness"))
+
+    def test_metrics_count_scope_groups_and_only_saved_release_entities(self):
+        run_id = self._run(groups=(1,))
+
+        first = collect_release_facts(self.repository, object(), run_id)
+        second = collect_release_facts(self.repository, object(), run_id)
+
+        self.assertEqual((first.groups, first.entities), (1, 0))
+        self.assertEqual(second, first)
+        persisted = self.connection.execute(
+            """SELECT groups_processed,entities_saved FROM fact_runs
+            ORDER BY id DESC LIMIT 2"""
+        ).fetchall()
+        self.assertEqual([tuple(row) for row in persisted], [(1, 0), (1, 0)])
 
 
 if __name__ == "__main__":
