@@ -532,10 +532,23 @@ class SnapshotStore:
                 os.fsync(temporary.fileno())
                 temporary_path = Path(temporary.name)
             os.replace(temporary_path, target)
+            self._sync_directory(target.parent)
         finally:
             if temporary_path is not None and temporary_path.exists():
                 temporary_path.unlink()
         return relative_path.as_posix(), digest
+
+    @staticmethod
+    def _sync_directory(directory: Path) -> None:
+        if os.name != "posix":
+            return
+
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        directory_fd = os.open(directory, flags)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
 
     def read(self, relative_path: str, expected_digest: str) -> bytes:
         """Return decompressed snapshot bytes after checking their hash."""

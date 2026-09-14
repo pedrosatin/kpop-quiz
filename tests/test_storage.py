@@ -1,14 +1,17 @@
 import gzip
 import hashlib
+import os
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from kpop_scraping.collector import collect_category
 from kpop_scraping.mediawiki import Page
 from kpop_scraping.storage import (
     Repository,
+    SnapshotStore,
     SnapshotIntegrityError,
     apply_migrations,
     canonical_json,
@@ -43,6 +46,92 @@ class SnapshotClient:
 
 
 class StorageTest(unittest.TestCase):
+    def test_snapshot_write_syncs_file_then_directory_after_replace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            store = SnapshotStore(root / "raw")
+            events = []
+            real_replace = os.replace
+
+            def record_fsync(file_descriptor):
+                events.append(("fsync_file", file_descriptor))
+
+            def record_replace(source, target):
+                events.append(("replace", Path(source), Path(target)))
+                real_replace(source, target)
+
+            def record_directory_sync(path):
+                events.append(("sync_directory", path))
+
+            with (
+                patch("kpop_scraping.storage.os.fsync", side_effect=record_fsync),
+                patch("kpop_scraping.storage.os.replace", side_effect=record_replace),
+                patch.object(
+                    store, "_sync_directory", side_effect=record_directory_sync
+                ),
+            ):
+                relative_path, _digest = store.write(
+                    "wikipedia", "en", 10, 77, b'{"pageid":10}'
+                )
+
+            target = root / "raw" / relative_path
+            self.assertEqual(
+                [event[0] for event in events],
+                ["fsync_file", "replace", "sync_directory"],
+            )
+            self.assertEqual(events[1][2], target)
+            self.assertEqual(events[2][1], target.parent)
+            self.assertTrue(target.is_file())
+
+    def test_snapshot_write_propagates_directory_sync_failure_without_temp_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw_dir = Path(directory) / "raw"
+            store = SnapshotStore(raw_dir)
+
+            with patch.object(
+                store, "_sync_directory", side_effect=OSError("I/O error")
+            ):
+                with self.assertRaisesRegex(OSError, "I/O error"):
+                    store.write("wikipedia", "en", 10, 77, b'{"pageid":10}')
+
+            target = raw_dir / "wikipedia" / "en" / "10" / "77.json.gz"
+            self.assertTrue(target.is_file())
+            self.assertEqual(
+                list(target.parent.glob(f".{target.name}.*")),
+                [],
+            )
+
+    @unittest.skipUnless(os.name == "posix", "directory fsync is POSIX-specific")
+    def test_directory_sync_opens_fsyncs_and_closes_directory(self):
+        directory = Path("/tmp/snapshot-directory")
+        directory_fd = 91
+        with (
+            patch("kpop_scraping.storage.os.open", return_value=directory_fd) as open_mock,
+            patch("kpop_scraping.storage.os.fsync") as fsync_mock,
+            patch("kpop_scraping.storage.os.close") as close_mock,
+        ):
+            SnapshotStore._sync_directory(directory)
+
+        expected_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        open_mock.assert_called_once_with(directory, expected_flags)
+        fsync_mock.assert_called_once_with(directory_fd)
+        close_mock.assert_called_once_with(directory_fd)
+
+    @unittest.skipUnless(os.name == "posix", "directory fsync is POSIX-specific")
+    def test_directory_sync_closes_descriptor_when_fsync_fails(self):
+        directory_fd = 92
+        with (
+            patch("kpop_scraping.storage.os.open", return_value=directory_fd),
+            patch(
+                "kpop_scraping.storage.os.fsync", side_effect=OSError("I/O error")
+            ),
+            patch("kpop_scraping.storage.os.close") as close_mock,
+        ):
+            with self.assertRaisesRegex(OSError, "I/O error"):
+                SnapshotStore._sync_directory(Path("/tmp/snapshot-directory"))
+
+        close_mock.assert_called_once_with(directory_fd)
+
     def test_failed_migration_rolls_back_all_its_statements(self):
         connection = sqlite3.connect(":memory:")
         migrations = (
