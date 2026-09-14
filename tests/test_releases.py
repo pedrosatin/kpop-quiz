@@ -12,8 +12,6 @@ from kpop_scraping.release_discovery import WikidataQueryClient, _parse_results,
 from kpop_scraping.release_facts import release_entity_type, release_fact_candidates
 from kpop_scraping.release_pipeline import _performer_entity_ids
 from kpop_scraping.storage import MIGRATIONS, apply_migrations
-from kpop_scraping.quiz_models import Entity, Evidence, Fact
-from kpop_scraping.release_quiz_drafts import build_release_drafts
 
 
 def item_statement(statement_id, property_id, value, qualifiers=None):
@@ -97,26 +95,6 @@ class ReleaseFactTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "candidate limit"):
             from kpop_scraping.release_discovery import discover_releases
             discover_releases(None, None, max_per_group=0)
-
-    def test_quizzes_include_scope_facts_and_exclude_other_correct_answers(self):
-        groups = [Entity(f"QG{i}", "group", f"Group {i}", {}) for i in range(4)]
-        releases = [Entity(f"QR{i}", "album", f"Album {i}", {}) for i in range(4)]
-        facts = []
-        for index, (group, release) in enumerate(zip(groups, releases)):
-            performer_id = f"performer-{index}"
-            date_id = f"date-{index}"
-            facts.extend([
-                Fact(performer_id, release, "performed_by", group, None, None, None, None, None, None, (), (Evidence(performer_id, "domain:example.com", "P175", "https://example.com", 1),)),
-                Fact(date_id, release, "released_on", None, f"20{index:02d}-01-01", 11, None, None, None, None, (), (Evidence(date_id, "domain:example.com", "P577", "https://example.com", 1),)),
-            ])
-        drafts, _ = build_release_drafts(facts)
-        self.assertEqual({draft.question_type for draft in drafts}, {"release_for_group", "group_for_release", "release_year", "earliest_release"})
-        for draft in drafts:
-            if draft.question_type in {"release_year", "earliest_release"}:
-                self.assertTrue(any(value.startswith("performer-") for value in draft.fact_base_ids))
-        earliest = [draft for draft in drafts if draft.question_type == "earliest_release"]
-        self.assertEqual(len(earliest), 1)
-
 
 class ReleaseMigrationTest(unittest.TestCase):
     def test_v5_rows_ids_and_foreign_keys_survive_release_migration(self):

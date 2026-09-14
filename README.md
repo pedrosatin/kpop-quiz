@@ -2,7 +2,7 @@
 
 Coletor e base de dados para quizzes verificáveis sobre grupos e artistas de K-pop. O projeto consulta as APIs da Wikipedia e do Wikidata, registra as revisões consultadas no SQLite e preserva as respostas das páginas e entidades em JSON comprimido.
 
-O estado atual cobre descoberta de páginas, resumos, classificação de candidatos e extração de fatos do Wikidata para grupos aceitos, integrantes e lançamentos musicais. O catálogo rejeita listas, desambiguações, redirecionamentos e QIDs sem um tipo musical aceito. Cada fato aceito aponta para uma referência do Wikidata ou para um trecho de revisão da Wikipedia.
+O estado atual cobre descoberta de páginas, resumos, classificação de candidatos e extração de fatos do Wikidata para grupos aceitos e integrantes. Também há um catálogo auditável de candidatos a lançamentos musicais. O catálogo rejeita listas, desambiguações, redirecionamentos e QIDs sem um tipo musical aceito. Cada fato aceito aponta para uma referência do Wikidata ou para um trecho de revisão da Wikipedia.
 
 ## Requisitos
 
@@ -66,7 +66,7 @@ Uma nova execução atualiza cada página pela combinação de provedor, idioma 
 
 A etapa de fatos roda com `--facts`, `--facts-limit` ou `--facts-report`. Ela grava entidades, aliases, fatos e evidências. O CSV de cobertura mostra, por grupo e predicado, quantos fatos foram aceitos, rejeitados, substituídos ou ficaram em conflito. Sem `--facts-report`, o arquivo `facts-coverage.csv` fica ao lado do banco. Repetir a etapa atualiza cada fato pelo ID da afirmação do Wikidata.
 
-`--releases` usa o WDQS somente para descobrir candidatos. A consulta e a resposta ficam em snapshots com SHA-256. Cada QID é buscado de novo por `wbgetentities`; classe, artista, data e gênero são confirmados nesse snapshot direto. O limite padrão é de 25 grupos por consulta e 100 candidatos por grupo.
+`--releases` usa o WDQS somente para descobrir candidatos. A consulta e a resposta ficam em snapshots com SHA-256. Cada QID é buscado de novo por `wbgetentities`; classe, artista, data e gênero são confirmados nesse snapshot direto. Fatos sem referência aprovada ficam rejeitados ou em conflito e não alimentam quizzes. Na amostra inicial, nenhum fato de lançamento passou pela política de evidência. O limite padrão é de 25 grupos por consulta e 100 candidatos por grupo.
 
 `python -m kpop_scraping.quiz_cli` lê o banco sem executar coleta. O comando grava um dataset bilíngue e um relatório em JSON canônico. `--session-output` também grava uma sessão de dez perguntas. Os filtros `--session-language`, `--theme`, `--group` e `--difficulty` podem ser combinados. `--timer-seconds` registra o limite na configuração da sessão.
 

@@ -47,22 +47,11 @@ def generate_dataset(
     drafts, generation_rejections = _build_drafts(facts, entities, reference_date)
     rejected.update(generation_rejections)
     entities_by_qid = {entity.wikidata_id: entity for entity in entities.values()}
-    questions = []
-    publishable_drafts = []
-    for draft in drafts:
-        try:
-            variants = [
-                _render_draft(draft, language, reference_date, entities_by_qid)
-                for language in selected_languages
-            ]
-        except ValueError as exc:
-            if not str(exc).startswith("translated option labels are not distinct"):
-                raise
-            rejected["translated_option_labels_not_distinct"] += 1
-            continue
-        publishable_drafts.append(draft)
-        questions.extend(variants)
-    drafts = publishable_drafts
+    questions = [
+        _render_draft(draft, language, reference_date, entities_by_qid)
+        for draft in drafts
+        for language in selected_languages
+    ]
     questions.sort(key=lambda question: (question["logical_id"], question["language"]))
     payload = {
         "dataset_version": dataset_version,
@@ -104,3 +93,4 @@ def generate_dataset(
     validate_dataset(payload)
     validate_report(report)
     return payload, report
+
