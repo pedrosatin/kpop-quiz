@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 
 from .facts import GROUP_PREDICATES, PERSON_PREDICATES
+from .release_facts import RELEASE_PREDICATES
 from .storage import spreadsheet_safe
 
 
@@ -119,6 +120,38 @@ def export_fact_coverage_csv(connection: sqlite3.Connection, output_path: Path) 
             {key: spreadsheet_safe(value) for key, value in row.items()} for row in rows
         )
     return len(rows)
+
+
+def export_release_coverage_csv(connection: sqlite3.Connection, output_path: Path) -> int:
+    """Write release discovery and fact coverage by catalog group."""
+    fields = ("group_wikidata_id", "group_name", "candidates", "candidate_accepted", "candidate_rejected", "release_entities", "predicate", *STATUSES)
+    groups = connection.execute(
+        """SELECT DISTINCT g.id,g.wikidata_id,g.canonical_name FROM release_candidates rc
+        JOIN entities g ON g.id=rc.group_entity_id ORDER BY g.wikidata_id"""
+    ).fetchall()
+    output_rows = []
+    for group in groups:
+        candidate_counts = {row["state"]: int(row["total"]) for row in connection.execute(
+            "SELECT state,COUNT(*) total FROM release_candidates WHERE group_entity_id=? GROUP BY state", (group["id"],)
+        )}
+        release_ids = [int(row[0]) for row in connection.execute(
+            "SELECT DISTINCT entity_id FROM release_candidates WHERE group_entity_id=? AND state='accepted' AND entity_id IS NOT NULL", (group["id"],)
+        )]
+        for spec in RELEASE_PREDICATES:
+            statuses = {status: 0 for status in STATUSES}
+            if release_ids:
+                placeholders = ",".join("?" for _ in release_ids)
+                for row in connection.execute(
+                    f"SELECT status,COUNT(*) total FROM facts WHERE subject_entity_id IN ({placeholders}) AND predicate=? GROUP BY status", (*release_ids, spec.predicate)
+                ):
+                    statuses[row["status"]] = int(row["total"])
+            output_rows.append({"group_wikidata_id": group["wikidata_id"], "group_name": group["canonical_name"], "candidates": sum(candidate_counts.values()), "candidate_accepted": candidate_counts.get("accepted", 0), "candidate_rejected": candidate_counts.get("rejected", 0), "release_entities": len(release_ids), "predicate": spec.predicate, **statuses})
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="") as output:
+        writer = csv.DictWriter(output, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows({key: spreadsheet_safe(value) for key, value in row.items()} for row in output_rows)
+    return len(output_rows)
 
 
 def _add(counts: Counts, key: tuple[int, str], status: str, total: int) -> None:

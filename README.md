@@ -2,7 +2,7 @@
 
 Coletor e base de dados para quizzes verificáveis sobre grupos e artistas de K-pop. O projeto consulta as APIs da Wikipedia e do Wikidata, registra as revisões consultadas no SQLite e preserva as respostas das páginas e entidades em JSON comprimido.
 
-O estado atual cobre descoberta de páginas, resumos, classificação de candidatos e extração de fatos do Wikidata para grupos aceitos e integrantes. O catálogo rejeita listas, desambiguações, redirecionamentos e QIDs sem um tipo musical aceito. Cada fato aceito aponta para uma referência do Wikidata ou para um trecho de revisão da Wikipedia.
+O estado atual cobre descoberta de páginas, resumos, classificação de candidatos e extração de fatos do Wikidata para grupos aceitos, integrantes e lançamentos musicais. O catálogo rejeita listas, desambiguações, redirecionamentos e QIDs sem um tipo musical aceito. Cada fato aceito aponta para uma referência do Wikidata ou para um trecho de revisão da Wikipedia.
 
 ## Requisitos
 
@@ -41,6 +41,7 @@ python main.py --help
 python main.py --limit 3 --database /tmp/kpop-quiz.db
 python main.py --limit 3 --catalog-report /tmp/kpop-catalog.csv
 python main.py --limit 45 --database /tmp/kpop.db --facts-limit 30 --facts-report /tmp/kpop-facts.csv
+python main.py --limit 45 --database /tmp/kpop.db --releases --release-group-limit 10 --release-report /tmp/kpop-releases.csv
 python -m kpop_scraping.quiz_cli --database /tmp/kpop.db --output /tmp/questions.json --report /tmp/quiz-report.json --session-output /tmp/session.json --seed rodada-1 --timer-seconds 20
 python -m kpop_scraping.web_publish --database /tmp/kpop.db --output-dir web/public/data --seed web-launch-v1 --timer-seconds 20
 python -m kpop_scraping.web_publish --output-dir web/public/data --verify
@@ -64,6 +65,8 @@ O comando `web_publish` gera uma sessão de dez perguntas para cada idioma. Os a
 Uma nova execução atualiza cada página pela combinação de provedor, idioma e `pageid`. `collection_runs` registra sucesso ou falha. `source_pages` guarda o estado mais recente, `source_revisions` aponta para cada snapshot e seu SHA-256, e `collection_run_revisions` registra as revisões usadas em cada execução. `catalog_entries` guarda uma decisão por página. Uma revisão nova ou uma mudança nos metadados usados pelo classificador devolve a página ao estado `candidate`.
 
 A etapa de fatos roda com `--facts`, `--facts-limit` ou `--facts-report`. Ela grava entidades, aliases, fatos e evidências. O CSV de cobertura mostra, por grupo e predicado, quantos fatos foram aceitos, rejeitados, substituídos ou ficaram em conflito. Sem `--facts-report`, o arquivo `facts-coverage.csv` fica ao lado do banco. Repetir a etapa atualiza cada fato pelo ID da afirmação do Wikidata.
+
+`--releases` usa o WDQS somente para descobrir candidatos. A consulta e a resposta ficam em snapshots com SHA-256. Cada QID é buscado de novo por `wbgetentities`; classe, artista, data e gênero são confirmados nesse snapshot direto. O limite padrão é de 25 grupos por consulta e 100 candidatos por grupo.
 
 `python -m kpop_scraping.quiz_cli` lê o banco sem executar coleta. O comando grava um dataset bilíngue e um relatório em JSON canônico. `--session-output` também grava uma sessão de dez perguntas. Os filtros `--session-language`, `--theme`, `--group` e `--difficulty` podem ser combinados. `--timer-seconds` registra o limite na configuração da sessão.
 

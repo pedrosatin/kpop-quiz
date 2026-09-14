@@ -24,7 +24,7 @@ def _render_draft(
         }
     )
     values = dict(draft.values)
-    for key in ("group_id", "person_id"):
+    for key in ("group_id", "person_id", "release_id"):
         if key in values:
             values[key.removesuffix("_id")] = entities[values[key]].name(language)
     if "record_label_id" in values:
@@ -86,7 +86,7 @@ def _render_draft(
 
 
 def _option_label(value: str, kind: str, language: str, entities: dict[str, Entity]) -> str:
-    if kind in {"group", "person", "organization"}:
+    if kind in {"group", "person", "organization", "release", "album"}:
         return entities[value].name(language)
     if kind == "number":
         return value
@@ -99,6 +99,10 @@ def _draft_predicate(draft: Draft) -> str:
         return "born_on" if draft.values["comparison_kind"] == "person" else "formed_on"
     if draft.question_type == "formation_year":
         return "formed_on"
+    if draft.question_type in {"release_for_group", "group_for_release"}:
+        return "performed_by"
+    if draft.question_type in {"release_year", "earliest_release"}:
+        return "released_on+performed_by"
     if draft.question_type in {"birth_date_or_place", "age_on_date"}:
         return "born_on"
     if draft.question_type in {"group_for_record_label", "record_label_for_group"}:
