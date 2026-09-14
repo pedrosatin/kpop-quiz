@@ -29,7 +29,8 @@ export interface Messages {
   answerWas: string;
   evidence: string;
   revision: string;
-  openSource: string;
+  declaredReference: string;
+  openRevision: (project: string) => string;
   resultTitle: string;
   resultText: (score: number, total: number) => string;
   restart: string;
@@ -66,7 +67,8 @@ const catalogs: Record<Locale, Messages> = {
     answerWas: "Resposta correta",
     evidence: "Fonte da resposta",
     revision: "revisão",
-    openSource: "Abrir fonte",
+    declaredReference: "Referência declarada",
+    openRevision: (project) => `Abrir revisão no ${project}`,
     resultTitle: "Fim da rodada",
     resultText: (score, total) => `Você acertou ${score} de ${total}.`,
     restart: "Jogar novamente",
@@ -101,7 +103,8 @@ const catalogs: Record<Locale, Messages> = {
     answerWas: "Correct answer",
     evidence: "Answer source",
     revision: "revision",
-    openSource: "Open source",
+    declaredReference: "Declared reference",
+    openRevision: (project) => `Open revision on ${project}`,
     resultTitle: "Round complete",
     resultText: (score, total) => `You got ${score} out of ${total}.`,
     restart: "Play again",

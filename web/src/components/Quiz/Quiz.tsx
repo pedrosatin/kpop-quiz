@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
-import { isQuizSession, type Locale, type QuizSession } from "../../lib/quiz-types";
+import { isQuizSession, type Locale, type QuizQuestion, type QuizSession } from "../../lib/quiz-types";
 import { loadQuizSession, QuizArtifactError } from "../../data/session-loader";
 
 type Status = "loading" | "ready" | "missing" | "invalid";
@@ -191,9 +191,11 @@ export function Quiz({ locale }: { locale: Locale }) {
           <p>{question.explanation}</p>
           <details>
             <summary>{messages.evidence}</summary>
-            {question.evidence.map((evidence) => (
-              <p key={`${evidence.source_key}-${evidence.revision_id}`}>
-                {sourceLabel(evidence.source_key)}, {messages.revision} {evidence.revision_id}. <a href={evidence.source_url} target="_blank" rel="noreferrer">{messages.openSource}<span class="visually-hidden"> ({sourceLabel(evidence.source_key)})</span></a>
+            {groupEvidence(question.evidence).map((evidence) => (
+              <p key={`${evidence.source_url}-${evidence.revision_id}-${evidence.locator}`}>
+                {evidence.project}, {messages.revision} {evidence.revision_id}.
+                {evidence.declaredReference && <> {messages.declaredReference}: {evidence.declaredReference}.</>}
+                {" "}<a href={evidence.source_url} target="_blank" rel="noreferrer">{messages.openRevision(evidence.project)}</a>
               </p>
             ))}
           </details>
@@ -206,10 +208,31 @@ export function Quiz({ locale }: { locale: Locale }) {
   );
 }
 
-function sourceLabel(sourceKey: string): string {
-  if (sourceKey.startsWith("domain:")) return sourceKey.slice("domain:".length);
-  if (sourceKey.startsWith("wikipedia:")) return `Wikipedia (${sourceKey.slice("wikipedia:".length)})`;
-  return sourceKey;
+interface DisplayEvidence {
+  source_url: string;
+  revision_id: number;
+  locator: string;
+  project: "Wikidata" | "Wikipedia";
+  declaredReference: string | null;
+}
+
+export function groupEvidence(evidenceItems: QuizQuestion["evidence"]): DisplayEvidence[] {
+  const groups = new Map<string, DisplayEvidence>();
+  for (const evidence of evidenceItems) {
+    const key = `${evidence.source_url}\u0000${evidence.revision_id}\u0000${evidence.locator}`;
+    if (groups.has(key)) continue;
+    const wikidata = new URL(evidence.source_url).hostname === "www.wikidata.org";
+    groups.set(key, {
+      source_url: evidence.source_url,
+      revision_id: evidence.revision_id,
+      locator: evidence.locator,
+      project: wikidata ? "Wikidata" : "Wikipedia",
+      declaredReference: wikidata && evidence.source_key.startsWith("domain:")
+        ? evidence.source_key.slice("domain:".length)
+        : null,
+    });
+  }
+  return [...groups.values()];
 }
 
 function QuizState({ label, busy = false, action, onAction }: { label: string; busy?: boolean; action?: string; onAction?: () => void }) {

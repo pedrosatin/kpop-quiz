@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Quiz } from "./Quiz";
-import ptSession from "../../../public/data/session.pt-BR.5d76c46b8310c1e9f0f784a9b6dadd6d3d7872f51b0b64c2d4eb12cf29ab2621.json";
-import enSession from "../../../public/data/session.en.622658954ce270fede6f7ad0bfc2b0fee134d3c6c00873a587cdfeac992df378.json";
+import { groupEvidence, Quiz } from "./Quiz";
+import ptSession from "../../../public/data/session.pt-BR.8d417106807a63a77b82e4ffa067fa49c4b5318f3f0f13633622c30dc2ec0461.json";
+import enSession from "../../../public/data/session.en.4c237c135056ebeca531204cfe59a86ef01a8a761552dba08b01c1eb128950c3.json";
 import manifest from "../../../public/data/manifest.json";
 
 function mockSessionFetch() {
@@ -26,6 +26,30 @@ describe("Quiz", () => {
     vi.unstubAllGlobals();
   });
 
+  it("groups visually identical evidence without changing the session", () => {
+    const first = ptSession.questions.find((question) => question.evidence.length > 0)!.evidence[0]!;
+    const duplicate = { ...first, fact_base_id: "another-fact" };
+    const evidence = [first, duplicate];
+    const displayed = groupEvidence(evidence);
+    expect(displayed).toHaveLength(1);
+    expect(evidence).toHaveLength(2);
+  });
+
+  it("labels a Wikidata revision separately from its declared reference", () => {
+    const displayed = groupEvidence([{
+      fact_base_id: "fact",
+      locator: "wikidata:Q1:P31",
+      revision_id: 123,
+      source_key: "domain:example.com",
+      source_url: "https://www.wikidata.org/w/index.php?title=Special:EntityPage/Q1&oldid=123",
+    }]);
+    expect(displayed[0]).toMatchObject({
+      project: "Wikidata",
+      declaredReference: "example.com",
+      revision_id: 123,
+    });
+  });
+
   it("loads the requested language and reveals sourced feedback", async () => {
     await renderReady();
     const question = ptSession.questions[0]!;
@@ -36,9 +60,9 @@ describe("Quiz", () => {
     expect(screen.getByText(question.explanation)).toBeInTheDocument();
     expect(screen.getByText("Fonte da resposta")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Fonte da resposta"));
-    expect(screen.getAllByText(/\.co\.kr|\.com|\.jp|Wikipedia/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Wikidata|Wikipedia/)[0]).toBeInTheDocument();
     expect(screen.queryByText(question.evidence[0]!.locator)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Abrir fonte/ })[0]).toHaveAttribute("href", question.evidence[0]!.source_url);
+    expect(screen.getAllByRole("link", { name: /Abrir revisão/ })[0]).toHaveAttribute("href", question.evidence[0]!.source_url);
   });
 
   it("ignores a stale session response after the locale changes", async () => {
