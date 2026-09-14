@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kpop-quiz.local/schemas/quiz-dataset-v1.json",
+  "title": "K-pop quiz dataset v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "dataset_version",
+    "generator_version",
+    "template_version",
+    "source_policy_version",
+    "reference_date",
+    "languages",
+    "logical_question_count",
+    "language_variant_count",
+    "questions"
+  ],
+  "properties": {
+    "schema_version": {"const": "kpop-quiz-dataset-v1"},
+    "dataset_version": {"$ref": "#/$defs/hash"},
+    "generator_version": {"type": "string", "minLength": 1},
+    "template_version": {"type": "string", "minLength": 1},
+    "source_policy_version": {"type": "string", "minLength": 1},
+    "reference_date": {"type": "string", "format": "date"},
+    "languages": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["pt-BR", "en"]}
+    },
+    "logical_question_count": {"type": "integer", "minimum": 0},
+    "language_variant_count": {"type": "integer", "minimum": 0},
+    "questions": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/question"}
+    }
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "value", "value_type"],
+      "properties": {
+        "id": {"$ref": "#/$defs/hash"},
+        "label": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 1},
+        "value_type": {"enum": ["group", "person", "organization", "time", "number"]}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "revision_id", "source_key", "source_url"],
+      "properties": {
+        "locator": {"type": "string", "minLength": 1},
+        "revision_id": {"type": "integer", "minimum": 1},
+        "source_key": {"type": "string", "minLength": 1},
+        "source_url": {"type": "string", "format": "uri", "pattern": "^https://"}
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "logical_id",
+        "semantic_id",
+        "fact_base_ids",
+        "language",
+        "type",
+        "theme",
+        "difficulty",
+        "group_ids",
+        "prompt",
+        "options",
+        "answer_option_id",
+        "explanation",
+        "reference_date",
+        "evidence"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/hash"},
+        "logical_id": {"$ref": "#/$defs/hash"},
+        "semantic_id": {"$ref": "#/$defs/hash"},
+        "fact_base_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "language": {"enum": ["pt-BR", "en"]},
+        "type": {
+          "enum": [
+            "formation_year",
+            "member_at_date",
+            "birth_date_or_place",
+            "age_on_date",
+            "group_for_member",
+            "member_for_group",
+            "group_for_record_label",
+            "record_label_for_group",
+            "chronological_comparison"
+          ]
+        },
+        "theme": {"type": "string", "minLength": 1},
+        "difficulty": {"enum": ["easy", "medium", "hard"]},
+        "group_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "prompt": {"type": "string", "minLength": 1},
+        "options": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {"$ref": "#/$defs/option"}
+        },
+        "answer_option_id": {"$ref": "#/$defs/hash"},
+        "explanation": {"type": "string", "minLength": 1},
+        "reference_date": {"type": "string", "format": "date"},
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/evidence"}
+        }
+      }
+    }
+  }
+}
