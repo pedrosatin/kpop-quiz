@@ -59,6 +59,53 @@ class QuizGeneratorTest(unittest.TestCase):
             )
             self.assertTrue(all(item["source_url"].startswith("https://") for item in question["evidence"]))
 
+    def test_people_and_groups_use_one_canonical_name_in_both_languages(self):
+        group_id = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QG1'"
+        ).fetchone()[0]
+        person_id = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QP1'"
+        ).fetchone()[0]
+        self.connection.executemany(
+            "INSERT INTO entity_aliases(entity_id, language, name, alias_type) VALUES (?, ?, ?, 'label')",
+            [
+                (group_id, "pt", "Nome antigo do grupo"),
+                (group_id, "en", "Current group name"),
+                (person_id, "pt", "Romanização A"),
+                (person_id, "en", "Romanization B"),
+            ],
+        )
+        self.connection.commit()
+
+        dataset, _report = generate_dataset(self.connection)
+        labels: dict[tuple[str, str], str] = {}
+        for question in dataset["questions"]:
+            for option in question["options"]:
+                if option["value"] in {"QG1", "QP1"}:
+                    labels[(question["language"], option["value"])] = option["label"]
+        self.assertEqual(labels[("pt-BR", "QG1")], labels[("en", "QG1")])
+        self.assertEqual(labels[("pt-BR", "QP1")], labels[("en", "QP1")])
+
+    def test_editorial_copy_exposes_comparison_values_without_pipeline_language(self):
+        dataset, _report = generate_dataset(self.connection)
+        forbidden = ("afirmação citada", "cited statement")
+        for question in dataset["questions"]:
+            copy = f"{question['prompt']} {question['explanation']}".lower()
+            self.assertTrue(all(phrase not in copy for phrase in forbidden))
+            if question["type"] == "chronological_comparison":
+                for option in question["options"]:
+                    self.assertIn(option["label"], question["explanation"])
+                self.assertEqual(question["explanation"].count("("), 4)
+
+    def test_full_dates_are_localized_in_prose(self):
+        dataset, _report = generate_dataset(self.connection)
+        age_questions = [
+            question for question in dataset["questions"]
+            if question["type"] == "age_on_date"
+        ]
+        self.assertTrue(any("13 de setembro de 2026" in q["prompt"] for q in age_questions))
+        self.assertTrue(any("13 September 2026" in q["prompt"] for q in age_questions))
+
     def test_relation_distractors_are_not_other_valid_answers(self):
         dataset, _report = generate_dataset(self.connection)
         member_ids_by_group = {

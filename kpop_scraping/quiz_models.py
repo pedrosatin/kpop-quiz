@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-GENERATOR_VERSION = "quiz-generator-v4"
+GENERATOR_VERSION = "quiz-generator-v5"
 DEFAULT_REFERENCE_DATE = date(2026, 9, 13)
 
 
@@ -32,6 +32,11 @@ class Entity:
     names: dict[str, str]
 
     def name(self, language: str) -> str:
+        # Person and group names are identities, not translations.  Using one
+        # canonical label prevents aliases and former names from changing when
+        # the interface language changes.
+        if self.entity_type in {"person", "group"}:
+            return self.canonical_name
         preferred = "pt" if language == "pt-BR" else "en"
         fallback = "en" if preferred == "pt" else "pt"
         return self.names.get(preferred) or self.names.get(fallback) or self.canonical_name
@@ -80,6 +85,6 @@ class Draft:
     group_ids: tuple[str, ...]
     answer: tuple[str, str]
     alternatives: tuple[tuple[str, str], ...]
-    values: dict[str, str]
+    values: dict[str, Any]
     evidence: tuple[Evidence, ...]
     fact_base_ids: tuple[str, ...]
