@@ -124,18 +124,24 @@ def export_fact_coverage_csv(connection: sqlite3.Connection, output_path: Path) 
 
 def export_release_coverage_csv(connection: sqlite3.Connection, output_path: Path) -> int:
     """Write release discovery and fact coverage by catalog group."""
-    fields = ("group_wikidata_id", "group_name", "candidates", "candidate_accepted", "candidate_rejected", "release_entities", "predicate", *STATUSES)
+    fields = ("discovery_run_id", "group_wikidata_id", "group_name", "candidates", "candidate_accepted", "candidate_rejected", "release_entities", "predicate", *STATUSES)
+    latest = connection.execute(
+        "SELECT MAX(id) FROM release_discovery_runs WHERE status='completed'"
+    ).fetchone()[0]
+    if latest is None:
+        raise ValueError("no completed release discovery run is available")
     groups = connection.execute(
-        """SELECT DISTINCT g.id,g.wikidata_id,g.canonical_name FROM release_candidates rc
-        JOIN entities g ON g.id=rc.group_entity_id ORDER BY g.wikidata_id"""
+        """SELECT DISTINCT g.id,g.wikidata_id,g.canonical_name FROM release_discovery_groups rdg
+        JOIN entities g ON g.id=rdg.group_entity_id WHERE rdg.run_id=? ORDER BY g.wikidata_id""",
+        (latest,),
     ).fetchall()
     output_rows = []
     for group in groups:
         candidate_counts = {row["state"]: int(row["total"]) for row in connection.execute(
-            "SELECT state,COUNT(*) total FROM release_candidates WHERE group_entity_id=? GROUP BY state", (group["id"],)
+            "SELECT state,COUNT(*) total FROM release_candidates WHERE run_id=? AND group_entity_id=? GROUP BY state", (latest, group["id"])
         )}
         release_ids = [int(row[0]) for row in connection.execute(
-            "SELECT DISTINCT entity_id FROM release_candidates WHERE group_entity_id=? AND state='accepted' AND entity_id IS NOT NULL", (group["id"],)
+            "SELECT DISTINCT entity_id FROM release_candidates WHERE run_id=? AND group_entity_id=? AND state='accepted' AND entity_id IS NOT NULL", (latest, group["id"])
         )]
         for spec in RELEASE_PREDICATES:
             statuses = {status: 0 for status in STATUSES}
@@ -145,7 +151,7 @@ def export_release_coverage_csv(connection: sqlite3.Connection, output_path: Pat
                     f"SELECT status,COUNT(*) total FROM facts WHERE subject_entity_id IN ({placeholders}) AND predicate=? GROUP BY status", (*release_ids, spec.predicate)
                 ):
                     statuses[row["status"]] = int(row["total"])
-            output_rows.append({"group_wikidata_id": group["wikidata_id"], "group_name": group["canonical_name"], "candidates": sum(candidate_counts.values()), "candidate_accepted": candidate_counts.get("accepted", 0), "candidate_rejected": candidate_counts.get("rejected", 0), "release_entities": len(release_ids), "predicate": spec.predicate, **statuses})
+            output_rows.append({"discovery_run_id": latest, "group_wikidata_id": group["wikidata_id"], "group_name": group["canonical_name"], "candidates": sum(candidate_counts.values()), "candidate_accepted": candidate_counts.get("accepted", 0), "candidate_rejected": candidate_counts.get("rejected", 0), "release_entities": len(release_ids), "predicate": spec.predicate, **statuses})
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="") as output:
         writer = csv.DictWriter(output, fieldnames=fields)
