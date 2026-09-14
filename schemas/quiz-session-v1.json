@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kpop-quiz.local/schemas/quiz-session-v1.json",
+  "title": "K-pop quiz session v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "dataset_version", "session_id", "config", "questions"],
+  "properties": {
+    "schema_version": {"const": "kpop-quiz-session-v1"},
+    "dataset_version": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "session_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "questions": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {"$ref": "quiz-dataset-v1.json#/$defs/question"}
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "seed", "theme", "group_id", "difficulty", "timer_seconds"],
+      "properties": {
+        "language": {"enum": ["pt-BR", "en"]},
+        "seed": {"type": "string"},
+        "theme": {"type": ["string", "null"]},
+        "group_id": {"type": ["string", "null"]},
+        "difficulty": {"enum": ["easy", "medium", "hard", null]},
+        "timer_seconds": {"type": ["integer", "null"], "minimum": 1}
+      }
+    }
+  }
+}
