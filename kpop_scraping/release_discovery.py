@@ -12,13 +12,15 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .mediawiki import MediaWikiError, parse_retry_after
-from .storage import Repository, canonical_json, utc_now
+from .storage import Repository, utc_now
 
 
 DISCOVERER_VERSION = "release-discovery-v1"
 DEFAULT_ENDPOINT = "https://query.wikidata.org/sparql"
 MAX_GROUPS_PER_QUERY = 25
 MAX_CANDIDATES_PER_GROUP = 100
+MAX_RESPONSE_BYTES = 5_000_000
+RETRYABLE_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
 ALLOWED_DIRECT_TYPES = ("Q482994", "Q169930", "Q134556")
 
 
@@ -28,6 +30,12 @@ class DiscoveredRelease:
     release_id: str
 
 
+@dataclass(frozen=True)
+class QueryResult:
+    body: bytes
+    http_status: int
+
+
 class WikidataQueryClient:
     def __init__(
         self,
@@ -35,6 +43,7 @@ class WikidataQueryClient:
         user_agent: str = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-scraping)",
         timeout: float = 30,
         retries: int = 2,
+        max_response_bytes: int = MAX_RESPONSE_BYTES,
         opener: Callable[..., Any] = urlopen,
     ) -> None:
         if not user_agent.strip():
@@ -43,9 +52,12 @@ class WikidataQueryClient:
         self.user_agent = user_agent
         self.timeout = timeout
         self.retries = retries
+        if max_response_bytes < 1:
+            raise ValueError("max_response_bytes must be positive")
+        self.max_response_bytes = max_response_bytes
         self.opener = opener
 
-    def query(self, sparql: str) -> bytes:
+    def query(self, sparql: str) -> QueryResult:
         request = Request(
             f"{self.endpoint}?{urlencode({'query': sparql, 'format': 'json'})}",
             headers={"Accept": "application/sparql-results+json", "User-Agent": self.user_agent},
@@ -53,16 +65,19 @@ class WikidataQueryClient:
         for attempt in range(self.retries + 1):
             try:
                 with self.opener(request, timeout=self.timeout) as response:
-                    body = response.read()
+                    body = response.read(self.max_response_bytes + 1)
+                    status = int(getattr(response, "status", 200))
+                if len(body) > self.max_response_bytes:
+                    raise MediaWikiError("WDQS response exceeds the configured size limit")
                 payload = json.loads(body)
                 if not isinstance(payload, dict) or not isinstance(payload.get("results", {}).get("bindings"), list):
                     raise MediaWikiError("WDQS response has an unexpected shape")
-                return canonical_json(payload)
+                return QueryResult(body, status)
             except HTTPError as exc:
                 headers = exc.headers
                 status = exc.code
                 exc.close()
-                if status != 429 or attempt >= self.retries:
+                if status not in RETRYABLE_HTTP_STATUS or attempt >= self.retries:
                     raise MediaWikiError(f"WDQS request failed with HTTP {status}") from exc
                 delay = parse_retry_after(headers.get("Retry-After")) or float(2**attempt)
                 if delay > 120:
@@ -100,6 +115,8 @@ def discover_releases(
 ) -> int:
     if not 1 <= group_limit <= MAX_GROUPS_PER_QUERY:
         raise ValueError("group_limit is outside the supported WDQS batch")
+    if not 1 <= max_per_group <= MAX_CANDIDATES_PER_GROUP:
+        raise ValueError("max_per_group is outside the supported candidate limit")
     groups = repository.connection.execute(
         """
         SELECT DISTINCT e.id, e.wikidata_id FROM entities e
@@ -122,13 +139,18 @@ def discover_releases(
         (DISCOVERER_VERSION, query, query_hash, client.endpoint, utc_now()),
     )
     run_id = int(cursor.lastrowid)
+    repository.connection.executemany(
+        "INSERT INTO release_discovery_groups(run_id,group_entity_id) VALUES (?,?)",
+        [(run_id, entity_id) for entity_id in sorted(by_qid.values())],
+    )
     repository.connection.commit()
     try:
-        body = client.query(query)
+        result = client.query(query)
+        body = result.body
         path, digest = repository.snapshots.write_discovery(run_id, body)
         repository.connection.execute(
-            "INSERT INTO release_discovery_snapshots(run_id,snapshot_path,content_sha256,fetched_at) VALUES (?,?,?,?)",
-            (run_id, path, digest, utc_now()),
+            "INSERT INTO release_discovery_snapshots(run_id,snapshot_path,content_sha256,http_status,fetched_at) VALUES (?,?,?,?,?)",
+            (run_id, path, digest, result.http_status, utc_now()),
         )
         releases = _parse_results(body, set(by_qid), max_per_group)
         repository.connection.executemany(

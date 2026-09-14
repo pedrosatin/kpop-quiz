@@ -36,7 +36,8 @@ def collect_release_facts(
 def _collect(repository, store, client, discovery_run_id, run_id, batch_size):
     rows = repository.connection.execute(
         """
-        SELECT rc.id, rc.requested_wikidata_id, g.wikidata_id AS group_qid
+        SELECT rc.id, rc.requested_wikidata_id, rc.group_entity_id,
+               g.wikidata_id AS group_qid
         FROM release_candidates rc JOIN entities g ON g.id=rc.group_entity_id
         JOIN release_discovery_runs r ON r.id=rc.run_id
         WHERE rc.run_id=? AND r.status='completed' ORDER BY rc.requested_wikidata_id,g.wikidata_id
@@ -77,24 +78,16 @@ def _collect(repository, store, client, discovery_run_id, run_id, batch_size):
                 _reject(repository, candidate_rows[qid], "release_class_not_allowed", document.wikidata_id, snapshot_id)
                 continue
             extracted = release_fact_candidates(document.wikidata_id, document.payload)
-            performers = {candidate.value_id for candidate in extracted.candidates if candidate.predicate == "performed_by"}
-            matched = [row for row in candidate_rows[qid] if row["group_qid"] in performers]
-            if not matched:
-                _reject(repository, candidate_rows[qid], "catalog_performer_not_confirmed", document.wikidata_id, snapshot_id)
-                continue
             entity_id, _ = store.save_entity(document, snapshot_id, SUBJECT_PROFILE.name, kind)
             for key in {qid, document.wikidata_id}:
                 entity_ids[key] = entity_id
                 entity_types[key] = kind
                 names[key] = matching_names(extract_aliases(document.payload))
-            for row in candidate_rows[qid]:
-                state = "accepted" if row in matched else "rejected"
-                reason = None if state == "accepted" else "catalog_performer_not_confirmed"
-                repository.connection.execute(
-                    "UPDATE release_candidates SET state=?,reason=?,resolved_wikidata_id=?,entity_id=?,snapshot_id=? WHERE id=?",
-                    (state, reason, document.wikidata_id, entity_id, snapshot_id, row["id"]),
-                )
             subjects.append((entity_id, snapshot_id, document.wikidata_id, extracted))
+            repository.connection.executemany(
+                "UPDATE release_candidates SET resolved_wikidata_id=?,entity_id=?,snapshot_id=? WHERE id=?",
+                [(document.wikidata_id, entity_id, snapshot_id, row["id"]) for row in candidate_rows[qid]],
+            )
             ignored += extracted.ignored
     value_roles = {}
     for _entity_id, _snapshot_id, _qid, extracted in subjects:
@@ -118,6 +111,17 @@ def _collect(repository, store, client, discovery_run_id, run_id, batch_size):
                 entity_ids[key] = entity_id
                 entity_types[key] = stored
                 names[key] = matching_names(extract_aliases(document.payload))
+    for qid, rows_for_qid in candidate_rows.items():
+        subject = next((item for item in subjects if item[0] == entity_ids.get(qid)), None)
+        if subject is None:
+            continue
+        performer_entity_ids = _performer_entity_ids(subject[3], entity_ids)
+        for row in rows_for_qid:
+            accepted = int(row["group_entity_id"]) in performer_entity_ids
+            repository.connection.execute(
+                "UPDATE release_candidates SET state=?,reason=? WHERE id=?",
+                ("accepted" if accepted else "rejected", None if accepted else "catalog_performer_not_confirmed", row["id"]),
+            )
     label_ids = sorted(qid for qid, role in value_roles.items() if role != "group")
     for offset in range(0, len(label_ids), batch_size):
         batch = label_ids[offset : offset + batch_size]
@@ -160,7 +164,7 @@ def _collect(repository, store, client, discovery_run_id, run_id, batch_size):
         WHERE status='accepted' AND subject_entity_id IN (
             SELECT DISTINCT previous.entity_id FROM release_candidates previous
             WHERE previous.run_id<>? AND previous.entity_id IS NOT NULL
-              AND previous.group_entity_id IN (SELECT group_entity_id FROM release_candidates WHERE run_id=?)
+              AND previous.group_entity_id IN (SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?)
               AND NOT EXISTS (
                 SELECT 1 FROM release_candidates current
                 WHERE current.run_id=? AND current.entity_id=previous.entity_id AND current.state='accepted'
@@ -168,7 +172,7 @@ def _collect(repository, store, client, discovery_run_id, run_id, batch_size):
               AND NOT EXISTS (
                 SELECT 1 FROM release_candidates outside_scope
                 WHERE outside_scope.entity_id=previous.entity_id AND outside_scope.state='accepted'
-                  AND outside_scope.group_entity_id NOT IN (SELECT group_entity_id FROM release_candidates WHERE run_id=?)
+                  AND outside_scope.group_entity_id NOT IN (SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?)
               )
         )""",
         (run_id, discovery_run_id, discovery_run_id, discovery_run_id, discovery_run_id),
@@ -188,3 +192,12 @@ def _reject(repository, rows, reason, resolved=None, snapshot_id=None):
         "UPDATE release_candidates SET state='rejected',reason=?,resolved_wikidata_id=?,snapshot_id=? WHERE id=?",
         [(reason, resolved, snapshot_id, row["id"]) for row in rows],
     )
+
+
+def _performer_entity_ids(extracted, entity_ids):
+    """Resolve P175 values to stored identities before matching catalog groups."""
+    return {
+        entity_ids[candidate.value_id]
+        for candidate in extracted.candidates
+        if candidate.predicate == "performed_by" and candidate.value_id in entity_ids
+    }

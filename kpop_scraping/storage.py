@@ -497,7 +497,15 @@ MIGRATIONS: tuple[Migration, ...] = (
             CREATE TABLE release_discovery_snapshots (
                 id INTEGER PRIMARY KEY, run_id INTEGER NOT NULL REFERENCES release_discovery_runs(id),
                 snapshot_path TEXT NOT NULL UNIQUE, content_sha256 TEXT NOT NULL CHECK(length(content_sha256)=64),
+                http_status INTEGER NOT NULL CHECK(http_status BETWEEN 100 AND 599),
                 fetched_at TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE release_discovery_groups (
+                run_id INTEGER NOT NULL REFERENCES release_discovery_runs(id),
+                group_entity_id INTEGER NOT NULL REFERENCES entities(id),
+                PRIMARY KEY(run_id, group_entity_id)
             )
             """,
             """

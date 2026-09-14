@@ -2,10 +2,15 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from email.message import Message
 from pathlib import Path
+from urllib.error import HTTPError
+from unittest.mock import patch
 
-from kpop_scraping.release_discovery import _parse_results, build_query
+from kpop_scraping.mediawiki import MediaWikiError
+from kpop_scraping.release_discovery import WikidataQueryClient, _parse_results, build_query
 from kpop_scraping.release_facts import release_entity_type, release_fact_candidates
+from kpop_scraping.release_pipeline import _performer_entity_ids
 from kpop_scraping.storage import MIGRATIONS, apply_migrations
 from kpop_scraping.quiz_models import Entity, Evidence, Fact
 from kpop_scraping.release_quiz_drafts import build_release_drafts
@@ -39,6 +44,11 @@ class ReleaseFactTest(unittest.TestCase):
         candidate = release_fact_candidates("Q100", entity).candidates[0]
         self.assertEqual(candidate.error, "scoped_release_date")
 
+    def test_performer_redirect_matches_the_resolved_catalog_entity(self):
+        entity = {"claims": {"P175": [item_statement("p", "P175", "Q10")]}}
+        extracted = release_fact_candidates("Q100", entity)
+        self.assertEqual(_performer_entity_ids(extracted, {"Q10": 7, "Q20": 7}), {7})
+
     def test_discovery_is_sorted_deduplicated_and_bounded(self):
         query = build_query(["Q2", "Q1"])
         self.assertLess(query.index("wd:Q1"), query.index("wd:Q2"))
@@ -47,6 +57,46 @@ class ReleaseFactTest(unittest.TestCase):
             {"performer": {"value": "http://www.wikidata.org/entity/Q1"}, "release": {"value": "http://www.wikidata.org/entity/Q9"}},
         ]}}
         self.assertEqual(len(_parse_results(json.dumps(payload).encode(), {"Q1"}, 1)), 1)
+
+    def test_wdqs_retries_server_errors_and_limits_response_size(self):
+        payload = json.dumps({"results": {"bindings": []}}).encode()
+
+        class Response:
+            def __init__(self, body):
+                self.body = body
+                self.status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def read(self, limit):
+                return self.body[:limit]
+
+        attempts = []
+
+        def opener(*_args, **_kwargs):
+            attempts.append(None)
+            if len(attempts) == 1:
+                raise HTTPError("https://query.wikidata.org", 503, "busy", Message(), None)
+            return Response(payload)
+
+        with patch("kpop_scraping.release_discovery.time.sleep"):
+            result = WikidataQueryClient(opener=opener, retries=1).query("SELECT * WHERE {}")
+        self.assertEqual(json.loads(result.body), {"results": {"bindings": []}})
+        self.assertEqual(result.http_status, 200)
+        self.assertEqual(len(attempts), 2)
+
+        client = WikidataQueryClient(opener=lambda *_args, **_kwargs: Response(payload), max_response_bytes=4)
+        with self.assertRaisesRegex(MediaWikiError, "size limit"):
+            client.query("SELECT * WHERE {}")
+
+    def test_rejects_invalid_per_group_limit(self):
+        with self.assertRaisesRegex(ValueError, "candidate limit"):
+            from kpop_scraping.release_discovery import discover_releases
+            discover_releases(None, None, max_per_group=0)
 
     def test_quizzes_include_scope_facts_and_exclude_other_correct_answers(self):
         groups = [Entity(f"QG{i}", "group", f"Group {i}", {}) for i in range(4)]
@@ -103,7 +153,29 @@ class ReleaseMigrationTest(unittest.TestCase):
             self.assertEqual(connection.execute("PRAGMA foreign_key_check").fetchall(), [])
             sql = connection.execute("SELECT sql FROM sqlite_master WHERE name='entities'").fetchone()[0]
             self.assertIn("'album'", sql)
+            self.assertIsNotNone(connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='release_discovery_groups'"
+            ).fetchone())
             connection.close()
+
+    def test_failed_release_migration_restores_v5_schema_and_foreign_keys(self):
+        connection = sqlite3.connect(":memory:")
+        connection.execute("PRAGMA foreign_keys=ON")
+        apply_migrations(connection, MIGRATIONS[:5])
+        version, name, statements = MIGRATIONS[5]
+        broken = (*MIGRATIONS[:5], (version, name, (*statements, "INVALID SQL")))
+        with self.assertRaises(sqlite3.OperationalError):
+            apply_migrations(connection, broken)
+        self.assertEqual(connection.execute("PRAGMA foreign_keys").fetchone()[0], 1)
+        self.assertIsNotNone(connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='entities'"
+        ).fetchone())
+        self.assertIsNone(connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='entities_v5'"
+        ).fetchone())
+        self.assertIsNone(connection.execute(
+            "SELECT 1 FROM schema_migrations WHERE version=6"
+        ).fetchone())
 
 
 if __name__ == "__main__":
