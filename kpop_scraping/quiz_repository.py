@@ -44,7 +44,7 @@ def _load_facts(
 ) -> tuple[list[Fact], Counter[str]]:
     evidence = _load_evidence(connection)
     rejected: Counter[str] = Counter()
-    supported = {"formed_on", "born_on", "has_member", "member_of", "record_label"}
+    supported = {"formed_on", "born_on", "has_member", "member_of", "record_label", "performed_by", "released_on"}
     rows = connection.execute(
         """
         SELECT id, statement_id, subject_entity_id, predicate, value_entity_id,

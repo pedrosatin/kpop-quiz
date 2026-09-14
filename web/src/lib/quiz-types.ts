@@ -1,6 +1,6 @@
 export type Locale = "pt-BR" | "en";
 export type Difficulty = "easy" | "medium" | "hard";
-export type ValueType = "group" | "person" | "organization" | "time" | "number";
+export type ValueType = "group" | "person" | "organization" | "release" | "album" | "time" | "number";
 
 export interface QuizOption {
   id: string;
@@ -53,11 +53,12 @@ export interface QuizSession {
 const HASH = /^[0-9a-f]{64}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DIFFICULTIES = new Set<Difficulty>(["easy", "medium", "hard"]);
-const VALUE_TYPES = new Set<ValueType>(["group", "person", "organization", "time", "number"]);
+const VALUE_TYPES = new Set<ValueType>(["group", "person", "organization", "release", "album", "time", "number"]);
 const QUESTION_TYPES = new Set([
   "formation_year", "member_at_date", "birth_date_or_place", "age_on_date",
   "group_for_member", "member_for_group", "group_for_record_label",
-  "record_label_for_group", "chronological_comparison",
+  "record_label_for_group", "chronological_comparison", "release_for_group",
+  "group_for_release", "release_year", "earliest_release",
 ]);
 const SESSION_FIELDS = ["schema_version", "dataset_version", "session_id", "config", "questions"];
 const CONFIG_FIELDS = ["language", "seed", "theme", "group_id", "difficulty", "timer_seconds"];
