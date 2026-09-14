@@ -305,12 +305,19 @@ def _validate_question(question: Any) -> None:
     _require_date(question.get("reference_date"), "reference_date")
     evidence = question.get("evidence")
     _require(isinstance(evidence, list) and evidence, "evidence")
+    evidenced_fact_ids: set[str] = set()
     for item in evidence:
         _require(isinstance(item, dict), "evidence item")
         _require(
-            set(item) == {"locator", "revision_id", "source_key", "source_url"},
+            set(item)
+            == {
+                "fact_base_id", "locator", "revision_id", "source_key", "source_url"
+            },
             "evidence fields",
         )
+        fact_base_id = item.get("fact_base_id")
+        _require(fact_base_id in fact_base_ids, "evidence.fact_base_id")
+        evidenced_fact_ids.add(fact_base_id)
         source_url = item.get("source_url")
         _require(isinstance(source_url, str), "evidence.source_url")
         parsed = urlsplit(source_url)
@@ -321,6 +328,7 @@ def _validate_question(question: Any) -> None:
             type(item.get("revision_id")) is int and item["revision_id"] > 0,
             "evidence.revision_id",
         )
+    _require(evidenced_fact_ids == set(fact_base_ids), "fact_base evidence coverage")
 
 
 def _require(condition: bool, field: str) -> None:

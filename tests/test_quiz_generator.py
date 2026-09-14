@@ -53,6 +53,10 @@ class QuizGeneratorTest(unittest.TestCase):
             self.assertEqual(len(kinds), 1)
             self.assertIn(question["answer_option_id"], {item["id"] for item in question["options"]})
             self.assertTrue(question["evidence"])
+            self.assertEqual(
+                {item["fact_base_id"] for item in question["evidence"]},
+                set(question["fact_base_ids"]),
+            )
             self.assertTrue(all(item["source_url"].startswith("https://") for item in question["evidence"]))
 
     def test_relation_distractors_are_not_other_valid_answers(self):
@@ -107,6 +111,38 @@ class QuizGeneratorTest(unittest.TestCase):
         for question in questions:
             option_values = {option["value"] for option in question["options"]}
             self.assertEqual(len(option_values & valid_groups), 1)
+
+    def test_member_at_date_distractors_exclude_other_current_members(self):
+        person = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QP2'"
+        ).fetchone()[0]
+        group = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QG1'"
+        ).fetchone()[0]
+        self.connection.execute(
+            "UPDATE facts SET subject_entity_id=?, value_entity_id=?, "
+            "value_wikidata_id='QP2', valid_from='2010-01-01', "
+            "valid_from_precision=11, valid_to='2020-01-01', "
+            "valid_to_precision=11, quality_flags_json='[]' "
+            "WHERE statement_id='has-2'",
+            (group, person),
+        )
+        self.connection.execute(
+            "UPDATE facts SET subject_entity_id=?, value_entity_id=?, "
+            "value_wikidata_id='QG1', valid_from='2010-01-01', "
+            "valid_from_precision=11, valid_to='2020-01-01', "
+            "valid_to_precision=11, quality_flags_json='[]' "
+            "WHERE statement_id='member-2'",
+            (person, group),
+        )
+        self.connection.commit()
+
+        dataset, _report = generate_dataset(self.connection)
+        for question in dataset["questions"]:
+            if question["type"] != "member_at_date":
+                continue
+            option_values = {option["value"] for option in question["options"]}
+            self.assertEqual(len(option_values & {"QP1", "QP2"}), 1)
 
     def test_insufficient_relation_pool_is_reported(self):
         self.connection.execute(

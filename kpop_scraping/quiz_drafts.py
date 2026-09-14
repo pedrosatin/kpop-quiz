@@ -148,7 +148,15 @@ def _build_drafts(
         if dated is None:
             rejected["membership_interval_not_eligible"] += 1
             continue
-        person_options = _entity_alternatives(person, people)
+        valid_member_ids = {
+            candidate.wikidata_id
+            for candidate_group, candidate, candidate_facts in memberships
+            if candidate_group.wikidata_id == group.wikidata_id
+            and _membership_contains_date(candidate_facts, dated)
+        }
+        person_options = _entity_alternatives_excluding(
+            person, people, valid_member_ids
+        )
         if person_options is None:
             rejected["insufficient_person_distractors"] += 1
             continue
@@ -446,6 +454,15 @@ def _eligible_membership_date(facts: tuple[Fact, ...]) -> str | None:
     ).isoformat()
 
 
+def _membership_contains_date(facts: tuple[Fact, ...], value: str) -> bool:
+    """Return whether bilateral, fully evidenced intervals contain a date."""
+    if _eligible_membership_date(facts) is None:
+        return False
+    intervals = {(fact.valid_from, fact.valid_to) for fact in facts}
+    start, end = next(iter(intervals))
+    return bool(start and end and start <= value <= end)
+
+
 def _groups_for_person(
     person_id: str,
     memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
@@ -468,9 +485,14 @@ def _date_distance(first: str, second: str) -> int:
 
 def _merge_evidence(facts: Iterable[Fact]) -> tuple[Evidence, ...]:
     unique = {
-        (item.source_url, item.locator, item.source_key, item.revision_id): item
+        (
+            item.fact_base_id,
+            item.source_url,
+            item.locator,
+            item.source_key,
+            item.revision_id,
+        ): item
         for fact in facts
         for item in fact.evidence
     }
     return tuple(unique[key] for key in sorted(unique))
-

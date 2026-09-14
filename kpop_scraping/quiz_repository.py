@@ -99,11 +99,12 @@ def _load_evidence(connection: sqlite3.Connection) -> dict[int, tuple[Evidence, 
     result: dict[int, list[Evidence]] = defaultdict(list)
     rows = connection.execute(
         """
-        SELECT fe.fact_id, fe.source_key, fe.locator, fe.evidence_type,
+        SELECT fe.fact_id, f.statement_id, fe.source_key, fe.locator, fe.evidence_type,
                ws.wikidata_id, ws.external_revision_id AS wikidata_revision,
                sp.language, sp.external_page_id,
                sr.external_revision_id AS wikipedia_revision
         FROM fact_evidence fe
+        JOIN facts f ON f.id=fe.fact_id
         LEFT JOIN wikidata_entity_snapshots ws ON ws.id=fe.wikidata_snapshot_id
         LEFT JOIN source_revisions sr ON sr.id=fe.source_revision_id
         LEFT JOIN source_pages sp ON sp.id=sr.source_page_id
@@ -124,7 +125,9 @@ def _load_evidence(connection: sqlite3.Connection) -> dict[int, tuple[Evidence, 
                 f"Special:EntityPage/{row['wikidata_id']}&oldid={revision}"
             )
         result[int(row["fact_id"])].append(
-            Evidence(row["source_key"], row["locator"], url, revision)
+            Evidence(
+                row["statement_id"], row["source_key"], row["locator"], url, revision
+            )
         )
     return {key: tuple(values) for key, values in result.items()}
 
@@ -205,4 +208,3 @@ def _dataset_version(
             "templates": TEMPLATES,
         }
     )
-

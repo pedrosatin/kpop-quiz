@@ -52,8 +52,9 @@
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["locator", "revision_id", "source_key", "source_url"],
+      "required": ["fact_base_id", "locator", "revision_id", "source_key", "source_url"],
       "properties": {
+        "fact_base_id": {"type": "string", "minLength": 1},
         "locator": {"type": "string", "minLength": 1},
         "revision_id": {"type": "integer", "minimum": 1},
         "source_key": {"type": "string", "minLength": 1},
