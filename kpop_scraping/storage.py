@@ -527,10 +527,10 @@ class SnapshotStore:
                 prefix=f".{target.name}.",
                 delete=False,
             ) as temporary:
+                temporary_path = Path(temporary.name)
                 temporary.write(compressed)
                 temporary.flush()
                 os.fsync(temporary.fileno())
-                temporary_path = Path(temporary.name)
             os.replace(temporary_path, target)
             self._sync_directory(target.parent)
         finally:

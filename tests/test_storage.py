@@ -101,6 +101,42 @@ class StorageTest(unittest.TestCase):
                 [],
             )
 
+    def test_snapshot_write_removes_temp_file_when_file_sync_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target_dir = Path(directory) / "raw" / "wikipedia" / "en" / "10"
+            store = SnapshotStore(Path(directory) / "raw")
+
+            with patch(
+                "kpop_scraping.storage.os.fsync", side_effect=OSError("I/O error")
+            ):
+                with self.assertRaisesRegex(OSError, "I/O error"):
+                    store.write("wikipedia", "en", 10, 77, b'{"pageid":10}')
+
+            self.assertEqual(list(target_dir.iterdir()), [])
+
+    def test_directory_sync_failure_prevents_snapshot_reference(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "quiz.db"
+            repository = Repository(database_path)
+            run_id = repository.start_run("Category:K-pop")
+            page = SnapshotClient().get_pages([10])[0]
+
+            with patch.object(
+                repository.snapshots,
+                "_sync_directory",
+                side_effect=OSError("I/O error"),
+            ):
+                with self.assertRaisesRegex(OSError, "I/O error"):
+                    repository.save_pages(run_id, [page])
+
+            self.assertEqual(
+                repository.connection.execute(
+                    "SELECT COUNT(*) FROM source_revisions"
+                ).fetchone()[0],
+                0,
+            )
+            repository.connection.close()
+
     @unittest.skipUnless(os.name == "posix", "directory fsync is POSIX-specific")
     def test_directory_sync_opens_fsyncs_and_closes_directory(self):
         directory = Path("/tmp/snapshot-directory")
