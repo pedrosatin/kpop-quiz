@@ -1,0 +1,4523 @@
+{
+ "_source": {
+  "licenses": "Wikidata CC0; Wikipedia text CC BY-SA 4.0",
+  "reduction": "Claims limited to the properties used by the tests; qualifiers limited to P580 and P582; sitelinks limited to enwiki; Wikipedia extracts limited to the first paragraph. country_profile keeps only P31 from props=info|labels|aliases|claims.",
+  "retrieved_at": "2026-09-12",
+  "wikidata_request": "wbgetentities; subject_profile props=info|labels|aliases|claims|sitelinks/urls languages=pt|en|ko sitefilter=enwiki|ptwiki|kowiki; label_profile props=info|labels|aliases languages=pt|en|ko; country_profile props=info|labels|aliases|claims languages=pt|en|ko"
+ },
+ "country_profile": {
+  "Q865": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Taiwan ROC"
+     },
+     {
+      "language": "en",
+      "value": "The ROC"
+     },
+     {
+      "language": "en",
+      "value": "Republic of China (Taiwan)"
+     },
+     {
+      "language": "en",
+      "value": "Chunghwa Minkuo"
+     },
+     {
+      "language": "en",
+      "value": "Nationalist China"
+     },
+     {
+      "language": "en",
+      "value": "Chunghwa Minkwo"
+     },
+     {
+      "language": "en",
+      "value": "Chinese Taipei"
+     },
+     {
+      "language": "en",
+      "value": "Free China"
+     },
+     {
+      "language": "en",
+      "value": "Republic of China"
+     },
+     {
+      "language": "en",
+      "value": "China, Republic of"
+     },
+     {
+      "language": "en",
+      "value": "Chinese Republic"
+     },
+     {
+      "language": "en",
+      "value": "TW"
+     },
+     {
+      "language": "en",
+      "value": "TWN"
+     },
+     {
+      "language": "en",
+      "value": "Taiwan"
+     },
+     {
+      "language": "en",
+      "value": "ROC"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "대만"
+     },
+     {
+      "language": "ko",
+      "value": "타이완"
+     },
+     {
+      "language": "ko",
+      "value": "자유중국"
+     },
+     {
+      "language": "ko",
+      "value": "민주중국"
+     },
+     {
+      "language": "ko",
+      "value": "Chinese Republic"
+     },
+     {
+      "language": "ko",
+      "value": "따이완"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "República da China"
+     },
+     {
+      "language": "pt",
+      "value": "Chunghwa Minkwo"
+     },
+     {
+      "language": "pt",
+      "value": "Chunghwa Minkuo"
+     },
+     {
+      "language": "pt",
+      "value": "China Nacionalista"
+     },
+     {
+      "language": "pt",
+      "value": "China Livre"
+     },
+     {
+      "language": "pt",
+      "value": "Área livre da República da China"
+     },
+     {
+      "language": "pt",
+      "value": "República da China (Taiwan)"
+     },
+     {
+      "language": "pt",
+      "value": "Taipé Chinesa"
+     },
+     {
+      "language": "pt",
+      "value": "RC"
+     },
+     {
+      "language": "pt",
+      "value": "Taiwan RC"
+     },
+     {
+      "language": "pt",
+      "value": "China, República"
+     },
+     {
+      "language": "pt",
+      "value": "China (anteriormente conhecida como)"
+     },
+     {
+      "language": "pt",
+      "value": "Taipé"
+     },
+     {
+      "language": "pt",
+      "value": "Taipei"
+     }
+    ]
+   },
+   "claims": {
+    "P31": [
+     {
+      "id": "Q865$4d75f60d-4ab5-cf91-3ab9-41fffad1c1d7",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q112099",
+         "numeric-id": 112099
+        }
+       },
+       "hash": "ea8ec3475e49b219a087a2f615365e6737d2f8a8",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+1949-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "5256265c2fb4f56d4862b7edc0dd3e545d77e008",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ],
+       "P828": [
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q16165653",
+           "numeric-id": 16165653
+          }
+         },
+         "hash": "6ffb20f645da745d4303f0e1e5663b6c8fa59b09",
+         "property": "P828",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580",
+       "P828"
+      ],
+      "rank": "preferred",
+      "type": "statement"
+     },
+     {
+      "id": "Q865$16431127-4092-75c3-2cf7-bf8bdb4826c0",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q5255892",
+         "numeric-id": 5255892
+        }
+       },
+       "hash": "e67376dbb9ff6c79eee1e5c4907d6cfec2b67b48",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+1912-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "fc982c597fff226f45eb431ca41e441ae164c0e5",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580"
+      ],
+      "rank": "preferred",
+      "references": [
+       {
+        "hash": "f70218036e2c8fbe45e086f2503bfdbe24984cb7",
+        "snaks": {
+         "P248": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q213099",
+             "numeric-id": 213099
+            }
+           },
+           "hash": "e8910034e564e22ab597b731814a7de33c3a5777",
+           "property": "P248",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P248"
+        ]
+       },
+       {
+        "hash": "62cc22ff63a830a8362791d4361268168acfd87a",
+        "snaks": {
+         "P248": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q10926890",
+             "numeric-id": 10926890
+            }
+           },
+           "hash": "65ece3d2363ddbe1d6140586f2494e52fac93425",
+           "property": "P248",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P248"
+        ]
+       }
+      ],
+      "type": "statement"
+     },
+     {
+      "id": "Q865$85ff8a9a-4d30-5cdb-c639-124501d37d44",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q6501447",
+         "numeric-id": 6501447
+        }
+       },
+       "hash": "436a4bee45174652d105349e5a720213b02e6c61",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P1310": [
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q865",
+           "numeric-id": 865
+          }
+         },
+         "hash": "eff2e3dabee8230148f1ac3848067cb236d8d4ef",
+         "property": "P1310",
+         "snaktype": "value"
+        }
+       ],
+       "P3680": [
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q148",
+           "numeric-id": 148
+          }
+         },
+         "hash": "ce84242ae8582ae45ebedc37f803a52c8642bbbc",
+         "property": "P3680",
+         "snaktype": "value"
+        }
+       ],
+       "P805": [
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q97352049",
+           "numeric-id": 97352049
+          }
+         },
+         "hash": "c7933ea21d29b05baad6a82af1a0f987b52d0a96",
+         "property": "P805",
+         "snaktype": "value"
+        },
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q19851568",
+           "numeric-id": 19851568
+          }
+         },
+         "hash": "7a8092a29bf87114ade4a2a248952140ca9abe56",
+         "property": "P805",
+         "snaktype": "value"
+        },
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q723713",
+           "numeric-id": 723713
+          }
+         },
+         "hash": "9fa178b559eed917208d5c9f645cfcb79248e94c",
+         "property": "P805",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P3680",
+       "P1310",
+       "P805"
+      ],
+      "rank": "normal",
+      "type": "statement"
+     },
+     {
+      "id": "Q865$1a48e478-45b9-1670-f054-2b15eb5a660a",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q3624078",
+         "numeric-id": 3624078
+        }
+       },
+       "hash": "c0756f7fedfc54b5b296b7d6dbbcf17a8e134d78",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P1310": [
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q148",
+           "numeric-id": 148
+          }
+         },
+         "hash": "282c5c2a98d908a67f856bad9e5ef5ebd3de7f2b",
+         "property": "P1310",
+         "snaktype": "value"
+        }
+       ],
+       "P3680": [
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q865",
+           "numeric-id": 865
+          }
+         },
+         "hash": "f798994bb5d9f1d7c745c1581f35926509e701eb",
+         "property": "P3680",
+         "snaktype": "value"
+        }
+       ],
+       "P805": [
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q7092544",
+           "numeric-id": 7092544
+          }
+         },
+         "hash": "a56e0b48e0aa591ff4d10bb09a6ed594ec06267f",
+         "property": "P805",
+         "snaktype": "value"
+        },
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q21468686",
+           "numeric-id": 21468686
+          }
+         },
+         "hash": "8aadb23b03ee9d8bcbd40627eeb742d3bde006eb",
+         "property": "P805",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P3680",
+       "P1310",
+       "P805"
+      ],
+      "rank": "preferred",
+      "type": "statement"
+     },
+     {
+      "id": "Q865$505fe41b-447d-8c32-de88-88a68345863e",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q10711424",
+         "numeric-id": 10711424
+        }
+       },
+       "hash": "7b9880b6c3314cebcf853306173a93541d36cfb0",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+1971-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "847c4c912d3781dc83eabd7135d6403c473c0daf",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ],
+       "P828": [
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q1334327",
+           "numeric-id": 1334327
+          }
+         },
+         "hash": "1cc0b12b5ef620cbe942786d3f0fcfb26c6c956e",
+         "property": "P828",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580",
+       "P828"
+      ],
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "da4dd3d80410838df64b1e1bcea227acdb9320ef",
+        "snaks": {
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://docs.un.org/en/A/RES/2758(XXVI)"
+           },
+           "hash": "22c28aeda6ab3919752fc236c10277390d41a28c",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854"
+        ]
+       }
+      ],
+      "type": "statement"
+     },
+     {
+      "id": "Q865$54b2091e-4f43-7c04-c72d-315a87f01de2",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q1084",
+         "numeric-id": 1084
+        }
+       },
+       "hash": "0abbe2073fb433e3b8b0cdd3e292280fdd216a47",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     },
+     {
+      "id": "Q865$3fe27c3a-4144-7837-f775-445cbfea2235",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q16562419",
+         "numeric-id": 16562419
+        }
+       },
+       "hash": "1c956c9584d8952aeb9099e9086d4fa66d850620",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     },
+     {
+      "id": "Q865$5412914d-4c7c-be59-21b3-ea5abd4c51b0",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q25449457",
+         "numeric-id": 25449457
+        }
+       },
+       "hash": "712724f92ccd0a445e5fd398a23300d4dbf30ee5",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P1534": [
+        {
+         "datatype": "wikibase-item",
+         "datavalue": {
+          "type": "wikibase-entityid",
+          "value": {
+           "entity-type": "item",
+           "id": "Q179975",
+           "numeric-id": 179975
+          }
+         },
+         "hash": "dff2a0618f9f6201932d5c945f27f4e72b12835f",
+         "property": "P1534",
+         "snaktype": "value"
+        }
+       ],
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+1912-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "fc982c597fff226f45eb431ca41e441ae164c0e5",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ],
+       "P582": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+1949-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "609dce7d03a375cd4c0b142ff13d5b7aa80662da",
+         "property": "P582",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580",
+       "P582",
+       "P1534"
+      ],
+      "rank": "normal",
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q865",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Taiwan"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "중화민국"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Taiwan"
+    }
+   },
+   "lastrevid": 2544190048,
+   "modified": "2026-09-11T21:05:50Z",
+   "ns": 0,
+   "pageid": 1185,
+   "title": "Q865",
+   "type": "item"
+  },
+  "Q884": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Republic of Korea"
+     },
+     {
+      "language": "en",
+      "value": "Rep. Korea"
+     },
+     {
+      "language": "en",
+      "value": "S. Korea"
+     },
+     {
+      "language": "en",
+      "value": "Korea Republic"
+     },
+     {
+      "language": "en",
+      "value": "Hanguk"
+     },
+     {
+      "language": "en",
+      "value": "Daehan Minguk"
+     },
+     {
+      "language": "en",
+      "value": "Daehanminguk"
+     },
+     {
+      "language": "en",
+      "value": "Korea (South)"
+     },
+     {
+      "language": "en",
+      "value": "Choson"
+     },
+     {
+      "language": "en",
+      "value": "Silla"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "남한"
+     },
+     {
+      "language": "ko",
+      "value": "한국"
+     },
+     {
+      "language": "ko",
+      "value": "남조선"
+     },
+     {
+      "language": "ko",
+      "value": "코리아"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "República da Coreia"
+     },
+     {
+      "language": "pt",
+      "value": "Coreia"
+     },
+     {
+      "language": "pt",
+      "value": "Rep. da Coreia"
+     },
+     {
+      "language": "pt",
+      "value": "Hanguk"
+     },
+     {
+      "language": "pt",
+      "value": "Daehan Minguk"
+     },
+     {
+      "language": "pt",
+      "value": "Daehanminguk"
+     },
+     {
+      "language": "pt",
+      "value": "Coreia (Sul)"
+     }
+    ]
+   },
+   "claims": {
+    "P31": [
+     {
+      "id": "q884$3C655634-7080-40F5-BF81-60E872BED5E3",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q3624078",
+         "numeric-id": 3624078
+        }
+       },
+       "hash": "c0756f7fedfc54b5b296b7d6dbbcf17a8e134d78",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     },
+     {
+      "id": "Q884$bca82859-4d16-abcc-9d6e-1b0b95ed95c3",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q1520223",
+         "numeric-id": 1520223
+        }
+       },
+       "hash": "dd427d7a87e94bc883d3d3e4907ad36c2fd162e3",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     },
+     {
+      "id": "q884$03F37DED-2B61-433C-8FE4-8E775BFA47FA",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q6256",
+         "numeric-id": 6256
+        }
+       },
+       "hash": "b44ad788a05b4c1b2915ce0292541c6bdb27d43a",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "754613ed9bdfc49c5f3228abf2298765839f10e2",
+        "snaks": {
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://www.britannica.com/place/South-Korea"
+           },
+           "hash": "a456adab88536048c8790a0afd34ae4febfdbbf9",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q884",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "South Korea"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "대한민국"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Coreia do Sul"
+    }
+   },
+   "lastrevid": 2541519294,
+   "modified": "2026-09-07T05:47:35Z",
+   "ns": 0,
+   "pageid": 1206,
+   "title": "Q884",
+   "type": "item"
+  }
+ },
+ "label_profile": {
+  "Q17172850": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "singing voice"
+     },
+     {
+      "language": "en",
+      "value": "vocals"
+     },
+     {
+      "language": "en",
+      "value": "voc"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "음성"
+     }
+    ]
+   },
+   "id": "Q17172850",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "voice"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "목소리"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "voz"
+    }
+   },
+   "lastrevid": 2539096765,
+   "modified": "2026-09-01T15:28:43Z",
+   "ns": 0,
+   "pageid": 18767107,
+   "title": "Q17172850",
+   "type": "item"
+  },
+  "Q188450": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "electro-pop"
+     },
+     {
+      "language": "en",
+      "value": "electropop revival"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "일렉트로 팝"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "Electro pop"
+     }
+    ]
+   },
+   "id": "Q188450",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "electropop"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "일렉트로팝"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "electropop"
+    }
+   },
+   "lastrevid": 2538152081,
+   "modified": "2026-08-30T11:10:06Z",
+   "ns": 0,
+   "pageid": 187114,
+   "title": "Q188450",
+   "type": "item"
+  },
+  "Q213665": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Korean pop"
+     },
+     {
+      "language": "en",
+      "value": "Kpop"
+     },
+     {
+      "language": "en",
+      "value": "K pop"
+     },
+     {
+      "language": "en",
+      "value": "Korean popular music"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "대한민국의 대중가요"
+     },
+     {
+      "language": "ko",
+      "value": "K팝"
+     },
+     {
+      "language": "ko",
+      "value": "케이팝"
+     },
+     {
+      "language": "ko",
+      "value": "케이 팝"
+     },
+     {
+      "language": "ko",
+      "value": "대한민국의 대중음악"
+     },
+     {
+      "language": "ko",
+      "value": "한국 대중가요"
+     }
+    ]
+   },
+   "id": "Q213665",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "K-pop"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "K-pop"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "K-pop"
+    }
+   },
+   "lastrevid": 2531277663,
+   "modified": "2026-08-14T10:36:26Z",
+   "ns": 0,
+   "pageid": 209094,
+   "title": "Q213665",
+   "type": "item"
+  },
+  "Q37073": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "pop"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "팝 뮤직"
+     },
+     {
+      "language": "ko",
+      "value": "팝 노래"
+     },
+     {
+      "language": "ko",
+      "value": "팝음악"
+     },
+     {
+      "language": "ko",
+      "value": "팝송"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "pop comercial"
+     },
+     {
+      "language": "pt",
+      "value": "pop music"
+     },
+     {
+      "language": "pt",
+      "value": "pop"
+     },
+     {
+      "language": "pt",
+      "value": "musica pop"
+     }
+    ]
+   },
+   "id": "Q37073",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "pop music"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "팝 음악"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "música pop"
+    }
+   },
+   "lastrevid": 2544794255,
+   "modified": "2026-09-13T00:16:13Z",
+   "ns": 0,
+   "pageid": 39645,
+   "title": "Q37073",
+   "type": "item"
+  },
+  "Q483238": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "JYP"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "제이와이피"
+     },
+     {
+      "language": "ko",
+      "value": "JYP엔터테인먼트"
+     },
+     {
+      "language": "ko",
+      "value": "JYP"
+     },
+     {
+      "language": "ko",
+      "value": "제이와이피엔터테인먼트"
+     },
+     {
+      "language": "ko",
+      "value": "JYPE"
+     },
+     {
+      "language": "ko",
+      "value": "JYP Ent."
+     }
+    ]
+   },
+   "id": "Q483238",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "JYP Entertainment"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "JYP 엔터테인먼트"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "JYP Entertainment"
+    }
+   },
+   "lastrevid": 2538858478,
+   "modified": "2026-09-01T02:01:37Z",
+   "ns": 0,
+   "pageid": 454835,
+   "title": "Q483238",
+   "type": "item"
+  },
+  "Q50412": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Seongbuk-gu"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "성북"
+     },
+     {
+      "language": "ko",
+      "value": "서울특별시 성북구"
+     },
+     {
+      "language": "ko",
+      "value": "서울시 성북구"
+     },
+     {
+      "language": "ko",
+      "value": "서울 성북구"
+     },
+     {
+      "language": "ko",
+      "value": "서울 성북"
+     }
+    ]
+   },
+   "id": "Q50412",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Seongbuk District"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "성북구"
+    }
+   },
+   "lastrevid": 2520408251,
+   "modified": "2026-07-20T22:30:35Z",
+   "ns": 0,
+   "pageid": 52425,
+   "title": "Q50412",
+   "type": "item"
+  },
+  "Q710281": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "East District"
+     }
+    ]
+   },
+   "id": "Q710281",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Eastern District"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "둥구"
+    }
+   },
+   "lastrevid": 2543993078,
+   "modified": "2026-09-11T13:19:09Z",
+   "ns": 0,
+   "pageid": 667973,
+   "title": "Q710281",
+   "type": "item"
+  },
+  "Q865": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Taiwan ROC"
+     },
+     {
+      "language": "en",
+      "value": "The ROC"
+     },
+     {
+      "language": "en",
+      "value": "Republic of China (Taiwan)"
+     },
+     {
+      "language": "en",
+      "value": "Chunghwa Minkuo"
+     },
+     {
+      "language": "en",
+      "value": "Nationalist China"
+     },
+     {
+      "language": "en",
+      "value": "Chunghwa Minkwo"
+     },
+     {
+      "language": "en",
+      "value": "Chinese Taipei"
+     },
+     {
+      "language": "en",
+      "value": "Free China"
+     },
+     {
+      "language": "en",
+      "value": "Republic of China"
+     },
+     {
+      "language": "en",
+      "value": "China, Republic of"
+     },
+     {
+      "language": "en",
+      "value": "Chinese Republic"
+     },
+     {
+      "language": "en",
+      "value": "TW"
+     },
+     {
+      "language": "en",
+      "value": "TWN"
+     },
+     {
+      "language": "en",
+      "value": "Taiwan"
+     },
+     {
+      "language": "en",
+      "value": "ROC"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "대만"
+     },
+     {
+      "language": "ko",
+      "value": "타이완"
+     },
+     {
+      "language": "ko",
+      "value": "자유중국"
+     },
+     {
+      "language": "ko",
+      "value": "민주중국"
+     },
+     {
+      "language": "ko",
+      "value": "Chinese Republic"
+     },
+     {
+      "language": "ko",
+      "value": "따이완"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "República da China"
+     },
+     {
+      "language": "pt",
+      "value": "Chunghwa Minkwo"
+     },
+     {
+      "language": "pt",
+      "value": "Chunghwa Minkuo"
+     },
+     {
+      "language": "pt",
+      "value": "China Nacionalista"
+     },
+     {
+      "language": "pt",
+      "value": "China Livre"
+     },
+     {
+      "language": "pt",
+      "value": "Área livre da República da China"
+     },
+     {
+      "language": "pt",
+      "value": "República da China (Taiwan)"
+     },
+     {
+      "language": "pt",
+      "value": "Taipé Chinesa"
+     },
+     {
+      "language": "pt",
+      "value": "RC"
+     },
+     {
+      "language": "pt",
+      "value": "Taiwan RC"
+     },
+     {
+      "language": "pt",
+      "value": "China, República"
+     },
+     {
+      "language": "pt",
+      "value": "China (anteriormente conhecida como)"
+     },
+     {
+      "language": "pt",
+      "value": "Taipé"
+     },
+     {
+      "language": "pt",
+      "value": "Taipei"
+     }
+    ]
+   },
+   "id": "Q865",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Taiwan"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "중화민국"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Taiwan"
+    }
+   },
+   "lastrevid": 2544190048,
+   "modified": "2026-09-11T21:05:50Z",
+   "ns": 0,
+   "pageid": 1185,
+   "title": "Q865",
+   "type": "item"
+  },
+  "Q8684": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Seoul Special City"
+     },
+     {
+      "language": "en",
+      "value": "Sŏul T'ŭkpyŏlsi"
+     },
+     {
+      "language": "en",
+      "value": "Wiryeseong"
+     },
+     {
+      "language": "en",
+      "value": "Namgyeong"
+     },
+     {
+      "language": "en",
+      "value": "Hanseong"
+     },
+     {
+      "language": "en",
+      "value": "Hanyang"
+     },
+     {
+      "language": "en",
+      "value": "Keijō"
+     },
+     {
+      "language": "en",
+      "value": "Keijou"
+     },
+     {
+      "language": "en",
+      "value": "Gyeongseong"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "서울시"
+     },
+     {
+      "language": "ko",
+      "value": "서울"
+     }
+    ]
+   },
+   "id": "Q8684",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Seoul"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "서울특별시"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Seul"
+    }
+   },
+   "lastrevid": 2532545719,
+   "modified": "2026-08-17T23:13:01Z",
+   "ns": 0,
+   "pageid": 10006,
+   "title": "Q8684",
+   "type": "item"
+  },
+  "Q884": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Republic of Korea"
+     },
+     {
+      "language": "en",
+      "value": "Rep. Korea"
+     },
+     {
+      "language": "en",
+      "value": "S. Korea"
+     },
+     {
+      "language": "en",
+      "value": "Korea Republic"
+     },
+     {
+      "language": "en",
+      "value": "Hanguk"
+     },
+     {
+      "language": "en",
+      "value": "Daehan Minguk"
+     },
+     {
+      "language": "en",
+      "value": "Daehanminguk"
+     },
+     {
+      "language": "en",
+      "value": "Korea (South)"
+     },
+     {
+      "language": "en",
+      "value": "Choson"
+     },
+     {
+      "language": "en",
+      "value": "Silla"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "남한"
+     },
+     {
+      "language": "ko",
+      "value": "한국"
+     },
+     {
+      "language": "ko",
+      "value": "남조선"
+     },
+     {
+      "language": "ko",
+      "value": "코리아"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "República da Coreia"
+     },
+     {
+      "language": "pt",
+      "value": "Coreia"
+     },
+     {
+      "language": "pt",
+      "value": "Rep. da Coreia"
+     },
+     {
+      "language": "pt",
+      "value": "Hanguk"
+     },
+     {
+      "language": "pt",
+      "value": "Daehan Minguk"
+     },
+     {
+      "language": "pt",
+      "value": "Daehanminguk"
+     },
+     {
+      "language": "pt",
+      "value": "Coreia (Sul)"
+     }
+    ]
+   },
+   "id": "Q884",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "South Korea"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "대한민국"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Coreia do Sul"
+    }
+   },
+   "lastrevid": 2541519294,
+   "modified": "2026-09-07T05:47:35Z",
+   "ns": 0,
+   "pageid": 1206,
+   "title": "Q884",
+   "type": "item"
+  },
+  "Q9176": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Korean language"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "한국말"
+     },
+     {
+      "language": "ko",
+      "value": "조선말"
+     },
+     {
+      "language": "ko",
+      "value": "조선어"
+     },
+     {
+      "language": "ko",
+      "value": "고려말"
+     },
+     {
+      "language": "ko",
+      "value": "우리말"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "idioma coreano"
+     },
+     {
+      "language": "pt",
+      "value": "lang-ko"
+     },
+     {
+      "language": "pt",
+      "value": "língua coreana"
+     }
+    ]
+   },
+   "id": "Q9176",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Korean"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "한국어"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "coreano"
+    }
+   },
+   "lastrevid": 2541965504,
+   "modified": "2026-09-07T23:05:39Z",
+   "ns": 0,
+   "pageid": 10535,
+   "title": "Q9176",
+   "type": "item"
+  }
+ },
+ "subject_profile": {
+  "Q17466114": {
+   "aliases": {},
+   "claims": {
+    "P136": [
+     {
+      "id": "Q17466114$2114b015-4e1a-96da-d648-45aa1188fe60",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q213665",
+         "numeric-id": 213665
+        }
+       },
+       "hash": "7b1e48a10d7680fbf3317540795e108d6954d720",
+       "property": "P136",
+       "snaktype": "value"
+      },
+      "rank": "preferred",
+      "references": [
+       {
+        "hash": "31012fb22335cc91053e281bd1a19387a6fd9ac2",
+        "snaks": {
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://kpopsingers.com/red-velvet-members-group-profile/"
+           },
+           "hash": "19b68be9fb0485f540a3441525286e68c28856f5",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854"
+        ]
+       }
+      ],
+      "type": "statement"
+     },
+     {
+      "id": "Q17466114$55070b45-4848-f379-d868-c6e35e5fea6b",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q188450",
+         "numeric-id": 188450
+        }
+       },
+       "hash": "4c8fdc305bb77aa4dc5eaffcfa93fac2df459051",
+       "property": "P136",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P31": [
+     {
+      "id": "Q17466114$37c6d604-4ee4-1ed3-a267-17aba541950c",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q641066",
+         "numeric-id": 641066
+        }
+       },
+       "hash": "8b38371950e1f3cd469857eaf44f5b06fe0a99b9",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P495": [
+     {
+      "id": "Q17466114$9860f234-4796-b490-63b6-b371643edbf8",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q884",
+         "numeric-id": 884
+        }
+       },
+       "hash": "c0a3edda06eb357cb4e7b36d4589111f68794325",
+       "property": "P495",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "31012fb22335cc91053e281bd1a19387a6fd9ac2",
+        "snaks": {
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://kpopsingers.com/red-velvet-members-group-profile/"
+           },
+           "hash": "19b68be9fb0485f540a3441525286e68c28856f5",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P527": [
+     {
+      "id": "Q17466114$7c33ce42-4379-b6f9-c27b-f4099b39743e",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q17478642",
+         "numeric-id": 17478642
+        }
+       },
+       "hash": "9b3c12eb94e3a28acfd127dd8497282f789b5fc4",
+       "property": "P527",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 11,
+           "time": "+2014-07-27T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "664477cfbdab22814a05895ffd7d9a4eb19e4613",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580"
+      ],
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "9b77bb5446b80091468357f67239cdc384e7a362",
+        "snaks": {
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://www.smtown.com/search?keyword=%EB%A0%88%EB%93%9C%EB%B2%A8%EB%B2%B3&star_idx=10017"
+           },
+           "hash": "749bb5bab9c537c27d068b58b2dabf585d08e2c3",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854"
+        ]
+       }
+      ],
+      "type": "statement"
+     },
+     {
+      "id": "Q17466114$0f74c1dd-4a21-310b-69a0-91124765c829",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q19940498",
+         "numeric-id": 19940498
+        }
+       },
+       "hash": "db0a0de925dd2744544c05b9b0de2666386e3294",
+       "property": "P527",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 11,
+           "time": "+2015-03-17T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "b96f9f5c26adbabb05d88c47ecae2e7adbbea305",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580"
+      ],
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "9b77bb5446b80091468357f67239cdc384e7a362",
+        "snaks": {
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://www.smtown.com/search?keyword=%EB%A0%88%EB%93%9C%EB%B2%A8%EB%B2%B3&star_idx=10017"
+           },
+           "hash": "749bb5bab9c537c27d068b58b2dabf585d08e2c3",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q17466114",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Red Velvet"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "레드벨벳"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Red Velvet"
+    }
+   },
+   "lastrevid": 2541119730,
+   "modified": "2026-09-06T14:11:52Z",
+   "ns": 0,
+   "pageid": 19061106,
+   "sitelinks": {
+    "enwiki": {
+     "badges": [],
+     "site": "enwiki",
+     "title": "Red Velvet (group)",
+     "url": "https://en.wikipedia.org/wiki/Red_Velvet_(group)"
+    }
+   },
+   "title": "Q17466114",
+   "type": "item"
+  },
+  "Q17478642": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Son Seung-wan"
+     },
+     {
+      "language": "en",
+      "value": "Son Seungwan"
+     },
+     {
+      "language": "en",
+      "value": "Shon Seung-wan"
+     },
+     {
+      "language": "en",
+      "value": "Wendy Son"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "손승완"
+     }
+    ]
+   },
+   "claims": {
+    "P19": [
+     {
+      "id": "Q17478642$C2210E8A-45A2-4EF8-BAF9-A71951A84D51",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q50412",
+         "numeric-id": 50412
+        }
+       },
+       "hash": "e849aa28d9d190fb595d155df889f394b4010a29",
+       "property": "P19",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "08be9f116c5c541d7fa461ad59ad559a42ffd6ed",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q17985",
+             "numeric-id": 17985
+            }
+           },
+           "hash": "56f99b6701feb379816767ae88bb77e0e74981b3",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P31": [
+     {
+      "id": "Q17478642$BFFC168B-9627-4143-B7C0-E4C7D025B584",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q5",
+         "numeric-id": 5
+        }
+       },
+       "hash": "ad7d38a03cdd40cdc373de0dc4e7b7fcbccb31d9",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "0ee3b3ba1c958f4c3dcba7ed8091fe4b57311348",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q30239",
+             "numeric-id": 30239
+            }
+           },
+           "hash": "cb49f6fa327b245e4a5aaf48c44b3f503bcd4265",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P463": [
+     {
+      "id": "Q17478642$28bdc4e8-405b-e9ab-b474-7bce53692644",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q17466114",
+         "numeric-id": 17466114
+        }
+       },
+       "hash": "0f4c630baacbe6e51847964ac9ab1b12ee864fe4",
+       "property": "P463",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 11,
+           "time": "+2014-07-27T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "664477cfbdab22814a05895ffd7d9a4eb19e4613",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580"
+      ],
+      "rank": "normal",
+      "type": "statement"
+     },
+     {
+      "id": "Q17478642$562511fd-4922-d66d-7c16-b340da756799",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q110310446",
+         "numeric-id": 110310446
+        }
+       },
+       "hash": "b99ef1932fbe7a86f9c3f3cff07ea80744ad4aca",
+       "property": "P463",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 11,
+           "time": "+2022-01-03T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "a92380740d1a240559dff09ecec2fca5a65ea898",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580"
+      ],
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P569": [
+     {
+      "id": "Q17478642$021c5086-4f7a-7b4e-f5d9-b00903805901",
+      "mainsnak": {
+       "datatype": "time",
+       "datavalue": {
+        "type": "time",
+        "value": {
+         "after": 0,
+         "before": 0,
+         "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+         "precision": 11,
+         "time": "+1994-02-21T00:00:00Z",
+         "timezone": 0
+        }
+       },
+       "hash": "ed7b09b5e0b3064a035c7673bb929104b8cc8e11",
+       "property": "P569",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "f754a4754aaa345efc08ef41975cba6ebfda50bc",
+        "snaks": {
+         "P1810": [
+          {
+           "datatype": "string",
+           "datavalue": {
+            "type": "string",
+            "value": "Wendy"
+           },
+           "hash": "c3639224a52e9614893db804cce9ebe941f9a51f",
+           "property": "P1810",
+           "snaktype": "value"
+          }
+         ],
+         "P248": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q3561957",
+             "numeric-id": 3561957
+            }
+           },
+           "hash": "5b1d8822665b93354ad9e43cfd669997cf9bf44e",
+           "property": "P248",
+           "snaktype": "value"
+          }
+         ],
+         "P2605": [
+          {
+           "datatype": "external-id",
+           "datavalue": {
+            "type": "string",
+            "value": "380867"
+           },
+           "hash": "088590e3a8f5ac4f9b296cac0633dd04f3a42221",
+           "property": "P2605",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P248",
+         "P2605",
+         "P1810"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q17478642",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Wendy"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "웬디"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Wendy"
+    }
+   },
+   "lastrevid": 2541509153,
+   "modified": "2026-09-07T05:22:27Z",
+   "ns": 0,
+   "pageid": 19066776,
+   "sitelinks": {
+    "enwiki": {
+     "badges": [],
+     "site": "enwiki",
+     "title": "Wendy (singer)",
+     "url": "https://en.wikipedia.org/wiki/Wendy_(singer)"
+    }
+   },
+   "title": "Q17478642",
+   "type": "item"
+  },
+  "Q19940498": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Kim Yerim"
+     },
+     {
+      "language": "en",
+      "value": "Kim Ye-rim"
+     },
+     {
+      "language": "en",
+      "value": "Kim Yeri Kati"
+     },
+     {
+      "language": "en",
+      "value": "Yerim Kim"
+     },
+     {
+      "language": "en",
+      "value": "Ye-rim Kim"
+     },
+     {
+      "language": "en",
+      "value": "Katy Kim"
+     },
+     {
+      "language": "en",
+      "value": "Kim Yeri"
+     },
+     {
+      "language": "en",
+      "value": "Yeri Kim"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "김예림"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "Kim Ye-rim"
+     },
+     {
+      "language": "pt",
+      "value": "Kim Yeri"
+     }
+    ]
+   },
+   "claims": {
+    "P31": [
+     {
+      "id": "Q19940498$9FBC55EB-DD43-46AC-80AE-81C43B6F40C1",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q5",
+         "numeric-id": 5
+        }
+       },
+       "hash": "ad7d38a03cdd40cdc373de0dc4e7b7fcbccb31d9",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P463": [
+     {
+      "id": "Q19940498$379b1297-4804-959a-56d2-96a8e43f75c4",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q17466114",
+         "numeric-id": 17466114
+        }
+       },
+       "hash": "0f4c630baacbe6e51847964ac9ab1b12ee864fe4",
+       "property": "P463",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 11,
+           "time": "+2015-03-17T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "b96f9f5c26adbabb05d88c47ecae2e7adbbea305",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580"
+      ],
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P569": [
+     {
+      "id": "Q19940498$7EB2A370-8C3F-4D80-9B9A-2243D06B06A8",
+      "mainsnak": {
+       "datatype": "time",
+       "datavalue": {
+        "type": "time",
+        "value": {
+         "after": 0,
+         "before": 0,
+         "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+         "precision": 11,
+         "time": "+1999-03-05T00:00:00Z",
+         "timezone": 0
+        }
+       },
+       "hash": "2b89ee83b105f981727c001ec78f22bcebe187ef",
+       "property": "P569",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "08be9f116c5c541d7fa461ad59ad559a42ffd6ed",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q17985",
+             "numeric-id": 17985
+            }
+           },
+           "hash": "56f99b6701feb379816767ae88bb77e0e74981b3",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q19940498",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Yeri"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "예리"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Yeri"
+    }
+   },
+   "lastrevid": 2541510594,
+   "modified": "2026-09-07T05:25:43Z",
+   "ns": 0,
+   "pageid": 21582228,
+   "sitelinks": {
+    "enwiki": {
+     "badges": [],
+     "site": "enwiki",
+     "title": "Yeri (singer)",
+     "url": "https://en.wikipedia.org/wiki/Yeri_(singer)"
+    }
+   },
+   "title": "Q19940498",
+   "type": "item"
+  },
+  "Q20645861": {
+   "aliases": {
+    "ko": [
+     {
+      "language": "ko",
+      "value": "TWICE"
+     },
+     {
+      "language": "ko",
+      "value": "톼이스"
+     }
+    ]
+   },
+   "claims": {
+    "P136": [
+     {
+      "id": "Q20645861$AD3F4290-E29E-474B-8273-C9BC5F23198B",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q213665",
+         "numeric-id": 213665
+        }
+       },
+       "hash": "7b1e48a10d7680fbf3317540795e108d6954d720",
+       "property": "P136",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "a29a646602abf65105ed0f39a44231c962ece9ee",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q177837",
+             "numeric-id": 177837
+            }
+           },
+           "hash": "c6f1777471211df31724ac60175786f3872c83e9",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     },
+     {
+      "id": "Q20645861$d40aae82-476c-61c2-2a08-057cd1e2555e",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q37073",
+         "numeric-id": 37073
+        }
+       },
+       "hash": "63f9b478d987da2e4e469476e371cb83bb3d6193",
+       "property": "P136",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P1559": [
+     {
+      "id": "Q20645861$EE8BEFE7-ECD3-4908-B6F9-0FE24277EAAE",
+      "mainsnak": {
+       "datatype": "monolingualtext",
+       "datavalue": {
+        "type": "monolingualtext",
+        "value": {
+         "language": "ko",
+         "text": "트와이스"
+        }
+       },
+       "hash": "319565640732e01586bd32f9878e3cb3ec9fdf37",
+       "property": "P1559",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P2125": [
+     {
+      "id": "Q20645861$fcc7bd01-4cb9-a7fb-f4af-7f5a1cee3489",
+      "mainsnak": {
+       "datatype": "string",
+       "datavalue": {
+        "type": "string",
+        "value": "Towaisu"
+       },
+       "hash": "e482970909be0f05c2e243f83d75b47d7bc53552",
+       "property": "P2125",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P264": [
+     {
+      "id": "Q20645861$3FB33C2A-B08B-40C2-ACC2-ED569C008A67",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q483238",
+         "numeric-id": 483238
+        }
+       },
+       "hash": "189f1de0ec02305622fc0bc2437af92675c50e31",
+       "property": "P264",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q328",
+             "numeric-id": 328
+            }
+           },
+           "hash": "e4f6d9441d0600513c4533c672b5ab472dc73694",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       },
+       {
+        "hash": "c4dc65814791820254a4f496a0de7667d5760fbf",
+        "snaks": {
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://www.jype.com/common/ArtistMain.aspx"
+           },
+           "hash": "5b6ac59c8263332f845b908131b5f13ddcf7bd9a",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P31": [
+     {
+      "id": "Q20645861$f8552936-4bd8-1eea-78b0-0421ed62cd3e",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q641066",
+         "numeric-id": 641066
+        }
+       },
+       "hash": "8b38371950e1f3cd469857eaf44f5b06fe0a99b9",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P495": [
+     {
+      "id": "Q20645861$3e572eeb-4a4a-337f-2335-1888caa43045",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q884",
+         "numeric-id": 884
+        }
+       },
+       "hash": "c0a3edda06eb357cb4e7b36d4589111f68794325",
+       "property": "P495",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P527": [
+     {
+      "id": "Q20645861$d9203897-4d69-7b75-4551-10c525b889ad",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q22804243",
+         "numeric-id": 22804243
+        }
+       },
+       "hash": "74342986e09095fd19855aa7c5f7f49dc4cb2184",
+       "property": "P527",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     },
+     {
+      "id": "Q20645861$d483c687-4147-ab7e-c6d2-bfa2029f5e6b",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q20688219",
+         "numeric-id": 20688219
+        }
+       },
+       "hash": "9c8b242336c5c930e5a9ffcd0e48688ba1a35fcc",
+       "property": "P527",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P740": [
+     {
+      "id": "Q20645861$873CF722-BAE1-42EA-8184-2F8D631A6991",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q8684",
+         "numeric-id": 8684
+        }
+       },
+       "hash": "289942b9df97b2746c2ca8cf38ff6b7b4128dc8a",
+       "property": "P740",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q328",
+             "numeric-id": 328
+            }
+           },
+           "hash": "e4f6d9441d0600513c4533c672b5ab472dc73694",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q20645861",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Twice"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "트와이스"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Twice"
+    }
+   },
+   "lastrevid": 2540176519,
+   "modified": "2026-09-04T17:38:12Z",
+   "ns": 0,
+   "pageid": 22393016,
+   "sitelinks": {
+    "enwiki": {
+     "badges": [],
+     "site": "enwiki",
+     "title": "Twice",
+     "url": "https://en.wikipedia.org/wiki/Twice"
+    }
+   },
+   "title": "Q20645861",
+   "type": "item"
+  },
+  "Q20688219": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Tzuyu"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "저우쯔위"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "Chou Tzu-yu"
+     }
+    ]
+   },
+   "claims": {
+    "P1412": [
+     {
+      "id": "Q20688219$F86A14D4-3D94-4F9B-BC89-B8D4BDDCA06F",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q9176",
+         "numeric-id": 9176
+        }
+       },
+       "hash": "cd3065908b0f9333c71f9bbd2cd50858b2ec3c7c",
+       "property": "P1412",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P19": [
+     {
+      "id": "Q20688219$57e183fa-4299-da0d-4b07-62ff5836c670",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q710281",
+         "numeric-id": 710281
+        }
+       },
+       "hash": "c60919023e5a22dca5542020f131f663cb0de277",
+       "property": "P19",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q328",
+             "numeric-id": 328
+            }
+           },
+           "hash": "e4f6d9441d0600513c4533c672b5ab472dc73694",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P27": [
+     {
+      "id": "Q20688219$f3a08819-493c-3ba9-0145-7a10d3397a12",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q865",
+         "numeric-id": 865
+        }
+       },
+       "hash": "5e51bd61971a52beebe110cd5232eb4cb1a99a3f",
+       "property": "P27",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P31": [
+     {
+      "id": "Q20688219$4C427C4C-2C5A-473E-9FEB-935327CC9138",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q5",
+         "numeric-id": 5
+        }
+       },
+       "hash": "ad7d38a03cdd40cdc373de0dc4e7b7fcbccb31d9",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "0ee3b3ba1c958f4c3dcba7ed8091fe4b57311348",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q30239",
+             "numeric-id": 30239
+            }
+           },
+           "hash": "cb49f6fa327b245e4a5aaf48c44b3f503bcd4265",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P463": [
+     {
+      "id": "Q20688219$a06dc4b7-4bcc-ea56-68e2-1d944a73778d",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q20645861",
+         "numeric-id": 20645861
+        }
+       },
+       "hash": "a9a0db072434b49506f6623009adb80d5f8fe0dd",
+       "property": "P463",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 11,
+           "time": "+2015-10-20T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "56601b87a0410ce0b10695d5accf7ea6232c1b79",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580"
+      ],
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P569": [
+     {
+      "id": "Q20688219$6F0D2629-9A4A-4B8B-9F19-A51C8469D6AB",
+      "mainsnak": {
+       "datatype": "time",
+       "datavalue": {
+        "type": "time",
+        "value": {
+         "after": 0,
+         "before": 0,
+         "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+         "precision": 11,
+         "time": "+1999-06-14T00:00:00Z",
+         "timezone": 0
+        }
+       },
+       "hash": "bc5513330d1098d599bee19610f59c552127fb01",
+       "property": "P569",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "0ee3b3ba1c958f4c3dcba7ed8091fe4b57311348",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q30239",
+             "numeric-id": 30239
+            }
+           },
+           "hash": "cb49f6fa327b245e4a5aaf48c44b3f503bcd4265",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       },
+       {
+        "hash": "551b5360610860b0c60bd2899ae61eb011f408e4",
+        "snaks": {
+         "P813": [
+          {
+           "datatype": "time",
+           "datavalue": {
+            "type": "time",
+            "value": {
+             "after": 0,
+             "before": 0,
+             "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+             "precision": 11,
+             "time": "+2022-05-18T00:00:00Z",
+             "timezone": 0
+            }
+           },
+           "hash": "783d2769a67f115c3ff5ddbe103dd5bcf3e439a2",
+           "property": "P813",
+           "snaktype": "value"
+          }
+         ],
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://twicejapan.com/feature/profile"
+           },
+           "hash": "2d287913a18157c713627b547c42e2a5066bdcbf",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854",
+         "P813"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q20688219",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Chou Tzuyu"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "쯔위"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Tzuyu"
+    }
+   },
+   "lastrevid": 2543444508,
+   "modified": "2026-09-10T18:45:44Z",
+   "ns": 0,
+   "pageid": 22434184,
+   "sitelinks": {
+    "enwiki": {
+     "badges": [],
+     "site": "enwiki",
+     "title": "Tzuyu",
+     "url": "https://en.wikipedia.org/wiki/Tzuyu"
+    }
+   },
+   "title": "Q20688219",
+   "type": "item"
+  },
+  "Q22804243": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "im nayeon"
+     },
+     {
+      "language": "en",
+      "value": "nayeon"
+     },
+     {
+      "language": "en",
+      "value": "im unnie"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "임나연"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "Im Na-yeon"
+     },
+     {
+      "language": "pt",
+      "value": "im Na-yeon"
+     }
+    ]
+   },
+   "claims": {
+    "P1303": [
+     {
+      "id": "Q22804243$9F164DB6-5BCC-452F-985C-B5618FDBE5D4",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q17172850",
+         "numeric-id": 17172850
+        }
+       },
+       "hash": "51446aa88f4758a24ef3452a1ff1c6ff2a2add2e",
+       "property": "P1303",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P1412": [
+     {
+      "id": "Q22804243$1EE91121-718D-48F7-B51B-EF754ADA4BF2",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q9176",
+         "numeric-id": 9176
+        }
+       },
+       "hash": "cd3065908b0f9333c71f9bbd2cd50858b2ec3c7c",
+       "property": "P1412",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P1559": [
+     {
+      "id": "Q22804243$6c6368f8-4acb-0da3-9386-a4144297524b",
+      "mainsnak": {
+       "datatype": "monolingualtext",
+       "datavalue": {
+        "type": "monolingualtext",
+        "value": {
+         "language": "ko",
+         "text": "임나연"
+        }
+       },
+       "hash": "159e4a989e3504ad4d7208b6963503411ff66ebe",
+       "property": "P1559",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     },
+     {
+      "id": "Q22804243$c06cf258-459a-b703-bfdf-c97a5e08a34b",
+      "mainsnak": {
+       "datatype": "monolingualtext",
+       "datavalue": {
+        "type": "monolingualtext",
+        "value": {
+         "language": "ko",
+         "text": "林娜璉"
+        }
+       },
+       "hash": "2e790fe7be11d706223298eac731170a123cdc37",
+       "property": "P1559",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P19": [
+     {
+      "id": "Q22804243$24e584d2-49bd-f003-f197-ae22ac3ea60b",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q8684",
+         "numeric-id": 8684
+        }
+       },
+       "hash": "004167fbf548abf95b8d64f28f1cb0dcecf33d0b",
+       "property": "P19",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "288ab581e7d2d02995a26dfa8b091d96e78457fc",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q206855",
+             "numeric-id": 206855
+            }
+           },
+           "hash": "6a164248fc96bfa583bbb495cb63ae6401ec203c",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P27": [
+     {
+      "id": "Q22804243$82a2ed6f-4c22-72ad-2a38-cde32bd0c7ed",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q884",
+         "numeric-id": 884
+        }
+       },
+       "hash": "4c8732ed5fd2efcd7e616db0ae504388e4456649",
+       "property": "P27",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P31": [
+     {
+      "id": "Q22804243$AB445259-E9A3-472F-9FE1-BB4BBE3FF92D",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q5",
+         "numeric-id": 5
+        }
+       },
+       "hash": "ad7d38a03cdd40cdc373de0dc4e7b7fcbccb31d9",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "0ee3b3ba1c958f4c3dcba7ed8091fe4b57311348",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q30239",
+             "numeric-id": 30239
+            }
+           },
+           "hash": "cb49f6fa327b245e4a5aaf48c44b3f503bcd4265",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P463": [
+     {
+      "id": "Q22804243$2561C20D-12D5-4D82-9E55-88D2F1D19D71",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q20645861",
+         "numeric-id": 20645861
+        }
+       },
+       "hash": "a9a0db072434b49506f6623009adb80d5f8fe0dd",
+       "property": "P463",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 11,
+           "time": "+2015-10-20T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "56601b87a0410ce0b10695d5accf7ea6232c1b79",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580"
+      ],
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "7ce51bf330a0b74b07d77989c57ad55cb21fa143",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q30239",
+             "numeric-id": 30239
+            }
+           },
+           "hash": "cb49f6fa327b245e4a5aaf48c44b3f503bcd4265",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ],
+         "P4656": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://zh.wikipedia.org/w/index.php?title=娜璉&oldid=50226307"
+           },
+           "hash": "44d037f0ebf2522e68d509f30608f3edf6053e36",
+           "property": "P4656",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143",
+         "P4656"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P569": [
+     {
+      "id": "Q22804243$d9da0946-4567-6ced-8d51-ce0f5a8c4ca4",
+      "mainsnak": {
+       "datatype": "time",
+       "datavalue": {
+        "type": "time",
+        "value": {
+         "after": 0,
+         "before": 0,
+         "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+         "precision": 11,
+         "time": "+1995-09-22T00:00:00Z",
+         "timezone": 0
+        }
+       },
+       "hash": "85924ffc481d4e7dcf524d90868668090b6cfe9c",
+       "property": "P569",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "aec501db1abeb5abb01c6048a1aec43d61b0d35a",
+        "snaks": {
+         "P1810": [
+          {
+           "datatype": "string",
+           "datavalue": {
+            "type": "string",
+            "value": "Nayeon"
+           },
+           "hash": "ceb650b5821c1f319fdeefcf909cddf4ee1991ad",
+           "property": "P1810",
+           "snaktype": "value"
+          }
+         ],
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://pantheon.world/profile/person/Nayeon"
+           },
+           "hash": "fcbf266f426b6d402ae68c692521a85ce6d1fc68",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854",
+         "P1810"
+        ]
+       },
+       {
+        "hash": "551b5360610860b0c60bd2899ae61eb011f408e4",
+        "snaks": {
+         "P813": [
+          {
+           "datatype": "time",
+           "datavalue": {
+            "type": "time",
+            "value": {
+             "after": 0,
+             "before": 0,
+             "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+             "precision": 11,
+             "time": "+2022-05-18T00:00:00Z",
+             "timezone": 0
+            }
+           },
+           "hash": "783d2769a67f115c3ff5ddbe103dd5bcf3e439a2",
+           "property": "P813",
+           "snaktype": "value"
+          }
+         ],
+         "P854": [
+          {
+           "datatype": "url",
+           "datavalue": {
+            "type": "string",
+            "value": "https://twicejapan.com/feature/profile"
+           },
+           "hash": "2d287913a18157c713627b547c42e2a5066bdcbf",
+           "property": "P854",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P854",
+         "P813"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q22804243",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Im Nayeon"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "나연"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Nayeon"
+    }
+   },
+   "lastrevid": 2543442012,
+   "modified": "2026-09-10T18:41:01Z",
+   "ns": 0,
+   "pageid": 24825660,
+   "sitelinks": {
+    "enwiki": {
+     "badges": [],
+     "site": "enwiki",
+     "title": "Nayeon",
+     "url": "https://en.wikipedia.org/wiki/Nayeon"
+    }
+   },
+   "title": "Q22804243",
+   "type": "item"
+  },
+  "Q476119": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "WG"
+     }
+    ]
+   },
+   "claims": {
+    "P31": [
+     {
+      "id": "q476119$EB57DCB9-6BDC-47AD-8AA3-3412BDCB2B0A",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q641066",
+         "numeric-id": 641066
+        }
+       },
+       "hash": "8b38371950e1f3cd469857eaf44f5b06fe0a99b9",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P527": [
+     {
+      "id": "Q476119$d056f2c6-49d7-1ffb-3c58-027cd9772fb8",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q483642",
+         "numeric-id": 483642
+        }
+       },
+       "hash": "a0d0f25c09c90c41b5943edd5af8db02ab2d7bc7",
+       "property": "P527",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 10,
+           "time": "+2007-02-01T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "a6bc5b1cc57bcc2040b43e5fa4f105368e407e51",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ],
+       "P582": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 10,
+           "time": "+2015-07-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "128a87a6ae1521199eeb1ca22a5eb2738422e5d0",
+         "property": "P582",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580",
+       "P582"
+      ],
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "d5847b9b6032aa8b13dae3c2dfd9ed5d114d21b3",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q11920",
+             "numeric-id": 11920
+            }
+           },
+           "hash": "5a343e7e758a4282a01316d3e959b6e653b767fc",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     },
+     {
+      "id": "Q476119$04ca4d9e-4436-c4ff-3da3-fdea4a842a91",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q624995",
+         "numeric-id": 624995
+        }
+       },
+       "hash": "cec4d5ed4cf66fc8c6f9d7d3c46476cb15010280",
+       "property": "P527",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 10,
+           "time": "+2007-02-01T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "a6bc5b1cc57bcc2040b43e5fa4f105368e407e51",
+         "property": "P580",
+         "snaktype": "value"
+        },
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 10,
+           "time": "+2015-07-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "c79fa932b49f0a568948622e004efdda2a78f9ef",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ],
+       "P582": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 10,
+           "time": "+2010-01-01T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "a18df1df1ae440adad435dc97b71d3197957dc2e",
+         "property": "P582",
+         "snaktype": "value"
+        },
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 10,
+           "time": "+2017-01-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "b593972b597cd99429d7b2d9faa94ed747ad1d45",
+         "property": "P582",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580",
+       "P582"
+      ],
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "d5847b9b6032aa8b13dae3c2dfd9ed5d114d21b3",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q11920",
+             "numeric-id": 11920
+            }
+           },
+           "hash": "5a343e7e758a4282a01316d3e959b6e653b767fc",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P571": [
+     {
+      "id": "Q476119$d46da35b-4da6-019d-69d4-c4b04466c58b",
+      "mainsnak": {
+       "datatype": "time",
+       "datavalue": {
+        "type": "time",
+        "value": {
+         "after": 0,
+         "before": 0,
+         "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+         "precision": 9,
+         "time": "+2007-01-01T00:00:00Z",
+         "timezone": 0
+        }
+       },
+       "hash": "09eb0995a693bb14ec1331d2d9564e86ca04ab84",
+       "property": "P571",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q328",
+             "numeric-id": 328
+            }
+           },
+           "hash": "e4f6d9441d0600513c4533c672b5ab472dc73694",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q476119",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Wonder Girls"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "원더걸스"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Wonder Girls"
+    }
+   },
+   "lastrevid": 2537297717,
+   "modified": "2026-08-28T06:11:53Z",
+   "ns": 0,
+   "pageid": 448787,
+   "sitelinks": {
+    "enwiki": {
+     "badges": [],
+     "site": "enwiki",
+     "title": "Wonder Girls",
+     "url": "https://en.wikipedia.org/wiki/Wonder_Girls"
+    }
+   },
+   "title": "Q476119",
+   "type": "item"
+  },
+  "Q483642": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Min Sun-ye"
+     },
+     {
+      "language": "en",
+      "value": "Sun"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "민선예"
+     }
+    ]
+   },
+   "claims": {
+    "P31": [
+     {
+      "id": "Q483642$04D31BA8-CC73-4D80-931C-046F8505F5DD",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q5",
+         "numeric-id": 5
+        }
+       },
+       "hash": "ad7d38a03cdd40cdc373de0dc4e7b7fcbccb31d9",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "0ee3b3ba1c958f4c3dcba7ed8091fe4b57311348",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q30239",
+             "numeric-id": 30239
+            }
+           },
+           "hash": "cb49f6fa327b245e4a5aaf48c44b3f503bcd4265",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P463": [
+     {
+      "id": "Q483642$e6167294-43d3-73e9-db34-1d1b2064a4ab",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q476119",
+         "numeric-id": 476119
+        }
+       },
+       "hash": "21e3762ca944a30afbd7463dc9c75d45bd3f8067",
+       "property": "P463",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 10,
+           "time": "+2007-02-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "15e366038652c1170c29af7a7339ef4b846a1e2c",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ],
+       "P582": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+2015-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "85ebf02f8b80826a7e6dc78230ef266087006d1f",
+         "property": "P582",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580",
+       "P582"
+      ],
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q328",
+             "numeric-id": 328
+            }
+           },
+           "hash": "e4f6d9441d0600513c4533c672b5ab472dc73694",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     },
+     {
+      "id": "Q483642$725EA347-84CA-42FB-915F-9AEC24A7CB07",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q476119",
+         "numeric-id": 476119
+        }
+       },
+       "hash": "21e3762ca944a30afbd7463dc9c75d45bd3f8067",
+       "property": "P463",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "type": "statement"
+     }
+    ],
+    "P569": [
+     {
+      "id": "Q483642$0BEFA92E-1CFA-4801-B293-A5677333F270",
+      "mainsnak": {
+       "datatype": "time",
+       "datavalue": {
+        "type": "time",
+        "value": {
+         "after": 0,
+         "before": 0,
+         "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+         "precision": 11,
+         "time": "+1989-08-12T00:00:00Z",
+         "timezone": 0
+        }
+       },
+       "hash": "c6363c1d08f94b528b2826f54ca51acf453ca17a",
+       "property": "P569",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q328",
+             "numeric-id": 328
+            }
+           },
+           "hash": "e4f6d9441d0600513c4533c672b5ab472dc73694",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q483642",
+   "labels": {
+    "en": {
+     "language": "en",
+     "value": "Sunye"
+    },
+    "ko": {
+     "language": "ko",
+     "value": "선예"
+    },
+    "pt": {
+     "language": "pt",
+     "value": "Sunye"
+    }
+   },
+   "lastrevid": 2537287371,
+   "modified": "2026-08-28T05:16:25Z",
+   "ns": 0,
+   "pageid": 455222,
+   "sitelinks": {
+    "enwiki": {
+     "badges": [],
+     "site": "enwiki",
+     "title": "Sunye",
+     "url": "https://en.wikipedia.org/wiki/Sunye"
+    }
+   },
+   "title": "Q483642",
+   "type": "item"
+  },
+  "Q624995": {
+   "aliases": {
+    "en": [
+     {
+      "language": "en",
+      "value": "Lee Sunmi"
+     }
+    ],
+    "ko": [
+     {
+      "language": "ko",
+      "value": "이선미"
+     }
+    ],
+    "pt": [
+     {
+      "language": "pt",
+      "value": "Lee Sunmi"
+     },
+     {
+      "language": "pt",
+      "value": "선미"
+     },
+     {
+      "language": "pt",
+      "value": "이선미"
+     }
+    ]
+   },
+   "claims": {
+    "P31": [
+     {
+      "id": "Q624995$EC189526-0387-46CC-B312-0D6D1A799FB1",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q5",
+         "numeric-id": 5
+        }
+       },
+       "hash": "ad7d38a03cdd40cdc373de0dc4e7b7fcbccb31d9",
+       "property": "P31",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "0ee3b3ba1c958f4c3dcba7ed8091fe4b57311348",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q30239",
+             "numeric-id": 30239
+            }
+           },
+           "hash": "cb49f6fa327b245e4a5aaf48c44b3f503bcd4265",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P463": [
+     {
+      "id": "Q624995$2903C082-5C65-4FD7-AB9C-9888752191DA",
+      "mainsnak": {
+       "datatype": "wikibase-item",
+       "datavalue": {
+        "type": "wikibase-entityid",
+        "value": {
+         "entity-type": "item",
+         "id": "Q476119",
+         "numeric-id": 476119
+        }
+       },
+       "hash": "21e3762ca944a30afbd7463dc9c75d45bd3f8067",
+       "property": "P463",
+       "snaktype": "value"
+      },
+      "qualifiers": {
+       "P580": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+2007-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "2ff980d429ca62a9f912808fc44b6488fe02ca1c",
+         "property": "P580",
+         "snaktype": "value"
+        },
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+2015-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "301fd6578ed6983cefaa7493099d4b2b15d8c844",
+         "property": "P580",
+         "snaktype": "value"
+        }
+       ],
+       "P582": [
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+2010-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "6f4c37357db10714dc6c7a0ce30a4621b3ce0305",
+         "property": "P582",
+         "snaktype": "value"
+        },
+        {
+         "datatype": "time",
+         "datavalue": {
+          "type": "time",
+          "value": {
+           "after": 0,
+           "before": 0,
+           "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+           "precision": 9,
+           "time": "+2017-00-00T00:00:00Z",
+           "timezone": 0
+          }
+         },
+         "hash": "35c0020265dd882b92ff53afc3f29993e62a042f",
+         "property": "P582",
+         "snaktype": "value"
+        }
+       ]
+      },
+      "qualifiers-order": [
+       "P580",
+       "P582"
+      ],
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "d5847b9b6032aa8b13dae3c2dfd9ed5d114d21b3",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q11920",
+             "numeric-id": 11920
+            }
+           },
+           "hash": "5a343e7e758a4282a01316d3e959b6e653b767fc",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ],
+    "P569": [
+     {
+      "id": "Q624995$4E770224-F532-4EEC-B5EB-FC1542F901CC",
+      "mainsnak": {
+       "datatype": "time",
+       "datavalue": {
+        "type": "time",
+        "value": {
+         "after": 0,
+         "before": 0,
+         "calendarmodel": "http://www.wikidata.org/entity/Q1985727",
+         "precision": 11,
+         "time": "+1992-05-02T00:00:00Z",
+         "timezone": 0
+        }
+       },
+       "hash": "00d8b52afa3d6d28aba7040417bbe7f3f16be5ce",
+       "property": "P569",
+       "snaktype": "value"
+      },
+      "rank": "normal",
+      "references": [
+       {
+        "hash": "fa278ebfc458360e5aed63d5058cca83c46134f1",
+        "snaks": {
+         "P143": [
+          {
+           "datatype": "wikibase-item",
+           "datavalue": {
+            "type": "wikibase-entityid",
+            "value": {
+             "entity-type": "item",
+             "id": "Q328",
+             "numeric-id": 328
+            }
+           },
+           "hash": "e4f6d9441d0600513c4533c672b5ab472dc73694",
+           "property": "P143",
+           "snaktype": "value"
+          }
+         ]
+        },
+        "snaks-order": [
+         "P143"
+        ]
+       }
+      ],
+      "type": "statement"
+     }
+    ]
+   },
+   "id": "Q624995",
+   "labels": {
+    "ko": {
+     "language": "ko",
+     "value": "선미"
+    }
+   },
+   "lastrevid": 2541504905,
+   "modified": "2026-09-07T05:10:51Z",
+   "ns": 0,
+   "pageid": 587833,
+   "sitelinks": {
+    "enwiki": {
+     "badges": [],
+     "site": "enwiki",
+     "title": "Sunmi",
+     "url": "https://en.wikipedia.org/wiki/Sunmi"
+    }
+   },
+   "title": "Q624995",
+   "type": "item"
+  }
+ },
+ "wikipedia_pages": [
+  {
+   "canonicalurl": "https://en.wikipedia.org/wiki/Twice",
+   "extract": "Twice (Korean: 트와이스, stylized in all caps) is a South Korean girl group formed by JYP Entertainment. The group is composed of nine members: Nayeon, Jeongyeon, Momo, Sana, Jihyo, Mina, Dahyun, Chaeyoung, and Tzuyu. They are recognized as one of the best-selling girl groups of all time and are widely regarded as one of K-pop's most influential acts. Twice have been dubbed \"The Nation's Girl Group\" in their home country and are credited for their role in leading the re-emergence of girl groups in the Korean Wave. Initially known for their bright and youthful image, the group has since evolved to explore an array of sounds and concepts.",
+   "pageid": 46657634,
+   "revid": 1374378392,
+   "title": "Twice",
+   "wikidata_id": "Q20645861"
+  },
+  {
+   "canonicalurl": "https://en.wikipedia.org/wiki/Red_Velvet_(group)",
+   "extract": "Red Velvet (Korean: 레드벨벳) is a South Korean girl group formed and managed by SM Entertainment. They originally debuted on August 1, 2014, with the single \"Happiness\" with the four-member line-up of Irene, Seulgi, Wendy, and Joy. A fifth member, Yeri, joined in March 2015, with the release of their first extended play, the chart-topping Ice Cream Cake. Sonically, the music of Red Velvet reflects their group name: their predominantly-pop \"red\" side experiments occasionally with electronic and funk, while their \"velvet\" side focuses on '90s-influenced R&B with elements of ballad and hip hop.",
+   "pageid": 43447134,
+   "revid": 1373047147,
+   "title": "Red Velvet (group)",
+   "wikidata_id": "Q17466114"
+  },
+  {
+   "canonicalurl": "https://en.wikipedia.org/wiki/Wonder_Girls",
+   "extract": "Wonder Girls (Korean: 원더걸스) were a South Korean girl group formed by JYP Entertainment. The group debuted in February 2007 with the single \"Irony\" and 5 members: Yeeun, Sunye, Sunmi, Hyuna, and Sohee. After Hyuna's departure in July, Yubin was added into the group prior to the release of their debut studio album, The Wonder Years (2007). The album spawned the hit single \"Tell Me\", which topped various South Korean music charts.",
+   "pageid": 9844488,
+   "revid": 1372886898,
+   "title": "Wonder Girls",
+   "wikidata_id": "Q476119"
+  }
+ ]
+}

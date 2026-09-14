@@ -1,0 +1,32 @@
+{
+  "sample": {
+    "collected_at": "2026-09-13",
+    "category": "Category:K-pop music groups",
+    "pages_collected": 60,
+    "catalog_groups_accepted": 58,
+    "groups_processed": 30,
+    "distinct_facts_with_reference_source": 49
+  },
+  "sources": [
+    {"source_key": "wikidata:Q3561957", "status": "unreliable", "facts": 12},
+    {"source_key": "domain:naver.com", "status": "unreviewed", "facts": 5},
+    {"source_key": "domain:4min.co.kr", "status": "reliable", "facts": 4},
+    {"source_key": "domain:after--school.jp", "status": "reliable", "facts": 4},
+    {"source_key": "domain:kpopsingers.com", "status": "unreliable", "facts": 4},
+    {"source_key": "domain:namu.wiki", "status": "unreviewed", "facts": 3},
+    {"source_key": "domain:billboard.com", "status": "reliable", "facts": 2},
+    {"source_key": "domain:csfd.cz", "status": "unreliable", "facts": 2},
+    {"source_key": "domain:famousbirthdays.com", "status": "unreliable", "facts": 2},
+    {"source_key": "domain:fncent.com", "status": "unreviewed", "facts": 2},
+    {"source_key": "domain:jype.com", "status": "reliable", "facts": 2},
+    {"source_key": "domain:soompi.com", "status": "unreviewed", "facts": 2},
+    {"source_key": "domain:apple.com", "status": "unreviewed", "facts": 1},
+    {"source_key": "domain:donga.com", "status": "reliable", "facts": 1},
+    {"source_key": "domain:kprofiles.com", "status": "unreliable", "facts": 1},
+    {"source_key": "domain:pantheon.world", "status": "unreliable", "facts": 1},
+    {"source_key": "domain:storynplus.com", "status": "unreviewed", "facts": 1},
+    {"source_key": "wikidata:Q15241312", "status": "unreviewed", "facts": 1},
+    {"source_key": "wikidata:Q37312", "status": "unreliable", "facts": 1},
+    {"source_key": "wikidata:Q504063", "status": "unreliable", "facts": 1}
+  ]
+}
