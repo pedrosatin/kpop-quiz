@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-GENERATOR_VERSION = "quiz-generator-v3"
+GENERATOR_VERSION = "quiz-generator-v4"
 DEFAULT_REFERENCE_DATE = date(2026, 9, 13)
 
 
@@ -39,6 +39,7 @@ class Entity:
 
 @dataclass(frozen=True)
 class Evidence:
+    fact_base_id: str
     source_key: str
     locator: str
     source_url: str
@@ -46,6 +47,7 @@ class Evidence:
 
     def payload(self) -> dict[str, Any]:
         return {
+            "fact_base_id": self.fact_base_id,
             "locator": self.locator,
             "revision_id": self.revision_id,
             "source_key": self.source_key,
@@ -81,4 +83,3 @@ class Draft:
     values: dict[str, str]
     evidence: tuple[Evidence, ...]
     fact_base_ids: tuple[str, ...]
-
