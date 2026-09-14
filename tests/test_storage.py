@@ -309,7 +309,7 @@ class StorageTest(unittest.TestCase):
                     "SELECT provider, language, external_page_id, title FROM source_pages"
                 ).fetchone()
 
-            self.assertEqual([row["version"] for row in versions], [1, 2, 3, 4, 5])
+            self.assertEqual([row["version"] for row in versions], [1, 2, 3, 4, 5, 6])
             self.assertEqual(tuple(page), ("wikipedia", "en", 10, "Alpha"))
 
 

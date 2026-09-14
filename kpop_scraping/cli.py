@@ -7,7 +7,9 @@ from .catalog import classify_catalog
 from .collector import collect_category
 from .fact_pipeline import extract_facts
 from .mediawiki import MediaWikiClient, MediaWikiError
-from .reports import export_fact_coverage_csv
+from .reports import export_fact_coverage_csv, export_release_coverage_csv
+from .release_discovery import MAX_GROUPS_PER_QUERY, WikidataQueryClient, discover_releases
+from .release_pipeline import collect_release_facts
 from .storage import Repository, SnapshotIntegrityError
 from .wikidata import WikidataEntityClient, WikidataTypeClient
 
@@ -31,6 +33,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="CSV report path; defaults to catalog-report.csv beside the database",
     )
     parser.add_argument("--limit", type=int, help="Collect only the first N pages")
+    parser.add_argument("--releases", action="store_true", help="Discover and confirm releases after fact extraction")
+    parser.add_argument("--release-group-limit", type=int, default=MAX_GROUPS_PER_QUERY)
+    parser.add_argument("--release-report", type=Path, help="Release coverage CSV path; implies --releases")
     parser.add_argument(
         "--facts",
         action="store_true",
@@ -61,7 +66,10 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("--user-agent must not be empty")
     if args.facts_limit is not None and args.facts_limit < 1:
         raise SystemExit("--facts-limit must be greater than zero")
-    run_facts = args.facts or args.facts_limit is not None or args.facts_report is not None
+    run_releases = args.releases or args.release_report is not None
+    if not 1 <= args.release_group_limit <= MAX_GROUPS_PER_QUERY:
+        raise SystemExit(f"--release-group-limit must be between 1 and {MAX_GROUPS_PER_QUERY}")
+    run_facts = args.facts or args.facts_limit is not None or args.facts_report is not None or run_releases
     facts_report = args.facts_report or args.database.parent / "facts-coverage.csv"
     raw_dir = args.raw_dir or args.database.parent / "raw"
     catalog_report = args.catalog_report or args.database.parent / "catalog-report.csv"
@@ -86,6 +94,11 @@ def main(argv: list[str] | None = None) -> int:
                     group_limit=args.facts_limit,
                 )
                 fact_rows = export_fact_coverage_csv(repository.connection, facts_report)
+            release_totals = release_rows = None
+            if run_releases:
+                discovery_run = discover_releases(repository, WikidataQueryClient(user_agent=args.user_agent), group_limit=args.release_group_limit)
+                release_totals = collect_release_facts(repository, WikidataEntityClient(user_agent=args.user_agent), discovery_run)
+                release_rows = export_release_coverage_csv(repository.connection, args.release_report or args.database.parent / "release-coverage.csv")
     except (MediaWikiError, SnapshotIntegrityError, RuntimeError) as exc:
         print(f"Pipeline failed: {type(exc).__name__}: {exc}")
         return 1
@@ -101,5 +114,14 @@ def main(argv: list[str] | None = None) -> int:
             f"{fact_totals.rejected} rejected, {fact_totals.conflict} conflict, "
             f"{fact_totals.superseded} superseded, {fact_totals.stale} stale; "
             f"{fact_rows} rows in {facts_report}"
+        )
+    if release_totals is not None:
+        print(
+            f"Releases: {release_totals.groups} discovery groups, "
+            f"{release_totals.entities} release entities saved; "
+            f"{release_totals.accepted} accepted facts, "
+            f"{release_totals.rejected} rejected, "
+            f"{release_totals.conflict} conflict; "
+            f"{release_rows} coverage rows"
         )
     return 0
