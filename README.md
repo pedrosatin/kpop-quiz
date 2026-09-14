@@ -7,6 +7,7 @@ O estado atual cobre descoberta de páginas, resumos, classificação de candida
 ## Requisitos
 
 - Python 3.11 ou mais recente
+- Node.js 22 ou mais recente para a interface web
 - acesso à internet para executar a coleta
 
 O coletor usa somente a biblioteca padrão do Python.
@@ -41,9 +42,24 @@ python main.py --limit 3 --database /tmp/kpop-quiz.db
 python main.py --limit 3 --catalog-report /tmp/kpop-catalog.csv
 python main.py --limit 45 --database /tmp/kpop.db --facts-limit 30 --facts-report /tmp/kpop-facts.csv
 python -m kpop_scraping.quiz_cli --database /tmp/kpop.db --output /tmp/questions.json --report /tmp/quiz-report.json --session-output /tmp/session.json --seed rodada-1 --timer-seconds 20
+python -m kpop_scraping.web_publish --database /tmp/kpop.db --output-dir web/public/data --seed web-launch-v1 --timer-seconds 20
+python -m kpop_scraping.web_publish --output-dir web/public/data --verify
 python -m unittest discover -v
 python -m compileall -q .
 ```
+
+## Interface web
+
+A interface estática usa Astro e Preact. O build cria as rotas `/pt-br/` e `/en/` sob o caminho `/kpop-scraping/` do GitHub Pages. O navegador valida o manifesto, o SHA-256 e o contrato da sessão antes de iniciar o quiz.
+
+```bash
+cd web
+npm ci
+npm test
+npm run build
+```
+
+O comando `web_publish` gera uma sessão de dez perguntas para cada idioma. Os arquivos ficam em `web/public/data`. Cada nome de sessão inclui seu SHA-256, e o publicador troca o manifesto somente depois de gravar as duas sessões. O workflow do GitHub Pages verifica esses artefatos antes do build.
 
 Uma nova execução atualiza cada página pela combinação de provedor, idioma e `pageid`. `collection_runs` registra sucesso ou falha. `source_pages` guarda o estado mais recente, `source_revisions` aponta para cada snapshot e seu SHA-256, e `collection_run_revisions` registra as revisões usadas em cada execução. `catalog_entries` guarda uma decisão por página. Uma revisão nova ou uma mudança nos metadados usados pelo classificador devolve a página ao estado `candidate`.
 
@@ -61,6 +77,7 @@ O coletor aplica migrações pendentes ao abrir o banco. Cada migração roda em
 kpop_scraping/   cliente, fluxo, CLI e persistência
 schemas/          contratos JSON dos datasets e sessões
 tests/           testes unitários e fixtures
+web/             interface estática e sessões publicadas
 ```
 
 ## Licenças e proveniência

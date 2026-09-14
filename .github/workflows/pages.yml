@@ -1,0 +1,74 @@
+name: Deploy static web app to GitHub Pages
+
+on:
+  pull_request:
+    paths:
+      - "web/**"
+      - "kpop_scraping/**"
+      - "tests/**"
+      - "schemas/**"
+      - "requirements.txt"
+      - ".github/workflows/pages.yml"
+  push:
+    branches: [master]
+    paths:
+      - "web/**"
+      - "kpop_scraping/**"
+      - "tests/**"
+      - "schemas/**"
+      - "requirements.txt"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Run Python verification
+        working-directory: .
+        run: |
+          python -m unittest discover -v
+          python -m compileall -q .
+      - name: Verify published quiz artifacts
+        working-directory: .
+        run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: web/dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

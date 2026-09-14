@@ -1,0 +1,16 @@
+---
+import { Quiz } from "../../components/Quiz/Quiz";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getMessages } from "../../i18n/catalog";
+const messages = getMessages("en");
+---
+<BaseLayout locale="en">
+  <div class="page-shell">
+    <section class="intro" aria-labelledby="page-title">
+      <p class="kicker">{messages.eyebrow}</p>
+      <h1 id="page-title">{messages.title}</h1>
+      <p>{messages.intro}</p>
+    </section>
+    <Quiz locale="en" client:load />
+  </div>
+</BaseLayout>

@@ -1,0 +1,38 @@
+---
+import "../styles/global.css";
+import type { Locale } from "../lib/quiz-types";
+import { getMessages } from "../i18n/catalog";
+
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const messages = getMessages(locale);
+const otherPath = locale === "pt-BR" ? "/en/" : "/pt-br/";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={messages.intro} />
+    <meta name="theme-color" content="#0b1820" />
+    <title>{messages.title} | K-pop Quiz</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#quiz">{messages.skipLink}</a>
+    <header class="site-header">
+      <a class="wordmark" href={`${base}/${locale === "pt-BR" ? "pt-br" : "en"}/`} aria-label={messages.homeLabel}>
+        <span>K</span>Q
+      </a>
+      <nav aria-label={messages.languageLabel}>
+        <a class="language-link" href={`${base}${otherPath}`} hreflang={locale === "pt-BR" ? "en" : "pt-BR"}>{messages.languageName}</a>
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer>
+      <p>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a></p>
+    </footer>
+  </body>
+</html>
