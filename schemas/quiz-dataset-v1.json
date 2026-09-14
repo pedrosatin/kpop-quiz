@@ -46,7 +46,7 @@
         "id": {"$ref": "#/$defs/hash"},
         "label": {"type": "string", "minLength": 1},
         "value": {"type": "string", "minLength": 1},
-        "value_type": {"enum": ["group", "person", "organization", "release", "album", "time", "number"]}
+        "value_type": {"enum": ["group", "person", "organization", "time", "number"]}
       }
     },
     "evidence": {
@@ -102,11 +102,7 @@
             "member_for_group",
             "group_for_record_label",
             "record_label_for_group",
-            "chronological_comparison",
-            "release_for_group",
-            "group_for_release",
-            "release_year",
-            "earliest_release"
+            "chronological_comparison"
           ]
         },
         "theme": {"type": "string", "minLength": 1},
