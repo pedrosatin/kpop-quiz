@@ -354,6 +354,14 @@ def _comparison_drafts(
                         "comparison_kind": kind,
                         "date": answer.value_time or "",
                         "date_precision": str(precision),
+                        "comparison_values": tuple(
+                            (
+                                fact.subject.wikidata_id,
+                                fact.value_time or "",
+                                precision,
+                            )
+                            for fact in combo
+                        ),
                     },
                     _merge_evidence(combo),
                     tuple(sorted(fact.statement_id for fact in combo)),

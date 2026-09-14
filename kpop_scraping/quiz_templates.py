@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-TEMPLATE_VERSION = "quiz-templates-v2"
+TEMPLATE_VERSION = "quiz-templates-v3"
 SUPPORTED_LANGUAGES = ("pt-BR", "en")
 
 
@@ -52,56 +52,56 @@ TEMPLATES: dict[str, dict[str, dict[str, str]]] = {
     },
     "group_for_member": {
         "pt-BR": {
-            "prompt": "Qual grupo aparece associado a {person} na afirmação citada?",
-            "explanation": "A afirmação citada associa {person} a {answer}.",
+            "prompt": "Com qual destes grupos {person} tem vínculo documentado?",
+            "explanation": "A fonte documenta um vínculo entre {person} e {answer}.",
         },
         "en": {
-            "prompt": "Which group does the cited statement associate with {person}?",
-            "explanation": "The cited statement associates {person} with {answer}.",
+            "prompt": "Which of these groups has a documented connection to {person}?",
+            "explanation": "The source documents a connection between {person} and {answer}.",
         },
     },
     "member_for_group": {
         "pt-BR": {
-            "prompt": "Qual destes artistas a afirmação citada associa a {group}?",
-            "explanation": "A afirmação citada associa {answer} a {group}.",
+            "prompt": "Qual destes artistas tem vínculo documentado com {group}?",
+            "explanation": "A fonte documenta um vínculo entre {answer} e {group}.",
         },
         "en": {
-            "prompt": "Which of these artists does the cited statement associate with {group}?",
-            "explanation": "The cited statement associates {answer} with {group}.",
+            "prompt": "Which of these artists has a documented connection to {group}?",
+            "explanation": "The source documents a connection between {answer} and {group}.",
         },
     },
     "group_for_record_label": {
         "pt-BR": {
-            "prompt": "Qual grupo a afirmação citada associa à gravadora {record_label}?",
-            "explanation": "A afirmação citada associa {answer} à gravadora {record_label}.",
+            "prompt": "Qual destes grupos tem vínculo documentado com a gravadora {record_label}?",
+            "explanation": "A fonte documenta um vínculo entre {answer} e a gravadora {record_label}.",
         },
         "en": {
-            "prompt": "Which group does the cited statement associate with the record label {record_label}?",
-            "explanation": "The cited statement associates {answer} with the record label {record_label}.",
+            "prompt": "Which of these groups has a documented connection to {record_label}?",
+            "explanation": "The source documents a connection between {answer} and the record label {record_label}.",
         },
     },
     "record_label_for_group": {
         "pt-BR": {
-            "prompt": "Qual gravadora a afirmação citada associa a {group}?",
-            "explanation": "A afirmação citada associa {group} à gravadora {answer}.",
+            "prompt": "Qual destas gravadoras tem vínculo documentado com {group}?",
+            "explanation": "A fonte documenta um vínculo entre {group} e a gravadora {answer}.",
         },
         "en": {
-            "prompt": "Which record label does the cited statement associate with {group}?",
-            "explanation": "The cited statement associates {group} with the record label {answer}.",
+            "prompt": "Which of these record labels has a documented connection to {group}?",
+            "explanation": "The source documents a connection between {group} and the record label {answer}.",
         },
     },
     "chronological_comparison": {
         "pt-BR": {
             "person_prompt": "Qual destes artistas nasceu primeiro?",
             "group_prompt": "Qual destes grupos foi formado primeiro?",
-            "person_explanation": "{answer} nasceu antes das outras alternativas, em {date}.",
-            "group_explanation": "{answer} foi formado antes das outras alternativas, em {date}.",
+            "person_explanation": "Em ordem cronológica: {comparison}.",
+            "group_explanation": "Em ordem cronológica: {comparison}.",
         },
         "en": {
             "person_prompt": "Which of these artists was born first?",
             "group_prompt": "Which of these groups was formed first?",
-            "person_explanation": "{answer} was born before the other options, on {date}.",
-            "group_explanation": "{answer} was formed before the other options, in {date}.",
+            "person_explanation": "In chronological order: {comparison}.",
+            "group_explanation": "In chronological order: {comparison}.",
         },
     },
 }

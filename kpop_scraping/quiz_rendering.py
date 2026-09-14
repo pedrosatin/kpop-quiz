@@ -44,6 +44,10 @@ def _render_draft(
         values["date"] = _format_date(
             draft.values["date"], int(draft.values["date_precision"]), language
         )
+        values["comparison"] = "; ".join(
+            f"{entities[qid].name(language)} ({_format_date(raw_date, precision, language)})"
+            for qid, raw_date, precision in draft.values["comparison_values"]
+        )
     else:
         field = "prompt"
         explanation_field = "explanation"
@@ -109,7 +113,23 @@ def _format_date(value: str, precision: int, language: str) -> str:
         return value[:4]
     if precision == 10:
         year, month = value.split("-")
-        return f"{month}/{year}" if language == "pt-BR" else value
+        month_name = _MONTHS[language][int(month) - 1]
+        return f"{month_name} de {year}" if language == "pt-BR" else f"{month_name} {year}"
     year, month, day = value.split("-")
-    return f"{day}/{month}/{year}" if language == "pt-BR" else value
+    month_name = _MONTHS[language][int(month) - 1]
+    numeric_day = str(int(day))
+    if language == "pt-BR":
+        return f"{numeric_day} de {month_name} de {year}"
+    return f"{numeric_day} {month_name} {year}"
 
+
+_MONTHS = {
+    "pt-BR": (
+        "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+        "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+    ),
+    "en": (
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    ),
+}
