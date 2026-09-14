@@ -15,7 +15,7 @@ from .validation import ACCEPTED, CONFLICT, REJECTED, STALE, SUPERSEDED, FactDec
 from .wikidata import SUBJECT_PROFILE, EntityDocument
 
 
-SUBJECT_ENTITY_TYPES = frozenset({"group", "person"})
+SUBJECT_ENTITY_TYPES = frozenset({"group", "person", "release", "album"})
 
 
 @dataclass(frozen=True)
