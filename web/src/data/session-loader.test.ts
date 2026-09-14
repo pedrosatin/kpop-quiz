@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadQuizSession, QuizArtifactError } from "./session-loader";
-import ptSession from "../../public/data/session.pt-BR.json";
+import ptSession from "../../public/data/session.pt-BR.5d76c46b8310c1e9f0f784a9b6dadd6d3d7872f51b0b64c2d4eb12cf29ab2621.json";
 import manifest from "../../public/data/manifest.json";
 
 describe("published session loader", () => {
@@ -13,7 +13,7 @@ describe("published session loader", () => {
     vi.stubGlobal("fetch", fetch);
     await expect(loadQuizSession("pt-BR", "/kpop-scraping")).resolves.toMatchObject({ config: { language: "pt-BR" } });
     expect(fetch).toHaveBeenNthCalledWith(1, "/kpop-scraping/data/manifest.json");
-    expect(fetch).toHaveBeenNthCalledWith(2, "/kpop-scraping/data/session.pt-BR.json");
+    expect(fetch).toHaveBeenNthCalledWith(2, `/kpop-scraping/data/${manifest.sessions["pt-BR"].path}`);
   });
 
   it("distinguishes a missing artifact", async () => {
@@ -55,7 +55,7 @@ describe("published session loader", () => {
 
   it("rejects a manifest path that attempts directory traversal", async () => {
     const changedManifest = structuredClone(manifest) as Record<string, any>;
-    changedManifest.sessions.en.path = "../session.en.json";
+    changedManifest.sessions.en.path = `../session.en.${changedManifest.sessions.en.sha256}.json`;
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(changedManifest))));
     await expect(loadQuizSession("en")).rejects.toEqual(new QuizArtifactError("invalid"));
   });

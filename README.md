@@ -59,7 +59,7 @@ npm test
 npm run build
 ```
 
-O comando `web_publish` gera uma sessão de dez perguntas para cada idioma. Os arquivos ficam em `web/public/data`. O workflow do GitHub Pages verifica esses artefatos antes do build.
+O comando `web_publish` gera uma sessão de dez perguntas para cada idioma. Os arquivos ficam em `web/public/data`. Cada nome de sessão inclui seu SHA-256, e o publicador troca o manifesto somente depois de gravar as duas sessões. O workflow do GitHub Pages verifica esses artefatos antes do build.
 
 Uma nova execução atualiza cada página pela combinação de provedor, idioma e `pageid`. `collection_runs` registra sucesso ou falha. `source_pages` guarda o estado mais recente, `source_revisions` aponta para cada snapshot e seu SHA-256, e `collection_run_revisions` registra as revisões usadas em cada execução. `catalog_entries` guarda uma decisão por página. Uma revisão nova ou uma mudança nos metadados usados pelo classificador devolve a página ao estado `candidate`.
 

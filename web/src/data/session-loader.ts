@@ -29,8 +29,8 @@ function isManifest(value: unknown): value is Manifest {
     if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return false;
     const fields = entry as Record<string, unknown>;
     return Object.keys(fields).sort().join() === "path,session_id,sha256"
-      && fields.path === `session.${locale}.json`
       && typeof fields.sha256 === "string" && HASH.test(fields.sha256)
+      && fields.path === `session.${locale}.${fields.sha256}.json`
       && typeof fields.session_id === "string" && HASH.test(fields.session_id);
   });
 }

@@ -59,7 +59,7 @@ jobs:
           path: web/dist
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     permissions:
       pages: write
       id-token: write
