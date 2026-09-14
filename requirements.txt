@@ -1,3 +1,1 @@
-urllib3==1.25.8
-beautifulsoup4==4.9.3
-pandas==1.2.2
+# The collector uses only the Python 3.11+ standard library.
