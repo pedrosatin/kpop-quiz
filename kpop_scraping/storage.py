@@ -383,6 +383,136 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
+    (
+        6,
+        "release_catalog",
+        (
+            "ALTER TABLE entities RENAME TO entities_v5",
+            "ALTER TABLE entity_aliases RENAME TO entity_aliases_v5",
+            "ALTER TABLE facts RENAME TO facts_v5",
+            "ALTER TABLE fact_evidence RENAME TO fact_evidence_v5",
+            "ALTER TABLE catalog_entity_links RENAME TO catalog_entity_links_v5",
+            "DROP INDEX IF EXISTS facts_subject_predicate_idx",
+            "DROP INDEX IF EXISTS facts_value_entity_idx",
+            "DROP INDEX IF EXISTS facts_status_idx",
+            "DROP INDEX IF EXISTS catalog_entity_links_entity_idx",
+            """
+            CREATE TABLE entities (
+                id INTEGER PRIMARY KEY,
+                wikidata_id TEXT NOT NULL UNIQUE,
+                entity_type TEXT NOT NULL CHECK(entity_type IN (
+                    'group','person','organization','place','genre','language',
+                    'instrument','release','album'
+                )),
+                canonical_name TEXT NOT NULL,
+                snapshot_id INTEGER NOT NULL REFERENCES wikidata_entity_snapshots(id),
+                source_page_id INTEGER REFERENCES source_pages(id),
+                last_fact_run_id INTEGER REFERENCES fact_runs(id),
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """,
+            "INSERT INTO entities SELECT * FROM entities_v5",
+            """
+            CREATE TABLE entity_aliases (
+                id INTEGER PRIMARY KEY,
+                entity_id INTEGER NOT NULL REFERENCES entities(id),
+                name TEXT NOT NULL, language TEXT NOT NULL,
+                alias_type TEXT NOT NULL CHECK(alias_type IN ('label','alias','native_name','romanization')),
+                source_property TEXT,
+                snapshot_id INTEGER NOT NULL REFERENCES wikidata_entity_snapshots(id),
+                UNIQUE(entity_id, language, alias_type, name)
+            )
+            """,
+            "INSERT INTO entity_aliases SELECT * FROM entity_aliases_v5",
+            """
+            CREATE TABLE facts (
+                id INTEGER PRIMARY KEY,
+                subject_entity_id INTEGER NOT NULL REFERENCES entities(id),
+                predicate TEXT NOT NULL, property_id TEXT NOT NULL,
+                statement_id TEXT NOT NULL UNIQUE,
+                rank TEXT NOT NULL CHECK(rank IN ('preferred','normal')),
+                value_wikidata_id TEXT, value_entity_id INTEGER REFERENCES entities(id),
+                value_time TEXT, value_precision INTEGER, value_calendar TEXT,
+                value_raw_json TEXT NOT NULL, valid_from TEXT, valid_from_precision INTEGER,
+                valid_to TEXT, valid_to_precision INTEGER,
+                qualifiers_json TEXT NOT NULL, references_json TEXT NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('accepted','rejected','conflict','superseded','stale')),
+                status_reason TEXT, quality_flags_json TEXT NOT NULL,
+                snapshot_id INTEGER NOT NULL REFERENCES wikidata_entity_snapshots(id),
+                fact_run_id INTEGER NOT NULL REFERENCES fact_runs(id),
+                extractor_version TEXT NOT NULL, extracted_at TEXT NOT NULL,
+                CHECK(value_wikidata_id IS NULL OR value_time IS NULL),
+                CHECK(status='rejected' OR (value_wikidata_id IS NULL)!=(value_time IS NULL)),
+                CHECK((value_time IS NULL)=(value_precision IS NULL)),
+                CHECK(value_entity_id IS NULL OR value_wikidata_id IS NOT NULL),
+                CHECK((valid_from IS NULL)=(valid_from_precision IS NULL)),
+                CHECK((valid_to IS NULL)=(valid_to_precision IS NULL)),
+                CHECK((status='accepted' AND status_reason IS NULL) OR (status!='accepted' AND status_reason IS NOT NULL)),
+                CHECK(status!='accepted' OR value_wikidata_id IS NULL OR value_entity_id IS NOT NULL)
+            )
+            """,
+            "INSERT INTO facts SELECT * FROM facts_v5",
+            "CREATE INDEX facts_subject_predicate_idx ON facts(subject_entity_id,predicate)",
+            "CREATE INDEX facts_value_entity_idx ON facts(value_entity_id)",
+            "CREATE INDEX facts_status_idx ON facts(status)",
+            """
+            CREATE TABLE fact_evidence (
+                id INTEGER PRIMARY KEY,
+                fact_id INTEGER NOT NULL REFERENCES facts(id),
+                evidence_type TEXT NOT NULL CHECK(evidence_type IN ('wikidata_reference','wikipedia_revision')),
+                wikidata_snapshot_id INTEGER REFERENCES wikidata_entity_snapshots(id),
+                reference_hash TEXT, source_revision_id INTEGER REFERENCES source_revisions(id),
+                source_key TEXT NOT NULL, locator TEXT NOT NULL, snippet TEXT,
+                UNIQUE(fact_id,evidence_type,locator),
+                CHECK((evidence_type='wikidata_reference' AND wikidata_snapshot_id IS NOT NULL AND reference_hash IS NOT NULL AND source_revision_id IS NULL)
+                   OR (evidence_type='wikipedia_revision' AND source_revision_id IS NOT NULL AND wikidata_snapshot_id IS NULL AND reference_hash IS NULL AND snippet IS NOT NULL))
+            )
+            """,
+            "INSERT INTO fact_evidence SELECT * FROM fact_evidence_v5",
+            """
+            CREATE TABLE catalog_entity_links (
+                source_page_id INTEGER PRIMARY KEY REFERENCES catalog_entries(source_page_id),
+                entity_id INTEGER NOT NULL REFERENCES entities(id),
+                requested_wikidata_id TEXT NOT NULL, resolved_wikidata_id TEXT NOT NULL,
+                fact_run_id INTEGER REFERENCES fact_runs(id), linked_at TEXT NOT NULL
+            )
+            """,
+            "INSERT INTO catalog_entity_links SELECT * FROM catalog_entity_links_v5",
+            "CREATE INDEX catalog_entity_links_entity_idx ON catalog_entity_links(entity_id)",
+            "DROP TABLE fact_evidence_v5", "DROP TABLE facts_v5",
+            "DROP TABLE entity_aliases_v5", "DROP TABLE catalog_entity_links_v5",
+            "DROP TABLE entities_v5",
+            """
+            CREATE TABLE release_discovery_runs (
+                id INTEGER PRIMARY KEY, discoverer_version TEXT NOT NULL,
+                query TEXT NOT NULL, query_sha256 TEXT NOT NULL CHECK(length(query_sha256)=64),
+                endpoint TEXT NOT NULL, started_at TEXT NOT NULL, completed_at TEXT,
+                status TEXT NOT NULL CHECK(status IN ('running','completed','failed')),
+                candidates_found INTEGER NOT NULL DEFAULT 0, candidates_accepted INTEGER NOT NULL DEFAULT 0,
+                candidates_rejected INTEGER NOT NULL DEFAULT 0, error TEXT
+            )
+            """,
+            """
+            CREATE TABLE release_discovery_snapshots (
+                id INTEGER PRIMARY KEY, run_id INTEGER NOT NULL REFERENCES release_discovery_runs(id),
+                snapshot_path TEXT NOT NULL UNIQUE, content_sha256 TEXT NOT NULL CHECK(length(content_sha256)=64),
+                fetched_at TEXT NOT NULL
+            )
+            """,
+            """
+            CREATE TABLE release_candidates (
+                id INTEGER PRIMARY KEY, run_id INTEGER NOT NULL REFERENCES release_discovery_runs(id),
+                group_entity_id INTEGER NOT NULL REFERENCES entities(id), requested_wikidata_id TEXT NOT NULL,
+                resolved_wikidata_id TEXT, entity_id INTEGER REFERENCES entities(id),
+                state TEXT NOT NULL CHECK(state IN ('candidate','accepted','rejected','stale')),
+                reason TEXT, snapshot_id INTEGER REFERENCES wikidata_entity_snapshots(id),
+                UNIQUE(run_id,group_entity_id,requested_wikidata_id)
+            )
+            """,
+            "CREATE INDEX release_candidates_state_idx ON release_candidates(state)",
+        ),
+    ),
 )
 
 
@@ -430,6 +560,9 @@ def apply_migrations(
     for version, name, statements in migrations:
         if version in applied:
             continue
+        foreign_keys = bool(connection.execute("PRAGMA foreign_keys").fetchone()[0])
+        if version == 6 and foreign_keys:
+            connection.execute("PRAGMA foreign_keys = OFF")
         try:
             connection.execute("BEGIN IMMEDIATE")
             for statement in statements:
@@ -438,10 +571,17 @@ def apply_migrations(
                 "INSERT INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)",
                 (version, name, utc_now()),
             )
+            if version == 6:
+                violations = connection.execute("PRAGMA foreign_key_check").fetchall()
+                if violations:
+                    raise sqlite3.IntegrityError(f"migration 6 foreign key violations: {violations}")
             connection.commit()
         except Exception:
             connection.rollback()
             raise
+        finally:
+            if version == 6 and foreign_keys:
+                connection.execute("PRAGMA foreign_keys = ON")
 
 
 class SnapshotStore:
@@ -508,6 +648,15 @@ class SnapshotStore:
             provider, profile, entity_id, revision_id
         )
         return self._write(relative_path, content)
+
+    def write_discovery(self, run_id: int, content: bytes) -> tuple[str, str]:
+        if run_id < 1:
+            raise ValueError("discovery run ID must be positive")
+        digest = hashlib.sha256(content).hexdigest()
+        return self._write(
+            Path("wikidata") / "release-discovery-v1" / str(run_id) / f"{digest}.json.gz",
+            content,
+        )
 
     def _write(self, relative_path: Path, content: bytes) -> tuple[str, str]:
         target = self.raw_dir / relative_path
