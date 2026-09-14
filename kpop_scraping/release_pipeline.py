@@ -20,10 +20,19 @@ def collect_release_facts(
 ) -> FactRunTotals:
     if not 1 <= batch_size <= 50:
         raise ValueError("batch_size must be between 1 and 50")
+    scoped_group_ids = _completed_discovery_scope(repository, discovery_run_id)
     store = FactStore(repository)
     run_id = store.start_run(EXTRACTOR_VERSION, None)
     try:
-        totals = _collect(repository, store, client, discovery_run_id, run_id, batch_size)
+        totals = _collect(
+            repository,
+            store,
+            client,
+            discovery_run_id,
+            run_id,
+            batch_size,
+            scoped_group_ids,
+        )
         if store.accepted_facts_without_evidence():
             raise RuntimeError("accepted release facts have no evidence")
     except Exception as exc:
@@ -33,7 +42,37 @@ def collect_release_facts(
     return totals
 
 
-def _collect(repository, store, client, discovery_run_id, run_id, batch_size):
+def _completed_discovery_scope(repository, discovery_run_id: int) -> frozenset[int]:
+    run = repository.connection.execute(
+        "SELECT status FROM release_discovery_runs WHERE id=?", (discovery_run_id,)
+    ).fetchone()
+    if run is None:
+        raise ValueError(f"release discovery run {discovery_run_id} does not exist")
+    if run["status"] != "completed":
+        raise ValueError(
+            f"release discovery run {discovery_run_id} is not completed"
+        )
+    group_ids = frozenset(
+        int(row["group_entity_id"])
+        for row in repository.connection.execute(
+            "SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?",
+            (discovery_run_id,),
+        )
+    )
+    if not group_ids:
+        raise ValueError(f"release discovery run {discovery_run_id} has no groups")
+    return group_ids
+
+
+def _collect(
+    repository,
+    store,
+    client,
+    discovery_run_id,
+    run_id,
+    batch_size,
+    scoped_group_ids,
+):
     rows = repository.connection.execute(
         """
         SELECT rc.id, rc.requested_wikidata_id, rc.group_entity_id,
@@ -149,17 +188,44 @@ def _collect(repository, store, client, discovery_run_id, run_id, batch_size):
         )""",
         (discovery_run_id,),
     )
+    _mark_stale_releases(repository.connection, discovery_run_id, run_id)
     repository.connection.execute(
-        """UPDATE release_candidates AS previous SET state='stale',reason='not_in_latest_discovery'
-        WHERE previous.run_id<>? AND previous.state='accepted' AND NOT EXISTS (
-            SELECT 1 FROM release_candidates current
-            WHERE current.run_id=? AND current.group_entity_id=previous.group_entity_id
-              AND current.resolved_wikidata_id=previous.resolved_wikidata_id
-              AND current.state='accepted'
-        )""",
-        (discovery_run_id, discovery_run_id),
+        """UPDATE release_discovery_runs SET
+        candidates_accepted=(SELECT COUNT(*) FROM release_candidates WHERE run_id=? AND state='accepted'),
+        candidates_rejected=(SELECT COUNT(*) FROM release_candidates WHERE run_id=? AND state='rejected') WHERE id=?""",
+        (discovery_run_id, discovery_run_id, discovery_run_id),
     )
-    repository.connection.execute(
+    counts = count_statuses(decisions)
+    release_entity_ids = {entity_id for entity_id, _snapshot_id, _qid, _extracted in subjects}
+    return FactRunTotals(
+        len(scoped_group_ids),
+        len(release_entity_ids),
+        batches,
+        counts["accepted"],
+        counts["rejected"],
+        counts["conflict"],
+        counts["superseded"],
+        ignored,
+    )
+
+
+def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) -> None:
+    connection.execute(
+        """UPDATE release_candidates AS previous
+        SET state='stale',reason='not_in_latest_discovery'
+        WHERE previous.run_id<>? AND previous.state='accepted'
+          AND previous.group_entity_id IN (
+              SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM release_candidates current
+              WHERE current.run_id=? AND current.group_entity_id=previous.group_entity_id
+                AND current.resolved_wikidata_id=previous.resolved_wikidata_id
+                AND current.state='accepted'
+          )""",
+        (discovery_run_id, discovery_run_id, discovery_run_id),
+    )
+    connection.execute(
         """UPDATE facts SET status='stale',status_reason='release_not_in_latest_discovery',fact_run_id=?
         WHERE status='accepted' AND subject_entity_id IN (
             SELECT DISTINCT previous.entity_id FROM release_candidates previous
@@ -175,16 +241,14 @@ def _collect(repository, store, client, discovery_run_id, run_id, batch_size):
                   AND outside_scope.group_entity_id NOT IN (SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?)
               )
         )""",
-        (run_id, discovery_run_id, discovery_run_id, discovery_run_id, discovery_run_id),
+        (
+            fact_run_id,
+            discovery_run_id,
+            discovery_run_id,
+            discovery_run_id,
+            discovery_run_id,
+        ),
     )
-    repository.connection.execute(
-        """UPDATE release_discovery_runs SET
-        candidates_accepted=(SELECT COUNT(*) FROM release_candidates WHERE run_id=? AND state='accepted'),
-        candidates_rejected=(SELECT COUNT(*) FROM release_candidates WHERE run_id=? AND state='rejected') WHERE id=?""",
-        (discovery_run_id, discovery_run_id, discovery_run_id),
-    )
-    counts = count_statuses(decisions)
-    return FactRunTotals(0, len(set(entity_ids.values())), batches, counts["accepted"], counts["rejected"], counts["conflict"], counts["superseded"], ignored)
 
 
 def _reject(repository, rows, reason, resolved=None, snapshot_id=None):

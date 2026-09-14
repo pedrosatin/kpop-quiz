@@ -116,5 +116,12 @@ def main(argv: list[str] | None = None) -> int:
             f"{fact_rows} rows in {facts_report}"
         )
     if release_totals is not None:
-        print(f"Releases: {release_totals.entities} scoped entities; {release_totals.accepted} accepted facts, {release_totals.rejected} rejected, {release_totals.conflict} conflict; {release_rows} coverage rows")
+        print(
+            f"Releases: {release_totals.groups} discovery groups, "
+            f"{release_totals.entities} release entities saved; "
+            f"{release_totals.accepted} accepted facts, "
+            f"{release_totals.rejected} rejected, "
+            f"{release_totals.conflict} conflict; "
+            f"{release_rows} coverage rows"
+        )
     return 0
