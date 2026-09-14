@@ -40,6 +40,7 @@ python main.py --help
 python main.py --limit 3 --database /tmp/kpop-quiz.db
 python main.py --limit 3 --catalog-report /tmp/kpop-catalog.csv
 python main.py --limit 45 --database /tmp/kpop.db --facts-limit 30 --facts-report /tmp/kpop-facts.csv
+python -m kpop_scraping.quiz_cli --database /tmp/kpop.db --output /tmp/questions.json --report /tmp/quiz-report.json --session-output /tmp/session.json --seed rodada-1 --timer-seconds 20
 python -m unittest discover -v
 python -m compileall -q .
 ```
@@ -48,12 +49,17 @@ Uma nova execução atualiza cada página pela combinação de provedor, idioma 
 
 A etapa de fatos roda com `--facts`, `--facts-limit` ou `--facts-report`. Ela grava entidades, aliases, fatos e evidências. O CSV de cobertura mostra, por grupo e predicado, quantos fatos foram aceitos, rejeitados, substituídos ou ficaram em conflito. Sem `--facts-report`, o arquivo `facts-coverage.csv` fica ao lado do banco. Repetir a etapa atualiza cada fato pelo ID da afirmação do Wikidata.
 
+`python -m kpop_scraping.quiz_cli` lê o banco sem executar coleta. O comando grava um dataset bilíngue e um relatório em JSON canônico. `--session-output` também grava uma sessão de dez perguntas. Os filtros `--session-language`, `--theme`, `--group` e `--difficulty` podem ser combinados. `--timer-seconds` registra o limite na configuração da sessão.
+
+Os arquivos `schemas/quiz-dataset-v1.json` e `schemas/quiz-session-v1.json` descrevem os contratos públicos. Cada pergunta mantém os IDs dos fatos e as evidências usadas para gerá-la. A mesma entrada, versão e semente produzem bytes idênticos.
+
 O coletor aplica migrações pendentes ao abrir o banco. Cada migração roda em uma transação. Bancos criados pela versão anterior mantêm execuções e páginas durante a migração.
 
 ## Estrutura
 
 ```text
 kpop_scraping/   cliente, fluxo, CLI e persistência
+schemas/          contratos JSON dos datasets e sessões
 tests/           testes unitários e fixtures
 ```
 
