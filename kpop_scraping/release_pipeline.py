@@ -98,8 +98,8 @@ def _collect(
     entity_ids = dict(accepted_groups)
     entity_types = {qid: "group" for qid in accepted_groups}
     names: dict[str, tuple[str, ...]] = {}
-    subjects = []
-    batches = ignored = 0
+    subjects_by_entity = {}
+    batches = 0
     requested = sorted(candidate_rows)
     for offset in range(0, len(requested), batch_size):
         batch = requested[offset : offset + batch_size]
@@ -122,13 +122,17 @@ def _collect(
                 entity_ids[key] = entity_id
                 entity_types[key] = kind
                 names[key] = matching_names(extract_aliases(document.payload))
-            subjects.append((entity_id, snapshot_id, document.wikidata_id, extracted))
+            subjects_by_entity.setdefault(
+                entity_id,
+                (entity_id, snapshot_id, document.wikidata_id, extracted),
+            )
             repository.connection.executemany(
                 "UPDATE release_candidates SET resolved_wikidata_id=?,entity_id=?,snapshot_id=? WHERE id=?",
                 [(document.wikidata_id, entity_id, snapshot_id, row["id"]) for row in candidate_rows[qid]],
             )
-            ignored += extracted.ignored
     value_roles = {}
+    subjects = tuple(subjects_by_entity.values())
+    ignored = sum(extracted.ignored for _entity_id, _snapshot_id, _qid, extracted in subjects)
     for _entity_id, _snapshot_id, _qid, extracted in subjects:
         for candidate in extracted.candidates:
             if candidate.value_id and candidate.value_id not in entity_types:

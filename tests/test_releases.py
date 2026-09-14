@@ -16,6 +16,7 @@ from kpop_scraping.release_pipeline import (
     collect_release_facts,
 )
 from kpop_scraping.storage import MIGRATIONS, Repository, apply_migrations
+from kpop_scraping.wikidata import EntityBatch, EntityDocument
 
 
 def item_statement(statement_id, property_id, value, qualifiers=None):
@@ -302,6 +303,47 @@ class ReleasePipelineScopeTest(unittest.TestCase):
             ORDER BY id DESC LIMIT 2"""
         ).fetchall()
         self.assertEqual([tuple(row) for row in persisted], [(1, 0), (1, 0)])
+
+    def test_redirect_convergence_counts_and_extracts_release_once(self):
+        run_id = self._run(groups=(1,))
+        self.connection.executemany(
+            """INSERT INTO release_candidates(
+                run_id,group_entity_id,requested_wikidata_id,state
+            ) VALUES (?,1,?,'candidate')""",
+            [(run_id, "Q110"), (run_id, "Q120")],
+        )
+        self.connection.commit()
+        payload = {
+            "id": "Q101",
+            "lastrevid": 2,
+            "labels": {"en": {"language": "en", "value": "R1"}},
+            "aliases": {},
+            "claims": {
+                "P31": [item_statement("Q101$class", "P31", "Q482994")],
+                "P175": [item_statement("Q101$performer", "P175", "QG1")],
+                "P577": [{**time_statement(), "rank": "deprecated"}],
+            },
+        }
+
+        class Client:
+            def get_entities(self, qids, _profile):
+                return EntityBatch(
+                    tuple(EntityDocument(qid, "Q101", 2, payload) for qid in qids),
+                    (),
+                )
+
+        totals = collect_release_facts(self.repository, Client(), run_id)
+
+        self.assertEqual(totals.entities, 1)
+        self.assertEqual(totals.rejected, 1)
+        self.assertEqual(totals.ignored, 1)
+        self.assertEqual(
+            self.connection.execute(
+                """SELECT COUNT(*) FROM facts f JOIN entities e
+                ON e.id=f.subject_entity_id WHERE e.wikidata_id='Q101'"""
+            ).fetchone()[0],
+            1,
+        )
 
 
 if __name__ == "__main__":
