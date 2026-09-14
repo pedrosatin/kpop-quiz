@@ -14,7 +14,7 @@ from .quiz_schema import validate_session, write_json_atomic
 from .storage import canonical_json
 
 MANIFEST_VERSION = "kpop-quiz-web-manifest-v1"
-LOCALE_FILES = {"pt-BR": "session.pt-BR.json", "en": "session.en.json"}
+LOCALES = ("pt-BR", "en")
 
 
 def _read_session(path: Path) -> dict[str, Any]:
@@ -34,23 +34,24 @@ def _session_bytes(session: dict[str, Any]) -> bytes:
 def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Describe validated locale sessions with hashes for deployment checks."""
     versions = {session["dataset_version"] for session in sessions.values()}
-    if set(sessions) != set(LOCALE_FILES) or len(versions) != 1:
+    if set(sessions) != set(LOCALES) or len(versions) != 1:
         raise ValueError("web publication requires pt-BR and en from one dataset")
     for locale, session in sessions.items():
         if session["config"]["language"] != locale:
             raise ValueError(f"session language does not match {locale}")
-    return {
+    manifest = {
         "schema_version": MANIFEST_VERSION,
         "dataset_version": versions.pop(),
-        "sessions": {
-            locale: {
-                "path": filename,
-                "sha256": hashlib.sha256(_session_bytes(sessions[locale])).hexdigest(),
-                "session_id": sessions[locale]["session_id"],
-            }
-            for locale, filename in LOCALE_FILES.items()
-        },
+        "sessions": {},
     }
+    for locale in LOCALES:
+        digest = hashlib.sha256(_session_bytes(sessions[locale])).hexdigest()
+        manifest["sessions"][locale] = {
+            "path": f"session.{locale}.{digest}.json",
+            "sha256": digest,
+            "session_id": sessions[locale]["session_id"],
+        }
+    return manifest
 
 
 def validate_manifest(payload: dict[str, Any]) -> None:
@@ -62,24 +63,25 @@ def validate_manifest(payload: dict[str, Any]) -> None:
     if not isinstance(dataset_version, str) or len(dataset_version) != 64 or any(c not in "0123456789abcdef" for c in dataset_version):
         raise ValueError("invalid web manifest dataset_version")
     sessions = payload["sessions"]
-    if not isinstance(sessions, dict) or set(sessions) != set(LOCALE_FILES):
+    if not isinstance(sessions, dict) or set(sessions) != set(LOCALES):
         raise ValueError("invalid web manifest sessions")
-    for locale, filename in LOCALE_FILES.items():
+    for locale in LOCALES:
         item = sessions[locale]
         if not isinstance(item, dict) or set(item) != {"path", "sha256", "session_id"}:
             raise ValueError(f"invalid web manifest session {locale}")
-        if item["path"] != filename:
-            raise ValueError(f"invalid web manifest path {locale}")
         for field in ("sha256", "session_id"):
             value = item[field]
             if not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
                 raise ValueError(f"invalid web manifest {field} {locale}")
+        if item["path"] != f"session.{locale}.{item['sha256']}.json":
+            raise ValueError(f"invalid web manifest path {locale}")
 
 
 def publish(output_dir: Path, sessions: dict[str, dict[str, Any]]) -> None:
     manifest = build_manifest(sessions)
     output_dir.mkdir(parents=True, exist_ok=True)
-    for locale, filename in LOCALE_FILES.items():
+    for locale in LOCALES:
+        filename = manifest["sessions"][locale]["path"]
         write_json_atomic(output_dir / filename, sessions[locale], validate_session)
     write_json_atomic(output_dir / "manifest.json", manifest, validate_manifest)
 
@@ -91,7 +93,10 @@ def verify(output_dir: Path) -> None:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"cannot read web manifest: {exc}") from exc
     validate_manifest(manifest)
-    sessions = {locale: _read_session(output_dir / filename) for locale, filename in LOCALE_FILES.items()}
+    sessions = {
+        locale: _read_session(output_dir / manifest["sessions"][locale]["path"])
+        for locale in LOCALES
+    }
     expected = build_manifest(sessions)
     if manifest != expected:
         raise ValueError("web artifacts do not match manifest")
@@ -125,7 +130,7 @@ def main(argv: list[str] | None = None) -> int:
                 connection.close()
             sessions = {
                 locale: create_session(dataset, QuizConfig(locale, args.seed, timer_seconds=args.timer_seconds))
-                for locale in LOCALE_FILES
+                for locale in LOCALES
             }
             publish(args.output_dir, sessions)
         elif args.session_pt_br and args.session_en:
