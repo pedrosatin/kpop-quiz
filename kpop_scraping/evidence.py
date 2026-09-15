@@ -80,7 +80,12 @@ _GENERIC_SUBJECT = (
     r"(?:The\s+(?:group|band|duo|trio|quartet|quintet|sub-?group|sub-?unit|unit)|They)"
 )
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[\"'(“]?[A-Z0-9])|\n+")
-_SHORT_ABBREVIATION = re.compile(r"(?:^|[\s(])[A-Z][a-z]{0,2}\.$")
+_SHORT_ABBREVIATION = re.compile(
+    r"(?:^|[\s(])(?:(?:[A-Z]\.){2,}|"
+    r"(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|"
+    r"Mr|Mrs|Ms|Dr|Prof|Jr|Sr|St|vs|etc)\.)$",
+    _I,
+)
 _CAPITALIZED_BEFORE = re.compile(r"[A-Z][\w'.-]*\s+$")
 _CAPITALIZED_AFTER = re.compile(r"\s+[A-Z]")
 _LIST_SEPARATOR = r"(?:\s*,\s*(?:and\s+)?|\s+and\s+)"
@@ -99,8 +104,8 @@ _LIST_AFTER = re.compile(r"(?:\s*[,;.]|\s*$|\s+and\b|\s*\()", _I)
 _RELEASE_NOUN = r"(?:album|single|EP|extended play|record|song|álbum|sencillo|음반|싱글)"
 _PERFORMER_TRIGGER = re.compile(r"\b(?:by|por)\s+", _I)
 _RELEASE_DATE_TRIGGER = re.compile(
-    r"\b(?:was\s+)?released(?:\s+(?:digitally|worldwide))?\s+(?:on|in)\s+"
-    r"|\b(?:foi\s+)?lançad[oa](?:\s+digitalmente)?\s+em\s+",
+    r"\b(?:was\s+)?released(?:\s+worldwide)?\s+(?:on|in)\s+"
+    r"|\b(?:foi\s+)?lançad[oa]\s+em\s+",
     _I,
 )
 _PERFORMER_DESCRIPTION = re.compile(
@@ -515,14 +520,36 @@ def _release_subject_sentences(
     page: WikipediaPage,
     subject_names: Sequence[str],
 ) -> Iterable[tuple[int, str]]:
+    subject_nouns = _release_subject_nouns(page, subject_names)
     for start, end in _sentences(page.extract):
         sentence = page.extract[start:end]
-        if _leading_subject(sentence, subject_names) or re.match(
-            r"^\s*(?:It|The\s+(?:album|single|EP|song)|Ele|Ela|O\s+(?:álbum|single))\b",
-            sentence,
-            _I,
-        ):
+        leading = _leading_subject(sentence, subject_names)
+        generic = re.match(
+            r"^\s*(?:It|Ele|Ela|The\s+(?P<en>album|single|EP|song)"
+            r"|O\s+(?P<pt>álbum|single))\b",
+            sentence, _I,
+        )
+        noun = (generic.group("en") or generic.group("pt")) if generic else None
+        if leading or (generic and (noun is None or noun.casefold() in subject_nouns)):
             yield start, sentence
+
+
+def _release_subject_nouns(
+    page: WikipediaPage,
+    subject_names: Sequence[str],
+) -> frozenset[str]:
+    """Read the release kind only from a sentence led by the page subject."""
+    for start, end in _sentences(page.extract):
+        sentence = page.extract[start:end]
+        if not _leading_subject(sentence, subject_names):
+            continue
+        found = {
+            match.group(0).casefold()
+            for match in re.finditer(r"\b(?:album|single|EP|song|álbum)\b", sentence, _I)
+        }
+        if found:
+            return frozenset(found)
+    return frozenset()
 
 
 def text_evidence(
