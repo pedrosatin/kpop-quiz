@@ -291,3 +291,40 @@ describe("Local Font Assets and CSS Declarations", () => {
     expect(fs.existsSync(path.join(notoSansDir, "AUTHORS.txt"))).toBe(true);
   });
 });
+
+describe("Theme Switching and Layout Integration", () => {
+  const layoutPath = path.resolve(__dirname, "../layouts/BaseLayout.astro");
+  const fontsDir = path.resolve(__dirname, "../../public/fonts");
+
+  it("includes theme-color meta tags for light and dark schemes in BaseLayout", () => {
+    const layout = fs.readFileSync(layoutPath, "utf-8");
+    expect(layout).toContain('<meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFF8F0" />');
+    expect(layout).toContain('<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17121C" />');
+  });
+
+  it("includes storage event listener for kpop-quiz-theme synchronization", () => {
+    const layout = fs.readFileSync(layoutPath, "utf-8");
+    expect(layout).toContain('window.addEventListener("storage"');
+    expect(layout).toContain('"kpop-quiz-theme"');
+  });
+
+  it("updates meta theme-color tags dynamically when theme changes", () => {
+    const layout = fs.readFileSync(layoutPath, "utf-8");
+    expect(layout).toContain("#FFF8F0");
+    expect(layout).toContain("#17121C");
+    expect(layout).toContain('meta[name="theme-color"]');
+  });
+
+  it("formats font README files as markdown tables without unslop patterns", () => {
+    const spaceGroteskReadme = fs.readFileSync(path.join(fontsDir, "space-grotesk/README.md"), "utf-8");
+    const notoSansReadme = fs.readFileSync(path.join(fontsDir, "noto-sans/README.md"), "utf-8");
+
+    for (const readme of [spaceGroteskReadme, notoSansReadme]) {
+      expect(readme).toContain("| Propriedade | Valor |");
+      expect(readme).not.toMatch(/^- \*\*/m);
+      expect(readme).not.toContain("—");
+      expect(readme).not.toContain("–");
+    }
+  });
+});
+

@@ -25,6 +25,11 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
           var savedTheme = localStorage.getItem("kpop-quiz-theme");
           if (savedTheme === "dark" || savedTheme === "light") {
             document.documentElement.setAttribute("data-theme", savedTheme);
+            var color = savedTheme === "dark" ? "#17121C" : "#FFF8F0";
+            var metas = document.querySelectorAll('meta[name="theme-color"]');
+            for (var i = 0; i < metas.length; i++) {
+              metas[i].setAttribute("content", color);
+            }
           }
         } catch (e) {}
       })();
@@ -59,26 +64,57 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     <script is:inline>
       (function () {
         var select = document.getElementById("theme-select");
-        if (!select) return;
-        try {
-          var saved = localStorage.getItem("kpop-quiz-theme");
-          if (saved === "dark" || saved === "light") {
-            select.value = saved;
+        var metaLight = document.querySelector('meta[name="theme-color"][media*="light"]');
+        var metaDark = document.querySelector('meta[name="theme-color"][media*="dark"]');
+
+        function applyTheme(theme) {
+          if (theme === "dark" || theme === "light") {
+            document.documentElement.setAttribute("data-theme", theme);
+            var color = theme === "dark" ? "#17121C" : "#FFF8F0";
+            if (metaLight) metaLight.setAttribute("content", color);
+            if (metaDark) metaDark.setAttribute("content", color);
+          } else {
+            document.documentElement.removeAttribute("data-theme");
+            if (metaLight) metaLight.setAttribute("content", "#FFF8F0");
+            if (metaDark) metaDark.setAttribute("content", "#17121C");
+          }
+        }
+
+        function syncSelect(theme) {
+          if (!select) return;
+          if (theme === "dark" || theme === "light") {
+            select.value = theme;
           } else {
             select.value = "system";
           }
+        }
+
+        try {
+          var saved = localStorage.getItem("kpop-quiz-theme");
+          syncSelect(saved);
+          applyTheme(saved);
         } catch (e) {}
-        select.addEventListener("change", function () {
-          var val = select.value;
-          try {
-            if (val === "dark" || val === "light") {
-              localStorage.setItem("kpop-quiz-theme", val);
-              document.documentElement.setAttribute("data-theme", val);
-            } else {
-              localStorage.removeItem("kpop-quiz-theme");
-              document.documentElement.removeAttribute("data-theme");
-            }
-          } catch (e) {}
+
+        if (select) {
+          select.addEventListener("change", function () {
+            var val = select.value;
+            try {
+              if (val === "dark" || val === "light") {
+                localStorage.setItem("kpop-quiz-theme", val);
+              } else {
+                localStorage.removeItem("kpop-quiz-theme");
+              }
+            } catch (e) {}
+            applyTheme(val);
+          });
+        }
+
+        window.addEventListener("storage", function (event) {
+          if (event.key === "kpop-quiz-theme") {
+            var newTheme = event.newValue;
+            syncSelect(newTheme);
+            applyTheme(newTheme);
+          }
         });
       })();
     </script>
