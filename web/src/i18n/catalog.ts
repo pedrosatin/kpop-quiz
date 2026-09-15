@@ -1,4 +1,4 @@
-import type { Locale } from "../lib/quiz-types";
+import type { Locale, PlayMode } from "../lib/quiz-types";
 
 export interface Messages {
   skipLink: string;
@@ -18,6 +18,16 @@ export interface Messages {
   empty: string;
   questionCounter: (current: number, total: number) => string;
   score: string;
+  points: string;
+  setupKicker: string;
+  chooseDifficulty: string;
+  difficultyName: (playMode: PlayMode) => string;
+  difficultyDescription: (playMode: PlayMode) => string;
+  start: string;
+  enableTimer: string;
+  clue: string;
+  revealClue: (cost: number) => string;
+  clueRevealed: string;
   time: string;
   seconds: string;
   check: string;
@@ -32,7 +42,7 @@ export interface Messages {
   declaredReference: string;
   openRevision: (project: string) => string;
   resultTitle: string;
-  resultText: (score: number, total: number) => string;
+  resultText: (score: number) => string;
   restart: string;
   chooseAnswer: string;
 }
@@ -56,6 +66,20 @@ const catalogs: Record<Locale, Messages> = {
     empty: "Este quiz ainda não tem perguntas.",
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
+    points: "pontos",
+    setupKicker: "Antes da rodada",
+    chooseDifficulty: "Escolha como jogar",
+    difficultyName: (difficulty) => ({ assisted: "Assistido", standard: "Padrão", expert: "Especialista" })[difficulty],
+    difficultyDescription: (difficulty) => ({
+      assisted: "Mostra uma pista factual quando ela não entrega a resposta.",
+      standard: "Começa sem pista. Você pode revelar uma com desconto na pontuação.",
+      expert: "Sem pistas e com maior pontuação por acerto.",
+    })[difficulty],
+    start: "Começar rodada",
+    enableTimer: "Usar 20 segundos por pergunta",
+    clue: "Pista",
+    revealClue: (cost) => `Revelar pista (-${cost} pontos)`,
+    clueRevealed: "Pista revelada",
     time: "Tempo",
     seconds: "s",
     check: "Responder",
@@ -70,7 +94,7 @@ const catalogs: Record<Locale, Messages> = {
     declaredReference: "Referência declarada",
     openRevision: (project) => `Abrir revisão no ${project}`,
     resultTitle: "Fim da rodada",
-    resultText: (score, total) => `Você acertou ${score} de ${total}.`,
+    resultText: (score) => `Você terminou a rodada com ${score} pontos.`,
     restart: "Jogar novamente",
     chooseAnswer: "Escolha uma resposta antes de continuar.",
   },
@@ -92,6 +116,20 @@ const catalogs: Record<Locale, Messages> = {
     empty: "This quiz has no questions yet.",
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",
+    points: "points",
+    setupKicker: "Before the round",
+    chooseDifficulty: "Choose how to play",
+    difficultyName: (difficulty) => ({ assisted: "Assisted", standard: "Standard", expert: "Expert" })[difficulty],
+    difficultyDescription: (difficulty) => ({
+      assisted: "Shows a factual clue when it does not give away the answer.",
+      standard: "Starts without a clue. You can reveal one at a point cost.",
+      expert: "No clues and more points for each correct answer.",
+    })[difficulty],
+    start: "Start round",
+    enableTimer: "Use 20 seconds per question",
+    clue: "Clue",
+    revealClue: (cost) => `Reveal clue (-${cost} points)`,
+    clueRevealed: "Clue revealed",
     time: "Time",
     seconds: "s",
     check: "Submit answer",
@@ -106,7 +144,7 @@ const catalogs: Record<Locale, Messages> = {
     declaredReference: "Declared reference",
     openRevision: (project) => `Open revision on ${project}`,
     resultTitle: "Round complete",
-    resultText: (score, total) => `You got ${score} out of ${total}.`,
+    resultText: (score) => `You finished the round with ${score} points.`,
     restart: "Play again",
     chooseAnswer: "Choose an answer before continuing.",
   },

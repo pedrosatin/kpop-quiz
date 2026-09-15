@@ -71,9 +71,10 @@ def _render_draft(
         raise ValueError(f"translated option labels are not distinct for {draft.key}")
     options.sort(key=lambda option: digest(logical_id, option["id"]))
     answer_option_id = hash_payload({"kind": answer_kind, "value": answer_value})
-    return {
+    base_question = {
         "answer_option_id": answer_option_id,
-        "difficulty": draft.difficulty,
+        "base_logical_id": logical_id,
+        "challenge_rating": draft.difficulty,
         "evidence": [item.payload() for item in draft.evidence],
         "explanation": render(
             draft.question_type, language, explanation_field, **values
@@ -90,6 +91,84 @@ def _render_draft(
         "theme": draft.theme,
         "type": draft.question_type,
     }
+    return base_question
+
+
+def render_play_mode_variants(
+    draft: Draft,
+    language: str,
+    reference_date: date,
+    entities: dict[str, Entity],
+) -> list[dict[str, Any]]:
+    """Render reproducible play modes without changing the underlying answer."""
+    base = _render_draft(draft, language, reference_date, entities)
+    clues = _temporal_clues(draft, language, base)
+    variants = []
+    for play_mode, points in (("assisted", 70), ("standard", 100), ("expert", 130)):
+        question = dict(base)
+        question["play_mode"] = play_mode
+        question["base_points"] = points
+        question["hint_cost"] = 0 if play_mode == "assisted" else 15
+        question["clues_available"] = [] if play_mode == "expert" else clues
+        question["clues_shown"] = [clues[0]["id"]] if play_mode == "assisted" and clues else []
+        question["id"] = hash_payload(
+            {
+                "language": language,
+                "logical_id": question["logical_id"],
+                "play_mode": play_mode,
+            }
+        )
+        variants.append(question)
+    return variants
+
+
+def _temporal_clues(
+    draft: Draft, language: str, question: dict[str, Any]
+) -> list[dict[str, Any]]:
+    raw_year: str | None = None
+    if draft.answer[1] == "time" and len(draft.answer[0]) >= 4:
+        raw_year = draft.answer[0][:4]
+    elif draft.question_type == "age_on_date" and draft.values.get("born_on"):
+        raw_year = str(draft.values["born_on"])[:4]
+    if raw_year is None or not raw_year.isdigit():
+        return []
+    decade = f"{raw_year[:3]}0s"
+    if draft.answer[1] == "time":
+        matching_options = sum(
+            option["value"][:3] == raw_year[:3]
+            for option in question["options"]
+        )
+        if matching_options < 2:
+            return []
+    elif draft.question_type == "age_on_date":
+        reference_year = int(str(draft.values["date"])[:4])
+        matching_options = sum(
+            any(
+                str(candidate_year).startswith(raw_year[:3])
+                for candidate_year in (
+                    reference_year - int(option["value"]),
+                    reference_year - int(option["value"]) - 1,
+                )
+            )
+            for option in question["options"]
+        )
+        if matching_options < 2:
+            return []
+    text = (
+        f"O fato relacionado está na década de {raw_year[:3]}0."
+        if language == "pt-BR"
+        else f"The related fact is from the {decade}."
+    )
+    clue_id = hash_payload(
+        {"fact_base_ids": draft.fact_base_ids, "type": "decade", "value": decade}
+    )
+    return [{
+        "evidence": [item.payload() for item in draft.evidence],
+        "fact_base_ids": list(draft.fact_base_ids),
+        "id": clue_id,
+        "text": text,
+        "type": "decade",
+    }]
 
 
 def _option_label(value: str, kind: str, language: str, entities: dict[str, Entity]) -> str:

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
-import { isQuizSession, type Locale, type QuizQuestion, type QuizSession } from "../../lib/quiz-types";
+import { isQuizSession, type Locale, type PlayMode, type QuizQuestion, type QuizSession } from "../../lib/quiz-types";
 import { loadQuizSession, QuizArtifactError } from "../../data/session-loader";
 
 type Status = "loading" | "ready" | "missing" | "invalid";
@@ -9,6 +9,10 @@ export function Quiz({ locale }: { locale: Locale }) {
   const messages = getMessages(locale);
   const [status, setStatus] = useState<Status>("loading");
   const [session, setSession] = useState<QuizSession | null>(null);
+  const [playMode, setPlayMode] = useState<PlayMode>("standard");
+  const [started, setStarted] = useState(false);
+  const [timerEnabled, setTimerEnabled] = useState(false);
+  const [revealedClues, setRevealedClues] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [answered, setAnswered] = useState(false);
@@ -33,8 +37,8 @@ export function Quiz({ locale }: { locale: Locale }) {
 
   const load = () => {
     const request = ++loadRequestRef.current;
-    setStatus("loading");
-    loadQuizSession(locale)
+    if (status !== "ready") setStatus("loading");
+    loadQuizSession(locale, playMode)
       .then((value) => {
         if (request !== loadRequestRef.current) return;
         if (!isQuizSession(value)) throw new Error("Invalid quiz session");
@@ -46,6 +50,7 @@ export function Quiz({ locale }: { locale: Locale }) {
         setTimedOut(false);
         setScore(0);
         setComplete(false);
+        setRevealedClues([]);
         answerLockedRef.current = false;
         setSecondsLeft(value.config.timer_seconds ?? 0);
         setStatus("ready");
@@ -63,13 +68,24 @@ export function Quiz({ locale }: { locale: Locale }) {
       loadRequestRef.current += 1;
       stopTimer();
     };
-  }, [locale]);
-
-  const question = session?.questions[questionIndex];
-  const timerSeconds = session?.config.timer_seconds ?? null;
+  }, [locale, playMode]);
 
   useEffect(() => {
-    if (!question || answered || complete || timerSeconds === null) return;
+    try {
+      const stored = window.localStorage.getItem("kpop-quiz-play-mode");
+      if (stored === "assisted" || stored === "standard" || stored === "expert") {
+        setPlayMode(stored);
+      }
+    } catch {
+      // Storage is optional; private browsing may deny access.
+    }
+  }, []);
+
+  const question = session?.questions[questionIndex];
+  const timerSeconds = timerEnabled ? 20 : session?.config.timer_seconds ?? null;
+
+  useEffect(() => {
+    if (!started || !question || answered || complete || timerSeconds === null) return;
     if (secondsLeft <= 0) {
       answerLockedRef.current = true;
       setTimedOut(true);
@@ -78,7 +94,7 @@ export function Quiz({ locale }: { locale: Locale }) {
     }
     timerRef.current = window.setTimeout(() => setSecondsLeft((value) => value - 1), 1000);
     return stopTimer;
-  }, [answered, complete, question, secondsLeft, timerSeconds]);
+  }, [answered, complete, question, secondsLeft, started, timerSeconds]);
 
   useEffect(() => {
     if (answered) feedbackRef.current?.focus();
@@ -91,13 +107,19 @@ export function Quiz({ locale }: { locale: Locale }) {
       headingRef.current?.focus();
       focusQuestionRef.current = false;
     }
-  }, [complete, questionIndex, status]);
+  }, [complete, questionIndex, started, status]);
 
   const submit = () => {
     if (!question || !selectedId || answerLockedRef.current) return;
     answerLockedRef.current = true;
     stopTimer();
-    if (selectedId === question.answer_option_id) setScore((value) => value + 1);
+    if (selectedId === question.answer_option_id) {
+      const revealedCount = new Set(
+        revealedClues.filter((id) => !question.clues_shown.includes(id))
+      ).size;
+      const cost = revealedCount * question.hint_cost;
+      setScore((value) => value + Math.max(0, question.base_points - cost));
+    }
     setAnswered(true);
   };
 
@@ -113,6 +135,7 @@ export function Quiz({ locale }: { locale: Locale }) {
     setSelectedId(null);
     setAnswered(false);
     setTimedOut(false);
+    setRevealedClues([]);
     setSecondsLeft(timerSeconds ?? 0);
   };
 
@@ -123,6 +146,7 @@ export function Quiz({ locale }: { locale: Locale }) {
     setTimedOut(false);
     setScore(0);
     setComplete(false);
+    setRevealedClues([]);
     setSecondsLeft(timerSeconds ?? 0);
     answerLockedRef.current = false;
     focusQuestionRef.current = true;
@@ -138,13 +162,43 @@ export function Quiz({ locale }: { locale: Locale }) {
   if (!session || !question) {
     return <QuizState label={messages.empty} />;
   }
+  if (!started) {
+    const modes: PlayMode[] = ["assisted", "standard", "expert"];
+    return (
+      <section id="quiz" class="quiz-card setup" aria-labelledby="difficulty-heading">
+        <p class="kicker">{messages.setupKicker}</p>
+        <h2 id="difficulty-heading">{messages.chooseDifficulty}</h2>
+        <fieldset class="difficulty-picker">
+          <legend class="visually-hidden">{messages.chooseDifficulty}</legend>
+          {modes.map((mode) => (
+            <label class={`difficulty-option ${playMode === mode ? "selected" : ""}`} key={mode}>
+              <input type="radio" name="play-mode" value={mode} checked={playMode === mode} onChange={() => setPlayMode(mode)} />
+              <strong>{messages.difficultyName(mode)}</strong>
+              <span>{messages.difficultyDescription(mode)}</span>
+            </label>
+          ))}
+        </fieldset>
+        <label class="timer-choice">
+          <input type="checkbox" checked={timerEnabled} onChange={(event) => setTimerEnabled(event.currentTarget.checked)} />
+          <span>{messages.enableTimer}</span>
+        </label>
+        <button class="primary-action" type="button" disabled={session.config.play_mode !== playMode} onClick={() => {
+          try { window.localStorage.setItem("kpop-quiz-play-mode", playMode); } catch { /* optional */ }
+          focusQuestionRef.current = true;
+          setSecondsLeft(timerEnabled ? 20 : session.config.timer_seconds ?? 0);
+          setStarted(true);
+          window.queueMicrotask(() => headingRef.current?.focus());
+        }}>{messages.start}</button>
+      </section>
+    );
+  }
   if (complete) {
     return (
       <section id="quiz" class="quiz-card result" aria-labelledby="result-heading">
         <p class="kicker">{messages.score}</p>
         <h2 id="result-heading" ref={resultHeadingRef} tabIndex={-1}>{messages.resultTitle}</h2>
-        <p class="result-score"><strong>{score}</strong><span>/ {session.questions.length}</span></p>
-        <p>{messages.resultText(score, session.questions.length)}</p>
+        <p class="result-score"><strong>{score}</strong><span> {messages.points}</span></p>
+        <p>{messages.resultText(score)}</p>
         <button class="primary-action" type="button" onClick={restart}>{messages.restart}</button>
       </section>
     );
@@ -165,6 +219,16 @@ export function Quiz({ locale }: { locale: Locale }) {
         <span style={{ width: `${progress}%` }} />
       </div>
       <h2 id="question-heading" ref={headingRef} tabIndex={-1}>{question.prompt}</h2>
+      {[...new Set([...question.clues_shown, ...revealedClues])].map((id) => {
+        const clue = question.clues_available.find((item) => item.id === id);
+        return clue ? <p class="quiz-clue" id={`clue-${id}`} key={id} role="status" aria-live="polite"><strong>{messages.clue}:</strong> {clue.text}</p> : null;
+      })}
+      {playMode === "standard" && question.clues_available.length > 0 && (() => {
+        const nextClue = question.clues_available.find((clue) => !revealedClues.includes(clue.id));
+        return <button class="secondary-action" type="button" disabled={answered || !nextClue} aria-controls={question.clues_available.map((clue) => `clue-${clue.id}`).join(" ")} onClick={() => {
+          if (nextClue) setRevealedClues((value) => [...value, nextClue.id]);
+        }}>{nextClue ? messages.revealClue(question.hint_cost) : messages.clueRevealed}</button>;
+      })()}
       <fieldset class="options" disabled={answered}>
         <legend class="visually-hidden">{messages.chooseAnswer}</legend>
         {question.options.map((option, index) => {

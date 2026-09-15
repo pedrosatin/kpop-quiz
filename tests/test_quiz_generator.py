@@ -45,7 +45,7 @@ class QuizGeneratorTest(unittest.TestCase):
             },
         )
         self.assertEqual(report["accepted_logical"], dataset["logical_question_count"])
-        self.assertEqual(report["language_variants"], 2 * report["accepted_logical"])
+        self.assertEqual(report["language_variants"], 6 * report["accepted_logical"])
         self.assertEqual(report["accepted_by_template"], report["accepted_by_type"])
         self.assertEqual(
             sum(report["accepted_by_predicate"].values()),
@@ -134,7 +134,10 @@ class QuizGeneratorTest(unittest.TestCase):
 
     def test_release_questions_preserve_provenance_and_exclude_valid_answers(self):
         dataset, report = generate_dataset(self.connection)
-        english = [question for question in dataset["questions"] if question["language"] == "en"]
+        english = [
+            question for question in dataset["questions"]
+            if question["language"] == "en" and question["play_mode"] == "standard"
+        ]
         release_for_group = [question for question in english if question["type"] == "release_for_group"]
         group_for_release = [question for question in english if question["type"] == "group_for_release"]
         release_year = [question for question in english if question["type"] == "release_year"]
@@ -180,6 +183,7 @@ class QuizGeneratorTest(unittest.TestCase):
         questions = [
             question for question in dataset["questions"]
             if question["language"] == "en"
+            and question["play_mode"] == "standard"
             and question["type"] == "group_for_release"
             and "Release 1" in question["prompt"]
         ]
@@ -188,6 +192,7 @@ class QuizGeneratorTest(unittest.TestCase):
         release_questions = [
             question for question in dataset["questions"]
             if question["language"] == "en"
+            and question["play_mode"] == "standard"
             and question["type"] == "release_for_group"
             and any(option["value"] == "QR1" for option in question["options"])
             and next(
@@ -353,6 +358,7 @@ class QuizGeneratorTest(unittest.TestCase):
             question
             for question in dataset["questions"]
             if question["language"] == "en"
+            and question["play_mode"] == "standard"
             and question["type"] == "group_for_member"
             and "Person 1" in question["prompt"]
         ]
@@ -464,9 +470,9 @@ class QuizGeneratorTest(unittest.TestCase):
         self.assertEqual(len({question["semantic_id"] for question in first["questions"]}), 10)
         easy = create_session(
             dataset,
-            QuizConfig(language="en", seed="easy", difficulty="easy"),
+            QuizConfig(language="en", seed="expert", play_mode="expert"),
         )
-        self.assertTrue(all(question["difficulty"] == "easy" for question in easy["questions"]))
+        self.assertTrue(all(question["play_mode"] == "expert" for question in easy["questions"]))
         people = create_session(
             dataset,
             QuizConfig(language="pt-BR", seed="people", theme="people"),
@@ -475,12 +481,82 @@ class QuizGeneratorTest(unittest.TestCase):
         with self.assertRaises(InsufficientQuestionsError):
             create_session(dataset, QuizConfig(language="en", seed="x", theme="unknown"))
 
+    def test_difficulty_variants_preserve_semantics_and_audit_clues(self):
+        dataset, report = generate_dataset(self.connection)
+        by_base = {}
+        for question in dataset["questions"]:
+            if question["language"] != "en":
+                continue
+            by_base.setdefault(question["base_logical_id"], []).append(question)
+            self.assertEqual(
+                {item["fact_base_id"] for clue in question["clues_available"] for item in clue["evidence"]},
+                {fact_id for clue in question["clues_available"] for fact_id in clue["fact_base_ids"]},
+            )
+            if question["play_mode"] == "expert":
+                self.assertEqual(question["clues_available"], [])
+                self.assertEqual(question["clues_shown"], [])
+        self.assertTrue(by_base)
+        for variants in by_base.values():
+            self.assertEqual({item["play_mode"] for item in variants}, {"assisted", "standard", "expert"})
+            self.assertEqual(len({item["semantic_id"] for item in variants}), 1)
+            self.assertEqual(len({item["answer_option_id"] for item in variants}), 1)
+        self.assertEqual(report["accepted_logical"], len(by_base))
+        self.assertEqual(report["variants_by_play_mode"], {
+            "assisted": len(by_base), "standard": len(by_base), "expert": len(by_base)
+        })
+
+    def test_play_modes_select_the_same_semantic_questions(self):
+        dataset, _report = generate_dataset(self.connection)
+        sessions = [
+            create_session(
+                dataset,
+                QuizConfig(language="en", seed="same-round", play_mode=play_mode),
+            )
+            for play_mode in ("assisted", "standard", "expert")
+        ]
+        self.assertEqual(
+            [[question["semantic_id"] for question in session["questions"]] for session in sessions],
+            [[question["semantic_id"] for question in sessions[0]["questions"]]] * 3,
+        )
+        self.assertEqual(
+            [[option["id"] for option in question["options"]] for question in sessions[0]["questions"]],
+            [[option["id"] for option in question["options"]] for question in sessions[2]["questions"]],
+        )
+
+    def test_decade_clue_never_isolates_one_time_option(self):
+        dataset, _report = generate_dataset(self.connection)
+        for question in dataset["questions"]:
+            for clue in question["clues_available"]:
+                if question["options"][0]["value_type"] != "time":
+                    continue
+                answer = next(
+                    option["value"] for option in question["options"]
+                    if option["id"] == question["answer_option_id"]
+                )
+                self.assertGreaterEqual(
+                    sum(option["value"][:3] == answer[:3] for option in question["options"]),
+                    2,
+                )
+
+    def test_clues_do_not_repeat_entity_answers_or_option_labels(self):
+        dataset, _report = generate_dataset(self.connection)
+        for question in dataset["questions"]:
+            entity_options = {
+                option["label"].casefold()
+                for option in question["options"]
+                if option["value_type"] in {"group", "person", "organization", "release"}
+            }
+            for clue in question["clues_available"]:
+                normalized = clue["text"].casefold()
+                self.assertTrue(all(label not in normalized for label in entity_options))
+
     def test_comparisons_use_each_answer_fact_once(self):
         dataset, report = generate_dataset(self.connection)
         comparisons = [
             question
             for question in dataset["questions"]
             if question["language"] == "en"
+            and question["play_mode"] == "standard"
             and question["type"] == "chronological_comparison"
         ]
         self.assertTrue(all(len(question["fact_base_ids"]) == 4 for question in comparisons))
@@ -540,6 +616,30 @@ class QuizGeneratorTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "evidence.source_url"):
             validate_dataset(invalid_url)
 
+        expert_clue = json.loads(json.dumps(dataset))
+        assisted = next(
+            question
+            for question in expert_clue["questions"]
+            if question["play_mode"] == "assisted" and question["clues_available"]
+        )
+        assisted["play_mode"] = "expert"
+        assisted["clues_shown"] = []
+        with self.assertRaisesRegex(ValueError, "expert mode has no clues"):
+            validate_dataset(expert_clue)
+
+        different_answer = json.loads(json.dumps(dataset))
+        expert = next(
+            question
+            for question in different_answer["questions"]
+            if question["play_mode"] == "expert"
+        )
+        expert["answer_option_id"] = next(
+            option["id"] for option in expert["options"]
+            if option["id"] != expert["answer_option_id"]
+        )
+        with self.assertRaisesRegex(ValueError, "play mode question equivalence"):
+            validate_dataset(different_answer)
+
     def test_rejected_conflicting_and_imprecise_facts_do_not_leak(self):
         dataset, report = generate_dataset(self.connection)
         serialized = json.dumps(dataset, ensure_ascii=False)
@@ -562,6 +662,7 @@ class QuizGeneratorTest(unittest.TestCase):
         member_at_date = [
             question for question in dataset["questions"]
             if question["type"] == "member_at_date"
+            and question["play_mode"] == "standard"
         ]
         self.assertEqual(len(member_at_date), 2)
         self.assertIn("membership_interval_not_eligible", report["rejected_by_reason"])
