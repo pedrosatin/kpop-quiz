@@ -15,8 +15,25 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={messages.intro} />
-    <meta name="theme-color" content="#0b1820" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFF8F0" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17121C" />
+    <link rel="preload" href={`${base}/fonts/noto-sans/NotoSans[wdth,wght].woff2`} as="font" type="font/woff2" crossorigin />
     <title>{messages.title} | K-pop Quiz</title>
+    <script is:inline>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem("kpop-quiz-theme");
+          if (savedTheme === "dark" || savedTheme === "light") {
+            document.documentElement.setAttribute("data-theme", savedTheme);
+            var color = savedTheme === "dark" ? "#17121C" : "#FFF8F0";
+            var metas = document.querySelectorAll('meta[name="theme-color"]');
+            for (var i = 0; i < metas.length; i++) {
+              metas[i].setAttribute("content", color);
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <a class="skip-link" href="#quiz">{messages.skipLink}</a>
@@ -24,9 +41,19 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
       <a class="wordmark" href={`${base}/${locale === "pt-BR" ? "pt-br" : "en"}/`} aria-label={messages.homeLabel}>
         <span>K</span>Q
       </a>
-      <nav aria-label={messages.languageLabel}>
-        <a class="language-link" href={`${base}${otherPath}`} hreflang={locale === "pt-BR" ? "en" : "pt-BR"}>{messages.languageName}</a>
-      </nav>
+      <div class="header-actions">
+        <div class="theme-control">
+          <label for="theme-select" class="visually-hidden">{messages.themeLabel}</label>
+          <select id="theme-select" class="theme-select" aria-label={messages.themeLabel}>
+            <option value="system">{messages.themeAuto}</option>
+            <option value="light">{messages.themeLight}</option>
+            <option value="dark">{messages.themeDark}</option>
+          </select>
+        </div>
+        <nav aria-label={messages.languageLabel}>
+          <a class="language-link" href={`${base}${otherPath}`} hreflang={locale === "pt-BR" ? "en" : "pt-BR"}>{messages.languageName}</a>
+        </nav>
+      </div>
     </header>
     <main>
       <slot />
@@ -34,5 +61,62 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     <footer>
       <p>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a></p>
     </footer>
+    <script is:inline>
+      (function () {
+        var select = document.getElementById("theme-select");
+        var metaLight = document.querySelector('meta[name="theme-color"][media*="light"]');
+        var metaDark = document.querySelector('meta[name="theme-color"][media*="dark"]');
+
+        function applyTheme(theme) {
+          if (theme === "dark" || theme === "light") {
+            document.documentElement.setAttribute("data-theme", theme);
+            var color = theme === "dark" ? "#17121C" : "#FFF8F0";
+            if (metaLight) metaLight.setAttribute("content", color);
+            if (metaDark) metaDark.setAttribute("content", color);
+          } else {
+            document.documentElement.removeAttribute("data-theme");
+            if (metaLight) metaLight.setAttribute("content", "#FFF8F0");
+            if (metaDark) metaDark.setAttribute("content", "#17121C");
+          }
+        }
+
+        function syncSelect(theme) {
+          if (!select) return;
+          if (theme === "dark" || theme === "light") {
+            select.value = theme;
+          } else {
+            select.value = "system";
+          }
+        }
+
+        try {
+          var saved = localStorage.getItem("kpop-quiz-theme");
+          syncSelect(saved);
+          applyTheme(saved);
+        } catch (e) {}
+
+        if (select) {
+          select.addEventListener("change", function () {
+            var val = select.value;
+            try {
+              if (val === "dark" || val === "light") {
+                localStorage.setItem("kpop-quiz-theme", val);
+              } else {
+                localStorage.removeItem("kpop-quiz-theme");
+              }
+            } catch (e) {}
+            applyTheme(val);
+          });
+        }
+
+        window.addEventListener("storage", function (event) {
+          if (event.key === "kpop-quiz-theme") {
+            var newTheme = event.newValue;
+            syncSelect(newTheme);
+            applyTheme(newTheme);
+          }
+        });
+      })();
+    </script>
   </body>
 </html>
