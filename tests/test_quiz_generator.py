@@ -627,6 +627,19 @@ class QuizGeneratorTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "expert mode has no clues"):
             validate_dataset(expert_clue)
 
+        different_answer = json.loads(json.dumps(dataset))
+        expert = next(
+            question
+            for question in different_answer["questions"]
+            if question["play_mode"] == "expert"
+        )
+        expert["answer_option_id"] = next(
+            option["id"] for option in expert["options"]
+            if option["id"] != expert["answer_option_id"]
+        )
+        with self.assertRaisesRegex(ValueError, "play mode question equivalence"):
+            validate_dataset(different_answer)
+
     def test_rejected_conflicting_and_imprecise_facts_do_not_leak(self):
         dataset, report = generate_dataset(self.connection)
         serialized = json.dumps(dataset, ensure_ascii=False)

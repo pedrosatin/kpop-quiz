@@ -45,6 +45,10 @@ def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
             raise ValueError(f"session language does not match {locale}")
         if session["config"]["play_mode"] != difficulty:
             raise ValueError(f"session play mode does not match {difficulty}")
+    for locale in LOCALES:
+        _validate_mode_sessions(
+            {mode: sessions[f"{locale}.{mode}"] for mode in DIFFICULTIES}
+        )
     manifest = {
         "schema_version": MANIFEST_VERSION,
         "dataset_version": versions.pop(),
@@ -58,6 +62,27 @@ def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
             "session_id": sessions[key]["session_id"],
         }
     return manifest
+
+
+def _validate_mode_sessions(sessions: dict[str, dict[str, Any]]) -> None:
+    """Reject publications whose modes do not contain the same quiz round."""
+    standard = sessions["standard"]
+    ignored = {
+        "base_points", "clues_available", "clues_shown", "hint_cost", "id", "play_mode"
+    }
+    expected = [
+        {key: value for key, value in question.items() if key not in ignored}
+        for question in standard["questions"]
+    ]
+    for mode, session in sessions.items():
+        if session["config"]["seed"] != standard["config"]["seed"]:
+            raise ValueError(f"session seed does not match standard mode for {mode}")
+        actual = [
+            {key: value for key, value in question.items() if key not in ignored}
+            for question in session["questions"]
+        ]
+        if actual != expected:
+            raise ValueError(f"session questions do not match standard mode for {mode}")
 
 
 def validate_manifest(payload: dict[str, Any]) -> None:
