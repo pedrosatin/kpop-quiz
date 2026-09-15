@@ -61,7 +61,7 @@ npm test
 npm run build
 ```
 
-O comando `web_publish` gera uma sessão de dez perguntas para cada idioma. Os arquivos ficam em `web/public/data`. Cada nome de sessão inclui seu SHA-256, e o publicador troca o manifesto somente depois de gravar as duas sessões. O workflow do GitHub Pages verifica esses artefatos antes do build.
+O comando `web_publish` gera sessões de dez perguntas em PT-BR e inglês para os modos assistido, padrão e especialista. Os arquivos ficam em `web/public/data`. Cada nome inclui seu SHA-256, e o publicador troca `manifest-v2.json` somente depois de validar e gravar as seis sessões. `manifest.json` e as sessões v1 permanecem publicados durante a transição. O workflow do GitHub Pages verifica os artefatos v2 antes do build.
 
 Uma nova execução atualiza cada página pela combinação de provedor, idioma e `pageid`. `collection_runs` registra sucesso ou falha. `source_pages` guarda o estado mais recente, `source_revisions` aponta para cada snapshot e seu SHA-256, e `collection_run_revisions` registra as revisões usadas em cada execução. `catalog_entries` guarda uma decisão por página. Uma revisão nova ou uma mudança nos metadados usados pelo classificador devolve a página ao estado `candidate`.
 
@@ -69,9 +69,9 @@ A etapa de fatos roda com `--facts`, `--facts-limit` ou `--facts-report`. Ela gr
 
 `--releases` usa o WDQS somente para descobrir candidatos. A consulta e a resposta ficam em snapshots com SHA-256. Cada QID é buscado de novo por `wbgetentities`; classe, artista, data e gênero são confirmados nesse snapshot direto. O pipeline consulta os sitelinks `enwiki`, `ptwiki` e `kowiki`, resolve o título pela API de cada wiki e grava a revisão do verbete. `performed_by` e `released_on` só entram no conjunto aceito quando uma referência aprovada do Wikidata ou o texto dessa revisão confirma a relação. Páginas ausentes, listas, desambiguações e páginas ligadas a outro QID ficam registradas em `release_source_pages`. O limite padrão é de 25 grupos por consulta e 100 candidatos por grupo.
 
-`python -m kpop_scraping.quiz_cli` lê o banco sem executar coleta. O comando grava um dataset bilíngue e um relatório em JSON canônico. `--session-output` também grava uma sessão de dez perguntas. Os filtros `--session-language`, `--theme`, `--group` e `--difficulty` podem ser combinados. `--timer-seconds` registra o limite na configuração da sessão.
+`python -m kpop_scraping.quiz_cli` lê o banco sem executar coleta. O comando grava um dataset bilíngue e um relatório em JSON canônico. `--session-output` também grava uma sessão de dez perguntas. Os filtros `--session-language`, `--theme`, `--group` e `--play-mode` podem ser combinados. `--timer-seconds` registra o limite na configuração da sessão.
 
-Os arquivos `schemas/quiz-dataset-v1.json` e `schemas/quiz-session-v1.json` descrevem os contratos públicos. Cada pergunta mantém os IDs dos fatos e as evidências usadas para gerá-la. A mesma entrada, versão e semente produzem bytes idênticos.
+Os arquivos `schemas/quiz-dataset-v2.json` e `schemas/quiz-session-v2.json` descrevem os contratos públicos. `challenge_rating` registra a complexidade factual original; `play_mode` escolhe o modo assistido, padrão ou especialista. Pistas de década apontam para fatos aceitos e para suas evidências. A mesma entrada, versão, modo e semente produzem bytes idênticos. Os contratos v1 permanecem versionados para consumidores antigos.
 
 O coletor aplica migrações pendentes ao abrir o banco. Cada migração roda em uma transação. Bancos criados pela versão anterior mantêm execuções e páginas durante a migração.
 

@@ -15,8 +15,8 @@ def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any
     validate_dataset(dataset)
     if config.language not in SUPPORTED_LANGUAGES:
         raise ValueError("unsupported session language")
-    if config.difficulty not in {None, "easy", "medium", "hard"}:
-        raise ValueError("unsupported difficulty")
+    if config.play_mode not in {"assisted", "standard", "expert"}:
+        raise ValueError("unsupported play mode")
     if config.timer_seconds is not None and config.timer_seconds < 1:
         raise ValueError("timer_seconds must be greater than zero")
     eligible = [
@@ -25,18 +25,20 @@ def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any
         if question["language"] == config.language
         and (config.theme is None or question["theme"] == config.theme)
         and (config.group_id is None or config.group_id in question["group_ids"])
-        and (config.difficulty is None or question["difficulty"] == config.difficulty)
+        and question["play_mode"] == config.play_mode
     ]
     if len(eligible) < 10:
         raise InsufficientQuestionsError(
             f"filters matched {len(eligible)} questions; a session requires 10"
         )
     eligible.sort(
-        key=lambda question: digest(config.seed, dataset["dataset_version"], question["id"])
+        key=lambda question: digest(
+            config.seed, dataset["dataset_version"], question["logical_id"]
+        )
     )
     selected = [_session_question(question, config.seed) for question in eligible[:10]]
     config_payload = {
-        "difficulty": config.difficulty,
+        "play_mode": config.play_mode,
         "group_id": config.group_id,
         "language": config.language,
         "seed": config.seed,
@@ -65,7 +67,7 @@ def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any
 def _session_question(question: dict[str, Any], seed: str) -> dict[str, Any]:
     copied = {key: value for key, value in question.items() if key != "options"}
     copied["options"] = sorted(
-        question["options"], key=lambda option: digest(seed, question["id"], option["id"])
+        question["options"],
+        key=lambda option: digest(seed, question["logical_id"], option["id"]),
     )
     return copied
-

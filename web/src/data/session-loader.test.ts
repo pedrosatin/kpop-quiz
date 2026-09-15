@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadQuizSession, QuizArtifactError } from "./session-loader";
-import ptSession from "../../public/data/session.pt-BR.15fa85ef766708e1e57c47d9ea3dd819a95705416d9f60667d5c254cdc9f68ff.json";
-import manifest from "../../public/data/manifest.json";
+import ptSession from "../../public/data/session.pt-BR.standard.b5e08ef5cd39007df490c3744fe09395924311606523c27bd38054ce0753ac4f.json";
+import manifest from "../../public/data/manifest-v2.json";
 
 describe("published session loader", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -11,19 +11,19 @@ describe("published session loader", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
     vi.stubGlobal("fetch", fetch);
-    await expect(loadQuizSession("pt-BR", "/kpop-scraping")).resolves.toMatchObject({ config: { language: "pt-BR" } });
-    expect(fetch).toHaveBeenNthCalledWith(1, "/kpop-scraping/data/manifest.json");
-    expect(fetch).toHaveBeenNthCalledWith(2, `/kpop-scraping/data/${manifest.sessions["pt-BR"].path}`);
+    await expect(loadQuizSession("pt-BR", "standard", "/kpop-scraping")).resolves.toMatchObject({ config: { language: "pt-BR", play_mode: "standard" } });
+    expect(fetch).toHaveBeenNthCalledWith(1, "/kpop-scraping/data/manifest-v2.json");
+    expect(fetch).toHaveBeenNthCalledWith(2, `/kpop-scraping/data/${manifest.sessions["pt-BR.standard"].path}`);
   });
 
   it("distinguishes a missing artifact", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
-    await expect(loadQuizSession("en")).rejects.toEqual(new QuizArtifactError("missing"));
+    await expect(loadQuizSession("en", "standard")).rejects.toEqual(new QuizArtifactError("missing"));
   });
 
   it("rejects malformed JSON at the browser boundary", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{")));
-    await expect(loadQuizSession("en")).rejects.toEqual(new QuizArtifactError("invalid"));
+    await expect(loadQuizSession("en", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
   });
 
   it("rejects a session that does not match the manifest", async () => {
@@ -32,7 +32,7 @@ describe("published session loader", () => {
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(JSON.stringify(changed))));
-    await expect(loadQuizSession("pt-BR")).rejects.toEqual(new QuizArtifactError("invalid"));
+    await expect(loadQuizSession("pt-BR", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
   });
 
   it.each([
@@ -46,18 +46,18 @@ describe("published session loader", () => {
     const digest = await crypto.subtle.digest("SHA-256", bytes);
     const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
     const changedManifest = structuredClone(manifest);
-    changedManifest.sessions["pt-BR"].sha256 = sha256;
+    changedManifest.sessions["pt-BR.standard"].sha256 = sha256;
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(changedManifest)))
       .mockResolvedValueOnce(new Response(bytes)));
-    await expect(loadQuizSession("pt-BR")).rejects.toEqual(new QuizArtifactError("invalid"));
+    await expect(loadQuizSession("pt-BR", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
   });
 
   it("rejects a manifest path that attempts directory traversal", async () => {
     const changedManifest = structuredClone(manifest) as Record<string, any>;
-    changedManifest.sessions.en.path = `../session.en.${changedManifest.sessions.en.sha256}.json`;
+    changedManifest.sessions["en.standard"].path = `../session.en.standard.${changedManifest.sessions["en.standard"].sha256}.json`;
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(changedManifest))));
-    await expect(loadQuizSession("en")).rejects.toEqual(new QuizArtifactError("invalid"));
+    await expect(loadQuizSession("en", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
   });
 
   it("rejects a session whose bytes do not match the declared SHA-256", async () => {
@@ -66,7 +66,7 @@ describe("published session loader", () => {
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(`${JSON.stringify(changed)}\n`)));
-    await expect(loadQuizSession("pt-BR")).rejects.toEqual(new QuizArtifactError("invalid"));
+    await expect(loadQuizSession("pt-BR", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
   });
 
   it("rejects evidence that does not identify its fact", async () => {
@@ -76,10 +76,10 @@ describe("published session loader", () => {
     const digest = await crypto.subtle.digest("SHA-256", bytes);
     const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
     const changedManifest = structuredClone(manifest);
-    changedManifest.sessions["pt-BR"].sha256 = sha256;
+    changedManifest.sessions["pt-BR.standard"].sha256 = sha256;
     vi.stubGlobal("fetch", vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(changedManifest)))
       .mockResolvedValueOnce(new Response(bytes)));
-    await expect(loadQuizSession("pt-BR")).rejects.toEqual(new QuizArtifactError("invalid"));
+    await expect(loadQuizSession("pt-BR", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
   });
 });
