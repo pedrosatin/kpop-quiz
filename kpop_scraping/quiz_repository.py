@@ -19,20 +19,24 @@ def _load_entities(connection: sqlite3.Connection) -> dict[int, Entity]:
         "SELECT id, wikidata_id, entity_type, canonical_name FROM entities ORDER BY wikidata_id"
     ).fetchall()
     names: dict[int, dict[str, str]] = defaultdict(dict)
+    aliases: dict[int, list[str]] = defaultdict(list)
     for row in connection.execute(
         """
-        SELECT entity_id, language, name FROM entity_aliases
-        WHERE alias_type='label' AND language IN ('pt', 'en')
-        ORDER BY entity_id, language, name
+        SELECT entity_id, language, name, alias_type FROM entity_aliases
+        ORDER BY entity_id, language, alias_type, name
         """
     ):
-        names[int(row["entity_id"])].setdefault(row["language"], row["name"])
+        entity_id = int(row["entity_id"])
+        aliases[entity_id].append(row["name"])
+        if row["alias_type"] == "label" and row["language"] in {"pt", "en"}:
+            names[entity_id].setdefault(row["language"], row["name"])
     return {
         int(row["id"]): Entity(
             row["wikidata_id"],
             row["entity_type"],
             row["canonical_name"],
             names.get(int(row["id"]), {}),
+            tuple(aliases.get(int(row["id"]), ())),
         )
         for row in rows
     }
@@ -196,6 +200,7 @@ def _dataset_version(
             "canonical_name": entity.canonical_name,
             "entity_type": entity.entity_type,
             "names": entity.names,
+            "aliases": entity.aliases,
             "wikidata_id": entity.wikidata_id,
         }
         for entity in sorted(entities.values(), key=lambda item: item.wikidata_id)

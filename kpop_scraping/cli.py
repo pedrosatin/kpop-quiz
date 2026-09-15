@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
                     wikipedia_clients=wikipedia_clients,
                 )
                 release_rows = export_release_coverage_csv(repository.connection, args.release_report or args.database.parent / "release-coverage.csv")
-    except (MediaWikiError, SnapshotIntegrityError, RuntimeError) as exc:
+    except (MediaWikiError, SnapshotIntegrityError, RuntimeError, ValueError) as exc:
         print(f"Pipeline failed: {type(exc).__name__}: {exc}")
         return 1
     print(f"Collected {count} pages into {args.database}; snapshots in {raw_dir}")

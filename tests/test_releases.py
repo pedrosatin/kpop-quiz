@@ -180,8 +180,14 @@ class ReleaseFactTest(unittest.TestCase):
                     "SELECT e.wikidata_id FROM release_discovery_groups rdg JOIN entities e ON e.id=rdg.group_entity_id WHERE rdg.run_id=?",
                     (run_id,),
                 ).fetchall()
+                with self.assertRaisesRegex(ValueError, "no accepted catalog groups"):
+                    discover_releases(repository, client, group_limit=1, group_offset=99)
+                run_count = repository.connection.execute(
+                    "SELECT COUNT(*) FROM release_discovery_runs"
+                ).fetchone()[0]
         self.assertEqual([row[0] for row in groups], ["Q2"])
         self.assertIn("wd:Q2", client.query_text)
+        self.assertEqual(run_count, 1)
 
     def test_release_text_rules_pass_editorial_positive_and_negative_cases(self):
         date = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
