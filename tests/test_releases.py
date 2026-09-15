@@ -10,7 +10,12 @@ from unittest.mock import patch
 from kpop_scraping.evidence import WikipediaPage, release_date_evidence, release_performer_evidence
 from kpop_scraping.entities import GREGORIAN_CALENDAR, TimeValue
 from kpop_scraping.mediawiki import MediaWikiError, Page
-from kpop_scraping.release_evidence import _page_rejection, collect_release_pages
+from kpop_scraping.release_evidence import (
+    _PageRequest,
+    _match_pages,
+    _page_rejection,
+    collect_release_pages,
+)
 from kpop_scraping.release_discovery import WikidataQueryClient, _parse_results, build_query
 from kpop_scraping.release_facts import release_entity_type, release_fact_candidates
 from kpop_scraping.release_pipeline import (
@@ -39,6 +44,22 @@ def time_statement(qualifiers=None):
 
 
 class ReleaseFactTest(unittest.TestCase):
+    def test_matches_unordered_normalized_redirected_and_shared_pages(self):
+        requests = (
+            _PageRequest(1, 1, "Q1", "en", "Alpha_album"),
+            _PageRequest(2, 1, "Q2", "en", "Old title"),
+            _PageRequest(3, 1, "Q1", "en", "Alpha album"),
+            _PageRequest(4, 1, "Q4", "en", "Missing"),
+        )
+        pages = (
+            Page(2, "New title", "u2", "New title is an album.", 12, wikidata_id="Q2", is_redirect=True),
+            Page(1, "Alpha album", "u1", "Alpha is an album.", 11, wikidata_id="Q1"),
+        )
+
+        matched = _match_pages(requests, pages)
+
+        self.assertEqual([page.page_id if page else None for page in matched], [1, 2, 1, None])
+
     def test_classifies_only_explicit_release_classes(self):
         album = {"claims": {"P31": [item_statement("i", "P31", "Q482994")]}}
         generic = {"claims": {"P31": [item_statement("i", "P31", "Q2031291")]}}
@@ -501,6 +522,116 @@ class ReleasePipelineScopeTest(unittest.TestCase):
             ).fetchone()[0],
             1,
         )
+
+    def test_release_pages_batch_by_language_in_groups_of_twenty(self):
+        entity_rows = [
+            (100 + index, f"QB{index}", "album", f"Release {index}")
+            for index in range(41)
+        ]
+        self.connection.executemany(
+            """INSERT INTO entities(
+                id,wikidata_id,entity_type,canonical_name,snapshot_id,created_at,updated_at
+            ) VALUES (?,?,?,?,1,'t','t')""",
+            entity_rows,
+        )
+        releases = tuple(
+            (
+                100 + index,
+                1,
+                f"QB{index}",
+                object(),
+                {"sitelinks": {
+                    "enwiki": {"title": f"Release {index}"},
+                    **({"ptwiki": {"title": "Lançamento 0"}} if index == 0 else {}),
+                }},
+            )
+            for index in range(41)
+        )
+
+        class WikiClient:
+            def __init__(self, language):
+                self.language = language
+                self.calls = []
+
+            def get_pages_by_titles(self, titles):
+                self.calls.append(tuple(titles))
+                pages = [
+                    Page(
+                        1000 + int(title.rsplit(" ", 1)[1]),
+                        title,
+                        f"https://{self.language}.example/{title}",
+                        f"{title} is an album.",
+                        2000 + int(title.rsplit(" ", 1)[1]),
+                        wikidata_id=f"QB{int(title.rsplit(' ', 1)[1])}",
+                    )
+                    for title in titles
+                ]
+                return list(reversed(pages))
+
+        english = WikiClient("en")
+
+        class PortugueseClient:
+            def __init__(self):
+                self.calls = []
+
+            def get_pages_by_titles(self, titles):
+                self.calls.append(tuple(titles))
+                return [Page(
+                    3000, "Lançamento 0", "https://pt.example/0",
+                    "Lançamento 0 é um álbum.", 4000, wikidata_id="QB0",
+                )]
+
+        portuguese = PortugueseClient()
+        pages = collect_release_pages(
+            self.repository, releases, {"en": english, "pt": portuguese}
+        )
+
+        self.assertEqual([len(call) for call in english.calls], [20, 20, 1])
+        self.assertEqual([len(call) for call in portuguese.calls], [1])
+        self.assertEqual(len(pages), 41)
+        self.assertEqual([page.page_id for page in pages["QB0"]], [1000, 3000])
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT pages_collected FROM collection_runs ORDER BY id DESC LIMIT 1"
+            ).fetchone()[0],
+            42,
+        )
+
+    def test_release_page_batch_stops_when_a_request_fails(self):
+        self.connection.executemany(
+            """INSERT INTO entities(
+                id,wikidata_id,entity_type,canonical_name,snapshot_id,created_at,updated_at
+            ) VALUES (?,?,?,?,1,'t','t')""",
+            [(100 + index, f"QE{index}", "album", f"Error {index}") for index in range(21)],
+        )
+        releases = tuple(
+            (100 + index, 1, f"QE{index}", object(), {
+                "sitelinks": {"enwiki": {"title": f"Error {index}"}}
+            })
+            for index in range(21)
+        )
+
+        class FailingClient:
+            def __init__(self):
+                self.calls = 0
+
+            def get_pages_by_titles(self, titles):
+                self.calls += 1
+                if self.calls == 2:
+                    raise MediaWikiError("batch failed")
+                return [
+                    Page(
+                        5000 + index, title, f"https://en.example/{index}",
+                        f"{title} is an album.", 6000 + index,
+                        wikidata_id=f"QE{index}",
+                    )
+                    for index, title in enumerate(titles)
+                ]
+
+        client = FailingClient()
+        with self.assertRaisesRegex(MediaWikiError, "batch failed"):
+            collect_release_pages(self.repository, releases, {"en": client})
+        self.assertEqual(client.calls, 2)
 
     def test_wikipedia_revision_accepts_release_artist_and_date(self):
         run_id = self._run(groups=(1,))
