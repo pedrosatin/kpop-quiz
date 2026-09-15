@@ -113,6 +113,12 @@ _PERFORMER_DESCRIPTION = re.compile(
     r"(?:(?:girl|boy)\s+)?(?:group|band|duo|artist|singer|rapper)\s+",
     _I,
 )
+_KOREAN_RELEASE_SCOPE = re.compile(
+    r"(?:일본|한국|미국|영국)(?:에서|판)"
+    r"|(?:바이닐|CD|DVD|실물|디지털|온라인|스트리밍|카세트|한정판)(?:으)?로"
+    r"|(?:예정|연기|재발매)",
+    _I,
+)
 
 
 @dataclass(frozen=True)
@@ -428,11 +434,7 @@ def release_date_evidence(
     date = _release_date_pattern(value, page.language)
     for start, sentence in _release_subject_sentences(page, subject_names):
         if page.language == "ko":
-            if re.search(
-                r"(?:일본|한국|미국|영국)(?:에서|판)|(?:바이닐|CD|실물|디지털)로|"
-                r"(?:예정|연기|재발매)",
-                sentence,
-            ):
+            if _KOREAN_RELEASE_SCOPE.search(sentence):
                 continue
             match = re.search(
                 rf"(?P<date>{date})[^.;]{{0,30}}?(?:발매|출시)", sentence, _I
@@ -453,8 +455,8 @@ def release_date_evidence(
         for trigger in _RELEASE_DATE_TRIGGER.finditer(sentence):
             tail = sentence[trigger.end() : trigger.end() + 80]
             if re.search(
-                r"\b(?:Japan|Korea|US|UK|physical|vinyl|CD|edition|territory|"
-                r"Japão|Coreia|edição|formato)\b",
+                r"\b(?:Japan|Korea|US|UK|physical|vinyl|CD|editions?|territory|"
+                r"Japão|Coreia|ediç(?:ão|ões)|formato)\b",
                 tail,
                 _I,
             ):
