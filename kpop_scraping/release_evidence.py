@@ -4,15 +4,26 @@ from __future__ import annotations
 
 import json
 import re
+from collections import defaultdict
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
 from .evidence import WikipediaPage
-from .mediawiki import MediaWikiClient, Page
+from .mediawiki import MAX_EXTRACTS_PER_REQUEST, MediaWikiClient, Page
 from .storage import utc_now
 
 
 SITES = (("enwiki", "en"), ("ptwiki", "pt"), ("kowiki", "ko"))
 _LIST_TITLE = re.compile(r"^(?:list of|lista de|목록)", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class _PageRequest:
+    entity_id: int
+    snapshot_id: int
+    qid: str
+    language: str
+    title: str
 
 
 def collect_release_pages(
@@ -27,7 +38,7 @@ def collect_release_pages(
         ("release-wikipedia-evidence", utc_now()),
     )
     collection_run_id = int(cursor.lastrowid)
-    saved = 0
+    requests: dict[str, list[_PageRequest]] = defaultdict(list)
     for entity_id, snapshot_id, qid, _extracted, payload in releases:
         sitelinks = payload.get("sitelinks") if isinstance(payload, Mapping) else None
         sitelinks = sitelinks if isinstance(sitelinks, Mapping) else {}
@@ -41,52 +52,106 @@ def collect_release_pages(
             if client is None:
                 _record(repository, entity_id, language, snapshot_id, "missing", "client_missing")
                 continue
-            found = client.get_pages_by_titles((title,))
-            page = found[0] if found else None
-            reason = _page_rejection(page, qid)
-            if reason:
-                _record(repository, entity_id, language, snapshot_id, "rejected", reason)
-                continue
-            assert page is not None and page.revision_id is not None
-            repository.save_pages(
-                collection_run_id,
-                (page,),
-                provider="wikipedia",
-                language=language,
-                create_catalog_entries=False,
+            requests[language].append(
+                _PageRequest(entity_id, snapshot_id, qid, language, title.strip())
             )
-            row = repository.connection.execute(
-                """SELECT sp.id AS page_id,sr.id AS revision_id,
-                          sr.snapshot_path,sr.content_sha256
-                FROM source_pages sp JOIN source_revisions sr ON sr.source_page_id=sp.id
-                WHERE sp.provider='wikipedia' AND sp.language=?
-                  AND sp.external_page_id=? AND sr.external_revision_id=?""",
-                (language, page.page_id, page.revision_id),
-            ).fetchone()
-            _record(
-                repository, entity_id, language, snapshot_id, "accepted", None,
-                int(row["page_id"]), int(row["revision_id"]),
-            )
-            stored_payload = json.loads(
-                repository.snapshots.read(
-                    row["snapshot_path"], row["content_sha256"]
+
+    saved = 0
+    for _site, language in SITES:
+        client = clients.get(language)
+        language_requests = requests.get(language, ())
+        if client is None or not language_requests:
+            continue
+        for offset in range(0, len(language_requests), MAX_EXTRACTS_PER_REQUEST):
+            batch = language_requests[offset : offset + MAX_EXTRACTS_PER_REQUEST]
+            found = client.get_pages_by_titles(tuple(item.title for item in batch))
+            matched = _match_pages(batch, found)
+            accepted_pages = {
+                (page.page_id, page.revision_id): page
+                for item, page in zip(batch, matched)
+                if _page_rejection(page, item.qid) is None
+            }
+            if accepted_pages:
+                repository.save_pages(
+                    collection_run_id,
+                    tuple(accepted_pages[key] for key in sorted(accepted_pages)),
+                    provider="wikipedia",
+                    language=language,
+                    create_catalog_entries=False,
                 )
-            )
-            stored_extract = stored_payload.get("extract")
-            if not isinstance(stored_extract, str):
-                raise RuntimeError("release Wikipedia snapshot has no text extract")
-            pages.setdefault(qid, []).append(
-                WikipediaPage(
-                    int(row["revision_id"]), language, page.page_id,
-                    page.revision_id, stored_extract.strip(), page.title,
-                )
-            )
-            saved += 1
+            for item, page in zip(batch, matched):
+                reason = _page_rejection(page, item.qid)
+                if reason:
+                    _record(
+                        repository, item.entity_id, language, item.snapshot_id,
+                        "rejected", reason,
+                    )
+                    continue
+                assert page is not None and page.revision_id is not None
+                saved += _store_page_result(repository, pages, item, page)
     repository.connection.execute(
         "UPDATE collection_runs SET completed_at=?,status='completed',pages_collected=? WHERE id=?",
         (utc_now(), saved, collection_run_id),
     )
     return {qid: tuple(items) for qid, items in pages.items()}
+
+
+def _match_pages(
+    requests: Sequence[_PageRequest], found: Sequence[Page]
+) -> tuple[Page | None, ...]:
+    """Associate unordered MediaWiki results with every requested release."""
+    by_title: dict[str, list[Page]] = defaultdict(list)
+    by_qid: dict[str, list[Page]] = defaultdict(list)
+    for page in found:
+        by_title[_title_key(page.title)].append(page)
+        if page.wikidata_id:
+            by_qid[page.wikidata_id].append(page)
+    for matches in (*by_title.values(), *by_qid.values()):
+        matches.sort(key=lambda page: (page.page_id, page.title, page.revision_id or -1))
+
+    matched = []
+    for item in requests:
+        exact = by_title.get(_title_key(item.title), ())
+        exact_qid = [page for page in exact if page.wikidata_id == item.qid]
+        qid_matches = by_qid.get(item.qid, ())
+        matched.append(
+            exact_qid[0] if exact_qid else
+            qid_matches[0] if qid_matches else
+            exact[0] if exact else None
+        )
+    return tuple(matched)
+
+
+def _title_key(title: str) -> str:
+    return " ".join(title.replace("_", " ").split()).casefold()
+
+
+def _store_page_result(repository, pages, item: _PageRequest, page: Page) -> int:
+    row = repository.connection.execute(
+        """SELECT sp.id AS page_id,sr.id AS revision_id,
+                  sr.snapshot_path,sr.content_sha256
+        FROM source_pages sp JOIN source_revisions sr ON sr.source_page_id=sp.id
+        WHERE sp.provider='wikipedia' AND sp.language=?
+          AND sp.external_page_id=? AND sr.external_revision_id=?""",
+        (item.language, page.page_id, page.revision_id),
+    ).fetchone()
+    _record(
+        repository, item.entity_id, item.language, item.snapshot_id, "accepted", None,
+        int(row["page_id"]), int(row["revision_id"]),
+    )
+    stored_payload = json.loads(
+        repository.snapshots.read(row["snapshot_path"], row["content_sha256"])
+    )
+    stored_extract = stored_payload.get("extract")
+    if not isinstance(stored_extract, str):
+        raise RuntimeError("release Wikipedia snapshot has no text extract")
+    pages.setdefault(item.qid, []).append(
+        WikipediaPage(
+            int(row["revision_id"]), item.language, page.page_id,
+            page.revision_id, stored_extract.strip(), page.title,
+        )
+    )
+    return 1
 
 
 def _page_rejection(page: Page | None, qid: str) -> str | None:
