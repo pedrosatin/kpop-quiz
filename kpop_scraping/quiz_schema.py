@@ -13,9 +13,9 @@ from urllib.parse import urlsplit
 from .storage import canonical_json
 
 
-DATASET_SCHEMA_VERSION = "kpop-quiz-dataset-v1"
-SESSION_SCHEMA_VERSION = "kpop-quiz-session-v1"
-REPORT_SCHEMA_VERSION = "kpop-quiz-generation-report-v2"
+DATASET_SCHEMA_VERSION = "kpop-quiz-dataset-v2"
+SESSION_SCHEMA_VERSION = "kpop-quiz-session-v2"
+REPORT_SCHEMA_VERSION = "kpop-quiz-generation-report-v3"
 QUESTION_TYPES = frozenset(
     {
         "formation_year",
@@ -42,7 +42,8 @@ DATASET_FIELDS = frozenset(
 )
 QUESTION_FIELDS = frozenset(
     {
-        "answer_option_id", "difficulty", "evidence", "explanation",
+        "answer_option_id", "base_logical_id", "base_points", "challenge_rating", "clues_available",
+        "clues_shown", "play_mode", "evidence", "explanation", "hint_cost",
         "fact_base_ids", "group_ids", "id", "language", "logical_id",
         "options", "prompt", "reference_date", "semantic_id", "theme", "type",
     }
@@ -69,20 +70,32 @@ def validate_dataset(payload: dict[str, Any]) -> None:
     questions = payload.get("questions")
     _require(isinstance(questions, list), "questions")
     ids: set[str] = set()
-    logical_languages: set[tuple[str, str]] = set()
+    logical_languages: set[tuple[str, str, str]] = set()
     languages_by_logical_id: dict[str, set[str]] = defaultdict(set)
-    semantic_languages: set[tuple[str, str]] = set()
+    modes_by_logical_language: dict[tuple[str, str], set[str]] = defaultdict(set)
+    semantic_languages: set[tuple[str, str, str]] = set()
+    variants_by_logical_language: dict[
+        tuple[str, str], dict[str, dict[str, Any]]
+    ] = defaultdict(dict)
     for question in questions:
         _validate_question(question)
         _require(question["reference_date"] == reference_date, "question reference_date")
         _require(question["language"] in languages, "question language")
         _require(question["id"] not in ids, "duplicate question id")
         ids.add(question["id"])
-        key = (question["logical_id"], question["language"])
-        _require(key not in logical_languages, "duplicate logical question language")
+        key = (question["logical_id"], question["language"], question["play_mode"])
+        _require(key not in logical_languages, "duplicate logical question mode and language")
         logical_languages.add(key)
         languages_by_logical_id[question["logical_id"]].add(question["language"])
-        semantic_key = (question["semantic_id"], question["language"])
+        modes_by_logical_language[
+            (question["logical_id"], question["language"])
+        ].add(question["play_mode"])
+        variants_by_logical_language[
+            (question["logical_id"], question["language"])
+        ][question["play_mode"]] = question
+        semantic_key = (
+            question["semantic_id"], question["language"], question["play_mode"]
+        )
         _require(semantic_key not in semantic_languages, "duplicate semantic question language")
         semantic_languages.add(semantic_key)
     _require(
@@ -93,6 +106,22 @@ def validate_dataset(payload: dict[str, Any]) -> None:
         all(value == set(languages) for value in languages_by_logical_id.values()),
         "logical question languages",
     )
+    _require(
+        all(
+            modes == {"assisted", "standard", "expert"}
+            for modes in modes_by_logical_language.values()
+        ),
+        "logical question play modes",
+    )
+    for variants in variants_by_logical_language.values():
+        standard = _mode_neutral_question(variants["standard"])
+        _require(
+            all(
+                _mode_neutral_question(question) == standard
+                for question in variants.values()
+            ),
+            "play mode question equivalence",
+        )
     _require(payload.get("language_variant_count") == len(questions), "language_variant_count")
 
 
@@ -109,7 +138,7 @@ def validate_session(payload: dict[str, Any]) -> None:
     _require(isinstance(config, dict), "config")
     _require(
         set(config)
-        == {"language", "seed", "theme", "group_id", "difficulty", "timer_seconds"},
+        == {"language", "seed", "theme", "group_id", "play_mode", "timer_seconds"},
         "config fields",
     )
     _require(config.get("language") in {"pt-BR", "en"}, "config.language")
@@ -124,7 +153,7 @@ def validate_session(payload: dict[str, Any]) -> None:
         or isinstance(config["group_id"], str) and bool(config["group_id"]),
         "config.group_id",
     )
-    _require(config.get("difficulty") in {None, "easy", "medium", "hard"}, "config.difficulty")
+    _require(config.get("play_mode") in {"assisted", "standard", "expert"}, "config.play_mode")
     timer = config.get("timer_seconds")
     _require(timer is None or type(timer) is int and timer > 0, "config.timer_seconds")
     questions = payload.get("questions")
@@ -140,8 +169,8 @@ def validate_session(payload: dict[str, Any]) -> None:
             "question group",
         )
         _require(
-            config["difficulty"] is None or question["difficulty"] == config["difficulty"],
-            "question difficulty",
+            question["play_mode"] == config["play_mode"],
+            "question play mode",
         )
         _require(question["id"] not in ids, "duplicate session question id")
         _require(question["semantic_id"] not in semantic_ids, "duplicate session semantic id")
@@ -157,13 +186,15 @@ def validate_report(payload: dict[str, Any]) -> None:
         == {
             "accepted_by_predicate", "accepted_by_template", "accepted_by_type",
             "accepted_distinct_fact_bases", "accepted_logical",
+            "clue_eligible_base_questions",
             "dataset_version", "language_variants", "rejected_by_reason",
-            "schema_version", "variants_by_language",
+            "schema_version", "variants_by_play_mode", "variants_by_language",
         },
         "report fields",
     )
     _require_hash(payload.get("dataset_version"), "dataset_version")
     _require(type(payload.get("accepted_logical")) is int and payload["accepted_logical"] >= 0, "accepted_logical")
+    _require(type(payload.get("clue_eligible_base_questions")) is int and 0 <= payload["clue_eligible_base_questions"] <= payload["accepted_logical"], "clue_eligible_base_questions")
     _require(
         type(payload.get("accepted_distinct_fact_bases")) is int,
         "accepted_distinct_fact_bases",
@@ -215,6 +246,13 @@ def validate_report(payload: dict[str, Any]) -> None:
         and sum(variants.values()) == payload["language_variants"],
         "variants_by_language",
     )
+    play_mode_variants = payload.get("variants_by_play_mode")
+    _require(
+        isinstance(play_mode_variants, dict)
+        and set(play_mode_variants) == {"assisted", "standard", "expert"}
+        and all(value == payload["accepted_logical"] for value in play_mode_variants.values()),
+        "variants_by_play_mode",
+    )
 
 
 def write_json_atomic(path: Path, payload: dict[str, Any], validator: Any) -> bytes:
@@ -248,10 +286,14 @@ def _validate_question(question: Any) -> None:
     _require(set(question) == QUESTION_FIELDS, "question fields")
     _require_hash(question.get("id"), "question.id")
     _require_hash(question.get("logical_id"), "question.logical_id")
+    _require_hash(question.get("base_logical_id"), "question.base_logical_id")
     _require_hash(question.get("semantic_id"), "question.semantic_id")
     _require(question.get("language") in {"pt-BR", "en"}, "question.language")
     _require(question.get("type") in QUESTION_TYPES, "question.type")
-    _require(question.get("difficulty") in {"easy", "medium", "hard"}, "difficulty")
+    _require(question.get("play_mode") in {"assisted", "standard", "expert"}, "play_mode")
+    _require(question.get("challenge_rating") in {"easy", "medium", "hard"}, "challenge_rating")
+    _require(type(question.get("base_points")) is int and question["base_points"] > 0, "base_points")
+    _require(type(question.get("hint_cost")) is int and question["hint_cost"] >= 0, "hint_cost")
     _require(isinstance(question.get("theme"), str) and bool(question["theme"]), "theme")
     group_ids = question.get("group_ids")
     _require(
@@ -267,6 +309,29 @@ def _validate_question(question: Any) -> None:
         and len(fact_base_ids) == len(set(fact_base_ids))
         and all(isinstance(fact_id, str) and fact_id for fact_id in fact_base_ids),
         "fact_base_ids",
+    )
+    clues = question.get("clues_available")
+    _require(isinstance(clues, list), "clues_available")
+    clue_ids: set[str] = set()
+    for clue in clues:
+        _validate_clue(clue)
+        _require(set(clue["fact_base_ids"]) <= set(fact_base_ids), "clue fact_base_ids")
+        _require(clue["id"] not in clue_ids, "duplicate clue id")
+        clue_ids.add(clue["id"])
+    shown = question.get("clues_shown")
+    _require(
+        isinstance(shown, list)
+        and len(shown) == len(set(shown))
+        and set(shown) <= clue_ids,
+        "clues_shown",
+    )
+    _require(
+        question["play_mode"] == "assisted" or not shown,
+        "only assisted clues are pre-shown",
+    )
+    _require(
+        question["play_mode"] != "expert" or not clues,
+        "expert mode has no clues",
     )
     _require(isinstance(question.get("prompt"), str) and question["prompt"], "prompt")
     options = question.get("options")
@@ -335,6 +400,43 @@ def _validate_question(question: Any) -> None:
             "evidence.revision_id",
         )
     _require(evidenced_fact_ids == set(fact_base_ids), "fact_base evidence coverage")
+
+
+def _validate_clue(clue: Any) -> None:
+    _require(isinstance(clue, dict), "clue")
+    _require(set(clue) == {"evidence", "fact_base_ids", "id", "text", "type"}, "clue fields")
+    _require_hash(clue.get("id"), "clue.id")
+    _require(clue.get("type") == "decade", "clue.type")
+    _require(isinstance(clue.get("text"), str) and clue["text"], "clue.text")
+    fact_ids = clue.get("fact_base_ids")
+    _require(
+        isinstance(fact_ids, list) and fact_ids
+        and len(fact_ids) == len(set(fact_ids))
+        and all(isinstance(value, str) and value for value in fact_ids),
+        "clue.fact_base_ids",
+    )
+    evidence = clue.get("evidence")
+    _require(isinstance(evidence, list) and evidence, "clue.evidence")
+    covered: set[str] = set()
+    for item in evidence:
+        _require(isinstance(item, dict), "clue evidence item")
+        _require(set(item) == {"fact_base_id", "locator", "revision_id", "source_key", "source_url"}, "clue evidence fields")
+        _require(item.get("fact_base_id") in fact_ids, "clue evidence fact")
+        covered.add(item["fact_base_id"])
+        parsed = urlsplit(item.get("source_url", ""))
+        _require(parsed.scheme == "https" and bool(parsed.netloc), "clue evidence url")
+        _require(isinstance(item.get("locator"), str) and item["locator"], "clue evidence locator")
+        _require(isinstance(item.get("source_key"), str) and item["source_key"], "clue evidence source")
+        _require(type(item.get("revision_id")) is int and item["revision_id"] > 0, "clue evidence revision")
+    _require(covered == set(fact_ids), "clue evidence coverage")
+
+
+def _mode_neutral_question(question: dict[str, Any]) -> dict[str, Any]:
+    """Return fields that must remain identical across play modes."""
+    mode_fields = {
+        "base_points", "clues_available", "clues_shown", "hint_cost", "id", "play_mode"
+    }
+    return {key: value for key, value in question.items() if key not in mode_fields}
 
 
 def _require(condition: bool, field: str) -> None:
