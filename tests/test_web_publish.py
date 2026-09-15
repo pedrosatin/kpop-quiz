@@ -41,8 +41,11 @@ class WebPublishTests(unittest.TestCase):
                 locale: (output / item["path"]).read_bytes()
                 for locale, item in previous["sessions"].items()
             }
-            sessions["en.standard"]["config"]["seed"] = "next-release"
-            sessions["en.standard"]["session_id"] = "0" * 64
+            for mode in ("assisted", "standard", "expert"):
+                sessions[f"en.{mode}"]["config"]["seed"] = "next-release"
+                sessions[f"en.{mode}"]["session_id"] = str(
+                    {"assisted": 1, "standard": 2, "expert": 3}[mode]
+                ) * 64
             publish(output, sessions)
             for locale, content in previous_files.items():
                 self.assertEqual((output / previous["sessions"][locale]["path"]).read_bytes(), content)
@@ -53,7 +56,8 @@ class WebPublishTests(unittest.TestCase):
             sessions = self.sessions()
             publish(output, sessions)
             previous_manifest = (output / "manifest-v2.json").read_bytes()
-            sessions["pt-BR.standard"]["config"]["seed"] = "next-release"
+            for mode in ("assisted", "standard", "expert"):
+                sessions[f"pt-BR.{mode}"]["config"]["seed"] = "next-release"
             original_write = web_publish.write_json_atomic
             writes = 0
 
@@ -82,6 +86,20 @@ class WebPublishTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "one dataset"):
             build_manifest(sessions)
 
+    def test_rejects_modes_with_different_questions_or_option_order(self):
+        sessions = self.sessions()
+        sessions["en.expert"]["questions"][0], sessions["en.expert"]["questions"][1] = (
+            sessions["en.expert"]["questions"][1],
+            sessions["en.expert"]["questions"][0],
+        )
+        with self.assertRaisesRegex(ValueError, "questions"):
+            build_manifest(sessions)
+
+        sessions = self.sessions()
+        sessions["en.assisted"]["questions"][0]["options"].reverse()
+        with self.assertRaisesRegex(ValueError, "questions"):
+            build_manifest(sessions)
+
     def test_verify_detects_changed_session(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
@@ -91,7 +109,7 @@ class WebPublishTests(unittest.TestCase):
             payload = json.loads(session_path.read_text())
             payload["config"]["seed"] = "changed"
             session_path.write_text(json.dumps(payload))
-            with self.assertRaisesRegex(ValueError, "manifest"):
+            with self.assertRaisesRegex(ValueError, "manifest|session"):
                 verify(output)
 
     def test_invalid_input_does_not_replace_existing_artifacts(self):

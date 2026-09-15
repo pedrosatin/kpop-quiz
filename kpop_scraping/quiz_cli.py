@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
                     seed=args.seed,
                     theme=args.theme,
                     group_id=args.group,
-            play_mode=args.play_mode,
+                    play_mode=args.play_mode,
                     timer_seconds=args.timer_seconds,
                 ),
             )

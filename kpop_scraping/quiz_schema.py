@@ -74,6 +74,9 @@ def validate_dataset(payload: dict[str, Any]) -> None:
     languages_by_logical_id: dict[str, set[str]] = defaultdict(set)
     modes_by_logical_language: dict[tuple[str, str], set[str]] = defaultdict(set)
     semantic_languages: set[tuple[str, str, str]] = set()
+    variants_by_logical_language: dict[
+        tuple[str, str], dict[str, dict[str, Any]]
+    ] = defaultdict(dict)
     for question in questions:
         _validate_question(question)
         _require(question["reference_date"] == reference_date, "question reference_date")
@@ -87,6 +90,9 @@ def validate_dataset(payload: dict[str, Any]) -> None:
         modes_by_logical_language[
             (question["logical_id"], question["language"])
         ].add(question["play_mode"])
+        variants_by_logical_language[
+            (question["logical_id"], question["language"])
+        ][question["play_mode"]] = question
         semantic_key = (
             question["semantic_id"], question["language"], question["play_mode"]
         )
@@ -107,6 +113,15 @@ def validate_dataset(payload: dict[str, Any]) -> None:
         ),
         "logical question play modes",
     )
+    for variants in variants_by_logical_language.values():
+        standard = _mode_neutral_question(variants["standard"])
+        _require(
+            all(
+                _mode_neutral_question(question) == standard
+                for question in variants.values()
+            ),
+            "play mode question equivalence",
+        )
     _require(payload.get("language_variant_count") == len(questions), "language_variant_count")
 
 
@@ -414,6 +429,14 @@ def _validate_clue(clue: Any) -> None:
         _require(isinstance(item.get("source_key"), str) and item["source_key"], "clue evidence source")
         _require(type(item.get("revision_id")) is int and item["revision_id"] > 0, "clue evidence revision")
     _require(covered == set(fact_ids), "clue evidence coverage")
+
+
+def _mode_neutral_question(question: dict[str, Any]) -> dict[str, Any]:
+    """Return fields that must remain identical across play modes."""
+    mode_fields = {
+        "base_points", "clues_available", "clues_shown", "hint_cost", "id", "play_mode"
+    }
+    return {key: value for key, value in question.items() if key not in mode_fields}
 
 
 def _require(condition: bool, field: str) -> None:
