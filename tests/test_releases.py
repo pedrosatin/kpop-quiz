@@ -46,10 +46,10 @@ def time_statement(qualifiers=None):
 class ReleaseFactTest(unittest.TestCase):
     def test_matches_unordered_normalized_redirected_and_shared_pages(self):
         requests = (
-            _PageRequest(1, 1, "Q1", "en", "Alpha_album"),
-            _PageRequest(2, 1, "Q2", "en", "Old title"),
-            _PageRequest(3, 1, "Q1", "en", "Alpha album"),
-            _PageRequest(4, 1, "Q4", "en", "Missing"),
+            _PageRequest(1, 1, "Q1", "en", "Alpha_album", 0),
+            _PageRequest(2, 1, "Q2", "en", "Old title", 1),
+            _PageRequest(3, 1, "Q1", "en", "Alpha album", 2),
+            _PageRequest(4, 1, "Q4", "en", "Missing", 3),
         )
         pages = (
             Page(2, "New title", "u2", "New title is an album.", 12, wikidata_id="Q2", is_redirect=True),
@@ -590,6 +590,16 @@ class ReleasePipelineScopeTest(unittest.TestCase):
         self.assertEqual([len(call) for call in portuguese.calls], [1])
         self.assertEqual(len(pages), 41)
         self.assertEqual([page.page_id for page in pages["QB0"]], [1000, 3000])
+        persisted = self.connection.execute(
+            """SELECT sp.language,sp.external_page_id
+            FROM source_revisions sr JOIN source_pages sp ON sp.id=sr.source_page_id
+            WHERE sp.provider='wikipedia' AND sp.external_page_id>=1000
+            ORDER BY sr.id"""
+        ).fetchall()
+        self.assertEqual(
+            [(row["language"], row["external_page_id"]) for row in persisted[:3]],
+            [("en", 1000), ("pt", 3000), ("en", 1001)],
+        )
         self.assertEqual(
             self.connection.execute(
                 "SELECT pages_collected FROM collection_runs ORDER BY id DESC LIMIT 1"
@@ -632,6 +642,14 @@ class ReleasePipelineScopeTest(unittest.TestCase):
         with self.assertRaisesRegex(MediaWikiError, "batch failed"):
             collect_release_pages(self.repository, releases, {"en": client})
         self.assertEqual(client.calls, 2)
+        self.assertEqual(
+            self.connection.execute(
+                """SELECT COUNT(*) FROM collection_run_revisions crr
+                JOIN collection_runs cr ON cr.id=crr.collection_run_id
+                WHERE cr.category='release-wikipedia-evidence'"""
+            ).fetchone()[0],
+            0,
+        )
 
     def test_wikipedia_revision_accepts_release_artist_and_date(self):
         run_id = self._run(groups=(1,))
