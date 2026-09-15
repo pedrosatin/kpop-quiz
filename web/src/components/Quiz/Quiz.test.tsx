@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { groupEvidence, Quiz } from "./Quiz";
-import ptSession from "../../../public/data/session.pt-BR.8d417106807a63a77b82e4ffa067fa49c4b5318f3f0f13633622c30dc2ec0461.json";
-import enSession from "../../../public/data/session.en.4c237c135056ebeca531204cfe59a86ef01a8a761552dba08b01c1eb128950c3.json";
+import ptSession from "../../../public/data/session.pt-BR.15fa85ef766708e1e57c47d9ea3dd819a95705416d9f60667d5c254cdc9f68ff.json";
+import enSession from "../../../public/data/session.en.eb9cc7aa0ba3b91ef13689e64225ab8e19778bf6f6bc819086a8c26778ba58e4.json";
 import manifest from "../../../public/data/manifest.json";
 
 function mockSessionFetch() {
