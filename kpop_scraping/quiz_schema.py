@@ -27,6 +27,10 @@ QUESTION_TYPES = frozenset(
         "group_for_record_label",
         "record_label_for_group",
         "chronological_comparison",
+        "release_for_group",
+        "group_for_release",
+        "release_year",
+        "earliest_release",
     }
 )
 DATASET_FIELDS = frozenset(
@@ -297,7 +301,9 @@ def _validate_question(question: Any) -> None:
     _require(
         len(value_types) == 4
         and len(set(value_types)) == 1
-        and value_types[0] in {"group", "person", "organization", "time", "number"},
+        and value_types[0] in {
+            "group", "person", "organization", "release", "time", "number"
+        },
         "option value types",
     )
     _require(question.get("answer_option_id") in option_ids, "answer_option_id")

@@ -111,21 +111,24 @@ def discover_releases(
     repository: Repository,
     client: WikidataQueryClient,
     group_limit: int = MAX_GROUPS_PER_QUERY,
+    group_offset: int = 0,
     max_per_group: int = MAX_CANDIDATES_PER_GROUP,
 ) -> int:
     if not 1 <= group_limit <= MAX_GROUPS_PER_QUERY:
         raise ValueError("group_limit is outside the supported WDQS batch")
     if not 1 <= max_per_group <= MAX_CANDIDATES_PER_GROUP:
         raise ValueError("max_per_group is outside the supported candidate limit")
+    if group_offset < 0:
+        raise ValueError("group_offset must not be negative")
     groups = repository.connection.execute(
         """
         SELECT DISTINCT e.id, e.wikidata_id FROM entities e
         JOIN catalog_entity_links cel ON cel.entity_id=e.id
         JOIN catalog_entries ce ON ce.source_page_id=cel.source_page_id
         WHERE e.entity_type='group' AND ce.state='accepted'
-        ORDER BY e.wikidata_id LIMIT ?
+        ORDER BY e.wikidata_id LIMIT ? OFFSET ?
         """,
-        (group_limit,),
+        (group_limit, group_offset),
     ).fetchall()
     if not groups:
         raise ValueError("no accepted catalog groups are available")

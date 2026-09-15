@@ -8,6 +8,7 @@ from typing import Iterable
 
 from .quiz_models import Draft, Entity, Evidence, Fact
 from .quiz_utils import digest
+from .release_quiz_drafts import build_release_drafts
 
 
 def _build_drafts(
@@ -262,6 +263,9 @@ def _build_drafts(
 
     drafts.extend(_comparison_drafts(formed, "group", memberships))
     drafts.extend(_comparison_drafts(born, "person", memberships))
+    release_drafts, release_rejections = build_release_drafts(facts)
+    drafts.extend(release_drafts)
+    rejected.update(release_rejections)
     drafts.sort(key=lambda draft: draft.key)
     return drafts, rejected
 

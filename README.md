@@ -42,6 +42,7 @@ python main.py --limit 3 --database /tmp/kpop-quiz.db
 python main.py --limit 3 --catalog-report /tmp/kpop-catalog.csv
 python main.py --limit 45 --database /tmp/kpop.db --facts-limit 30 --facts-report /tmp/kpop-facts.csv
 python main.py --limit 45 --database /tmp/kpop.db --releases --release-group-limit 10 --release-report /tmp/kpop-releases.csv
+python main.py --limit 60 --database /tmp/kpop.db --releases --release-group-limit 25 --release-group-offset 25
 python -m kpop_scraping.quiz_cli --database /tmp/kpop.db --output /tmp/questions.json --report /tmp/quiz-report.json --session-output /tmp/session.json --seed rodada-1 --timer-seconds 20
 python -m kpop_scraping.web_publish --database /tmp/kpop.db --output-dir web/public/data --seed web-launch-v1 --timer-seconds 20
 python -m kpop_scraping.web_publish --output-dir web/public/data --verify

@@ -36,6 +36,10 @@ class QuizGeneratorTest(unittest.TestCase):
                 "group_for_record_label",
                 "record_label_for_group",
                 "chronological_comparison",
+                "release_for_group",
+                "group_for_release",
+                "release_year",
+                "earliest_release",
             },
         )
         self.assertEqual(report["accepted_logical"], dataset["logical_question_count"])
@@ -125,6 +129,118 @@ class QuizGeneratorTest(unittest.TestCase):
                     if item["value"] != answer
                 }
                 self.assertTrue(distractors.isdisjoint(member_ids_by_group[group_id]))
+
+    def test_release_questions_preserve_provenance_and_exclude_valid_answers(self):
+        dataset, report = generate_dataset(self.connection)
+        english = [question for question in dataset["questions"] if question["language"] == "en"]
+        release_for_group = [question for question in english if question["type"] == "release_for_group"]
+        group_for_release = [question for question in english if question["type"] == "group_for_release"]
+        release_year = [question for question in english if question["type"] == "release_year"]
+        earliest = [question for question in english if question["type"] == "earliest_release"]
+        self.assertEqual(len(release_for_group), 8)
+        self.assertEqual(len(group_for_release), 8)
+        self.assertEqual(len(release_year), 8)
+        self.assertEqual(len(earliest), 5)
+        self.assertEqual(report["accepted_by_predicate"]["performed_by"], 16)
+        self.assertEqual(report["accepted_by_predicate"]["released_on"], 13)
+        for question in earliest:
+            self.assertEqual(len(question["fact_base_ids"]), 4)
+            for option in question["options"]:
+                self.assertIn(option["label"], question["explanation"])
+        group_one = next(
+            question for question in release_for_group if "Group 1" in question["prompt"]
+        )
+        option_values = {option["value"] for option in group_one["options"]}
+        self.assertEqual(option_values & {"QR1"}, {"QR1"})
+
+    def test_release_with_two_performers_has_no_single_answer_group_question(self):
+        release_id = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QR1'"
+        ).fetchone()[0]
+        group_id = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QG2'"
+        ).fetchone()[0]
+        cursor = self.connection.execute(
+            """INSERT INTO facts(
+                statement_id,subject_entity_id,predicate,property_id,rank,
+                value_wikidata_id,value_entity_id,qualifiers_json,references_json,
+                status,quality_flags_json,extractor_version
+            ) VALUES ('performer-joint',?,'performed_by','P175','normal','QG2',?,
+                      '{}','[]','accepted','[]','fixture-v1')""",
+            (release_id, group_id),
+        )
+        self.connection.execute(
+            "INSERT INTO fact_evidence(fact_id,evidence_type,source_key,locator,reference_hash,wikidata_snapshot_id) VALUES (?,'wikidata_reference','domain:example.com','claims/P175/joint','ref',1)",
+            (cursor.lastrowid,),
+        )
+        self.connection.commit()
+        dataset, report = generate_dataset(self.connection)
+        questions = [
+            question for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["type"] == "group_for_release"
+            and "Release 1" in question["prompt"]
+        ]
+        self.assertEqual(questions, [])
+        self.assertEqual(report["rejected_by_reason"]["release_has_multiple_performers"], 1)
+        release_questions = [
+            question for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["type"] == "release_for_group"
+            and any(option["value"] == "QR1" for option in question["options"])
+            and next(
+                option["value"] for option in question["options"]
+                if option["id"] == question["answer_option_id"]
+            ) == "QR1"
+        ]
+        self.assertEqual(len(release_questions), 1)
+        self.assertEqual(report["rejected_by_reason"]["release_answer_already_used"], 1)
+
+    def test_release_title_collision_in_one_language_is_rejected(self):
+        release_two = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QR2'"
+        ).fetchone()[0]
+        self.connection.execute(
+            "INSERT INTO entity_aliases(entity_id,language,name,alias_type) VALUES (?,'en','Release  1','label')",
+            (release_two,),
+        )
+        self.connection.commit()
+        dataset, report = generate_dataset(self.connection)
+        self.assertGreaterEqual(report["rejected_by_reason"]["release_title_not_unique"], 2)
+        for question in dataset["questions"]:
+            release_options = {
+                option["value"] for option in question["options"]
+                if option["value_type"] == "release"
+            }
+            self.assertTrue(release_options.isdisjoint({"QR1", "QR2"}))
+
+    def test_earliest_release_uses_one_canonical_fact_per_option(self):
+        original = self.connection.execute(
+            "SELECT * FROM facts WHERE statement_id='released-1'"
+        ).fetchone()
+        columns = [description[0] for description in self.connection.execute(
+            "SELECT * FROM facts LIMIT 0"
+        ).description]
+        values = dict(zip(columns, original))
+        values.pop("id")
+        values["statement_id"] = "released-1-duplicate"
+        cursor = self.connection.execute(
+            f"INSERT INTO facts({','.join(values)}) VALUES ({','.join('?' for _ in values)})",
+            tuple(values.values()),
+        )
+        self.connection.execute(
+            "INSERT INTO fact_evidence(fact_id,evidence_type,source_key,locator,reference_hash,wikidata_snapshot_id) VALUES (?,'wikidata_reference','domain:example.com','claims/P577/duplicate','ref',1)",
+            (cursor.lastrowid,),
+        )
+        self.connection.commit()
+        dataset, report = generate_dataset(self.connection)
+        earliest = [
+            question for question in dataset["questions"]
+            if question["language"] == "en" and question["type"] == "earliest_release"
+        ]
+        self.assertTrue(earliest)
+        self.assertTrue(all(len(question["fact_base_ids"]) == 4 for question in earliest))
+        self.assertEqual(report["rejected_by_reason"]["duplicate_release_date_facts_ignored"], 1)
 
     def test_group_distractors_are_not_another_accepted_group_for_person(self):
         person = self.connection.execute(
@@ -456,6 +572,8 @@ def build_quiz_database(reverse=False):
     ] + [
         ("QGR", "group", "Rejected group"),
         ("QGC", "group", "Conflicted group"),
+    ] + [
+        (f"QR{index}", "album", f"Release {index}") for index in range(1, 9)
     ]
     ordered_entities = list(reversed(entity_specs)) if reverse else entity_specs
     ids = {}
@@ -496,6 +614,18 @@ def build_quiz_database(reverse=False):
             ("conflict-accepted", "QGC", "formed_on", None, "2017", 9, None, None, None, None, "accepted", None, []),
         ]
     )
+    for index in range(1, 9):
+        group_index = min(index, 7)
+        facts.append((
+            f"performer-{index}", f"QR{index}", "performed_by",
+            f"QG{group_index}", None, None, None, None, None, None,
+            "accepted", None, [],
+        ))
+        facts.append((
+            f"released-{index}", f"QR{index}", "released_on", None,
+            f"20{9 + index:02d}-01-{index:02d}", 11,
+            None, None, None, None, "accepted", None, [],
+        ))
     ordered_facts = list(reversed(facts)) if reverse else facts
     for item in ordered_facts:
         (
