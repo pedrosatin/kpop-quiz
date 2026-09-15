@@ -35,7 +35,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", default="kpop-quiz-v1")
     parser.add_argument("--theme")
     parser.add_argument("--group")
-    parser.add_argument("--difficulty", choices=("easy", "medium", "hard"))
+    parser.add_argument(
+        "--play-mode",
+        choices=("assisted", "standard", "expert"),
+        default="standard",
+    )
     parser.add_argument("--timer-seconds", type=int)
     return parser
 
@@ -68,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
                     seed=args.seed,
                     theme=args.theme,
                     group_id=args.group,
-                    difficulty=args.difficulty,
+            play_mode=args.play_mode,
                     timer_seconds=args.timer_seconds,
                 ),
             )

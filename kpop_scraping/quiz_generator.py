@@ -14,7 +14,7 @@ from .quiz_models import (
     InsufficientQuestionsError,
     QuizConfig,
 )
-from .quiz_rendering import _draft_predicate, _render_draft
+from .quiz_rendering import _draft_predicate, render_play_mode_variants
 from .quiz_repository import _dataset_version, _load_entities, _load_facts
 from .quiz_schema import (
     DATASET_SCHEMA_VERSION,
@@ -47,12 +47,18 @@ def generate_dataset(
     drafts, generation_rejections = _build_drafts(facts, entities, reference_date)
     rejected.update(generation_rejections)
     entities_by_qid = {entity.wikidata_id: entity for entity in entities.values()}
-    questions = [
-        _render_draft(draft, language, reference_date, entities_by_qid)
+    questions = [question
         for draft in drafts
         for language in selected_languages
+        for question in render_play_mode_variants(
+            draft, language, reference_date, entities_by_qid
+        )
     ]
-    questions.sort(key=lambda question: (question["logical_id"], question["language"]))
+    questions.sort(
+        key=lambda question: (
+            question["logical_id"], question["language"], question["play_mode"]
+        )
+    )
     payload = {
         "dataset_version": dataset_version,
         "generator_version": GENERATOR_VERSION,
@@ -87,10 +93,17 @@ def generate_dataset(
         "rejected_by_reason": dict(sorted(rejected.items())),
         "schema_version": REPORT_SCHEMA_VERSION,
         "variants_by_language": {
-            language: len(drafts) for language in selected_languages
+            language: len(drafts) * 3 for language in selected_languages
         },
+        "variants_by_play_mode": {
+            play_mode: len(drafts)
+            for play_mode in ("assisted", "standard", "expert")
+        },
+        "clue_eligible_base_questions": sum(
+            bool(render_play_mode_variants(draft, "en", reference_date, entities_by_qid)[0]["clues_available"])
+            for draft in drafts
+        ),
     }
     validate_dataset(payload)
     validate_report(report)
     return payload, report
-

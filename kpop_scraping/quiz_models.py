@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-GENERATOR_VERSION = "quiz-generator-v8"
+GENERATOR_VERSION = "quiz-generator-v9"
 DEFAULT_REFERENCE_DATE = date(2026, 9, 13)
 
 
@@ -20,7 +20,7 @@ class QuizConfig:
     seed: str
     theme: str | None = None
     group_id: str | None = None
-    difficulty: str | None = None
+    play_mode: str = "standard"
     timer_seconds: int | None = None
 
 
