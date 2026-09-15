@@ -44,7 +44,10 @@ def _load_facts(
 ) -> tuple[list[Fact], Counter[str]]:
     evidence = _load_evidence(connection)
     rejected: Counter[str] = Counter()
-    supported = {"formed_on", "born_on", "has_member", "member_of", "record_label"}
+    supported = {
+        "formed_on", "born_on", "has_member", "member_of", "record_label",
+        "performed_by", "released_on",
+    }
     rows = connection.execute(
         """
         SELECT id, statement_id, subject_entity_id, predicate, value_entity_id,
@@ -139,7 +142,9 @@ def _has_open_conflict(row: sqlite3.Row, conflicts: list[sqlite3.Row]) -> bool:
             or conflict["predicate"] != row["predicate"]
         ):
             continue
-        if row["predicate"] in {"has_member", "member_of", "record_label"}:
+        if row["predicate"] in {
+            "has_member", "member_of", "record_label", "performed_by"
+        }:
             if conflict["value_entity_id"] == row["value_entity_id"]:
                 return True
         else:
