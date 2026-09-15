@@ -45,6 +45,10 @@ export interface Messages {
   resultText: (score: number) => string;
   restart: string;
   chooseAnswer: string;
+  themeLabel: string;
+  themeAuto: string;
+  themeLight: string;
+  themeDark: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -97,6 +101,10 @@ const catalogs: Record<Locale, Messages> = {
     resultText: (score) => `Você terminou a rodada com ${score} pontos.`,
     restart: "Jogar novamente",
     chooseAnswer: "Escolha uma resposta antes de continuar.",
+    themeLabel: "Tema",
+    themeAuto: "Sistema",
+    themeLight: "Claro",
+    themeDark: "Escuro",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -147,6 +155,10 @@ const catalogs: Record<Locale, Messages> = {
     resultText: (score) => `You finished the round with ${score} points.`,
     restart: "Play again",
     chooseAnswer: "Choose an answer before continuing.",
+    themeLabel: "Theme",
+    themeAuto: "System",
+    themeLight: "Light",
+    themeDark: "Dark",
   },
 };
 
