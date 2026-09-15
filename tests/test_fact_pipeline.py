@@ -602,6 +602,32 @@ class FactCliTest(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "--facts-limit"):
             main(["--facts-limit", "0"])
 
+    def test_release_offset_beyond_catalog_fails_without_traceback(self):
+        totals = FactRunTotals(0, 0, 0, 0, 0, 0, 0, 0)
+        with tempfile.TemporaryDirectory() as directory, patch(
+            "kpop_scraping.cli.collect_category", return_value=0
+        ), patch("kpop_scraping.cli.classify_catalog") as classify, patch(
+            "kpop_scraping.cli.extract_facts", return_value=totals
+        ), patch(
+            "kpop_scraping.cli.export_fact_coverage_csv", return_value=0
+        ), patch(
+            "kpop_scraping.cli.discover_releases",
+            side_effect=ValueError("no accepted catalog groups are available"),
+        ), patch("builtins.print") as output:
+            classify.return_value.accepted = 0
+            classify.return_value.rejected = 0
+            classify.return_value.pending = 0
+            database = Path(directory) / "test.db"
+            result = main([
+                "--database", str(database), "--releases",
+                "--release-group-offset", "999",
+            ])
+
+        self.assertEqual(result, 1)
+        output.assert_any_call(
+            "Pipeline failed: ValueError: no accepted catalog groups are available"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

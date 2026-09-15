@@ -214,6 +214,63 @@ class QuizGeneratorTest(unittest.TestCase):
             }
             self.assertTrue(release_options.isdisjoint({"QR1", "QR2"}))
 
+    def test_release_titles_that_reveal_known_group_names_are_rejected(self):
+        group_one = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QG1'"
+        ).fetchone()[0]
+        release_one = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QR1'"
+        ).fetchone()[0]
+        self.connection.execute(
+            "INSERT INTO entity_aliases(entity_id,language,name,alias_type) "
+            "VALUES (?,'en','2NE1','alias')",
+            (group_one,),
+        )
+        self.connection.execute(
+            "INSERT INTO entity_aliases(entity_id,language,name,alias_type) "
+            "VALUES (?,'en','2NE1 2nd Mini Album','label')",
+            (release_one,),
+        )
+        self.connection.commit()
+
+        dataset, report = generate_dataset(self.connection)
+
+        self.assertGreaterEqual(
+            report["rejected_by_reason"]["release_label_mentions_group"], 2
+        )
+        for question in dataset["questions"]:
+            if question["type"] == "release_for_group":
+                self.assertNotIn("QR1", {option["value"] for option in question["options"]})
+            if question["type"] == "group_for_release":
+                self.assertNotIn("2NE1", question["prompt"])
+
+    def test_short_group_alias_does_not_match_inside_release_word(self):
+        group_one = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QG1'"
+        ).fetchone()[0]
+        release_one = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QR1'"
+        ).fetchone()[0]
+        self.connection.execute(
+            "INSERT INTO entity_aliases(entity_id,language,name,alias_type) "
+            "VALUES (?,'en','It','alias')",
+            (group_one,),
+        )
+        self.connection.execute(
+            "INSERT INTO entity_aliases(entity_id,language,name,alias_type) "
+            "VALUES (?,'en','With You','label')",
+            (release_one,),
+        )
+        self.connection.commit()
+
+        dataset, _report = generate_dataset(self.connection)
+
+        self.assertTrue(any(
+            question["type"] == "release_for_group"
+            and any(option["value"] == "QR1" for option in question["options"])
+            for question in dataset["questions"]
+        ))
+
     def test_earliest_release_uses_one_canonical_fact_per_option(self):
         original = self.connection.execute(
             "SELECT * FROM facts WHERE statement_id='released-1'"

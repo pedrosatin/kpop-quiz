@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-TEMPLATE_VERSION = "quiz-templates-v5"
+TEMPLATE_VERSION = "quiz-templates-v6"
 SUPPORTED_LANGUAGES = ("pt-BR", "en")
 
 
@@ -126,7 +126,7 @@ TEMPLATES: dict[str, dict[str, dict[str, str]]] = {
     },
     "release_year": {
         "pt-BR": {
-            "prompt": "Em que ano {release} foi lançado?",
+            "prompt": "Qual o ano de lançamento de {release}?",
             "explanation": "A fonte registra o lançamento de {release} em {answer}.",
         },
         "en": {

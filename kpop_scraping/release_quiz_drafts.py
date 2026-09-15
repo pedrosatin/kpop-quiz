@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unicodedata
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from itertools import chain
 
 from .quiz_models import Draft, Entity, Evidence, Fact
@@ -20,15 +21,24 @@ def build_release_drafts(
     performers_by_release = _entity_facts(performer_facts)
     releases_by_group = _subject_facts(performer_facts)
     dates_by_release = _time_facts(date_facts)
+    known_groups = {
+        fact.value_entity.wikidata_id: fact.value_entity
+        for fact in performer_facts
+        if fact.value_entity is not None
+    }
+    leaking_release_ids = _release_ids_mentioning_groups(
+        (fact.subject for fact in performer_facts), known_groups.values()
+    )
     drafts: list[Draft] = []
     drafts.extend(
         _release_for_group_drafts(
-            releases_by_group, performer_facts, ambiguous_release_ids, rejected
+            releases_by_group, performer_facts, ambiguous_release_ids,
+            leaking_release_ids, rejected
         )
     )
     drafts.extend(
         _group_for_release_drafts(
-            performers_by_release, ambiguous_release_ids, rejected
+            performers_by_release, ambiguous_release_ids, leaking_release_ids, rejected
         )
     )
     drafts.extend(
@@ -48,6 +58,7 @@ def _release_for_group_drafts(
     releases_by_group: dict[str, dict[str, list[Fact]]],
     performer_facts: list[Fact],
     ambiguous_release_ids: set[str],
+    leaking_release_ids: set[str],
     rejected: Counter[str],
 ) -> list[Draft]:
     known_releases = {
@@ -68,6 +79,9 @@ def _release_for_group_drafts(
             if release_id in ambiguous_release_ids:
                 rejected["release_title_not_unique"] += 1
                 continue
+            if release_id in leaking_release_ids:
+                rejected["release_label_mentions_group"] += 1
+                continue
             if selected_group_by_release[release_id] != group_id:
                 rejected["release_answer_already_used"] += 1
                 continue
@@ -76,7 +90,7 @@ def _release_for_group_drafts(
             options = _entity_options(
                 answer,
                 known_releases,
-                excluded | ambiguous_release_ids,
+                excluded | ambiguous_release_ids | leaking_release_ids,
                 "release",
             )
             if options is None:
@@ -99,6 +113,7 @@ def _release_for_group_drafts(
 def _group_for_release_drafts(
     performers_by_release: dict[str, dict[str, list[Fact]]],
     ambiguous_release_ids: set[str],
+    leaking_release_ids: set[str],
     rejected: Counter[str],
 ) -> list[Draft]:
     known_groups = {
@@ -112,6 +127,9 @@ def _group_for_release_drafts(
     for release_id in sorted(performers_by_release):
         if release_id in ambiguous_release_ids:
             rejected["release_title_not_unique"] += 1
+            continue
+        if release_id in leaking_release_ids:
+            rejected["release_label_mentions_group"] += 1
             continue
         groups = performers_by_release[release_id]
         if len(groups) != 1:
@@ -292,6 +310,50 @@ def _display_key(label: str) -> str:
         character for character in normalized
         if not character.isspace() and not unicodedata.category(character).startswith("P")
     )
+
+
+def _match_tokens(label: str) -> tuple[str, ...]:
+    normalized = unicodedata.normalize("NFKD", label).casefold()
+    characters = (
+        character if character.isalnum() else " "
+        for character in normalized
+        if not unicodedata.combining(character)
+    )
+    return tuple("".join(characters).split())
+
+
+def _contains_identity(label: str, identity: str) -> bool:
+    label_tokens = _match_tokens(label)
+    identity_tokens = _match_tokens(identity)
+    if not identity_tokens:
+        return False
+    if len(identity_tokens) == 1 and len(identity_tokens[0]) < 3:
+        return False
+    width = len(identity_tokens)
+    return any(
+        label_tokens[index:index + width] == identity_tokens
+        for index in range(len(label_tokens) - width + 1)
+    )
+
+
+def _release_ids_mentioning_groups(
+    releases: Iterable[Entity], groups: Iterable[Entity]
+) -> set[str]:
+    unique_releases = {release.wikidata_id: release for release in releases}
+    identities = {
+        identity
+        for group in groups
+        for identity in group.identity_names()
+    }
+    return {
+        release_id
+        for release_id, release in unique_releases.items()
+        if any(
+            _contains_identity(release.name(language), identity)
+            for language in ("pt-BR", "en")
+            for identity in identities
+        )
+    }
 
 
 def _ambiguous_release_ids(facts: list[Fact]) -> set[str]:
