@@ -218,3 +218,52 @@ class MediaWikiClient:
         except (KeyError, TypeError, IndexError) as exc:
             raise MediaWikiError("MediaWiki page response has an unexpected shape") from exc
         return pages
+
+    def get_pages_by_titles(self, titles: Sequence[str]) -> list[Page]:
+        """Resolve titles and return the current fixed revisions and intro text."""
+        clean = tuple(dict.fromkeys(title.strip() for title in titles if title.strip()))
+        if not clean:
+            return []
+        if len(clean) > MAX_EXTRACTS_PER_REQUEST:
+            raise ValueError(
+                f"get_pages_by_titles accepts at most {MAX_EXTRACTS_PER_REQUEST} titles"
+            )
+        payload = self._get({
+            "action": "query",
+            "titles": "|".join(clean),
+            "redirects": "1",
+            "prop": "extracts|info|pageprops|revisions",
+            "exintro": "1",
+            "exlimit": len(clean),
+            "explaintext": "1",
+            "inprop": "url",
+            "ppprop": "wikibase_item|disambiguation",
+            "rvprop": "ids",
+        })
+        redirects = {
+            item.get("to")
+            for item in payload.get("query", {}).get("redirects", ())
+            if isinstance(item, dict)
+        }
+        try:
+            response_pages = payload["query"]["pages"]
+            pages = []
+            for item in response_pages:
+                revisions = item.get("revisions", [])
+                pageprops = item.get("pageprops", {})
+                missing = bool(item.get("missing", False))
+                pages.append(Page(
+                    page_id=int(item.get("pageid", -1)),
+                    title=item["title"],
+                    canonical_url=item.get("canonicalurl", ""),
+                    extract=item.get("extract", "").strip(),
+                    revision_id=revisions[0]["revid"] if revisions else None,
+                    source_payload={key: value for key, value in item.items() if key != "pageprops"},
+                    wikidata_id=pageprops.get("wikibase_item"),
+                    is_redirect=item["title"] in redirects,
+                    is_disambiguation="disambiguation" in pageprops,
+                    is_missing=missing,
+                ))
+        except (KeyError, TypeError, ValueError, IndexError) as exc:
+            raise MediaWikiError("MediaWiki title response has an unexpected shape") from exc
+        return pages

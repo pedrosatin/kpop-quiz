@@ -24,6 +24,8 @@ class ValidationContext:
     names: Mapping[str, tuple[str, ...]]
     entity_types: Mapping[str, str]
     group_pages: Mapping[str, WikipediaPage]
+    release_pages: Mapping[str, tuple[WikipediaPage, ...]] = field(default_factory=dict)
+    release_performers: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     countries: frozenset[str] = field(default_factory=frozenset)
 
 
@@ -51,18 +53,26 @@ def find_evidence(
         return assessment.evidence, reason
     predicate = candidate.predicate
     group_id = candidate.value_id if predicate == "member_of" else candidate.subject_id
-    page = context.group_pages.get(group_id or "")
-    if page is None:
+    if candidate.spec.subject_type == "release":
+        pages = context.release_pages.get(group_id or "", ())
+    else:
+        page = context.group_pages.get(group_id or "")
+        pages = (page,) if page else ()
+    if not pages:
         return (), reason
     person_or_value = candidate.subject_id if predicate == "member_of" else candidate.value_id
-    item = text_evidence(
-        predicate,
-        page,
-        context.names.get(group_id or "", ()),
-        context.names.get(person_or_value or "", ()),
-        candidate.time,
-    )
-    return ((item,), reason) if item else ((), reason)
+    for page in pages:
+        item = text_evidence(
+            predicate,
+            page,
+            context.names.get(group_id or "", ()),
+            context.names.get(person_or_value or "", ()),
+            candidate.time,
+            context.release_performers.get(group_id or "", ()),
+        )
+        if item:
+            return (item,), reason
+    return (), reason
 
 
 def validate_facts(

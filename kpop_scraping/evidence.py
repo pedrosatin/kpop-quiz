@@ -10,12 +10,16 @@ from .entities import PRECISION_DAY, PRECISION_MONTH, Statement, TimeValue
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
 
-EVIDENCE_RULES_VERSION = "text-evidence-v3"
+EVIDENCE_RULES_VERSION = "text-evidence-v4"
 MIN_NAME_LENGTH = 4
 MAX_SNIPPET_LENGTH = 300
 MONTHS = (
     "January", "February", "March", "April", "May", "June", "July",
     "August", "September", "October", "November", "December",
+)
+MONTHS_PT = (
+    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
 )
 _I = re.IGNORECASE
 _FORMATION_VERB = re.compile(r"\b(?:formed|founded|established|created)\b", _I)
@@ -92,6 +96,18 @@ _PERSON_LIST_BEFORE = re.compile(
 )
 _GENRE_LIST_BEFORE = re.compile(rf"\s*(?:[\w&'-]+(?:\s+[\w&'-]+){{0,2}}{_LIST_SEPARATOR})*")
 _LIST_AFTER = re.compile(r"(?:\s*[,;.]|\s*$|\s+and\b|\s*\()", _I)
+_RELEASE_NOUN = r"(?:album|single|EP|extended play|record|song|álbum|sencillo|음반|싱글)"
+_PERFORMER_TRIGGER = re.compile(r"\b(?:by|por)\s+", _I)
+_RELEASE_DATE_TRIGGER = re.compile(
+    r"\b(?:was\s+)?released(?:\s+(?:digitally|worldwide))?\s+(?:on|in)\s+"
+    r"|\b(?:foi\s+)?lançad[oa](?:\s+digitalmente)?\s+em\s+",
+    _I,
+)
+_PERFORMER_DESCRIPTION = re.compile(
+    r"(?:(?:South\s+Korean|Korean|Japanese|Chinese|Thai)\s+)?"
+    r"(?:(?:girl|boy)\s+)?(?:group|band|duo|artist|singer|rapper)\s+",
+    _I,
+)
 
 
 @dataclass(frozen=True)
@@ -356,12 +372,166 @@ def membership_evidence(
     return None
 
 
+def release_performer_evidence(
+    page: WikipediaPage,
+    names: Iterable[str],
+    subject_names: Sequence[str],
+    peer_names: Iterable[str] = (),
+) -> EvidenceItem | None:
+    """Accept an artist named after "by" or "por" in a release lead."""
+    names = tuple(names)
+    for start, sentence in _subject_sentences(page, subject_names):
+        release_noun = (
+            re.search(r"(?:음반|싱글)", sentence)
+            if page.language == "ko"
+            else re.search(rf"\b{_RELEASE_NOUN}\b", sentence, _I)
+        )
+        if (
+            not release_noun
+            or re.search(r"\b(?:list|lista)\s+(?:of|de)\b", sentence, _I)
+        ):
+            continue
+        if page.language == "ko":
+            continue
+        for trigger in _PERFORMER_TRIGGER.finditer(sentence):
+            if re.search(r"\b(?:with|including|featuring)\b", sentence[:trigger.start()], _I):
+                continue
+            relation = sentence[max(0, trigger.start() - 35) : trigger.start()]
+            if not re.search(
+                rf"\b{_RELEASE_NOUN}\b(?:\s+recorded)?\s*$", relation, _I
+            ):
+                continue
+            positions = [trigger.end()]
+            description = _PERFORMER_DESCRIPTION.match(sentence, trigger.end())
+            if description:
+                positions.append(description.end())
+            for position in positions:
+                match = _performer_list_item(sentence, position, names, peer_names)
+                if match:
+                    return _text_evidence(
+                        page, start + match[0], start + match[1]
+                    )
+    return None
+
+
+def release_date_evidence(
+    page: WikipediaPage,
+    value: TimeValue,
+    subject_names: Sequence[str],
+) -> EvidenceItem | None:
+    """Accept an unscoped release date attached to an explicit release verb."""
+    date = _release_date_pattern(value, page.language)
+    for start, sentence in _release_subject_sentences(page, subject_names):
+        if page.language == "ko":
+            if re.search(
+                r"(?:일본|한국|미국|영국)(?:에서|판)|(?:바이닐|CD|실물|디지털)로|"
+                r"(?:예정|연기|재발매)",
+                sentence,
+            ):
+                continue
+            match = re.search(
+                rf"(?P<date>{date})[^.;]{{0,30}}?(?:발매|출시)", sentence, _I
+            )
+            if match:
+                suffix = sentence[match.end("date") : match.end("date") + 55]
+                if re.match(
+                    r"\s+(?:(?:exclusively|only|exclusivamente)\s+)?"
+                    r"(?:(?:in|for)\s+(?:the\s+)?[A-ZÀ-ÖØ-Þ]"
+                    r"|(?:no|na|nos|nas|em)\s+[A-ZÀ-ÖØ-Þ]"
+                    r"|(?:독점적으로\s+)?[가-힣]+에서)",
+                    suffix,
+                ):
+                    continue
+                return _text_evidence(
+                    page, start + match.start("date"), start + match.end("date")
+                )
+        for trigger in _RELEASE_DATE_TRIGGER.finditer(sentence):
+            tail = sentence[trigger.end() : trigger.end() + 80]
+            if re.search(
+                r"\b(?:Japan|Korea|US|UK|physical|vinyl|CD|edition|territory|"
+                r"Japão|Coreia|edição|formato)\b",
+                tail,
+                _I,
+            ):
+                continue
+            match = re.compile(rf"(?P<date>{date})", _I).match(sentence, trigger.end())
+            if match:
+                suffix = sentence[match.end("date") : match.end("date") + 55]
+                if re.match(
+                    r"\s+(?:(?:exclusively|only|exclusivamente)\s+)?"
+                    r"(?:(?:in|for)\s+(?:the\s+)?[A-ZÀ-ÖØ-Þ]"
+                    r"|(?:no|na|nos|nas|em)\s+[A-ZÀ-ÖØ-Þ])",
+                    suffix,
+                ):
+                    continue
+                return _text_evidence(
+                    page, start + match.start("date"), start + match.end("date")
+                )
+    return None
+
+
+def _performer_list_item(
+    sentence: str,
+    position: int,
+    target_names: Iterable[str],
+    peer_names: Iterable[str],
+) -> tuple[int, int] | None:
+    """Match a credit list made only of performers declared by P175."""
+    targets = tuple(sorted(set(target_names), key=lambda item: (-len(item), item)))
+    known = tuple(
+        sorted(set(peer_names) | set(targets), key=lambda item: (-len(item), item))
+    )
+    usable = [
+        name
+        for name in known
+        if len(name) >= MIN_NAME_LENGTH or " " in name or any(char.isdigit() for char in name)
+    ]
+    if not usable:
+        return None
+    item = rf"(?:{'|'.join(re.escape(name) for name in usable)})"
+    separator = r"(?:\s*,\s*(?:(?:and|e)\s+)?|\s+(?:and|e|&)\s+)"
+    listing = re.compile(rf"(?P<artists>{item}(?:{separator}{item})*)", _I).match(
+        sentence, position
+    )
+    suffix = sentence[listing.end():] if listing else ""
+    if (
+        listing is None
+        or re.match(r"(?:'s|’s)", suffix, _I)
+        or not re.match(r"^\s*(?:[,.;]|$)", suffix)
+    ):
+        return None
+    for target in targets:
+        match = re.search(
+            rf"(?<![\w-]){re.escape(target)}(?![\w-])",
+            listing.group("artists"),
+            _I,
+        )
+        if match:
+            return listing.start("artists") + match.start(), listing.start("artists") + match.end()
+    return None
+
+
+def _release_subject_sentences(
+    page: WikipediaPage,
+    subject_names: Sequence[str],
+) -> Iterable[tuple[int, str]]:
+    for start, end in _sentences(page.extract):
+        sentence = page.extract[start:end]
+        if _leading_subject(sentence, subject_names) or re.match(
+            r"^\s*(?:It|The\s+(?:album|single|EP|song)|Ele|Ela|O\s+(?:álbum|single))\b",
+            sentence,
+            _I,
+        ):
+            yield start, sentence
+
+
 def text_evidence(
     predicate: str,
     page: WikipediaPage,
     subject_names: Sequence[str],
     value_names: Iterable[str],
     time: TimeValue | None = None,
+    peer_names: Iterable[str] = (),
 ) -> EvidenceItem | None:
     """Apply the rule of one predicate to the group's Wikipedia extract.
 
@@ -379,6 +549,10 @@ def text_evidence(
         return genre_evidence(page, value_names, subject)
     if predicate in {"has_member", "member_of"}:
         return membership_evidence(page, value_names, subject)
+    if predicate == "performed_by":
+        return release_performer_evidence(page, value_names, subject, peer_names)
+    if predicate == "released_on":
+        return release_date_evidence(page, time, subject) if time else None
     return None
 
 
@@ -406,7 +580,9 @@ def _leading_subject(
 ) -> re.Match[str] | None:
     names = _alternation(subject_names)
     return re.compile(
-        rf"^\s*{_SUBJECT_PREFIX}(?:{names}|{_GENERIC_SUBJECT})(?![\w'-])", _I
+        rf"^\s*[\"'“]?{_SUBJECT_PREFIX}(?:{names}|{_GENERIC_SUBJECT})"
+        rf"(?:은|는)?[\"'”]?(?![\w'-])",
+        _I,
     ).match(sentence)
 
 
@@ -420,7 +596,11 @@ def _name_patterns(names: Iterable[str]) -> list[re.Pattern[str]]:
         {
             name.strip()
             for name in names
-            if len(name.strip()) >= MIN_NAME_LENGTH or " " in name.strip()
+            if (
+                len(name.strip()) >= MIN_NAME_LENGTH
+                or " " in name.strip()
+                or re.search(r"[가-힣]", name.strip())
+            )
         },
         key=lambda name: (-len(name), name),
     )
@@ -587,6 +767,24 @@ def _date_pattern(value: TimeValue) -> str:
         return rf"{month},?\s+{year}"
     day = parts[2]
     return rf"(?:{month}\s+0?{day},?\s+{year}|0?{day}\s+{month},?\s+{year})"
+
+
+def _release_date_pattern(value: TimeValue, language: str) -> str:
+    parts = value.components()
+    year = rf"{parts[0]}(?![\d-])"
+    if value.precision < PRECISION_MONTH:
+        return year
+    month = parts[1]
+    if language == "ko":
+        if value.precision < PRECISION_DAY:
+            return rf"{parts[0]}년\s*0?{month}월"
+        return rf"{parts[0]}년\s*0?{month}월\s*0?{parts[2]}일"
+    if language == "pt":
+        name = MONTHS_PT[month - 1]
+        if value.precision < PRECISION_DAY:
+            return rf"{name}\s+de\s+{year}"
+        return rf"0?{parts[2]}\s+de\s+{name}\s+de\s+{year}"
+    return _date_pattern(value)
 
 
 def _sentences(text: str) -> list[tuple[int, int]]:
