@@ -24,7 +24,7 @@ def _render_draft(
         }
     )
     values = dict(draft.values)
-    for key in ("group_id", "person_id"):
+    for key in ("group_id", "person_id", "release_id"):
         if key in values:
             values[key.removesuffix("_id")] = entities[values[key]].name(language)
     if "record_label_id" in values:
@@ -44,6 +44,13 @@ def _render_draft(
         values["date"] = _format_date(
             draft.values["date"], int(draft.values["date_precision"]), language
         )
+        values["comparison"] = "; ".join(
+            f"{entities[qid].name(language)} ({_format_date(raw_date, precision, language)})"
+            for qid, raw_date, precision in draft.values["comparison_values"]
+        )
+    elif draft.question_type == "earliest_release":
+        field = "prompt"
+        explanation_field = "explanation"
         values["comparison"] = "; ".join(
             f"{entities[qid].name(language)} ({_format_date(raw_date, precision, language)})"
             for qid, raw_date, precision in draft.values["comparison_values"]
@@ -86,7 +93,7 @@ def _render_draft(
 
 
 def _option_label(value: str, kind: str, language: str, entities: dict[str, Entity]) -> str:
-    if kind in {"group", "person", "organization"}:
+    if kind in {"group", "person", "organization", "release", "album"}:
         return entities[value].name(language)
     if kind == "number":
         return value
@@ -105,6 +112,12 @@ def _draft_predicate(draft: Draft) -> str:
         return "record_label"
     if draft.question_type == "member_for_group":
         return "has_member"
+    if draft.question_type in {"release_for_group", "group_for_release"}:
+        return "performed_by"
+    if draft.question_type == "release_year":
+        return "released_on"
+    if draft.question_type == "earliest_release":
+        return "released_on"
     return "has_member+member_of"
 
 

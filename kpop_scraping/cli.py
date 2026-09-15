@@ -35,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, help="Collect only the first N pages")
     parser.add_argument("--releases", action="store_true", help="Discover and confirm releases after fact extraction")
     parser.add_argument("--release-group-limit", type=int, default=MAX_GROUPS_PER_QUERY)
+    parser.add_argument("--release-group-offset", type=int, default=0)
     parser.add_argument("--release-report", type=Path, help="Release coverage CSV path; implies --releases")
     parser.add_argument(
         "--facts",
@@ -69,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
     run_releases = args.releases or args.release_report is not None
     if not 1 <= args.release_group_limit <= MAX_GROUPS_PER_QUERY:
         raise SystemExit(f"--release-group-limit must be between 1 and {MAX_GROUPS_PER_QUERY}")
+    if args.release_group_offset < 0:
+        raise SystemExit("--release-group-offset must not be negative")
     run_facts = args.facts or args.facts_limit is not None or args.facts_report is not None or run_releases
     facts_report = args.facts_report or args.database.parent / "facts-coverage.csv"
     raw_dir = args.raw_dir or args.database.parent / "raw"
@@ -96,7 +99,12 @@ def main(argv: list[str] | None = None) -> int:
                 fact_rows = export_fact_coverage_csv(repository.connection, facts_report)
             release_totals = release_rows = None
             if run_releases:
-                discovery_run = discover_releases(repository, WikidataQueryClient(user_agent=args.user_agent), group_limit=args.release_group_limit)
+                discovery_run = discover_releases(
+                    repository,
+                    WikidataQueryClient(user_agent=args.user_agent),
+                    group_limit=args.release_group_limit,
+                    group_offset=args.release_group_offset,
+                )
                 wikipedia_clients = {
                     language: MediaWikiClient(
                         api_url=f"https://{language}.wikipedia.org/w/api.php",
@@ -112,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
                     wikipedia_clients=wikipedia_clients,
                 )
                 release_rows = export_release_coverage_csv(repository.connection, args.release_report or args.database.parent / "release-coverage.csv")
-    except (MediaWikiError, SnapshotIntegrityError, RuntimeError) as exc:
+    except (MediaWikiError, SnapshotIntegrityError, RuntimeError, ValueError) as exc:
         print(f"Pipeline failed: {type(exc).__name__}: {exc}")
         return 1
     print(f"Collected {count} pages into {args.database}; snapshots in {raw_dir}")

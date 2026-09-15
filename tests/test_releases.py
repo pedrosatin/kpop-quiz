@@ -16,7 +16,7 @@ from kpop_scraping.release_evidence import (
     _page_rejection,
     collect_release_pages,
 )
-from kpop_scraping.release_discovery import WikidataQueryClient, _parse_results, build_query
+from kpop_scraping.release_discovery import WikidataQueryClient, _parse_results, build_query, discover_releases
 from kpop_scraping.release_facts import release_entity_type, release_fact_candidates
 from kpop_scraping.release_pipeline import (
     _mark_stale_releases,
@@ -124,6 +124,70 @@ class ReleaseFactTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "candidate limit"):
             from kpop_scraping.release_discovery import discover_releases
             discover_releases(None, None, max_per_group=0)
+
+    def test_rejects_negative_group_offset(self):
+        with self.assertRaisesRegex(ValueError, "group_offset"):
+            discover_releases(None, None, group_offset=-1)
+
+    def test_discovery_applies_a_stable_group_offset(self):
+        class Client:
+            endpoint = "https://query.example/sparql"
+
+            def query(self, sparql):
+                self.query_text = sparql
+                return type("Result", (), {
+                    "body": json.dumps({"results": {"bindings": []}}).encode(),
+                    "http_status": 200,
+                })()
+
+        with tempfile.TemporaryDirectory() as directory:
+            with Repository(Path(directory) / "quiz.db") as repository:
+                repository.connection.execute(
+                    "INSERT INTO collection_runs(id,category,started_at,status) VALUES (1,'x','t','completed')"
+                )
+                repository.connection.execute(
+                    "INSERT INTO wikidata_entity_snapshots(id,wikidata_id,external_revision_id,request_profile,snapshot_path,content_sha256,fetched_at) VALUES (1,'Q0',1,'subject-v1','fixture',?,'t')",
+                    ("0" * 64,),
+                )
+                repository.connection.execute(
+                    "INSERT INTO catalog_runs(id,classifier_version,started_at,status) VALUES (1,'v','t','completed')"
+                )
+                for qid in ("Q1", "Q2", "Q3"):
+                    entity_id = repository.connection.execute(
+                        "INSERT INTO entities(entity_type,wikidata_id,canonical_name,snapshot_id,created_at,updated_at) VALUES ('group',?,?,1,'t','t')",
+                        (qid, qid),
+                    ).lastrowid
+                    page_id = repository.connection.execute(
+                        "INSERT INTO source_pages(provider,language,external_page_id,title,canonical_url,extract,fetched_at,last_run_id) VALUES ('wikipedia','en',?,?,?,'','t',1)",
+                        (int(qid[1:]), qid, f"https://example.test/{qid}"),
+                    ).lastrowid
+                    revision_id = repository.connection.execute(
+                        "INSERT INTO source_revisions(source_page_id,external_revision_id,snapshot_path,content_sha256,fetched_at) VALUES (?,?,?,?, 't')",
+                        (page_id, int(qid[1:]), f"{qid}.json.gz", "1" * 64),
+                    ).lastrowid
+                    repository.connection.execute(
+                        "INSERT INTO catalog_entries(source_page_id,source_revision_id,analyzed_wikidata_id,state,classifier_version,classified_at) VALUES (?,?,?,'accepted','v','t')",
+                        (page_id, revision_id, qid),
+                    )
+                    repository.connection.execute(
+                        "INSERT INTO catalog_entity_links(source_page_id,entity_id,requested_wikidata_id,resolved_wikidata_id,linked_at) VALUES (?,?,?,?,?)",
+                        (page_id, entity_id, qid, qid, "2026-09-15T00:00:00+00:00"),
+                    )
+                repository.connection.commit()
+                client = Client()
+                run_id = discover_releases(repository, client, group_limit=1, group_offset=1)
+                groups = repository.connection.execute(
+                    "SELECT e.wikidata_id FROM release_discovery_groups rdg JOIN entities e ON e.id=rdg.group_entity_id WHERE rdg.run_id=?",
+                    (run_id,),
+                ).fetchall()
+                with self.assertRaisesRegex(ValueError, "no accepted catalog groups"):
+                    discover_releases(repository, client, group_limit=1, group_offset=99)
+                run_count = repository.connection.execute(
+                    "SELECT COUNT(*) FROM release_discovery_runs"
+                ).fetchone()[0]
+        self.assertEqual([row[0] for row in groups], ["Q2"])
+        self.assertIn("wd:Q2", client.query_text)
+        self.assertEqual(run_count, 1)
 
     def test_release_text_rules_pass_editorial_positive_and_negative_cases(self):
         date = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-TEMPLATE_VERSION = "quiz-templates-v3"
+TEMPLATE_VERSION = "quiz-templates-v6"
 SUPPORTED_LANGUAGES = ("pt-BR", "en")
 
 
@@ -102,6 +102,46 @@ TEMPLATES: dict[str, dict[str, dict[str, str]]] = {
             "group_prompt": "Which of these groups was formed first?",
             "person_explanation": "In chronological order: {comparison}.",
             "group_explanation": "In chronological order: {comparison}.",
+        },
+    },
+    "release_for_group": {
+        "pt-BR": {
+            "prompt": "Qual destes lançamentos é de {group}?",
+            "explanation": "A fonte associa {answer} a {group}.",
+        },
+        "en": {
+            "prompt": "Which of these releases is by {group}?",
+            "explanation": "The source associates {answer} with {group}.",
+        },
+    },
+    "group_for_release": {
+        "pt-BR": {
+            "prompt": "Qual destes grupos lançou {release}?",
+            "explanation": "A fonte associa {release} a {answer}.",
+        },
+        "en": {
+            "prompt": "Which of these groups released {release}?",
+            "explanation": "The source associates {release} with {answer}.",
+        },
+    },
+    "release_year": {
+        "pt-BR": {
+            "prompt": "Qual o ano de lançamento de {release}?",
+            "explanation": "A fonte registra o lançamento de {release} em {answer}.",
+        },
+        "en": {
+            "prompt": "In which year was {release} released?",
+            "explanation": "The source records {release} as released in {answer}.",
+        },
+    },
+    "earliest_release": {
+        "pt-BR": {
+            "prompt": "Qual destes lançamentos saiu primeiro?",
+            "explanation": "Em ordem cronológica: {comparison}.",
+        },
+        "en": {
+            "prompt": "Which of these releases came out first?",
+            "explanation": "In chronological order: {comparison}.",
         },
     },
 }
