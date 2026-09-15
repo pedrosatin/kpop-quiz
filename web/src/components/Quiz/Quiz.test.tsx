@@ -211,4 +211,44 @@ describe("Quiz", () => {
     expect(await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledTimes(3);
   });
+
+  it("completes all questions, displays results, and restarts the round", async () => {
+    await renderReady();
+    for (let index = 0; index < ptSession.questions.length; index += 1) {
+      const question = ptSession.questions[index]!;
+      const answer = question.options.find((option) => option.id === question.answer_option_id)!;
+      fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      const isLast = index === ptSession.questions.length - 1;
+      const nextButton = screen.getByRole("button", { name: isLast ? "Ver resultado" : "Próxima pergunta" });
+      fireEvent.click(nextButton);
+    }
+    const resultHeading = await screen.findByRole("heading", { name: "Fim da rodada" });
+    expect(resultHeading).toBeInTheDocument();
+    expect(resultHeading).toHaveFocus();
+    expect(screen.getByText("1000")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+    const firstHeading = await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
+    expect(firstHeading).toBeInTheDocument();
+    expect(firstHeading).toHaveFocus();
+  });
+
+  it("persists play-mode and timer preferences in localStorage", async () => {
+    mockSessionFetch();
+    window.localStorage.setItem("kpop-quiz-play-mode", "expert");
+    window.localStorage.setItem("kpop-quiz-timer-enabled", "true");
+    render(<Quiz locale="pt-BR" />);
+    await screen.findByRole("heading", { name: "Escolha como jogar" });
+    const expertRadio = screen.getByRole("radio", { name: /Especialista/ }) as HTMLInputElement;
+    const timerCheckbox = screen.getByRole("checkbox", { name: "Usar 20 segundos por pergunta" }) as HTMLInputElement;
+    expect(expertRadio.checked).toBe(true);
+    expect(timerCheckbox.checked).toBe(true);
+
+    fireEvent.click(screen.getByRole("radio", { name: /Assistido/ }));
+    expect(window.localStorage.getItem("kpop-quiz-play-mode")).toBe("assisted");
+
+    fireEvent.click(timerCheckbox);
+    expect(window.localStorage.getItem("kpop-quiz-timer-enabled")).toBe("false");
+  });
 });
+
