@@ -155,6 +155,7 @@ class ReleaseFactTest(unittest.TestCase):
             self.assertIsNone(release_performer_evidence(page, ("Group One",), ("Alpha",)))
         scoped_dates = (
             "Alpha is an album. Alpha was released on January 2, 2020 in Japan.",
+            "Alpha is an album. Alpha was released digitally on January 2, 2020.",
             "Alpha is an album. Alpha was released on January 2, 2020 on vinyl.",
             "Alpha is an album. Alpha was released on January 2, 2020 as a physical edition.",
             "Alpha is an album. The video was released on January 2, 2020.",
@@ -177,9 +178,23 @@ class ReleaseFactTest(unittest.TestCase):
         for index, extract in enumerate((
             "Alpha é um álbum. Alpha foi lançado em 2 de janeiro de 2020 no Brasil.",
             "Alpha é um álbum. Alpha foi lançado em 2 de janeiro de 2020 exclusivamente no Brasil.",
+            "Alpha é um álbum. Alpha foi lançado digitalmente em 2 de janeiro de 2020.",
         )):
             page = WikipediaPage(1, "pt", 70 + index, 10, extract, "Alpha")
             self.assertIsNone(release_date_evidence(page, date, ("Alpha",)))
+
+        wrong_subject_kind = WikipediaPage(
+            1, "pt", 80, 10,
+            "Alpha é um álbum por Group One. O single foi lançado em 2 de janeiro de 2020.",
+            "Alpha",
+        )
+        self.assertIsNone(release_date_evidence(wrong_subject_kind, date, ("Alpha",)))
+        matching_subject_kind = WikipediaPage(
+            1, "pt", 81, 10,
+            "Alpha é um single por Group One. O single foi lançado em 2 de janeiro de 2020.",
+            "Alpha",
+        )
+        self.assertIsNotNone(release_date_evidence(matching_subject_kind, date, ("Alpha",)))
 
         korean = WikipediaPage(
             1, "ko", 90, 10,
