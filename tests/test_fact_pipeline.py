@@ -50,7 +50,7 @@ class FactPipelineTest(unittest.TestCase):
                 )
             }
             version = scalar(repository, "SELECT MAX(version) FROM schema_migrations")
-        self.assertEqual(version, 6)
+        self.assertEqual(version, 7)
         self.assertTrue(
             {
                 "fact_runs",

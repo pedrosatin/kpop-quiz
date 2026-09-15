@@ -124,7 +124,7 @@ def export_fact_coverage_csv(connection: sqlite3.Connection, output_path: Path) 
 
 def export_release_coverage_csv(connection: sqlite3.Connection, output_path: Path) -> int:
     """Write release discovery and fact coverage by catalog group."""
-    fields = ("discovery_run_id", "group_wikidata_id", "group_name", "candidates", "candidate_accepted", "candidate_rejected", "release_entities", "predicate", *STATUSES)
+    fields = ("discovery_run_id", "group_wikidata_id", "group_name", "candidates", "candidate_accepted", "candidate_rejected", "release_entities", "wikipedia_pages_accepted", "wikipedia_pages_rejected", "predicate", *STATUSES)
     latest = connection.execute(
         "SELECT MAX(id) FROM release_discovery_runs WHERE status='completed'"
     ).fetchone()[0]
@@ -143,6 +143,15 @@ def export_release_coverage_csv(connection: sqlite3.Connection, output_path: Pat
         release_ids = [int(row[0]) for row in connection.execute(
             "SELECT DISTINCT entity_id FROM release_candidates WHERE run_id=? AND group_entity_id=? AND state='accepted' AND entity_id IS NOT NULL", (latest, group["id"])
         )]
+        source_counts = {"accepted": 0, "rejected": 0}
+        if release_ids:
+            placeholders = ",".join("?" for _ in release_ids)
+            for row in connection.execute(
+                f"SELECT state,COUNT(*) total FROM release_source_pages WHERE release_entity_id IN ({placeholders}) GROUP BY state",
+                release_ids,
+            ):
+                if row["state"] in source_counts:
+                    source_counts[row["state"]] = int(row["total"])
         for spec in RELEASE_PREDICATES:
             statuses = {status: 0 for status in STATUSES}
             if release_ids:
@@ -151,7 +160,7 @@ def export_release_coverage_csv(connection: sqlite3.Connection, output_path: Pat
                     f"SELECT status,COUNT(*) total FROM facts WHERE subject_entity_id IN ({placeholders}) AND predicate=? GROUP BY status", (*release_ids, spec.predicate)
                 ):
                     statuses[row["status"]] = int(row["total"])
-            output_rows.append({"discovery_run_id": latest, "group_wikidata_id": group["wikidata_id"], "group_name": group["canonical_name"], "candidates": sum(candidate_counts.values()), "candidate_accepted": candidate_counts.get("accepted", 0), "candidate_rejected": candidate_counts.get("rejected", 0), "release_entities": len(release_ids), "predicate": spec.predicate, **statuses})
+            output_rows.append({"discovery_run_id": latest, "group_wikidata_id": group["wikidata_id"], "group_name": group["canonical_name"], "candidates": sum(candidate_counts.values()), "candidate_accepted": candidate_counts.get("accepted", 0), "candidate_rejected": candidate_counts.get("rejected", 0), "release_entities": len(release_ids), "wikipedia_pages_accepted": source_counts["accepted"], "wikipedia_pages_rejected": source_counts["rejected"], "predicate": spec.predicate, **statuses})
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="") as output:
         writer = csv.DictWriter(output, fieldnames=fields)
