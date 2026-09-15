@@ -158,6 +158,7 @@ class ReleaseFactTest(unittest.TestCase):
             "Alpha is an album. Alpha was released digitally on January 2, 2020.",
             "Alpha is an album. Alpha was released on January 2, 2020 on vinyl.",
             "Alpha is an album. Alpha was released on January 2, 2020 as a physical edition.",
+            "Alpha is an album. Alpha was released on January 2, 2020 in three editions.",
             "Alpha is an album. The video was released on January 2, 2020.",
             "Alpha is an album. Beta was released on January 2, 2020.",
             "Alpha is an album released in 2020.",
@@ -179,6 +180,7 @@ class ReleaseFactTest(unittest.TestCase):
             "Alpha é um álbum. Alpha foi lançado em 2 de janeiro de 2020 no Brasil.",
             "Alpha é um álbum. Alpha foi lançado em 2 de janeiro de 2020 exclusivamente no Brasil.",
             "Alpha é um álbum. Alpha foi lançado digitalmente em 2 de janeiro de 2020.",
+            "Alpha é um álbum. Alpha foi lançado em 2 de janeiro de 2020 em três edições.",
         )):
             page = WikipediaPage(1, "pt", 70 + index, 10, extract, "Alpha")
             self.assertIsNone(release_date_evidence(page, date, ("Alpha",)))
@@ -206,6 +208,11 @@ class ReleaseFactTest(unittest.TestCase):
         for index, scoped in enumerate((
             "Alpha는 2020년 1월 2일 일본에서 발매되었다.",
             "Alpha는 2020년 1월 2일 바이닐로 출시되었다.",
+            "Alpha는 2020년 1월 2일 온라인으로 발매되었다.",
+            "Alpha는 2020년 1월 2일 스트리밍으로 출시되었다.",
+            "Alpha는 2020년 1월 2일 카세트로 발매되었다.",
+            "Alpha는 2020년 1월 2일 DVD로 출시되었다.",
+            "Alpha는 2020년 1월 2일 한정판으로 발매되었다.",
             "Alpha는 2020년 1월 2일 발매 예정이었다.",
             "Alpha는 2020년 1월 2일 프랑스에서 발매되었다.",
             "Alpha는 2020년 1월 2일 독점적으로 프랑스에서 발매되었다.",

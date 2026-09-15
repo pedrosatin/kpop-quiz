@@ -22,6 +22,34 @@ class SnapshotIntegrityError(RuntimeError):
     """Raised when immutable snapshot content does not match its identity."""
 
 
+def _revision_content(payload: Any) -> tuple[int, int, str] | None:
+    """Return fields fixed by a MediaWiki page revision.
+
+    Action API metadata such as ``touched`` can change without a new revision.
+    It remains preserved in the original snapshot, but it must not make a
+    repeated fetch of the same revision look like changed source content.
+    """
+    if not isinstance(payload, dict):
+        return None
+    revisions = payload.get("revisions")
+    if (
+        not isinstance(revisions, list)
+        or not revisions
+        or not isinstance(revisions[0], dict)
+    ):
+        return None
+    page_id = payload.get("pageid")
+    revision_id = revisions[0].get("revid")
+    extract = payload.get("extract")
+    if (
+        not isinstance(page_id, int)
+        or not isinstance(revision_id, int)
+        or not isinstance(extract, str)
+    ):
+        return None
+    return page_id, revision_id, extract.strip()
+
+
 Migration = tuple[int, str, Sequence[str]]
 
 
@@ -838,10 +866,24 @@ class Repository:
             ).fetchone()
             if existing is not None:
                 if existing["content_sha256"] != digest:
-                    raise SnapshotIntegrityError(
-                        f"revision {page.revision_id} of page {page.page_id} changed content"
+                    stored = self.snapshots.read(
+                        existing["snapshot_path"], existing["content_sha256"]
                     )
-                self.snapshots.verify(existing["snapshot_path"], digest)
+                    try:
+                        stored_payload = json.loads(stored)
+                    except (TypeError, json.JSONDecodeError) as exc:
+                        raise SnapshotIntegrityError(
+                            f"revision {page.revision_id} of page {page.page_id} "
+                            "has an invalid snapshot"
+                        ) from exc
+                    stored_content = _revision_content(stored_payload)
+                    fetched_content = _revision_content(payload)
+                    if stored_content is None or stored_content != fetched_content:
+                        raise SnapshotIntegrityError(
+                            f"revision {page.revision_id} of page {page.page_id} changed content"
+                        )
+                else:
+                    self.snapshots.verify(existing["snapshot_path"], digest)
 
             self.connection.execute(
                 """

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Mapping, Sequence
 
@@ -55,7 +56,8 @@ def collect_release_pages(
                 create_catalog_entries=False,
             )
             row = repository.connection.execute(
-                """SELECT sp.id AS page_id,sr.id AS revision_id
+                """SELECT sp.id AS page_id,sr.id AS revision_id,
+                          sr.snapshot_path,sr.content_sha256
                 FROM source_pages sp JOIN source_revisions sr ON sr.source_page_id=sp.id
                 WHERE sp.provider='wikipedia' AND sp.language=?
                   AND sp.external_page_id=? AND sr.external_revision_id=?""",
@@ -65,10 +67,18 @@ def collect_release_pages(
                 repository, entity_id, language, snapshot_id, "accepted", None,
                 int(row["page_id"]), int(row["revision_id"]),
             )
+            stored_payload = json.loads(
+                repository.snapshots.read(
+                    row["snapshot_path"], row["content_sha256"]
+                )
+            )
+            stored_extract = stored_payload.get("extract")
+            if not isinstance(stored_extract, str):
+                raise RuntimeError("release Wikipedia snapshot has no text extract")
             pages.setdefault(qid, []).append(
                 WikipediaPage(
                     int(row["revision_id"]), language, page.page_id,
-                    page.revision_id, page.extract, page.title,
+                    page.revision_id, stored_extract.strip(), page.title,
                 )
             )
             saved += 1
