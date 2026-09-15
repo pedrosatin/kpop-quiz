@@ -24,6 +24,7 @@ class _PageRequest:
     qid: str
     language: str
     title: str
+    sequence: int
 
 
 def collect_release_pages(
@@ -39,6 +40,7 @@ def collect_release_pages(
     )
     collection_run_id = int(cursor.lastrowid)
     requests: dict[str, list[_PageRequest]] = defaultdict(list)
+    ordered_requests: list[_PageRequest] = []
     for entity_id, snapshot_id, qid, _extracted, payload in releases:
         sitelinks = payload.get("sitelinks") if isinstance(payload, Mapping) else None
         sitelinks = sitelinks if isinstance(sitelinks, Mapping) else {}
@@ -52,11 +54,14 @@ def collect_release_pages(
             if client is None:
                 _record(repository, entity_id, language, snapshot_id, "missing", "client_missing")
                 continue
-            requests[language].append(
-                _PageRequest(entity_id, snapshot_id, qid, language, title.strip())
+            request = _PageRequest(
+                entity_id, snapshot_id, qid, language, title.strip(),
+                len(ordered_requests),
             )
+            requests[language].append(request)
+            ordered_requests.append(request)
 
-    saved = 0
+    matched_pages: dict[int, Page | None] = {}
     for _site, language in SITES:
         client = clients.get(language)
         language_requests = requests.get(language, ())
@@ -65,30 +70,30 @@ def collect_release_pages(
         for offset in range(0, len(language_requests), MAX_EXTRACTS_PER_REQUEST):
             batch = language_requests[offset : offset + MAX_EXTRACTS_PER_REQUEST]
             found = client.get_pages_by_titles(tuple(item.title for item in batch))
-            matched = _match_pages(batch, found)
-            accepted_pages = {
-                (page.page_id, page.revision_id): page
-                for item, page in zip(batch, matched)
-                if _page_rejection(page, item.qid) is None
-            }
-            if accepted_pages:
-                repository.save_pages(
-                    collection_run_id,
-                    tuple(accepted_pages[key] for key in sorted(accepted_pages)),
-                    provider="wikipedia",
-                    language=language,
-                    create_catalog_entries=False,
-                )
-            for item, page in zip(batch, matched):
-                reason = _page_rejection(page, item.qid)
-                if reason:
-                    _record(
-                        repository, item.entity_id, language, item.snapshot_id,
-                        "rejected", reason,
-                    )
-                    continue
-                assert page is not None and page.revision_id is not None
-                saved += _store_page_result(repository, pages, item, page)
+            matched_pages.update(
+                (item.sequence, page)
+                for item, page in zip(batch, _match_pages(batch, found))
+            )
+
+    saved = 0
+    for item in ordered_requests:
+        page = matched_pages[item.sequence]
+        reason = _page_rejection(page, item.qid)
+        if reason:
+            _record(
+                repository, item.entity_id, item.language, item.snapshot_id,
+                "rejected", reason,
+            )
+            continue
+        assert page is not None and page.revision_id is not None
+        repository.save_pages(
+            collection_run_id,
+            (page,),
+            provider="wikipedia",
+            language=item.language,
+            create_catalog_entries=False,
+        )
+        saved += _store_page_result(repository, pages, item, page)
     repository.connection.execute(
         "UPDATE collection_runs SET completed_at=?,status='completed',pages_collected=? WHERE id=?",
         (utc_now(), saved, collection_run_id),
