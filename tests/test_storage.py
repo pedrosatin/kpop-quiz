@@ -252,6 +252,44 @@ class StorageTest(unittest.TestCase):
             self.assertEqual(failed, "failed")
             self.assertEqual(revisions, 1)
 
+    def test_repeated_revision_ignores_mutable_mediawiki_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_dir = root / "raw"
+            with Repository(root / "test.db", raw_dir=raw_dir) as repository:
+                collect_category(SnapshotClient(), repository, "Category:Test")
+                snapshot = next(raw_dir.rglob("*.json.gz"))
+                original = snapshot.read_bytes()
+                changed = SnapshotClient()
+                original_get_pages = changed.get_pages
+
+                def get_changed_pages(page_ids):
+                    pages = original_get_pages(page_ids)
+                    page = pages[0]
+                    return [
+                        Page(
+                            page.page_id,
+                            page.title,
+                            page.canonical_url,
+                            page.extract,
+                            page.revision_id,
+                            {
+                                **page.source_payload,
+                                "extract": f"{page.extract}\n\n",
+                                "touched": "later",
+                            },
+                        )
+                    ]
+
+                changed.get_pages = get_changed_pages
+                collect_category(changed, repository, "Category:Test")
+                revisions = repository.connection.execute(
+                    "SELECT COUNT(*) FROM source_revisions"
+                ).fetchone()[0]
+
+            self.assertEqual(revisions, 1)
+            self.assertEqual(snapshot.read_bytes(), original)
+
     def test_corrupted_existing_snapshot_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -309,7 +347,7 @@ class StorageTest(unittest.TestCase):
                     "SELECT provider, language, external_page_id, title FROM source_pages"
                 ).fetchone()
 
-            self.assertEqual([row["version"] for row in versions], [1, 2, 3, 4, 5, 6])
+            self.assertEqual([row["version"] for row in versions], [1, 2, 3, 4, 5, 6, 7])
             self.assertEqual(tuple(page), ("wikipedia", "en", 10, "Alpha"))
 
 

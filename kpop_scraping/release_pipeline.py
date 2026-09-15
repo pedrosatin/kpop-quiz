@@ -8,6 +8,7 @@ from .catalog import MUSICAL_GROUP_CLASSES
 from .entities import extract_aliases, instance_of, matching_names
 from .fact_store import FactRunTotals, FactStore, count_statuses
 from .release_facts import EXTRACTOR_VERSION, release_entity_type, release_fact_candidates
+from .release_evidence import collect_release_pages
 from .validation import ValidationContext, validate_facts
 from .wikidata import LABEL_PROFILE, SUBJECT_PROFILE, WikidataEntityClient
 
@@ -17,6 +18,7 @@ def collect_release_facts(
     client: WikidataEntityClient,
     discovery_run_id: int,
     batch_size: int = 25,
+    wikipedia_clients=None,
 ) -> FactRunTotals:
     if not 1 <= batch_size <= 50:
         raise ValueError("batch_size must be between 1 and 50")
@@ -32,6 +34,7 @@ def collect_release_facts(
             run_id,
             batch_size,
             scoped_group_ids,
+            wikipedia_clients or {},
         )
         if store.accepted_facts_without_evidence():
             raise RuntimeError("accepted release facts have no evidence")
@@ -72,6 +75,7 @@ def _collect(
     run_id,
     batch_size,
     scoped_group_ids,
+    wikipedia_clients,
 ):
     rows = repository.connection.execute(
         """
@@ -97,7 +101,16 @@ def _collect(
     }
     entity_ids = dict(accepted_groups)
     entity_types = {qid: "group" for qid in accepted_groups}
-    names: dict[str, tuple[str, ...]] = {}
+    names: dict[str, tuple[str, ...]] = {
+        qid: tuple(
+            row["name"]
+            for row in repository.connection.execute(
+                "SELECT name FROM entity_aliases WHERE entity_id=? ORDER BY name",
+                (entity_id,),
+            )
+        )
+        for qid, entity_id in accepted_groups.items()
+    }
     subjects_by_entity = {}
     batches = 0
     requested = sorted(candidate_rows)
@@ -121,10 +134,10 @@ def _collect(
             for key in {qid, document.wikidata_id}:
                 entity_ids[key] = entity_id
                 entity_types[key] = kind
-                names[key] = matching_names(extract_aliases(document.payload))
+                names[key] = tuple(alias.name for alias in extract_aliases(document.payload))
             subjects_by_entity.setdefault(
                 entity_id,
-                (entity_id, snapshot_id, document.wikidata_id, extracted),
+                (entity_id, snapshot_id, document.wikidata_id, extracted, document.payload),
             )
             repository.connection.executemany(
                 "UPDATE release_candidates SET resolved_wikidata_id=?,entity_id=?,snapshot_id=? WHERE id=?",
@@ -132,8 +145,8 @@ def _collect(
             )
     value_roles = {}
     subjects = tuple(subjects_by_entity.values())
-    ignored = sum(extracted.ignored for _entity_id, _snapshot_id, _qid, extracted in subjects)
-    for _entity_id, _snapshot_id, _qid, extracted in subjects:
+    ignored = sum(extracted.ignored for _entity_id, _snapshot_id, _qid, extracted, _payload in subjects)
+    for _entity_id, _snapshot_id, _qid, extracted, _payload in subjects:
         for candidate in extracted.candidates:
             if candidate.value_id and candidate.value_id not in entity_types:
                 value_roles.setdefault(candidate.value_id, candidate.spec.value_entity_type or "genre")
@@ -153,7 +166,7 @@ def _collect(
             for key in {document.requested_id, document.wikidata_id}:
                 entity_ids[key] = entity_id
                 entity_types[key] = stored
-                names[key] = matching_names(extract_aliases(document.payload))
+                names[key] = tuple(alias.name for alias in extract_aliases(document.payload))
     for qid, rows_for_qid in candidate_rows.items():
         subject = next((item for item in subjects if item[0] == entity_ids.get(qid)), None)
         if subject is None:
@@ -178,8 +191,22 @@ def _collect(
                 entity_types[key] = stored
                 names[key] = matching_names(extract_aliases(document.payload))
     decisions = []
-    context = ValidationContext(names=names, entity_types=entity_types, group_pages={})
-    for entity_id, snapshot_id, _qid, extracted in subjects:
+    release_pages = collect_release_pages(repository, subjects, wikipedia_clients)
+    release_performers = {
+        qid: tuple(
+            name
+            for candidate in extracted.candidates
+            if candidate.predicate == "performed_by" and candidate.value_id
+            for name in names.get(candidate.value_id, ())
+        )
+        for _entity_id, _snapshot_id, qid, extracted, _payload in subjects
+    }
+    context = ValidationContext(
+        names=names, entity_types=entity_types, group_pages={},
+        release_pages=release_pages,
+        release_performers=release_performers,
+    )
+    for entity_id, snapshot_id, _qid, extracted, _payload in subjects:
         current = validate_facts(extracted.candidates, context)
         store.save_facts(run_id, EXTRACTOR_VERSION, entity_id, snapshot_id, current, entity_ids)
         decisions.extend(current)
@@ -200,7 +227,7 @@ def _collect(
         (discovery_run_id, discovery_run_id, discovery_run_id),
     )
     counts = count_statuses(decisions)
-    release_entity_ids = {entity_id for entity_id, _snapshot_id, _qid, _extracted in subjects}
+    release_entity_ids = {entity_id for entity_id, _snapshot_id, _qid, _extracted, _payload in subjects}
     return FactRunTotals(
         len(scoped_group_ids),
         len(release_entity_ids),
@@ -252,6 +279,30 @@ def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) ->
             discovery_run_id,
             discovery_run_id,
         ),
+    )
+    connection.execute(
+        """UPDATE release_source_pages SET state='stale',reason='release_not_in_latest_discovery'
+        WHERE state='accepted' AND release_entity_id IN (
+            SELECT DISTINCT previous.entity_id FROM release_candidates previous
+            WHERE previous.run_id<>? AND previous.entity_id IS NOT NULL
+              AND previous.group_entity_id IN (
+                  SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM release_candidates current
+                  WHERE current.run_id=? AND current.entity_id=previous.entity_id
+                    AND current.state='accepted'
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM release_candidates outside_scope
+                  WHERE outside_scope.entity_id=previous.entity_id
+                    AND outside_scope.state='accepted'
+                    AND outside_scope.group_entity_id NOT IN (
+                        SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?
+                    )
+              )
+        )""",
+        (discovery_run_id, discovery_run_id, discovery_run_id, discovery_run_id),
     )
 
 

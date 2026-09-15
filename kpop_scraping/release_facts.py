@@ -8,14 +8,14 @@ from typing import Any
 from .facts import ExtractedFacts, PredicateSpec, _candidates
 
 
-EXTRACTOR_VERSION = "wikidata-release-facts-v1"
+EXTRACTOR_VERSION = "wikidata-release-facts-v2"
 ALBUM_CLASSES = frozenset({"Q482994"})
 RELEASE_CLASSES = frozenset({"Q169930", "Q134556"})
 ALLOWED_CLASSES = ALBUM_CLASSES | RELEASE_CLASSES
 
 RELEASE_PREDICATES = (
-    PredicateSpec("performed_by", ("P175",), "release", "item", "group", False, False, False),
-    PredicateSpec("released_on", ("P577",), "release", "time", None, True, False, False),
+    PredicateSpec("performed_by", ("P175",), "release", "item", "group", False, False, True),
+    PredicateSpec("released_on", ("P577",), "release", "time", None, True, False, True),
     PredicateSpec("release_genre", ("P136",), "release", "item", "genre", False, False, False),
 )
 

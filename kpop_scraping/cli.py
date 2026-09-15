@@ -97,7 +97,20 @@ def main(argv: list[str] | None = None) -> int:
             release_totals = release_rows = None
             if run_releases:
                 discovery_run = discover_releases(repository, WikidataQueryClient(user_agent=args.user_agent), group_limit=args.release_group_limit)
-                release_totals = collect_release_facts(repository, WikidataEntityClient(user_agent=args.user_agent), discovery_run)
+                wikipedia_clients = {
+                    language: MediaWikiClient(
+                        api_url=f"https://{language}.wikipedia.org/w/api.php",
+                        user_agent=args.user_agent,
+                        language=language,
+                    )
+                    for language in ("en", "pt", "ko")
+                }
+                release_totals = collect_release_facts(
+                    repository,
+                    WikidataEntityClient(user_agent=args.user_agent),
+                    discovery_run,
+                    wikipedia_clients=wikipedia_clients,
+                )
                 release_rows = export_release_coverage_csv(repository.connection, args.release_report or args.database.parent / "release-coverage.csv")
     except (MediaWikiError, SnapshotIntegrityError, RuntimeError) as exc:
         print(f"Pipeline failed: {type(exc).__name__}: {exc}")

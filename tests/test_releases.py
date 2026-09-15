@@ -7,7 +7,15 @@ from pathlib import Path
 from urllib.error import HTTPError
 from unittest.mock import patch
 
-from kpop_scraping.mediawiki import MediaWikiError
+from kpop_scraping.evidence import WikipediaPage, release_date_evidence, release_performer_evidence
+from kpop_scraping.entities import GREGORIAN_CALENDAR, TimeValue
+from kpop_scraping.mediawiki import MediaWikiError, Page
+from kpop_scraping.release_evidence import (
+    _PageRequest,
+    _match_pages,
+    _page_rejection,
+    collect_release_pages,
+)
 from kpop_scraping.release_discovery import WikidataQueryClient, _parse_results, build_query
 from kpop_scraping.release_facts import release_entity_type, release_fact_candidates
 from kpop_scraping.release_pipeline import (
@@ -36,6 +44,22 @@ def time_statement(qualifiers=None):
 
 
 class ReleaseFactTest(unittest.TestCase):
+    def test_matches_unordered_normalized_redirected_and_shared_pages(self):
+        requests = (
+            _PageRequest(1, 1, "Q1", "en", "Alpha_album", 0),
+            _PageRequest(2, 1, "Q2", "en", "Old title", 1),
+            _PageRequest(3, 1, "Q1", "en", "Alpha album", 2),
+            _PageRequest(4, 1, "Q4", "en", "Missing", 3),
+        )
+        pages = (
+            Page(2, "New title", "u2", "New title is an album.", 12, wikidata_id="Q2", is_redirect=True),
+            Page(1, "Alpha album", "u1", "Alpha is an album.", 11, wikidata_id="Q1"),
+        )
+
+        matched = _match_pages(requests, pages)
+
+        self.assertEqual([page.page_id if page else None for page in matched], [1, 2, 1, None])
+
     def test_classifies_only_explicit_release_classes(self):
         album = {"claims": {"P31": [item_statement("i", "P31", "Q482994")]}}
         generic = {"claims": {"P31": [item_statement("i", "P31", "Q2031291")]}}
@@ -100,6 +124,160 @@ class ReleaseFactTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "candidate limit"):
             from kpop_scraping.release_discovery import discover_releases
             discover_releases(None, None, max_per_group=0)
+
+    def test_release_text_rules_pass_editorial_positive_and_negative_cases(self):
+        date = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        positives = (
+            ("en", "Alpha is an album by Group One, released on January 2, 2020.", "Group One"),
+            ("en", "Alpha is the debut EP by Group One. Alpha was released on 2 January 2020.", "Group One"),
+            ("pt", "Alpha é um álbum por Group One. Alpha foi lançado em 2 de janeiro de 2020.", "Group One"),
+            ("en", "Alpha is an album by singer Group One. Alpha was released on January 2, 2020.", "Group One"),
+            ("en", "Alpha is a studio album by Group One. It was released on January 2, 2020.", "Group One"),
+            ("en", "Alpha is a single by Group One. The single was released on January 2, 2020.", "Group One"),
+            ("en", "Alpha is a song recorded by Group One. It was released on 2 January 2020.", "Group One"),
+            ("en", "Alpha is an album by South Korean group Group One. It was released on January 2, 2020.", "Group One"),
+            ("en", "Alpha is an EP by Korean girl group Group One, released on January 2, 2020.", "Group One"),
+            ("en", "Alpha is a single by Japanese band Group One. Alpha was released on 2 January 2020.", "Group One"),
+            ("en", "Alpha is a record by Thai artist Group One. It was released on January 2, 2020.", "Group One"),
+            ("en", "Alpha is a song by rapper Group One. Alpha was released on January 2, 2020.", "Group One"),
+            ("pt", "Alpha é um single por Group One. Ele foi lançado em 2 de janeiro de 2020.", "Group One"),
+            ("pt", "Alpha é um álbum por Group One, lançado em 2 de janeiro de 2020.", "Group One"),
+            ("pt", "Alpha é um álbum por Group One. Ele foi lançado em 2 de janeiro de 2020.", "Group One"),
+            ("en", "Alpha is an EP by duo Group One. It was released on 2 January 2020.", "Group One"),
+        )
+        for index, (language, extract, performer) in enumerate(positives):
+            with self.subTest(kind="positive", index=index, language=language):
+                page = WikipediaPage(1, language, index + 1, 10, extract, "Alpha")
+                self.assertIsNotNone(release_performer_evidence(page, (performer,), ("Alpha",)))
+                self.assertIsNotNone(release_date_evidence(page, date, ("Alpha",)))
+
+        negatives = (
+            "Alpha is a film by Group One, released on January 2, 2020.",
+            "Alpha is an album. Its video was directed by Group One.",
+            "Beta is an album by Group One. Alpha was released on January 2, 2020.",
+            "Alpha is an album released by Label One on January 2, 2020.",
+            "The album by Group One is called Alpha.",
+            "Alpha is a list of albums by Group One.",
+            "Alpha's producer worked with Group One.",
+            "Alpha is an album inspired by Group One.",
+            "Alpha is an album produced by Group One.",
+            "Alpha is an album distributed by Group One.",
+            "Alpha is an album with a song by Group One.",
+            "Alpha is an album whose cover was designed by Group One.",
+            "Alpha is an album by Group One's producer.",
+            "Alpha is an album by Group One's member.",
+            "Alpha is an album by Group One Productions.",
+            "Alpha is an album by Group One members.",
+            "Alpha is an album by Group One tribute band.",
+            "Alpha is an album by Group One-inspired artists.",
+        )
+        for index, extract in enumerate(negatives):
+            page = WikipediaPage(1, "en", index + 20, 10, extract, "Alpha")
+            self.assertIsNone(release_performer_evidence(page, ("Group One",), ("Alpha",)))
+        scoped_dates = (
+            "Alpha is an album. Alpha was released on January 2, 2020 in Japan.",
+            "Alpha is an album. Alpha was released digitally on January 2, 2020.",
+            "Alpha is an album. Alpha was released on January 2, 2020 on vinyl.",
+            "Alpha is an album. Alpha was released on January 2, 2020 as a physical edition.",
+            "Alpha is an album. Alpha was released on January 2, 2020 in three editions.",
+            "Alpha is an album. The video was released on January 2, 2020.",
+            "Alpha is an album. Beta was released on January 2, 2020.",
+            "Alpha is an album released in 2020.",
+            "Alpha is an album. Alpha debuted on January 2, 2020.",
+            "Alpha is an album. Alpha was recorded on January 2, 2020.",
+            "Alpha is an album. Its video was released on January 2, 2020.",
+            "Alpha is an album. Its teaser was released on January 2, 2020.",
+            "Alpha is an album. Pre-orders opened on January 2, 2020.",
+            "Alpha is an album. Alpha was reissued on January 2, 2020.",
+            "Alpha is an album. Alpha was released on January 2, 2020 in the US.",
+            "Alpha is an album. Alpha was released on January 2, 2020 as a CD.",
+            "Alpha is an album. Alpha was released on January 2, 2020 in France.",
+            "Alpha is an album. Alpha was released on January 2, 2020 exclusively in France.",
+        )
+        for index, extract in enumerate(scoped_dates):
+            page = WikipediaPage(1, "en", index + 40, 10, extract, "Alpha")
+            self.assertIsNone(release_date_evidence(page, date, ("Alpha",)))
+        for index, extract in enumerate((
+            "Alpha é um álbum. Alpha foi lançado em 2 de janeiro de 2020 no Brasil.",
+            "Alpha é um álbum. Alpha foi lançado em 2 de janeiro de 2020 exclusivamente no Brasil.",
+            "Alpha é um álbum. Alpha foi lançado digitalmente em 2 de janeiro de 2020.",
+            "Alpha é um álbum. Alpha foi lançado em 2 de janeiro de 2020 em três edições.",
+        )):
+            page = WikipediaPage(1, "pt", 70 + index, 10, extract, "Alpha")
+            self.assertIsNone(release_date_evidence(page, date, ("Alpha",)))
+
+        wrong_subject_kind = WikipediaPage(
+            1, "pt", 80, 10,
+            "Alpha é um álbum por Group One. O single foi lançado em 2 de janeiro de 2020.",
+            "Alpha",
+        )
+        self.assertIsNone(release_date_evidence(wrong_subject_kind, date, ("Alpha",)))
+        matching_subject_kind = WikipediaPage(
+            1, "pt", 81, 10,
+            "Alpha é um single por Group One. O single foi lançado em 2 de janeiro de 2020.",
+            "Alpha",
+        )
+        self.assertIsNotNone(release_date_evidence(matching_subject_kind, date, ("Alpha",)))
+
+        korean = WikipediaPage(
+            1, "ko", 90, 10,
+            "Alpha는 Group One의 음반이다. Alpha는 2020년 1월 2일 발매되었다.",
+            "Alpha",
+        )
+        self.assertIsNone(release_performer_evidence(korean, ("Group One",), ("Alpha",)))
+        self.assertIsNotNone(release_date_evidence(korean, date, ("Alpha",)))
+        for index, scoped in enumerate((
+            "Alpha는 2020년 1월 2일 일본에서 발매되었다.",
+            "Alpha는 2020년 1월 2일 바이닐로 출시되었다.",
+            "Alpha는 2020년 1월 2일 온라인으로 발매되었다.",
+            "Alpha는 2020년 1월 2일 스트리밍으로 출시되었다.",
+            "Alpha는 2020년 1월 2일 카세트로 발매되었다.",
+            "Alpha는 2020년 1월 2일 DVD로 출시되었다.",
+            "Alpha는 2020년 1월 2일 한정판으로 발매되었다.",
+            "Alpha는 2020년 1월 2일 발매 예정이었다.",
+            "Alpha는 2020년 1월 2일 프랑스에서 발매되었다.",
+            "Alpha는 2020년 1월 2일 독점적으로 프랑스에서 발매되었다.",
+        )):
+            page = WikipediaPage(1, "ko", 91 + index, 10, scoped, "Alpha")
+            self.assertIsNone(release_date_evidence(page, date, ("Alpha",)))
+
+        joint = WikipediaPage(
+            1, "en", 95, 10,
+            "Alpha is an album by Group One and Group Two.", "Alpha",
+        )
+        peers = ("Group One", "Group Two")
+        self.assertIsNotNone(release_performer_evidence(joint, ("Group One",), ("Alpha",), peers))
+        self.assertIsNotNone(release_performer_evidence(joint, ("Group Two",), ("Alpha",), peers))
+        triple = WikipediaPage(
+            1, "en", 96, 10,
+            "Alpha is an album by Group One, Group Two and Group Three.", "Alpha",
+        )
+        three = ("Group One", "Group Two", "Group Three")
+        for artist in three:
+            self.assertIsNotNone(
+                release_performer_evidence(triple, (artist,), ("Alpha",), three)
+            )
+        portuguese = WikipediaPage(
+            1, "pt", 97, 10,
+            "Alpha é um álbum por Group One e Group Two.", "Alpha",
+        )
+        for artist in peers:
+            self.assertIsNotNone(
+                release_performer_evidence(portuguese, (artist,), ("Alpha",), peers)
+            )
+        numeric = WikipediaPage(
+            1, "en", 98, 10, "Alpha is an album by 2PM.", "Alpha"
+        )
+        self.assertIsNotNone(
+            release_performer_evidence(numeric, ("2PM",), ("Alpha",), ("2PM",))
+        )
+
+    def test_release_page_policy_rejects_unsafe_sources(self):
+        base = Page(1, "Alpha", "https://example.test", "Alpha is an album.", 2, wikidata_id="Q1")
+        self.assertIsNone(_page_rejection(base, "Q1"))
+        self.assertEqual(_page_rejection(Page(**{**base.__dict__, "title": "List of Alpha albums"}), "Q1"), "page_list")
+        self.assertEqual(_page_rejection(Page(**{**base.__dict__, "wikidata_id": "Q2"}), "Q1"), "page_wikidata_mismatch")
+        self.assertEqual(_page_rejection(Page(**{**base.__dict__, "is_disambiguation": True}), "Q1"), "page_disambiguation")
 
 class ReleaseMigrationTest(unittest.TestCase):
     def test_v5_rows_ids_and_foreign_keys_survive_release_migration(self):
@@ -343,6 +521,214 @@ class ReleasePipelineScopeTest(unittest.TestCase):
                 ON e.id=f.subject_entity_id WHERE e.wikidata_id='Q101'"""
             ).fetchone()[0],
             1,
+        )
+
+    def test_release_pages_batch_by_language_in_groups_of_twenty(self):
+        entity_rows = [
+            (100 + index, f"QB{index}", "album", f"Release {index}")
+            for index in range(41)
+        ]
+        self.connection.executemany(
+            """INSERT INTO entities(
+                id,wikidata_id,entity_type,canonical_name,snapshot_id,created_at,updated_at
+            ) VALUES (?,?,?,?,1,'t','t')""",
+            entity_rows,
+        )
+        releases = tuple(
+            (
+                100 + index,
+                1,
+                f"QB{index}",
+                object(),
+                {"sitelinks": {
+                    "enwiki": {"title": f"Release {index}"},
+                    **({"ptwiki": {"title": "Lançamento 0"}} if index == 0 else {}),
+                }},
+            )
+            for index in range(41)
+        )
+
+        class WikiClient:
+            def __init__(self, language):
+                self.language = language
+                self.calls = []
+
+            def get_pages_by_titles(self, titles):
+                self.calls.append(tuple(titles))
+                pages = [
+                    Page(
+                        1000 + int(title.rsplit(" ", 1)[1]),
+                        title,
+                        f"https://{self.language}.example/{title}",
+                        f"{title} is an album.",
+                        2000 + int(title.rsplit(" ", 1)[1]),
+                        wikidata_id=f"QB{int(title.rsplit(' ', 1)[1])}",
+                    )
+                    for title in titles
+                ]
+                return list(reversed(pages))
+
+        english = WikiClient("en")
+
+        class PortugueseClient:
+            def __init__(self):
+                self.calls = []
+
+            def get_pages_by_titles(self, titles):
+                self.calls.append(tuple(titles))
+                return [Page(
+                    3000, "Lançamento 0", "https://pt.example/0",
+                    "Lançamento 0 é um álbum.", 4000, wikidata_id="QB0",
+                )]
+
+        portuguese = PortugueseClient()
+        pages = collect_release_pages(
+            self.repository, releases, {"en": english, "pt": portuguese}
+        )
+
+        self.assertEqual([len(call) for call in english.calls], [20, 20, 1])
+        self.assertEqual([len(call) for call in portuguese.calls], [1])
+        self.assertEqual(len(pages), 41)
+        self.assertEqual([page.page_id for page in pages["QB0"]], [1000, 3000])
+        persisted = self.connection.execute(
+            """SELECT sp.language,sp.external_page_id
+            FROM source_revisions sr JOIN source_pages sp ON sp.id=sr.source_page_id
+            WHERE sp.provider='wikipedia' AND sp.external_page_id>=1000
+            ORDER BY sr.id"""
+        ).fetchall()
+        self.assertEqual(
+            [(row["language"], row["external_page_id"]) for row in persisted[:3]],
+            [("en", 1000), ("pt", 3000), ("en", 1001)],
+        )
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT pages_collected FROM collection_runs ORDER BY id DESC LIMIT 1"
+            ).fetchone()[0],
+            42,
+        )
+
+    def test_release_page_batch_stops_when_a_request_fails(self):
+        self.connection.executemany(
+            """INSERT INTO entities(
+                id,wikidata_id,entity_type,canonical_name,snapshot_id,created_at,updated_at
+            ) VALUES (?,?,?,?,1,'t','t')""",
+            [(100 + index, f"QE{index}", "album", f"Error {index}") for index in range(21)],
+        )
+        releases = tuple(
+            (100 + index, 1, f"QE{index}", object(), {
+                "sitelinks": {"enwiki": {"title": f"Error {index}"}}
+            })
+            for index in range(21)
+        )
+
+        class FailingClient:
+            def __init__(self):
+                self.calls = 0
+
+            def get_pages_by_titles(self, titles):
+                self.calls += 1
+                if self.calls == 2:
+                    raise MediaWikiError("batch failed")
+                return [
+                    Page(
+                        5000 + index, title, f"https://en.example/{index}",
+                        f"{title} is an album.", 6000 + index,
+                        wikidata_id=f"QE{index}",
+                    )
+                    for index, title in enumerate(titles)
+                ]
+
+        client = FailingClient()
+        with self.assertRaisesRegex(MediaWikiError, "batch failed"):
+            collect_release_pages(self.repository, releases, {"en": client})
+        self.assertEqual(client.calls, 2)
+        self.assertEqual(
+            self.connection.execute(
+                """SELECT COUNT(*) FROM collection_run_revisions crr
+                JOIN collection_runs cr ON cr.id=crr.collection_run_id
+                WHERE cr.category='release-wikipedia-evidence'"""
+            ).fetchone()[0],
+            0,
+        )
+
+    def test_wikipedia_revision_accepts_release_artist_and_date(self):
+        run_id = self._run(groups=(1,))
+        self.connection.execute(
+            "INSERT INTO entity_aliases(entity_id,name,language,alias_type,snapshot_id) VALUES (1,'Group One','en','label',1)"
+        )
+        self.connection.execute(
+            "INSERT INTO release_candidates(run_id,group_entity_id,requested_wikidata_id,state) VALUES (?,1,'Q101','candidate')",
+            (run_id,),
+        )
+        self.connection.commit()
+        payload = {
+            "id": "Q101", "lastrevid": 2,
+            "labels": {"en": {"language": "en", "value": "Alpha"}},
+            "aliases": {},
+            "sitelinks": {
+                "enwiki": {"title": "Alpha (album)"},
+                "ptwiki": {"title": "Alpha (álbum)"},
+            },
+            "claims": {
+                "P31": [item_statement("Q101$class", "P31", "Q482994")],
+                "P175": [item_statement("Q101$performer", "P175", "QG1")],
+                "P577": [time_statement()],
+            },
+        }
+
+        class EntityClient:
+            def get_entities(self, qids, _profile):
+                return EntityBatch(
+                    tuple(EntityDocument(qid, qid, 2, payload) for qid in qids), ()
+                )
+
+        class WikiClient:
+            def __init__(self, language):
+                self.language = language
+
+            def get_pages_by_titles(self, _titles):
+                if self.language == "en":
+                    return [Page(
+                        77, "Alpha (album)", "https://en.wikipedia.org/wiki/Alpha",
+                        "Alpha is an album about music.", 88, wikidata_id="Q101",
+                    )]
+                return [Page(
+                    78, "Alpha (álbum)", "https://pt.wikipedia.org/wiki/Alpha",
+                    "Alpha é um álbum por Group One. Alpha foi lançado em 2 de janeiro de 2020.",
+                    89, wikidata_id="Q101",
+                )]
+
+        totals = collect_release_facts(
+            self.repository, EntityClient(), run_id,
+            wikipedia_clients={"en": WikiClient("en"), "pt": WikiClient("pt")},
+        )
+
+        self.assertEqual(totals.accepted, 2)
+        evidence = self.connection.execute(
+            """SELECT f.predicate,fe.source_revision_id,fe.locator
+            FROM facts f JOIN fact_evidence fe ON fe.fact_id=f.id
+            WHERE f.subject_entity_id=(SELECT id FROM entities WHERE wikidata_id='Q101')
+            ORDER BY f.predicate"""
+        ).fetchall()
+        self.assertEqual([row["predicate"] for row in evidence], ["performed_by", "released_on"])
+        self.assertTrue(all(row["source_revision_id"] for row in evidence))
+        self.assertTrue(all("pageid=78:revid=89#extract" in row["locator"] for row in evidence))
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT COUNT(*) FROM catalog_entries WHERE source_page_id IN (SELECT id FROM source_pages WHERE external_page_id IN (77,78))"
+            ).fetchone()[0],
+            0,
+        )
+        repeated = collect_release_facts(
+            self.repository, EntityClient(), run_id,
+            wikipedia_clients={"en": WikiClient("en"), "pt": WikiClient("pt")},
+        )
+        self.assertEqual(repeated.accepted, 2)
+        self.assertEqual(
+            self.connection.execute(
+                "SELECT COUNT(*) FROM source_revisions WHERE external_revision_id IN (88,89)"
+            ).fetchone()[0],
+            2,
         )
 
 
