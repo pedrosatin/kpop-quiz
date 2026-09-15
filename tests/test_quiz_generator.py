@@ -12,6 +12,8 @@ from kpop_scraping.quiz_generator import (
     generate_dataset,
 )
 from kpop_scraping.quiz_cli import main as quiz_main
+from kpop_scraping.quiz_models import Entity
+from kpop_scraping.release_quiz_drafts import _release_ids_mentioning_groups
 from kpop_scraping.quiz_schema import validate_dataset, write_json_atomic
 
 
@@ -270,6 +272,33 @@ class QuizGeneratorTest(unittest.TestCase):
             and any(option["value"] == "QR1" for option in question["options"])
             for question in dataset["questions"]
         ))
+
+    def test_short_canonical_group_name_is_not_ignored(self):
+        release = Entity("QR", "release", "4L First Album", {}, ())
+        group = Entity("QG", "group", "4L", {}, ())
+
+        self.assertEqual(
+            _release_ids_mentioning_groups((release,), (group,)),
+            {"QR"},
+        )
+
+    def test_punctuated_group_name_matches_compact_release_label(self):
+        release = Entity("QR", "release", "ACE First Album", {}, ())
+        group = Entity("QG", "group", "A.C.E", {}, ())
+
+        self.assertEqual(
+            _release_ids_mentioning_groups((release,), (group,)),
+            {"QR"},
+        )
+
+    def test_compact_group_name_matches_punctuated_release_label(self):
+        release = Entity("QR", "release", "A CE First Album", {}, ())
+        group = Entity("QG", "group", "ACE", {}, ())
+
+        self.assertEqual(
+            _release_ids_mentioning_groups((release,), (group,)),
+            {"QR"},
+        )
 
     def test_earliest_release_uses_one_canonical_fact_per_option(self):
         original = self.connection.execute(

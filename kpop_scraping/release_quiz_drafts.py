@@ -22,9 +22,10 @@ def build_release_drafts(
     releases_by_group = _subject_facts(performer_facts)
     dates_by_release = _time_facts(date_facts)
     known_groups = {
-        fact.value_entity.wikidata_id: fact.value_entity
-        for fact in performer_facts
-        if fact.value_entity is not None
+        entity.wikidata_id: entity
+        for fact in facts
+        for entity in (fact.subject, fact.value_entity)
+        if entity is not None and entity.entity_type == "group"
     }
     leaking_release_ids = _release_ids_mentioning_groups(
         (fact.subject for fact in performer_facts), known_groups.values()
@@ -322,18 +323,38 @@ def _match_tokens(label: str) -> tuple[str, ...]:
     return tuple("".join(characters).split())
 
 
-def _contains_identity(label: str, identity: str) -> bool:
+def _contains_identity(
+    label: str, identity: str, *, allow_short: bool = False
+) -> bool:
     label_tokens = _match_tokens(label)
     identity_tokens = _match_tokens(identity)
     if not identity_tokens:
         return False
-    if len(identity_tokens) == 1 and len(identity_tokens[0]) < 3:
+    if not allow_short and len(identity_tokens) == 1 and len(identity_tokens[0]) < 3:
         return False
     width = len(identity_tokens)
-    return any(
+    if any(
         label_tokens[index:index + width] == identity_tokens
         for index in range(len(label_tokens) - width + 1)
-    )
+    ):
+        return True
+    identity_compact = "".join(identity_tokens)
+    for start in range(len(label_tokens)):
+        candidate = ""
+        for token in label_tokens[start:]:
+            candidate += token
+            if candidate == identity_compact:
+                return True
+            if len(candidate) >= len(identity_compact):
+                break
+    return False
+
+
+def _group_identities(group: Entity) -> tuple[tuple[str, bool], ...]:
+    labelled = (group.canonical_name, *group.names.values())
+    identities = [(identity, True) for identity in labelled]
+    identities.extend((identity, False) for identity in group.aliases)
+    return tuple(dict.fromkeys(identities))
 
 
 def _release_ids_mentioning_groups(
@@ -343,15 +364,18 @@ def _release_ids_mentioning_groups(
     identities = {
         identity
         for group in groups
-        for identity in group.identity_names()
+        for identity in _group_identities(group)
     }
     return {
         release_id
         for release_id, release in unique_releases.items()
         if any(
-            _contains_identity(release.name(language), identity)
+            _contains_identity(
+                release.name(language), identity,
+                allow_short=allow_short,
+            )
             for language in ("pt-BR", "en")
-            for identity in identities
+            for identity, allow_short in identities
         )
     }
 
