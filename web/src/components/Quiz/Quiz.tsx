@@ -114,7 +114,10 @@ export function Quiz({ locale }: { locale: Locale }) {
     answerLockedRef.current = true;
     stopTimer();
     if (selectedId === question.answer_option_id) {
-      const cost = revealedClues.filter((id) => !question.clues_shown.includes(id)).length * question.hint_cost;
+      const revealedCount = new Set(
+        revealedClues.filter((id) => !question.clues_shown.includes(id))
+      ).size;
+      const cost = revealedCount * question.hint_cost;
       setScore((value) => value + Math.max(0, question.base_points - cost));
     }
     setAnswered(true);
