@@ -191,6 +191,7 @@
   }
 
   .quiz-card,
+  .collection-option,
   .difficulty-option,
   .option,
   .primary-action,
@@ -441,6 +442,58 @@ a:hover {
   font-size: clamp(1.5rem, 4vw, 2.25rem);
   line-height: 1.18;
   color: var(--color-text);
+}
+
+.game-collection {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  border: 0;
+}
+
+.collection-options {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+@media (min-width: 48rem) {
+  .collection-options {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.collection-option {
+  display: grid;
+  gap: var(--space-1);
+  min-height: 4.5rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.collection-option:has(input:focus-visible) {
+  outline: 0.2rem solid var(--color-focus);
+  outline-offset: 0.15rem;
+}
+
+.collection-option.selected {
+  border-color: var(--color-theme);
+  box-shadow: inset 0 0 0 1px var(--color-theme);
+}
+
+.collection-option input {
+  position: absolute;
+  opacity: 0;
+}
+
+.collection-option span {
+  color: var(--color-text-muted);
 }
 
 .difficulty-picker {

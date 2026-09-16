@@ -63,6 +63,25 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     </footer>
     <script is:inline>
       (function () {
+        var langLink = document.querySelector(".language-link");
+        if (!langLink) return;
+
+        function syncQuery() {
+          if (window.location.search) {
+            try {
+              var target = new URL(langLink.href, window.location.origin);
+              target.search = window.location.search;
+              langLink.href = target.pathname + target.search + target.hash;
+            } catch (e) {}
+          }
+        }
+
+        syncQuery();
+        langLink.addEventListener("click", syncQuery);
+      })();
+    </script>
+    <script is:inline>
+      (function () {
         var select = document.getElementById("theme-select");
         var metaLight = document.querySelector('meta[name="theme-color"][media*="light"]');
         var metaDark = document.querySelector('meta[name="theme-color"][media*="dark"]');

@@ -11,7 +11,7 @@ describe("published session loader", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
     vi.stubGlobal("fetch", fetch);
-    await expect(loadQuizSession("pt-BR", "standard", "/kpop-scraping")).resolves.toMatchObject({ config: { language: "pt-BR", play_mode: "standard" } });
+    await expect(loadQuizSession("pt-BR", "standard", "history", "/kpop-scraping")).resolves.toMatchObject({ config: { language: "pt-BR", play_mode: "standard" } });
     expect(fetch).toHaveBeenNthCalledWith(1, "/kpop-scraping/data/manifest-v2.json");
     expect(fetch).toHaveBeenNthCalledWith(2, `/kpop-scraping/data/${manifest.sessions["pt-BR.standard"].path}`);
   });
@@ -81,5 +81,31 @@ describe("published session loader", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(changedManifest)))
       .mockResolvedValueOnce(new Response(bytes)));
     await expect(loadQuizSession("pt-BR", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
+  });
+
+  it("loads a daily session when theme is daily", async () => {
+    const dailyManifest = structuredClone(manifest) as Record<string, any>;
+    dailyManifest.sessions["daily.pt-BR.standard"] = structuredClone(dailyManifest.sessions["pt-BR.standard"]);
+    dailyManifest.sessions["daily.pt-BR.standard"].path = `session.daily.pt-BR.standard.${dailyManifest.sessions["pt-BR.standard"].sha256}.json`;
+    for (const mode of ["assisted", "expert"]) {
+      dailyManifest.sessions[`daily.pt-BR.${mode}`] = {
+        path: `session.daily.pt-BR.${mode}.${"0".repeat(64)}.json`,
+        sha256: "0".repeat(64),
+        session_id: "0".repeat(64),
+      };
+    }
+    for (const mode of ["assisted", "standard", "expert"]) {
+      dailyManifest.sessions[`daily.en.${mode}`] = {
+        path: `session.daily.en.${mode}.${"0".repeat(64)}.json`,
+        sha256: "0".repeat(64),
+        session_id: "0".repeat(64),
+      };
+    }
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(dailyManifest)))
+      .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
+    vi.stubGlobal("fetch", fetch);
+    await expect(loadQuizSession("pt-BR", "standard", "daily")).resolves.toMatchObject({ config: { language: "pt-BR", play_mode: "standard" } });
+    expect(fetch).toHaveBeenNthCalledWith(2, `/data/${dailyManifest.sessions["daily.pt-BR.standard"].path}`);
   });
 });
