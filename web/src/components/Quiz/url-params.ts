@@ -1,9 +1,11 @@
 import type { PlayMode } from "../../lib/quiz-types";
 import { loadStoredPreferences } from "./storage";
 
-export function getInitialUrlParams(): { playMode: PlayMode; theme: string } {
+export type QuizTheme = "history" | "daily";
+
+export function getInitialUrlParams(): { playMode: PlayMode; theme: QuizTheme } {
   let playMode: PlayMode = loadStoredPreferences().playMode ?? "standard";
-  let theme = "history";
+  let theme: QuizTheme = "history";
   if (typeof window !== "undefined") {
     const params = new URLSearchParams(window.location.search);
     const modeParam = params.get("mode");
@@ -11,14 +13,14 @@ export function getInitialUrlParams(): { playMode: PlayMode; theme: string } {
       playMode = modeParam;
     }
     const themeParam = params.get("theme");
-    if (themeParam) {
+    if (themeParam === "history" || themeParam === "daily") {
       theme = themeParam;
     }
   }
   return { playMode, theme };
 }
 
-export function updateUrlParams(mode: PlayMode, theme: string): void {
+export function updateUrlParams(mode: PlayMode, theme: QuizTheme): void {
   if (typeof window === "undefined") return;
   try {
     const url = new URL(window.location.href);
@@ -29,7 +31,7 @@ export function updateUrlParams(mode: PlayMode, theme: string): void {
     if (langLink) {
       const u = new URL(langLink.href, window.location.origin);
       u.search = url.searchParams.toString();
-      langLink.href = u.pathname + (u.search ? "?" + u.search : "") + u.hash;
+      langLink.href = u.pathname + u.search + u.hash;
     }
   } catch {
     // URL or replaceState may fail in constrained environments

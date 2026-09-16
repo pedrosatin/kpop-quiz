@@ -1,14 +1,15 @@
 import type { Messages } from "../../i18n/catalog";
+import type { QuizTheme } from "../Quiz/url-params";
 
 export interface GameCollectionProps {
-  selectedTheme: string;
-  onSelectTheme: (theme: string) => void;
+  selectedTheme: QuizTheme;
+  onSelectTheme: (theme: QuizTheme) => void;
   messages: Messages;
   disabled?: boolean;
 }
 
 interface ThemeOption {
-  id: string;
+  id: QuizTheme;
   title: string;
   description: string;
 }

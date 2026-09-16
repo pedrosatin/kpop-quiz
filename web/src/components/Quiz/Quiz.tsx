@@ -10,7 +10,7 @@ import { QuizResult } from "./QuizResult";
 import { loadStoredPreferences, saveStoredPlayMode, saveStoredTimerEnabled } from "./storage";
 import { computeAwardedPoints } from "./scoring";
 import { useQuizTimer } from "./useQuizTimer";
-import { getInitialUrlParams, updateUrlParams } from "./url-params";
+import { getInitialUrlParams, updateUrlParams, type QuizTheme } from "./url-params";
 import type { QuestionResult, QuizMachineState } from "./types";
 
 export { groupEvidence, type DisplayEvidence, type QuestionResult, type QuizMachineState };
@@ -19,9 +19,8 @@ export function Quiz({ locale }: { locale: Locale }) {
   const messages = getMessages(locale);
   const [state, setState] = useState<QuizMachineState>("loading");
   const [session, setSession] = useState<QuizSession | null>(null);
-  const [initialParams] = useState(getInitialUrlParams);
-  const [playMode, setPlayMode] = useState<PlayMode>(initialParams.playMode);
-  const [theme, setTheme] = useState<string>(initialParams.theme);
+  const [playMode, setPlayMode] = useState<PlayMode>(() => getInitialUrlParams().playMode);
+  const [theme, setTheme] = useState<QuizTheme>(() => getInitialUrlParams().theme);
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() => loadStoredPreferences().timerEnabled ?? false);
   const [revealedClues, setRevealedClues] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);

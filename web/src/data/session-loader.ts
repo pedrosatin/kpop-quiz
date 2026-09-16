@@ -1,4 +1,5 @@
 import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../lib/quiz-types";
+import type { QuizTheme } from "../components/Quiz/url-params";
 
 export class QuizArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -58,14 +59,12 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
 export async function loadQuizSession(
   locale: Locale,
   playMode: PlayMode,
-  themeOrBaseUrl: string = "history",
-  maybeBaseUrl?: string
+  theme: QuizTheme = "history",
+  baseUrl?: string
 ): Promise<QuizSession> {
-  const isTheme = !themeOrBaseUrl.startsWith("/") && !themeOrBaseUrl.startsWith("http");
-  const theme = isTheme ? themeOrBaseUrl : "history";
-  const baseUrl = (isTheme ? maybeBaseUrl : themeOrBaseUrl) ?? import.meta.env.BASE_URL;
+  const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
 
-  const manifestResponse = await fetch(dataUrl("manifest-v2.json", baseUrl));
+  const manifestResponse = await fetch(dataUrl("manifest-v2.json", effectiveBaseUrl));
   if (manifestResponse.status === 404) throw new QuizArtifactError("missing");
   if (!manifestResponse.ok) throw new QuizArtifactError("invalid");
   let manifest: unknown;
@@ -78,7 +77,7 @@ export async function loadQuizSession(
   const sessionKey = theme === "daily" ? `daily.${locale}.${playMode}` : `${locale}.${playMode}`;
   const entry = manifest.sessions[sessionKey];
   if (!entry) throw new QuizArtifactError("missing");
-  const response = await fetch(dataUrl(entry.path, baseUrl));
+  const response = await fetch(dataUrl(entry.path, effectiveBaseUrl));
   if (response.status === 404) throw new QuizArtifactError("missing");
   if (!response.ok) throw new QuizArtifactError("invalid");
   let payload: unknown;
