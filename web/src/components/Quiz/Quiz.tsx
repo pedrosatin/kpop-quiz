@@ -18,8 +18,12 @@ export function Quiz({ locale }: { locale: Locale }) {
   const messages = getMessages(locale);
   const [state, setState] = useState<QuizMachineState>("loading");
   const [session, setSession] = useState<QuizSession | null>(null);
-  const [playMode, setPlayMode] = useState<PlayMode>("standard");
-  const [timerEnabled, setTimerEnabled] = useState(false);
+  const [playMode, setPlayMode] = useState<PlayMode>(() => {
+    return loadStoredPreferences().playMode ?? "standard";
+  });
+  const [timerEnabled, setTimerEnabled] = useState<boolean>(() => {
+    return loadStoredPreferences().timerEnabled ?? false;
+  });
   const [revealedClues, setRevealedClues] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -81,12 +85,6 @@ export function Quiz({ locale }: { locale: Locale }) {
   }, [locale, playMode]);
 
   useEffect(() => {
-    const stored = loadStoredPreferences();
-    if (stored.playMode) setPlayMode(stored.playMode);
-    if (stored.timerEnabled !== null) setTimerEnabled(stored.timerEnabled);
-  }, []);
-
-  useEffect(() => {
     if (state === "question.answered") feedbackRef.current?.focus();
   }, [state]);
 
@@ -105,7 +103,6 @@ export function Quiz({ locale }: { locale: Locale }) {
     focusQuestionRef.current = true;
     setSecondsLeft(timerSeconds ?? 0);
     setState("question.ready");
-    window.queueMicrotask(() => headingRef.current?.focus());
   };
 
   const submit = () => {

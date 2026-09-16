@@ -26,6 +26,10 @@ export function HintTray({
   const canShowRevealButton = playMode === "standard" && cluesAvailable.length > 0;
   const nextClue = cluesAvailable.find((clue) => !revealedClues.includes(clue.id));
 
+  if (activeClueIds.length === 0 && !canShowRevealButton) {
+    return null;
+  }
+
   return (
     <div class="quiz-hint-tray">
       {activeClueIds.map((id) => {

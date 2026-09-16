@@ -60,7 +60,7 @@ export function AnswerFeedback({
       <p class={`feedback-title ${isCorrect && !timedOut ? "success" : "failure"}`}>
         {timedOut ? messages.timedOut : isCorrect ? messages.correct : messages.incorrect}
       </p>
-      {!isCorrect && (
+      {(!isCorrect || timedOut) && (
         <p>
           {messages.answerWas}: <strong>{correctOption?.label}</strong>
         </p>

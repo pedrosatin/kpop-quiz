@@ -83,7 +83,7 @@ export function QuizRound({
       {answered && (
         <AnswerFeedback
           feedbackRef={feedbackRef}
-          isCorrect={selectedId === question.answer_option_id}
+          isCorrect={!timedOut && selectedId === question.answer_option_id}
           timedOut={timedOut}
           correctOption={question.options.find((opt) => opt.id === question.answer_option_id) ?? null}
           explanation={question.explanation}

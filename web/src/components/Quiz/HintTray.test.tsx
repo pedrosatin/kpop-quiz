@@ -51,8 +51,8 @@ describe("HintTray", () => {
     expect(onReveal).toHaveBeenCalledTimes(1);
   });
 
-  it("omits reveal button in expert mode", () => {
-    render(
+  it("omits reveal button and returns null in expert mode when no clues are active", () => {
+    const { container } = render(
       <HintTray
         playMode="expert"
         cluesAvailable={[sampleClue]}
@@ -65,5 +65,6 @@ describe("HintTray", () => {
       />
     );
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(container.firstChild).toBeNull();
   });
 });
