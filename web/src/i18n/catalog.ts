@@ -21,6 +21,7 @@ export interface Messages {
   points: string;
   setupKicker: string;
   chooseDifficulty: string;
+  roundRules: string;
   difficultyName: (playMode: PlayMode) => string;
   difficultyDescription: (playMode: PlayMode) => string;
   start: string;
@@ -73,6 +74,7 @@ const catalogs: Record<Locale, Messages> = {
     points: "pontos",
     setupKicker: "Antes da rodada",
     chooseDifficulty: "Escolha como jogar",
+    roundRules: "10 perguntas de múltipla escolha com fontes verificáveis a cada resposta.",
     difficultyName: (difficulty) => ({ assisted: "Assistido", standard: "Padrão", expert: "Especialista" })[difficulty],
     difficultyDescription: (difficulty) => ({
       assisted: "Mostra uma pista factual quando ela não entrega a resposta.",
@@ -127,6 +129,7 @@ const catalogs: Record<Locale, Messages> = {
     points: "points",
     setupKicker: "Before the round",
     chooseDifficulty: "Choose how to play",
+    roundRules: "10 multiple choice questions with verifiable sources for every answer.",
     difficultyName: (difficulty) => ({ assisted: "Assisted", standard: "Standard", expert: "Expert" })[difficulty],
     difficultyDescription: (difficulty) => ({
       assisted: "Shows a factual clue when it does not give away the answer.",
