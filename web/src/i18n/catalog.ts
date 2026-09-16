@@ -63,6 +63,15 @@ export interface Messages {
   correctAnswer: string;
   noAnswer: string;
   explanationLabel: string;
+  collectionTitle: string;
+  collectionKicker: string;
+  generalGameTitle: string;
+  generalGameDescription: string;
+  dailyGameTitle: string;
+  dailyGameDescription: string;
+  themeHistory: string;
+  themeDaily: string;
+  shareDailyHeader: (date: string, correct: number, total: number) => string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -133,6 +142,15 @@ const catalogs: Record<Locale, Messages> = {
     correctAnswer: "Gabarito",
     noAnswer: "Sem resposta",
     explanationLabel: "Explicação",
+    collectionTitle: "Escolha o jogo",
+    collectionKicker: "Coleção de jogos",
+    generalGameTitle: "Quiz geral",
+    generalGameDescription: "Perguntas sobre história, lançamentos e integrantes.",
+    dailyGameTitle: "Partida diária",
+    dailyGameDescription: "Perguntas do dia com resultado compartilhável por data.",
+    themeHistory: "História do K-pop",
+    themeDaily: "Partida diária",
+    shareDailyHeader: (date, correct, total) => `K-pop Quiz Diário ${date} ${correct}/${total}`,
   },
   en: {
     skipLink: "Skip to quiz",
@@ -201,6 +219,15 @@ const catalogs: Record<Locale, Messages> = {
     correctAnswer: "Correct answer",
     noAnswer: "No answer",
     explanationLabel: "Explanation",
+    collectionTitle: "Choose game",
+    collectionKicker: "Game collection",
+    generalGameTitle: "General quiz",
+    generalGameDescription: "Questions about history, releases and members.",
+    dailyGameTitle: "Daily quiz",
+    dailyGameDescription: "Today's questions with a shareable result by date.",
+    themeHistory: "K-pop history",
+    themeDaily: "Daily quiz",
+    shareDailyHeader: (date, correct, total) => `K-pop Quiz Daily ${date} ${correct}/${total}`,
   },
 };
 

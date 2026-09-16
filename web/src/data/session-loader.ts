@@ -10,7 +10,7 @@ type ManifestEntry = { path: string; sha256: string; session_id: string };
 type Manifest = {
   schema_version: "kpop-quiz-web-manifest-v2";
   dataset_version: string;
-  sessions: Record<`${Locale}.${PlayMode}`, ManifestEntry>;
+  sessions: Record<string, ManifestEntry>;
 };
 
 const HASH = /^[0-9a-f]{64}$/;
@@ -23,10 +23,18 @@ function isManifest(value: unknown): value is Manifest {
     || typeof manifest.dataset_version !== "string" || !HASH.test(manifest.dataset_version)
     || typeof manifest.sessions !== "object" || manifest.sessions === null || Array.isArray(manifest.sessions)) return false;
   const sessions = manifest.sessions as Record<string, unknown>;
-  const keys = (["pt-BR", "en"] as const).flatMap((locale) =>
+  const baseKeys = (["pt-BR", "en"] as const).flatMap((locale) =>
     (["assisted", "standard", "expert"] as const).map((difficulty) => `${locale}.${difficulty}` as const));
-  if (Object.keys(sessions).sort().join() !== [...keys].sort().join()) return false;
-  return keys.every((key) => {
+  const dailyKeys = (["pt-BR", "en"] as const).flatMap((locale) =>
+    (["assisted", "standard", "expert"] as const).map((difficulty) => `daily.${locale}.${difficulty}` as const));
+  const validCombos = [
+    [...baseKeys].sort().join(),
+    [...dailyKeys].sort().join(),
+    [...baseKeys, ...dailyKeys].sort().join(),
+  ];
+  const sessionKeys = Object.keys(sessions).sort().join();
+  if (!validCombos.includes(sessionKeys)) return false;
+  return Object.keys(sessions).every((key) => {
     const entry = sessions[key];
     if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return false;
     const fields = entry as Record<string, unknown>;
@@ -47,7 +55,16 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function loadQuizSession(locale: Locale, playMode: PlayMode, baseUrl = import.meta.env.BASE_URL): Promise<QuizSession> {
+export async function loadQuizSession(
+  locale: Locale,
+  playMode: PlayMode,
+  themeOrBaseUrl: string = "history",
+  maybeBaseUrl?: string
+): Promise<QuizSession> {
+  const isTheme = !themeOrBaseUrl.startsWith("/") && !themeOrBaseUrl.startsWith("http");
+  const theme = isTheme ? themeOrBaseUrl : "history";
+  const baseUrl = (isTheme ? maybeBaseUrl : themeOrBaseUrl) ?? import.meta.env.BASE_URL;
+
   const manifestResponse = await fetch(dataUrl("manifest-v2.json", baseUrl));
   if (manifestResponse.status === 404) throw new QuizArtifactError("missing");
   if (!manifestResponse.ok) throw new QuizArtifactError("invalid");
@@ -58,7 +75,9 @@ export async function loadQuizSession(locale: Locale, playMode: PlayMode, baseUr
     throw new QuizArtifactError("invalid");
   }
   if (!isManifest(manifest)) throw new QuizArtifactError("invalid");
-  const entry = manifest.sessions[`${locale}.${playMode}`];
+  const sessionKey = theme === "daily" ? `daily.${locale}.${playMode}` : `${locale}.${playMode}`;
+  const entry = manifest.sessions[sessionKey];
+  if (!entry) throw new QuizArtifactError("missing");
   const response = await fetch(dataUrl(entry.path, baseUrl));
   if (response.status === 404) throw new QuizArtifactError("missing");
   if (!response.ok) throw new QuizArtifactError("invalid");
