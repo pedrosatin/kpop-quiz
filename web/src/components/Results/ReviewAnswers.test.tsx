@@ -135,20 +135,24 @@ describe("ReviewAnswers", () => {
     expect(screen.getByText("Pergunta 1 de 3")).toBeInTheDocument();
     expect(screen.getByText("Acertou.")).toBeInTheDocument();
     expect(screen.getByText("Cheer Up foi lançado pelo TWICE em 2016.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Abrir revisão no Wikidata" })).toHaveAttribute(
+    const wikidataLink = screen.getByRole("link", { name: "Abrir revisão no Wikidata" });
+    expect(wikidataLink).toHaveAttribute(
       "href",
       "https://www.wikidata.org/wiki/Q1"
     );
+    expect(wikidataLink).toHaveAttribute("rel", "noopener noreferrer");
 
     // Question 2: Incorrect
     expect(screen.getByText("Qual grupo estreou em 2014?")).toBeInTheDocument();
     expect(screen.getByText("Pergunta 2 de 3")).toBeInTheDocument();
     expect(screen.getAllByText("Não foi dessa vez.")).toHaveLength(2);
     expect(screen.getByText("Red Velvet estreou em agosto de 2014.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Abrir revisão no Wikipedia" })).toHaveAttribute(
+    const wikipediaLink = screen.getByRole("link", { name: "Abrir revisão no Wikipedia" });
+    expect(wikipediaLink).toHaveAttribute(
       "href",
       "https://pt.wikipedia.org/wiki/Red_Velvet"
     );
+    expect(wikipediaLink).toHaveAttribute("rel", "noopener noreferrer");
 
     // Question 3: Timed out / No answer
     expect(screen.getByText("Qual integrante nasceu em 1997?")).toBeInTheDocument();

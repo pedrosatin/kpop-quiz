@@ -27,13 +27,13 @@ export function QuizResult({
   totalQuestions,
   correctCount,
   elapsedSeconds = 0,
-  cluesUsedCount = 0,
+  cluesUsedCount,
   playMode = "standard",
   history = [],
 }: QuizResultProps) {
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
   const correct = correctCount ?? history.filter((h) => h.isCorrect).length;
-  const clues = cluesUsedCount || history.reduce((acc, h) => acc + h.cluesUsedCount, 0);
+  const clues = cluesUsedCount ?? history.reduce((acc, h) => acc + h.cluesUsedCount, 0);
 
   return (
     <section id="quiz" class="quiz-card result" aria-labelledby="result-heading">

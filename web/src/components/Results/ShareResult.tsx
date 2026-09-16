@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 
@@ -71,6 +71,7 @@ export function ShareResult({
   const [canCopy, setCanCopy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const hasShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
@@ -80,6 +81,12 @@ export function ShareResult({
     if (!hasShare && !hasCopy) {
       setShowFallback(true);
     }
+
+    return () => {
+      if (copyTimeoutRef.current !== null) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
   }, []);
 
   const shareText = generateShareText({
@@ -107,7 +114,13 @@ export function ShareResult({
       try {
         await navigator.clipboard.writeText(shareText);
         setCopied(true);
-        setTimeout(() => setCopied(false), 4000);
+        if (copyTimeoutRef.current !== null) {
+          clearTimeout(copyTimeoutRef.current);
+        }
+        copyTimeoutRef.current = setTimeout(() => {
+          setCopied(false);
+          copyTimeoutRef.current = null;
+        }, 4000);
         return;
       } catch {
         setShowFallback(true);
