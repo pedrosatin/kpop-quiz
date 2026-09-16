@@ -10,6 +10,7 @@ import { QuizResult } from "./QuizResult";
 import { loadStoredPreferences, saveStoredPlayMode, saveStoredTimerEnabled } from "./storage";
 import { computeAwardedPoints } from "./scoring";
 import { useQuizTimer } from "./useQuizTimer";
+import { getInitialUrlParams, updateUrlParams, type QuizTheme } from "./url-params";
 import type { QuestionResult, QuizMachineState } from "./types";
 
 export { groupEvidence, type DisplayEvidence, type QuestionResult, type QuizMachineState };
@@ -18,7 +19,8 @@ export function Quiz({ locale }: { locale: Locale }) {
   const messages = getMessages(locale);
   const [state, setState] = useState<QuizMachineState>("loading");
   const [session, setSession] = useState<QuizSession | null>(null);
-  const [playMode, setPlayMode] = useState<PlayMode>(() => loadStoredPreferences().playMode ?? "standard");
+  const [playMode, setPlayMode] = useState<PlayMode>(() => getInitialUrlParams().playMode);
+  const [theme, setTheme] = useState<QuizTheme>(() => getInitialUrlParams().theme);
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() => loadStoredPreferences().timerEnabled ?? false);
   const [revealedClues, setRevealedClues] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -35,7 +37,6 @@ export function Quiz({ locale }: { locale: Locale }) {
   const focusQuestionRef = useRef(false);
   const loadRequestRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
-
   const question = session?.questions[questionIndex];
   const timerSeconds = timerEnabled ? 20 : session?.config.timer_seconds ?? null;
 
@@ -75,7 +76,7 @@ export function Quiz({ locale }: { locale: Locale }) {
   const load = () => {
     const request = ++loadRequestRef.current;
     if (state !== "setup") setState("loading");
-    loadQuizSession(locale, playMode)
+    loadQuizSession(locale, playMode, theme)
       .then((value) => {
         if (request !== loadRequestRef.current) return;
         if (!isQuizSession(value)) throw new Error("Invalid quiz session");
@@ -93,16 +94,12 @@ export function Quiz({ locale }: { locale: Locale }) {
   useEffect(() => {
     load();
     return () => { loadRequestRef.current += 1; stopTimer(); };
-  }, [locale, playMode]);
+  }, [locale, playMode, theme]);
 
   useEffect(() => {
     if (state === "question.answered") feedbackRef.current?.focus();
-  }, [state]);
-
-  useEffect(() => {
-    if (state === "results") {
-      resultHeadingRef.current?.focus();
-    } else if (focusQuestionRef.current && (state === "question.ready" || state === "setup")) {
+    else if (state === "results") resultHeadingRef.current?.focus();
+    else if (focusQuestionRef.current && (state === "question.ready" || state === "setup")) {
       headingRef.current?.focus();
       focusQuestionRef.current = false;
     }
@@ -111,6 +108,7 @@ export function Quiz({ locale }: { locale: Locale }) {
   const start = () => {
     saveStoredPlayMode(playMode);
     saveStoredTimerEnabled(timerEnabled);
+    updateUrlParams(playMode, theme);
     focusQuestionRef.current = true;
     startTimeRef.current = Date.now();
     setSecondsLeft(timerSeconds ?? 0);
@@ -159,27 +157,30 @@ export function Quiz({ locale }: { locale: Locale }) {
   };
 
   if (state === "loading") return <QuizState label={messages.loading} busy />;
-  if (state === "missing" || state === "invalid") {
-    return <QuizState label={state === "missing" ? messages.artifactMissing : messages.artifactInvalid} action={messages.retry} onAction={load} />;
-  }
+  if (state === "missing" || state === "invalid") return <QuizState label={state === "missing" ? messages.artifactMissing : messages.artifactInvalid} action={messages.retry} onAction={load} />;
   if (state === "empty" || !session || !question) return <QuizState label={messages.empty} />;
   if (state === "setup") {
     return (
       <GameSetup
-        playMode={playMode} timerEnabled={timerEnabled} onStart={start} messages={messages}
-        onSelectMode={(mode) => { setPlayMode(mode); saveStoredPlayMode(mode); }}
+        playMode={playMode} theme={theme} timerEnabled={timerEnabled} messages={messages}
+        onSelectTheme={(t) => { setTheme(t); updateUrlParams(playMode, t); }}
+        onSelectMode={(mode) => { setPlayMode(mode); saveStoredPlayMode(mode); updateUrlParams(mode, theme); }}
         onTimerChange={(enabled) => { setTimerEnabled(enabled); saveStoredTimerEnabled(enabled); }}
-        isReady={session.config.play_mode === playMode}
+        onStart={start} isReady={session.config.play_mode === playMode}
       />
     );
   }
   if (state === "results") {
+    const dailyDate = theme === "daily" && session.config.seed?.startsWith("kpop-daily-")
+      ? session.config.seed.replace("kpop-daily-", "")
+      : theme === "daily" ? new Date().toISOString().slice(0, 10) : undefined;
     return (
       <QuizResult
         score={score} totalQuestions={session.questions.length} messages={messages}
         correctCount={history.filter((h) => h.isCorrect).length} elapsedSeconds={elapsedSeconds}
         cluesUsedCount={history.reduce((acc, h) => acc + h.cluesUsedCount, 0)}
         playMode={playMode} history={history} headingRef={resultHeadingRef} onRestart={restart}
+        dailyDate={dailyDate}
       />
     );
   }

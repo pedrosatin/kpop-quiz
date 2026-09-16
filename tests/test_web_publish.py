@@ -1,12 +1,23 @@
+import hashlib
 import json
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import web_publish
-from kpop_scraping.web_publish import build_manifest, main, publish, verify
+from kpop_scraping.web_publish import (
+    build_manifest,
+    create_daily_sessions,
+    main,
+    parse_daily_date,
+    publish,
+    verify,
+)
+from kpop_scraping.quiz_generator import generate_dataset
 from kpop_scraping.quiz_schema import validate_session
+from tests.test_quiz_generator import build_quiz_database
 
 
 FIXTURES = Path(__file__).parents[1] / "web" / "public" / "data"
@@ -149,3 +160,100 @@ class WebPublishTests(unittest.TestCase):
     def test_checked_in_fixtures_are_valid(self):
         for session in self.sessions().values():
             validate_session(session)
+
+    def test_daily_sessions_determinism_same_date_repeats_hashes(self):
+        connection = build_quiz_database()
+        try:
+            dataset, _ = generate_dataset(connection)
+        finally:
+            connection.close()
+
+        sessions_a = create_daily_sessions(dataset, "2026-09-16")
+        sessions_b = create_daily_sessions(dataset, "2026-09-16")
+
+        self.assertEqual(sessions_a.keys(), sessions_b.keys())
+        for key in sessions_a:
+            self.assertEqual(sessions_a[key]["session_id"], sessions_b[key]["session_id"])
+            hash_a = hashlib.sha256(web_publish._session_bytes(sessions_a[key])).hexdigest()
+            hash_b = hashlib.sha256(web_publish._session_bytes(sessions_b[key])).hexdigest()
+            self.assertEqual(hash_a, hash_b)
+            self.assertEqual(sessions_a[key]["config"]["seed"], "kpop-daily-2026-09-16")
+
+    def test_daily_sessions_different_dates_produce_different_sessions(self):
+        connection = build_quiz_database()
+        try:
+            dataset, _ = generate_dataset(connection)
+        finally:
+            connection.close()
+
+        sessions_day1 = create_daily_sessions(dataset, "2026-09-16")
+        sessions_day2 = create_daily_sessions(dataset, "2026-09-17")
+
+        for key in sessions_day1:
+            self.assertNotEqual(
+                sessions_day1[key]["session_id"],
+                sessions_day2[key]["session_id"],
+            )
+            hash1 = hashlib.sha256(web_publish._session_bytes(sessions_day1[key])).hexdigest()
+            hash2 = hashlib.sha256(web_publish._session_bytes(sessions_day2[key])).hexdigest()
+            self.assertNotEqual(hash1, hash2)
+
+    def test_manifest_and_publish_with_base_and_daily_sessions(self):
+        connection = build_quiz_database()
+        try:
+            dataset, _ = generate_dataset(connection)
+        finally:
+            connection.close()
+
+        base = {
+            f"{locale}.{difficulty}": web_publish.create_session(
+                dataset,
+                web_publish.QuizConfig(locale, "test-seed", play_mode=difficulty),
+            )
+            for locale in web_publish.LOCALES
+            for difficulty in web_publish.DIFFICULTIES
+        }
+        daily = create_daily_sessions(dataset, "2026-09-16")
+        all_sessions = {**base, **daily}
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, all_sessions)
+            verify(output)
+            manifest = json.loads((output / "manifest-v2.json").read_text())
+            self.assertEqual(len(manifest["sessions"]), 12)
+            for key in all_sessions:
+                self.assertIn(key, manifest["sessions"])
+                item = manifest["sessions"][key]
+                self.assertEqual(item["path"], f"session.{key}.{item['sha256']}.json")
+                self.assertTrue((output / item["path"]).is_file())
+
+    def test_cli_supports_date_option(self):
+        connection = build_quiz_database()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            db_path = root / "test.db"
+            disk = sqlite3.connect(db_path)
+            try:
+                connection.backup(disk)
+            finally:
+                disk.close()
+                connection.close()
+
+            output = root / "web_data"
+            code = main(["--database", str(db_path), "--output-dir", str(output), "--date", "2026-09-16"])
+            self.assertEqual(code, 0)
+            verify(output)
+            manifest = json.loads((output / "manifest-v2.json").read_text())
+            self.assertIn("daily.pt-BR.standard", manifest["sessions"])
+            self.assertIn("pt-BR.standard", manifest["sessions"])
+
+    def test_parse_daily_date_validation(self):
+        self.assertEqual(parse_daily_date("2026-09-16"), "2026-09-16")
+        self.assertRegex(parse_daily_date(None), r"^\d{4}-\d{2}-\d{2}$")
+        with self.assertRaises(ValueError):
+            parse_daily_date("2026-9-16")
+        with self.assertRaises(ValueError):
+            parse_daily_date("invalid-date")
+        with self.assertRaises(ValueError):
+            parse_daily_date("2026-02-30")

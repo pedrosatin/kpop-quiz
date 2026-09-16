@@ -8,8 +8,18 @@ import expertSession from "../../../public/data/session.pt-BR.expert.06f58763382
 import manifest from "../../../public/data/manifest-v2.json";
 
 function mockSessionFetch() {
+  const testManifest = structuredClone(manifest) as Record<string, any>;
+  for (const locale of ["pt-BR", "en"]) {
+    for (const mode of ["assisted", "standard", "expert"]) {
+      testManifest.sessions[`daily.${locale}.${mode}`] = {
+        path: `session.daily.${locale}.${mode}.${testManifest.sessions[`${locale}.${mode}`].sha256}.json`,
+        sha256: testManifest.sessions[`${locale}.${mode}`].sha256,
+        session_id: testManifest.sessions[`${locale}.${mode}`].session_id,
+      };
+    }
+  }
   vi.stubGlobal("fetch", vi.fn((url: string) => {
-    const payload = url.endsWith("manifest-v2.json") ? manifest
+    const payload = url.endsWith("manifest-v2.json") ? testManifest
       : url.includes("pt-BR.assisted") ? assistedSession
       : url.includes("pt-BR.expert") ? expertSession
       : url.includes("pt-BR") ? ptSession : enSession;
@@ -32,6 +42,7 @@ describe("Quiz", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     window.localStorage.clear();
+    window.history.replaceState(null, "", "/");
   });
 
   it("groups visually identical evidence without changing the session", () => {
@@ -312,6 +323,66 @@ describe("Quiz", () => {
     const fetchedUrls = fetch.mock.calls.map((call) => call[0] as string);
     expect(fetchedUrls.some((url) => url.includes("standard"))).toBe(false);
     expect(fetchedUrls.some((url) => url.includes("expert"))).toBe(true);
+  });
+
+  it("initializes mode and theme from URL query parameters on mount", async () => {
+    window.history.replaceState(null, "", "/?mode=expert&theme=daily");
+    mockSessionFetch();
+
+    render(<Quiz locale="pt-BR" />);
+    await screen.findByRole("heading", { name: "Escolha como jogar" });
+
+    const expertRadio = screen.getByRole("radio", { name: /Especialista/ });
+    const dailyRadio = screen.getByRole("radio", { name: /Partida diária/ });
+
+    expect(expertRadio).toBeChecked();
+    expect(dailyRadio).toBeChecked();
+  });
+
+  it("updates URL with window.history.replaceState when user alters mode or theme", async () => {
+    window.history.replaceState(null, "", "/");
+    const replaceSpy = vi.spyOn(window.history, "replaceState");
+    mockSessionFetch();
+
+    render(<Quiz locale="pt-BR" />);
+    await screen.findByRole("heading", { name: "Escolha como jogar" });
+
+    const expertRadio = screen.getByRole("radio", { name: /Especialista/ });
+    fireEvent.click(expertRadio);
+
+    expect(replaceSpy).toHaveBeenCalled();
+    const lastCallUrl = replaceSpy.mock.calls[replaceSpy.mock.calls.length - 1]![2] as string;
+    expect(lastCallUrl).toContain("mode=expert");
+
+    const dailyRadio = screen.getByRole("radio", { name: /Partida diária/ });
+    fireEvent.click(dailyRadio);
+
+    const afterThemeUrl = replaceSpy.mock.calls[replaceSpy.mock.calls.length - 1]![2] as string;
+    expect(afterThemeUrl).toContain("theme=daily");
+    expect(afterThemeUrl).toContain("mode=expert");
+  });
+
+  it("synchronizes language switch link href with current mode and theme URL parameters", async () => {
+    const langLink = document.createElement("a");
+    langLink.className = "language-link";
+    langLink.href = "/en/";
+    document.body.appendChild(langLink);
+
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await screen.findByRole("heading", { name: "Escolha como jogar" });
+
+    const expertRadio = screen.getByRole("radio", { name: /Especialista/ });
+    fireEvent.click(expertRadio);
+
+    expect(langLink.search).toContain("mode=expert");
+
+    const dailyRadio = screen.getByRole("radio", { name: /Partida diária/ });
+    fireEvent.click(dailyRadio);
+
+    expect(langLink.search).toContain("theme=daily");
+
+    document.body.removeChild(langLink);
   });
 });
 
