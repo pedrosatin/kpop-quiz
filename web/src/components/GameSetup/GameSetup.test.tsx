@@ -1,0 +1,72 @@
+import { fireEvent, render, screen } from "@testing-library/preact";
+import { describe, expect, it, vi } from "vitest";
+import { GameSetup } from "./GameSetup";
+import { DifficultyPicker } from "./DifficultyPicker";
+import { TimerControl } from "./TimerControl";
+import { getMessages } from "../../i18n/catalog";
+
+const messages = getMessages("pt-BR");
+
+describe("GameSetup components", () => {
+  it("renders DifficultyPicker and triggers mode selection callback", () => {
+    const onSelect = vi.fn();
+    render(
+      <DifficultyPicker
+        playMode="standard"
+        onSelectMode={onSelect}
+        messages={messages}
+      />
+    );
+    const expertRadio = screen.getByRole("radio", { name: /Especialista/ });
+    fireEvent.click(expertRadio);
+    expect(onSelect).toHaveBeenCalledWith("expert");
+  });
+
+  it("renders TimerControl and responds to toggle", () => {
+    const onChange = vi.fn();
+    render(
+      <TimerControl
+        enabled={false}
+        onChange={onChange}
+        label={messages.enableTimer}
+      />
+    );
+    const checkbox = screen.getByRole("checkbox", { name: messages.enableTimer });
+    expect(checkbox).not.toBeChecked();
+    fireEvent.click(checkbox);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it("renders GameSetup with rules and disables start button when not ready", () => {
+    const onStart = vi.fn();
+    const { rerender } = render(
+      <GameSetup
+        playMode="expert"
+        onSelectMode={vi.fn()}
+        timerEnabled={false}
+        onTimerChange={vi.fn()}
+        onStart={onStart}
+        isReady={false}
+        messages={messages}
+      />
+    );
+    expect(screen.getByText(messages.roundRules)).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: messages.start });
+    expect(button).toBeDisabled();
+
+    rerender(
+      <GameSetup
+        playMode="expert"
+        onSelectMode={vi.fn()}
+        timerEnabled={false}
+        onTimerChange={vi.fn()}
+        onStart={onStart}
+        isReady={true}
+        messages={messages}
+      />
+    );
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    expect(onStart).toHaveBeenCalledTimes(1);
+  });
+});
