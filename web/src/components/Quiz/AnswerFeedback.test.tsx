@@ -54,4 +54,22 @@ describe("AnswerFeedback", () => {
     expect(screen.getByText("Resposta correta:")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ver resultado" })).toBeInTheDocument();
   });
+
+  it("displays timeout feedback and shows correct answer even if isCorrect is passed as true", () => {
+    render(
+      <AnswerFeedback
+        isCorrect={true}
+        timedOut={true}
+        correctOption={{ id: "opt-1", label: "TWICE", value: "TWICE", value_type: "group" }}
+        explanation="O tempo expirou."
+        evidence={sampleEvidence}
+        messages={messages}
+        isLastQuestion={false}
+        onAdvance={vi.fn()}
+      />
+    );
+    expect(screen.getByText("O tempo acabou.")).toBeInTheDocument();
+    expect(screen.getByText("Resposta correta:")).toBeInTheDocument();
+    expect(screen.getByText("TWICE")).toBeInTheDocument();
+  });
 });

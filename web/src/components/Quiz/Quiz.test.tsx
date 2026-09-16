@@ -250,5 +250,66 @@ describe("Quiz", () => {
     fireEvent.click(timerCheckbox);
     expect(window.localStorage.getItem("kpop-quiz-timer-enabled")).toBe("false");
   });
+
+  it("shows timeout feedback and correct answer when timer expires even if correct option was selected", async () => {
+    vi.useFakeTimers();
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: "Escolha como jogar" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("checkbox", { name: "Usar 20 segundos por pergunta" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar rodada" }));
+    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument());
+
+    const question = ptSession.questions[0]!;
+    const answer = question.options.find((option) => option.id === question.answer_option_id)!;
+    fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+
+    for (let second = 0; second < 20; second += 1) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    }
+
+    expect(screen.getByText("O tempo acabou.")).toBeInTheDocument();
+    expect(screen.getByText(/Resposta correta/)).toBeInTheDocument();
+    expect(screen.queryByText("Acertou.")).not.toBeInTheDocument();
+  });
+
+  it("does not reset the timer countdown when user selects options during question", async () => {
+    vi.useFakeTimers();
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: "Escolha como jogar" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("checkbox", { name: "Usar 20 segundos por pergunta" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar rodada" }));
+    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument());
+
+    // Advance 500ms into the first second
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+
+    // Select an option, triggering a re-render
+    const options = screen.getAllByRole("radio");
+    fireEvent.click(options[0]!);
+
+    // Advance remaining 500ms (total 1000ms from start)
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+
+    // Timer should have ticked from 20s down to 19s
+    expect(screen.getByRole("timer")).toHaveTextContent("19s");
+  });
+
+  it("initializes playMode lazily from localStorage avoiding double session fetch", async () => {
+    window.localStorage.setItem("kpop-quiz-play-mode", "expert");
+    const fetch = vi.fn((url: string) => {
+      const payload = url.endsWith("manifest-v2.json") ? manifest : expertSession;
+      return Promise.resolve(new Response(`${JSON.stringify(payload)}\n`));
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    render(<Quiz locale="pt-BR" />);
+    await screen.findByRole("heading", { name: "Escolha como jogar" });
+
+    const fetchedUrls = fetch.mock.calls.map((call) => call[0] as string);
+    expect(fetchedUrls.some((url) => url.includes("standard"))).toBe(false);
+    expect(fetchedUrls.some((url) => url.includes("expert"))).toBe(true);
+  });
 });
 
