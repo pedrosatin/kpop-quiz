@@ -1,3 +1,5 @@
+import type { QuizQuestion } from "../../lib/quiz-types";
+
 export type QuizMachineState =
   | "loading"
   | "setup"
@@ -7,3 +9,11 @@ export type QuizMachineState =
   | "missing"
   | "invalid"
   | "empty";
+
+export interface QuestionResult {
+  question: QuizQuestion;
+  selectedOptionId: string | null;
+  isCorrect: boolean;
+  cluesUsedCount: number;
+}
+

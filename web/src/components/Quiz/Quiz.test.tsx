@@ -227,6 +227,8 @@ describe("Quiz", () => {
     expect(resultHeading).toBeInTheDocument();
     expect(resultHeading).toHaveFocus();
     expect(screen.getByText("1000")).toBeInTheDocument();
+    expect(screen.getByText("10/10")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Revisão das respostas" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
     const firstHeading = await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
     expect(firstHeading).toBeInTheDocument();

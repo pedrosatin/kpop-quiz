@@ -10,25 +10,23 @@ import { QuizResult } from "./QuizResult";
 import { loadStoredPreferences, saveStoredPlayMode, saveStoredTimerEnabled } from "./storage";
 import { computeAwardedPoints } from "./scoring";
 import { useQuizTimer } from "./useQuizTimer";
-import type { QuizMachineState } from "./types";
+import type { QuestionResult, QuizMachineState } from "./types";
 
-export { groupEvidence, type DisplayEvidence, type QuizMachineState };
+export { groupEvidence, type DisplayEvidence, type QuestionResult, type QuizMachineState };
 
 export function Quiz({ locale }: { locale: Locale }) {
   const messages = getMessages(locale);
   const [state, setState] = useState<QuizMachineState>("loading");
   const [session, setSession] = useState<QuizSession | null>(null);
-  const [playMode, setPlayMode] = useState<PlayMode>(() => {
-    return loadStoredPreferences().playMode ?? "standard";
-  });
-  const [timerEnabled, setTimerEnabled] = useState<boolean>(() => {
-    return loadStoredPreferences().timerEnabled ?? false;
-  });
+  const [playMode, setPlayMode] = useState<PlayMode>(() => loadStoredPreferences().playMode ?? "standard");
+  const [timerEnabled, setTimerEnabled] = useState<boolean>(() => loadStoredPreferences().timerEnabled ?? false);
   const [revealedClues, setRevealedClues] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [score, setScore] = useState(0);
+  const [history, setHistory] = useState<QuestionResult[]>([]);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const feedbackRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -36,9 +34,19 @@ export function Quiz({ locale }: { locale: Locale }) {
   const answerLockedRef = useRef(false);
   const focusQuestionRef = useRef(false);
   const loadRequestRef = useRef(0);
+  const startTimeRef = useRef<number | null>(null);
 
   const question = session?.questions[questionIndex];
   const timerSeconds = timerEnabled ? 20 : session?.config.timer_seconds ?? null;
+
+  const recordAnswer = (selected: string | null, isCorrect: boolean) => {
+    if (question) {
+      setHistory((prev) => [...prev, { question, selectedOptionId: selected, isCorrect, cluesUsedCount: revealedClues.length }]);
+    }
+    if (questionIndex === (session?.questions.length ?? 0) - 1 && startTimeRef.current) {
+      setElapsedSeconds(Math.max(0, Math.round((Date.now() - startTimeRef.current) / 1000)));
+    }
+  };
 
   const { secondsLeft, setSecondsLeft, stopTimer } = useQuizTimer({
     active: state === "question.ready" && Boolean(question),
@@ -46,6 +54,7 @@ export function Quiz({ locale }: { locale: Locale }) {
     onExpire: () => {
       answerLockedRef.current = true;
       setTimedOut(true);
+      recordAnswer(null, false);
       setState("question.answered");
     },
   });
@@ -56,6 +65,8 @@ export function Quiz({ locale }: { locale: Locale }) {
     setTimedOut(false);
     setScore(0);
     setRevealedClues([]);
+    setHistory([]);
+    setElapsedSeconds(0);
     answerLockedRef.current = false;
     setSecondsLeft(seconds);
     setState(count > 0 ? nextState : "empty");
@@ -101,6 +112,7 @@ export function Quiz({ locale }: { locale: Locale }) {
     saveStoredPlayMode(playMode);
     saveStoredTimerEnabled(timerEnabled);
     focusQuestionRef.current = true;
+    startTimeRef.current = Date.now();
     setSecondsLeft(timerSeconds ?? 0);
     setState("question.ready");
   };
@@ -109,15 +121,18 @@ export function Quiz({ locale }: { locale: Locale }) {
     if (!question || !selectedId || answerLockedRef.current) return;
     answerLockedRef.current = true;
     stopTimer();
-    if (selectedId === question.answer_option_id) {
-      setScore((val) => val + computeAwardedPoints(question, revealedClues));
-    }
+    const isCorrect = selectedId === question.answer_option_id;
+    if (isCorrect) setScore((val) => val + computeAwardedPoints(question, revealedClues));
+    recordAnswer(selectedId, isCorrect);
     setState("question.answered");
   };
 
   const advance = () => {
     if (!session) return;
     if (questionIndex === session.questions.length - 1) {
+      if (elapsedSeconds === 0 && startTimeRef.current) {
+        setElapsedSeconds(Math.max(0, Math.round((Date.now() - startTimeRef.current) / 1000)));
+      }
       setState("results");
       return;
     }
@@ -132,6 +147,7 @@ export function Quiz({ locale }: { locale: Locale }) {
   };
 
   const restart = () => {
+    startTimeRef.current = Date.now();
     resetRound(session?.questions.length ?? 0, timerSeconds ?? 0, "question.ready");
     focusQuestionRef.current = true;
   };
@@ -150,40 +166,31 @@ export function Quiz({ locale }: { locale: Locale }) {
   if (state === "setup") {
     return (
       <GameSetup
-        playMode={playMode}
+        playMode={playMode} timerEnabled={timerEnabled} onStart={start} messages={messages}
         onSelectMode={(mode) => { setPlayMode(mode); saveStoredPlayMode(mode); }}
-        timerEnabled={timerEnabled}
         onTimerChange={(enabled) => { setTimerEnabled(enabled); saveStoredTimerEnabled(enabled); }}
-        onStart={start}
         isReady={session.config.play_mode === playMode}
-        messages={messages}
       />
     );
   }
   if (state === "results") {
-    return <QuizResult score={score} messages={messages} headingRef={resultHeadingRef} onRestart={restart} />;
+    return (
+      <QuizResult
+        score={score} totalQuestions={session.questions.length} messages={messages}
+        correctCount={history.filter((h) => h.isCorrect).length} elapsedSeconds={elapsedSeconds}
+        cluesUsedCount={history.reduce((acc, h) => acc + h.cluesUsedCount, 0)}
+        playMode={playMode} history={history} headingRef={resultHeadingRef} onRestart={restart}
+      />
+    );
   }
 
   return (
     <QuizRound
-      session={session}
-      question={question}
-      questionIndex={questionIndex}
-      score={score}
-      secondsLeft={secondsLeft}
-      timerVisible={timerSeconds !== null}
-      selectedId={selectedId}
-      onSelectOption={setSelectedId}
-      answered={state === "question.answered"}
-      timedOut={timedOut}
-      revealedClues={revealedClues}
-      playMode={playMode}
-      headingRef={headingRef}
-      feedbackRef={feedbackRef}
-      onSubmit={submit}
-      onAdvance={advance}
-      onRevealClue={revealClue}
-      messages={messages}
+      session={session} question={question} questionIndex={questionIndex} score={score}
+      secondsLeft={secondsLeft} timerVisible={timerSeconds !== null} selectedId={selectedId}
+      onSelectOption={setSelectedId} answered={state === "question.answered"} timedOut={timedOut}
+      revealedClues={revealedClues} playMode={playMode} headingRef={headingRef} feedbackRef={feedbackRef}
+      onSubmit={submit} onAdvance={advance} onRevealClue={revealClue} messages={messages}
     />
   );
 }
