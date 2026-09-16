@@ -1,5 +1,6 @@
 import type { PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
+import type { QuizTheme } from "../Quiz/url-params";
 import { DifficultyPicker } from "./DifficultyPicker";
 import { GameCollection } from "./GameCollection";
 import { TimerControl } from "./TimerControl";
@@ -7,8 +8,8 @@ import { TimerControl } from "./TimerControl";
 export interface GameSetupProps {
   playMode: PlayMode;
   onSelectMode: (mode: PlayMode) => void;
-  theme?: string;
-  onSelectTheme?: (theme: string) => void;
+  theme?: QuizTheme;
+  onSelectTheme?: (theme: QuizTheme) => void;
   timerEnabled: boolean;
   onTimerChange: (enabled: boolean) => void;
   onStart: () => void;

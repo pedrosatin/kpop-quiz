@@ -197,8 +197,6 @@ def main(argv: list[str] | None = None) -> int:
         elif args.database:
             if not args.database.is_file():
                 raise ValueError(f"database does not exist: {args.database}")
-            date_str = parse_daily_date(args.date)
-            daily_seed = f"kpop-daily-{date_str}"
             connection = sqlite3.connect(f"{args.database.resolve().as_uri()}?mode=ro", uri=True)
             connection.row_factory = sqlite3.Row
             try:
@@ -212,13 +210,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 for locale in LOCALES for difficulty in DIFFICULTIES
             }
-            daily_sessions = {
-                f"daily.{locale}.{difficulty}": create_session(
-                    dataset,
-                    QuizConfig(locale, daily_seed, play_mode=difficulty, timer_seconds=args.timer_seconds),
-                )
-                for locale in LOCALES for difficulty in DIFFICULTIES
-            }
+            daily_sessions = create_daily_sessions(dataset, args.date, args.timer_seconds)
             sessions = {**base_sessions, **daily_sessions}
             publish(args.output_dir, sessions)
         else:
