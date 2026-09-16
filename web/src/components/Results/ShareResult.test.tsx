@@ -79,6 +79,32 @@ describe("ShareResult helper functions", () => {
     });
     expect(textEn).toContain("Expert · 0 hints · 01:25");
   });
+
+  it("includes daily date indicator in share text when dailyDate is provided", () => {
+    const textPt = generateShareText({
+      correctCount: 8,
+      totalQuestions: 10,
+      results: [true, true, true, true, false, true, true, true, true, false],
+      playMode: "standard",
+      cluesUsedCount: 1,
+      elapsedSeconds: 222,
+      messages: ptMessages,
+      dailyDate: "2026-09-16",
+    });
+    expect(textPt).toBe("K-pop Quiz Diário 2026-09-16 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42");
+
+    const textEn = generateShareText({
+      correctCount: 8,
+      totalQuestions: 10,
+      results: [true, true, true, true, false, true, true, true, true, false],
+      playMode: "standard",
+      cluesUsedCount: 1,
+      elapsedSeconds: 222,
+      messages: enMessages,
+      dailyDate: "2026-09-16",
+    });
+    expect(textEn).toBe("K-pop Quiz Daily 2026-09-16 8/10\n■■■■□ ■■■■□\nStandard · 1 hint · 03:42");
+  });
 });
 
 describe("ShareResult component", () => {
@@ -239,5 +265,33 @@ describe("ShareResult component", () => {
 
     const textarea = await screen.findByRole("textbox", { name: "Texto para cópia" });
     expect(textarea).toBeInTheDocument();
+  });
+
+  it("includes daily date in navigator.share when dailyDate is passed to ShareResult", async () => {
+    const shareMock = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window, "navigator", {
+      value: { ...originalNavigator, share: shareMock },
+      writable: true,
+      configurable: true,
+    });
+
+    render(
+      <ShareResult
+        correctCount={8}
+        totalQuestions={10}
+        results={[true, true, true, true, false, true, true, true, true, false]}
+        playMode="standard"
+        cluesUsedCount={1}
+        elapsedSeconds={222}
+        messages={ptMessages}
+        dailyDate="2026-09-16"
+      />
+    );
+
+    const shareBtn = screen.getByRole("button", { name: "Compartilhar resultado" });
+    fireEvent.click(shareBtn);
+    expect(shareMock).toHaveBeenCalledWith({
+      text: "K-pop Quiz Diário 2026-09-16 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42",
+    });
   });
 });

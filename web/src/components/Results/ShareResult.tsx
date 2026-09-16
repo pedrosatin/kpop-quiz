@@ -10,6 +10,7 @@ export interface GenerateShareTextParams {
   cluesUsedCount: number;
   elapsedSeconds: number;
   messages: Messages;
+  dailyDate?: string | null | undefined;
 }
 
 export function formatDuration(seconds: number): string {
@@ -41,8 +42,11 @@ export function generateShareText({
   cluesUsedCount,
   elapsedSeconds,
   messages,
+  dailyDate,
 }: GenerateShareTextParams): string {
-  const header = `K-pop Quiz ${correctCount}/${totalQuestions}`;
+  const header = dailyDate
+    ? messages.shareDailyHeader(dailyDate, correctCount, totalQuestions)
+    : `K-pop Quiz ${correctCount}/${totalQuestions}`;
   const squares = formatSquares(results);
   const details = `${messages.difficultyName(playMode)} · ${messages.shareHints(cluesUsedCount)} · ${formatDuration(elapsedSeconds)}`;
   return `${header}\n${squares}\n${details}`;
@@ -56,6 +60,7 @@ export interface ShareResultProps {
   cluesUsedCount: number;
   elapsedSeconds: number;
   messages: Messages;
+  dailyDate?: string | null | undefined;
 }
 
 export function ShareResult({
@@ -66,6 +71,7 @@ export function ShareResult({
   cluesUsedCount,
   elapsedSeconds,
   messages,
+  dailyDate,
 }: ShareResultProps) {
   const [canShare, setCanShare] = useState(false);
   const [canCopy, setCanCopy] = useState(false);
@@ -97,6 +103,7 @@ export function ShareResult({
     cluesUsedCount,
     elapsedSeconds,
     messages,
+    dailyDate,
   });
 
   const handleAction = async () => {

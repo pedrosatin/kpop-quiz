@@ -17,6 +17,7 @@ export interface QuizResultProps {
   cluesUsedCount?: number;
   playMode?: PlayMode;
   history?: QuestionResult[];
+  dailyDate?: string | null | undefined;
 }
 
 export function QuizResult({
@@ -30,6 +31,7 @@ export function QuizResult({
   cluesUsedCount,
   playMode = "standard",
   history = [],
+  dailyDate,
 }: QuizResultProps) {
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
   const correct = correctCount ?? history.filter((h) => h.isCorrect).length;
@@ -58,6 +60,7 @@ export function QuizResult({
           cluesUsedCount={clues}
           elapsedSeconds={elapsedSeconds}
           messages={messages}
+          dailyDate={dailyDate}
         />
         <button class="primary-action" type="button" onClick={onRestart}>
           {messages.restart}
