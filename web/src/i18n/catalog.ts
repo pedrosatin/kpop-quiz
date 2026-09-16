@@ -50,6 +50,19 @@ export interface Messages {
   themeAuto: string;
   themeLight: string;
   themeDark: string;
+  totalTime: string;
+  cluesUsed: string;
+  shareHints: (count: number) => string;
+  correctCountLabel: string;
+  share: string;
+  copyResult: string;
+  copiedToClipboard: string;
+  shareTextLabel: string;
+  reviewTitle: string;
+  yourAnswer: string;
+  correctAnswer: string;
+  noAnswer: string;
+  explanationLabel: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -107,6 +120,19 @@ const catalogs: Record<Locale, Messages> = {
     themeAuto: "Sistema",
     themeLight: "Claro",
     themeDark: "Escuro",
+    totalTime: "Tempo total",
+    cluesUsed: "Pistas reveladas",
+    shareHints: (count) => (count === 1 ? "1 pista" : `${count} pistas`),
+    correctCountLabel: "Acertos",
+    share: "Compartilhar resultado",
+    copyResult: "Copiar resultado",
+    copiedToClipboard: "Copiado para a área de transferência.",
+    shareTextLabel: "Texto para cópia",
+    reviewTitle: "Revisão das respostas",
+    yourAnswer: "Sua resposta",
+    correctAnswer: "Gabarito",
+    noAnswer: "Sem resposta",
+    explanationLabel: "Explicação",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -162,6 +188,19 @@ const catalogs: Record<Locale, Messages> = {
     themeAuto: "System",
     themeLight: "Light",
     themeDark: "Dark",
+    totalTime: "Total time",
+    cluesUsed: "Clues revealed",
+    shareHints: (count) => (count === 1 ? "1 hint" : `${count} hints`),
+    correctCountLabel: "Correct answers",
+    share: "Share result",
+    copyResult: "Copy result",
+    copiedToClipboard: "Copied to clipboard.",
+    shareTextLabel: "Text to copy",
+    reviewTitle: "Review answers",
+    yourAnswer: "Your answer",
+    correctAnswer: "Correct answer",
+    noAnswer: "No answer",
+    explanationLabel: "Explanation",
   },
 };
 
