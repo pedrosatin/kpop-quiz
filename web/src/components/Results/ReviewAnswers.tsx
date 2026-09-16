@@ -61,7 +61,7 @@ export function ReviewAnswers({ items, messages }: ReviewAnswersProps) {
                         <> {messages.declaredReference}: {ev.declaredReference}.</>
                       )}
                       {" "}
-                      <a href={ev.source_url} target="_blank" rel="noreferrer">
+                      <a href={ev.source_url} target="_blank" rel="noopener noreferrer">
                         {messages.openRevision(ev.project)}
                       </a>
                     </p>
