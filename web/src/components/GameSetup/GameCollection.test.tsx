@@ -78,4 +78,19 @@ describe("GameCollection component", () => {
     expect(screen.getByRole("radio", { name: /Quiz geral/ })).toBeDisabled();
     expect(screen.getByRole("radio", { name: /Partida diária/ })).toBeDisabled();
   });
+
+  it("renders link to the Intersection Grid game", () => {
+    render(
+      <GameCollection
+        selectedTheme="history"
+        onSelectTheme={vi.fn()}
+        messages={ptMessages}
+      />
+    );
+
+    const link = screen.getByRole("link", { name: new RegExp(ptMessages.gridGameTitle) });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/pt-br/grid/");
+  });
 });
+

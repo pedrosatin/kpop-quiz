@@ -275,3 +275,137 @@ export function isQuizSession(value: unknown): value is QuizSession {
       && (config.group_id === null || question.group_ids.includes(config.group_id as string))
       && question.play_mode === config.play_mode);
 }
+
+export type GridCriterionCategory = "formed_on" | "record_label" | "has_member";
+
+export interface GridCriterion {
+  id: string;
+  category: GridCriterionCategory;
+  label: { "pt-BR": string; en: string };
+}
+
+export interface GridEvidence {
+  fact_base_id: string;
+  locator: string;
+  revision_id: number;
+  source_key: string;
+  source_url: string;
+}
+
+export interface GridCellData {
+  row_index: number;
+  col_index: number;
+  valid_entity_ids: string[];
+  evidence: GridEvidence[];
+}
+
+export interface CandidateEntity {
+  id: string;
+  canonical_name: string;
+  names: { "pt-BR": string; en: string };
+}
+
+export interface IntersectionGrid {
+  schema_version: "kpop-intersection-grid-v1";
+  grid_id: string;
+  dataset_version: string;
+  reference_date: string;
+  dimensions: { rows: 3; cols: 3 };
+  row_criteria: GridCriterion[];
+  col_criteria: GridCriterion[];
+  cells: GridCellData[];
+  candidate_pool: CandidateEntity[];
+}
+
+const GRID_ROOT_FIELDS = [
+  "schema_version",
+  "grid_id",
+  "dataset_version",
+  "reference_date",
+  "dimensions",
+  "row_criteria",
+  "col_criteria",
+  "cells",
+  "candidate_pool",
+];
+const GRID_CRITERION_CATEGORIES = new Set<GridCriterionCategory>(["formed_on", "record_label", "has_member"]);
+const CRITERION_FIELDS = ["id", "category", "label"];
+const BILINGUAL_FIELDS = ["pt-BR", "en"];
+const DIMENSIONS_FIELDS = ["rows", "cols"];
+const CELL_FIELDS = ["row_index", "col_index", "valid_entity_ids", "evidence"];
+const CANDIDATE_FIELDS = ["id", "canonical_name", "names"];
+const GRID_EVIDENCE_FIELDS = ["fact_base_id", "locator", "revision_id", "source_key", "source_url"];
+
+function isBilingualText(value: unknown): value is { "pt-BR": string; en: string } {
+  return isRecord(value)
+    && hasExactKeys(value, BILINGUAL_FIELDS)
+    && typeof value["pt-BR"] === "string" && value["pt-BR"].length > 0
+    && typeof value.en === "string" && value.en.length > 0;
+}
+
+function isGridCriterion(value: unknown): value is GridCriterion {
+  return isRecord(value)
+    && hasExactKeys(value, CRITERION_FIELDS)
+    && typeof value.id === "string" && value.id.length > 0
+    && typeof value.category === "string" && GRID_CRITERION_CATEGORIES.has(value.category as GridCriterionCategory)
+    && isBilingualText(value.label);
+}
+
+function isCandidate(value: unknown): value is CandidateEntity {
+  return isRecord(value)
+    && hasExactKeys(value, CANDIDATE_FIELDS)
+    && typeof value.id === "string" && QID.test(value.id)
+    && typeof value.canonical_name === "string" && value.canonical_name.length > 0
+    && isBilingualText(value.names);
+}
+
+function isGridEvidence(value: unknown): value is GridEvidence {
+  return isRecord(value)
+    && hasExactKeys(value, GRID_EVIDENCE_FIELDS)
+    && typeof value.fact_base_id === "string" && value.fact_base_id.length > 0
+    && typeof value.locator === "string" && value.locator.length > 0
+    && Number.isInteger(value.revision_id) && (value.revision_id as number) >= 1
+    && typeof value.source_key === "string" && value.source_key.length > 0
+    && typeof value.source_url === "string" && value.source_url.startsWith("https://")
+    && isHttpsUrl(value.source_url);
+}
+
+function isGridCell(value: unknown, candidateQids: Set<string>): value is GridCellData {
+  if (!isRecord(value) || !hasExactKeys(value, CELL_FIELDS)) return false;
+  const { row_index, col_index, valid_entity_ids, evidence } = value;
+  return Number.isInteger(row_index) && (row_index as number) >= 0 && (row_index as number) <= 2
+    && Number.isInteger(col_index) && (col_index as number) >= 0 && (col_index as number) <= 2
+    && Array.isArray(valid_entity_ids) && valid_entity_ids.length >= 1
+    && isStringArray(valid_entity_ids, false)
+    && (valid_entity_ids as string[]).every((qid) => QID.test(qid) && candidateQids.has(qid))
+    && Array.isArray(evidence) && evidence.length >= 1
+    && evidence.every(isGridEvidence);
+}
+
+export function isIntersectionGrid(value: unknown): value is IntersectionGrid {
+  if (!isRecord(value) || !hasExactKeys(value, GRID_ROOT_FIELDS)) return false;
+  if (value.schema_version !== "kpop-intersection-grid-v1"
+    || typeof value.grid_id !== "string" || !HASH.test(value.grid_id)
+    || typeof value.dataset_version !== "string" || !HASH.test(value.dataset_version)
+    || !isDate(value.reference_date)) return false;
+
+  const { dimensions, row_criteria, col_criteria, candidate_pool, cells } = value;
+  if (!isRecord(dimensions) || !hasExactKeys(dimensions, DIMENSIONS_FIELDS)
+    || !Number.isInteger(dimensions.rows) || dimensions.rows !== 3
+    || !Number.isInteger(dimensions.cols) || dimensions.cols !== 3) return false;
+
+  if (!Array.isArray(row_criteria) || row_criteria.length !== 3 || !row_criteria.every(isGridCriterion)) return false;
+  if (new Set(row_criteria.map((c) => c.id)).size !== 3) return false;
+
+  if (!Array.isArray(col_criteria) || col_criteria.length !== 3 || !col_criteria.every(isGridCriterion)) return false;
+  if (new Set(col_criteria.map((c) => c.id)).size !== 3) return false;
+
+  if (!Array.isArray(candidate_pool) || candidate_pool.length < 1 || !candidate_pool.every(isCandidate)) return false;
+  const candidateQids = new Set(candidate_pool.map((c) => c.id));
+  if (candidateQids.size !== candidate_pool.length) return false;
+
+  if (!Array.isArray(cells) || cells.length !== 9 || !cells.every((c) => isGridCell(c, candidateQids))) return false;
+  const seenCoords = new Set((cells as GridCellData[]).map((c) => `${c.row_index},${c.col_index}`));
+  return seenCoords.size === 9;
+}
+
