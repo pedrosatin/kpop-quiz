@@ -33,6 +33,13 @@ export function GameCollection({
     },
   ];
 
+  const isPt = messages.languageName === "English";
+  const gridPath = isPt ? "/pt-br/grid/" : "/en/grid/";
+  const base = (typeof import.meta !== "undefined" && import.meta.env?.BASE_URL)
+    ? import.meta.env.BASE_URL.replace(/\/$/, "")
+    : "";
+  const gridHref = `${base}${gridPath}`;
+
   return (
     <fieldset class="game-collection" disabled={disabled}>
       <legend class="visually-hidden">{messages.collectionTitle}</legend>
@@ -54,6 +61,12 @@ export function GameCollection({
           </label>
         ))}
       </div>
+      <div class="collection-extra-mode">
+        <a href={gridHref} class="collection-grid-link">
+          <strong>{messages.gridGameTitle}</strong>: {messages.gridGameDescription}
+        </a>
+      </div>
     </fieldset>
   );
 }
+

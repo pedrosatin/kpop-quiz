@@ -6,7 +6,9 @@ import { getMessages } from "../i18n/catalog";
 interface Props { locale: Locale }
 const { locale } = Astro.props;
 const messages = getMessages(locale);
-const otherPath = locale === "pt-BR" ? "/en/" : "/pt-br/";
+const isGrid = Astro.url.pathname.includes("/grid");
+const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
+const otherPath = isGrid ? `${targetBase}grid/` : targetBase;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 <!doctype html>

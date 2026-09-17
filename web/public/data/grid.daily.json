@@ -1,0 +1,329 @@
+{
+  "schema_version": "kpop-intersection-grid-v1",
+  "grid_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "dataset_version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "reference_date": "2026-09-17",
+  "dimensions": {
+    "rows": 3,
+    "cols": 3
+  },
+  "row_criteria": [
+    {
+      "id": "row_formed_2010s",
+      "category": "formed_on",
+      "label": {
+        "pt-BR": "Estreou nos anos 2010",
+        "en": "Debuted in the 2010s"
+      }
+    },
+    {
+      "id": "row_formed_2000s",
+      "category": "formed_on",
+      "label": {
+        "pt-BR": "Estreou nos anos 2000",
+        "en": "Debuted in the 2000s"
+      }
+    },
+    {
+      "id": "row_members_4",
+      "category": "has_member",
+      "label": {
+        "pt-BR": "4 integrantes",
+        "en": "4 members"
+      }
+    }
+  ],
+  "col_criteria": [
+    {
+      "id": "col_jyp",
+      "category": "record_label",
+      "label": {
+        "pt-BR": "JYP Entertainment",
+        "en": "JYP Entertainment"
+      }
+    },
+    {
+      "id": "col_sm",
+      "category": "record_label",
+      "label": {
+        "pt-BR": "SM Entertainment",
+        "en": "SM Entertainment"
+      }
+    },
+    {
+      "id": "col_yg",
+      "category": "record_label",
+      "label": {
+        "pt-BR": "YG Entertainment",
+        "en": "YG Entertainment"
+      }
+    }
+  ],
+  "cells": [
+    {
+      "row_index": 0,
+      "col_index": 0,
+      "valid_entity_ids": [
+        "Q21461452",
+        "Q15629342"
+      ],
+      "evidence": [
+        {
+          "fact_base_id": "fb-0-0",
+          "locator": "claims/P264/Q21461452$1234/references/hash1",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    },
+    {
+      "row_index": 0,
+      "col_index": 1,
+      "valid_entity_ids": [
+        "Q494217",
+        "Q17466548"
+      ],
+      "evidence": [
+        {
+          "fact_base_id": "fb-0-1",
+          "locator": "claims/P264/Q21461452$1234/references/hash1",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    },
+    {
+      "row_index": 0,
+      "col_index": 2,
+      "valid_entity_ids": [
+        "Q25056705",
+        "Q14896798"
+      ],
+      "evidence": [
+        {
+          "fact_base_id": "fb-0-2",
+          "locator": "claims/P264/Q21461452$1234/references/hash1",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    },
+    {
+      "row_index": 1,
+      "col_index": 0,
+      "valid_entity_ids": [
+        "Q484432",
+        "Q489898"
+      ],
+      "evidence": [
+        {
+          "fact_base_id": "fb-1-0",
+          "locator": "claims/P264/Q21461452$1234/references/hash1",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    },
+    {
+      "row_index": 1,
+      "col_index": 1,
+      "valid_entity_ids": [
+        "Q20153",
+        "Q243884"
+      ],
+      "evidence": [
+        {
+          "fact_base_id": "fb-1-1",
+          "locator": "claims/P264/Q21461452$1234/references/hash1",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    },
+    {
+      "row_index": 1,
+      "col_index": 2,
+      "valid_entity_ids": [
+        "Q282287",
+        "Q483257"
+      ],
+      "evidence": [
+        {
+          "fact_base_id": "fb-1-2",
+          "locator": "claims/P264/Q21461452$1234/references/hash1",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    },
+    {
+      "row_index": 2,
+      "col_index": 0,
+      "valid_entity_ids": [
+        "Q284897"
+      ],
+      "evidence": [
+        {
+          "fact_base_id": "fb-2-0",
+          "locator": "claims/P264/Q21461452$1234/references/hash1",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    },
+    {
+      "row_index": 2,
+      "col_index": 1,
+      "valid_entity_ids": [
+        "Q100877991"
+      ],
+      "evidence": [
+        {
+          "fact_base_id": "fb-2-1",
+          "locator": "claims/P264/Q21461452$1234/references/hash1",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    },
+    {
+      "row_index": 2,
+      "col_index": 2,
+      "valid_entity_ids": [
+        "Q25056705",
+        "Q483257"
+      ],
+      "evidence": [
+        {
+          "fact_base_id": "fb-2-2",
+          "locator": "claims/P264/Q21461452$1234/references/hash1",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    }
+  ],
+  "candidate_pool": [
+    {
+      "id": "Q21461452",
+      "canonical_name": "TWICE",
+      "names": {
+        "pt-BR": "TWICE",
+        "en": "TWICE"
+      }
+    },
+    {
+      "id": "Q15629342",
+      "canonical_name": "GOT7",
+      "names": {
+        "pt-BR": "GOT7",
+        "en": "GOT7"
+      }
+    },
+    {
+      "id": "Q494217",
+      "canonical_name": "EXO",
+      "names": {
+        "pt-BR": "EXO",
+        "en": "EXO"
+      }
+    },
+    {
+      "id": "Q17466548",
+      "canonical_name": "Red Velvet",
+      "names": {
+        "pt-BR": "Red Velvet",
+        "en": "Red Velvet"
+      }
+    },
+    {
+      "id": "Q25056705",
+      "canonical_name": "BLACKPINK",
+      "names": {
+        "pt-BR": "BLACKPINK",
+        "en": "BLACKPINK"
+      }
+    },
+    {
+      "id": "Q14896798",
+      "canonical_name": "WINNER",
+      "names": {
+        "pt-BR": "WINNER",
+        "en": "WINNER"
+      }
+    },
+    {
+      "id": "Q484432",
+      "canonical_name": "Wonder Girls",
+      "names": {
+        "pt-BR": "Wonder Girls",
+        "en": "Wonder Girls"
+      }
+    },
+    {
+      "id": "Q489898",
+      "canonical_name": "2PM",
+      "names": {
+        "pt-BR": "2PM",
+        "en": "2PM"
+      }
+    },
+    {
+      "id": "Q20153",
+      "canonical_name": "Girls' Generation",
+      "names": {
+        "pt-BR": "Girls' Generation",
+        "en": "Girls' Generation"
+      }
+    },
+    {
+      "id": "Q243884",
+      "canonical_name": "SHINee",
+      "names": {
+        "pt-BR": "SHINee",
+        "en": "SHINee"
+      }
+    },
+    {
+      "id": "Q282287",
+      "canonical_name": "BIGBANG",
+      "names": {
+        "pt-BR": "BIGBANG",
+        "en": "BIGBANG"
+      }
+    },
+    {
+      "id": "Q483257",
+      "canonical_name": "2NE1",
+      "names": {
+        "pt-BR": "2NE1",
+        "en": "2NE1"
+      }
+    },
+    {
+      "id": "Q284897",
+      "canonical_name": "Miss A",
+      "names": {
+        "pt-BR": "Miss A",
+        "en": "Miss A"
+      }
+    },
+    {
+      "id": "Q100877991",
+      "canonical_name": "aespa",
+      "names": {
+        "pt-BR": "aespa",
+        "en": "aespa"
+      }
+    }
+  ]
+}

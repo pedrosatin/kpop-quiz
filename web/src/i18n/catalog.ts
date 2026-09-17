@@ -79,6 +79,41 @@ export interface Messages {
   mediaLicense: string;
   mediaSource: string;
   mediaUnavailable: string;
+  gridTitle: string;
+  gridEyebrow: string;
+  gridIntro: string;
+  gridGameTitle: string;
+  gridGameDescription: string;
+  gridGuessesLeft: (count: number) => string;
+  gridCorrectCount: (correct: number, total: number) => string;
+  gridCellLabel: (row: number, col: number, rowLabel: string, colLabel: string, status: string) => string;
+  gridCellEmpty: string;
+  gridCellSolved: (groupName: string) => string;
+  gridCellFailed: (lastAttempt?: string) => string;
+  gridPickerTitle: string;
+  gridPickerInstructions: string;
+  gridPickerSearchPlaceholder: string;
+  gridPickerSearchLabel: string;
+  gridPickerNoMatches: string;
+  gridPickerResultsCount: (count: number) => string;
+  gridAlreadyUsedError: string;
+  gridAlreadyUsedBadge: string;
+  gridSelectButton: string;
+  gridClosePicker: string;
+  gridGameOverTitle: string;
+  gridGameOverSummary: (correct: number, guesses: number) => string;
+  gridShareButton: string;
+  gridCopyButton: string;
+  gridCopiedNotice: string;
+  gridHighContrastShare: string;
+  gridReviewTitle: string;
+  gridReviewCellHeader: (row: number, col: number) => string;
+  gridAcceptedAnswers: string;
+  gridEvidenceSource: string;
+  gridRestart: string;
+  gridModeLink: string;
+  quizModeLink: string;
+  gridShareHeader: (date: string, correct: number, guesses: number) => string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -165,6 +200,41 @@ const catalogs: Record<Locale, Messages> = {
     mediaLicense: "Licença",
     mediaSource: "Fonte da imagem",
     mediaUnavailable: "Imagem indisponível",
+    gridTitle: "Grade de Interseções",
+    gridEyebrow: "9 células · 9 palpites",
+    gridIntro: "Cruze critérios de linhas e colunas para escolher grupos musicais válidos.",
+    gridGameTitle: "Grade de Interseções",
+    gridGameDescription: "Matriz 3x3 com critérios cruzados de gravadora, integrantes e data.",
+    gridGuessesLeft: (count) => (count === 1 ? "1 palpite restante" : `${count} palpites restantes`),
+    gridCorrectCount: (correct, total) => `${correct}/${total} células corretas`,
+    gridCellLabel: (row, col, rowLabel, colLabel, status) => `Linha ${row + 1}: ${rowLabel}, Coluna ${col + 1}: ${colLabel}. Estado: ${status}`,
+    gridCellEmpty: "Vazia. Pressione para escolher um grupo",
+    gridCellSolved: (groupName) => `Correta: ${groupName}`,
+    gridCellFailed: (lastAttempt) => (lastAttempt ? `Incorreta: tentou ${lastAttempt}` : "Incorreta"),
+    gridPickerTitle: "Selecione o grupo musical",
+    gridPickerInstructions: "Digite para filtrar pelo nome do grupo.",
+    gridPickerSearchPlaceholder: "Buscar grupo...",
+    gridPickerSearchLabel: "Buscar grupo por nome",
+    gridPickerNoMatches: "Nenhum grupo encontrado.",
+    gridPickerResultsCount: (count) => (count === 1 ? "1 grupo encontrado" : `${count} grupos encontrados`),
+    gridAlreadyUsedError: "Este grupo já foi utilizado nesta partida.",
+    gridAlreadyUsedBadge: "Já utilizado",
+    gridSelectButton: "Confirmar palpite",
+    gridClosePicker: "Fechar seletor",
+    gridGameOverTitle: "Fim da partida",
+    gridGameOverSummary: (correct, guesses) => `${correct}/9 acertos (${guesses} palpites usados)`,
+    gridShareButton: "Compartilhar grade",
+    gridCopyButton: "Copiar resultado",
+    gridCopiedNotice: "Resultado copiado para a área de transferência.",
+    gridHighContrastShare: "Versão monocromática (alto contraste)",
+    gridReviewTitle: "Revisão factual da grade",
+    gridReviewCellHeader: (row, col) => `Célula (${row + 1}, ${col + 1})`,
+    gridAcceptedAnswers: "Respostas aceitas no catálogo:",
+    gridEvidenceSource: "Fonte factual:",
+    gridRestart: "Jogar novamente",
+    gridModeLink: "Jogar Grade de Interseções",
+    quizModeLink: "Jogar Quiz tradicional",
+    gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 acertos (${guesses} palpites)`,
   },
   en: {
     skipLink: "Skip to quiz",
@@ -249,6 +319,41 @@ const catalogs: Record<Locale, Messages> = {
     mediaLicense: "License",
     mediaSource: "Image source",
     mediaUnavailable: "Image unavailable",
+    gridTitle: "Intersection Grid",
+    gridEyebrow: "9 cells · 9 guesses",
+    gridIntro: "Cross row and column criteria to select valid musical groups.",
+    gridGameTitle: "Intersection Grid",
+    gridGameDescription: "3x3 matrix with intersecting criteria for labels, members and dates.",
+    gridGuessesLeft: (count) => (count === 1 ? "1 guess remaining" : `${count} guesses remaining`),
+    gridCorrectCount: (correct, total) => `${correct}/${total} correct cells`,
+    gridCellLabel: (row, col, rowLabel, colLabel, status) => `Row ${row + 1}: ${rowLabel}, Column ${col + 1}: ${colLabel}. Status: ${status}`,
+    gridCellEmpty: "Empty. Press to select a group",
+    gridCellSolved: (groupName) => `Solved: ${groupName}`,
+    gridCellFailed: (lastAttempt) => (lastAttempt ? `Incorrect: tried ${lastAttempt}` : "Incorrect"),
+    gridPickerTitle: "Select musical group",
+    gridPickerInstructions: "Type to filter by group name.",
+    gridPickerSearchPlaceholder: "Search group...",
+    gridPickerSearchLabel: "Search group by name",
+    gridPickerNoMatches: "No groups found.",
+    gridPickerResultsCount: (count) => (count === 1 ? "1 group found" : `${count} groups found`),
+    gridAlreadyUsedError: "This group was already used in this match.",
+    gridAlreadyUsedBadge: "Already used",
+    gridSelectButton: "Confirm guess",
+    gridClosePicker: "Close selector",
+    gridGameOverTitle: "Match finished",
+    gridGameOverSummary: (correct, guesses) => `${correct}/9 correct (${guesses} guesses used)`,
+    gridShareButton: "Share grid",
+    gridCopyButton: "Copy result",
+    gridCopiedNotice: "Result copied to clipboard.",
+    gridHighContrastShare: "Monochrome version (high contrast)",
+    gridReviewTitle: "Factual grid review",
+    gridReviewCellHeader: (row, col) => `Cell (${row + 1}, ${col + 1})`,
+    gridAcceptedAnswers: "Accepted catalog answers:",
+    gridEvidenceSource: "Factual source:",
+    gridRestart: "Play again",
+    gridModeLink: "Play Intersection Grid",
+    quizModeLink: "Play traditional Quiz",
+    gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 correct (${guesses} guesses)`,
   },
 };
 
