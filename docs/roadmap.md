@@ -103,7 +103,7 @@ Página de coleção de jogos com `GameCollection`, suporte a partida diária de
 
 Registro de mídia com validação estrita de licenças em `kpop_scraping/media_registry.py` e schema JSON Draft 2020-12 com oito campos obrigatórios e enum de doze licenças comerciais ou editoriais permitidas. Componente `LicensedMedia` com texto alternativo neutro pré-resposta, atribuição completa pós-resposta, tratamento de erro de carregamento e contenção de Cumulative Layout Shift via CSS.
 
-## Fatia 14 em andamento
+## Fatia 14 concluída
 
 Objetivo: formalizar a especificação técnica e os contratos de dados da Grade de Interseções como nova família de jogos determinística e compatível com publicação estática.
 
@@ -112,8 +112,19 @@ Objetivo: formalizar a especificação técnica e os contratos de dados da Grade
 - validador e escrita atômica em `kpop_scraping/grid_schema.py`;
 - testes unitários e de contrato em `tests/test_grid_schema.py` com cobertura de casos positivos e negativos.
 
+## Fatia 15 em andamento
+
+Objetivo: implementar o gerador determinístico em Python e a CLI da Grade de Interseções.
+
+- gerador determinístico em `kpop_scraping/grid_generator.py` com suporte aos critérios ortogonais das três categorias do jogo;
+- avaliação de fatos e evidências de banco SQLite local com cálculo de interseções por célula;
+- seleção de grade 3x3 orientada por semente com garantia de solubilidade e atribuição distinta de grupos;
+- cálculo de identificador `grid_id` canônico via SHA-256 sobre o artefato;
+- interface de linha de comando em `kpop_scraping/grid_cli.py` com escrita atômica e suporte a partidas diárias via `--date`;
+- testes em `tests/test_grid_generator.py` para determinismo estrito, solubilidade, unicidade, integridade de schema e CLI.
+
 ## Fatias posteriores
 
-Concluída a especificação da grade de interseções na Fatia 14, o planejamento foca na implementação do gerador factual e do componente web do jogo 3x3, seguido pelas demais famílias: palavras conectadas, caça-palavras temático e adivinhação de nomes por tentativas. Frentes adicionais de dados abrangem discografia com datas auditáveis de lançamento ("Quando foi?"), desafios com mapas locais e integração de letras com fornecedor licenciado.
+Concluída a implementação do gerador na Fatia 15, o planejamento foca na implementação da interface web e componente acessível do jogo 3x3, seguido pelas demais famílias: palavras conectadas, caça-palavras temático e adivinhação de nomes por tentativas. Frentes adicionais de dados abrangem discografia com datas auditáveis de lançamento ("Quando foi?"), desafios com mapas locais e integração de letras com fornecedor licenciado.
 
 
