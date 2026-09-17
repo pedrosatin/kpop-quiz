@@ -1,3 +1,4 @@
+import type { Locale } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import type { QuizTheme } from "../Quiz/url-params";
 
@@ -5,6 +6,7 @@ export interface GameCollectionProps {
   selectedTheme: QuizTheme;
   onSelectTheme: (theme: QuizTheme) => void;
   messages: Messages;
+  locale?: Locale;
   disabled?: boolean;
 }
 
@@ -18,6 +20,7 @@ export function GameCollection({
   selectedTheme,
   onSelectTheme,
   messages,
+  locale,
   disabled = false,
 }: GameCollectionProps) {
   const options: ThemeOption[] = [
@@ -33,8 +36,8 @@ export function GameCollection({
     },
   ];
 
-  const isPt = messages.languageName === "English";
-  const gridPath = isPt ? "/pt-br/grid/" : "/en/grid/";
+  const currentLocale = locale ?? (messages.languageName === "English" ? "pt-BR" : "en");
+  const gridPath = currentLocale === "pt-BR" ? "/pt-br/grid/" : "/en/grid/";
   const base = (typeof import.meta !== "undefined" && import.meta.env?.BASE_URL)
     ? import.meta.env.BASE_URL.replace(/\/$/, "")
     : "";

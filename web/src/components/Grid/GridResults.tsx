@@ -90,7 +90,7 @@ export function GridResults({
       </header>
 
       <div class="grid-share-card">
-        <div class="share-matrix-preview" aria-label="Matriz de resultado" role="img">
+        <div class="share-matrix-preview" aria-label={messages.gridShareMatrixAriaLabel} role="img">
           {matrixLines.map((line, idx) => (
             <div key={idx} class="share-matrix-row">
               {line}

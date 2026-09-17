@@ -13,14 +13,14 @@ export interface GridBoardProps {
   messages: Messages;
 }
 
-function categoryBadge(category: GridCriterionCategory, locale: Locale): string {
+function categoryBadge(category: GridCriterionCategory, messages: Messages): string {
   switch (category) {
     case "formed_on":
-      return locale === "pt-BR" ? "Estreia" : "Debut";
+      return messages.gridCategoryDebut;
     case "record_label":
-      return locale === "pt-BR" ? "Empresa" : "Agency";
+      return messages.gridCategoryAgency;
     case "has_member":
-      return locale === "pt-BR" ? "Formação" : "Members";
+      return messages.gridCategoryMembers;
   }
 }
 
@@ -71,11 +71,11 @@ export function GridBoard({
         <thead>
           <tr role="row">
             <th scope="col" class="grid-corner-cell">
-              <span class="visually-hidden">Eixos</span>
+              <span class="visually-hidden">{messages.gridAxesHeader}</span>
             </th>
             {grid.col_criteria.map((colCrit, colIdx) => (
               <th scope="col" key={colCrit.id} class="grid-col-header" id={`col-header-${colIdx}`}>
-                <span class="criterion-category">{categoryBadge(colCrit.category, locale)}</span>
+                <span class="criterion-category">{categoryBadge(colCrit.category, messages)}</span>
                 <span class="criterion-label">{colCrit.label[locale]}</span>
               </th>
             ))}
@@ -85,7 +85,7 @@ export function GridBoard({
           {grid.row_criteria.map((rowCrit, rowIdx) => (
             <tr key={rowCrit.id} role="row">
               <th scope="row" class="grid-row-header" id={`row-header-${rowIdx}`}>
-                <span class="criterion-category">{categoryBadge(rowCrit.category, locale)}</span>
+                <span class="criterion-category">{categoryBadge(rowCrit.category, messages)}</span>
                 <span class="criterion-label">{rowCrit.label[locale]}</span>
               </th>
               {[0, 1, 2].map((colIdx) => {

@@ -114,6 +114,11 @@ export interface Messages {
   gridModeLink: string;
   quizModeLink: string;
   gridShareHeader: (date: string, correct: number, guesses: number) => string;
+  gridAxesHeader: string;
+  gridShareMatrixAriaLabel: string;
+  gridCategoryDebut: string;
+  gridCategoryAgency: string;
+  gridCategoryMembers: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -235,6 +240,11 @@ const catalogs: Record<Locale, Messages> = {
     gridModeLink: "Jogar Grade de Interseções",
     quizModeLink: "Jogar Quiz tradicional",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 acertos (${guesses} palpites)`,
+    gridAxesHeader: "Eixos",
+    gridShareMatrixAriaLabel: "Matriz de resultado",
+    gridCategoryDebut: "Estreia",
+    gridCategoryAgency: "Empresa",
+    gridCategoryMembers: "Formação",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -354,6 +364,11 @@ const catalogs: Record<Locale, Messages> = {
     gridModeLink: "Play Intersection Grid",
     quizModeLink: "Play traditional Quiz",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 correct (${guesses} guesses)`,
+    gridAxesHeader: "Axes",
+    gridShareMatrixAriaLabel: "Result matrix",
+    gridCategoryDebut: "Debut",
+    gridCategoryAgency: "Agency",
+    gridCategoryMembers: "Members",
   },
 };
 
