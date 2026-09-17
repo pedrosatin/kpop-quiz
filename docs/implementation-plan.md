@@ -226,13 +226,28 @@ Entregas:
 
 Aceite: nenhuma mídia entra no sistema sem os oito campos obrigatórios ou com licença fora da enumeração permitida. Fallback visual opera quando a imagem falha ou o campo de mídia é nulo. O processo de build falha diante de qualquer violação de schema.
 
+## Fatia 14
+
+Estado: em andamento na branch `feat/intersection-grid-spec` (17 de setembro de 2026).
+
+Objetivo: formalizar a especificação técnica e a modelagem de contratos da Grade de Interseções como nova família de jogos determinística e compatível com publicação estática.
+
+Entregas:
+
+- ADR 008 em `docs/decisions/008-grade-de-intersecoes.md` com definição formal da mecânica de grade 3x3, eixos ortogonais independentes, critérios (`formed_on`, `record_label`, `has_member`), coordenadas de células, respostas válidas baseadas exclusivamente em fatos auditados do SQLite, limites de palpites (9 a 12 tentativas ou até 3 erros), regra de unicidade por partida, resumo compartilhável sem spoilers com suporte a alto contraste e compatibilidade integral com publicação estática;
+- schema formal JSON Draft 2020-12 estrito em `schemas/intersection-grid-v1.json` com `additionalProperties: false` em todos os nós, contendo campos `schema_version`, `grid_id`, `dataset_version`, `reference_date`, `dimensions`, `row_criteria`, `col_criteria`, `cells` e `candidate_pool`;
+- módulo de validação e escrita atômica em `kpop_scraping/grid_schema.py` com validação de tipos, integridade de coordenadas e não vacuidade de respostas válidas;
+- suite de testes unitários em `tests/test_grid_schema.py` com validação de fixture completo contra o schema oficial e testes negativos para células sem respostas válidas, campos ausentes, tipos incorretos e violações estruturais.
+
+Aceite: fixture completo validado com sucesso contra `schemas/intersection-grid-v1.json` e pelo validador do domínio. Células sem respostas válidas e estruturas com campos ausentes ou tipos inválidos falham imediatamente na validação. Documentação técnica aprovada e livre de vícios de redação.
+
 ## Etapas posteriores
 
-Com a conclusão do redesign da interface de múltipla escolha e do registro de mídia licenciada nas Fatias 8 a 13, o desenvolvimento avança para novas famílias de jogos e expansão do catálogo factual.
+Com a especificação e os contratos da grade de interseções estabelecidos na Fatia 14, o desenvolvimento avança para a implementação do gerador factual no pipeline Python e da interface web interativa.
 
 Próximas mecânicas planejadas conforme `docs/ideas/game-mechanics-and-visual-system.md`:
 
-1. Grade de interseções: matriz onde cada célula exige uma entidade que satisfaça simultaneamente o critério da linha e da coluna, com base em categorias consolidadas e aliases normatizados.
+1. Gerador e interface da grade de interseções: extração de dados do SQLite, exportação estática e componente web acessível para o tabuleiro 3x3.
 2. Palavras conectadas: agrupamento de dezesseis elementos em quatro conjuntos temáticos mutuamente exclusivos.
 3. Caça-palavras temático: grade com solução única demonstrada para identificar entidades associadas a um tema central.
 4. Nome por tentativas: identificação de grupo, pessoa, música ou álbum com limites de tentativas, normalização textual e retorno posicional por caractere.
@@ -242,4 +257,5 @@ Frentes condicionadas a contratos de dados ou licenciamento:
 - ordenação cronológica e desafio temporal ("Quando foi?") condicionados à coleta de datas auditáveis de lançamentos e discografia;
 - desafios com mapas geográficos condicionados ao levantamento de coordenadas locais e suporte a navegação por teclado;
 - identificação de trechos de letras condicionada à contratação de fornecedor com licença de exibição territorial.
+
 

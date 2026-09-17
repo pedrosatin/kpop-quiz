@@ -103,7 +103,17 @@ Página de coleção de jogos com `GameCollection`, suporte a partida diária de
 
 Registro de mídia com validação estrita de licenças em `kpop_scraping/media_registry.py` e schema JSON Draft 2020-12 com oito campos obrigatórios e enum de doze licenças comerciais ou editoriais permitidas. Componente `LicensedMedia` com texto alternativo neutro pré-resposta, atribuição completa pós-resposta, tratamento de erro de carregamento e contenção de Cumulative Layout Shift via CSS.
 
+## Fatia 14 em andamento
+
+Objetivo: formalizar a especificação técnica e os contratos de dados da Grade de Interseções como nova família de jogos determinística e compatível com publicação estática.
+
+- especificação técnica na [ADR 008](decisions/008-grade-de-intersecoes.md) com grade 3x3 ortogonal, critérios (`formed_on`, `record_label`, `has_member`), gabarito factual auditado em SQLite, limite de palpites, regra de unicidade e resumo compartilhável sem spoilers;
+- contrato formal JSON Draft 2020-12 estrito em `schemas/intersection-grid-v1.json` com `additionalProperties: false` e catálogo de candidatos para seleção assistida;
+- validador e escrita atômica em `kpop_scraping/grid_schema.py`;
+- testes unitários e de contrato em `tests/test_grid_schema.py` com cobertura de casos positivos e negativos.
+
 ## Fatias posteriores
 
-Concluído o redesign do frontend, o planejamento foca nas novas famílias de jogos: grade de interseções, palavras conectadas, caça-palavras temático e adivinhação de nomes por tentativas. Frentes adicionais de dados abrangem discografia com datas auditáveis de lançamento ("Quando foi?"), desafios com mapas locais e integração de letras com fornecedor licenciado.
+Concluída a especificação da grade de interseções na Fatia 14, o planejamento foca na implementação do gerador factual e do componente web do jogo 3x3, seguido pelas demais famílias: palavras conectadas, caça-palavras temático e adivinhação de nomes por tentativas. Frentes adicionais de dados abrangem discografia com datas auditáveis de lançamento ("Quando foi?"), desafios com mapas locais e integração de letras com fornecedor licenciado.
+
 
