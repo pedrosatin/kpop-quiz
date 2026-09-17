@@ -2,7 +2,7 @@ import type { ComponentChildren, RefObject } from "preact";
 import type { QuizOption } from "../../lib/quiz-types";
 
 export interface QuestionCardProps {
-  headingRef?: RefObject<HTMLHeadingElement>;
+  headingRef?: RefObject<HTMLHeadingElement> | undefined;
   prompt: string;
   options: QuizOption[];
   selectedOptionId: string | null;
