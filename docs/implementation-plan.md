@@ -271,7 +271,7 @@ Entregas:
 - tipagem estrita e validação em tempo de execução em `web/src/lib/quiz-types.ts` (`IntersectionGrid`, `GridCriterion`, `GridCellData`, `CandidateEntity`, `GridEvidence` e validador `isIntersectionGrid`);
 - carregador de dados estáticos em `web/src/data/grid-loader.ts` com tratamento de erro tipado em `GridArtifactError`;
 - componentes modulares sob `web/src/components/Grid/` estritamente abaixo de 200 linhas cada: `IntersectionGrid.tsx`, `GridBoard.tsx`, `GridCell.tsx`, `EntityPicker.tsx`, `GridResults.tsx`, `GridReview.tsx`, `types.ts` e hook de máquina de estados `useGridGame.ts`;
-- regras de partida: matriz 3x3, limite de 9 palpites, regra estrita de unicidade impedindo reuso de grupo musical na mesma partida, anúncio de erros e acertos com foco acessível;
+- regras de partida: matriz 3x3, limite de 9 palpites, regra estrita de unicidade que impede o reuso de grupo musical na mesma partida, anúncio de erros e acertos com foco acessível;
 - seletor assistido `EntityPicker` com busca em tempo real imune a maiúsculas e acentos, suporte a navegação por teclado e indicação de grupos já utilizados;
 - tela de conclusão `GridResults` com pontuação, matriz de compartilhamento sem spoilers em emoji ou blocos monocromáticos para alto contraste, cópia para área de transferência com feedback acessível e painel de revisão factual `GridReview` com links para fontes protegidos por `rel="noopener noreferrer"`;
 - páginas e rotas `/pt-br/grid/` e `/en/grid/` integradas ao `BaseLayout.astro` e link acessível em `GameCollection.tsx`;
