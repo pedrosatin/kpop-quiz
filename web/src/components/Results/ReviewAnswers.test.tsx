@@ -173,4 +173,37 @@ describe("ReviewAnswers", () => {
     expect(screen.getByText("Your answer:")).toBeInTheDocument();
     expect(screen.getByText("Correct answer:")).toBeInTheDocument();
   });
+
+  it("renders image thumbnail and full credits for questions with licensed media", () => {
+    const itemWithMedia: QuestionResult = {
+      ...sampleItems[0]!,
+      question: {
+        ...sampleItems[0]!.question,
+        media: {
+          asset_url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Twice_photo.jpg/960px-Twice_photo.jpg",
+          source_url: "https://commons.wikimedia.org/wiki/File:Twice_photo.jpg",
+          creator: "Dispatch",
+          license_name: "CC BY 3.0",
+          license_url: "https://creativecommons.org/licenses/by/3.0/",
+          subject_qid: "Q21461452",
+          verified_at: "2026-01-15",
+          transformations: ["crop 4:5", "resize 960x1200"],
+        },
+      },
+    };
+
+    render(<ReviewAnswers items={[itemWithMedia]} messages={ptMessages} />);
+
+    const image = screen.getByRole("img");
+    expect(image).toHaveAttribute("src", itemWithMedia.question.media!.asset_url);
+    expect(screen.getByText(/Foto por Dispatch/)).toBeInTheDocument();
+
+    const licenseLink = screen.getByRole("link", { name: "CC BY 3.0" });
+    expect(licenseLink).toHaveAttribute("href", "https://creativecommons.org/licenses/by/3.0/");
+    expect(licenseLink).toHaveAttribute("rel", "noopener noreferrer");
+
+    const sourceLink = screen.getByRole("link", { name: "Fonte da imagem" });
+    expect(sourceLink).toHaveAttribute("href", "https://commons.wikimedia.org/wiki/File:Twice_photo.jpg");
+    expect(sourceLink).toHaveAttribute("rel", "noopener noreferrer");
+  });
 });

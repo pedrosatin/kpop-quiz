@@ -72,6 +72,11 @@ export interface Messages {
   themeHistory: string;
   themeDaily: string;
   shareDailyHeader: (date: string, correct: number, total: number) => string;
+  mediaAltClue: string;
+  mediaCreator: string;
+  mediaLicense: string;
+  mediaSource: string;
+  mediaUnavailable: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -151,6 +156,11 @@ const catalogs: Record<Locale, Messages> = {
     themeHistory: "História do K-pop",
     themeDaily: "Partida diária",
     shareDailyHeader: (date, correct, total) => `K-pop Quiz Diário ${date} ${correct}/${total}`,
+    mediaAltClue: "Foto usada como pista desta pergunta",
+    mediaCreator: "Foto por",
+    mediaLicense: "Licença",
+    mediaSource: "Fonte da imagem",
+    mediaUnavailable: "Imagem indisponível",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -228,6 +238,11 @@ const catalogs: Record<Locale, Messages> = {
     themeHistory: "K-pop history",
     themeDaily: "Daily quiz",
     shareDailyHeader: (date, correct, total) => `K-pop Quiz Daily ${date} ${correct}/${total}`,
+    mediaAltClue: "Photo used as a clue for this question",
+    mediaCreator: "Photo by",
+    mediaLicense: "License",
+    mediaSource: "Image source",
+    mediaUnavailable: "Image unavailable",
   },
 };
 

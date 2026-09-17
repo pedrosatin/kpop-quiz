@@ -154,8 +154,12 @@
           "type": "array",
           "minItems": 1,
           "items": {"$ref": "#/$defs/evidence"}
+        },
+        "media": {
+          "$ref": "licensed-media-v1.json"
         }
       }
     }
   }
 }
+
