@@ -375,18 +375,12 @@ class ConnectionsPuzzleSchemaTest(unittest.TestCase):
             validate_connections_puzzle(fixture)
         self.assertIn("duplicate item id", str(ctx.exception))
 
-    def test_item_unreferenced_by_categories_fails(self):
+    def test_category_item_not_in_items_pool_fails(self):
         fixture = sample_connections_puzzle()
-        # Change category item to another item, leaving an items pool entity unreferenced
-        unreferenced_item = fixture["items"][0]["id"]
-        # Replace it in category 0 with another item from category 1 (will also trigger overlap, but let's see)
-        # Instead, let's create a new item in items pool replacing items[0], while cat 0 still has old items[0]:
-        # then cat 0 has item not in items pool, and items[0] is unreferenced.
-        # To specifically isolate items unreferenced by any category:
-        # Give category 0 a duplicate QID from category 1 so cat count is 4, but set(cats) has 15 items, leaving 1 item unreferenced
-        fixture["categories"][0]["item_ids"][0] = fixture["categories"][1]["item_ids"][0]
-        with self.assertRaises(ValueError):
+        fixture["categories"][0]["item_ids"][0] = "Q9999999"
+        with self.assertRaises(ValueError) as ctx:
             validate_connections_puzzle(fixture)
+        self.assertIn("category item_ids not found in items pool", str(ctx.exception))
 
     def test_invalid_qid_format_fails(self):
         for bad_qid in ("P123", "Q0", "12345", "Q_123", ""):
