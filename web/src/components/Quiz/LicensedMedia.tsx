@@ -1,3 +1,4 @@
+import { useEffect, useState } from "preact/hooks";
 import type { Messages } from "../../i18n/catalog";
 import { type LicensedMedia as LicensedMediaType, isLicensedMedia } from "../../lib/quiz-types";
 
@@ -8,11 +9,17 @@ export interface LicensedMediaProps {
 }
 
 export function LicensedMedia({ media, isAnswered, messages }: LicensedMediaProps) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [media?.asset_url]);
+
   if (media === null || media === undefined) {
     return null;
   }
 
-  if (!isLicensedMedia(media)) {
+  if (hasError || !isLicensedMedia(media)) {
     return (
       <div class="quiz-media media-unavailable" role="status">
         <p>{messages.mediaUnavailable}</p>
@@ -27,6 +34,7 @@ export function LicensedMedia({ media, isAnswered, messages }: LicensedMediaProp
         src={media.asset_url}
         alt={messages.mediaAltClue}
         loading="lazy"
+        onError={() => setHasError(true)}
       />
       {isAnswered && (
         <figcaption class="media-caption media-credit">

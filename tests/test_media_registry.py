@@ -237,12 +237,30 @@ class QuizSchemaMediaIntegrationTest(unittest.TestCase):
             _validate_question(q)
         self.assertIn("license", str(ctx.exception).lower())
 
-    def test_question_with_none_media_fails(self):
+    def test_question_with_none_media_is_valid(self):
         q = sample_question()
         q["media"] = None
+        _validate_question(q)
+
+    def test_question_with_non_dict_media_fails(self):
+        q = sample_question()
+        q["media"] = "not a dict"
         with self.assertRaises(ValueError) as ctx:
             _validate_question(q)
         self.assertIn("question.media", str(ctx.exception))
+
+
+class LicensedMediaSchemaTest(unittest.TestCase):
+    def test_schema_file_exists_and_matches_permitted_licenses(self):
+        import json
+        from pathlib import Path
+
+        schema_path = Path(__file__).resolve().parent.parent / "schemas" / "licensed-media-v1.json"
+        self.assertTrue(schema_path.exists())
+        with open(schema_path, "r", encoding="utf-8") as f:
+            schema = json.load(f)
+        license_enum = set(schema["properties"]["license_name"]["enum"])
+        self.assertEqual(license_enum, PERMITTED_LICENSES)
 
 
 if __name__ == "__main__":
