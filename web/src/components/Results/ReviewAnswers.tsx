@@ -1,6 +1,7 @@
 import type { Messages } from "../../i18n/catalog";
 import type { QuestionResult } from "../Quiz/types";
 import { groupEvidence } from "../Quiz/AnswerFeedback";
+import { LicensedMedia } from "../Quiz/LicensedMedia";
 
 export interface ReviewAnswersProps {
   items: QuestionResult[];
@@ -36,6 +37,13 @@ export function ReviewAnswers({ items, messages }: ReviewAnswersProps) {
                 </span>
               </div>
               <h4 class="review-prompt">{item.question.prompt}</h4>
+              {item.question.media && (
+                <LicensedMedia
+                  media={item.question.media}
+                  isAnswered={true}
+                  messages={messages}
+                />
+              )}
               <div class="review-details">
                 <p class="review-row">
                   <span class="review-label">{messages.yourAnswer}: </span>

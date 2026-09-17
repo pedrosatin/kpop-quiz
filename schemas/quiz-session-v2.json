@@ -28,5 +28,11 @@
         "timer_seconds": {"type": ["integer", "null"], "minimum": 1}
       }
     }
+  },
+  "$defs": {
+    "media": {
+      "$ref": "licensed-media-v1.json"
+    }
   }
 }
+

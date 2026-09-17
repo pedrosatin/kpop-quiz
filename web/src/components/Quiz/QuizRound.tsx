@@ -3,6 +3,7 @@ import type { PlayMode, QuizQuestion, QuizSession } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { ProgressHeader } from "./ProgressHeader";
 import { QuestionCard } from "./QuestionCard";
+import { LicensedMedia } from "./LicensedMedia";
 import { HintTray } from "./HintTray";
 import { AnswerFeedback } from "./AnswerFeedback";
 
@@ -69,6 +70,11 @@ export function QuizRound({
         submitLabel={messages.check}
         legendLabel={messages.chooseAnswer}
       >
+        <LicensedMedia
+          media={question.media}
+          isAnswered={answered}
+          messages={messages}
+        />
         <HintTray
           playMode={playMode}
           cluesAvailable={question.clues_available}
