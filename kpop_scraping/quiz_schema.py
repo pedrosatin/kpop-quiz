@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from .media_registry import validate_licensed_media
 from .storage import canonical_json
 
 
@@ -40,14 +41,16 @@ DATASET_FIELDS = frozenset(
         "schema_version", "source_policy_version", "template_version",
     }
 )
+QUESTION_OPTIONAL_FIELDS = frozenset({"media"})
 QUESTION_FIELDS = frozenset(
     {
         "answer_option_id", "base_logical_id", "base_points", "challenge_rating", "clues_available",
         "clues_shown", "play_mode", "evidence", "explanation", "hint_cost",
         "fact_base_ids", "group_ids", "id", "language", "logical_id",
-        "options", "prompt", "reference_date", "semantic_id", "theme", "type",
+        "media", "options", "prompt", "reference_date", "semantic_id", "theme", "type",
     }
 )
+QUESTION_REQUIRED_FIELDS = QUESTION_FIELDS - QUESTION_OPTIONAL_FIELDS
 
 
 def validate_dataset(payload: dict[str, Any]) -> None:
@@ -283,7 +286,14 @@ def write_json_atomic(path: Path, payload: dict[str, Any], validator: Any) -> by
 
 def _validate_question(question: Any) -> None:
     _require(isinstance(question, dict), "question")
-    _require(set(question) == QUESTION_FIELDS, "question fields")
+    question_fields = set(question)
+    _require(
+        QUESTION_REQUIRED_FIELDS <= question_fields <= QUESTION_FIELDS,
+        "question fields",
+    )
+    if "media" in question:
+        _require(question["media"] is not None, "question.media")
+        validate_licensed_media(question["media"])
     _require_hash(question.get("id"), "question.id")
     _require_hash(question.get("logical_id"), "question.logical_id")
     _require_hash(question.get("base_logical_id"), "question.base_logical_id")

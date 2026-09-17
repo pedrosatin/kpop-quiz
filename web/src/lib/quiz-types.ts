@@ -26,6 +26,17 @@ export interface QuizClue {
   evidence: Evidence[];
 }
 
+export interface LicensedMedia {
+  asset_url: string;
+  source_url: string;
+  creator: string;
+  license_name: string;
+  license_url: string;
+  subject_qid: string;
+  verified_at: string;
+  transformations: string[];
+}
+
 export interface QuizQuestion {
   id: string;
   logical_id: string;
@@ -48,6 +59,7 @@ export interface QuizQuestion {
   explanation: string;
   reference_date: string;
   evidence: Evidence[];
+  media?: LicensedMedia | null;
 }
 
 export interface QuizSession {
@@ -140,8 +152,66 @@ function isClue(value: unknown, questionFactIds: string[]): value is QuizClue {
   return new Set((value.evidence as Evidence[]).map((item) => item.fact_base_id)).size === (value.fact_base_ids as string[]).length;
 }
 
-function isQuestion(value: unknown, locale: Locale): value is QuizQuestion {
-  if (!isRecord(value) || !hasExactKeys(value, QUESTION_FIELDS)) return false;
+export const PERMITTED_LICENSES = new Set([
+  "CC0",
+  "CC0 1.0",
+  "CC BY 2.0",
+  "CC BY 2.5",
+  "CC BY 3.0",
+  "CC BY 4.0",
+  "CC BY-SA 2.0",
+  "CC BY-SA 2.5",
+  "CC BY-SA 3.0",
+  "CC BY-SA 4.0",
+  "Public Domain",
+  "OFL 1.1",
+]);
+const LICENSED_MEDIA_FIELDS = [
+  "asset_url",
+  "source_url",
+  "creator",
+  "license_name",
+  "license_url",
+  "subject_qid",
+  "verified_at",
+  "transformations",
+];
+const QID = /^Q[1-9][0-9]*$/;
+
+function isHttpOrHttpsUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function isLicensedMedia(value: unknown): value is LicensedMedia {
+  if (!isRecord(value) || !hasExactKeys(value, LICENSED_MEDIA_FIELDS)) return false;
+  return isHttpOrHttpsUrl(value.asset_url)
+    && isHttpsUrl(value.source_url)
+    && typeof value.creator === "string" && value.creator.trim().length > 0
+    && typeof value.license_name === "string" && PERMITTED_LICENSES.has(value.license_name)
+    && isHttpOrHttpsUrl(value.license_url)
+    && typeof value.subject_qid === "string" && QID.test(value.subject_qid)
+    && isDate(value.verified_at)
+    && isStringArray(value.transformations, false);
+}
+
+export function isQuestion(value: unknown, locale: Locale): value is QuizQuestion {
+  if (!isRecord(value)) return false;
+  const hasMedia = Object.hasOwn(value, "media");
+  const keys = Object.keys(value);
+  if (hasMedia) {
+    if (keys.length !== QUESTION_FIELDS.length + 1) return false;
+    if (!QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))) return false;
+    if (value.media !== null && !isLicensedMedia(value.media)) return false;
+  } else {
+    if (keys.length !== QUESTION_FIELDS.length) return false;
+    if (!QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))) return false;
+  }
   if (typeof value.id !== "string" || !HASH.test(value.id)
     || typeof value.logical_id !== "string" || !HASH.test(value.logical_id)
     || typeof value.base_logical_id !== "string" || !HASH.test(value.base_logical_id)
