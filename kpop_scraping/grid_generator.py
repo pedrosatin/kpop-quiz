@@ -9,7 +9,7 @@ import re
 import sqlite3
 from collections import defaultdict
 from datetime import date
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Iterable
 
 from .grid_schema import GRID_SCHEMA_VERSION, validate_intersection_grid
 from .quiz_models import DEFAULT_REFERENCE_DATE, Entity, Evidence, Fact

@@ -7,20 +7,17 @@ import json
 import sqlite3
 import tempfile
 import unittest
-from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping.grid_cli import main as cli_main
 from kpop_scraping.grid_generator import (
-    DECADE_CRITERIA,
-    KNOWN_RECORD_LABELS,
-    MEMBER_COUNT_CRITERIA,
     evaluate_group_criteria,
     generate_intersection_grid,
     has_distinct_assignment,
 )
 from kpop_scraping.grid_schema import validate_intersection_grid
+from kpop_scraping.quiz_repository import _load_entities, _load_facts
 
 
 def build_grid_test_database(reverse: bool = False) -> sqlite3.Connection:
@@ -152,10 +149,17 @@ def build_grid_test_database(reverse: bool = False) -> sqlite3.Connection:
         )
 
     # Person entities and has_member facts
-    person_idx = 1
+    base_person_offsets: dict[int, int] = {}
+    curr_offset = 1
+    for n in range(101, 116):
+        base_person_offsets[n] = curr_offset
+        curr_offset += member_counts[n]
+
     for num in numbers:
         count = member_counts[num]
-        for _ in range(count):
+        base_idx = base_person_offsets[num]
+        for offset in range(count):
+            person_idx = base_idx + offset
             pqid = f"Q{1000 + person_idx}"
             pname = f"Person {person_idx}"
             cur = conn.execute(
@@ -185,7 +189,6 @@ def build_grid_test_database(reverse: bool = False) -> sqlite3.Connection:
                 """,
                 (cur_f.lastrowid, f"claims/P527/has-{num}-{person_idx}"),
             )
-            person_idx += 1
 
     # Formed_on and record_label facts
     for num in numbers:
@@ -270,7 +273,6 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         self.assertFalse(has_distinct_assignment(insufficient_entities))
 
     def test_evaluate_group_criteria_detects_categories_and_evidence(self) -> None:
-        from kpop_scraping.quiz_repository import _load_entities, _load_facts
         entities = _load_entities(self.connection)
         facts, _ = _load_facts(self.connection, entities)
         candidate_groups = {
@@ -308,13 +310,19 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         self.assertEqual(q101_formed_ev[0].locator, "claims/P571/formed-101")
 
     def test_deterministic_generation_strict(self) -> None:
-        grid1 = generate_intersection_grid(self.connection, seed="daily-2026-09-17")
-        grid2 = generate_intersection_grid(self.connection, seed="daily-2026-09-17")
-        grid3 = generate_intersection_grid(self.connection, seed="different-seed-456")
+        grid_1 = generate_intersection_grid(self.connection, seed="kpop-daily-2026-09-17")
+        grid_2 = generate_intersection_grid(self.connection, seed="kpop-daily-2026-09-17")
+        grid_3 = generate_intersection_grid(self.connection, seed="different-seed-456")
 
-        self.assertEqual(grid1, grid2)
-        self.assertEqual(grid1["grid_id"], grid2["grid_id"])
-        self.assertNotEqual(grid1["grid_id"], grid3["grid_id"])
+        self.assertEqual(grid_1, grid_2)
+        self.assertEqual(grid_1["grid_id"], grid_2["grid_id"])
+        self.assertNotEqual(grid_1["grid_id"], grid_3["grid_id"])
+
+        with build_grid_test_database(reverse=True) as conn_rev:
+            grid_rev = generate_intersection_grid(conn_rev, seed="kpop-daily-2026-09-17")
+            self.assertEqual(grid_1["grid_id"], grid_rev["grid_id"])
+            self.assertEqual(grid_1, grid_rev)
+        conn_rev.close()
 
     def test_generated_grid_satisfies_solvability_and_uniqueness(self) -> None:
         grid = generate_intersection_grid(self.connection, seed="solvability-check-seed")
