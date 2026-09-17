@@ -12,7 +12,7 @@ export interface DisplayEvidence {
 
 export function groupEvidence(evidenceItems: QuizQuestion["evidence"]): DisplayEvidence[] {
   const groups = new Map<string, DisplayEvidence>();
-  for (const evidence of evidenceItems) {
+  for (const evidence of evidenceItems ?? []) {
     const key = `${evidence.source_url}\u0000${evidence.revision_id}\u0000${evidence.locator}`;
     if (groups.has(key)) continue;
     const wikidata = new URL(evidence.source_url).hostname === "www.wikidata.org";
