@@ -167,8 +167,20 @@ def publish(
     sessions: dict[str, dict[str, Any]],
     grid: dict[str, Any] | None = None,
 ) -> None:
+    """Publish static quiz sessions and optional daily intersection grid artifact.
+
+    Args:
+        output_dir: Target directory where artifacts and manifest are written.
+        sessions: Validated locale/difficulty quiz sessions mapping.
+        grid: Optional intersection grid payload (written to grid.daily.json).
+            When provided, validated against intersection grid schema before writing.
+            When None, only quiz sessions and manifest-v2.json are published,
+            preserving backward compatibility with pipelines that do not generate grid artifacts.
+    """
     for session in sessions.values():
         validate_session(session)
+    if grid is not None:
+        validate_intersection_grid(grid)
     manifest = build_manifest(sessions)
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
@@ -180,6 +192,16 @@ def publish(
 
 
 def verify(output_dir: Path, require_grid: bool = False) -> None:
+    """Verify published static quiz artifacts, manifest, and optional grid file.
+
+    Args:
+        output_dir: Directory containing manifest-v2.json and session files.
+        require_grid: Verification policy flag for grid artifact (grid.daily.json).
+            - When False (default): backwards-compatible policy. If grid.daily.json
+              exists on disk, it is schema-validated; if absent, verification passes.
+            - When True: grid.daily.json is mandatory and must exist and satisfy
+              schema validation, raising ValueError if missing or invalid.
+    """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -219,6 +241,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.require_grid and not args.verify:
+            raise ValueError("--require-grid can only be used with --verify")
         if args.verify:
             verify(args.output_dir, require_grid=args.require_grid)
         elif args.database:

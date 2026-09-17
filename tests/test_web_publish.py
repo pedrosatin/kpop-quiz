@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import web_publish
+from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.web_publish import (
     GRID_DAILY_FILENAME,
     build_manifest,
@@ -164,6 +165,7 @@ class WebPublishTests(unittest.TestCase):
     def test_checked_in_fixtures_are_valid(self):
         for session in self.sessions().values():
             validate_session(session)
+        validate_intersection_grid(self.grid())
 
     def test_daily_sessions_determinism_same_date_repeats_hashes(self):
         connection = build_quiz_database()
@@ -310,6 +312,14 @@ class WebPublishTests(unittest.TestCase):
             self.assertEqual(grid_path.read_bytes()[-1:], b"\n")
             verify(output, require_grid=True)
 
+    def test_publish_with_invalid_grid_fails_before_creating_grid_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            invalid_grid = {"schema_version": "invalid"}
+            with self.assertRaises(ValueError):
+                publish(output, self.sessions(), grid=invalid_grid)
+            self.assertFalse((output / GRID_DAILY_FILENAME).exists())
+
     def test_cli_verify_with_require_grid(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
@@ -320,3 +330,10 @@ class WebPublishTests(unittest.TestCase):
             publish(output, self.sessions(), grid=self.grid())
             code_present = main(["--output-dir", str(output), "--verify", "--require-grid"])
             self.assertEqual(code_present, 0)
+
+    def test_cli_require_grid_without_verify_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            code = main(["--output-dir", str(output), "--require-grid"])
+            self.assertEqual(code, 1)
+
