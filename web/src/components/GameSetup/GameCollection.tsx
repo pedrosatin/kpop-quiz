@@ -1,3 +1,4 @@
+import type { Locale } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import type { QuizTheme } from "../Quiz/url-params";
 
@@ -5,6 +6,7 @@ export interface GameCollectionProps {
   selectedTheme: QuizTheme;
   onSelectTheme: (theme: QuizTheme) => void;
   messages: Messages;
+  locale?: Locale;
   disabled?: boolean;
 }
 
@@ -18,6 +20,7 @@ export function GameCollection({
   selectedTheme,
   onSelectTheme,
   messages,
+  locale,
   disabled = false,
 }: GameCollectionProps) {
   const options: ThemeOption[] = [
@@ -32,6 +35,13 @@ export function GameCollection({
       description: messages.dailyGameDescription,
     },
   ];
+
+  const currentLocale = locale ?? (messages.languageName === "English" ? "pt-BR" : "en");
+  const gridPath = currentLocale === "pt-BR" ? "/pt-br/grid/" : "/en/grid/";
+  const base = (typeof import.meta !== "undefined" && import.meta.env?.BASE_URL)
+    ? import.meta.env.BASE_URL.replace(/\/$/, "")
+    : "";
+  const gridHref = `${base}${gridPath}`;
 
   return (
     <fieldset class="game-collection" disabled={disabled}>
@@ -54,6 +64,12 @@ export function GameCollection({
           </label>
         ))}
       </div>
+      <div class="collection-extra-mode">
+        <a href={gridHref} class="collection-grid-link">
+          <strong>{messages.gridGameTitle}</strong>: {messages.gridGameDescription}
+        </a>
+      </div>
     </fieldset>
   );
 }
+

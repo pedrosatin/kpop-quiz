@@ -112,7 +112,7 @@ Objetivo: formalizar a especificação técnica e os contratos de dados da Grade
 - validador e escrita atômica em `kpop_scraping/grid_schema.py`;
 - testes unitários e de contrato em `tests/test_grid_schema.py` com cobertura de casos positivos e negativos.
 
-## Fatia 15 em andamento
+## Fatia 15 concluída
 
 Objetivo: implementar o gerador determinístico em Python e a CLI da Grade de Interseções.
 
@@ -123,8 +123,20 @@ Objetivo: implementar o gerador determinístico em Python e a CLI da Grade de In
 - interface de linha de comando em `kpop_scraping/grid_cli.py` com escrita atômica e suporte a partidas diárias via `--date`;
 - testes em `tests/test_grid_generator.py` para determinismo estrito, solubilidade, unicidade, integridade de schema e CLI.
 
+## Fatia 16 concluída
+
+Objetivo: implementar a interface web acessível da Grade de Interseções no Astro e Preact.
+
+- tipagem em `web/src/lib/quiz-types.ts` e validador em tempo de execução `isIntersectionGrid`;
+- carregador web `web/src/data/grid-loader.ts` com tratamento de erro e fixture estático para publicação;
+- componentes modulares sob `web/src/components/Grid/` (`IntersectionGrid`, `GridBoard`, `GridCell`, `EntityPicker`, `GridResults`, `GridReview`), todos com menos de 200 linhas;
+- regras da partida: limite de 9 palpites, regra estrita de unicidade por grupo, navegação por teclado e foco acessível;
+- compartilhamento sem spoilers em emoji ou caracteres monocromáticos para alto contraste e painel de revisão com links externos seguros;
+- rotas `/pt-br/grid/` e `/en/grid/`, integração na coleção de jogos e auditoria de acessibilidade automatizada com axe-core sem violações.
+
 ## Fatias posteriores
 
-Concluída a implementação do gerador na Fatia 15, o planejamento foca na implementação da interface web e componente acessível do jogo 3x3, seguido pelas demais famílias: palavras conectadas, caça-palavras temático e adivinhação de nomes por tentativas. Frentes adicionais de dados abrangem discografia com datas auditáveis de lançamento ("Quando foi?"), desafios com mapas locais e integração de letras com fornecedor licenciado.
+Concluída a interface web da Grade de Interseções na Fatia 16, o planejamento foca nas demais famílias: palavras conectadas, caça-palavras temático e adivinhação de nomes por tentativas. Frentes adicionais de dados abrangem discografia com datas auditáveis de lançamento ("Quando foi?"), desafios com mapas locais e integração de letras com fornecedor licenciado.
+
 
 
