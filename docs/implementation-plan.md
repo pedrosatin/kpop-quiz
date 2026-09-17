@@ -241,13 +241,32 @@ Entregas:
 
 Aceite: fixture completo validado com sucesso contra `schemas/intersection-grid-v1.json` e pelo validador do domínio. Células sem respostas válidas e estruturas com campos ausentes ou tipos inválidos falham imediatamente na validação. Documentação técnica aprovada e livre de vícios de redação.
 
+## Fatia 15
+
+Estado: em andamento na branch `feat/intersection-grid-generator` (17 de setembro de 2026).
+
+Objetivo: implementar o gerador determinístico em Python e a CLI da Grade de Interseções a partir de fatos auditados em SQLite.
+
+Entregas:
+
+- carregamento de entidades, fatos e evidências de banco SQLite via `_load_entities`, `_load_facts`, `_load_evidence` e `_dataset_version` de `quiz_repository.py`;
+- definição de critérios ortogonais nas categorias `formed_on` (décadas de 1990 a 2020), `record_label` (gravadoras conhecidas e dinâmicas) e `has_member` (contagens exatas e faixas comparativas);
+- avaliação determinística de critérios e evidências para cada grupo aceito no catálogo;
+- cálculo de interseção de entidades válidas e consolidação de evidências auditadas por coordenada `(row_index, col_index)`;
+- algoritmo de seleção determinística de grade 3x3 orientado por semente (`seed`) com garantia de solubilidade (nenhuma célula vazia) e unicidade via teste de emparelhamento bipartido para as 9 células;
+- cálculo de `grid_id` canônico via SHA-256 sobre o payload estruturado;
+- CLI em `kpop_scraping/grid_cli.py` com suporte aos parâmetros `--database`, `--output`, `--seed` e `--date` com escrita atômica via `write_intersection_grid_atomic`;
+- suíte de testes unitários em `tests/test_grid_generator.py` cobrindo avaliação de critérios, determinismo estrito, solubilidade, unicidade de atribuição, validação de schema e comportamento da CLI.
+
+Aceite: grades geradas com a mesma semente e dados produzem exatamente os mesmos bytes e o mesmo `grid_id`. Todas as 9 células possuem ao menos uma resposta válida e existe solução completa sem repetição de grupos. O arquivo gerado cumpre integralmente `schemas/intersection-grid-v1.json` e é validado por `validate_intersection_grid`.
+
 ## Etapas posteriores
 
-Com a especificação e os contratos da grade de interseções estabelecidos na Fatia 14, o desenvolvimento avança para a implementação do gerador factual no pipeline Python e da interface web interativa.
+Com o gerador determinístico da grade de interseções estabelecido na Fatia 15, o desenvolvimento avança para a implementação da interface web e componente interativo acessível do jogo 3x3.
 
 Próximas mecânicas planejadas conforme `docs/ideas/game-mechanics-and-visual-system.md`:
 
-1. Gerador e interface da grade de interseções: extração de dados do SQLite, exportação estática e componente web acessível para o tabuleiro 3x3.
+1. Interface web da grade de interseções: componente Preact acessível para o tabuleiro 3x3, controle de palpites, regra de unicidade e compartilhamento de resultado.
 2. Palavras conectadas: agrupamento de dezesseis elementos em quatro conjuntos temáticos mutuamente exclusivos.
 3. Caça-palavras temático: grade com solução única demonstrada para identificar entidades associadas a um tema central.
 4. Nome por tentativas: identificação de grupo, pessoa, música ou álbum com limites de tentativas, normalização textual e retorno posicional por caractere.
