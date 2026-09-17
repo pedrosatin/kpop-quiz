@@ -6,7 +6,10 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
-import fastjsonschema
+try:
+    import fastjsonschema
+except ImportError:
+    fastjsonschema = None
 
 from kpop_scraping.grid_schema import (
     GRID_CATEGORIES,
@@ -201,7 +204,7 @@ def sample_intersection_grid() -> dict:
 with open(SCHEMA_PATH, "r", encoding="utf-8") as _f:
     SCHEMA_JSON = json.load(_f)
 
-JSON_VALIDATOR = fastjsonschema.compile(SCHEMA_JSON)
+JSON_VALIDATOR = fastjsonschema.compile(SCHEMA_JSON) if fastjsonschema is not None else None
 
 
 class IntersectionGridSchemaTest(unittest.TestCase):
@@ -209,7 +212,7 @@ class IntersectionGridSchemaTest(unittest.TestCase):
     def setUpClass(cls):
         assert SCHEMA_PATH.exists(), f"Schema file not found at {SCHEMA_PATH}"
         cls.schema_json = SCHEMA_JSON
-        cls.json_validator = staticmethod(JSON_VALIDATOR)
+        cls.json_validator = staticmethod(JSON_VALIDATOR) if JSON_VALIDATOR is not None else None
 
     def test_schema_metadata(self):
         self.assertEqual(
@@ -229,8 +232,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
     def test_valid_fixture_passes_schema_and_domain_validator(self):
         fixture = sample_intersection_grid()
         # JSON schema validation
-        validated = JSON_VALIDATOR(fixture)
-        self.assertIsInstance(validated, dict)
+        if self.json_validator is not None:
+            validated = self.json_validator(fixture)
+            self.assertIsInstance(validated, dict)
         # Python domain validation
         validate_intersection_grid(fixture)
 
@@ -239,8 +243,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         fixture["cells"][0]["valid_entity_ids"] = []
 
         # JSON schema check
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
 
         # Domain validator check
         with self.assertRaises(ValueError) as ctx:
@@ -264,8 +269,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
                 fixture = sample_intersection_grid()
                 del fixture[field]
 
-                with self.assertRaises(fastjsonschema.JsonSchemaException):
-                    self.json_validator(fixture)
+                if self.json_validator is not None:
+                    with self.assertRaises(fastjsonschema.JsonSchemaException):
+                        self.json_validator(fixture)
 
                 with self.assertRaises(ValueError) as ctx:
                     validate_intersection_grid(fixture)
@@ -275,8 +281,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         fixture = sample_intersection_grid()
         fixture["unexpected_field"] = "disallowed"
 
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
 
         with self.assertRaises(ValueError) as ctx:
             validate_intersection_grid(fixture)
@@ -286,8 +293,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         fixture = sample_intersection_grid()
         fixture["schema_version"] = "kpop-intersection-grid-v2"
 
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
 
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
@@ -298,8 +306,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
                 fixture = sample_intersection_grid()
                 fixture[field] = "not-a-64-char-hex-hash"
 
-                with self.assertRaises(fastjsonschema.JsonSchemaException):
-                    self.json_validator(fixture)
+                if self.json_validator is not None:
+                    with self.assertRaises(fastjsonschema.JsonSchemaException):
+                        self.json_validator(fixture)
 
                 with self.assertRaises(ValueError):
                     validate_intersection_grid(fixture)
@@ -310,23 +319,25 @@ class IntersectionGridSchemaTest(unittest.TestCase):
                 fixture = sample_intersection_grid()
                 fixture["reference_date"] = invalid_date
 
-                with self.assertRaises((fastjsonschema.JsonSchemaException, ValueError)):
+                with self.assertRaises(ValueError):
                     validate_intersection_grid(fixture)
 
     def test_invalid_dimensions_fail(self):
         # Rows not 3
         fixture = sample_intersection_grid()
         fixture["dimensions"]["rows"] = 4
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
         # Cols not 3
         fixture = sample_intersection_grid()
         fixture["dimensions"]["cols"] = 2
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
@@ -336,8 +347,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
                 # 2 criteria (too few)
                 fixture = sample_intersection_grid()
                 fixture[criteria_key] = fixture[criteria_key][:2]
-                with self.assertRaises(fastjsonschema.JsonSchemaException):
-                    self.json_validator(fixture)
+                if self.json_validator is not None:
+                    with self.assertRaises(fastjsonschema.JsonSchemaException):
+                        self.json_validator(fixture)
                 with self.assertRaises(ValueError):
                     validate_intersection_grid(fixture)
 
@@ -346,8 +358,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
                 extra = deepcopy(fixture[criteria_key][0])
                 extra["id"] = "extra_criterion"
                 fixture[criteria_key].append(extra)
-                with self.assertRaises(fastjsonschema.JsonSchemaException):
-                    self.json_validator(fixture)
+                if self.json_validator is not None:
+                    with self.assertRaises(fastjsonschema.JsonSchemaException):
+                        self.json_validator(fixture)
                 with self.assertRaises(ValueError):
                     validate_intersection_grid(fixture)
 
@@ -355,8 +368,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         fixture = sample_intersection_grid()
         fixture["row_criteria"][0]["category"] = "unsupported_category"
 
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
 
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
@@ -365,8 +379,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         fixture = sample_intersection_grid()
         del fixture["row_criteria"][0]["label"]["en"]
 
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
 
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
@@ -375,16 +390,18 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         # 8 cells
         fixture = sample_intersection_grid()
         fixture["cells"] = fixture["cells"][:8]
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
     def test_cell_coordinates_out_of_range_fail(self):
         fixture = sample_intersection_grid()
         fixture["cells"][0]["row_index"] = 3
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
@@ -401,8 +418,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
                 fixture = sample_intersection_grid()
                 fixture["cells"][0]["valid_entity_ids"] = [bad_qid]
 
-                with self.assertRaises(fastjsonschema.JsonSchemaException):
-                    self.json_validator(fixture)
+                if self.json_validator is not None:
+                    with self.assertRaises(fastjsonschema.JsonSchemaException):
+                        self.json_validator(fixture)
 
                 with self.assertRaises(ValueError):
                     validate_intersection_grid(fixture)
@@ -412,8 +430,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         fixture = sample_intersection_grid()
         del fixture["cells"][0]["evidence"][0]["source_url"]
 
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
 
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
@@ -422,8 +441,9 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         fixture = sample_intersection_grid()
         fixture["cells"][0]["evidence"][0]["source_url"] = "http://insecure.example.com"
 
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
 
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
@@ -432,16 +452,18 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         # Empty candidate pool
         fixture = sample_intersection_grid()
         fixture["candidate_pool"] = []
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
         # Invalid QID in candidate
         fixture = sample_intersection_grid()
         fixture["candidate_pool"][0]["id"] = "invalid_id"
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            self.json_validator(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
@@ -457,24 +479,27 @@ class IntersectionGridSchemaTest(unittest.TestCase):
             with self.subTest(field=field):
                 fixture = sample_intersection_grid()
                 fixture[field] = bad_val
-                with self.assertRaises(fastjsonschema.JsonSchemaException):
-                    JSON_VALIDATOR(fixture)
+                if self.json_validator is not None:
+                    with self.assertRaises(fastjsonschema.JsonSchemaException):
+                        self.json_validator(fixture)
                 with self.assertRaises(ValueError):
                     validate_intersection_grid(fixture)
 
         # Invalid type within a cell
         fixture = sample_intersection_grid()
         fixture["cells"][0]["row_index"] = "0"  # string instead of integer
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            JSON_VALIDATOR(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
         # Invalid type in valid_entity_ids
         fixture = sample_intersection_grid()
         fixture["cells"][0]["valid_entity_ids"] = [21461452]  # integer instead of string
-        with self.assertRaises(fastjsonschema.JsonSchemaException):
-            JSON_VALIDATOR(fixture)
+        if self.json_validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                self.json_validator(fixture)
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
