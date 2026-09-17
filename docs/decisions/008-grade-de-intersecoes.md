@@ -1,4 +1,4 @@
-# ADR 008: grade de interseções
+# ADR 008 sobre grade de interseções
 
 ## Status
 
@@ -12,7 +12,7 @@ Aceita
 
 O K-pop Quiz publica atualmente partidas de múltipla escolha com dez perguntas por sessão, conforme definido nas decisões anteriores. A proposta descrita em `docs/ideas/game-mechanics-and-visual-system.md` estabelece a expansão do catálogo com novas famílias de jogos. A primeira família planejada é a grade de interseções, inspirada no modelo do GeoGrid.
 
-A aplicação funciona como site estático publicado no GitHub Pages, sem infraestrutura de banco de dados ou servidor dinâmico em tempo de execução. O novo formato precisa manter total compatibilidade com essa arquitetura. Além disso, todas as respostas aceitas devem derivar unicamente dos fatos auditados armazenados no SQLite local da coleta, impedindo respostas incorretas ou dados não verificados.
+A aplicação funciona como site estático publicado no GitHub Pages, sem infraestrutura de banco de dados ou servidor dinâmico em tempo de execução. O novo formato precisa manter total compatibilidade com essa arquitetura. Além disso, todas as respostas aceitas devem derivar unicamente dos fatos auditados armazenados no SQLite local da coleta, o que impede respostas incorretas ou dados não verificados.
 
 ## Decisão
 
@@ -42,9 +42,9 @@ Cada célula inclui também o conjunto de evidências auditadas (`evidence`) com
 
 A partida consiste em preencher as 9 células da grade respeitando as seguintes restrições:
 
-1. Limite de palpites: o jogador dispõe de 9 a 12 tentativas no total, ou de uma margem de tolerância de até 3 erros antes do encerramento da partida. O acerto de todas as células na primeira tentativa conclui a partida com 9 palpites utilizados.
-2. Regra de unicidade: cada grupo musical só pode ser utilizado em uma única célula da matriz ao longo de toda a partida. Caso um grupo satisfaça os critérios de duas ou mais células distintas, o jogador deve escolher estrategicamente onde alocá-lo, sem permissão de reuso posterior.
-3. Seleção assistida por catálogo: o arquivo da partida incorpora a lista de candidatos aceitos (`candidate_pool`), contendo identificador QID, nome canônico e nomes nos idiomas `pt-BR` e `en`. A interface do cliente utiliza essa lista para alimentar um campo de seleção com preenchimento assistido, eliminando falhas decorrentes de grafias divergentes, pontuação ou romanizações alternativas.
+1. Limite de palpites: o jogador dispõe de 9 a 12 tentativas no total, ou de uma margem de tolerância de até 3 erros antes do encerramento da partida. O acerto de todas as células na primeira tentativa conclui a partida com 9 palpites usados.
+2. Regra de unicidade: cada grupo musical só pode ser usado em uma única célula da matriz ao longo de toda a partida. Caso um grupo satisfaça os critérios de duas ou mais células distintas, o jogador deve escolher estrategicamente onde alocá-lo, sem permissão de reuso posterior.
+3. Seleção assistida por catálogo: o arquivo da partida incorpora a lista de candidatos aceitos (`candidate_pool`), contendo identificador QID, nome canônico e nomes nos idiomas `pt-BR` e `en`. A interface do cliente usa essa lista para alimentar um campo de seleção com preenchimento assistido para evitar divergências de grafia, pontuação ou romanização.
 
 ### Resumo compartilhável
 
@@ -64,7 +64,7 @@ Para atender aos requisitos de acessibilidade e modos de alto contraste, a inter
 
 A geração das grades ocorre em tempo de compilação por meio do pipeline Python. O artefato gerado segue o contrato formal `kpop-intersection-grid-v1`.
 
-Cada grade publicada possui um identificador próprio `grid_id` (hash SHA-256) e referencia a versão do dataset factual de origem (`dataset_version`). Com a mesma versão de dados e a mesma data de referência ou semente, o gerador produz exatamente os mesmos bytes. O navegador baixa o JSON pré-calculado e executa toda a validação de palpites localmente na memória do cliente, comparando o QID selecionado com o array `valid_entity_ids` da célula correspondente.
+Cada grade publicada possui um identificador próprio `grid_id` (hash SHA-256) e referencia a versão do dataset factual de origem (`dataset_version`). Com a mesma versão de dados e a mesma data de referência ou semente, o gerador produz exatamente os mesmos bytes. O navegador baixa o JSON pré-calculado e executa toda a validação de palpites localmente na memória do cliente ao comparar o QID selecionado com o array `valid_entity_ids` da célula correspondente.
 
 ## Alternativas consideradas
 
@@ -89,4 +89,4 @@ A inclusão de células impossíveis de resolver aumentaria a frustração do us
 - O gerador Python precisa cruzar as tabelas de fatos do SQLite e computar o gabarito determinístico de cada célula antes da gravação dos arquivos.
 - O contrato de dados da grade passa a ser governado pelo schema JSON Draft 2020-12 em `schemas/intersection-grid-v1.json`.
 - A verificação de acerto ou erro ocorre de forma síncrona e instantânea no navegador, sem tráfego de dados adicional durante a partida.
-- O controle de entidades já utilizadas é gerenciado inteiramente pelo estado local da aplicação no cliente.
+- O controle de entidades já usadas é gerenciado inteiramente pelo estado local da aplicação no cliente.

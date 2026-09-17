@@ -478,11 +478,51 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
+    def test_cell_with_qid_not_in_candidate_pool_fails(self):
+        fixture = sample_intersection_grid()
+        fixture["cells"][0]["valid_entity_ids"] = ["Q99999999"]
+        with self.assertRaises(ValueError) as ctx:
+            validate_intersection_grid(fixture)
+        self.assertIn("not found in candidate_pool", str(ctx.exception))
+        self.assertIn("Q99999999", str(ctx.exception))
+
+    def test_boolean_in_integer_fields_fails(self):
+        # dimensions.rows as True
+        fixture = sample_intersection_grid()
+        fixture["dimensions"]["rows"] = True
+        with self.assertRaises(ValueError):
+            validate_intersection_grid(fixture)
+
+        # dimensions.cols as True
+        fixture = sample_intersection_grid()
+        fixture["dimensions"]["cols"] = True
+        with self.assertRaises(ValueError):
+            validate_intersection_grid(fixture)
+
+        # cell.row_index as True
+        fixture = sample_intersection_grid()
+        fixture["cells"][0]["row_index"] = True
+        with self.assertRaises(ValueError):
+            validate_intersection_grid(fixture)
+
+        # cell.col_index as True
+        fixture = sample_intersection_grid()
+        fixture["cells"][0]["col_index"] = True
+        with self.assertRaises(ValueError):
+            validate_intersection_grid(fixture)
+
+        # evidence.revision_id as True
+        fixture = sample_intersection_grid()
+        fixture["cells"][0]["evidence"][0]["revision_id"] = True
+        with self.assertRaises(ValueError):
+            validate_intersection_grid(fixture)
+
     def test_atomic_write_and_read(self):
         fixture = sample_intersection_grid()
         with tempfile.TemporaryDirectory() as tmpdir:
             target = Path(tmpdir) / "grid.json"
-            write_intersection_grid_atomic(target, fixture)
+            written = write_intersection_grid_atomic(target, fixture)
+            self.assertIsInstance(written, bytes)
             self.assertTrue(target.exists())
             with open(target, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
