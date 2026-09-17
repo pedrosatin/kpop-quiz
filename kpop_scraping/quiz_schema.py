@@ -291,9 +291,10 @@ def _validate_question(question: Any) -> None:
         QUESTION_REQUIRED_FIELDS <= question_fields <= QUESTION_FIELDS,
         "question fields",
     )
-    if "media" in question:
-        _require(question["media"] is not None, "question.media")
-        validate_licensed_media(question["media"])
+    media = question.get("media")
+    if media is not None:
+        _require(isinstance(media, dict), "question.media")
+        validate_licensed_media(media)
     _require_hash(question.get("id"), "question.id")
     _require_hash(question.get("logical_id"), "question.logical_id")
     _require_hash(question.get("base_logical_id"), "question.base_logical_id")

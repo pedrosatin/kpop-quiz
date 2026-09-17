@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/preact";
+import { fireEvent, render, screen } from "@testing-library/preact";
 import { describe, expect, it } from "vitest";
 import { LicensedMedia } from "./LicensedMedia";
 import { getMessages } from "../../i18n/catalog";
@@ -171,6 +171,24 @@ describe("LicensedMedia", () => {
       );
 
       expect(screen.getByText("Image unavailable")).toBeInTheDocument();
+    });
+
+    it("renders friendly fallback when image fails to load (onError)", () => {
+      render(
+        <LicensedMedia
+          media={validMedia}
+          isAnswered={false}
+          messages={ptMessages}
+        />
+      );
+
+      const image = screen.getByRole("img");
+      expect(image).toBeInTheDocument();
+
+      fireEvent.error(image);
+
+      expect(screen.getByText("Imagem indisponível")).toBeInTheDocument();
+      expect(screen.queryByRole("img")).toBeNull();
     });
   });
 });

@@ -18,7 +18,23 @@
     "asset_url": {"type": "string", "format": "uri", "pattern": "^https?://"},
     "source_url": {"type": "string", "format": "uri", "pattern": "^https://"},
     "creator": {"type": "string", "minLength": 1},
-    "license_name": {"type": "string", "minLength": 1},
+    "license_name": {
+      "type": "string",
+      "enum": [
+        "CC0",
+        "CC0 1.0",
+        "CC BY 2.0",
+        "CC BY 2.5",
+        "CC BY 3.0",
+        "CC BY 4.0",
+        "CC BY-SA 2.0",
+        "CC BY-SA 2.5",
+        "CC BY-SA 3.0",
+        "CC BY-SA 4.0",
+        "Public Domain",
+        "OFL 1.1"
+      ]
+    },
     "license_url": {"type": "string", "format": "uri", "pattern": "^https?://"},
     "subject_qid": {"type": "string", "pattern": "^Q[1-9][0-9]*$"},
     "verified_at": {"type": "string", "format": "date"},
