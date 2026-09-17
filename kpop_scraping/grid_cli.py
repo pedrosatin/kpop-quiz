@@ -77,12 +77,13 @@ def main(argv: list[str] | None = None) -> int:
         connection.close()
 
     if args.output is not None:
+        output_path = args.output
         try:
-            write_intersection_grid_atomic(args.output, grid)
-        except OSError as exc:
-            sys.stderr.write(f"Grid write failed: {type(exc).__name__}: {exc}\n")
+            write_intersection_grid_atomic(output_path, grid)
+        except (OSError, ValueError) as exc:
+            sys.stderr.write(f"Failed to write intersection grid output: {exc}\n")
             return 1
-        print(f"Intersection grid written to {args.output} (grid_id: {grid['grid_id'][:12]}...)")
+        print(f"Intersection grid written to {output_path} (grid_id: {grid['grid_id'][:12]}...)")
     else:
         sys.stdout.write(json.dumps(grid, indent=2, ensure_ascii=False) + "\n")
 
