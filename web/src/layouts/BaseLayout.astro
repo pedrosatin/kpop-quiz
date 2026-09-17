@@ -6,7 +6,10 @@ import { getMessages } from "../i18n/catalog";
 interface Props { locale: Locale }
 const { locale } = Astro.props;
 const messages = getMessages(locale);
-const otherPath = locale === "pt-BR" ? "/en/" : "/pt-br/";
+const isGrid = Astro.url.pathname.includes("/grid");
+const skipTarget = isGrid ? "#grid" : "#quiz";
+const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
+const otherPath = isGrid ? `${targetBase}grid/` : targetBase;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 <!doctype html>
@@ -36,7 +39,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     </script>
   </head>
   <body>
-    <a class="skip-link" href="#quiz">{messages.skipLink}</a>
+    <a class="skip-link" href={skipTarget}>{messages.skipLink}</a>
     <header class="site-header">
       <a class="wordmark" href={`${base}/${locale === "pt-BR" ? "pt-br" : "en"}/`} aria-label={messages.homeLabel}>
         <span>K</span>Q

@@ -228,7 +228,7 @@ Aceite: nenhuma mídia entra no sistema sem os oito campos obrigatórios ou com 
 
 ## Fatia 14
 
-Estado: em andamento na branch `feat/intersection-grid-spec` (17 de setembro de 2026).
+Estado: aprovada na revisão de 17 de setembro de 2026 (PR #16).
 
 Objetivo: formalizar a especificação técnica e a modelagem de contratos da Grade de Interseções como nova família de jogos determinística e compatível com publicação estática.
 
@@ -243,7 +243,7 @@ Aceite: fixture completo validado com sucesso contra `schemas/intersection-grid-
 
 ## Fatia 15
 
-Estado: em andamento na branch `feat/intersection-grid-generator` (17 de setembro de 2026).
+Estado: aprovada na revisão de 17 de setembro de 2026 (PR #17).
 
 Objetivo: implementar o gerador determinístico em Python e a CLI da Grade de Interseções a partir de fatos auditados em SQLite.
 
@@ -260,21 +260,40 @@ Entregas:
 
 Aceite: grades geradas com a mesma semente e dados produzem exatamente os mesmos bytes e o mesmo `grid_id`. Todas as 9 células possuem ao menos uma resposta válida e existe solução completa sem repetição de grupos. O arquivo gerado cumpre integralmente `schemas/intersection-grid-v1.json` e é validado por `validate_intersection_grid`.
 
+## Fatia 16
+
+Estado: em andamento na branch `feat/intersection-grid-ui` (17 de setembro de 2026).
+
+Objetivo: implementar a interface web acessível da Grade de Interseções com componentes modulares, validação de palpites no cliente, regra de unicidade e compartilhamento de resultado.
+
+Entregas:
+
+- tipagem estrita e validação em tempo de execução em `web/src/lib/quiz-types.ts` (`IntersectionGrid`, `GridCriterion`, `GridCellData`, `CandidateEntity`, `GridEvidence` e validador `isIntersectionGrid`);
+- carregador de dados estáticos em `web/src/data/grid-loader.ts` com tratamento de erro tipado em `GridArtifactError`;
+- componentes modulares sob `web/src/components/Grid/` estritamente abaixo de 200 linhas cada: `IntersectionGrid.tsx`, `GridBoard.tsx`, `GridCell.tsx`, `EntityPicker.tsx`, `GridResults.tsx`, `GridReview.tsx`, `types.ts` e hook de máquina de estados `useGridGame.ts`;
+- regras de partida: matriz 3x3, limite de 9 palpites, regra estrita de unicidade que impede o reuso de grupo musical na mesma partida, anúncio de erros e acertos com foco acessível;
+- seletor assistido `EntityPicker` com busca em tempo real imune a maiúsculas e acentos, suporte a navegação por teclado e indicação de grupos já utilizados;
+- tela de conclusão `GridResults` com pontuação, matriz de compartilhamento sem spoilers em emoji ou blocos monocromáticos para alto contraste, cópia para área de transferência com feedback acessível e painel de revisão factual `GridReview` com links para fontes protegidos por `rel="noopener noreferrer"`;
+- páginas e rotas `/pt-br/grid/` e `/en/grid/` integradas ao `BaseLayout.astro` e link acessível em `GameCollection.tsx`;
+- internacionalização completa em `web/src/i18n/catalog.ts` em conformidade com as regras de redação técnica;
+- estilos responsivos em `web/src/styles/global.css` cobrindo resoluções de 320px até telas largas, temas claro e escuro e alto contraste;
+- suíte de testes unitários no Vitest e auditoria de acessibilidade automatizada com `axe-core` em `web/src/tests/grid-a11y.test.tsx` com zero violações.
+
+Aceite: 100% dos testes passando, zero violações no axe-core, build estático gerando as rotas da grade com zero erros e zero avisos.
+
 ## Etapas posteriores
 
-Com o gerador determinístico da grade de interseções estabelecido na Fatia 15, o desenvolvimento avança para a implementação da interface web e componente interativo acessível do jogo 3x3.
+Com a interface web da Grade de Interseções entregue na Fatia 16, o desenvolvimento avança para as demais famílias planejadas conforme `docs/ideas/game-mechanics-and-visual-system.md`:
 
-Próximas mecânicas planejadas conforme `docs/ideas/game-mechanics-and-visual-system.md`:
-
-1. Interface web da grade de interseções: componente Preact acessível para o tabuleiro 3x3, controle de palpites, regra de unicidade e compartilhamento de resultado.
-2. Palavras conectadas: agrupamento de dezesseis elementos em quatro conjuntos temáticos mutuamente exclusivos.
-3. Caça-palavras temático: grade com solução única demonstrada para identificar entidades associadas a um tema central.
-4. Nome por tentativas: identificação de grupo, pessoa, música ou álbum com limites de tentativas, normalização textual e retorno posicional por caractere.
+1. Palavras conectadas: agrupamento de dezesseis elementos em quatro conjuntos temáticos mutuamente exclusivos.
+2. Caça-palavras temático: grade com solução única demonstrada para identificar entidades associadas a um tema central.
+3. Nome por tentativas: identificação de grupo, pessoa, música ou álbum com limites de tentativas, normalização textual e retorno posicional por caractere.
 
 Frentes condicionadas a contratos de dados ou licenciamento:
 
 - ordenação cronológica e desafio temporal ("Quando foi?") condicionados à coleta de datas auditáveis de lançamentos e discografia;
 - desafios com mapas geográficos condicionados ao levantamento de coordenadas locais e suporte a navegação por teclado;
 - identificação de trechos de letras condicionada à contratação de fornecedor com licença de exibição territorial.
+
 
 
