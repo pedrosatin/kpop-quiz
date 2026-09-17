@@ -235,7 +235,7 @@ Objetivo: formalizar a especificação técnica e a modelagem de contratos da Gr
 Entregas:
 
 - ADR 008 em `docs/decisions/008-grade-de-intersecoes.md` com definição formal da mecânica de grade 3x3, eixos ortogonais independentes, critérios (`formed_on`, `record_label`, `has_member`), coordenadas de células, respostas válidas baseadas exclusivamente em fatos auditados do SQLite, limites de palpites (9 a 12 tentativas ou até 3 erros), regra de unicidade por partida, resumo compartilhável sem spoilers com suporte a alto contraste e compatibilidade integral com publicação estática;
-- schema formal JSON Draft 2020-12 estrito em `schemas/intersection-grid-v1.json` com `additionalProperties: false` em todos os nós, contendo campos `schema_version`, `grid_id`, `dataset_version`, `reference_date`, `dimensions`, `row_criteria`, `col_criteria`, `cells` e `candidate_pool`;
+- schema formal JSON Draft 2020-12 estrito em `schemas/intersection-grid-v1.json` com `additionalProperties: false` em todos os nós, com os campos `schema_version`, `grid_id`, `dataset_version`, `reference_date`, `dimensions`, `row_criteria`, `col_criteria`, `cells` e `candidate_pool`;
 - módulo de validação e escrita atômica em `kpop_scraping/grid_schema.py` com validação de tipos, integridade de coordenadas e não vacuidade de respostas válidas;
 - suite de testes unitários em `tests/test_grid_schema.py` com validação de fixture completo contra o schema oficial e testes negativos para células sem respostas válidas, campos ausentes, tipos incorretos e violações estruturais.
 

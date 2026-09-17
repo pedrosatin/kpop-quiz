@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import os
 import re
-import tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from .storage import canonical_json
+from .quiz_schema import write_json_atomic
 
 GRID_SCHEMA_VERSION = "kpop-intersection-grid-v1"
 GRID_CATEGORIES = frozenset({"formed_on", "record_label", "has_member"})
@@ -98,7 +96,7 @@ def _validate_evidence(evidence: Any, context: str) -> None:
         f"{context} locator must be a non-empty string",
     )
     _require(
-        isinstance(evidence["revision_id"], int) and evidence["revision_id"] >= 1,
+        type(evidence["revision_id"]) is int and evidence["revision_id"] >= 1,
         f"{context} revision_id must be an integer >= 1",
     )
     _require(
@@ -164,8 +162,8 @@ def validate_intersection_grid(payload: dict[str, Any]) -> None:
     dimensions = payload["dimensions"]
     _require(isinstance(dimensions, dict), "dimensions must be an object")
     _require(set(dimensions.keys()) == DIMENSIONS_FIELDS, "dimensions fields must be rows and cols")
-    _require(dimensions["rows"] == 3, "dimensions.rows must be 3")
-    _require(dimensions["cols"] == 3, "dimensions.cols must be 3")
+    _require(type(dimensions["rows"]) is int and dimensions["rows"] == 3, "dimensions.rows must be 3")
+    _require(type(dimensions["cols"]) is int and dimensions["cols"] == 3, "dimensions.cols must be 3")
 
     # Row criteria
     row_criteria = payload["row_criteria"]
@@ -211,8 +209,8 @@ def validate_intersection_grid(payload: dict[str, Any]) -> None:
         )
         r_idx = cell["row_index"]
         c_idx = cell["col_index"]
-        _require(isinstance(r_idx, int) and 0 <= r_idx <= 2, f"cells[{idx}].row_index must be 0, 1, or 2")
-        _require(isinstance(c_idx, int) and 0 <= c_idx <= 2, f"cells[{idx}].col_index must be 0, 1, or 2")
+        _require(type(r_idx) is int and 0 <= r_idx <= 2, f"cells[{idx}].row_index must be 0, 1, or 2")
+        _require(type(c_idx) is int and 0 <= c_idx <= 2, f"cells[{idx}].col_index must be 0, 1, or 2")
         coord = (r_idx, c_idx)
         _require(coord not in seen_coords, f"duplicate cell coordinate: {coord}")
         seen_coords.add(coord)
@@ -226,6 +224,10 @@ def validate_intersection_grid(payload: dict[str, Any]) -> None:
         )
         for entity_idx, qid in enumerate(valid_entities):
             _require_qid(qid, f"cells[{idx}].valid_entity_ids[{entity_idx}]")
+            _require(
+                qid in candidate_qids,
+                f"cells[{idx}].valid_entity_ids[{entity_idx}] ({qid}) not found in candidate_pool",
+            )
 
         evidence_list = cell["evidence"]
         _require(isinstance(evidence_list, list), f"cells[{idx}].evidence must be a list")
@@ -237,25 +239,6 @@ def validate_intersection_grid(payload: dict[str, Any]) -> None:
     _require(seen_coords == expected_coords, "cells must cover all 9 positions (0..2, 0..2)")
 
 
-def write_intersection_grid_atomic(target_path: Path, payload: dict[str, Any]) -> None:
+def write_intersection_grid_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
     """Validate and atomically write an intersection grid JSON file."""
-    validate_intersection_grid(payload)
-    target_path = target_path.resolve()
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-    payload_bytes = canonical_json(payload)
-    temp_file = tempfile.NamedTemporaryFile(
-        mode="wb",
-        dir=target_path.parent,
-        prefix=f"{target_path.name}.",
-        delete=False,
-    )
-    try:
-        temp_file.write(payload_bytes)
-        temp_file.flush()
-        os.fsync(temp_file.fileno())
-        temp_file.close()
-        os.replace(temp_file.name, target_path)
-    except Exception:
-        if os.path.exists(temp_file.name):
-            os.remove(temp_file.name)
-        raise
+    return write_json_atomic(target_path, payload, validate_intersection_grid)
