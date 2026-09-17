@@ -31,7 +31,7 @@ export function groupEvidence(evidenceItems: QuizQuestion["evidence"]): DisplayE
 }
 
 export interface AnswerFeedbackProps {
-  feedbackRef?: RefObject<HTMLDivElement>;
+  feedbackRef?: RefObject<HTMLDivElement> | undefined;
   isCorrect: boolean;
   timedOut: boolean;
   correctOption: QuizOption | null;

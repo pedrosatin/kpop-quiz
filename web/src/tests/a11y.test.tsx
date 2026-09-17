@@ -9,6 +9,8 @@ import { HintTray } from "../components/Quiz/HintTray";
 import { LicensedMedia } from "../components/Quiz/LicensedMedia";
 import { AnswerFeedback } from "../components/Quiz/AnswerFeedback";
 import { QuizResult } from "../components/Quiz/QuizResult";
+import { QuizState } from "../components/Quiz/QuizState";
+import { QuizRound } from "../components/Quiz/QuizRound";
 import { ScoreSummary } from "../components/Results/ScoreSummary";
 import { ShareResult } from "../components/Results/ShareResult";
 import { ReviewAnswers } from "../components/Results/ReviewAnswers";
@@ -351,6 +353,63 @@ describe("Automated accessibility audits with axe-core", () => {
           />
         </QuestionCard>
       </section>
+    );
+    const results = await axe.run(container);
+    expect(results.violations).toEqual([]);
+  });
+
+  it("validates QuizState in loading state", async () => {
+    const { container } = render(
+      <QuizState
+        message={ptMessages.loading}
+        busy={true}
+      />
+    );
+    const results = await axe.run(container);
+    expect(results.violations).toEqual([]);
+  });
+
+  it("validates QuizState in integrity error state with reload action", async () => {
+    const { container } = render(
+      <QuizState
+        message={ptMessages.errorDatasetIntegrity}
+        actionLabel={ptMessages.reload}
+        onAction={() => {}}
+      />
+    );
+    const results = await axe.run(container);
+    expect(results.violations).toEqual([]);
+  });
+
+  it("validates QuizRound aggregator component", async () => {
+    const { container } = render(
+      <QuizRound
+        question={sampleQuestion}
+        playMode="standard"
+        selectedId="opt-1"
+        answered={false}
+        onSelectOption={vi.fn()}
+        onSubmit={vi.fn()}
+        onRevealClue={vi.fn()}
+        messages={ptMessages}
+      />
+    );
+    const results = await axe.run(container);
+    expect(results.violations).toEqual([]);
+  });
+
+  it("validates QuizRound aggregator component when answered", async () => {
+    const { container } = render(
+      <QuizRound
+        question={sampleQuestion}
+        playMode="standard"
+        selectedId="opt-1"
+        answered={true}
+        onSelectOption={vi.fn()}
+        onSubmit={vi.fn()}
+        onRevealClue={vi.fn()}
+        messages={ptMessages}
+      />
     );
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);

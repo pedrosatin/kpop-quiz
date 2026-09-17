@@ -1,23 +1,29 @@
 export interface QuizStateProps {
-  label: string;
-  busy?: boolean;
-  action?: string;
-  onAction?: () => void;
+  label?: string | undefined;
+  message?: string | undefined;
+  busy?: boolean | undefined;
+  action?: string | undefined;
+  actionLabel?: string | undefined;
+  onAction?: (() => void) | undefined;
 }
 
 export function QuizState({
   label,
+  message,
   busy = false,
   action,
+  actionLabel,
   onAction,
 }: QuizStateProps) {
+  const content = message ?? label;
+  const buttonLabel = actionLabel ?? action;
   return (
     <section id="quiz" class="quiz-card state" aria-live="polite" aria-busy={busy}>
       {busy && <span class="loader" aria-hidden="true" />}
-      <p>{label}</p>
-      {action && (
+      {content && <p>{content}</p>}
+      {buttonLabel && (
         <button class="primary-action" type="button" onClick={onAction}>
-          {action}
+          {buttonLabel}
         </button>
       )}
     </section>
