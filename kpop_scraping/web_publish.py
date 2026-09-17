@@ -10,12 +10,14 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .quiz_generator import QuizConfig, create_session, generate_dataset
 from .quiz_schema import validate_session, write_json_atomic
 from .storage import canonical_json
 
 MANIFEST_VERSION = "kpop-quiz-web-manifest-v2"
 MANIFEST_FILENAME = "manifest-v2.json"
+GRID_DAILY_FILENAME = "grid.daily.json"
 LOCALES = ("pt-BR", "en")
 DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
@@ -35,6 +37,15 @@ def _read_session(path: Path) -> dict[str, Any]:
 def _session_bytes(session: dict[str, Any]) -> bytes:
     validate_session(session)
     return canonical_json(session) + b"\n"
+
+
+def _read_grid(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read grid artifact {path}: {exc}") from exc
+    validate_intersection_grid(payload)
+    return payload
 
 
 def parse_daily_date(date_str: str | None) -> str:
@@ -151,18 +162,46 @@ def validate_manifest(payload: dict[str, Any]) -> None:
             raise ValueError(f"invalid web manifest path {key}")
 
 
-def publish(output_dir: Path, sessions: dict[str, dict[str, Any]]) -> None:
+def publish(
+    output_dir: Path,
+    sessions: dict[str, dict[str, Any]],
+    grid: dict[str, Any] | None = None,
+) -> None:
+    """Publish static quiz sessions and optional daily intersection grid artifact.
+
+    Args:
+        output_dir: Target directory where artifacts and manifest are written.
+        sessions: Validated locale/difficulty quiz sessions mapping.
+        grid: Optional intersection grid payload (written to grid.daily.json).
+            When provided, validated against intersection grid schema before writing.
+            When None, only quiz sessions and manifest-v2.json are published,
+            preserving backward compatibility with pipelines that do not generate grid artifacts.
+    """
     for session in sessions.values():
         validate_session(session)
+    if grid is not None:
+        validate_intersection_grid(grid)
     manifest = build_manifest(sessions)
     output_dir.mkdir(parents=True, exist_ok=True)
+    if grid is not None:
+        write_intersection_grid_atomic(output_dir / GRID_DAILY_FILENAME, grid)
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
     write_json_atomic(output_dir / MANIFEST_FILENAME, manifest, validate_manifest)
 
 
-def verify(output_dir: Path) -> None:
+def verify(output_dir: Path, require_grid: bool = False) -> None:
+    """Verify published static quiz artifacts, manifest, and optional grid file.
+
+    Args:
+        output_dir: Directory containing manifest-v2.json and session files.
+        require_grid: Verification policy flag for grid artifact (grid.daily.json).
+            - When False (default): backwards-compatible policy. If grid.daily.json
+              exists on disk, it is schema-validated; if absent, verification passes.
+            - When True: grid.daily.json is mandatory and must exist and satisfy
+              schema validation, raising ValueError if missing or invalid.
+    """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -176,6 +215,11 @@ def verify(output_dir: Path) -> None:
     expected = build_manifest(sessions)
     if manifest != expected:
         raise ValueError("web artifacts do not match manifest")
+    grid_path = output_dir / GRID_DAILY_FILENAME
+    if grid_path.is_file():
+        _read_grid(grid_path)
+    elif require_grid:
+        raise ValueError(f"missing required grid artifact: {grid_path}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -186,14 +230,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--date", help="Daily quiz date in ISO YYYY-MM-DD format (default: current UTC date)")
     parser.add_argument("--timer-seconds", type=int)
     parser.add_argument("--verify", action="store_true")
+    parser.add_argument(
+        "--require-grid",
+        action="store_true",
+        help="Require grid.daily.json to exist and pass schema validation during --verify",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
+        if args.require_grid and not args.verify:
+            raise ValueError("--require-grid can only be used with --verify")
         if args.verify:
-            verify(args.output_dir)
+            verify(args.output_dir, require_grid=args.require_grid)
         elif args.database:
             if not args.database.is_file():
                 raise ValueError(f"database does not exist: {args.database}")

@@ -7,7 +7,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import web_publish
+from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.web_publish import (
+    GRID_DAILY_FILENAME,
     build_manifest,
     create_daily_sessions,
     main,
@@ -30,6 +32,9 @@ class WebPublishTests(unittest.TestCase):
             key: json.loads((FIXTURES / item["path"]).read_text())
             for key, item in manifest["sessions"].items()
         }
+
+    def grid(self):
+        return json.loads((FIXTURES / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))
 
     def test_publishes_and_verifies_canonical_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -160,6 +165,7 @@ class WebPublishTests(unittest.TestCase):
     def test_checked_in_fixtures_are_valid(self):
         for session in self.sessions().values():
             validate_session(session)
+        validate_intersection_grid(self.grid())
 
     def test_daily_sessions_determinism_same_date_repeats_hashes(self):
         connection = build_quiz_database()
@@ -257,3 +263,77 @@ class WebPublishTests(unittest.TestCase):
             parse_daily_date("invalid-date")
         with self.assertRaises(ValueError):
             parse_daily_date("2026-02-30")
+
+    def test_verify_validates_existing_grid_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), grid=self.grid())
+            verify(output)
+            verify(output, require_grid=True)
+
+    def test_verify_rejects_corrupted_grid_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            (output / GRID_DAILY_FILENAME).write_text("{corrupt json", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "cannot read grid artifact"):
+                verify(output)
+
+    def test_verify_rejects_invalid_grid_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            (output / GRID_DAILY_FILENAME).write_text(
+                json.dumps({"schema_version": "invalid"}), encoding="utf-8"
+            )
+            with self.assertRaises(ValueError):
+                verify(output)
+
+    def test_verify_fails_when_grid_required_and_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            with self.assertRaisesRegex(ValueError, "missing required grid artifact"):
+                verify(output, require_grid=True)
+
+    def test_verify_permits_missing_grid_when_require_grid_is_false(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            verify(output, require_grid=False)
+            verify(output)
+
+    def test_publish_with_grid_writes_atomically_and_verifies_with_require_grid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), grid=self.grid())
+            grid_path = output / GRID_DAILY_FILENAME
+            self.assertTrue(grid_path.is_file())
+            self.assertEqual(grid_path.read_bytes()[-1:], b"\n")
+            verify(output, require_grid=True)
+
+    def test_publish_with_invalid_grid_fails_before_creating_grid_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            invalid_grid = {"schema_version": "invalid"}
+            with self.assertRaises(ValueError):
+                publish(output, self.sessions(), grid=invalid_grid)
+            self.assertFalse((output / GRID_DAILY_FILENAME).exists())
+
+    def test_cli_verify_with_require_grid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            code_missing = main(["--output-dir", str(output), "--verify", "--require-grid"])
+            self.assertEqual(code_missing, 1)
+
+            publish(output, self.sessions(), grid=self.grid())
+            code_present = main(["--output-dir", str(output), "--verify", "--require-grid"])
+            self.assertEqual(code_present, 0)
+
+    def test_cli_require_grid_without_verify_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            code = main(["--output-dir", str(output), "--require-grid"])
+            self.assertEqual(code, 1)
+
