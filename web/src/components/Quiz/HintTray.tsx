@@ -31,7 +31,7 @@ export function HintTray({
   }
 
   return (
-    <div class="quiz-hint-tray">
+    <div class="quiz-hint-tray" id="quiz-hint-tray">
       {activeClueIds.map((id) => {
         const clue = cluesAvailable.find((item) => item.id === id);
         return clue ? (
@@ -45,7 +45,11 @@ export function HintTray({
           class="secondary-action"
           type="button"
           disabled={answered || !nextClue}
-          aria-controls={cluesAvailable.map((clue) => `clue-${clue.id}`).join(" ")}
+          aria-controls={
+            activeClueIds.length > 0
+              ? activeClueIds.map((id) => `clue-${id}`).join(" ")
+              : "quiz-hint-tray"
+          }
           onClick={onRevealClue}
         >
           {nextClue ? messages.revealClue(hintCost) : messages.clueRevealed}
