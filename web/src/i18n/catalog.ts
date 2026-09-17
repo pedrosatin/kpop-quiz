@@ -14,7 +14,9 @@ export interface Messages {
   loadError: string;
   artifactMissing: string;
   artifactInvalid: string;
+  errorDatasetIntegrity: string;
   retry: string;
+  reload: string;
   empty: string;
   questionCounter: (current: number, total: number) => string;
   score: string;
@@ -94,7 +96,9 @@ const catalogs: Record<Locale, Messages> = {
     loadError: "Não foi possível abrir este quiz.",
     artifactMissing: "As perguntas deste idioma ainda não foram publicadas.",
     artifactInvalid: "O arquivo de perguntas publicado é inválido.",
+    errorDatasetIntegrity: "O arquivo de perguntas publicado é inválido.",
     retry: "Tentar novamente",
+    reload: "Tentar novamente",
     empty: "Este quiz ainda não tem perguntas.",
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
@@ -176,7 +180,9 @@ const catalogs: Record<Locale, Messages> = {
     loadError: "This quiz could not be opened.",
     artifactMissing: "Questions for this language have not been published yet.",
     artifactInvalid: "The published question file is invalid.",
+    errorDatasetIntegrity: "The published question file is invalid.",
     retry: "Try again",
+    reload: "Try again",
     empty: "This quiz has no questions yet.",
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",

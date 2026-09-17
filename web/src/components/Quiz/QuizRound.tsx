@@ -8,22 +8,22 @@ import { HintTray } from "./HintTray";
 import { AnswerFeedback } from "./AnswerFeedback";
 
 export interface QuizRoundProps {
-  session: QuizSession;
+  session?: QuizSession | undefined;
   question: QuizQuestion;
-  questionIndex: number;
-  score: number;
-  secondsLeft: number;
-  timerVisible: boolean;
+  questionIndex?: number | undefined;
+  score?: number | undefined;
+  secondsLeft?: number | undefined;
+  timerVisible?: boolean | undefined;
   selectedId: string | null;
   onSelectOption: (id: string) => void;
   answered: boolean;
-  timedOut: boolean;
-  revealedClues: string[];
+  timedOut?: boolean | undefined;
+  revealedClues?: string[] | undefined;
   playMode: PlayMode;
-  headingRef: RefObject<HTMLHeadingElement>;
-  feedbackRef: RefObject<HTMLDivElement>;
+  headingRef?: RefObject<HTMLHeadingElement> | undefined;
+  feedbackRef?: RefObject<HTMLDivElement> | undefined;
   onSubmit: () => void;
-  onAdvance: () => void;
+  onAdvance?: () => void | undefined;
   onRevealClue: () => void;
   messages: Messages;
 }
@@ -31,35 +31,37 @@ export interface QuizRoundProps {
 export function QuizRound({
   session,
   question,
-  questionIndex,
-  score,
-  secondsLeft,
-  timerVisible,
+  questionIndex = 0,
+  score = 0,
+  secondsLeft = 0,
+  timerVisible = false,
   selectedId,
   onSelectOption,
   answered,
-  timedOut,
-  revealedClues,
+  timedOut = false,
+  revealedClues = [],
   playMode,
   headingRef,
   feedbackRef,
   onSubmit,
-  onAdvance,
+  onAdvance = () => {},
   onRevealClue,
   messages,
 }: QuizRoundProps) {
+  const totalQuestions = session?.questions?.length ?? 1;
+
   return (
     <section id="quiz" class="quiz-card" aria-labelledby="question-heading">
       <ProgressHeader
         currentIndex={questionIndex}
-        totalQuestions={session.questions.length}
+        totalQuestions={totalQuestions}
         score={score}
         secondsLeft={secondsLeft}
         timerVisible={timerVisible}
         messages={messages}
       />
       <QuestionCard
-        headingRef={headingRef}
+        {...(headingRef ? { headingRef } : {})}
         prompt={question.prompt}
         options={question.options}
         selectedOptionId={selectedId}
@@ -88,14 +90,14 @@ export function QuizRound({
       </QuestionCard>
       {answered && (
         <AnswerFeedback
-          feedbackRef={feedbackRef}
+          {...(feedbackRef ? { feedbackRef } : {})}
           isCorrect={!timedOut && selectedId === question.answer_option_id}
           timedOut={timedOut}
           correctOption={question.options.find((opt) => opt.id === question.answer_option_id) ?? null}
           explanation={question.explanation}
           evidence={question.evidence}
           messages={messages}
-          isLastQuestion={questionIndex === session.questions.length - 1}
+          isLastQuestion={questionIndex === totalQuestions - 1}
           onAdvance={onAdvance}
         />
       )}
