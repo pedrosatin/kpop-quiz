@@ -12,7 +12,7 @@ Aceita
 
 O K-pop Quiz publica partidas de múltipla escolha com dez perguntas por sessão e grades de interseções com matriz de 3 por 3 células, conforme estabelecido nas decisões arquiteturais anteriores. O catálogo do projeto prevê a introdução de novas famílias de jogos de acordo com o documento de planejamento `docs/ideas/game-mechanics-and-visual-system.md`. A segunda família planejada é a mecânica de palavras conectadas, baseada no agrupamento de 16 itens em 4 grupos temáticos de 4 elementos.
 
-A aplicação opera exclusivamente como site estático publicado no GitHub Pages, sem banco de dados ativo ou infraestrutura de servidor em tempo de execução. O novo formato precisa operar de forma estática, com paridade funcional entre os idiomas suportados (`pt-BR` e `en`). Todas as categorias, itens e explicações devem derivar diretamente dos fatos auditados armazenados no banco SQLite local. Isso assegura rastreabilidade factual por meio de identificadores Wikidata e evidências de revisão.
+A aplicação opera exclusivamente como site estático publicado no GitHub Pages, sem banco de dados ativo ou infraestrutura de servidor em tempo de execução. O novo formato precisa operar de forma estática, com paridade funcional entre os idiomas suportados pt-BR e en. Todas as categorias, itens e explicações devem derivar diretamente dos fatos auditados armazenados no banco SQLite local. Isso assegura rastreabilidade factual por meio de identificadores Wikidata e evidências de revisão.
 
 ## Decisão
 
@@ -95,7 +95,7 @@ A verificação de palpites por meio de um endpoint dinâmico permitiria ocultar
 
 ### Múltiplas partições válidas com itens compartilhados
 
-Permitir que itens pertençam a mais de uma categoria válida criaria sobreposição semântica e tornaria a experiência frustrante, pois um palpite legítimo sob a ótica factual poderia ser rejeitado pelo sistema. A exigência de partição estritamente disjunta e verificação de não ambiguidade foi adotada para que o jogador seja recompensado por deduções lógicas seguras.
+Permitir itens em mais de uma categoria introduziria ambiguidade na validação de palpites e causaria a rejeição de combinações factualmente válidas.
 
 ### Dimensões variáveis de grupos
 
@@ -103,7 +103,7 @@ Avaliou-se a possibilidade de usar tamanhos alternativos de tabuleiro, como 3 gr
 
 ### Tentativas ilimitadas sem registro de erros
 
-A concessão de tentativas ilimitadas eliminaria a tensão estratégica da partida, o que permitiria adivinhação por tentativa e erro sem dedução criteriosa. O limite de 4 erros introduz um limiar claro de desafio e estimula a análise cautelosa dos itens antes de cada submissão.
+Tentativas ilimitadas permitiriam a enumeração exaustiva de palpites sem restrição pelo cliente. O limite de 4 erros restringe a exploração combinatória no navegador a no máximo 4 submissões incorretas por sessão.
 
 ## Consequências
 
