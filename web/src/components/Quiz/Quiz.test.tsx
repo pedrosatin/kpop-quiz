@@ -1,10 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { groupEvidence, Quiz } from "./Quiz";
-import ptSession from "../../../public/data/session.pt-BR.standard.b5e08ef5cd39007df490c3744fe09395924311606523c27bd38054ce0753ac4f.json";
-import enSession from "../../../public/data/session.en.standard.d4e4bef30d2a3d36602536d75d6b0678cbc275125ac730fc544262ea9f335aa9.json";
-import assistedSession from "../../../public/data/session.pt-BR.assisted.af944e51570aef22770f24931b3fcb8868f1ab607c67dacf780674f18ea6ed3f.json";
-import expertSession from "../../../public/data/session.pt-BR.expert.06f58763382abbcc849c46a573b34eaa56a1383faef73251c54ef7b259a9f276.json";
+import ptSession from "../../../public/data/session.pt-BR.standard.86038133e11cf377d8490f81569784b57fd514da10eb07f5d719b1bb91fb3691.json";
+import enSession from "../../../public/data/session.en.standard.2b95fa2d5ef339e0b556052ba103d6efb3a3ae721656ab82d40e78433c784a2e.json";
+import assistedSession from "../../../public/data/session.pt-BR.assisted.f01fdff5365ca01f1236ae428b893eea404ad25f52a835b697c737bc87e40245.json";
+import expertSession from "../../../public/data/session.pt-BR.expert.987d0b408ebba093fcebd95e04199ff967a4af740d1a2a82e1307b8ba4cba591.json";
 import manifest from "../../../public/data/manifest-v2.json";
 
 function mockSessionFetch() {

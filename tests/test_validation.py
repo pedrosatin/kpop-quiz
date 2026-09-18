@@ -17,6 +17,7 @@ from kpop_scraping.evidence import (
 from kpop_scraping.facts import group_fact_candidates, person_fact_candidates
 from kpop_scraping.sources import (
     RELIABLE,
+    RELIABLE_SOURCES,
     UNRELIABLE,
     UNREVIEWED,
     classify_source,
@@ -542,11 +543,18 @@ class SourcePolicyTest(unittest.TestCase):
         keys = {
             "domain:jype.com",
             "domain:smtown.com",
+            "domain:starship-ent.com",
+            "domain:ador.world",
+            "domain:woolliment.com",
             "domain:yna.co.kr",
             "domain:billboard.com",
             "domain:circlechart.kr",
         }
         self.assertEqual({classify_source(key) for key in keys}, {RELIABLE})
+
+    def test_all_reliable_sources_classify_as_reliable(self):
+        for key in RELIABLE_SOURCES:
+            self.assertEqual(classify_source(key), RELIABLE, f"{key} did not classify as RELIABLE")
 
     def test_unknown_source_is_not_eligible(self):
         self.assertEqual(classify_source("domain:example.net"), UNREVIEWED)
