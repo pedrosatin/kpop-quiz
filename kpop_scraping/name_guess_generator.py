@@ -39,7 +39,10 @@ CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
         "EXID",
         "KARD",
         "BTOB",
-        "MBLAQ"[:4],
+        "VIXX",
+        "WJSN",
+        "TVXQ",
+        "EPEX",
     ],
     5: [
         "TWICE",
@@ -59,7 +62,9 @@ CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
         "CRAXY",
         "OMEGA",
         "JISOO",
-        "CHUUU",
+        "MBLAQ",
+        "MINHO",
+        "FELIX",
         "ALPHA",
     ],
     6: [
@@ -68,8 +73,9 @@ CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
         "PURPLE",
         "SISTAR",
         "WINNER",
-        "SHINHO",
+        "SHINEE",
         "JENNIE",
+        "SUPERM",
     ],
     7: [
         "RAINBOW",
@@ -82,7 +88,8 @@ CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
     8: [
         "NEWJEANS",
         "PENTAGON",
-        "SUPERM",
+        "TREASURE",
+        "EVERGLOW",
     ],
 }
 
@@ -128,13 +135,15 @@ def _extract_clues_and_evidence(
 
     for fact in entity_facts:
         if fact.predicate in {"formed_on", "born_on"} and fact.value_time:
-            try:
-                year = int(fact.value_time[:4])
-                if 1900 <= year <= 2100:
-                    debut_year = year
-                    break
-            except (ValueError, IndexError):
-                pass
+            match = re.search(r"(\d{4})", fact.value_time)
+            if match:
+                try:
+                    year = int(match.group(1))
+                    if 1900 <= year <= 2100:
+                        debut_year = year
+                        break
+                except ValueError:
+                    pass
 
     for fact in entity_facts:
         if fact.predicate == "record_label" and fact.value_entity:
@@ -255,20 +264,16 @@ def generate_name_guess_puzzle(
     seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
     rng = random.Random(seed_bytes)
 
-    # Choose target entity and word length
+    # Choose word length and target entity
     if word_length is None:
-        # Deterministically pick a target entity across all eligible candidates
-        sorted_eligible = sorted(
-            eligible_candidates,
-            key=lambda item: (len(item[1]), item[1], item[0].wikidata_id),
-        )
-        target_entity, target_normalized, target_facts = rng.choice(sorted_eligible)
-        chosen_length = len(target_normalized)
+        available_lengths = sorted(by_length.keys())
+        chosen_length = rng.choice(available_lengths)
     else:
         chosen_length = word_length
-        target_pool = by_length[chosen_length]
-        target_pool.sort(key=lambda item: (item[1], item[0].wikidata_id))
-        target_entity, target_normalized, target_facts = rng.choice(target_pool)
+
+    target_pool = by_length[chosen_length]
+    target_pool.sort(key=lambda item: (item[1], item[0].wikidata_id))
+    target_entity, target_normalized, target_facts = rng.choice(target_pool)
 
     clues, serialized_evidence = _extract_clues_and_evidence(
         target_entity, target_facts
