@@ -344,6 +344,85 @@ class TestNameGuessGenerator(unittest.TestCase):
         with self.assertRaises(ValueError):
             generate_name_guess_puzzle(self.conn, seed="bad", max_attempts=9)
 
+    def test_generate_puzzle_person_with_partial_facts(self):
+        """Verify clue extraction and artist description generation for person entity with partial facts."""
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.executescript(
+            """
+            CREATE TABLE entities (id INTEGER PRIMARY KEY, wikidata_id TEXT NOT NULL UNIQUE, entity_type TEXT NOT NULL, canonical_name TEXT NOT NULL);
+            CREATE TABLE entity_aliases (entity_id INTEGER, language TEXT, name TEXT, alias_type TEXT);
+            CREATE TABLE facts (
+                id INTEGER PRIMARY KEY, statement_id TEXT NOT NULL UNIQUE, subject_entity_id INTEGER NOT NULL,
+                predicate TEXT NOT NULL, property_id TEXT, rank TEXT, value_wikidata_id TEXT, value_entity_id INTEGER,
+                value_time TEXT, value_precision INTEGER, valid_from TEXT, valid_from_precision INTEGER,
+                valid_to TEXT, valid_to_precision INTEGER, qualifiers_json TEXT, references_json TEXT,
+                status TEXT NOT NULL, status_reason TEXT, quality_flags_json TEXT, extractor_version TEXT
+            );
+            CREATE TABLE fact_evidence (fact_id INTEGER, evidence_type TEXT, source_key TEXT, locator TEXT, reference_hash TEXT, snippet TEXT, wikidata_snapshot_id INTEGER, source_revision_id INTEGER);
+            CREATE TABLE wikidata_entity_snapshots (id INTEGER PRIMARY KEY, wikidata_id TEXT, external_revision_id INTEGER);
+            CREATE TABLE source_revisions (id INTEGER PRIMARY KEY, source_page_id INTEGER, external_revision_id INTEGER);
+            CREATE TABLE source_pages (id INTEGER PRIMARY KEY, provider TEXT, language TEXT, external_page_id INTEGER);
+            """
+        )
+        conn.execute("INSERT INTO wikidata_entity_snapshots VALUES (1, 'QSOURCE', 1001)")
+        conn.execute(
+            "INSERT INTO entities(id, wikidata_id, entity_type, canonical_name) VALUES (1, 'Q20000001', 'person', 'JISOO')"
+        )
+        conn.execute("INSERT INTO entity_aliases VALUES (1, 'en', 'JISOO', 'label')")
+        conn.execute("INSERT INTO entity_aliases VALUES (1, 'pt', 'JISOO', 'label')")
+        conn.execute(
+            """
+            INSERT INTO facts(
+                id, statement_id, subject_entity_id, predicate, property_id, rank,
+                value_time, value_precision, status, quality_flags_json
+            ) VALUES (1, 'stmt-born-Q20000001', 1, 'born_on', 'P569', 'normal', '1995-01-03', 11, 'accepted', '[]')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO fact_evidence(fact_id, evidence_type, source_key, locator, wikidata_snapshot_id)
+            VALUES (1, 'claim', 'wikidata', 'claims/P569/Q20000001', 1)
+            """
+        )
+        conn.commit()
+
+        puzzle = generate_name_guess_puzzle(
+            conn,
+            seed="seed-person-partial",
+            reference_date=self.ref_date,
+        )
+        validate_name_guess_puzzle(puzzle)
+        target = puzzle["target"]
+        self.assertEqual(target["id"], "Q20000001")
+        self.assertEqual(target["entity_type"], "person")
+        self.assertEqual(target["canonical_name"], "JISOO")
+        self.assertEqual(target["normalized_name"], "JISOO")
+        self.assertEqual(target["clues"]["debut_year"], 1995)
+        self.assertNotIn("agency", target["clues"])
+        self.assertNotIn("members_count", target["clues"])
+        self.assertIn("Artista e personalidade musical", target["clues"]["description"]["pt-BR"])
+        self.assertIn("em atividade desde 1995.", target["clues"]["description"]["pt-BR"])
+        self.assertIn("K-pop artist and music performer", target["clues"]["description"]["en"])
+        self.assertIn("active since 1995.", target["clues"]["description"]["en"])
+        conn.close()
+
+    def test_word_length_rotation_across_seeds_without_length_param(self):
+        """Verify word length rotates across different seeds when word_length is None."""
+        lengths_seen: set[int] = set()
+        for i in range(40):
+            puzzle = generate_name_guess_puzzle(
+                self.conn,
+                seed=f"seed-rotation-{i}",
+                reference_date=self.ref_date,
+                word_length=None,
+            )
+            lengths_seen.add(puzzle["word_length"])
+
+        # The test database contains candidate words of lengths 4, 5, and 8
+        self.assertGreater(len(lengths_seen), 1)
+        self.assertTrue({4, 5, 8}.issubset(lengths_seen))
+
 
 class TestNameGuessCLI(unittest.TestCase):
     """Test command line interface for name guess puzzle generator."""

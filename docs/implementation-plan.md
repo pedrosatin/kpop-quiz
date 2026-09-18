@@ -315,9 +315,9 @@ Gerador determinístico e CLI da mecânica de Nome por Tentativas (Wordle temát
 - extração de pistas pedagógicas e metadados contextuais (`debut_year`, `agency`, `members_count`, `description` bilíngue) e agregação canônica de evidências com URL HTTPS;
 - construção do conjunto fechado de palpites válidos (`valid_guesses`) com integridade referencial garantida para a palavra-alvo e vocabulário suplementar temático;
 - interface de linha de comando em `kpop_scraping/name_guess_cli.py` com suporte a `--database`, `--output`, `--seed`, `--date`, `--word-length` e `--max-attempts`, com escrita atômica via `write_name_guess_puzzle_atomic`;
-- suíte de testes unitários em `tests/test_name_guess_generator.py` cobrindo determinismo, extração de pistas, validação de regras de contrato e operações de CLI.
+- suíte de testes unitários em `tests/test_name_guess_generator.py` com cobertura de determinismo, extração de pistas, validação de regras de contrato e operações de CLI.
 
-Aceite: 100% dos testes Python passando, conformidade estrita com o esquema `kpop-name-guess-puzzle-v1`, determinismo verificado e operações de CLI validadas.
+Aceite: aprovação integral da suíte de testes Python, conformidade estrita com o esquema `kpop-name-guess-puzzle-v1`, determinismo verificado e operações de CLI validadas.
 
 ## Etapas posteriores
 

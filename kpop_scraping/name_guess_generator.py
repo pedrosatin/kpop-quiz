@@ -23,17 +23,23 @@ QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
 
 # Curated vocabulary of common K-pop names and terms to supplement valid guesses
 CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
+    3: [
+        "BTS",
+        "EXO",
+        "NCT",
+        "CIX",
+        "DIA",
+        "AOA",
+        "CLC",
+        "GOT",
+    ],
     4: [
         "KARA",
         "ITZY",
         "EXID",
-        "GOT",
-        "AESX",
-        "TWIC",
-        "STAY",
-        "LOON",
-        "FIFT",
+        "KARD",
         "BTOB",
+        "MBLAQ"[:4],
     ],
     5: [
         "TWICE",
@@ -55,16 +61,12 @@ CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
         "JISOO",
         "CHUUU",
         "ALPHA",
-        "KARCH",
     ],
     6: [
         "KEPLER",
         "SECRET",
         "PURPLE",
         "SISTAR",
-        "TEMPES",
-        "ONEUSX",
-        "EPEXXX",
         "WINNER",
         "SHINHO",
         "JENNIE",
@@ -74,18 +76,13 @@ CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
         "SHINHWA",
         "MAMAMOO",
         "ENHYPEN",
-        "EVERGLO",
-        "TREASUR",
-        "BILLLIE",
         "TEMPEST",
+        "BILLLIE",
     ],
     8: [
         "NEWJEANS",
-        "FROMISXX",
-        "LOVELYZX",
         "PENTAGON",
-        "BOYNEXTD",
-        "ATEEZXXX",
+        "SUPERM",
     ],
 }
 
@@ -258,20 +255,20 @@ def generate_name_guess_puzzle(
     seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
     rng = random.Random(seed_bytes)
 
-    # Choose word length if not explicitly requested
+    # Choose target entity and word length
     if word_length is None:
-        if 5 in by_length:
-            chosen_length = 5
-        else:
-            available_lengths = sorted(by_length.keys())
-            chosen_length = rng.choice(available_lengths)
+        # Deterministically pick a target entity across all eligible candidates
+        sorted_eligible = sorted(
+            eligible_candidates,
+            key=lambda item: (len(item[1]), item[1], item[0].wikidata_id),
+        )
+        target_entity, target_normalized, target_facts = rng.choice(sorted_eligible)
+        chosen_length = len(target_normalized)
     else:
         chosen_length = word_length
-
-    target_pool = by_length[chosen_length]
-    # Sort deterministically before random choice
-    target_pool.sort(key=lambda item: (item[1], item[0].wikidata_id))
-    target_entity, target_normalized, target_facts = rng.choice(target_pool)
+        target_pool = by_length[chosen_length]
+        target_pool.sort(key=lambda item: (item[1], item[0].wikidata_id))
+        target_entity, target_normalized, target_facts = rng.choice(target_pool)
 
     clues, serialized_evidence = _extract_clues_and_evidence(
         target_entity, target_facts

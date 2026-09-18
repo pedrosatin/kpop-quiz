@@ -155,7 +155,7 @@ Objetivo: especificar a mecânica de adivinhação de nomes por tentativas (Word
 - implementação do algoritmo de retorno posicional em duas passagens, normalização alfabética e resumo compartilhável;
 - suíte de testes unitários e de conformidade em `tests/test_name_guess_schema.py`.
 
-## Fatia 19 em andamento
+## Fatia 19 concluída
 
 Objetivo: implementar o gerador determinístico de partidas e a interface de linha de comando para a mecânica de nome por tentativas.
 
