@@ -138,7 +138,7 @@ def _temporal_clues(
             option["value"][:3] == raw_year[:3]
             for option in question["options"]
         )
-        if matching_options < 2:
+        if matching_options < 2 or matching_options >= len(question["options"]):
             return []
     elif draft.question_type == "age_on_date":
         reference_year = int(str(draft.values["date"])[:4])
@@ -152,7 +152,7 @@ def _temporal_clues(
             )
             for option in question["options"]
         )
-        if matching_options < 2:
+        if matching_options < 2 or matching_options >= len(question["options"]):
             return []
     text = (
         f"O fato relacionado está na década de {raw_year[:3]}0."
