@@ -163,6 +163,10 @@ def _build_candidate(
 
     pt_name = entity.names.get("pt") or entity.names.get("pt-BR") or entity.canonical_name
     en_name = entity.names.get("en") or entity.canonical_name
+    if normalize_word(pt_name) != norm:
+        pt_name = entity.canonical_name
+    if normalize_word(en_name) != norm:
+        en_name = entity.canonical_name
     labels = {"pt-BR": pt_name, "en": en_name}
 
     return WordCandidate(

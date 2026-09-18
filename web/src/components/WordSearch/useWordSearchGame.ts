@@ -4,6 +4,7 @@ import { type CellCoord, type GameStatus, WORD_SEARCH_I18N } from "./types";
 import {
   getLinearPath,
   formatTime,
+  isWordMatch,
   loadStoredProgress,
   type StoredProgress,
 } from "./utils";
@@ -18,15 +19,24 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   const [foundWordIds, setFoundWordIds] = useState<string[]>(initial.foundWordIds);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(initial.elapsedSeconds);
   const [status, setStatus] = useState<GameStatus>(initial.status);
-  const [clueMode, setClueMode] = useState<boolean>(initial.clueMode);
+  const [easyMode, setEasyMode] = useState<boolean>(initial.easyMode);
 
   const [focusedCell, setFocusedCell] = useState<CellCoord>({ row: 0, col: 0 });
   const [anchorCell, setAnchorCell] = useState<CellCoord | null>(null);
   const [currentHoverCell, setCurrentHoverCell] = useState<CellCoord | null>(null);
-  const [isPointerDown, setIsPointerDown] = useState<boolean>(false);
   const [announcement, setAnnouncement] = useState<string>("");
 
   const anchorRef = useRef<CellCoord | null>(null);
+  anchorRef.current = anchorCell;
+
+  const currentHoverRef = useRef<CellCoord | null>(null);
+  currentHoverRef.current = currentHoverCell;
+
+  const isPointerDownRef = useRef<boolean>(false);
+  const pointerDownCellRef = useRef<CellCoord | null>(null);
+  const anchorAtPointerDownRef = useRef<CellCoord | null>(null);
+  const didDragRef = useRef<boolean>(false);
+
   const foundWordIdsRef = useRef<string[]>(foundWordIds);
   foundWordIdsRef.current = foundWordIds;
 
@@ -44,11 +54,11 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
         foundWordIds,
         elapsedSeconds,
         status,
-        clueMode,
+        easyMode,
       };
       localStorage.setItem(storageKey, JSON.stringify(state));
     } catch {}
-  }, [storageKey, foundWordIds, elapsedSeconds, status, clueMode]);
+  }, [storageKey, foundWordIds, elapsedSeconds, status, easyMode]);
 
   const activePath = useMemo(() => {
     if (!anchorCell) return [];
@@ -83,19 +93,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
       const currentFound = foundWordIdsRef.current;
       const match = puzzle.words.find((w) => {
         if (currentFound.includes(w.id)) return false;
-        const forward =
-          w.start_row === start.row &&
-          w.start_col === start.col &&
-          w.end_row === end.row &&
-          w.end_col === end.col &&
-          w.word === letters;
-        const reverse =
-          w.start_row === end.row &&
-          w.start_col === end.col &&
-          w.end_row === start.row &&
-          w.end_col === start.col &&
-          w.word === revLetters;
-        return forward || reverse;
+        return isWordMatch(w, start, end, letters, revLetters, locale);
       });
 
       if (match) {
@@ -120,28 +118,111 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   );
 
   const handleCellPointerDown = useCallback((row: number, col: number) => {
-    setIsPointerDown(true);
+    isPointerDownRef.current = true;
+    pointerDownCellRef.current = { row, col };
+    anchorAtPointerDownRef.current = anchorRef.current;
+    didDragRef.current = false;
     setFocusedCell({ row, col });
-    anchorRef.current = { row, col };
-    setAnchorCell({ row, col });
-    setCurrentHoverCell({ row, col });
+
+    if (!anchorRef.current) {
+      anchorRef.current = { row, col };
+      setAnchorCell({ row, col });
+      setCurrentHoverCell({ row, col });
+    } else {
+      setCurrentHoverCell({ row, col });
+    }
   }, []);
 
   const handleCellPointerEnter = useCallback((row: number, col: number) => {
-    if (isPointerDown && anchorRef.current) {
-      setCurrentHoverCell({ row, col });
-    }
-  }, [isPointerDown]);
+    const target = { row, col };
+    setFocusedCell(target);
 
-  const handleCellPointerUp = useCallback((row: number, col: number) => {
-    const start = anchorRef.current;
-    if (start) {
-      checkSelection(start, { row, col });
-      anchorRef.current = null;
-      setAnchorCell(null);
-      setCurrentHoverCell(null);
+    if (isPointerDownRef.current) {
+      const downCell = pointerDownCellRef.current;
+      if (downCell && (downCell.row !== row || downCell.col !== col)) {
+        didDragRef.current = true;
+      }
+      setCurrentHoverCell(target);
+    } else if (anchorRef.current) {
+      setCurrentHoverCell(target);
     }
-    setIsPointerDown(false);
+  }, []);
+
+  const handleCellPointerUp = useCallback(
+    (row: number, col: number) => {
+      const downCell = pointerDownCellRef.current;
+      const isDrag =
+        didDragRef.current ||
+        (downCell !== null && (downCell.row !== row || downCell.col !== col));
+      const target = { row, col };
+
+      if (isDrag) {
+        const start = anchorAtPointerDownRef.current ?? downCell ?? anchorRef.current;
+        if (start) {
+          checkSelection(start, target);
+        }
+        anchorRef.current = null;
+        setAnchorCell(null);
+        setCurrentHoverCell(null);
+      } else {
+        const priorAnchor = anchorAtPointerDownRef.current;
+
+        if (!priorAnchor) {
+          anchorRef.current = target;
+          setAnchorCell(target);
+          setCurrentHoverCell(target);
+        } else if (priorAnchor.row === target.row && priorAnchor.col === target.col) {
+          anchorRef.current = null;
+          setAnchorCell(null);
+          setCurrentHoverCell(null);
+        } else {
+          const path = getLinearPath(priorAnchor, target);
+          if (path.length > 0) {
+            checkSelection(priorAnchor, target);
+            anchorRef.current = null;
+            setAnchorCell(null);
+            setCurrentHoverCell(null);
+          } else {
+            anchorRef.current = target;
+            setAnchorCell(target);
+            setCurrentHoverCell(target);
+          }
+        }
+      }
+
+      isPointerDownRef.current = false;
+      pointerDownCellRef.current = null;
+      anchorAtPointerDownRef.current = null;
+      didDragRef.current = false;
+    },
+    [checkSelection]
+  );
+
+  useEffect(() => {
+    const handleGlobalPointerUp = () => {
+      if (!isPointerDownRef.current) return;
+
+      if (didDragRef.current) {
+        const start = anchorAtPointerDownRef.current ?? pointerDownCellRef.current;
+        const end = currentHoverRef.current;
+        if (start && end && (start.row !== end.row || start.col !== end.col)) {
+          checkSelection(start, end);
+        }
+        anchorRef.current = null;
+        setAnchorCell(null);
+        setCurrentHoverCell(null);
+      }
+
+      isPointerDownRef.current = false;
+      pointerDownCellRef.current = null;
+      anchorAtPointerDownRef.current = null;
+      didDragRef.current = false;
+    };
+
+    window.addEventListener("pointerup", handleGlobalPointerUp);
+    return () => {
+      window.removeEventListener("pointerup", handleGlobalPointerUp);
+    };
   }, [checkSelection]);
 
   const handleKeyDown = useCallback(
@@ -159,12 +240,23 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     [focusedCell, anchorCell, puzzle.dimensions, checkSelection]
   );
 
+  const cancelSelection = useCallback(() => {
+    anchorRef.current = null;
+    setAnchorCell(null);
+    setCurrentHoverCell(null);
+    isPointerDownRef.current = false;
+    pointerDownCellRef.current = null;
+    didDragRef.current = false;
+  }, []);
+
   return {
     foundWordIds,
     elapsedSeconds,
     status,
-    clueMode,
-    setClueMode,
+    easyMode,
+    setEasyMode,
+    clueMode: easyMode,
+    setClueMode: setEasyMode,
     focusedCell,
     setFocusedCell,
     anchorCell,
@@ -175,10 +267,6 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     handleCellPointerEnter,
     handleCellPointerUp,
     handleKeyDown,
-    cancelSelection: () => {
-      setAnchorCell(null);
-      setCurrentHoverCell(null);
-      setIsPointerDown(false);
-    },
+    cancelSelection,
   };
 }

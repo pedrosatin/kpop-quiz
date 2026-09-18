@@ -6,7 +6,8 @@ interface WordSearchListProps {
   puzzle: WordSearchPuzzle;
   locale: Locale;
   foundWordIds: string[];
-  clueMode: boolean;
+  easyMode?: boolean;
+  clueMode?: boolean;
   onSelectEvidenceWord: (word: WordSearchWord) => void;
 }
 
@@ -14,22 +15,32 @@ export function WordSearchList({
   puzzle,
   locale,
   foundWordIds,
+  easyMode,
   clueMode,
   onSelectEvidenceWord,
 }: WordSearchListProps) {
   const t = WORD_SEARCH_I18N[locale];
+  const isEasy = easyMode ?? clueMode ?? false;
 
   return (
     <aside class="word-search-list-section" aria-label={t.wordsRemaining}>
       <h2 class="word-search-list-heading">
-        {clueMode ? t.showClues : t.wordsRemaining} ({foundWordIds.length}/{puzzle.words.length})
+        {t.wordsRemaining} ({foundWordIds.length}/{puzzle.words.length})
       </h2>
       <ul class="word-search-words" role="list">
         {puzzle.words.map((word) => {
           const isFound = foundWordIds.includes(word.id);
           const localizedName = word.labels[locale] || word.canonical_name;
-          const localizedClue = word.clue?.[locale] || localizedName;
-          const displayText = clueMode ? (isFound ? `${localizedName} (${localizedClue})` : localizedClue) : localizedName;
+          const localizedClue = word.clue?.[locale] || word.clue?.en || "";
+          const pendingHint = localizedClue
+            ? `${localizedClue} (${t.lettersCount(word.word.length)})`
+            : `${"•".repeat(word.word.length)} (${t.lettersCount(word.word.length)})`;
+
+          const displayText = isFound
+            ? localizedName
+            : isEasy
+            ? localizedName
+            : pendingHint;
 
           return (
             <li

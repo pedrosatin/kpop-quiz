@@ -9,8 +9,10 @@ interface WordSearchHeaderProps {
   foundCount: number;
   totalCount: number;
   elapsedSeconds: number;
-  clueMode: boolean;
-  onToggleClueMode: () => void;
+  easyMode?: boolean;
+  onToggleEasyMode?: () => void;
+  clueMode?: boolean;
+  onToggleClueMode?: () => void;
 }
 
 export function WordSearchHeader({
@@ -19,10 +21,14 @@ export function WordSearchHeader({
   foundCount,
   totalCount,
   elapsedSeconds,
+  easyMode,
+  onToggleEasyMode,
   clueMode,
   onToggleClueMode,
 }: WordSearchHeaderProps) {
   const t = WORD_SEARCH_I18N[locale];
+  const isEasy = easyMode ?? clueMode ?? false;
+  const toggleMode = onToggleEasyMode ?? onToggleClueMode;
   const themeTitle = puzzle.theme[locale] || puzzle.theme.en;
   const themeDesc = puzzle.theme_description?.[locale] || puzzle.theme_description?.en;
 
@@ -51,11 +57,11 @@ export function WordSearchHeader({
         <div class="meta-actions">
           <button
             type="button"
-            class="toggle-clue-btn"
-            onClick={onToggleClueMode}
-            aria-pressed={clueMode}
+            class="toggle-clue-btn toggle-mode-btn"
+            onClick={toggleMode}
+            aria-pressed={isEasy}
           >
-            {clueMode ? t.showWords : t.showClues}
+            {isEasy ? t.normalMode : t.easyMode}
           </button>
         </div>
       </div>
