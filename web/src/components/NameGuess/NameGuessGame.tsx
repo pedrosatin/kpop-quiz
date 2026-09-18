@@ -37,10 +37,10 @@ export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGu
       <section
         id="name-guess"
         aria-live="polite"
-        class="w-full max-w-2xl mx-auto px-4 py-12 flex flex-col items-center justify-center text-center"
+        class="name-guess-shell name-guess-loading-container"
       >
         <span class="loader" aria-hidden="true" />
-        <p class="mt-4 text-sm font-semibold text-slate-600 dark:text-slate-400">{t.loading}</p>
+        <p class="name-guess-loading-text">{t.loading}</p>
       </section>
     );
   }
@@ -50,13 +50,13 @@ export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGu
     return (
       <section
         id="name-guess"
-        class="w-full max-w-2xl mx-auto px-4 py-12 flex flex-col items-center justify-center text-center"
+        class="name-guess-shell name-guess-error-container"
       >
-        <p class="text-sm font-semibold text-red-600 dark:text-red-400 mb-4">{errorMsg}</p>
+        <p class="name-guess-error-message">{errorMsg}</p>
         <button
           type="button"
           onClick={loadData}
-          class="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm cursor-pointer transition"
+          class="name-guess-retry-btn"
         >
           {t.retry}
         </button>

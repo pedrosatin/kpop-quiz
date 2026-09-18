@@ -45,7 +45,8 @@ export function NameGuessBoard({
     <div
       role="region"
       aria-label={t.boardAria}
-      class="flex flex-col items-center justify-center p-2 sm:p-4 my-2"
+      class={`name-guess-board ${highContrast ? "high-contrast" : ""}`.trim()}
+      data-contrast={highContrast ? "high" : "normal"}
     >
       {rows}
     </div>
