@@ -37,6 +37,15 @@ export interface NameGuessTranslations {
   loadError: string;
   artifactMissing: string;
   retry: string;
+  boardAria: string;
+  rowAria: (row: number) => string;
+  emptyTile: (pos: number) => string;
+  activeTile: (pos: number, letter: string) => string;
+  correctTile: (pos: number, letter: string) => string;
+  presentTile: (pos: number, letter: string) => string;
+  absentTile: (pos: number, letter: string) => string;
+  keyboardAria: string;
+  resultsAria: string;
 }
 
 export const NAME_GUESS_I18N: Record<Locale, NameGuessTranslations> = {
@@ -67,6 +76,15 @@ export const NAME_GUESS_I18N: Record<Locale, NameGuessTranslations> = {
     loadError: "Não foi possível carregar o jogo.",
     artifactMissing: "O jogo de adivinhação de hoje ainda não foi publicado.",
     retry: "Tentar novamente",
+    boardAria: "Grade de palpites",
+    rowAria: (row) => `Tentativa ${row}`,
+    emptyTile: (pos) => `Posição ${pos}: vazio`,
+    activeTile: (pos, letter) => `Posição ${pos}: letra ${letter}`,
+    correctTile: (pos, letter) => `Posição ${pos}: letra ${letter}, correta`,
+    presentTile: (pos, letter) => `Posição ${pos}: letra ${letter}, posição diferente`,
+    absentTile: (pos, letter) => `Posição ${pos}: letra ${letter}, não faz parte`,
+    keyboardAria: "Teclado virtual",
+    resultsAria: "Resultados da partida",
   },
   en: {
     title: "Guess the Name",
@@ -95,5 +113,14 @@ export const NAME_GUESS_I18N: Record<Locale, NameGuessTranslations> = {
     loadError: "Could not load the game.",
     artifactMissing: "Today's name guess puzzle has not been published yet.",
     retry: "Try again",
+    boardAria: "Guess grid",
+    rowAria: (row) => `Attempt ${row}`,
+    emptyTile: (pos) => `Position ${pos}: empty`,
+    activeTile: (pos, letter) => `Position ${pos}: letter ${letter}`,
+    correctTile: (pos, letter) => `Position ${pos}: letter ${letter}, correct`,
+    presentTile: (pos, letter) => `Position ${pos}: letter ${letter}, different position`,
+    absentTile: (pos, letter) => `Position ${pos}: letter ${letter}, absent`,
+    keyboardAria: "Virtual keyboard",
+    resultsAria: "Match results",
   },
 };

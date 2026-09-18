@@ -37,10 +37,10 @@ export function VirtualKeyboard({
     }
     if (status === "present") {
       return highContrast
-        ? "bg-orange-600 text-white font-bold"
+        ? "bg-orange-800 text-white font-bold"
         : "bg-amber-500 text-slate-950 font-bold";
     }
-    return "bg-slate-400 dark:bg-slate-800 text-slate-200 dark:text-slate-400";
+    return "bg-slate-300 dark:bg-slate-800 text-slate-900 dark:text-slate-200";
   }
 
   function handleKeyClick(key: string) {
@@ -57,7 +57,7 @@ export function VirtualKeyboard({
   return (
     <div
       role="group"
-      aria-label="Teclado virtual"
+      aria-label={t.keyboardAria}
       class="w-full max-w-lg mx-auto p-1.5 sm:p-2 select-none"
     >
       {KEYBOARD_ROWS.map((row, rIdx) => (

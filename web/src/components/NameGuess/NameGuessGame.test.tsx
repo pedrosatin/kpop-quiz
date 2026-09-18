@@ -83,7 +83,7 @@ describe("NameGuessGame component", () => {
     // Game is won
     expect(screen.getByText(tPt.wonTitle)).toBeInTheDocument();
     expect(screen.getAllByText(/JYP Entertainment/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/2015/)).toBeInTheDocument();
+    expect(screen.getAllByText(/2015/).length).toBeGreaterThanOrEqual(1);
 
     // Click copy results
     const copyBtn = screen.getByRole("button", { name: tPt.copyResults });
@@ -97,6 +97,30 @@ describe("NameGuessGame component", () => {
     const playAgainBtn = screen.getByRole("button", { name: tPt.playAgain });
     fireEvent.click(playAgainBtn);
     expect(screen.queryByText(tPt.wonTitle)).not.toBeInTheDocument();
+  });
+
+  it("renders localized aria labels when locale is en", () => {
+    const tEn = NAME_GUESS_I18N["en"];
+    render(<NameGuessGame locale="en" puzzle={puzzle} />);
+
+    expect(screen.getByRole("region", { name: tEn.boardAria })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: tEn.keyboardAria })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: tEn.rowAria(1) })).toBeInTheDocument();
+  });
+
+  it("ignores physical keydown events when target is a form input", () => {
+    render(
+      <div>
+        <input type="text" data-testid="form-input" />
+        <NameGuessGame locale="pt-BR" puzzle={puzzle} />
+      </div>
+    );
+
+    const input = screen.getByTestId("form-input");
+    const row1 = screen.getByRole("group", { name: "Tentativa 1" });
+
+    fireEvent.keyDown(input, { key: "a" });
+    expect(within(row1).queryByLabelText("Posição 1: letra A")).not.toBeInTheDocument();
   });
 
   it("loads puzzle asynchronously via fetch when initial puzzle is omitted", async () => {

@@ -1,5 +1,5 @@
 import { NameGuessTile } from "./NameGuessTile";
-import type { LetterStatus, TileStatus } from "./types";
+import type { LetterStatus, NameGuessTranslations, TileStatus } from "./types";
 
 interface NameGuessRowProps {
   wordLength: number;
@@ -9,6 +9,7 @@ interface NameGuessRowProps {
   currentInput?: string | undefined;
   highContrast: boolean;
   rowIndex: number;
+  t: NameGuessTranslations;
 }
 
 export function NameGuessRow({
@@ -19,6 +20,7 @@ export function NameGuessRow({
   currentInput = "",
   highContrast,
   rowIndex,
+  t,
 }: NameGuessRowProps) {
   const tiles = [];
 
@@ -41,6 +43,7 @@ export function NameGuessRow({
         status={status}
         highContrast={highContrast}
         position={i}
+        t={t}
       />
     );
   }
@@ -48,7 +51,7 @@ export function NameGuessRow({
   return (
     <div
       role="group"
-      aria-label={`Tentativa ${rowIndex + 1}`}
+      aria-label={t.rowAria(rowIndex + 1)}
       class="flex justify-center gap-1.5 sm:gap-2 my-1"
     >
       {tiles}

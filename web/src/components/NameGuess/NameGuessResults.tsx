@@ -67,7 +67,7 @@ export function NameGuessResults({
   return (
     <div
       role="region"
-      aria-label="Resultados da partida"
+      aria-label={t.resultsAria}
       class="w-full max-w-lg mx-auto my-4 p-4 sm:p-6 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 text-center"
     >
       <h2 class={`text-2xl font-black mb-2 ${won ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
