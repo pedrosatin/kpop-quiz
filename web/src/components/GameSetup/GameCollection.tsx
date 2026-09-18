@@ -38,10 +38,12 @@ export function GameCollection({
 
   const currentLocale = locale ?? (messages.languageName === "English" ? "pt-BR" : "en");
   const gridPath = currentLocale === "pt-BR" ? "/pt-br/grid/" : "/en/grid/";
+  const connectionsPath = currentLocale === "pt-BR" ? "/pt-br/conexoes/" : "/en/connections/";
   const base = (typeof import.meta !== "undefined" && import.meta.env?.BASE_URL)
     ? import.meta.env.BASE_URL.replace(/\/$/, "")
     : "";
   const gridHref = `${base}${gridPath}`;
+  const connectionsHref = `${base}${connectionsPath}`;
 
   return (
     <fieldset class="game-collection" disabled={disabled}>
@@ -67,6 +69,9 @@ export function GameCollection({
       <div class="collection-extra-mode">
         <a href={gridHref} class="collection-grid-link">
           <strong>{messages.gridGameTitle}</strong>: {messages.gridGameDescription}
+        </a>
+        <a href={connectionsHref} class="collection-grid-link">
+          <strong>{messages.connectionsGameTitle}</strong>: {messages.connectionsGameDescription}
         </a>
       </div>
     </fieldset>
