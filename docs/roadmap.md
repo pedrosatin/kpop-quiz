@@ -164,9 +164,19 @@ Objetivo: implementar o gerador determinístico de partidas e a interface de lin
 - implementação da CLI em `kpop_scraping/name_guess_cli.py` com suporte aos parâmetros `--database`, `--output`, `--seed`, `--date`, `--word-length` e `--max-attempts`;
 - suíte de testes unitários do gerador e da CLI em `tests/test_name_guess_generator.py`.
 
+## Fatia 20 concluída
+
+Objetivo: implementar a interface web acessível, componentes modulares, máquina de estados e rotas bilíngues para a mecânica de nome por tentativas.
+
+- definição de contratos de dados em `web/src/lib/quiz-types.ts` e carregador assíncrono em `web/src/data/name-guess-loader.ts`;
+- componentes modulares de interface em `web/src/components/NameGuess/` com limite de 200 linhas por arquivo;
+- suporte a teclado físico e virtual, persistência de modo alto contraste e feedback acessível via `aria-live` e `aria-label`;
+- criação das rotas `/pt-br/adivinhe/` e `/en/guess/` com integração no seletor de jogos e catálogo bilíngue;
+- suíte de testes de máquina de estados, componentes e auditoria automatizada de acessibilidade via axe-core com zero violações.
+
 ## Fatias posteriores
 
-Concluída a entrega do gerador na Fatia 19, o desenvolvimento avança para a interface web acessível (Fatia 20) e integração com o pipeline de publicação e CI (Fatia 21). Frentes seguintes cobrem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+Concluída a interface web na Fatia 20, a etapa seguinte abrange a validação em navegador real e a integração com o pipeline de publicação e CI (Fatia 21). Frentes seguintes cobrem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
 
 
 
