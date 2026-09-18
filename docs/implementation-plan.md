@@ -306,9 +306,23 @@ Especificação formal, contrato e validação da mecânica de Nome por Tentativ
 
 Aceite: aprovação integral da suíte de testes contra o validador de domínio e o esquema Draft 2020-12, cobertura comprovada de duplicatas no algoritmo de feedback e escrita atômica validada.
 
+## Fatia 19
+
+Gerador determinístico e CLI da mecânica de Nome por Tentativas (Wordle temático):
+
+- implementação do gerador determinístico em `kpop_scraping/name_guess_generator.py` alimentado por fatos e entidades auditadas via SQLite local;
+- seleção determinística orientada por semente SHA-256 e data de referência, com escolha da entidade-alvo e agrupamento por comprimento de palavra;
+- extração de pistas pedagógicas e metadados contextuais (`debut_year`, `agency`, `members_count`, `description` bilíngue) e agregação canônica de evidências com URL HTTPS;
+- construção do conjunto fechado de palpites válidos (`valid_guesses`) com integridade referencial garantida para a palavra-alvo e vocabulário suplementar temático;
+- interface de linha de comando em `kpop_scraping/name_guess_cli.py` com suporte a `--database`, `--output`, `--seed`, `--date`, `--word-length` e `--max-attempts`, com escrita atômica via `write_name_guess_puzzle_atomic`;
+- suíte de testes unitários em `tests/test_name_guess_generator.py` cobrindo determinismo, extração de pistas, validação de regras de contrato e operações de CLI.
+
+Aceite: 100% dos testes Python passando, conformidade estrita com o esquema `kpop-name-guess-puzzle-v1`, determinismo verificado e operações de CLI validadas.
+
 ## Etapas posteriores
 
-Com as especificações da Fatia 18 estabelecidas, a entrega avança para o gerador determinístico (Fatia 19) e a interface web acessível (Fatia 20). Frentes posteriores abrangem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+Com o gerador determinístico entregue na Fatia 19, o desenvolvimento avança para a interface web acessível (Fatia 20) e a integração com o pipeline de verificação em publicação e CI (Fatia 21). Frentes posteriores abrangem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+
 
 
 
