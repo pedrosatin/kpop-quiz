@@ -519,3 +519,166 @@ export function isConnectionsPuzzle(value: unknown): value is ConnectionsPuzzle 
   return true;
 }
 
+export interface NameGuessClues {
+  debut_year?: number;
+  agency?: string | BilingualText;
+  members_count?: number;
+  description?: BilingualText;
+}
+
+export interface NameGuessTarget {
+  id: string;
+  canonical_name: string;
+  normalized_name: string;
+  labels: BilingualText;
+  entity_type: "group" | "person";
+  clues?: NameGuessClues;
+  evidence: GridEvidence[];
+}
+
+export interface NameGuessPuzzle {
+  schema_version: "kpop-name-guess-puzzle-v1";
+  puzzle_id: string;
+  dataset_version: string;
+  reference_date: string;
+  word_length: number;
+  max_attempts: number;
+  target: NameGuessTarget;
+  valid_guesses: string[];
+}
+
+const NAME_GUESS_ROOT_FIELDS = [
+  "schema_version",
+  "puzzle_id",
+  "dataset_version",
+  "reference_date",
+  "word_length",
+  "max_attempts",
+  "target",
+  "valid_guesses",
+];
+
+const TARGET_REQUIRED_FIELDS = [
+  "id",
+  "canonical_name",
+  "normalized_name",
+  "labels",
+  "entity_type",
+  "evidence",
+];
+
+const CLUES_ALLOWED_FIELDS = ["debut_year", "agency", "members_count", "description"];
+const NORMALIZED_NAME_REGEX = /^[A-Z]+$/;
+
+function isNameGuessClues(value: unknown): value is NameGuessClues {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  for (const key of keys) {
+    if (!CLUES_ALLOWED_FIELDS.includes(key)) return false;
+  }
+  if ("debut_year" in value) {
+    const y = value.debut_year;
+    if (typeof y !== "number" || !Number.isInteger(y) || y < 1900 || y > 2100) return false;
+  }
+  if ("agency" in value) {
+    const a = value.agency;
+    if (typeof a !== "string" && !isBilingualText(a)) return false;
+    if (typeof a === "string" && a.length === 0) return false;
+  }
+  if ("members_count" in value) {
+    const m = value.members_count;
+    if (typeof m !== "number" || !Number.isInteger(m) || m < 1 || m > 50) return false;
+  }
+  if ("description" in value && !isBilingualText(value.description)) {
+    return false;
+  }
+  return true;
+}
+
+function isNameGuessTarget(value: unknown, wordLength: number): value is NameGuessTarget {
+  if (!isRecord(value)) return false;
+  for (const req of TARGET_REQUIRED_FIELDS) {
+    if (!(req in value)) return false;
+  }
+  const allowed = new Set([...TARGET_REQUIRED_FIELDS, "clues"]);
+  for (const key of Object.keys(value)) {
+    if (!allowed.has(key)) return false;
+  }
+  const { id, canonical_name, normalized_name, labels, entity_type, evidence } = value;
+  if (typeof id !== "string" || !QID.test(id)) return false;
+  if (typeof canonical_name !== "string" || canonical_name.length === 0) return false;
+  if (
+    typeof normalized_name !== "string"
+    || !NORMALIZED_NAME_REGEX.test(normalized_name)
+    || normalized_name.length !== wordLength
+  ) {
+    return false;
+  }
+  if (!isBilingualText(labels)) return false;
+  if (entity_type !== "group" && entity_type !== "person") return false;
+  if (!Array.isArray(evidence) || evidence.length < 1 || !evidence.every(isGridEvidence)) {
+    return false;
+  }
+  if ("clues" in value && !isNameGuessClues(value.clues)) {
+    return false;
+  }
+  return true;
+}
+
+export function isNameGuessPuzzle(value: unknown): value is NameGuessPuzzle {
+  if (!isRecord(value) || !hasExactKeys(value, NAME_GUESS_ROOT_FIELDS)) return false;
+  if (
+    value.schema_version !== "kpop-name-guess-puzzle-v1"
+    || typeof value.puzzle_id !== "string" || !HASH.test(value.puzzle_id)
+    || typeof value.dataset_version !== "string" || !HASH.test(value.dataset_version)
+    || !isDate(value.reference_date)
+  ) {
+    return false;
+  }
+
+  const { word_length, max_attempts, target, valid_guesses } = value;
+  if (
+    typeof word_length !== "number"
+    || !Number.isInteger(word_length)
+    || word_length < 3
+    || word_length > 10
+  ) {
+    return false;
+  }
+  if (
+    typeof max_attempts !== "number"
+    || !Number.isInteger(max_attempts)
+    || max_attempts < 4
+    || max_attempts > 8
+  ) {
+    return false;
+  }
+
+  if (!isNameGuessTarget(target, word_length)) return false;
+
+  if (
+    !Array.isArray(valid_guesses)
+    || valid_guesses.length < 1
+    || new Set(valid_guesses).size !== valid_guesses.length
+  ) {
+    return false;
+  }
+
+  for (const guess of valid_guesses) {
+    if (
+      typeof guess !== "string"
+      || guess.length !== word_length
+      || !NORMALIZED_NAME_REGEX.test(guess)
+    ) {
+      return false;
+    }
+  }
+
+  if (!valid_guesses.includes(target.normalized_name)) {
+    return false;
+  }
+
+  return true;
+}
+
+

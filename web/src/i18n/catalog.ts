@@ -144,6 +144,12 @@ export interface Messages {
   connectionsSolvedAria: string;
   connectionsItemsAria: string;
   connectionsLevelAria: string;
+  nameGuessTitle: string;
+  nameGuessEyebrow: string;
+  nameGuessIntro: string;
+  nameGuessGameTitle: string;
+  nameGuessGameDescription: string;
+  nameGuessModeLink: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -295,6 +301,12 @@ const catalogs: Record<Locale, Messages> = {
     connectionsSolvedAria: "Categorias resolvidas",
     connectionsItemsAria: "Itens para agrupamento",
     connectionsLevelAria: "Nível",
+    nameGuessTitle: "Adivinhe o Nome",
+    nameGuessEyebrow: "6 tentativas · 1 entidade diária",
+    nameGuessIntro: "Descubra a entidade de K-pop com retorno de cores a cada palpite.",
+    nameGuessGameTitle: "Adivinhe o Nome",
+    nameGuessGameDescription: "Adivinhe o nome de um artista ou grupo de K-pop em até 6 tentativas com letras coloridas.",
+    nameGuessModeLink: "Jogar Adivinhe o Nome",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -444,6 +456,12 @@ const catalogs: Record<Locale, Messages> = {
     connectionsSolvedAria: "Solved categories",
     connectionsItemsAria: "Items to group",
     connectionsLevelAria: "Level",
+    nameGuessTitle: "Guess the Name",
+    nameGuessEyebrow: "6 attempts · 1 daily entity",
+    nameGuessIntro: "Figure out the K-pop entity name with color feedback on every guess.",
+    nameGuessGameTitle: "Guess the Name",
+    nameGuessGameDescription: "Guess the K-pop artist or group name within 6 attempts with colored letter feedback.",
+    nameGuessModeLink: "Play Guess the Name",
   },
 };
 
