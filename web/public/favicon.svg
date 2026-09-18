@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <style>
+    :root {
+      --bg: #FFF8F0;
+      --border: #94879D;
+      --k: #B31555;
+      --q: #24182B;
+      --sparkle: #FFB800;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #17121C;
+        --border: #4A3E52;
+        --k: #FF2D85;
+        --q: #FFF8F0;
+        --sparkle: #FFD700;
+      }
+    }
+    .bg { fill: var(--bg); stroke: var(--border); stroke-width: 1.5; }
+    .k { fill: var(--k); }
+    .q { fill: var(--q); }
+    .sparkle { fill: var(--sparkle); }
+  </style>
+  <rect class="bg" x="1" y="1" width="62" height="62" rx="16" />
+  <g font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="34" letter-spacing="-2">
+    <text x="32" y="44" text-anchor="middle">
+      <tspan class="k">K</tspan><tspan class="q">Q</tspan>
+    </text>
+  </g>
+  <path class="sparkle" d="M 50 8 Q 50 14 56 14 Q 50 14 50 20 Q 50 14 44 14 Q 50 14 50 8 Z" />
+</svg>
