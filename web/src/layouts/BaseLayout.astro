@@ -43,6 +43,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     <meta name="description" content={messages.intro} />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFF8F0" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17121C" />
+    <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
+    <link rel="alternate icon" href={`${base}/favicon.ico`} />
+    <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
     <link rel="preload" href={`${base}/fonts/noto-sans/NotoSans[wdth,wght].woff2`} as="font" type="font/woff2" crossorigin />
     <title>{messages.title} | K-pop Quiz</title>
     <script is:inline>
