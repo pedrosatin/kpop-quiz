@@ -26,7 +26,7 @@ O jogo de nome por tentativas baseia-se na descoberta de uma entidade do univers
 
 ### Normalização alfabética canônica
 
-Os nomes de grupos e artistas no K-pop apresentam variações frequentes de maiúsculas e minúsculas, caracteres especiais, pontuação, acentuação e espaçamento. Para viabilizar a digitação por teclado virtual e físico padrão A-Z sem ambiguidade, o pipeline adota a seguinte regra de normalização alfabética:
+Os nomes de grupos e artistas no K-pop apresentam variações frequentes de maiúsculas e minúsculas, caracteres especiais, pontuação, acentuação e espaçamento. Para permitir a digitação por teclado virtual e físico padrão A-Z sem ambiguidade, o pipeline adota a seguinte regra de normalização alfabética:
 
 1. Decomposição de caracteres acentuados para sua forma básica via decomposição de compatibilidade Unicode (NFKD), com remoção de marcas de diacrítico.
 2. Conversão de todos os caracteres para letras maiúsculas.
@@ -75,7 +75,7 @@ Diferente de jogos de palavras genéricos, o objetivo educativo do K-pop Quiz é
 4. Metadados e pistas opcionais (`clues`): ano de estreia (`debut_year`), agência ou empresa gestora (`agency`), contagem de integrantes (`members_count`) e descrição bilíngue sumária (`description`).
 5. Lista de evidências auditadas (`evidence`), com `fact_base_id`, `locator`, `revision_id`, `source_key` e URL HTTPS para verificação no Wikipedia ou Wikidata.
 
-Essas informações são reveladas no encerramento da partida (vitória ou derrota) ou de forma progressiva no modo assistido, reforçando a missão de aprendizado do projeto.
+Essas informações são reveladas no encerramento da partida ou de forma progressiva no modo assistido.
 
 ### Resumo compartilhável e acessibilidade
 
