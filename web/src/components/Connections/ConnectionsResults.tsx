@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { ConnectionsResultsProps } from "./types";
 import { DIFFICULTY_COLORS } from "./types";
 
@@ -58,6 +58,11 @@ export function ConnectionsResults({
 }: ConnectionsResultsProps) {
   const [monochrome, setMonochrome] = useState(false);
   const [copied, setCopied] = useState(false);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
 
   const isWon = gameStatus === "won";
   const title = isWon ? messages.connectionsGameOverWon : messages.connectionsGameOverLost;
@@ -92,7 +97,12 @@ export function ConnectionsResults({
       aria-labelledby="connections-result-title"
     >
       <div class="connections-results-card">
-        <h2 id="connections-result-title" class="connections-results-title">
+        <h2
+          id="connections-result-title"
+          ref={titleRef}
+          tabIndex={-1}
+          class="connections-results-title"
+        >
           {title}
         </h2>
         <p class="connections-results-summary">{summary}</p>

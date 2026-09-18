@@ -35,6 +35,7 @@ export interface ConnectionsBoardProps {
   categories: ConnectionsCategory[];
   solvedCategoryIds: string[];
   boardItems: ConnectionsItem[];
+  allItems: ConnectionsItem[];
   selectedItemIds: string[];
   onToggleItem: (id: string) => void;
   disabled?: boolean;
@@ -53,7 +54,8 @@ export interface ConnectionsTileProps {
 
 export interface CategoryBannerProps {
   category: ConnectionsCategory;
-  items: ConnectionsItem[];
+  allItems: ConnectionsItem[];
+  items?: ConnectionsItem[];
   locale: Locale;
   messages: Messages;
 }
@@ -76,10 +78,10 @@ export interface ConnectionsResultsProps {
 
 export const DIFFICULTY_COLORS: Record<
   ConnectionsDifficulty,
-  { bg: string; text: string; emoji: string; mono: string }
+  { bg: string; text: string; textColor: string; emoji: string; mono: string }
 > = {
-  1: { bg: "#fde047", text: "#1f2937", emoji: "🟨", mono: "①" },
-  2: { bg: "#86efac", text: "#064e3b", emoji: "🟩", mono: "②" },
-  3: { bg: "#93c5fd", text: "#1e3a8a", emoji: "🟦", mono: "③" },
-  4: { bg: "#d8b4fe", text: "#581c87", emoji: "🟪", mono: "④" },
+  1: { bg: "#fde047", text: "#1f2937", textColor: "#1f2937", emoji: "🟨", mono: "①" },
+  2: { bg: "#86efac", text: "#064e3b", textColor: "#064e3b", emoji: "🟩", mono: "②" },
+  3: { bg: "#93c5fd", text: "#172554", textColor: "#172554", emoji: "🟦", mono: "③" },
+  4: { bg: "#d8b4fe", text: "#3b0764", textColor: "#3b0764", emoji: "🟪", mono: "④" },
 };

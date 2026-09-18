@@ -51,6 +51,7 @@ describe("Automated accessibility audits with axe-core for Connections", () => {
       const { container } = render(
         <CategoryBanner
           category={category}
+          allItems={puzzle.items}
           items={puzzle.items}
           locale="pt-BR"
           messages={ptMessages}
@@ -71,6 +72,7 @@ describe("Automated accessibility audits with axe-core for Connections", () => {
         categories={puzzle.categories}
         solvedCategoryIds={["cat_jyp"]}
         boardItems={remainingItems}
+        allItems={puzzle.items}
         selectedItemIds={[remainingItems[0]!.id]}
         onToggleItem={vi.fn()}
         locale="pt-BR"

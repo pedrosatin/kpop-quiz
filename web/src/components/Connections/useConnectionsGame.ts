@@ -15,13 +15,20 @@ function shuffleArray<T>(array: T[]): T[] {
   return result;
 }
 
-function loadSavedState(key: string | null): ConnectionsStoredState | null {
+export function loadSavedState(key: string | null): ConnectionsStoredState | null {
   if (!key) return null;
   try {
     const saved = localStorage.getItem(key);
     if (!saved) return null;
     const p: ConnectionsStoredState = JSON.parse(saved);
-    if (Array.isArray(p.solvedCategoryIds) && typeof p.mistakesRemaining === "number") {
+    if (
+      Array.isArray(p.boardItemIds) &&
+      p.boardItemIds.length > 0 &&
+      Array.isArray(p.solvedCategoryIds) &&
+      Array.isArray(p.guessHistory) &&
+      typeof p.mistakesRemaining === "number" &&
+      typeof p.gameStatus === "string"
+    ) {
       return p;
     }
   } catch {}
