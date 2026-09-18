@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kpop-quiz.local/schemas/word-search-puzzle-v1.json",
+  "title": "K-pop quiz word search puzzle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "puzzle_id",
+    "dataset_version",
+    "reference_date",
+    "theme",
+    "dimensions",
+    "grid",
+    "words"
+  ],
+  "properties": {
+    "schema_version": {"const": "kpop-word-search-puzzle-v1"},
+    "puzzle_id": {"$ref": "#/$defs/hash"},
+    "dataset_version": {"$ref": "#/$defs/hash"},
+    "reference_date": {"type": "string", "format": "date"},
+    "theme": {"$ref": "#/$defs/bilingual_text"},
+    "theme_description": {"$ref": "#/$defs/bilingual_text"},
+    "dimensions": {"$ref": "#/$defs/dimensions"},
+    "grid": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Z]$"
+        }
+      }
+    },
+    "words": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/word_entry"}
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "qid": {
+      "type": "string",
+      "pattern": "^Q[1-9][0-9]*$"
+    },
+    "bilingual_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pt-BR", "en"],
+      "properties": {
+        "pt-BR": {"type": "string", "minLength": 1},
+        "en": {"type": "string", "minLength": 1}
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "cols"],
+      "properties": {
+        "rows": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 16
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 16
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fact_base_id", "locator", "revision_id", "source_key", "source_url"],
+      "properties": {
+        "fact_base_id": {"type": "string", "minLength": 1},
+        "locator": {"type": "string", "minLength": 1},
+        "revision_id": {"type": "integer", "minimum": 1},
+        "source_key": {"type": "string", "minLength": 1},
+        "source_url": {"type": "string", "format": "uri", "pattern": "^https://"}
+      }
+    },
+    "word_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "word",
+        "canonical_name",
+        "labels",
+        "start_row",
+        "start_col",
+        "end_row",
+        "end_col",
+        "evidence"
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/qid"},
+        "word": {
+          "type": "string",
+          "pattern": "^[A-Z]{3,16}$"
+        },
+        "canonical_name": {"type": "string", "minLength": 1},
+        "labels": {"$ref": "#/$defs/bilingual_text"},
+        "start_row": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start_col": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_row": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_col": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "clue": {"$ref": "#/$defs/bilingual_text"},
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/evidence"}
+        }
+      }
+    }
+  }
+}
