@@ -7,8 +7,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import web_publish
+from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.web_publish import (
+    CONNECTIONS_DAILY_FILENAME,
     GRID_DAILY_FILENAME,
     build_manifest,
     create_daily_sessions,
@@ -35,6 +37,9 @@ class WebPublishTests(unittest.TestCase):
 
     def grid(self):
         return json.loads((FIXTURES / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))
+
+    def connections(self):
+        return json.loads((FIXTURES / CONNECTIONS_DAILY_FILENAME).read_text(encoding="utf-8"))
 
     def test_publishes_and_verifies_canonical_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -166,6 +171,7 @@ class WebPublishTests(unittest.TestCase):
         for session in self.sessions().values():
             validate_session(session)
         validate_intersection_grid(self.grid())
+        validate_connections_puzzle(self.connections())
 
     def test_daily_sessions_determinism_same_date_repeats_hashes(self):
         connection = build_quiz_database()
@@ -336,4 +342,79 @@ class WebPublishTests(unittest.TestCase):
             output = Path(directory)
             code = main(["--output-dir", str(output), "--require-grid"])
             self.assertEqual(code, 1)
+
+    def test_verify_validates_existing_connections_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), connections=self.connections())
+            verify(output)
+            verify(output, require_connections=True)
+
+    def test_verify_detects_corrupted_or_invalid_connections_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            (output / CONNECTIONS_DAILY_FILENAME).write_text("{corrupt json", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "cannot read connections artifact"):
+                verify(output)
+
+            (output / CONNECTIONS_DAILY_FILENAME).write_text(
+                json.dumps({"schema_version": "invalid"}), encoding="utf-8"
+            )
+            with self.assertRaises(ValueError):
+                verify(output)
+
+    def test_verify_require_connections_fails_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            with self.assertRaisesRegex(ValueError, "missing required connections artifact"):
+                verify(output, require_connections=True)
+
+    def test_verify_require_connections_false_passes_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            verify(output, require_connections=False)
+            verify(output)
+
+    def test_publish_with_connections(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), connections=self.connections())
+            conn_path = output / CONNECTIONS_DAILY_FILENAME
+            self.assertTrue(conn_path.is_file())
+            self.assertEqual(conn_path.read_bytes()[-1:], b"\n")
+            verify(output, require_connections=True)
+
+    def test_publish_with_invalid_connections_fails_before_creating_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            invalid_connections = {"schema_version": "invalid"}
+            with self.assertRaises(ValueError):
+                publish(output, self.sessions(), connections=invalid_connections)
+            self.assertFalse((output / CONNECTIONS_DAILY_FILENAME).exists())
+
+    def test_cli_require_connections_without_verify_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            code = main(["--output-dir", str(output), "--require-connections"])
+            self.assertEqual(code, 1)
+
+    def test_cli_verify_with_require_connections(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            code_missing = main(["--output-dir", str(output), "--verify", "--require-connections"])
+            self.assertEqual(code_missing, 1)
+
+            publish(output, self.sessions(), connections=self.connections())
+            code_present = main(["--output-dir", str(output), "--verify", "--require-connections"])
+            self.assertEqual(code_present, 0)
+
+            publish(output, self.sessions(), grid=self.grid(), connections=self.connections())
+            code_both = main(
+                ["--output-dir", str(output), "--verify", "--require-grid", "--require-connections"]
+            )
+            self.assertEqual(code_both, 0)
 

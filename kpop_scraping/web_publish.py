@@ -10,6 +10,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .connections_schema import validate_connections_puzzle, write_connections_puzzle_atomic
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .quiz_generator import QuizConfig, create_session, generate_dataset
 from .quiz_schema import validate_session, write_json_atomic
@@ -18,6 +19,7 @@ from .storage import canonical_json
 MANIFEST_VERSION = "kpop-quiz-web-manifest-v2"
 MANIFEST_FILENAME = "manifest-v2.json"
 GRID_DAILY_FILENAME = "grid.daily.json"
+CONNECTIONS_DAILY_FILENAME = "connections.daily.json"
 LOCALES = ("pt-BR", "en")
 DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
@@ -45,6 +47,15 @@ def _read_grid(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"cannot read grid artifact {path}: {exc}") from exc
     validate_intersection_grid(payload)
+    return payload
+
+
+def _read_connections(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read connections artifact {path}: {exc}") from exc
+    validate_connections_puzzle(payload)
     return payload
 
 
@@ -166,41 +177,57 @@ def publish(
     output_dir: Path,
     sessions: dict[str, dict[str, Any]],
     grid: dict[str, Any] | None = None,
+    connections: dict[str, Any] | None = None,
 ) -> None:
-    """Publish static quiz sessions and optional daily intersection grid artifact.
+    """Publish static quiz sessions, optional daily grid, and optional connections puzzle.
 
     Args:
         output_dir: Target directory where artifacts and manifest are written.
-        sessions: Validated locale/difficulty quiz sessions mapping.
+        sessions: Validated locale and difficulty quiz sessions mapping.
         grid: Optional intersection grid payload (written to grid.daily.json).
             When provided, validated against intersection grid schema before writing.
-            When None, only quiz sessions and manifest-v2.json are published,
-            preserving backward compatibility with pipelines that do not generate grid artifacts.
+            When None, grid artifact is omitted.
+        connections: Optional connections puzzle payload (written to connections.daily.json).
+            When provided, validated against connections puzzle schema before writing.
+            When None, connections artifact is omitted.
     """
     for session in sessions.values():
         validate_session(session)
     if grid is not None:
         validate_intersection_grid(grid)
+    if connections is not None:
+        validate_connections_puzzle(connections)
     manifest = build_manifest(sessions)
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
         write_intersection_grid_atomic(output_dir / GRID_DAILY_FILENAME, grid)
+    if connections is not None:
+        write_connections_puzzle_atomic(output_dir / CONNECTIONS_DAILY_FILENAME, connections)
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
     write_json_atomic(output_dir / MANIFEST_FILENAME, manifest, validate_manifest)
 
 
-def verify(output_dir: Path, require_grid: bool = False) -> None:
-    """Verify published static quiz artifacts, manifest, and optional grid file.
+def verify(
+    output_dir: Path,
+    require_grid: bool = False,
+    require_connections: bool = False,
+) -> None:
+    """Verify published static quiz artifacts, manifest, grid file, and connections puzzle.
 
     Args:
-        output_dir: Directory containing manifest-v2.json and session files.
+        output_dir: Directory containing manifest-v2.json and artifact files.
         require_grid: Verification policy flag for grid artifact (grid.daily.json).
-            - When False (default): backwards-compatible policy. If grid.daily.json
-              exists on disk, it is schema-validated; if absent, verification passes.
-            - When True: grid.daily.json is mandatory and must exist and satisfy
-              schema validation, raising ValueError if missing or invalid.
+            When False (default): backwards-compatible policy. If grid.daily.json
+            exists on disk, it is schema-validated; if absent, verification passes.
+            When True: grid.daily.json is mandatory and must exist and satisfy
+            schema validation, raising ValueError if missing or invalid.
+        require_connections: Verification policy flag for connections puzzle (connections.daily.json).
+            When False (default): backwards-compatible policy. If connections.daily.json
+            exists on disk, it is schema-validated; if absent, verification passes.
+            When True: connections.daily.json is mandatory and must exist and satisfy
+            schema validation, raising ValueError if missing or invalid.
     """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
@@ -220,6 +247,11 @@ def verify(output_dir: Path, require_grid: bool = False) -> None:
         _read_grid(grid_path)
     elif require_grid:
         raise ValueError(f"missing required grid artifact: {grid_path}")
+    connections_path = output_dir / CONNECTIONS_DAILY_FILENAME
+    if connections_path.is_file():
+        _read_connections(connections_path)
+    elif require_connections:
+        raise ValueError(f"missing required connections artifact: {connections_path}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -235,6 +267,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Require grid.daily.json to exist and pass schema validation during --verify",
     )
+    parser.add_argument(
+        "--require-connections",
+        action="store_true",
+        help="Require connections.daily.json to exist and pass schema validation during --verify",
+    )
     return parser
 
 
@@ -243,8 +280,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.require_grid and not args.verify:
             raise ValueError("--require-grid can only be used with --verify")
+        if args.require_connections and not args.verify:
+            raise ValueError("--require-connections can only be used with --verify")
         if args.verify:
-            verify(args.output_dir, require_grid=args.require_grid)
+            verify(
+                args.output_dir,
+                require_grid=args.require_grid,
+                require_connections=args.require_connections,
+            )
         elif args.database:
             if not args.database.is_file():
                 raise ValueError(f"database does not exist: {args.database}")
