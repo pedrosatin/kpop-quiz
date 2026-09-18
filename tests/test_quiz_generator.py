@@ -533,10 +533,9 @@ class QuizGeneratorTest(unittest.TestCase):
                     option["value"] for option in question["options"]
                     if option["id"] == question["answer_option_id"]
                 )
-                self.assertGreaterEqual(
-                    sum(option["value"][:3] == answer[:3] for option in question["options"]),
-                    2,
-                )
+                matching_count = sum(option["value"][:3] == answer[:3] for option in question["options"])
+                self.assertGreaterEqual(matching_count, 2)
+                self.assertLess(matching_count, len(question["options"]))
 
     def test_clues_do_not_repeat_entity_answers_or_option_labels(self):
         dataset, _report = generate_dataset(self.connection)
@@ -808,9 +807,10 @@ def build_quiz_database(reverse=False):
             f"QG{group_index}", None, None, None, None, None, None,
             "accepted", None, [],
         ))
+        released_year = 2007 + index if index <= 2 else 2009 + index
         facts.append((
             f"released-{index}", f"QR{index}", "released_on", None,
-            f"20{9 + index:02d}-01-{index:02d}", 11,
+            f"{released_year:04d}-01-{index:02d}", 11,
             None, None, None, None, "accepted", None, [],
         ))
     ordered_facts = list(reversed(facts)) if reverse else facts
