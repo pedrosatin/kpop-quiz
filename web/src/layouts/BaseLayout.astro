@@ -8,13 +8,16 @@ const { locale } = Astro.props;
 const messages = getMessages(locale);
 const isGrid = Astro.url.pathname.includes("/grid");
 const isConnections = Astro.url.pathname.includes("/conexoes") || Astro.url.pathname.includes("/connections");
-const skipTarget = isConnections ? "#connections" : (isGrid ? "#grid" : "#quiz");
+const isNameGuess = Astro.url.pathname.includes("/adivinhe") || Astro.url.pathname.includes("/guess");
+const skipTarget = isNameGuess ? "#name-guess" : (isConnections ? "#connections" : (isGrid ? "#grid" : "#quiz"));
 const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
 let otherPath = targetBase;
 if (isGrid) {
   otherPath = `${targetBase}grid/`;
 } else if (isConnections) {
   otherPath = locale === "pt-BR" ? `${targetBase}connections/` : `${targetBase}conexoes/`;
+} else if (isNameGuess) {
+  otherPath = locale === "pt-BR" ? `${targetBase}guess/` : `${targetBase}adivinhe/`;
 }
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---

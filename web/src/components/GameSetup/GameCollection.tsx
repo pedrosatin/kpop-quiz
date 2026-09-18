@@ -39,11 +39,13 @@ export function GameCollection({
   const currentLocale = locale ?? (messages.languageName === "English" ? "pt-BR" : "en");
   const gridPath = currentLocale === "pt-BR" ? "/pt-br/grid/" : "/en/grid/";
   const connectionsPath = currentLocale === "pt-BR" ? "/pt-br/conexoes/" : "/en/connections/";
+  const nameGuessPath = currentLocale === "pt-BR" ? "/pt-br/adivinhe/" : "/en/guess/";
   const base = (typeof import.meta !== "undefined" && import.meta.env?.BASE_URL)
     ? import.meta.env.BASE_URL.replace(/\/$/, "")
     : "";
   const gridHref = `${base}${gridPath}`;
   const connectionsHref = `${base}${connectionsPath}`;
+  const nameGuessHref = `${base}${nameGuessPath}`;
 
   return (
     <fieldset class="game-collection" disabled={disabled}>
@@ -72,6 +74,9 @@ export function GameCollection({
         </a>
         <a href={connectionsHref} class="collection-grid-link">
           <strong>{messages.connectionsGameTitle}</strong>: {messages.connectionsGameDescription}
+        </a>
+        <a href={nameGuessHref} class="collection-grid-link">
+          <strong>{messages.nameGuessGameTitle}</strong>: {messages.nameGuessGameDescription}
         </a>
       </div>
     </fieldset>

@@ -319,9 +319,22 @@ Gerador determinístico e CLI da mecânica de Nome por Tentativas (Wordle temát
 
 Aceite: aprovação integral da suíte de testes Python, conformidade estrita com o esquema `kpop-name-guess-puzzle-v1`, determinismo verificado e operações de CLI validadas.
 
+## Fatia 20
+
+Interface web e componentes interativos da mecânica de Nome por Tentativas (Wordle temático):
+
+- definição de tipos TypeScript e validador de integridade em tempo de execução `isNameGuessPuzzle` em `web/src/lib/quiz-types.ts`;
+- carregador assíncrono de dados com tratamento defensivo de erros em `web/src/data/name-guess-loader.ts` e testes em `web/src/data/name-guess-loader.test.ts`;
+- componentes modulares sob `web/src/components/NameGuess/` (`NameGuessGame`, `NameGuessGameContent`, `NameGuessBoard`, `NameGuessRow`, `NameGuessTile`, `VirtualKeyboard`, `NameGuessResults`, `useNameGuessGame`), todos estritamente com menos de 200 linhas;
+- suporte a teclado físico e teclado virtual em tela, modo de alto contraste acessível (azul e laranja) persistido em localStorage, e anúncio de estados transitórios via regiões `aria-live`;
+- rotas bilíngues `/pt-br/adivinhe/` e `/en/guess/`, atualização do catálogo de traduções em `web/src/i18n/catalog.ts`, link de acesso em `web/src/components/GameSetup/GameCollection.tsx` e skip link `#name-guess` em `web/src/layouts/BaseLayout.astro`;
+- testes unitários de componentes, simulação de teclado e testes automatizados de acessibilidade com `axe-core` com zero violações em `name-guess-a11y.test.tsx`.
+
+Aceite: 100% dos testes Vitest passando, build estático com `astro check && astro build` sem erros ou avisos, zero violações de acessibilidade com axe-core.
+
 ## Etapas posteriores
 
-Com o gerador determinístico entregue na Fatia 19, o desenvolvimento avança para a interface web acessível (Fatia 20) e a integração com o pipeline de verificação em publicação e CI (Fatia 21). Frentes posteriores abrangem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+Com a interface web entregue na Fatia 20, o desenvolvimento avança para a validação em navegador real e a integração com o pipeline de verificação em publicação e CI (Fatia 21). Frentes posteriores abrangem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
 
 
 

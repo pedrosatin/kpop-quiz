@@ -122,5 +122,35 @@ describe("GameCollection component", () => {
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/en/connections/");
   });
+
+  it("renders link to the Name Guess game in pt-BR", () => {
+    render(
+      <GameCollection
+        selectedTheme="history"
+        onSelectTheme={vi.fn()}
+        messages={ptMessages}
+        locale="pt-BR"
+      />
+    );
+
+    const link = screen.getByRole("link", { name: new RegExp(ptMessages.nameGuessGameTitle) });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/pt-br/adivinhe/");
+  });
+
+  it("renders link to the Name Guess game in English", () => {
+    render(
+      <GameCollection
+        selectedTheme="history"
+        onSelectTheme={vi.fn()}
+        messages={enMessages}
+        locale="en"
+      />
+    );
+
+    const link = screen.getByRole("link", { name: new RegExp(enMessages.nameGuessGameTitle) });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/en/guess/");
+  });
 });
 
