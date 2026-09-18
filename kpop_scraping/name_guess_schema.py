@@ -144,6 +144,8 @@ def compute_guess_feedback(target: str, guess: str) -> list[str]:
     Implements a strict two-pass algorithm to handle duplicate letters accurately.
     Both target and guess must be uppercase strings of the same non-empty length.
     """
+    if not isinstance(target, str) or not isinstance(guess, str):
+        raise ValueError("Target and guess must be string instances")
     if len(target) != len(guess):
         raise ValueError(
             f"Target length ({len(target)}) and guess length ({len(guess)}) must match"
@@ -304,10 +306,6 @@ def validate_name_guess_puzzle(payload: dict[str, Any]) -> None:
     valid_guesses = payload["valid_guesses"]
     _require(isinstance(valid_guesses, list), "valid_guesses must be a list")
     _require(len(valid_guesses) >= 1, "valid_guesses must contain at least one guess")
-    _require(
-        len(valid_guesses) == len(set(valid_guesses)),
-        "valid_guesses contains duplicate words",
-    )
 
     for idx, guess in enumerate(valid_guesses):
         _require(
@@ -316,6 +314,11 @@ def validate_name_guess_puzzle(payload: dict[str, Any]) -> None:
             and bool(_NORMALIZED_NAME_PATTERN.match(guess)),
             f"valid_guesses[{idx}] ('{guess}') must be an uppercase string matching ^[A-Z]{{{word_length}}}$",
         )
+
+    _require(
+        len(valid_guesses) == len(set(valid_guesses)),
+        "valid_guesses contains duplicate words",
+    )
 
     _require(
         normalized_name in valid_guesses,

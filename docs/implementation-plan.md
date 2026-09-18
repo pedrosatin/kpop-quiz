@@ -298,13 +298,13 @@ Aceite: 100% dos testes Python e Vitest passando, build estático gerando rotas 
 
 Especificação formal, contrato e validação da mecânica de Nome por Tentativas (Wordle temático):
 
-- elaboração da ADR 010 em `docs/decisions/010-mecanica-nome-por-tentativas.md` estabelecendo topologia de palavra com comprimento variável entre 3 e 10 letras, limite de tentativas (padrão de 6), normalização alfabética ASCII A-Z e dicionário fechado de palpites válidos (`valid_guesses`);
+- elaboração da ADR 010 em `docs/decisions/010-mecanica-nome-por-tentativas.md` com definição de comprimento variável entre 3 e 10 letras, limite de tentativas (padrão 6), normalização alfabética ASCII A-Z e dicionário fechado de palpites válidos (`valid_guesses`);
 - contrato formal JSON Schema Draft 2020-12 em `schemas/name-guess-v1.json` com `schema_version = "kpop-name-guess-puzzle-v1"`;
-- validador de domínio e escrita atômica em `kpop_scraping/name_guess_schema.py`, implementando checagens de integridade referencial, tipo estrito, formato de datas e hashes SHA-256;
+- validador de domínio e escrita atômica em `kpop_scraping/name_guess_schema.py` com validação de integridade referencial, tipos estritos, datas ISO e hashes SHA-256;
 - implementação de funções utilitárias: `normalize_name` com decomposição NFKD, `compute_guess_feedback` com algoritmo determinístico em duas passagens para duplicatas e `generate_share_summary` com grade de emojis e suporte a alto contraste;
 - suíte de testes de contrato e regras de domínio em `tests/test_name_guess_schema.py`.
 
-Aceite: 100% dos testes passando contra o validador de domínio e o esquema Draft 2020-12, algoritmo de feedback cobrindo todos os cenários de duplicatas, escrita atômica validada.
+Aceite: aprovação integral da suíte de testes contra o validador de domínio e o esquema Draft 2020-12, cobertura comprovada de duplicatas no algoritmo de feedback e escrita atômica validada.
 
 ## Etapas posteriores
 

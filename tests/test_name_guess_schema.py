@@ -247,6 +247,16 @@ class TestNameGuessSchemaValidation(unittest.TestCase):
             with self.assertRaises(fastjsonschema.JsonSchemaException):
                 JSON_VALIDATOR(puzzle)
 
+    def test_valid_guesses_with_non_string_items_fails(self):
+        for bad_item in (12345, True, False, {"word": "TWICE"}, ["TWICE"]):
+            puzzle = sample_name_guess_puzzle()
+            puzzle["valid_guesses"].append(bad_item)
+            with self.assertRaises(ValueError):
+                validate_name_guess_puzzle(puzzle)
+            if JSON_VALIDATOR:
+                with self.assertRaises(fastjsonschema.JsonSchemaException):
+                    JSON_VALIDATOR(puzzle)
+
     def test_invalid_target_qid_fails(self):
         for bad_qid in ("12345", "q21480414", "Q012", "Q", "P264"):
             puzzle = sample_name_guess_puzzle()
@@ -392,6 +402,12 @@ class TestComputeGuessFeedback(unittest.TestCase):
             compute_guess_feedback("TWICE", "twice")
         with self.assertRaises(ValueError):
             compute_guess_feedback("TWICE", "TW1CE")
+
+    def test_non_string_inputs_raise_value_error(self):
+        with self.assertRaises(ValueError):
+            compute_guess_feedback(12345, "TWICE")  # type: ignore
+        with self.assertRaises(ValueError):
+            compute_guess_feedback("TWICE", None)  # type: ignore
 
 
 class TestGenerateShareSummary(unittest.TestCase):
