@@ -119,6 +119,31 @@ export interface Messages {
   gridCategoryDebut: string;
   gridCategoryAgency: string;
   gridCategoryMembers: string;
+  connectionsTitle: string;
+  connectionsEyebrow: string;
+  connectionsIntro: string;
+  connectionsGameTitle: string;
+  connectionsGameDescription: string;
+  connectionsMistakesRemaining: (count: number) => string;
+  connectionsOneAway: string;
+  connectionsAlreadyGuessed: string;
+  connectionsShuffle: string;
+  connectionsDeselectAll: string;
+  connectionsSubmit: string;
+  connectionsGameOverWon: string;
+  connectionsGameOverLost: string;
+  connectionsResultSummaryWon: (mistakes: number) => string;
+  connectionsResultSummaryLost: string;
+  connectionsShareButton: string;
+  connectionsHighContrastShare: string;
+  connectionsRestart: string;
+  connectionsModeLink: string;
+  connectionsItemAriaLabel: (name: string, selected: boolean) => string;
+  connectionsCategorySolvedAria: (difficulty: number, label: string, items: string) => string;
+  connectionsBoardAria: string;
+  connectionsSolvedAria: string;
+  connectionsItemsAria: string;
+  connectionsLevelAria: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -245,6 +270,31 @@ const catalogs: Record<Locale, Messages> = {
     gridCategoryDebut: "Estreia",
     gridCategoryAgency: "Empresa",
     gridCategoryMembers: "Formação",
+    connectionsTitle: "Palavras conectadas",
+    connectionsEyebrow: "4 grupos · 16 itens",
+    connectionsIntro: "Agrupe quatro itens que compartilham uma conexão factual.",
+    connectionsGameTitle: "Palavras conectadas",
+    connectionsGameDescription: "Agrupamento 4x4 de grupos de K-pop por agência, formação e marcos.",
+    connectionsMistakesRemaining: (count) => (count === 1 ? "1 tentativa restante" : `${count} tentativas restantes`),
+    connectionsOneAway: "Falta 1...",
+    connectionsAlreadyGuessed: "Você já tentou este palpite.",
+    connectionsShuffle: "Embaralhar",
+    connectionsDeselectAll: "Desmarcar tudo",
+    connectionsSubmit: "Enviar",
+    connectionsGameOverWon: "Vitória",
+    connectionsGameOverLost: "Fim da partida",
+    connectionsResultSummaryWon: (mistakes) => (mistakes === 0 ? "Perfeito! Nenhum erro cometido." : `Concluído com ${mistakes} ${mistakes === 1 ? "erro" : "erros"}.`),
+    connectionsResultSummaryLost: "Você esgotou as quatro tentativas.",
+    connectionsShareButton: "Compartilhar resultado",
+    connectionsHighContrastShare: "Versão monocromática (alto contraste)",
+    connectionsRestart: "Jogar novamente",
+    connectionsModeLink: "Jogar Palavras conectadas",
+    connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selecionado" : "não selecionado"}`,
+    connectionsCategorySolvedAria: (difficulty, label, items) => `Nível ${difficulty}: ${label}. Itens: ${items}.`,
+    connectionsBoardAria: "Tabuleiro de Palavras Conectadas",
+    connectionsSolvedAria: "Categorias resolvidas",
+    connectionsItemsAria: "Itens para agrupamento",
+    connectionsLevelAria: "Nível",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -369,6 +419,31 @@ const catalogs: Record<Locale, Messages> = {
     gridCategoryDebut: "Debut",
     gridCategoryAgency: "Agency",
     gridCategoryMembers: "Members",
+    connectionsTitle: "Connections",
+    connectionsEyebrow: "4 groups · 16 items",
+    connectionsIntro: "Group four items that share a factual connection.",
+    connectionsGameTitle: "Connections",
+    connectionsGameDescription: "4x4 grouping of K-pop groups by agency, lineup, and milestones.",
+    connectionsMistakesRemaining: (count) => (count === 1 ? "1 mistake remaining" : `${count} mistakes remaining`),
+    connectionsOneAway: "One away...",
+    connectionsAlreadyGuessed: "You already tried this guess.",
+    connectionsShuffle: "Shuffle",
+    connectionsDeselectAll: "Deselect all",
+    connectionsSubmit: "Submit",
+    connectionsGameOverWon: "Victory",
+    connectionsGameOverLost: "Game over",
+    connectionsResultSummaryWon: (mistakes) => (mistakes === 0 ? "Perfect! No mistakes made." : `Solved with ${mistakes} ${mistakes === 1 ? "mistake" : "mistakes"}.`),
+    connectionsResultSummaryLost: "You used all four mistakes.",
+    connectionsShareButton: "Share result",
+    connectionsHighContrastShare: "Monochrome version (high contrast)",
+    connectionsRestart: "Play again",
+    connectionsModeLink: "Play Connections",
+    connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selected" : "not selected"}`,
+    connectionsCategorySolvedAria: (difficulty, label, items) => `Level ${difficulty}: ${label}. Items: ${items}.`,
+    connectionsBoardAria: "Connections game board",
+    connectionsSolvedAria: "Solved categories",
+    connectionsItemsAria: "Items to group",
+    connectionsLevelAria: "Level",
   },
 };
 
