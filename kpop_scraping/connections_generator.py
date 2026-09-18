@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import itertools
 import random
 import re
@@ -432,7 +433,8 @@ def generate_connections_puzzle(
     criteria_combos = list(itertools.combinations(active_crit_ids, 4))
     criteria_combos.sort()
 
-    rng = random.Random(seed)
+    seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
+    rng = random.Random(seed_bytes)
     shuffled_combos = list(criteria_combos)
     rng.shuffle(shuffled_combos)
 
