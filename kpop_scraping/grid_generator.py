@@ -64,7 +64,21 @@ DECADE_CRITERIA: dict[str, dict[str, Any]] = {
 
 # Category: record_label
 KNOWN_RECORD_LABELS: dict[str, tuple[str, dict[str, str]]] = {
+    # Canonical Wikidata QIDs
     "Q483238": ("label_jyp", {"pt-BR": "JYP Entertainment", "en": "JYP Entertainment"}),
+    "Q483938": ("label_sm", {"pt-BR": "SM Entertainment", "en": "SM Entertainment"}),
+    "Q50595": ("label_yg", {"pt-BR": "YG Entertainment", "en": "YG Entertainment"}),
+    "Q16161254": ("label_hybe", {"pt-BR": "HYBE", "en": "HYBE"}),
+    "Q106296918": ("label_bighit", {"pt-BR": "Big Hit Music", "en": "Big Hit Music"}),
+    "Q484449": ("label_cube", {"pt-BR": "Cube Entertainment", "en": "Cube Entertainment"}),
+    "Q255363": ("label_starship", {"pt-BR": "Starship Entertainment", "en": "Starship Entertainment"}),
+    "Q12581039": ("label_fnc", {"pt-BR": "FNC Entertainment", "en": "FNC Entertainment"}),
+    "Q45282": ("label_pledis", {"pt-BR": "Pledis Entertainment", "en": "Pledis Entertainment"}),
+    "Q50596": ("label_woollim", {"pt-BR": "Woollim Entertainment", "en": "Woollim Entertainment"}),
+    "Q489428": ("label_dsp", {"pt-BR": "DSP Media", "en": "DSP Media"}),
+    "Q31179359": ("label_kq", {"pt-BR": "KQ Entertainment", "en": "KQ Entertainment"}),
+    "Q13424955": ("label_fantagio", {"pt-BR": "Fantagio", "en": "Fantagio"}),
+    # Test fixture aliases
     "Q483957": ("label_sm", {"pt-BR": "SM Entertainment", "en": "SM Entertainment"}),
     "Q483471": ("label_yg", {"pt-BR": "YG Entertainment", "en": "YG Entertainment"}),
     "Q106399432": ("label_hybe", {"pt-BR": "HYBE", "en": "HYBE"}),
