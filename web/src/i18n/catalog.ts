@@ -150,6 +150,12 @@ export interface Messages {
   nameGuessGameTitle: string;
   nameGuessGameDescription: string;
   nameGuessModeLink: string;
+  wordSearchTitle: string;
+  wordSearchEyebrow: string;
+  wordSearchIntro: string;
+  wordSearchGameTitle: string;
+  wordSearchGameDescription: string;
+  wordSearchModeLink: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -307,6 +313,12 @@ const catalogs: Record<Locale, Messages> = {
     nameGuessGameTitle: "Adivinhe o Nome",
     nameGuessGameDescription: "Adivinhe o nome de um artista ou grupo de K-pop em até 6 tentativas com letras coloridas.",
     nameGuessModeLink: "Jogar Adivinhe o Nome",
+    wordSearchTitle: "Caça-Palavras K-pop",
+    wordSearchEyebrow: "Grade temática · Palavras auditadas",
+    wordSearchIntro: "Encontre os nomes temáticos escondidos na grade alfabética com fontes verificadas.",
+    wordSearchGameTitle: "Caça-Palavras K-pop",
+    wordSearchGameDescription: "Localize nomes temáticos escondidos em 8 direções na grade alfabética.",
+    wordSearchModeLink: "Jogar Caça-Palavras",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -462,6 +474,12 @@ const catalogs: Record<Locale, Messages> = {
     nameGuessGameTitle: "Guess the Name",
     nameGuessGameDescription: "Guess the K-pop artist or group name within 6 attempts with colored letter feedback.",
     nameGuessModeLink: "Play Guess the Name",
+    wordSearchTitle: "K-pop Word Search",
+    wordSearchEyebrow: "Thematic grid · Audited words",
+    wordSearchIntro: "Find the thematic names hidden in the letter grid with verified sources.",
+    wordSearchGameTitle: "K-pop Word Search",
+    wordSearchGameDescription: "Find thematic names hidden in 8 directions across the letter grid.",
+    wordSearchModeLink: "Play Word Search",
   },
 };
 
