@@ -1,0 +1,133 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/preact";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import validPuzzleJson from "../../../public/data/word-search.daily.json";
+import type { WordSearchPuzzle } from "../../lib/word-search-types";
+import { WordSearchGame } from "./WordSearchGame";
+import { WORD_SEARCH_I18N } from "./types";
+
+const puzzle = validPuzzleJson as unknown as WordSearchPuzzle;
+const tPt = WORD_SEARCH_I18N["pt-BR"];
+
+describe("WordSearchGame component", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("renders theme title, counter, timer, grid, and word list", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+
+    expect(screen.getByText("Integrantes do grupo Super Junior-T")).toBeInTheDocument();
+    expect(screen.getByTestId("found-counter")).toHaveTextContent(`0 / ${puzzle.words.length}`);
+    expect(screen.getByTestId("timer-display")).toBeInTheDocument();
+    expect(screen.getByRole("grid", { name: tPt.gridLabel })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: tPt.wordsRemaining })).toBeInTheDocument();
+  });
+
+  it("selects a word via pointer interactions and marks it found", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+
+    const target = puzzle.words.find((w) => w.word === "SHINDONG")!;
+    const startCell = screen.getByLabelText(new RegExp(`^Linha ${target.start_row + 1}, Coluna ${target.start_col + 1},`));
+    const endCell = screen.getByLabelText(new RegExp(`^Linha ${target.end_row + 1}, Coluna ${target.end_col + 1},`));
+
+    fireEvent.pointerDown(startCell);
+    fireEvent.pointerEnter(endCell);
+    fireEvent.pointerUp(endCell);
+
+    expect(screen.getByTestId("found-counter")).toHaveTextContent(`1 / ${puzzle.words.length}`);
+    const wordItem = document.querySelector(`[data-word-id="${target.id}"]`);
+    expect(wordItem).toHaveClass("is-found");
+  });
+
+  it("toggles clue mode", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+
+    const toggleBtn = screen.getByRole("button", { name: tPt.showClues });
+    fireEvent.click(toggleBtn);
+
+    expect(screen.getByRole("button", { name: tPt.showWords })).toBeInTheDocument();
+  });
+
+  it("opens and closes evidence modal", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+
+    const target = puzzle.words[0]!;
+    const triggerBtn = screen.getByRole("button", {
+      name: new RegExp(`${tPt.viewEvidence}: ${target.canonical_name}`),
+    });
+    fireEvent.click(triggerBtn);
+
+    expect(screen.getByRole("dialog", { name: new RegExp(tPt.evidenceModalTitle) })).toBeInTheDocument();
+    expect(screen.getByText(target.id)).toBeInTheDocument();
+
+    const closeBtn = screen.getByRole("button", { name: tPt.close });
+    fireEvent.click(closeBtn);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("completes the puzzle and copies share summary", async () => {
+    const clipboardSpy = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: { writeText: clipboardSpy },
+    });
+
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+
+    for (const w of puzzle.words) {
+      const startCell = screen.getByLabelText(new RegExp(`^Linha ${w.start_row + 1}, Coluna ${w.start_col + 1},`));
+      const endCell = screen.getByLabelText(new RegExp(`^Linha ${w.end_row + 1}, Coluna ${w.end_col + 1},`));
+      fireEvent.pointerDown(startCell);
+      fireEvent.pointerUp(endCell);
+    }
+
+    expect(screen.getByRole("dialog", { name: tPt.congratulations })).toBeInTheDocument();
+    const shareBtn = screen.getByRole("button", { name: tPt.shareResult });
+    fireEvent.click(shareBtn);
+
+    await waitFor(() => {
+      expect(clipboardSpy).toHaveBeenCalled();
+    });
+  });
+
+  it("asynchronously loads puzzle when omitted", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => puzzle,
+      })
+    );
+
+    render(<WordSearchGame locale="pt-BR" baseUrl="http://localhost:3000" />);
+    expect(screen.getByText(tPt.loading)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("found-counter")).toBeInTheDocument();
+    });
+  });
+
+  it("shows error and retry button on fetch failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+      })
+    );
+
+    render(<WordSearchGame locale="pt-BR" baseUrl="http://localhost:3000" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(tPt.artifactMissing)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: tPt.retry })).toBeInTheDocument();
+    });
+  });
+});

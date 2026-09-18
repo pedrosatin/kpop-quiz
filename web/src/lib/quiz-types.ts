@@ -681,4 +681,9 @@ export function isNameGuessPuzzle(value: unknown): value is NameGuessPuzzle {
   return true;
 }
 
-
+export {
+  isWordSearchPuzzle,
+  type WordSearchDimensions,
+  type WordSearchWord,
+  type WordSearchPuzzle,
+} from "./word-search-types";

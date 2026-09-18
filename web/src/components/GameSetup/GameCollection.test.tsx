@@ -152,5 +152,35 @@ describe("GameCollection component", () => {
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/en/guess/");
   });
+
+  it("renders link to the Word Search game in pt-BR", () => {
+    render(
+      <GameCollection
+        selectedTheme="history"
+        onSelectTheme={vi.fn()}
+        messages={ptMessages}
+        locale="pt-BR"
+      />
+    );
+
+    const link = screen.getByRole("link", { name: new RegExp(ptMessages.wordSearchGameTitle) });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/pt-br/caca-palavras/");
+  });
+
+  it("renders link to the Word Search game in English", () => {
+    render(
+      <GameCollection
+        selectedTheme="history"
+        onSelectTheme={vi.fn()}
+        messages={enMessages}
+        locale="en"
+      />
+    );
+
+    const link = screen.getByRole("link", { name: new RegExp(enMessages.wordSearchGameTitle) });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", "/en/word-search/");
+  });
 });
 
