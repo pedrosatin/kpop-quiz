@@ -9,7 +9,10 @@ const messages = getMessages(locale);
 const isGrid = Astro.url.pathname.includes("/grid");
 const isConnections = Astro.url.pathname.includes("/conexoes") || Astro.url.pathname.includes("/connections");
 const isNameGuess = Astro.url.pathname.includes("/adivinhe") || Astro.url.pathname.includes("/guess");
-const skipTarget = isNameGuess ? "#name-guess" : (isConnections ? "#connections" : (isGrid ? "#grid" : "#quiz"));
+const isWordSearch = Astro.url.pathname.includes("/caca-palavras") || Astro.url.pathname.includes("/word-search");
+const skipTarget = isWordSearch
+  ? "#word-search"
+  : (isNameGuess ? "#name-guess" : (isConnections ? "#connections" : (isGrid ? "#grid" : "#quiz")));
 const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
 let otherPath = targetBase;
 if (isGrid) {
@@ -18,14 +21,18 @@ if (isGrid) {
   otherPath = locale === "pt-BR" ? `${targetBase}connections/` : `${targetBase}conexoes/`;
 } else if (isNameGuess) {
   otherPath = locale === "pt-BR" ? `${targetBase}guess/` : `${targetBase}adivinhe/`;
+} else if (isWordSearch) {
+  otherPath = locale === "pt-BR" ? `${targetBase}word-search/` : `${targetBase}caca-palavras/`;
 }
-const skipLinkText = isNameGuess
-  ? (locale === "pt-BR" ? "Pular para o jogo de adivinhação" : "Skip to name guess game")
-  : (isConnections
-    ? (locale === "pt-BR" ? "Pular para palavras conectadas" : "Skip to connections game")
-    : (isGrid
-      ? (locale === "pt-BR" ? "Pular para a grade de interseções" : "Skip to intersection grid")
-      : messages.skipLink));
+const skipLinkText = isWordSearch
+  ? (locale === "pt-BR" ? "Pular para o caça-palavras" : "Skip to word search game")
+  : (isNameGuess
+    ? (locale === "pt-BR" ? "Pular para o jogo de adivinhação" : "Skip to name guess game")
+    : (isConnections
+      ? (locale === "pt-BR" ? "Pular para palavras conectadas" : "Skip to connections game")
+      : (isGrid
+        ? (locale === "pt-BR" ? "Pular para a grade de interseções" : "Skip to intersection grid")
+        : messages.skipLink)));
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 <!doctype html>

@@ -40,12 +40,14 @@ export function GameCollection({
   const gridPath = currentLocale === "pt-BR" ? "/pt-br/grid/" : "/en/grid/";
   const connectionsPath = currentLocale === "pt-BR" ? "/pt-br/conexoes/" : "/en/connections/";
   const nameGuessPath = currentLocale === "pt-BR" ? "/pt-br/adivinhe/" : "/en/guess/";
+  const wordSearchPath = currentLocale === "pt-BR" ? "/pt-br/caca-palavras/" : "/en/word-search/";
   const base = (typeof import.meta !== "undefined" && import.meta.env?.BASE_URL)
     ? import.meta.env.BASE_URL.replace(/\/$/, "")
     : "";
   const gridHref = `${base}${gridPath}`;
   const connectionsHref = `${base}${connectionsPath}`;
   const nameGuessHref = `${base}${nameGuessPath}`;
+  const wordSearchHref = `${base}${wordSearchPath}`;
 
   return (
     <fieldset class="game-collection" disabled={disabled}>
@@ -77,6 +79,9 @@ export function GameCollection({
         </a>
         <a href={nameGuessHref} class="collection-grid-link">
           <strong>{messages.nameGuessGameTitle}</strong>: {messages.nameGuessGameDescription}
+        </a>
+        <a href={wordSearchHref} class="collection-grid-link">
+          <strong>{messages.wordSearchGameTitle}</strong>: {messages.wordSearchGameDescription}
         </a>
       </div>
     </fieldset>
