@@ -15,6 +15,11 @@ function dataUrl(filename: string, baseUrl: string): string {
   return `${base}data/${filename}`;
 }
 
+/**
+ * Carrega o artefato diário de adivinhação de nomes.
+ * O parâmetro _locale é mantido para consistência de interface com os demais carregadores,
+ * uma vez que o artefato diário é compartilhado e possui campos bilíngues.
+ */
 export async function loadNameGuessPuzzle(
   _locale: Locale,
   baseUrl?: string

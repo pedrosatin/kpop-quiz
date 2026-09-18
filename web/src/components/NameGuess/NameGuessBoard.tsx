@@ -1,5 +1,5 @@
 import { NameGuessRow } from "./NameGuessRow";
-import type { LetterStatus } from "./types";
+import type { LetterStatus, NameGuessTranslations } from "./types";
 
 interface NameGuessBoardProps {
   wordLength: number;
@@ -8,6 +8,7 @@ interface NameGuessBoardProps {
   feedbacks: LetterStatus[][];
   currentInput: string;
   highContrast: boolean;
+  t: NameGuessTranslations;
 }
 
 export function NameGuessBoard({
@@ -17,6 +18,7 @@ export function NameGuessBoard({
   feedbacks,
   currentInput,
   highContrast,
+  t,
 }: NameGuessBoardProps) {
   const rows = [];
 
@@ -34,6 +36,7 @@ export function NameGuessBoard({
         currentInput={isCurrent ? currentInput : undefined}
         highContrast={highContrast}
         rowIndex={r}
+        t={t}
       />
     );
   }
@@ -41,7 +44,7 @@ export function NameGuessBoard({
   return (
     <div
       role="region"
-      aria-label="Grade de palpites"
+      aria-label={t.boardAria}
       class="flex flex-col items-center justify-center p-2 sm:p-4 my-2"
     >
       {rows}

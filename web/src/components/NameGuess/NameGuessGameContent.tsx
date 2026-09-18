@@ -32,6 +32,16 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "SELECT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
       if (e.key === "Enter") {
         submitGuess();
       } else if (e.key === "Backspace") {
@@ -112,6 +122,7 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
         feedbacks={feedbacks}
         currentInput={currentInput}
         highContrast={highContrast}
+        t={t}
       />
 
       {/* Results Screen */}
