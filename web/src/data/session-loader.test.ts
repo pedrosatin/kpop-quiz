@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadQuizSession, QuizArtifactError } from "./session-loader";
-import ptSession from "../../public/data/session.pt-BR.standard.86038133e11cf377d8490f81569784b57fd514da10eb07f5d719b1bb91fb3691.json";
+import ptSession from "../../public/data/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import manifest from "../../public/data/manifest-v2.json";
 
 describe("published session loader", () => {

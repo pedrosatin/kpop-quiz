@@ -1,14 +1,25 @@
+import { createHash } from "node:crypto";
 import { act, fireEvent, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { groupEvidence, Quiz } from "./Quiz";
-import ptSession from "../../../public/data/session.pt-BR.standard.86038133e11cf377d8490f81569784b57fd514da10eb07f5d719b1bb91fb3691.json";
-import enSession from "../../../public/data/session.en.standard.2b95fa2d5ef339e0b556052ba103d6efb3a3ae721656ab82d40e78433c784a2e.json";
-import assistedSession from "../../../public/data/session.pt-BR.assisted.f01fdff5365ca01f1236ae428b893eea404ad25f52a835b697c737bc87e40245.json";
+import ptSession from "../../../public/data/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
+import enSession from "../../../public/data/session.en.standard.9c44914efa4be2eee52cf11ea63f542c8e913e01b5a58dc63d3627ed003e8c0e.json";
+import assistedSession from "../../../public/data/session.pt-BR.assisted.fa5f191cdb87584a302ac221ddc4c4520c49c5cc9ef79f1242b4219558f7a56e.json";
 import expertSession from "../../../public/data/session.pt-BR.expert.987d0b408ebba093fcebd95e04199ff967a4af740d1a2a82e1307b8ba4cba591.json";
+import dailyPtSession from "../../../public/data/session.daily.pt-BR.standard.8c1ff312324883f8b724318e6bf7c132293eb9ee53ff8f8e0e5c2072562738f4.json";
 import manifest from "../../../public/data/manifest-v2.json";
 
-function mockSessionFetch() {
+function mockSessionFetch(customPtSession?: any) {
   const testManifest = structuredClone(manifest) as Record<string, any>;
+  if (customPtSession) {
+    const raw = `${JSON.stringify(customPtSession)}\n`;
+    const hash = createHash("sha256").update(raw).digest("hex");
+    testManifest.sessions["pt-BR.standard"] = {
+      path: `session.pt-BR.standard.${hash}.json`,
+      sha256: hash,
+      session_id: customPtSession.session_id,
+    };
+  }
   for (const locale of ["pt-BR", "en"]) {
     for (const mode of ["assisted", "standard", "expert"]) {
       testManifest.sessions[`daily.${locale}.${mode}`] = {
@@ -22,16 +33,16 @@ function mockSessionFetch() {
     const payload = url.endsWith("manifest-v2.json") ? testManifest
       : url.includes("pt-BR.assisted") ? assistedSession
       : url.includes("pt-BR.expert") ? expertSession
-      : url.includes("pt-BR") ? ptSession : enSession;
+      : url.includes("pt-BR") ? (customPtSession ?? ptSession) : enSession;
     return Promise.resolve(new Response(`${JSON.stringify(payload)}${url.endsWith("manifest-v2.json") ? "" : "\n"}`));
   }));
 }
 
-async function renderReady(locale: "pt-BR" | "en" = "pt-BR") {
-  mockSessionFetch();
+async function renderReady(locale: "pt-BR" | "en" = "pt-BR", customPtSession?: any) {
+  mockSessionFetch(customPtSession);
   render(<Quiz locale={locale} />);
   expect(screen.getByText(/Preparando|Preparing/)).toBeInTheDocument();
-  const session = locale === "pt-BR" ? ptSession : enSession;
+  const session = customPtSession ? customPtSession : (locale === "pt-BR" ? ptSession : enSession);
   await screen.findByRole("heading", { name: locale === "pt-BR" ? "Escolha como jogar" : "Choose how to play" });
   fireEvent.click(screen.getByRole("button", { name: locale === "pt-BR" ? "Começar rodada" : "Start round" }));
   return screen.findByRole("heading", { name: session.questions[0]!.prompt });
@@ -85,16 +96,16 @@ describe("Quiz", () => {
   });
 
   it("charges the declared cost when standard mode reveals a clue", async () => {
-    await renderReady();
-    const clueIndex = ptSession.questions.findIndex((question) => question.clues_available.length > 0);
+    await renderReady("pt-BR", dailyPtSession);
+    const clueIndex = dailyPtSession.questions.findIndex((question) => question.clues_available.length > 0);
     for (let index = 0; index < clueIndex; index += 1) {
-      const current = ptSession.questions[index]!;
+      const current = dailyPtSession.questions[index]!;
       const answer = current.options.find((option) => option.id === current.answer_option_id)!;
       fireEvent.click(screen.getByRole("radio", { name: answer.label }));
       fireEvent.click(screen.getByRole("button", { name: "Responder" }));
       fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }));
     }
-    const question = ptSession.questions[clueIndex]!;
+    const question = dailyPtSession.questions[clueIndex]!;
     const clueButton = screen.getByRole("button", { name: `Revelar pista (-${question.hint_cost} pontos)` });
     clueButton.focus();
     fireEvent.click(clueButton);
