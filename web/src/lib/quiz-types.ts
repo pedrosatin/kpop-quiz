@@ -336,7 +336,9 @@ const CELL_FIELDS = ["row_index", "col_index", "valid_entity_ids", "evidence"];
 const CANDIDATE_FIELDS = ["id", "canonical_name", "names"];
 const GRID_EVIDENCE_FIELDS = ["fact_base_id", "locator", "revision_id", "source_key", "source_url"];
 
-function isBilingualText(value: unknown): value is { "pt-BR": string; en: string } {
+export type BilingualText = { "pt-BR": string; en: string };
+
+function isBilingualText(value: unknown): value is BilingualText {
   return isRecord(value)
     && hasExactKeys(value, BILINGUAL_FIELDS)
     && typeof value["pt-BR"] === "string" && value["pt-BR"].length > 0
@@ -407,5 +409,113 @@ export function isIntersectionGrid(value: unknown): value is IntersectionGrid {
   if (!Array.isArray(cells) || cells.length !== 9 || !cells.every((c) => isGridCell(c, candidateQids))) return false;
   const seenCoords = new Set((cells as GridCellData[]).map((c) => `${c.row_index},${c.col_index}`));
   return seenCoords.size === 9;
+}
+
+export interface ConnectionsDimensions {
+  groups: number;
+  items_per_group: number;
+  total_items: number;
+}
+
+export interface ConnectionsCategory {
+  id: string;
+  label: BilingualText;
+  difficulty_level: 1 | 2 | 3 | 4;
+  item_ids: string[];
+  explanation: BilingualText;
+  evidence: GridEvidence[];
+}
+
+export interface ConnectionsItem {
+  id: string;
+  canonical_name: string;
+  labels: BilingualText;
+}
+
+export interface ConnectionsPuzzle {
+  schema_version: "kpop-connections-puzzle-v1";
+  puzzle_id: string;
+  dataset_version: string;
+  reference_date: string;
+  dimensions: ConnectionsDimensions;
+  categories: ConnectionsCategory[];
+  items: ConnectionsItem[];
+}
+
+const CONNECTIONS_ROOT_FIELDS = [
+  "schema_version",
+  "puzzle_id",
+  "dataset_version",
+  "reference_date",
+  "dimensions",
+  "categories",
+  "items",
+];
+const CONNECTIONS_DIMENSIONS_FIELDS = ["groups", "items_per_group", "total_items"];
+const CONNECTIONS_CATEGORY_FIELDS = ["id", "label", "difficulty_level", "item_ids", "explanation", "evidence"];
+const CONNECTIONS_ITEM_FIELDS = ["id", "canonical_name", "labels"];
+
+function isConnectionsCategory(value: unknown): value is ConnectionsCategory {
+  if (!isRecord(value) || !hasExactKeys(value, CONNECTIONS_CATEGORY_FIELDS)) return false;
+  const { id, label, difficulty_level, item_ids, explanation, evidence } = value;
+  return typeof id === "string" && id.length > 0
+    && isBilingualText(label)
+    && isBilingualText(explanation)
+    && Number.isInteger(difficulty_level) && (difficulty_level === 1 || difficulty_level === 2 || difficulty_level === 3 || difficulty_level === 4)
+    && Array.isArray(item_ids) && item_ids.length === 4
+    && item_ids.every((qid) => typeof qid === "string" && QID.test(qid))
+    && new Set(item_ids).size === 4
+    && Array.isArray(evidence) && evidence.length >= 1
+    && evidence.every(isGridEvidence);
+}
+
+function isConnectionsItem(value: unknown): value is ConnectionsItem {
+  if (!isRecord(value) || !hasExactKeys(value, CONNECTIONS_ITEM_FIELDS)) return false;
+  const { id, canonical_name, labels } = value;
+  return typeof id === "string" && QID.test(id)
+    && typeof canonical_name === "string" && canonical_name.length > 0
+    && isBilingualText(labels);
+}
+
+export function isConnectionsPuzzle(value: unknown): value is ConnectionsPuzzle {
+  if (!isRecord(value) || !hasExactKeys(value, CONNECTIONS_ROOT_FIELDS)) return false;
+  if (value.schema_version !== "kpop-connections-puzzle-v1"
+    || typeof value.puzzle_id !== "string" || !HASH.test(value.puzzle_id)
+    || typeof value.dataset_version !== "string" || !HASH.test(value.dataset_version)
+    || !isDate(value.reference_date)) return false;
+
+  const { dimensions, categories, items } = value;
+  if (!isRecord(dimensions) || !hasExactKeys(dimensions, CONNECTIONS_DIMENSIONS_FIELDS)
+    || dimensions.groups !== 4
+    || dimensions.items_per_group !== 4
+    || dimensions.total_items !== 16) return false;
+
+  if (!Array.isArray(categories) || categories.length !== 4 || !categories.every(isConnectionsCategory)) return false;
+  const categoryIds = new Set(categories.map((c) => c.id));
+  if (categoryIds.size !== 4) return false;
+
+  const difficultyLevels = new Set(categories.map((c) => c.difficulty_level));
+  if (difficultyLevels.size !== 4) return false;
+
+  if (!Array.isArray(items) || items.length !== 16 || !items.every(isConnectionsItem)) return false;
+  const itemIds = new Set(items.map((i) => i.id));
+  if (itemIds.size !== 16) return false;
+
+  const categoryItemSets = categories.map((c) => new Set(c.item_ids));
+  for (let i = 0; i < categoryItemSets.length; i++) {
+    for (let j = i + 1; j < categoryItemSets.length; j++) {
+      for (const id of categoryItemSets[i]!) {
+        if (categoryItemSets[j]!.has(id)) return false;
+      }
+    }
+  }
+
+  const allCategoryItemIds = new Set(categories.flatMap((c) => c.item_ids));
+  if (allCategoryItemIds.size !== 16) return false;
+  for (const id of allCategoryItemIds) {
+    if (!itemIds.has(id)) return false;
+  }
+
+  return true;
 }
 
