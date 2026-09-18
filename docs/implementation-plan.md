@@ -332,9 +332,21 @@ Interface web e componentes interativos da mecânica de Nome por Tentativas (Wor
 
 Aceite: 100% dos testes Vitest passando, build estático com `astro check && astro build` sem erros ou avisos, zero violações de acessibilidade com axe-core.
 
+## Fatia 21
+
+Validação em navegador real e integração de artefatos de Nome por Tentativas no pipeline de publicação e CI:
+
+- extensão de `kpop_scraping/web_publish.py` com suporte à publicação atômica e verificação de `name-guess.daily.json`;
+- adição do parâmetro `--require-name-guess` no comando de verificação para exigir a presença e conformidade do artefato diário;
+- atualização do workflow de CI `.github/workflows/pages.yml` e do script `artifacts:verify` em `web/package.json` para exigir grade, conexões e adivinhação;
+- validação interativa em navegador real via Chrome DevTools em quatro resoluções (320px, 768px, 1024px e 1440px), confirmando ausência de transbordamento, execução completa da partida, alternância de alto contraste e conformidade de acessibilidade;
+- suíte de testes unitários em `tests/test_web_publish.py` cobrindo cenários com artefato presente, ausente, corrompido, flags isoladas e conjuntas.
+
+Aceite: aprovação da suíte de testes Python e TypeScript, verificação estrita em CI com `--require-grid --require-connections --require-name-guess`, build de produção sem erros e validação em navegador real concluída.
+
 ## Etapas posteriores
 
-Com a interface web entregue na Fatia 20, o desenvolvimento avança para a validação em navegador real e a integração com o pipeline de verificação em publicação e CI (Fatia 21). Frentes posteriores abrangem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+Com o ciclo da mecânica de Nome por Tentativas concluído da especificação ao CI (Fatias 18 a 21), o planejamento prevê novas mecânicas de jogo: caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
 
 
 

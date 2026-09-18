@@ -12,6 +12,7 @@ from typing import Any
 
 from .connections_schema import validate_connections_puzzle, write_connections_puzzle_atomic
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
+from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
 from .quiz_generator import QuizConfig, create_session, generate_dataset
 from .quiz_schema import validate_session, write_json_atomic
 from .storage import canonical_json
@@ -20,6 +21,7 @@ MANIFEST_VERSION = "kpop-quiz-web-manifest-v2"
 MANIFEST_FILENAME = "manifest-v2.json"
 GRID_DAILY_FILENAME = "grid.daily.json"
 CONNECTIONS_DAILY_FILENAME = "connections.daily.json"
+NAME_GUESS_DAILY_FILENAME = "name-guess.daily.json"
 LOCALES = ("pt-BR", "en")
 DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
@@ -56,6 +58,15 @@ def _read_connections(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"cannot read connections artifact {path}: {exc}") from exc
     validate_connections_puzzle(payload)
+    return payload
+
+
+def _read_name_guess(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read name-guess artifact {path}: {exc}") from exc
+    validate_name_guess_puzzle(payload)
     return payload
 
 
@@ -178,8 +189,9 @@ def publish(
     sessions: dict[str, dict[str, Any]],
     grid: dict[str, Any] | None = None,
     connections: dict[str, Any] | None = None,
+    name_guess: dict[str, Any] | None = None,
 ) -> None:
-    """Publish static quiz sessions, optional daily grid, and optional connections puzzle.
+    """Publish static quiz sessions, optional daily grid, optional connections puzzle, and optional name-guess puzzle.
 
     Args:
         output_dir: Target directory where artifacts and manifest are written.
@@ -190,6 +202,9 @@ def publish(
         connections: Optional connections puzzle payload (written to connections.daily.json).
             When provided, validated against connections puzzle schema before writing.
             When None, connections artifact is omitted.
+        name_guess: Optional name guess puzzle payload (written to name-guess.daily.json).
+            When provided, validated against name guess puzzle schema before writing.
+            When None, name_guess artifact is omitted.
     """
     for session in sessions.values():
         validate_session(session)
@@ -197,12 +212,16 @@ def publish(
         validate_intersection_grid(grid)
     if connections is not None:
         validate_connections_puzzle(connections)
+    if name_guess is not None:
+        validate_name_guess_puzzle(name_guess)
     manifest = build_manifest(sessions)
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
         write_intersection_grid_atomic(output_dir / GRID_DAILY_FILENAME, grid)
     if connections is not None:
         write_connections_puzzle_atomic(output_dir / CONNECTIONS_DAILY_FILENAME, connections)
+    if name_guess is not None:
+        write_name_guess_puzzle_atomic(output_dir / NAME_GUESS_DAILY_FILENAME, name_guess)
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
@@ -213,8 +232,9 @@ def verify(
     output_dir: Path,
     require_grid: bool = False,
     require_connections: bool = False,
+    require_name_guess: bool = False,
 ) -> None:
-    """Verify published static quiz artifacts, manifest, grid file, and connections puzzle.
+    """Verify published static quiz artifacts, manifest, grid file, connections puzzle, and name-guess puzzle.
 
     Args:
         output_dir: Directory containing manifest-v2.json and artifact files.
@@ -227,6 +247,11 @@ def verify(
             When False (default): backwards-compatible policy. If connections.daily.json
             exists on disk, it is schema-validated; if absent, verification passes.
             When True: connections.daily.json is mandatory and must exist and satisfy
+            schema validation, raising ValueError if missing or invalid.
+        require_name_guess: Verification policy flag for name-guess puzzle (name-guess.daily.json).
+            When False (default): backwards-compatible policy. If name-guess.daily.json
+            exists on disk, it is schema-validated; if absent, verification passes.
+            When True: name-guess.daily.json is mandatory and must exist and satisfy
             schema validation, raising ValueError if missing or invalid.
     """
     manifest_path = output_dir / MANIFEST_FILENAME
@@ -252,6 +277,11 @@ def verify(
         _read_connections(connections_path)
     elif require_connections:
         raise ValueError(f"missing required connections artifact: {connections_path}")
+    name_guess_path = output_dir / NAME_GUESS_DAILY_FILENAME
+    if name_guess_path.is_file():
+        _read_name_guess(name_guess_path)
+    elif require_name_guess:
+        raise ValueError(f"missing required name-guess artifact: {name_guess_path}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -272,6 +302,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Require connections.daily.json to exist and pass schema validation during --verify",
     )
+    parser.add_argument(
+        "--require-name-guess",
+        action="store_true",
+        help="Require name-guess.daily.json to exist and pass schema validation during --verify",
+    )
     return parser
 
 
@@ -282,11 +317,14 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--require-grid can only be used with --verify")
         if args.require_connections and not args.verify:
             raise ValueError("--require-connections can only be used with --verify")
+        if args.require_name_guess and not args.verify:
+            raise ValueError("--require-name-guess can only be used with --verify")
         if args.verify:
             verify(
                 args.output_dir,
                 require_grid=args.require_grid,
                 require_connections=args.require_connections,
+                require_name_guess=args.require_name_guess,
             )
         elif args.database:
             if not args.database.is_file():
