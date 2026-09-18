@@ -488,6 +488,7 @@ class ConnectionsCliTest(unittest.TestCase):
             [c["id"] for c in p1["categories"]],
             [c["id"] for c in p2["categories"]],
         )
+        self.assertNotEqual(p1["reference_date"], p2["reference_date"])
 
 
 if __name__ == "__main__":
