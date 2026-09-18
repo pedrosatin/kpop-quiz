@@ -10,10 +10,12 @@ from kpop_scraping import web_publish
 from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
+from kpop_scraping.word_search_schema import validate_word_search_puzzle
 from kpop_scraping.web_publish import (
     CONNECTIONS_DAILY_FILENAME,
     GRID_DAILY_FILENAME,
     NAME_GUESS_DAILY_FILENAME,
+    WORD_SEARCH_DAILY_FILENAME,
     build_manifest,
     create_daily_sessions,
     main,
@@ -45,6 +47,9 @@ class WebPublishTests(unittest.TestCase):
 
     def name_guess(self):
         return json.loads((FIXTURES / NAME_GUESS_DAILY_FILENAME).read_text(encoding="utf-8"))
+
+    def word_search(self):
+        return json.loads((FIXTURES / WORD_SEARCH_DAILY_FILENAME).read_text(encoding="utf-8"))
 
     def test_publishes_and_verifies_canonical_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -178,6 +183,7 @@ class WebPublishTests(unittest.TestCase):
         validate_intersection_grid(self.grid())
         validate_connections_puzzle(self.connections())
         validate_name_guess_puzzle(self.name_guess())
+        validate_word_search_puzzle(self.word_search())
 
     def test_daily_sessions_determinism_same_date_repeats_hashes(self):
         connection = build_quiz_database()
@@ -508,6 +514,96 @@ class WebPublishTests(unittest.TestCase):
                     "--require-grid",
                     "--require-connections",
                     "--require-name-guess",
+                ]
+            )
+            self.assertEqual(code_all, 0)
+
+    def test_verify_validates_existing_word_search_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), word_search=self.word_search())
+            verify(output)
+            verify(output, require_word_search=True)
+
+    def test_verify_detects_corrupted_or_invalid_word_search_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            (output / WORD_SEARCH_DAILY_FILENAME).write_text("{corrupt json", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "cannot read word-search artifact"):
+                verify(output)
+
+            (output / WORD_SEARCH_DAILY_FILENAME).write_text(
+                json.dumps({"schema_version": "invalid"}), encoding="utf-8"
+            )
+            with self.assertRaises(ValueError):
+                verify(output)
+
+    def test_verify_require_word_search_fails_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            with self.assertRaisesRegex(ValueError, "missing required word-search artifact"):
+                verify(output, require_word_search=True)
+
+    def test_verify_require_word_search_false_passes_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            verify(output, require_word_search=False)
+            verify(output)
+
+    def test_publish_with_word_search(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), word_search=self.word_search())
+            puzzle_path = output / WORD_SEARCH_DAILY_FILENAME
+            self.assertTrue(puzzle_path.is_file())
+            self.assertEqual(puzzle_path.read_bytes()[-1:], b"\n")
+            verify(output, require_word_search=True)
+
+    def test_publish_with_invalid_word_search_fails_before_creating_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            invalid_puzzle = {"schema_version": "invalid"}
+            with self.assertRaises(ValueError):
+                publish(output, self.sessions(), word_search=invalid_puzzle)
+            self.assertFalse((output / WORD_SEARCH_DAILY_FILENAME).exists())
+
+    def test_cli_require_word_search_without_verify_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            code = main(["--output-dir", str(output), "--require-word-search"])
+            self.assertEqual(code, 1)
+
+    def test_cli_verify_with_require_word_search(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            code_missing = main(["--output-dir", str(output), "--verify", "--require-word-search"])
+            self.assertEqual(code_missing, 1)
+
+            publish(output, self.sessions(), word_search=self.word_search())
+            code_present = main(["--output-dir", str(output), "--verify", "--require-word-search"])
+            self.assertEqual(code_present, 0)
+
+            publish(
+                output,
+                self.sessions(),
+                grid=self.grid(),
+                connections=self.connections(),
+                name_guess=self.name_guess(),
+                word_search=self.word_search(),
+            )
+            code_all = main(
+                [
+                    "--output-dir",
+                    str(output),
+                    "--verify",
+                    "--require-grid",
+                    "--require-connections",
+                    "--require-name-guess",
+                    "--require-word-search",
                 ]
             )
             self.assertEqual(code_all, 0)

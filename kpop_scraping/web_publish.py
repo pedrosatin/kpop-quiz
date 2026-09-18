@@ -16,12 +16,17 @@ from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzz
 from .quiz_generator import QuizConfig, create_session, generate_dataset
 from .quiz_schema import validate_session, write_json_atomic
 from .storage import canonical_json
+from .word_search_schema import (
+    validate_word_search_puzzle,
+    write_word_search_puzzle_atomic,
+)
 
 MANIFEST_VERSION = "kpop-quiz-web-manifest-v2"
 MANIFEST_FILENAME = "manifest-v2.json"
 GRID_DAILY_FILENAME = "grid.daily.json"
 CONNECTIONS_DAILY_FILENAME = "connections.daily.json"
 NAME_GUESS_DAILY_FILENAME = "name-guess.daily.json"
+WORD_SEARCH_DAILY_FILENAME = "word-search.daily.json"
 LOCALES = ("pt-BR", "en")
 DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
@@ -67,6 +72,15 @@ def _read_name_guess(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"cannot read name-guess artifact {path}: {exc}") from exc
     validate_name_guess_puzzle(payload)
+    return payload
+
+
+def _read_word_search(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read word-search artifact {path}: {exc}") from exc
+    validate_word_search_puzzle(payload)
     return payload
 
 
@@ -190,8 +204,9 @@ def publish(
     grid: dict[str, Any] | None = None,
     connections: dict[str, Any] | None = None,
     name_guess: dict[str, Any] | None = None,
+    word_search: dict[str, Any] | None = None,
 ) -> None:
-    """Publish static quiz sessions, optional daily grid, optional connections puzzle, and optional name-guess puzzle.
+    """Publish static quiz sessions, optional daily grid, connections, name-guess, and word-search puzzles.
 
     Args:
         output_dir: Target directory where artifacts and manifest are written.
@@ -205,6 +220,9 @@ def publish(
         name_guess: Optional name guess puzzle payload (written to name-guess.daily.json).
             When provided, validated against name guess puzzle schema before writing.
             When None, name_guess artifact is omitted.
+        word_search: Optional word search puzzle payload (written to word-search.daily.json).
+            When provided, validated against word search puzzle schema before writing.
+            When None, word_search artifact is omitted.
     """
     for session in sessions.values():
         validate_session(session)
@@ -214,6 +232,8 @@ def publish(
         validate_connections_puzzle(connections)
     if name_guess is not None:
         validate_name_guess_puzzle(name_guess)
+    if word_search is not None:
+        validate_word_search_puzzle(word_search)
     manifest = build_manifest(sessions)
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
@@ -222,6 +242,8 @@ def publish(
         write_connections_puzzle_atomic(output_dir / CONNECTIONS_DAILY_FILENAME, connections)
     if name_guess is not None:
         write_name_guess_puzzle_atomic(output_dir / NAME_GUESS_DAILY_FILENAME, name_guess)
+    if word_search is not None:
+        write_word_search_puzzle_atomic(output_dir / WORD_SEARCH_DAILY_FILENAME, word_search)
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
@@ -233,8 +255,9 @@ def verify(
     require_grid: bool = False,
     require_connections: bool = False,
     require_name_guess: bool = False,
+    require_word_search: bool = False,
 ) -> None:
-    """Verify published static quiz artifacts, manifest, grid file, connections puzzle, and name-guess puzzle.
+    """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, and word-search.
 
     Args:
         output_dir: Directory containing manifest-v2.json and artifact files.
@@ -252,6 +275,11 @@ def verify(
             When False (default): backwards-compatible policy. If name-guess.daily.json
             exists on disk, it is schema-validated; if absent, verification passes.
             When True: name-guess.daily.json is mandatory and must exist and satisfy
+            schema validation, raising ValueError if missing or invalid.
+        require_word_search: Verification policy flag for word-search puzzle (word-search.daily.json).
+            When False (default): backwards-compatible policy. If word-search.daily.json
+            exists on disk, it is schema-validated; if absent, verification passes.
+            When True: word-search.daily.json is mandatory and must exist and satisfy
             schema validation, raising ValueError if missing or invalid.
     """
     manifest_path = output_dir / MANIFEST_FILENAME
@@ -282,6 +310,11 @@ def verify(
         _read_name_guess(name_guess_path)
     elif require_name_guess:
         raise ValueError(f"missing required name-guess artifact: {name_guess_path}")
+    word_search_path = output_dir / WORD_SEARCH_DAILY_FILENAME
+    if word_search_path.is_file():
+        _read_word_search(word_search_path)
+    elif require_word_search:
+        raise ValueError(f"missing required word-search artifact: {word_search_path}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -307,6 +340,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Require name-guess.daily.json to exist and pass schema validation during --verify",
     )
+    parser.add_argument(
+        "--require-word-search",
+        action="store_true",
+        help="Require word-search.daily.json to exist and pass schema validation during --verify",
+    )
     return parser
 
 
@@ -319,12 +357,15 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--require-connections can only be used with --verify")
         if args.require_name_guess and not args.verify:
             raise ValueError("--require-name-guess can only be used with --verify")
+        if args.require_word_search and not args.verify:
+            raise ValueError("--require-word-search can only be used with --verify")
         if args.verify:
             verify(
                 args.output_dir,
                 require_grid=args.require_grid,
                 require_connections=args.require_connections,
                 require_name_guess=args.require_name_guess,
+                require_word_search=args.require_word_search,
             )
         elif args.database:
             if not args.database.is_file():
