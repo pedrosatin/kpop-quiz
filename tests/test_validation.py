@@ -542,6 +542,9 @@ class SourcePolicyTest(unittest.TestCase):
         keys = {
             "domain:jype.com",
             "domain:smtown.com",
+            "domain:starship-ent.com",
+            "domain:ador.world",
+            "domain:woolliment.com",
             "domain:yna.co.kr",
             "domain:billboard.com",
             "domain:circlechart.kr",
