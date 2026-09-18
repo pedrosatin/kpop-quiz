@@ -174,9 +174,18 @@ Objetivo: implementar a interface web acessível, componentes modulares, máquin
 - criação das rotas `/pt-br/adivinhe/` e `/en/guess/` com integração no seletor de jogos e catálogo bilíngue;
 - suíte de testes de máquina de estados, componentes e auditoria automatizada de acessibilidade via axe-core com zero violações.
 
+## Fatia 21 concluída
+
+Objetivo: validar a mecânica em navegador real e integrar os artefatos diários de adivinhação ao pipeline de publicação e verificação em CI.
+
+- extensão do publicador `kpop_scraping/web_publish.py` com suporte à escrita atômica e verificação de `name-guess.daily.json`;
+- inclusão da flag `--require-name-guess` na CLI e atualização de `.github/workflows/pages.yml` e `web/package.json`;
+- validação em navegador real via Chrome DevTools em quatro resoluções (320px, 768px, 1024px e 1440px), com checagem de contraste, acessibilidade e jogabilidade;
+- suíte de testes unitários em `tests/test_web_publish.py` para publicação e validação estrita.
+
 ## Fatias posteriores
 
-Concluída a interface web na Fatia 20, a etapa seguinte abrange a validação em navegador real e a integração com o pipeline de publicação e CI (Fatia 21). Frentes seguintes cobrem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+Concluída a integração da mecânica de Nome por Tentativas na Fatia 21, as frentes seguintes abrangem o caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
 
 
 
