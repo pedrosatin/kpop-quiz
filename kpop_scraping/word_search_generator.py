@@ -75,8 +75,8 @@ def normalize_word(name: str) -> str:
     Decomposes accents via NFKD, strips non-alphabetical characters and spaces,
     and returns uppercase letters in the [A-Z] range.
     """
-    decomposed = unicodedata.normalize("NFKD", name)
-    return "".join(c.upper() for c in decomposed if "A" <= c.upper() <= "Z")
+    decomposed = unicodedata.normalize("NFKD", name).upper()
+    return "".join(c for c in decomposed if "A" <= c <= "Z")
 
 
 def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
@@ -501,9 +501,16 @@ def fill_empty_cells_and_verify(
         for p in placed:
             matches = find_word_occurrences(completed, p.candidate.word)
             expected = (p.start_row, p.start_col, p.end_row, p.end_col)
-            if len(matches) != 1 or matches[0] != expected:
-                spurious = True
-                break
+            is_palindrome = p.candidate.word == p.candidate.word[::-1]
+            if is_palindrome:
+                reverse_expected = (p.end_row, p.end_col, p.start_row, p.start_col)
+                if set(matches) != {expected, reverse_expected} or len(matches) != 2:
+                    spurious = True
+                    break
+            else:
+                if len(matches) != 1 or matches[0] != expected:
+                    spurious = True
+                    break
 
         if not spurious:
             return completed

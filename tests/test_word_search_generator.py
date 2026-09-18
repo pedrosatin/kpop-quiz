@@ -508,16 +508,21 @@ class TestWordSearchGenerator(unittest.TestCase):
             for cell in r:
                 self.assertTrue(cell.isalpha() and cell.isupper() and len(cell) == 1)
 
-        # Check each declared word occurs exactly once in the grid
+        # Check each declared word occurs exactly once in the grid (or forward and backward for palindromes)
         for w in puzzle["words"]:
             target_word = w["word"]
             occurrences = find_word_occurrences(grid, target_word)
             expected = (w["start_row"], w["start_col"], w["end_row"], w["end_col"])
-            self.assertEqual(
-                occurrences,
-                [expected],
-                f"Word {target_word} must occur exactly once at {expected}, got {occurrences}",
-            )
+            if target_word == target_word[::-1]:
+                reverse_expected = (w["end_row"], w["end_col"], w["start_row"], w["start_col"])
+                self.assertEqual(set(occurrences), {expected, reverse_expected})
+                self.assertEqual(len(occurrences), 2)
+            else:
+                self.assertEqual(
+                    occurrences,
+                    [expected],
+                    f"Word {target_word} must occur exactly once at {expected}, got {occurrences}",
+                )
 
     def test_empty_database_raises_value_error(self) -> None:
         empty_conn = sqlite3.connect(":memory:")
