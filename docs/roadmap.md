@@ -145,7 +145,7 @@ Objetivo: implementar a mecânica completa de Palavras Conectadas (Connections),
 - validação real de acessibilidade com axe-core com zero violações e testes em navegador real em 4 resoluções sem transbordamento horizontal;
 - integração da validação de `connections.daily.json` no script `web_publish.py --verify` e no fluxo de CI do GitHub Actions.
 
-## Fatia 18 em andamento
+## Fatia 18 concluída
 
 Objetivo: especificar a mecânica de adivinhação de nomes por tentativas (Wordle temático), incluindo ADR 010, JSON Schema v1, validador de esquema, algoritmo de retorno posicional com tratamento de duplicatas e suíte de testes de contrato.
 
@@ -155,9 +155,19 @@ Objetivo: especificar a mecânica de adivinhação de nomes por tentativas (Word
 - implementação do algoritmo de retorno posicional em duas passagens, normalização alfabética e resumo compartilhável;
 - suíte de testes unitários e de conformidade em `tests/test_name_guess_schema.py`.
 
+## Fatia 19 em andamento
+
+Objetivo: implementar o gerador determinístico de partidas e a interface de linha de comando para a mecânica de nome por tentativas.
+
+- implementação de `kpop_scraping/name_guess_generator.py` com seleção determinística de entidade-alvo, extração de pistas contextuais (ano de estreia, agência, integrantes, descrição) e agregação de evidências auditadas;
+- construção do conjunto fechado de palpites válidos (`valid_guesses`) a partir dos nomes e aliases do catálogo e vocabulário suplementar;
+- implementação da CLI em `kpop_scraping/name_guess_cli.py` com suporte aos parâmetros `--database`, `--output`, `--seed`, `--date`, `--word-length` e `--max-attempts`;
+- suíte de testes unitários do gerador e da CLI em `tests/test_name_guess_generator.py`.
+
 ## Fatias posteriores
 
-Concluída a entrega de nome por tentativas, o desenvolvimento avança para caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+Concluída a entrega do gerador na Fatia 19, o desenvolvimento avança para a interface web acessível (Fatia 20) e integração com o pipeline de publicação e CI (Fatia 21). Frentes seguintes cobrem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+
 
 
 
