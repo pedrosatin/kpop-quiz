@@ -281,19 +281,35 @@ Entregas:
 
 Aceite: 100% dos testes passando, zero violações no axe-core, build estático gerando as rotas da grade com zero erros e zero avisos.
 
+## Fatia 17
+
+Mecânica completa de Palavras Conectadas (Connections):
+
+- ADR 009 em `docs/decisions/009-mecanica-palavras-conectadas.md` definindo topologia 4x4, quatro níveis de dificuldade, particionamento estrito e evidências auditadas;
+- especificação JSON Schema v1 em `schemas/connections-puzzle-v1.json`, validador de esquema e escrita atômica em `kpop_scraping/connections_schema.py`;
+- gerador determinístico em `kpop_scraping/connections_generator.py` com algoritmo solver de unicidade de partição (`count_valid_partitions == 1`) e interface de linha de comando em `kpop_scraping/connections_cli.py`;
+- interface web modular sob `web/src/components/Connections/`, máquina de estados em `useConnectionsGame.ts`, rotas `/pt-br/conexoes/` e `/en/connections/`, contraste WCAG 2.2 AAA em todos os quatro níveis;
+- validação de acessibilidade com zero violações em testes axe-core e validação em navegador real em quatro resoluções;
+- integração da verificação de `connections.daily.json` em `web_publish.py --verify --require-connections` e no fluxo de CI do GitHub Actions.
+
+Aceite: 100% dos testes Python e Vitest passando, build estático gerando rotas sem erros, validação no CI bem-sucedida.
+
+## Fatia 18
+
+Especificação formal, contrato e validação da mecânica de Nome por Tentativas (Wordle temático):
+
+- elaboração da ADR 010 em `docs/decisions/010-mecanica-nome-por-tentativas.md` estabelecendo topologia de palavra com comprimento variável entre 3 e 10 letras, limite de tentativas (padrão de 6), normalização alfabética ASCII A-Z e dicionário fechado de palpites válidos (`valid_guesses`);
+- contrato formal JSON Schema Draft 2020-12 em `schemas/name-guess-v1.json` com `schema_version = "kpop-name-guess-puzzle-v1"`;
+- validador de domínio e escrita atômica em `kpop_scraping/name_guess_schema.py`, implementando checagens de integridade referencial, tipo estrito, formato de datas e hashes SHA-256;
+- implementação de funções utilitárias: `normalize_name` com decomposição NFKD, `compute_guess_feedback` com algoritmo determinístico em duas passagens para duplicatas e `generate_share_summary` com grade de emojis e suporte a alto contraste;
+- suíte de testes de contrato e regras de domínio em `tests/test_name_guess_schema.py`.
+
+Aceite: 100% dos testes passando contra o validador de domínio e o esquema Draft 2020-12, algoritmo de feedback cobrindo todos os cenários de duplicatas, escrita atômica validada.
+
 ## Etapas posteriores
 
-Com a interface web da Grade de Interseções entregue na Fatia 16, o desenvolvimento avança para as demais famílias planejadas conforme `docs/ideas/game-mechanics-and-visual-system.md`:
+Com as especificações da Fatia 18 estabelecidas, a entrega avança para o gerador determinístico (Fatia 19) e a interface web acessível (Fatia 20). Frentes posteriores abrangem caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
 
-1. Palavras conectadas: agrupamento de dezesseis elementos em quatro conjuntos temáticos mutuamente exclusivos.
-2. Caça-palavras temático: grade com solução única demonstrada para identificar entidades associadas a um tema central.
-3. Nome por tentativas: identificação de grupo, pessoa, música ou álbum com limites de tentativas, normalização textual e retorno posicional por caractere.
-
-Frentes condicionadas a contratos de dados ou licenciamento:
-
-- ordenação cronológica e desafio temporal ("Quando foi?") condicionados à coleta de datas auditáveis de lançamentos e discografia;
-- desafios com mapas geográficos condicionados ao levantamento de coordenadas locais e suporte a navegação por teclado;
-- identificação de trechos de letras condicionada à contratação de fornecedor com licença de exibição territorial.
 
 
 

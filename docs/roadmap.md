@@ -134,9 +134,31 @@ Objetivo: implementar a interface web acessível da Grade de Interseções no As
 - compartilhamento sem spoilers em emoji ou caracteres monocromáticos para alto contraste e painel de revisão com links externos seguros;
 - rotas `/pt-br/grid/` e `/en/grid/`, integração na coleção de jogos e auditoria de acessibilidade automatizada com axe-core sem violações.
 
+## Fatia 17 concluída
+
+Objetivo: implementar a mecânica completa de Palavras Conectadas (Connections), incluindo especificação, gerador determinístico com prova de partição única, interface web acessível e validação no pipeline de publicação.
+
+- ADR 009 e JSON Schema v1 `schemas/connections-puzzle-v1.json`;
+- validador de esquema e escrita atômica em `kpop_scraping/connections_schema.py`;
+- gerador determinístico `connections_generator.py` com solver de unicidade de partição (`count_valid_partitions == 1`) e CLI em `connections_cli.py`;
+- interface web modular sob `web/src/components/Connections/`, máquina de estados em `useConnectionsGame.ts`, rotas bilíngues `/pt-br/conexoes/` e `/en/connections/`;
+- validação real de acessibilidade com axe-core com zero violações e testes em navegador real em 4 resoluções sem transbordamento horizontal;
+- integração da validação de `connections.daily.json` no script `web_publish.py --verify` e no fluxo de CI do GitHub Actions.
+
+## Fatia 18 em andamento
+
+Objetivo: especificar a mecânica de adivinhação de nomes por tentativas (Wordle temático), incluindo ADR 010, JSON Schema v1, validador de esquema, algoritmo de retorno posicional com tratamento de duplicatas e suíte de testes de contrato.
+
+- elaboração da ADR 010 em `docs/decisions/010-mecanica-nome-por-tentativas.md`;
+- definição do JSON Schema Draft 2020-12 em `schemas/name-guess-v1.json`;
+- implementação do validador e escrita atômica em `kpop_scraping/name_guess_schema.py`;
+- implementação do algoritmo de retorno posicional em duas passagens, normalização alfabética e resumo compartilhável;
+- suíte de testes unitários e de conformidade em `tests/test_name_guess_schema.py`.
+
 ## Fatias posteriores
 
-Concluída a interface web da Grade de Interseções na Fatia 16, o planejamento foca nas demais famílias: palavras conectadas, caça-palavras temático e adivinhação de nomes por tentativas. Frentes adicionais de dados abrangem discografia com datas auditáveis de lançamento ("Quando foi?"), desafios com mapas locais e integração de letras com fornecedor licenciado.
+Concluída a entrega de nome por tentativas, o desenvolvimento avança para caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+
 
 
 
