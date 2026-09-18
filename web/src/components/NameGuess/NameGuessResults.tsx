@@ -68,53 +68,54 @@ export function NameGuessResults({
     <div
       role="region"
       aria-label={t.resultsAria}
-      class="w-full max-w-lg mx-auto my-4 p-4 sm:p-6 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 text-center"
+      class={`name-guess-results name-guess-modal ${highContrast ? "high-contrast" : ""}`.trim()}
+      data-contrast={highContrast ? "high" : "normal"}
     >
-      <h2 class={`text-2xl font-black mb-2 ${won ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+      <h2 class={`name-guess-results-title ${won ? "is-won" : "is-lost"}`}>
         {won ? t.wonTitle : t.lostTitle}
       </h2>
 
-      <p class="text-sm sm:text-base text-slate-600 dark:text-slate-400 mb-1">
+      <p class="name-guess-target-prompt">
         {t.targetWas}
       </p>
-      <p class="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-wider mb-4">
+      <p class="name-guess-target-name">
         {targetDisplayName}
       </p>
 
       {target.clues && (
-        <div class="bg-slate-50 dark:bg-slate-800 p-3 rounded-md text-left text-sm mb-4 border border-slate-200 dark:border-slate-700">
-          <h3 class="font-bold text-slate-800 dark:text-slate-200 mb-1">
+        <div class="name-guess-hints-card">
+          <h3 class="name-guess-hints-title">
             {t.hints}
           </h3>
           {descriptionText && (
-            <p class="text-slate-600 dark:text-slate-300 mb-2">
+            <p class="name-guess-hints-desc">
               {descriptionText}
             </p>
           )}
-          <div class="grid grid-cols-2 gap-1 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+          <div class="name-guess-hints-grid">
             {target.clues.debut_year && (
-              <div>
-                <span class="font-semibold">{t.debutYear}</span> {target.clues.debut_year}
+              <div class="name-guess-hint-item">
+                <span class="hint-label">{t.debutYear}</span> <span class="hint-value">{target.clues.debut_year}</span>
               </div>
             )}
             {agencyName && (
-              <div>
-                <span class="font-semibold">{t.agency}</span> {agencyName}
+              <div class="name-guess-hint-item">
+                <span class="hint-label">{t.agency}</span> <span class="hint-value">{agencyName}</span>
               </div>
             )}
             {target.clues.members_count && (
-              <div>
-                <span class="font-semibold">{t.members}</span> {target.clues.members_count}
+              <div class="name-guess-hint-item">
+                <span class="hint-label">{t.members}</span> <span class="hint-value">{target.clues.members_count}</span>
               </div>
             )}
           </div>
           {primaryEvidence && (
-            <div class="mt-2 text-xs">
+            <div class="name-guess-evidence">
               <a
                 href={primaryEvidence.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-blue-600 dark:text-blue-400 underline hover:text-blue-800"
+                class="evidence-link"
               >
                 {t.evidenceLink}
               </a>
@@ -123,18 +124,18 @@ export function NameGuessResults({
         </div>
       )}
 
-      <div class="flex flex-col sm:flex-row gap-2 justify-center mt-4">
+      <div class="name-guess-results-actions">
         <button
           type="button"
           onClick={handleCopy}
-          class="px-4 py-2.5 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-md shadow transition cursor-pointer"
+          class="name-guess-share-btn"
         >
           {copied ? t.copied : t.copyResults}
         </button>
         <button
           type="button"
           onClick={onReset}
-          class="px-4 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white font-bold rounded-md transition cursor-pointer"
+          class="name-guess-reset-btn"
         >
           {t.playAgain}
         </button>
