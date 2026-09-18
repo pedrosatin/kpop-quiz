@@ -240,16 +240,21 @@ class TestNameGuessGenerator(unittest.TestCase):
     def test_determinism_different_seed(self):
         puzzle_a = generate_name_guess_puzzle(
             self.conn,
-            seed="seed-alpha",
+            seed="seed-alpha-123",
             reference_date=self.ref_date,
+            word_length=5,
         )
         puzzle_b = generate_name_guess_puzzle(
             self.conn,
-            seed="seed-beta",
+            seed="seed-beta-456",
             reference_date=self.ref_date,
+            word_length=5,
         )
-        # Seeds must produce distinct puzzle IDs
+        # Seeds must produce distinct puzzle IDs and different targets
         self.assertNotEqual(puzzle_a["puzzle_id"], puzzle_b["puzzle_id"])
+        self.assertNotEqual(
+            puzzle_a["target"]["canonical_name"], puzzle_b["target"]["canonical_name"]
+        )
 
     def test_explicit_word_length_filtering(self):
         # Request 4 letters (e.g. ITZY, KARA)
