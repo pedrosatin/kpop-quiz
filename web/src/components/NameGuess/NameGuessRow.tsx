@@ -52,7 +52,7 @@ export function NameGuessRow({
     <div
       role="group"
       aria-label={t.rowAria(rowIndex + 1)}
-      class="flex justify-center gap-1.5 sm:gap-2 my-1"
+      class="name-guess-row"
     >
       {tiles}
     </div>
