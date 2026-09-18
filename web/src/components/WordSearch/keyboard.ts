@@ -1,6 +1,8 @@
 import type { CellCoord } from "./types";
 import type { WordSearchDimensions } from "../../lib/word-search-types";
 
+import { getLinearPath } from "./utils";
+
 export interface KeyboardNavContext {
   focusedCell: CellCoord;
   anchorCell: CellCoord | null;
@@ -35,10 +37,19 @@ export function handleWordSearchKeyDown(e: KeyboardEvent, ctx: KeyboardNavContex
     if (!anchorCell) {
       setAnchorCell({ row: newRow, col: newCol });
       setCurrentHoverCell({ row: newRow, col: newCol });
-    } else {
-      checkSelection(anchorCell, { row: newRow, col: newCol });
+    } else if (anchorCell.row === newRow && anchorCell.col === newCol) {
       setAnchorCell(null);
       setCurrentHoverCell(null);
+    } else {
+      const path = getLinearPath(anchorCell, { row: newRow, col: newCol });
+      if (path.length > 0) {
+        checkSelection(anchorCell, { row: newRow, col: newCol });
+        setAnchorCell(null);
+        setCurrentHoverCell(null);
+      } else {
+        setAnchorCell({ row: newRow, col: newCol });
+        setCurrentHoverCell({ row: newRow, col: newCol });
+      }
     }
     return;
   } else if (e.key === "Escape") {

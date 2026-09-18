@@ -646,9 +646,48 @@ class TestWordSearchRealDatabase(unittest.TestCase):
         validate_word_search_puzzle(puzzle)
         self.assertEqual(
             puzzle["puzzle_id"],
-            "f7bf19a6b20bfd0d8dc7ceb038884bf2b698a1d4e6a56b152cf1df849b6baa29",
+            "db1345015f91925c9bcb8965c15e9753e668e70a18094e9abfe19739f229dfbb",
         )
         self.assertEqual(puzzle["reference_date"], "2026-09-18")
+
+    def test_candidate_label_fallback_when_normalized_differs(self) -> None:
+        from kpop_scraping.quiz_models import Entity, Evidence, Fact
+        from kpop_scraping.word_search_generator import _build_candidate
+
+        ent = Entity(
+            wikidata_id="Q494222",
+            entity_type="person",
+            canonical_name="Lee Sungmin",
+            names={"pt": "Sungmin", "en": "Lee Sungmin"},
+            aliases=(),
+        )
+        ev = Evidence(
+            fact_base_id="Q1$1",
+            source_key="test",
+            locator="test",
+            source_url="https://example.com/test",
+            revision_id=1,
+        )
+        fact = Fact(
+            statement_id="s1",
+            subject=ent,
+            predicate="has_member",
+            value_entity=None,
+            value_time=None,
+            value_precision=None,
+            valid_from=None,
+            valid_from_precision=None,
+            valid_to=None,
+            valid_to_precision=None,
+            flags=(),
+            evidence=(ev,),
+        )
+        cand = _build_candidate(ent, [fact], min_dim=12)
+        self.assertIsNotNone(cand)
+        assert cand is not None
+        self.assertEqual(cand.word, "LEESUNGMIN")
+        self.assertEqual(cand.labels["pt-BR"], "Lee Sungmin")
+        self.assertEqual(cand.labels["en"], "Lee Sungmin")
 
 
 if __name__ == "__main__":

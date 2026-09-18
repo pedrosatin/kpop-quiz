@@ -129,14 +129,116 @@ describe("useWordSearchGame hook", () => {
     expect(result.current.foundWordIds).toContain(target.id);
   });
 
-  it("toggles clue mode", () => {
+  it("selects a word via two clicks (first click to anchor, second click to validate)", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const target = puzzle.words.find((w) => w.word === "SHINDONG")!;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    // Click 1 on start cell
+    act(() => {
+      result.current.handleCellPointerDown(target.start_row, target.start_col);
+      result.current.handleCellPointerUp(target.start_row, target.start_col);
+    });
+    // Anchor remains on start cell
+    expect(result.current.anchorCell).toEqual({ row: target.start_row, col: target.start_col });
+
+    // Hover moves to end cell
+    act(() => {
+      result.current.handleCellPointerEnter(target.end_row, target.end_col);
+    });
+    expect(result.current.activePath.length).toBe(target.word.length);
+
+    // Click 2 on end cell
+    act(() => {
+      result.current.handleCellPointerDown(target.end_row, target.end_col);
+      result.current.handleCellPointerUp(target.end_row, target.end_col);
+    });
+
+    expect(result.current.foundWordIds).toContain(target.id);
+    expect(result.current.anchorCell).toBeNull();
+  });
+
+  it("cancels anchor when clicking the anchor cell again", () => {
     const puzzle = validPuzzle as unknown as WordSearchPuzzle;
     const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
 
-    expect(result.current.clueMode).toBe(false);
     act(() => {
-      result.current.setClueMode(true);
+      result.current.handleCellPointerDown(0, 0);
+      result.current.handleCellPointerUp(0, 0);
     });
+    expect(result.current.anchorCell).toEqual({ row: 0, col: 0 });
+
+    act(() => {
+      result.current.handleCellPointerDown(0, 0);
+      result.current.handleCellPointerUp(0, 0);
+    });
+    expect(result.current.anchorCell).toBeNull();
+  });
+
+  it("reanchors to new cell if second click is not collinear", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    act(() => {
+      result.current.handleCellPointerDown(0, 0);
+      result.current.handleCellPointerUp(0, 0);
+    });
+    expect(result.current.anchorCell).toEqual({ row: 0, col: 0 });
+
+    // (1, 2) is not collinear with (0, 0)
+    act(() => {
+      result.current.handleCellPointerDown(1, 2);
+      result.current.handleCellPointerUp(1, 2);
+    });
+    expect(result.current.anchorCell).toEqual({ row: 1, col: 2 });
+  });
+
+  it("validates Lee Sungmin when selecting the SUNGMIN subsegment (lines 3 to 9)", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const target = puzzle.words.find((w) => w.id === "Q494222")!; // LEESUNGMIN at col 0, rows 0..9
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    // Select subsegment S-U-N-G-M-I-N (row 3 to row 9 in col 0)
+    act(() => {
+      result.current.handleCellPointerDown(3, 0);
+      result.current.handleCellPointerUp(3, 0);
+    });
+    expect(result.current.anchorCell).toEqual({ row: 3, col: 0 });
+
+    act(() => {
+      result.current.handleCellPointerDown(9, 0);
+      result.current.handleCellPointerUp(9, 0);
+    });
+
+    expect(result.current.foundWordIds).toContain(target.id);
+    expect(result.current.anchorCell).toBeNull();
+  });
+
+  it("validates Lee Sungmin when selecting SUNGMIN in reverse (lines 9 to 3)", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const target = puzzle.words.find((w) => w.id === "Q494222")!;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    act(() => {
+      result.current.handleCellPointerDown(9, 0);
+      result.current.handleCellPointerEnter(3, 0);
+      result.current.handleCellPointerUp(3, 0);
+    });
+
+    expect(result.current.foundWordIds).toContain(target.id);
+  });
+
+  it("toggles easy mode and clueMode", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    expect(result.current.easyMode).toBe(false);
+    expect(result.current.clueMode).toBe(false);
+
+    act(() => {
+      result.current.setEasyMode(true);
+    });
+    expect(result.current.easyMode).toBe(true);
     expect(result.current.clueMode).toBe(true);
   });
 

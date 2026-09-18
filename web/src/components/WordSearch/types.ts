@@ -21,6 +21,10 @@ export interface WordSearchTranslations {
   wordsRemaining: string;
   wordsFound: string;
   timerLabel: string;
+  modeToggle: string;
+  easyMode: string;
+  normalMode: string;
+  lettersCount: (count: number) => string;
   clueModeToggle: string;
   showClues: string;
   showWords: string;
@@ -49,9 +53,13 @@ export const WORD_SEARCH_I18N: Record<Locale, WordSearchTranslations> = {
     wordsRemaining: "Restantes",
     wordsFound: "Encontradas",
     timerLabel: "Tempo decorrido",
-    clueModeToggle: "Alternar modo de exibição",
-    showClues: "Ver Pistas",
-    showWords: "Ver Palavras",
+    modeToggle: "Alternar modo",
+    easyMode: "Modo Fácil",
+    normalMode: "Modo Normal",
+    lettersCount: (count) => `${count} letras`,
+    clueModeToggle: "Alternar modo",
+    showClues: "Modo Normal",
+    showWords: "Modo Fácil",
     shareResult: "Compartilhar resultado",
     copied: "Copiado para a área de transferência!",
     congratulations: "Parabéns, você encontrou todas as palavras!",
@@ -80,9 +88,13 @@ export const WORD_SEARCH_I18N: Record<Locale, WordSearchTranslations> = {
     wordsRemaining: "Remaining",
     wordsFound: "Found",
     timerLabel: "Elapsed time",
-    clueModeToggle: "Toggle display mode",
-    showClues: "Show Clues",
-    showWords: "Show Words",
+    modeToggle: "Toggle mode",
+    easyMode: "Easy Mode",
+    normalMode: "Normal Mode",
+    lettersCount: (count) => `${count} letters`,
+    clueModeToggle: "Toggle mode",
+    showClues: "Normal Mode",
+    showWords: "Easy Mode",
     shareResult: "Share result",
     copied: "Copied to clipboard!",
     congratulations: "Congratulations, you found all words!",
