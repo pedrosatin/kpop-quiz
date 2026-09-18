@@ -1,11 +1,13 @@
-import type { WordSearchPuzzle } from "../../lib/word-search-types";
+import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
 import type { CellCoord, GameStatus } from "./types";
+import type { Locale } from "../../lib/quiz-types";
 
 export interface StoredProgress {
   foundWordIds: string[];
   elapsedSeconds: number;
   status: GameStatus;
-  clueMode: boolean;
+  easyMode: boolean;
+  clueMode?: boolean;
 }
 
 export function loadStoredProgress(key: string): StoredProgress {
@@ -13,15 +15,119 @@ export function loadStoredProgress(key: string): StoredProgress {
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
+      const isEasy = Boolean(parsed.easyMode ?? parsed.clueMode);
       return {
         foundWordIds: Array.isArray(parsed.foundWordIds) ? parsed.foundWordIds : [],
         elapsedSeconds: typeof parsed.elapsedSeconds === "number" ? parsed.elapsedSeconds : 0,
         status: parsed.status === "completed" ? "completed" : "in_progress",
-        clueMode: Boolean(parsed.clueMode),
+        easyMode: isEasy,
+        clueMode: isEasy,
       };
     }
   } catch {}
-  return { foundWordIds: [], elapsedSeconds: 0, status: "in_progress", clueMode: false };
+  return { foundWordIds: [], elapsedSeconds: 0, status: "in_progress", easyMode: false, clueMode: false };
+}
+
+export function normalizeWord(name: string): string {
+  return name
+    .normalize("NFKD")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+}
+
+export function isWordMatch(
+  word: WordSearchWord,
+  start: CellCoord,
+  end: CellCoord,
+  letters: string,
+  revLetters: string,
+  locale: Locale
+): boolean {
+  const fullWordPath = getLinearPath(
+    { row: word.start_row, col: word.start_col },
+    { row: word.end_row, col: word.end_col }
+  );
+
+  const candidateSet = new Set<string>();
+  candidateSet.add(word.word);
+
+  const rawNames = [
+    word.canonical_name,
+    word.labels?.[locale],
+    word.labels?.["pt-BR"],
+    word.labels?.["en"],
+  ].filter(Boolean) as string[];
+
+  for (const name of rawNames) {
+    const norm = normalizeWord(name);
+    if (norm.length >= 3) {
+      candidateSet.add(norm);
+    }
+    const tokens = name.trim().split(/[\s-]+/);
+    if (tokens.length > 1) {
+      const lastToken = tokens[tokens.length - 1];
+      if (lastToken) {
+        const lastTokenNorm = normalizeWord(lastToken);
+        if (lastTokenNorm.length >= 3) {
+          candidateSet.add(lastTokenNorm);
+        }
+      }
+      const afterFirst = tokens.slice(1).join("");
+      const afterFirstNorm = normalizeWord(afterFirst);
+      if (afterFirstNorm.length >= 3) {
+        candidateSet.add(afterFirstNorm);
+      }
+    }
+  }
+
+  for (const cand of candidateSet) {
+    if (cand.length < 3 || cand.length > word.word.length) continue;
+
+    // Direct full-word match
+    if (word.word === cand) {
+      const fwd =
+        word.start_row === start.row &&
+        word.start_col === start.col &&
+        word.end_row === end.row &&
+        word.end_col === end.col &&
+        letters === cand;
+      const rev =
+        word.start_row === end.row &&
+        word.start_col === end.col &&
+        word.end_row === start.row &&
+        word.end_col === start.col &&
+        revLetters === cand;
+      if (fwd || rev) return true;
+    }
+
+    // Subsegment match inside word.word
+    let searchFrom = 0;
+    while (searchFrom <= word.word.length - cand.length) {
+      const idx = word.word.indexOf(cand, searchFrom);
+      if (idx === -1) break;
+      searchFrom = idx + 1;
+
+      const subStart = fullWordPath[idx];
+      const subEnd = fullWordPath[idx + cand.length - 1];
+      if (!subStart || !subEnd) continue;
+
+      const fwd =
+        start.row === subStart.row &&
+        start.col === subStart.col &&
+        end.row === subEnd.row &&
+        end.col === subEnd.col &&
+        letters === cand;
+      const rev =
+        start.row === subEnd.row &&
+        start.col === subEnd.col &&
+        end.row === subStart.row &&
+        end.col === subStart.col &&
+        revLetters === cand;
+      if (fwd || rev) return true;
+    }
+  }
+
+  return false;
 }
 
 export function getLinearPath(start: CellCoord, end: CellCoord): CellCoord[] {

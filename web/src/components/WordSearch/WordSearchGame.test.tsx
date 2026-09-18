@@ -45,13 +45,45 @@ describe("WordSearchGame component", () => {
     expect(wordItem).toHaveClass("is-found");
   });
 
-  it("toggles clue mode", () => {
+  it("toggles easy mode and hides/reveals word names", () => {
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
 
-    const toggleBtn = screen.getByRole("button", { name: tPt.showClues });
+    // In normal mode (default), names are hidden
+    expect(screen.queryByText("Shindong")).not.toBeInTheDocument();
+
+    const toggleBtn = screen.getByRole("button", { name: tPt.easyMode });
     fireEvent.click(toggleBtn);
 
-    expect(screen.getByRole("button", { name: tPt.showWords })).toBeInTheDocument();
+    // In easy mode, names are revealed
+    expect(screen.getByText("Shindong")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: tPt.normalMode })).toBeInTheDocument();
+
+    // Toggle back to normal mode
+    fireEvent.click(screen.getByRole("button", { name: tPt.normalMode }));
+    expect(screen.queryByText("Shindong")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: tPt.easyMode })).toBeInTheDocument();
+  });
+
+  it("selects a word via two clicks on the grid", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+
+    const target = puzzle.words.find((w) => w.word === "SHINDONG")!;
+    const startCell = screen.getByLabelText(new RegExp(`^Linha ${target.start_row + 1}, Coluna ${target.start_col + 1},`));
+    const endCell = screen.getByLabelText(new RegExp(`^Linha ${target.end_row + 1}, Coluna ${target.end_col + 1},`));
+
+    // First click: anchor
+    fireEvent.pointerDown(startCell);
+    fireEvent.pointerUp(startCell);
+
+    // Second click: confirm
+    fireEvent.pointerDown(endCell);
+    fireEvent.pointerUp(endCell);
+
+    expect(screen.getByTestId("found-counter")).toHaveTextContent(`1 / ${puzzle.words.length}`);
+    const wordItem = document.querySelector(`[data-word-id="${target.id}"]`);
+    expect(wordItem).toHaveClass("is-found");
+    // Once found, the real name is visible even in normal mode with check icon
+    expect(screen.getByText("Shindong")).toBeInTheDocument();
   });
 
   it("opens and closes evidence modal", () => {

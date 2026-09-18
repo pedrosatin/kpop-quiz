@@ -18,8 +18,8 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
     foundWordIds,
     elapsedSeconds,
     status,
-    clueMode,
-    setClueMode,
+    easyMode,
+    setEasyMode,
     focusedCell,
     anchorCell,
     activePath,
@@ -45,8 +45,8 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
         foundCount={foundCount}
         totalCount={totalWords}
         elapsedSeconds={elapsedSeconds}
-        clueMode={clueMode}
-        onToggleClueMode={() => setClueMode(!clueMode)}
+        easyMode={easyMode}
+        onToggleEasyMode={() => setEasyMode(!easyMode)}
       />
 
       <div class="word-search-layout">
@@ -70,7 +70,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
             puzzle={puzzle}
             locale={locale}
             foundWordIds={foundWordIds}
-            clueMode={clueMode}
+            easyMode={easyMode}
             onSelectEvidenceWord={(w) => setEvidenceWord(w)}
           />
         </div>
