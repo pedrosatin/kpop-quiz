@@ -1744,7 +1744,14 @@ footer a {
 .connections-banner-explanation {
   font-size: 0.8125rem;
   margin: 0;
-  opacity: 0.9;
+}
+
+.connections-banner-level-3 {
+  color: #172554;
+}
+
+.connections-banner-level-4 {
+  color: #3b0764;
 }
 
 .connections-grid {

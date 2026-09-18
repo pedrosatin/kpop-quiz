@@ -6,6 +6,7 @@ export function ConnectionsBoard({
   categories,
   solvedCategoryIds,
   boardItems,
+  allItems,
   selectedItemIds,
   onToggleItem,
   disabled = false,
@@ -16,15 +17,24 @@ export function ConnectionsBoard({
     .filter((cat) => solvedCategoryIds.includes(cat.id))
     .sort((a, b) => a.difficulty_level - b.difficulty_level);
 
+  const itemsList = allItems ?? boardItems;
+
   return (
-    <div class="connections-board" role="region" aria-label="Tabuleiro">
+    <div
+      class="connections-board"
+      role="region"
+      aria-label={messages.connectionsBoardAria}
+    >
       {solvedCategories.length > 0 && (
-        <div class="connections-solved-categories" aria-label="Categorias resolvidas">
+        <div
+          class="connections-solved-categories"
+          aria-label={messages.connectionsSolvedAria}
+        >
           {solvedCategories.map((cat) => (
             <CategoryBanner
               key={cat.id}
               category={cat}
-              items={boardItems}
+              allItems={itemsList}
               locale={locale}
               messages={messages}
             />
@@ -36,7 +46,7 @@ export function ConnectionsBoard({
         <div
           class="connections-grid"
           role="group"
-          aria-label="Itens para agrupamento"
+          aria-label={messages.connectionsItemsAria}
         >
           {boardItems.map((item) => (
             <ConnectionsTile

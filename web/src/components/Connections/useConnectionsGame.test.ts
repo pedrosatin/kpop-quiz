@@ -166,4 +166,14 @@ describe("useConnectionsGame state machine", () => {
     expect(result.current.mistakesRemaining).toBe(4);
     expect(result.current.gameStatus).toBe("in_progress");
   });
+
+  it("ignores corrupted saved state with empty boardItemIds or missing fields", () => {
+    const key = `kpop-connections-${puzzle.puzzle_id}`;
+    localStorage.setItem(
+      key,
+      JSON.stringify({ boardItemIds: [], solvedCategoryIds: [], guessHistory: [], mistakesRemaining: 4, gameStatus: "in_progress" })
+    );
+    const { result } = renderHook(() => useConnectionsGame(puzzle));
+    expect(result.current.boardItemIds).toHaveLength(16);
+  });
 });

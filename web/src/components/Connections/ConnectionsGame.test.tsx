@@ -95,6 +95,7 @@ describe("ConnectionsGame component integration", () => {
 
     expect(screen.getByText("Grupos da JYP Entertainment")).toBeInTheDocument();
     expect(screen.getByText(/Todos os grupos foram formados e gerenciados pela JYP/)).toBeInTheDocument();
+    expect(screen.getByText("TWICE, ITZY, Stray Kids, Wonder Girls")).toBeInTheDocument();
   });
 
   it("shows proximity banner when guess is one away", () => {
@@ -117,5 +118,26 @@ describe("ConnectionsGame component integration", () => {
 
     expect(screen.getByText("Falta 1...")).toBeInTheDocument();
     expect(screen.getByText("3 tentativas restantes")).toBeInTheDocument();
+  });
+
+  it("handles async loading lifecycle when puzzle prop is omitted", async () => {
+    const messages = getMessages("pt-BR");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(puzzle))));
+
+    render(<ConnectionsGame locale="pt-BR" />);
+
+    expect(screen.getByText(messages.loading)).toBeInTheDocument();
+
+    const twiceBtn = await screen.findByRole("button", { name: /TWICE/ });
+    expect(twiceBtn).toBeInTheDocument();
+
+    for (const item of puzzle.items) {
+      const label = item.labels["pt-BR"] || item.canonical_name;
+      expect(screen.getByRole("button", { name: new RegExp(label) })).toBeInTheDocument();
+    }
+
+    expect(twiceBtn).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(twiceBtn);
+    expect(twiceBtn).toHaveAttribute("aria-pressed", "true");
   });
 });

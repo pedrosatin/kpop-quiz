@@ -140,6 +140,10 @@ export interface Messages {
   connectionsModeLink: string;
   connectionsItemAriaLabel: (name: string, selected: boolean) => string;
   connectionsCategorySolvedAria: (difficulty: number, label: string, items: string) => string;
+  connectionsBoardAria: string;
+  connectionsSolvedAria: string;
+  connectionsItemsAria: string;
+  connectionsLevelAria: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -287,6 +291,10 @@ const catalogs: Record<Locale, Messages> = {
     connectionsModeLink: "Jogar Palavras conectadas",
     connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selecionado" : "não selecionado"}`,
     connectionsCategorySolvedAria: (difficulty, label, items) => `Nível ${difficulty}: ${label}. Itens: ${items}.`,
+    connectionsBoardAria: "Tabuleiro de Palavras Conectadas",
+    connectionsSolvedAria: "Categorias resolvidas",
+    connectionsItemsAria: "Itens para agrupamento",
+    connectionsLevelAria: "Nível",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -432,6 +440,10 @@ const catalogs: Record<Locale, Messages> = {
     connectionsModeLink: "Play Connections",
     connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selected" : "not selected"}`,
     connectionsCategorySolvedAria: (difficulty, label, items) => `Level ${difficulty}: ${label}. Items: ${items}.`,
+    connectionsBoardAria: "Connections game board",
+    connectionsSolvedAria: "Solved categories",
+    connectionsItemsAria: "Items to group",
+    connectionsLevelAria: "Level",
   },
 };
 
