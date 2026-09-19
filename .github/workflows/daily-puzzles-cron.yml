@@ -1,0 +1,76 @@
+name: Generate and publish daily K-pop puzzles
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Reference date YYYY-MM-DD (optional, defaults to current date)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-puzzles
+  cancel-in-progress: false
+
+jobs:
+  daily-puzzles:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Generate daily puzzles
+        run: |
+          CMD="python -m kpop_scraping.daily_puzzles_cli --database data/kpop.db --output-dir web/public/data"
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            CMD="$CMD --date ${{ github.event.inputs.date }}"
+          fi
+          $CMD
+
+      - name: Verify published artifacts
+        working-directory: web
+        run: npm run artifacts:verify
+
+      - name: Build static web app
+        working-directory: web
+        run: npm run build
+
+      - name: Commit and push daily puzzles if changed
+        run: |
+          if [ -n "$(git status --porcelain web/public/data)" ]; then
+            TARGET_DATE="${{ github.event.inputs.date }}"
+            if [ -z "$TARGET_DATE" ]; then
+              TARGET_DATE=$(python3 -c 'from kpop_scraping.daily_puzzles_runner import get_reference_date; print(get_reference_date())')
+            fi
+            git config user.name "Pedro Satin"
+            git config user.email "pedro.satin@saudebliss.com.br"
+            git add web/public/data
+            git commit -m "Publish daily puzzles for ${TARGET_DATE}"
+            git push origin master
+          else
+            echo "No changes in web/public/data to publish"
+          fi
