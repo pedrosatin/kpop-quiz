@@ -590,3 +590,21 @@ def generate_intersection_grid(
 
     validate_intersection_grid(grid)
     return grid
+
+
+def generate_daily_grid(
+    connection: sqlite3.Connection,
+    reference_date: date | str | None = None,
+    seed: str | None = None,
+) -> dict[str, Any]:
+    """Generate a deterministic daily 3x3 intersection grid for the given date."""
+    if reference_date is None:
+        ref_date = datetime.now(timezone.utc).date()
+    elif isinstance(reference_date, str):
+        ref_date = date.fromisoformat(reference_date)
+    else:
+        ref_date = reference_date
+
+    grid_seed = seed if seed is not None else f"kpop-grid-daily-{ref_date.isoformat()}"
+    return generate_intersection_grid(connection, seed=grid_seed, reference_date=ref_date)
+

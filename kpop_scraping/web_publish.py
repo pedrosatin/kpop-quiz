@@ -315,6 +315,30 @@ def verify(
         _read_word_search(word_search_path)
     elif require_word_search:
         raise ValueError(f"missing required word-search artifact: {word_search_path}")
+    session_pt_br_path = output_dir / "session.pt-BR.json"
+    if session_pt_br_path.is_file():
+        _read_session(session_pt_br_path)
+    session_en_path = output_dir / "session.en.json"
+    if session_en_path.is_file():
+        _read_session(session_en_path)
+
+
+def verify_artifacts(
+    output_dir: Path,
+    require_grid: bool = True,
+    require_connections: bool = True,
+    require_name_guess: bool = True,
+    require_word_search: bool = True,
+) -> None:
+    """Verify published static quiz artifacts and daily puzzle files."""
+    verify(
+        output_dir,
+        require_grid=require_grid,
+        require_connections=require_connections,
+        require_name_guess=require_name_guess,
+        require_word_search=require_word_search,
+    )
+
 
 
 def build_parser() -> argparse.ArgumentParser:
