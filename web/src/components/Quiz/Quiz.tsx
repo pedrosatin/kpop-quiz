@@ -12,6 +12,12 @@ import { computeAwardedPoints } from "./scoring";
 import { useQuizTimer } from "./useQuizTimer";
 import { getInitialUrlParams, updateUrlParams, type QuizTheme } from "./url-params";
 import type { QuestionResult, QuizMachineState } from "./types";
+import {
+  getTodayDateString,
+  isGameMatchRecorded,
+  markGameMatchRecorded,
+  recordGameFinish,
+} from "../../lib/player-stats";
 
 export { groupEvidence, type DisplayEvidence, type QuestionResult, type QuizMachineState };
 
@@ -37,6 +43,7 @@ export function Quiz({ locale }: { locale: Locale }) {
   const focusQuestionRef = useRef(false);
   const loadRequestRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
+  const recordedMatchRef = useRef<string | null>(null);
   const question = session?.questions[questionIndex];
   const timerSeconds = timerEnabled ? 20 : session?.config.timer_seconds ?? null;
 
@@ -105,6 +112,24 @@ export function Quiz({ locale }: { locale: Locale }) {
     }
   }, [questionIndex, state]);
 
+  useEffect(() => {
+    if (state === "results" && session) {
+      const dailyDate = theme === "daily" && session.config.seed?.startsWith("kpop-daily-")
+        ? session.config.seed.replace("kpop-daily-", "")
+        : (theme === "daily" ? getTodayDateString() : undefined);
+      const matchId = dailyDate ? `daily-${dailyDate}` : `session-${session.session_id || "default"}`;
+
+      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("quiz", matchId)) {
+        const correctCount = history.filter((h) => h.isCorrect).length;
+        const total = session.questions.length || 10;
+        const isWin = correctCount >= Math.ceil(total / 2);
+        recordGameFinish("quiz", isWin, dailyDate || getTodayDateString());
+        markGameMatchRecorded("quiz", matchId);
+        recordedMatchRef.current = matchId;
+      }
+    }
+  }, [state, session, history, theme]);
+
   const start = () => {
     saveStoredPlayMode(playMode);
     saveStoredTimerEnabled(timerEnabled);
@@ -146,6 +171,7 @@ export function Quiz({ locale }: { locale: Locale }) {
 
   const restart = () => {
     startTimeRef.current = Date.now();
+    recordedMatchRef.current = null;
     resetRound(session?.questions.length ?? 0, timerSeconds ?? 0, "question.ready");
     focusQuestionRef.current = true;
   };

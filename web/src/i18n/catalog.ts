@@ -162,6 +162,18 @@ export interface Messages {
   gameConnections: string;
   gameNameGuess: string;
   gameWordSearch: string;
+  statsTitle: string;
+  statsNavLabel: string;
+  statsOpenButton: string;
+  statsClose: string;
+  statsTabOverall: string;
+  statsPlayed: string;
+  statsWon: string;
+  statsWinRate: string;
+  statsCurrentStreak: string;
+  statsMaxStreak: string;
+  statsGuessDistribution: string;
+  statsNoData: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -331,6 +343,18 @@ const catalogs: Record<Locale, Messages> = {
     gameConnections: "Conexões",
     gameNameGuess: "Adivinhe",
     gameWordSearch: "Caça-Palavras",
+    statsTitle: "Estatísticas do jogador",
+    statsNavLabel: "Estatísticas",
+    statsOpenButton: "Ver estatísticas e sequência diária",
+    statsClose: "Fechar estatísticas",
+    statsTabOverall: "Geral",
+    statsPlayed: "Partidas",
+    statsWon: "Vitórias",
+    statsWinRate: "Taxa de vitória",
+    statsCurrentStreak: "Sequência atual",
+    statsMaxStreak: "Maior sequência",
+    statsGuessDistribution: "Distribuição de tentativas",
+    statsNoData: "Nenhuma partida registrada nesta categoria.",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -498,6 +522,18 @@ const catalogs: Record<Locale, Messages> = {
     gameConnections: "Connections",
     gameNameGuess: "Name Guess",
     gameWordSearch: "Word Search",
+    statsTitle: "Player statistics",
+    statsNavLabel: "Stats",
+    statsOpenButton: "View statistics and daily streak",
+    statsClose: "Close statistics",
+    statsTabOverall: "Overall",
+    statsPlayed: "Played",
+    statsWon: "Won",
+    statsWinRate: "Win rate",
+    statsCurrentStreak: "Current streak",
+    statsMaxStreak: "Max streak",
+    statsGuessDistribution: "Guess distribution",
+    statsNoData: "No matches recorded in this category.",
   },
 };
 
