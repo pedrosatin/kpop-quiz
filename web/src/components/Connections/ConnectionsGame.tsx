@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { getMessages } from "../../i18n/catalog";
@@ -9,6 +9,12 @@ import { ConnectionsResults } from "./ConnectionsResults";
 import { MistakesRemaining } from "./MistakesRemaining";
 import type { ConnectionsGameProps } from "./types";
 import { useConnectionsGame } from "./useConnectionsGame";
+import {
+  getTodayDateString,
+  isGameMatchRecorded,
+  markGameMatchRecorded,
+  recordGameFinish,
+} from "../../lib/player-stats";
 
 export interface ConnectionsGameContentProps {
   puzzle: ConnectionsPuzzle;
@@ -45,6 +51,22 @@ export function ConnectionsGameContent({
   }, [puzzle, boardItemIds]);
 
   const isGameOver = gameStatus === "won" || gameStatus === "lost";
+
+  const recordedMatchRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isGameOver && puzzle) {
+      const matchId = `connections-${puzzle.puzzle_id}`;
+      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("connections", matchId)) {
+        const isWin = gameStatus === "won";
+        recordGameFinish("connections", isWin, puzzle.reference_date || getTodayDateString());
+        markGameMatchRecorded("connections", matchId);
+        recordedMatchRef.current = matchId;
+      }
+    } else if (!isGameOver) {
+      recordedMatchRef.current = null;
+    }
+  }, [isGameOver, gameStatus, puzzle]);
 
   return (
     <section id="connections" class="connections-card-shell" aria-labelledby="connections-heading">

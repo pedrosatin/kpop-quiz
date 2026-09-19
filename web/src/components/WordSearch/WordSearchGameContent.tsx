@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { useWordSearchGame } from "./useWordSearchGame";
@@ -7,6 +7,12 @@ import { WordSearchGrid } from "./WordSearchGrid";
 import { WordSearchList } from "./WordSearchList";
 import { WordSearchEvidenceModal } from "./WordSearchEvidenceModal";
 import { WordSearchResultModal } from "./WordSearchResultModal";
+import {
+  getTodayDateString,
+  isGameMatchRecorded,
+  markGameMatchRecorded,
+  recordGameFinish,
+} from "../../lib/player-stats";
 
 interface WordSearchGameContentProps {
   puzzle: WordSearchPuzzle;
@@ -36,6 +42,21 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
 
   const totalWords = puzzle.words.length;
   const foundCount = foundWordIds.length;
+
+  const recordedMatchRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (status === "completed" && puzzle) {
+      const matchId = `word-search-${puzzle.puzzle_id}`;
+      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("word-search", matchId)) {
+        recordGameFinish("word-search", true, puzzle.reference_date || getTodayDateString());
+        markGameMatchRecorded("word-search", matchId);
+        recordedMatchRef.current = matchId;
+      }
+    } else if (status !== "completed") {
+      recordedMatchRef.current = null;
+    }
+  }, [status, puzzle]);
 
   return (
     <div class="word-search-container" id="word-search">

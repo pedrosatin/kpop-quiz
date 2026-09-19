@@ -1,4 +1,4 @@
-import { useMemo } from "preact/hooks";
+import { useEffect, useMemo, useRef } from "preact/hooks";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages, type Messages } from "../../i18n/catalog";
 import { QuizState } from "../Quiz/QuizState";
@@ -6,6 +6,12 @@ import { useGridGame } from "./useGridGame";
 import { GridBoard } from "./GridBoard";
 import { EntityPicker } from "./EntityPicker";
 import { GridResults } from "./GridResults";
+import {
+  getTodayDateString,
+  isGameMatchRecorded,
+  markGameMatchRecorded,
+  recordGameFinish,
+} from "../../lib/player-stats";
 
 export interface IntersectionGridProps {
   locale: Locale;
@@ -35,6 +41,22 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
   const solvedCount = useMemo(() => {
     return Object.values(cells).filter((c) => c.solved).length;
   }, [cells]);
+
+  const recordedMatchRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (status === "complete" && grid) {
+      const matchId = `grid-${grid.reference_date || grid.grid_id}`;
+      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("grid", matchId)) {
+        const isWin = solvedCount >= 5;
+        recordGameFinish("grid", isWin, grid.reference_date || getTodayDateString());
+        markGameMatchRecorded("grid", matchId);
+        recordedMatchRef.current = matchId;
+      }
+    } else if (status !== "complete") {
+      recordedMatchRef.current = null;
+    }
+  }, [status, grid, solvedCount]);
 
   if (status === "loading") {
     return (
