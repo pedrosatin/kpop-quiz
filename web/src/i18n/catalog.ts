@@ -156,6 +156,12 @@ export interface Messages {
   wordSearchGameTitle: string;
   wordSearchGameDescription: string;
   wordSearchModeLink: string;
+  gameNavLabel: string;
+  gameQuiz: string;
+  gameGrid: string;
+  gameConnections: string;
+  gameNameGuess: string;
+  gameWordSearch: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -319,6 +325,12 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchGameTitle: "Caça-Palavras K-pop",
     wordSearchGameDescription: "Localize nomes temáticos escondidos em 8 direções na grade alfabética.",
     wordSearchModeLink: "Jogar Caça-Palavras",
+    gameNavLabel: "Jogos diários de K-pop",
+    gameQuiz: "Quiz",
+    gameGrid: "Grade",
+    gameConnections: "Conexões",
+    gameNameGuess: "Adivinhe",
+    gameWordSearch: "Caça-Palavras",
   },
   en: {
     skipLink: "Skip to quiz",
@@ -480,6 +492,12 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchGameTitle: "K-pop Word Search",
     wordSearchGameDescription: "Find thematic names hidden in 8 directions across the letter grid.",
     wordSearchModeLink: "Play Word Search",
+    gameNavLabel: "Daily K-pop games",
+    gameQuiz: "Quiz",
+    gameGrid: "Grid",
+    gameConnections: "Connections",
+    gameNameGuess: "Name Guess",
+    gameWordSearch: "Word Search",
   },
 };
 
