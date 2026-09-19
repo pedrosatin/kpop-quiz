@@ -1,10 +1,16 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import type { NameGuessPuzzle, Locale } from "../../lib/quiz-types";
 import { NameGuessBoard } from "./NameGuessBoard";
 import { NameGuessResults } from "./NameGuessResults";
 import { VirtualKeyboard } from "./VirtualKeyboard";
 import type { NameGuessTranslations } from "./types";
 import { useNameGuessGame } from "./useNameGuessGame";
+import {
+  getTodayDateString,
+  isGameMatchRecorded,
+  markGameMatchRecorded,
+  recordGameFinish,
+} from "../../lib/player-stats";
 
 export interface NameGuessGameContentProps {
   puzzle: NameGuessPuzzle;
@@ -58,6 +64,23 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
   const attemptsUsed = guesses.length;
   const attemptsRemaining = puzzle.max_attempts - attemptsUsed;
   const isGameOver = status === "won" || status === "lost";
+
+  const recordedMatchRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isGameOver && puzzle) {
+      const matchId = `name-guess-${puzzle.puzzle_id}`;
+      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("name-guess", matchId)) {
+        const isWin = status === "won";
+        const guessCount = guesses.length;
+        recordGameFinish("name-guess", isWin, puzzle.reference_date || getTodayDateString(), guessCount);
+        markGameMatchRecorded("name-guess", matchId);
+        recordedMatchRef.current = matchId;
+      }
+    } else if (!isGameOver) {
+      recordedMatchRef.current = null;
+    }
+  }, [isGameOver, status, puzzle, guesses.length]);
 
   let errorDisplay = null;
   if (errorMessage === "notEnoughLetters") {

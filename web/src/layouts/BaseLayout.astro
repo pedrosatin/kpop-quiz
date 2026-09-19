@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import type { Locale } from "../lib/quiz-types";
 import { getMessages } from "../i18n/catalog";
+import { StatsNavTrigger } from "../components/Stats/StatsNavTrigger";
 
 interface Props { locale: Locale }
 const { locale } = Astro.props;
@@ -128,6 +129,7 @@ const games = [
             {g.label}
           </a>
         ))}
+        <StatsNavTrigger locale={locale} client:load />
       </div>
     </nav>
     <main>
