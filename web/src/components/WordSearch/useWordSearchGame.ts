@@ -157,7 +157,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
       const target = { row, col };
 
       if (isDrag) {
-        const start = anchorAtPointerDownRef.current ?? downCell ?? anchorRef.current;
+        const start = downCell ?? pointerDownCellRef.current ?? anchorAtPointerDownRef.current;
         if (start) {
           checkSelection(start, target);
         }
@@ -203,7 +203,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
       if (!isPointerDownRef.current) return;
 
       if (didDragRef.current) {
-        const start = anchorAtPointerDownRef.current ?? pointerDownCellRef.current;
+        const start = pointerDownCellRef.current ?? anchorAtPointerDownRef.current;
         const end = currentHoverRef.current;
         if (start && end && (start.row !== end.row || start.col !== end.col)) {
           checkSelection(start, end);

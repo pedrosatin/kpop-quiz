@@ -34,6 +34,39 @@ const skipLinkText = isWordSearch
         ? (locale === "pt-BR" ? "Pular para a grade de interseções" : "Skip to intersection grid")
         : messages.skipLink)));
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch;
+const games = [
+  {
+    id: "quiz",
+    label: messages.gameQuiz,
+    path: locale === "pt-BR" ? "/pt-br/" : "/en/",
+    isActive: isQuiz,
+  },
+  {
+    id: "grid",
+    label: messages.gameGrid,
+    path: locale === "pt-BR" ? "/pt-br/grid/" : "/en/grid/",
+    isActive: isGrid,
+  },
+  {
+    id: "connections",
+    label: messages.gameConnections,
+    path: locale === "pt-BR" ? "/pt-br/conexoes/" : "/en/connections/",
+    isActive: isConnections,
+  },
+  {
+    id: "name-guess",
+    label: messages.gameNameGuess,
+    path: locale === "pt-BR" ? "/pt-br/adivinhe/" : "/en/guess/",
+    isActive: isNameGuess,
+  },
+  {
+    id: "word-search",
+    label: messages.gameWordSearch,
+    path: locale === "pt-BR" ? "/pt-br/caca-palavras/" : "/en/word-search/",
+    isActive: isWordSearch,
+  },
+];
 ---
 <!doctype html>
 <html lang={locale}>
@@ -84,6 +117,19 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
         </nav>
       </div>
     </header>
+    <nav class="game-nav-bar" aria-label={messages.gameNavLabel}>
+      <div class="game-nav-container">
+        {games.map((g) => (
+          <a
+            href={`${base}${g.path}`}
+            class={`game-nav-item ${g.isActive ? "is-active" : ""}`}
+            aria-current={g.isActive ? "page" : undefined}
+          >
+            {g.label}
+          </a>
+        ))}
+      </div>
+    </nav>
     <main>
       <slot />
     </main>

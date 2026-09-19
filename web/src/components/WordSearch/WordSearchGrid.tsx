@@ -44,6 +44,19 @@ export function WordSearchGrid({
     }
   }, [focusedCell]);
 
+  const handleGridPointerMove = (e: PointerEvent) => {
+    if (e.buttons === 0 && !anchorCell) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const cellBtn = el?.closest<HTMLElement>(".word-search-cell");
+    if (cellBtn) {
+      const r = parseInt(cellBtn.getAttribute("data-row") ?? "-1", 10);
+      const c = parseInt(cellBtn.getAttribute("data-col") ?? "-1", 10);
+      if (r >= 0 && c >= 0) {
+        onCellPointerEnter(r, c);
+      }
+    }
+  };
+
   return (
     <div
       ref={gridRef}
@@ -52,6 +65,7 @@ export function WordSearchGrid({
       aria-label={t.gridLabel}
       tabIndex={-1}
       onKeyDown={onKeyDown}
+      onPointerMove={handleGridPointerMove}
       style={{
         "--grid-rows": rows,
         "--grid-cols": cols,
@@ -90,6 +104,11 @@ export function WordSearchGrid({
                 aria-label={t.cellAria(r, c, letter, isSelected, isFound)}
                 onPointerDown={(e) => {
                   e.preventDefault();
+                  try {
+                    if ((e.currentTarget as HTMLElement).hasPointerCapture?.(e.pointerId)) {
+                      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+                    }
+                  } catch {}
                   onCellPointerDown(r, c);
                 }}
                 onPointerEnter={() => onCellPointerEnter(r, c)}

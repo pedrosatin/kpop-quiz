@@ -63,6 +63,31 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
             onCellPointerUp={handleCellPointerUp}
             onKeyDown={handleKeyDown}
           />
+          <div class="word-search-selection-bar" aria-live="polite">
+            {activePath.length > 1 ? (
+              <span class="active-selection-text">
+                <strong class="selection-label">{locale === "pt-BR" ? "Palavra: " : "Word: "}</strong>
+                <span class="selection-letters">
+                  {activePath.map((c) => puzzle.grid[c.row]?.[c.col] ?? "").join("")}
+                </span>
+                <span class="selection-count">
+                  ({activePath.length} {locale === "pt-BR" ? "letras" : "letters"})
+                </span>
+              </span>
+            ) : anchorCell ? (
+              <span class="hint-selection-text anchor-active-hint">
+                {locale === "pt-BR"
+                  ? `🎯 Letra inicial "${puzzle.grid[anchorCell.row]?.[anchorCell.col] ?? ""}" fixada! Agora clique na última letra da palavra.`
+                  : `🎯 Initial letter "${puzzle.grid[anchorCell.row]?.[anchorCell.col] ?? ""}" anchored! Now click the last letter of the word.`}
+              </span>
+            ) : (
+              <span class="hint-selection-text">
+                {locale === "pt-BR"
+                  ? "💡 Dica: Clique na primeira letra e depois na última para marcar, ou arraste."
+                  : "💡 Tip: Click the first letter and then the last letter to select, or drag."}
+              </span>
+            )}
+          </div>
         </div>
 
         <div class="word-search-side-col">
