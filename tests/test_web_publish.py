@@ -189,6 +189,7 @@ class WebPublishTests(unittest.TestCase):
         validate_connections_puzzle(self.connections())
         validate_name_guess_puzzle(self.name_guess())
         validate_word_search_puzzle(self.word_search())
+        validate_timeline_puzzle(self.timeline())
 
     def test_daily_sessions_determinism_same_date_repeats_hashes(self):
         connection = build_quiz_database()

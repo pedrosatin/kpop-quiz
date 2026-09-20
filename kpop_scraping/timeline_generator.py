@@ -8,16 +8,26 @@ import re
 import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Any, Iterable
 
-from .quiz_models import Entity, Evidence
-from .quiz_repository import _dataset_version, _load_entities, _load_evidence
+from .quiz_models import Entity, Evidence, Fact
+from .quiz_repository import _dataset_version, _load_entities, _load_facts
+from .quiz_utils import reference_date_today
 from .timeline_schema import (
+    TIMELINE_MAX_YEAR,
+    TIMELINE_MIN_EVENT_GAP_DAYS,
+    TIMELINE_MIN_YEAR,
     TIMELINE_SCHEMA_VERSION,
     compute_timeline_puzzle_id,
+    timeline_date_span,
     validate_timeline_puzzle,
 )
+
+QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
+
+# Bounded resampling attempts for year sets that respect the minimum gap.
+TIMELINE_MAX_SAMPLING_ATTEMPTS = 60
 
 PT_MONTHS = [
     "janeiro",
@@ -107,70 +117,63 @@ def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, An
     return [unique[k] for k in sorted(unique.keys())]
 
 
-def _build_formation_candidates(
-    connection: sqlite3.Connection,
-    evidence_map: dict[int, tuple[Evidence, ...]],
-) -> list[CandidateEvent]:
-    """Extract eligible group formation candidates with audited facts and evidence."""
-    cursor = connection.cursor()
-    cursor.execute(
-        """
-        SELECT f.id as fact_id, f.value_time,
-               e.wikidata_id, e.canonical_name,
-               (
-                   SELECT e_label.canonical_name
-                   FROM facts f_lbl
-                   JOIN entities e_label ON e_label.id = f_lbl.value_entity_id
-                   WHERE f_lbl.subject_entity_id = e.id AND f_lbl.predicate = 'record_label'
-                   LIMIT 1
-               ) as label_name,
-               (
-                   SELECT count(f_mem.id)
-                   FROM facts f_mem
-                   WHERE f_mem.subject_entity_id = e.id AND f_mem.predicate = 'has_member'
-               ) as member_count
-        FROM facts f
-        JOIN entities e ON e.id = f.subject_entity_id
-        WHERE f.predicate = 'formed_on' AND e.entity_type = 'group'
-        ORDER BY f.value_time ASC, e.canonical_name ASC
-        """
-    )
+def _parse_event_date(value_time: str | None) -> tuple[str, int] | None:
+    if not value_time:
+        return None
+    raw_time = value_time.strip()
+    date_match = re.match(r"^(\d{4})(-\d{2}(-\d{2})?)?$", raw_time)
+    if not date_match:
+        return None
+    year = int(date_match.group(1))
+    if not (TIMELINE_MIN_YEAR <= year <= TIMELINE_MAX_YEAR):
+        return None
+    return raw_time, year
+
+
+def _stable_name(entities: Iterable[Entity]) -> str | None:
+    named = [entity for entity in entities if entity.canonical_name]
+    if not named:
+        return None
+    return sorted(named, key=lambda entity: entity.wikidata_id)[0].canonical_name
+
+
+def _build_formation_candidates(facts: list[Fact]) -> list[CandidateEvent]:
+    """Extract group formation candidates from accepted, evidenced facts."""
+    labels_by_group: dict[str, list[Entity]] = defaultdict(list)
+    members_by_group: dict[str, int] = defaultdict(int)
+    for fact in facts:
+        subject_qid = fact.subject.wikidata_id
+        if fact.predicate == "record_label" and fact.subject.entity_type == "group" and fact.value_entity:
+            labels_by_group[subject_qid].append(fact.value_entity)
+        elif fact.predicate == "has_member" and fact.subject.entity_type == "group":
+            members_by_group[subject_qid] += 1
+
     candidates: list[CandidateEvent] = []
     seen_entities: set[str] = set()
-
-    for row in cursor.fetchall():
-        fact_id = int(row["fact_id"])
-        evidence = evidence_map.get(fact_id, ())
-        if not evidence:
+    for fact in facts:
+        if fact.predicate != "formed_on" or fact.subject.entity_type != "group":
             continue
-
-        raw_time = str(row["value_time"]).strip()
-        date_match = re.match(r"^(\d{4})(-\d{2}(-\d{2})?)?$", raw_time)
-        if not date_match:
+        qid = fact.subject.wikidata_id
+        if not QID_REGEX.match(qid) or qid in seen_entities:
             continue
-
-        year = int(date_match.group(1))
-        if not (1980 <= year <= 2035):
+        parsed = _parse_event_date(fact.value_time)
+        if parsed is None:
             continue
-
-        qid = str(row["wikidata_id"])
-        if qid in seen_entities:
-            continue
+        raw_time, year = parsed
         seen_entities.add(qid)
 
-        entity_name = str(row["canonical_name"])
-        label_name = row["label_name"]
-        member_count = row["member_count"]
-
+        entity_name = fact.subject.canonical_name
+        label_name = _stable_name(labels_by_group.get(qid, ()))
+        member_count = members_by_group.get(qid, 0)
         if label_name:
-            desc_pt = f"Formação oficial do grupo musical {entity_name} sob a gestão da gravadora {label_name}."
-            desc_en = f"Official formation of musical group {entity_name} under record label {label_name}."
-        elif member_count and member_count > 1:
-            desc_pt = f"Formação do grupo musical {entity_name}, composto por {member_count} integrantes no cenário K-pop."
-            desc_en = f"Formation of musical group {entity_name}, featuring {member_count} members in the K-pop scene."
+            desc_pt = f"Formação oficial do grupo {entity_name} sob a gravadora {label_name}."
+            desc_en = f"Official formation of group {entity_name} under record label {label_name}."
+        elif member_count > 1:
+            desc_pt = f"Formação do grupo {entity_name}, com {member_count} integrantes."
+            desc_en = f"Formation of group {entity_name}, with {member_count} members."
         else:
-            desc_pt = f"Marco de formação e criação oficial do grupo musical {entity_name} no universo K-pop."
-            desc_en = f"Official creation and formation milestone of musical group {entity_name} in K-pop history."
+            desc_pt = f"Formação oficial do grupo {entity_name}."
+            desc_en = f"Official formation of group {entity_name}."
 
         candidates.append(
             CandidateEvent(
@@ -186,68 +189,51 @@ def _build_formation_candidates(
                 description={"pt-BR": desc_pt, "en": desc_en},
                 entity_id=qid,
                 entity_name=entity_name,
-                evidence=_serialize_evidence(evidence),
+                evidence=_serialize_evidence(fact.evidence),
             )
         )
-
     return candidates
 
 
-def _build_birth_candidates(
-    connection: sqlite3.Connection,
-    evidence_map: dict[int, tuple[Evidence, ...]],
-) -> list[CandidateEvent]:
-    """Extract eligible idol birth candidates with audited facts and evidence."""
-    cursor = connection.cursor()
-    cursor.execute(
-        """
-        SELECT f.id as fact_id, f.value_time,
-               e.wikidata_id, e.canonical_name,
-               (
-                   SELECT e_grp.canonical_name
-                   FROM facts f_grp
-                   JOIN entities e_grp ON e_grp.id = f_grp.value_entity_id
-                   WHERE f_grp.subject_entity_id = e.id AND f_grp.predicate = 'member_of'
-                   LIMIT 1
-               ) as group_name
-        FROM facts f
-        JOIN entities e ON e.id = f.subject_entity_id
-        WHERE f.predicate = 'born_on' AND e.entity_type = 'person'
-        ORDER BY f.value_time ASC, e.canonical_name ASC
-        """
-    )
+def _build_birth_candidates(facts: list[Fact]) -> list[CandidateEvent]:
+    """Extract idol birth candidates from accepted, evidenced facts."""
+    groups_by_person: dict[str, list[Entity]] = defaultdict(list)
+    for fact in facts:
+        if (
+            fact.predicate == "member_of"
+            and fact.subject.entity_type == "person"
+            and fact.value_entity is not None
+        ):
+            groups_by_person[fact.subject.wikidata_id].append(fact.value_entity)
+        elif (
+            fact.predicate == "has_member"
+            and fact.subject.entity_type == "group"
+            and fact.value_entity is not None
+        ):
+            groups_by_person[fact.value_entity.wikidata_id].append(fact.subject)
+
     candidates: list[CandidateEvent] = []
     seen_entities: set[str] = set()
-
-    for row in cursor.fetchall():
-        fact_id = int(row["fact_id"])
-        evidence = evidence_map.get(fact_id, ())
-        if not evidence:
+    for fact in facts:
+        if fact.predicate != "born_on" or fact.subject.entity_type != "person":
             continue
-
-        raw_time = str(row["value_time"]).strip()
-        date_match = re.match(r"^(\d{4})(-\d{2}(-\d{2})?)?$", raw_time)
-        if not date_match:
+        qid = fact.subject.wikidata_id
+        if not QID_REGEX.match(qid) or qid in seen_entities:
             continue
-
-        year = int(date_match.group(1))
-        if not (1980 <= year <= 2035):
+        parsed = _parse_event_date(fact.value_time)
+        if parsed is None:
             continue
-
-        qid = str(row["wikidata_id"])
-        if qid in seen_entities:
-            continue
+        raw_time, year = parsed
         seen_entities.add(qid)
 
-        entity_name = str(row["canonical_name"])
-        group_name = row["group_name"]
-
+        entity_name = fact.subject.canonical_name
+        group_name = _stable_name(groups_by_person.get(qid, ()))
         if group_name:
-            desc_pt = f"Nascimento de {entity_name}, artista consagrado e integrante do grupo {group_name}."
-            desc_en = f"Birth of {entity_name}, celebrated artist and member of group {group_name}."
+            desc_pt = f"Nascimento de {entity_name}, integrante do grupo {group_name}."
+            desc_en = f"Birth of {entity_name}, member of group {group_name}."
         else:
-            desc_pt = f"Nascimento do artista e personalidade musical {entity_name} no cenário K-pop."
-            desc_en = f"Birth of K-pop artist and musical performer {entity_name}."
+            desc_pt = f"Nascimento do artista {entity_name}."
+            desc_en = f"Birth of artist {entity_name}."
 
         candidates.append(
             CandidateEvent(
@@ -263,87 +249,29 @@ def _build_birth_candidates(
                 description={"pt-BR": desc_pt, "en": desc_en},
                 entity_id=qid,
                 entity_name=entity_name,
-                evidence=_serialize_evidence(evidence),
+                evidence=_serialize_evidence(fact.evidence),
             )
         )
-
     return candidates
 
 
-def generate_timeline_puzzle(
-    connection: sqlite3.Connection,
-    reference_date: date | str | None = None,
-    seed: str | None = None,
-) -> dict[str, Any]:
-    """Deterministically generate a 5-event timeline puzzle for the given date and seed."""
-    if reference_date is None:
-        ref_date = datetime.now(timezone.utc).date()
-    elif isinstance(reference_date, str):
-        ref_date = date.fromisoformat(reference_date)
-    else:
-        ref_date = reference_date
+def _satisfies_min_gap(events: list[CandidateEvent]) -> bool:
+    """Check the conservative 30-day gap over precision spans for ordered events."""
+    prev_span_max = None
+    for cand in sorted(events, key=lambda c: (c.date, c.id)):
+        span_min, span_max = timeline_date_span(cand.date)
+        if prev_span_max is not None and (span_min - prev_span_max).days < TIMELINE_MIN_EVENT_GAP_DAYS:
+            return False
+        prev_span_max = span_max
+    return True
 
-    ref_date_str = ref_date.isoformat()
-    actual_seed = seed or f"kpop-timeline-daily-{ref_date_str}"
-    seed_hash = hashlib.sha256(actual_seed.encode("utf-8")).hexdigest()
-    rng = random.Random(int(seed_hash, 16))
 
-    connection.row_factory = sqlite3.Row
-    entities = _load_entities(connection)
-    dataset_version = _dataset_version(connection, entities, ref_date)
-    evidence_map = _load_evidence(connection)
-
-    formation_candidates = _build_formation_candidates(connection, evidence_map)
-    birth_candidates = _build_birth_candidates(connection, evidence_map)
-
-    themes: list[dict[str, Any]] = [
-        {
-            "id": "group_formations",
-            "theme": {
-                "pt-BR": "Formação de Grupos Históricos",
-                "en": "Historical Group Formations",
-            },
-            "theme_description": {
-                "pt-BR": "Ordene cronologicamente os anos de fundação e estreia destes grupos fundamentais do K-pop.",
-                "en": "Order the foundation and debut years of these foundational K-pop groups chronologically.",
-            },
-            "pool": formation_candidates,
-        },
-        {
-            "id": "kpop_evolution",
-            "theme": {
-                "pt-BR": "Evolução das Gerações do K-pop",
-                "en": "Evolution of K-pop Generations",
-            },
-            "theme_description": {
-                "pt-BR": "Organize em ordem cronológica a trajetória de grupos que marcaram diferentes gerações do K-pop.",
-                "en": "Arrange the chronological journey of groups that marked different generations of K-pop.",
-            },
-            "pool": formation_candidates,
-        },
-        {
-            "id": "idol_births",
-            "theme": {
-                "pt-BR": "Nascimento de Grandes Idols",
-                "en": "Births of Prominent Idols",
-            },
-            "theme_description": {
-                "pt-BR": "Ordene cronologicamente as datas de nascimento destes artistas consagrados do K-pop.",
-                "en": "Order the birth dates of these celebrated K-pop artists chronologically.",
-            },
-            "pool": birth_candidates,
-        },
-    ]
-
-    # Deterministically select a theme
-    chosen_theme = rng.choice(themes)
-    pool = chosen_theme["pool"]
-    if len(pool) < 5:
-        # Fallback to formations if pool is too small
-        chosen_theme = themes[0]
-        pool = chosen_theme["pool"]
-
-    # Group candidates by year
+def _select_events_from_pool(
+    pool: list[CandidateEvent],
+    rng: random.Random,
+    seed: str,
+) -> list[CandidateEvent]:
+    """Pick 5 events with distinct years that respect the conservative 30-day gap."""
     by_year: dict[int, list[CandidateEvent]] = defaultdict(list)
     for cand in pool:
         by_year[cand.year].append(cand)
@@ -354,26 +282,39 @@ def generate_timeline_puzzle(
             f"Not enough distinct years available for timeline puzzle: {len(available_years)} < 5"
         )
 
-    # Pick 5 distinct years deterministically
-    chosen_years = sorted(rng.sample(available_years, 5))
+    chosen_events: list[CandidateEvent] | None = None
+    for _ in range(TIMELINE_MAX_SAMPLING_ATTEMPTS):
+        chosen_years = sorted(rng.sample(available_years, 5))
+        picks: list[CandidateEvent] = []
+        for yr in chosen_years:
+            candidates_in_year = sorted(by_year[yr], key=lambda c: (c.date, c.id))
+            picks.append(rng.choice(candidates_in_year))
+        if _satisfies_min_gap(picks):
+            chosen_events = picks
+            break
 
-    # For each year, deterministically select 1 candidate
-    chosen_events: list[CandidateEvent] = []
-    for yr in chosen_years:
-        candidates_in_year = sorted(by_year[yr], key=lambda c: (c.date, c.id))
-        chosen_events.append(rng.choice(candidates_in_year))
+    if chosen_events is None:
+        raise ValueError(
+            "Unable to select 5 events respecting the minimum "
+            f"{TIMELINE_MIN_EVENT_GAP_DAYS}-day gap for timeline puzzle with seed {seed!r}"
+        )
 
-    # Sort strictly by date ascending
     chosen_events.sort(key=lambda c: (c.date, c.id))
-
-    # Verify strict ascending order
     for idx in range(1, len(chosen_events)):
         if chosen_events[idx].date <= chosen_events[idx - 1].date:
             raise ValueError(
-                f"Generated events not in strictly ascending order: {chosen_events[idx].date} <= {chosen_events[idx - 1].date}"
+                f"Generated events not in strictly ascending order: "
+                f"{chosen_events[idx].date} <= {chosen_events[idx - 1].date}"
             )
+    return chosen_events
 
-    # Build events list for puzzle
+
+def _puzzle_from_theme(
+    theme: dict[str, Any],
+    events: list[CandidateEvent],
+    dataset_version: str,
+    reference_date: str,
+) -> dict[str, Any]:
     events_payload: list[dict[str, Any]] = [
         {
             "id": ev.id,
@@ -387,21 +328,99 @@ def generate_timeline_puzzle(
             "entity_name": ev.entity_name,
             "evidence": ev.evidence,
         }
-        for ev in chosen_events
+        for ev in events
     ]
-
     puzzle_candidate: dict[str, Any] = {
         "schema_version": TIMELINE_SCHEMA_VERSION,
-        "puzzle_id": "0" * 64,  # placeholder
+        "puzzle_id": "0" * 64,
         "dataset_version": dataset_version,
-        "reference_date": ref_date_str,
-        "theme": chosen_theme["theme"],
-        "theme_description": chosen_theme["theme_description"],
+        "reference_date": reference_date,
+        "theme": theme["theme"],
+        "theme_description": theme["theme_description"],
         "events": events_payload,
     }
-
-    puzzle_id = compute_timeline_puzzle_id(puzzle_candidate)
-    puzzle_candidate["puzzle_id"] = puzzle_id
-
+    puzzle_candidate["puzzle_id"] = compute_timeline_puzzle_id(puzzle_candidate)
     validate_timeline_puzzle(puzzle_candidate)
     return puzzle_candidate
+
+
+def generate_timeline_puzzle(
+    connection: sqlite3.Connection,
+    reference_date: date | str | None = None,
+    seed: str | None = None,
+) -> dict[str, Any]:
+    """Deterministically generate a 5-event timeline puzzle for the given date and seed."""
+    if reference_date is None:
+        ref_date_str = reference_date_today()
+        ref_date = date.fromisoformat(ref_date_str)
+    elif isinstance(reference_date, str):
+        ref_date = date.fromisoformat(reference_date)
+    else:
+        ref_date = reference_date
+
+    ref_date_str = ref_date.isoformat()
+    actual_seed = seed or f"kpop-timeline-daily-{ref_date_str}"
+    seed_digest = hashlib.sha256(actual_seed.encode("utf-8")).digest()
+    rng = random.Random(seed_digest)
+
+    connection.row_factory = sqlite3.Row
+    entities = _load_entities(connection)
+    dataset_version = _dataset_version(connection, entities, ref_date)
+    facts, _rejected = _load_facts(connection, entities)
+
+    formation_candidates = _build_formation_candidates(facts)
+    birth_candidates = _build_birth_candidates(facts)
+
+    themes: list[dict[str, Any]] = [
+        {
+            "id": "group_formations",
+            "theme": {
+                "pt-BR": "Formação de grupos históricos",
+                "en": "Formation of historic groups",
+            },
+            "theme_description": {
+                "pt-BR": "Ordene cronologicamente os anos de formação destes grupos.",
+                "en": "Order the formation years of these groups chronologically.",
+            },
+            "pool": formation_candidates,
+        },
+        {
+            "id": "kpop_evolution",
+            "theme": {
+                "pt-BR": "Evolução das gerações do K-pop",
+                "en": "Evolution of K-pop generations",
+            },
+            "theme_description": {
+                "pt-BR": "Organize em ordem cronológica os anos de formação de grupos de diferentes gerações do K-pop.",
+                "en": "Arrange the formation years of groups from different K-pop generations in chronological order.",
+            },
+            "pool": formation_candidates,
+        },
+        {
+            "id": "idol_births",
+            "theme": {
+                "pt-BR": "Nascimento de idols",
+                "en": "Births of idols",
+            },
+            "theme_description": {
+                "pt-BR": "Ordene cronologicamente as datas de nascimento destes artistas.",
+                "en": "Order the birth dates of these artists chronologically.",
+            },
+            "pool": birth_candidates,
+        },
+    ]
+
+    chosen_theme = rng.choice(themes)
+    theme_order = [chosen_theme] + [theme for theme in themes if theme is not chosen_theme]
+    last_error: Exception | None = None
+    for theme in theme_order:
+        try:
+            chosen_events = _select_events_from_pool(theme["pool"], rng, actual_seed)
+            return _puzzle_from_theme(theme, chosen_events, dataset_version, ref_date_str)
+        except ValueError as exc:
+            last_error = exc
+            continue
+
+    if last_error is not None:
+        raise last_error
+    raise ValueError(f"Unable to generate a valid timeline puzzle with seed {actual_seed!r}")

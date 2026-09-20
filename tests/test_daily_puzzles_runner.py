@@ -27,6 +27,11 @@ from kpop_scraping.web_publish import verify_artifacts
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
 
 
+def person_wikidata_id(group_num: int, member_index: int) -> str:
+    """Q-shaped fixture ID for a person. Groups occupy Q101–Q120."""
+    return f"Q{1000 + group_num * 10 + member_index}"
+
+
 def build_test_database(db_path: Path) -> sqlite3.Connection:
     """Create a populated SQLite database that satisfies all 6 games."""
     conn = sqlite3.connect(str(db_path))
@@ -195,7 +200,7 @@ def build_test_database(db_path: Path) -> sqlite3.Connection:
         )
 
         for m in range(member_counts[num]):
-            mqid = f"QP_{num}_{m}"
+            mqid = person_wikidata_id(num, m)
             mcname = f"Member {letters[idx]} {m}"
             cur_m = conn.execute(
                 "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, 'person', ?)",
@@ -283,6 +288,37 @@ def build_test_database(db_path: Path) -> sqlite3.Connection:
             ) VALUES (?, 'wikidata_reference', 'domain:example.com', 'claims/P577/ref', 'ref1', 1)
             """,
             (cur_y.lastrowid,),
+        )
+
+    birth_dates = {
+        person_wikidata_id(101, 0): "1992-03-14",
+        person_wikidata_id(103, 1): "1995-07-02",
+        person_wikidata_id(106, 2): "1999-11-23",
+        person_wikidata_id(111, 0): "2002-01-30",
+        person_wikidata_id(116, 3): "2005-09-08",
+        person_wikidata_id(118, 1): "2008-04-17",
+    }
+    for mqid, born in birth_dates.items():
+        person_cur = conn.execute(
+            "SELECT id FROM entities WHERE wikidata_id = ?", (mqid,)
+        ).fetchone()
+        cur_b = conn.execute(
+            """
+            INSERT INTO facts(
+                statement_id, subject_entity_id, predicate, property_id, rank,
+                value_time, value_precision, status, quality_flags_json
+            ) VALUES (?, ?, 'born_on', 'P569', 'normal', ?, 11, 'accepted', '[]')
+            """,
+            (f"stmt-born-{mqid}", person_cur["id"], born),
+        )
+        conn.execute(
+            """
+            INSERT INTO fact_evidence(
+                fact_id, evidence_type, source_key, locator, reference_hash,
+                wikidata_snapshot_id
+            ) VALUES (?, 'wikidata_reference', 'domain:example.com', 'claims/P569/ref', 'ref1', 1)
+            """,
+            (cur_b.lastrowid,),
         )
 
     conn.commit()

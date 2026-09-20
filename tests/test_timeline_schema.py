@@ -296,6 +296,64 @@ class TestTimelineSchema(unittest.TestCase):
             self.assertEqual(loaded["schema_version"], TIMELINE_SCHEMA_VERSION)
             self.assertEqual(len(loaded["events"]), 5)
 
+    def test_minimum_30_day_gap_enforced(self) -> None:
+        payload = sample_timeline_puzzle()
+        # 2015-10-20 followed by 2015-11-10: 21 days apart, below the minimum.
+        payload["events"][2]["date"] = "2015-11-10"
+        payload["events"][2]["year"] = 2015
+        with self.assertRaisesRegex(ValueError, "at least 30 days after"):
+            validate_timeline_puzzle(payload)
+
+    def test_adjacent_year_only_dates_rejected_by_gap(self) -> None:
+        payload = sample_timeline_puzzle()
+        dates_years = (
+            ("2015", 2015),
+            ("2015-10-20", 2015),
+            ("2015-12-31", 2015),
+            ("2016", 2016),
+            ("2018", 2018),
+        )
+        for event, (date_str, year) in zip(payload["events"], dates_years):
+            event["date"] = date_str
+            event["year"] = year
+        # Year-only "2015" spans the whole year, so 2015-10-20 falls inside it.
+        with self.assertRaises(ValueError):
+            validate_timeline_puzzle(payload)
+
+    def test_month_precision_date_accepted(self) -> None:
+        payload = sample_timeline_puzzle()
+        payload["events"][2]["date"] = "2016-03"
+        # 2015-10-20 -> 2016-03 spans comfortably beyond 30 days.
+        try:
+            validate_timeline_puzzle(payload)
+        except ValueError as exc:
+            self.fail(f"month-precision date should be accepted: {exc}")
+
+    def test_year_only_dates_with_distinct_years_accepted(self) -> None:
+        payload = sample_timeline_puzzle()
+        for event, year in zip(payload["events"], (2007, 2010, 2013, 2016, 2020)):
+            event["date"] = str(year)
+            event["year"] = year
+        try:
+            validate_timeline_puzzle(payload)
+        except ValueError as exc:
+            self.fail(f"year-only dates with distinct years should be accepted: {exc}")
+
+    def test_year_only_with_repeated_year_rejected(self) -> None:
+        payload = sample_timeline_puzzle()
+        dates_years = (
+            ("2008", 2008),
+            ("2012-03-10", 2012),
+            ("2012-11-20", 2012),
+            ("2014-06-01", 2014),
+            ("2016-09-09", 2016),
+        )
+        for event, (date_str, year) in zip(payload["events"], dates_years):
+            event["date"] = date_str
+            event["year"] = year
+        with self.assertRaisesRegex(ValueError, "distinct years"):
+            validate_timeline_puzzle(payload)
+
 
 if __name__ == "__main__":
     unittest.main()
