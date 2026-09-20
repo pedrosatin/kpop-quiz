@@ -19,6 +19,9 @@ on:
       - "requirements.txt"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Generate and publish daily K-pop puzzles"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -29,6 +32,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,7 +54,7 @@ jobs:
           python -m compileall -q .
       - name: Verify published quiz artifacts
         working-directory: .
-        run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search
+        run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
       - run: npm ci
       - run: npm test
       - run: npm run build

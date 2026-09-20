@@ -9,7 +9,7 @@
     "typecheck": "astro check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "artifacts:verify": "cd .. && python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search"
+    "artifacts:verify": "cd .. && python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline"
   },
   "dependencies": {
     "@astrojs/preact": "^6.0.5",
