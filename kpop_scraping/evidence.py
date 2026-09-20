@@ -331,19 +331,23 @@ def membership_evidence(
     group" and lists after "addition of" or "graduations of" are also accepted.
     """
     patterns = _name_patterns(names)
+    # Stage names are often mononyms ("CL", "Bom", "Uee"). Inside an explicit
+    # member list the separators and the capitalisation already identify the
+    # item, so short names are admissible there but nowhere else.
+    list_patterns = _name_patterns(names, min_length=2)
     group = _alternation(subject_names)
     for start, sentence in _subject_sentences(page, subject_names):
         for listing in _MEMBER_LIST.finditer(sentence):
             if _membership_owner_shifted(sentence, listing.start(), subject_names):
                 continue
-            found = _list_item(sentence, listing.end(), patterns, _PERSON_LIST_BEFORE, True)
+            found = _list_item(sentence, listing.end(), list_patterns, _PERSON_LIST_BEFORE, True)
             if found:
                 return _text_evidence(page, start + found[0], start + found[1])
     for start, sentence in _subject_sentences(page, subject_names):
         if re.match(rf"^\s*{_SUBJECT_PREFIX}They\b", sentence, _I):
             continue
         for change in _MEMBER_CHANGE_LIST.finditer(sentence):
-            found = _list_item(sentence, change.end(), patterns, _PERSON_LIST_BEFORE, True)
+            found = _list_item(sentence, change.end(), list_patterns, _PERSON_LIST_BEFORE, True)
             if found:
                 return _text_evidence(page, start + found[0], start + found[1])
         for pattern in patterns:
@@ -620,13 +624,21 @@ def _alternation(names: Iterable[str]) -> str:
     return "|".join(escaped) if escaped else r"(?!)"
 
 
-def _name_patterns(names: Iterable[str]) -> list[re.Pattern[str]]:
+def _name_patterns(
+    names: Iterable[str],
+    min_length: int = MIN_NAME_LENGTH,
+) -> list[re.Pattern[str]]:
+    """Build name patterns, dropping names too short to identify on their own.
+
+    ``min_length`` may be lowered where the surrounding context already pins the
+    name down, such as an item of an explicit member list.
+    """
     usable = sorted(
         {
             name.strip()
             for name in names
             if (
-                len(name.strip()) >= MIN_NAME_LENGTH
+                len(name.strip()) >= min_length
                 or " " in name.strip()
                 or re.search(r"[가-힣]", name.strip())
             )
