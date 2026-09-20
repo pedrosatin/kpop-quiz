@@ -9,7 +9,7 @@ import { GridReview } from "../components/Grid/GridReview";
 import { IntersectionGrid } from "../components/Grid/IntersectionGrid";
 import { getMessages } from "../i18n/catalog";
 import type { IntersectionGrid as IntersectionGridType } from "../lib/quiz-types";
-import validGridJson from "../../public/data/grid.daily.json";
+import validGridJson from "./fixtures/grid.daily.json";
 import { cellKey, type GridCellState } from "../components/Grid/types";
 
 const ptMessages = getMessages("pt-BR");

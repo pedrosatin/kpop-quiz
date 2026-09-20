@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/preact";
 import { describe, expect, it, beforeEach } from "vitest";
-import validPuzzleJson from "../../../public/data/name-guess.daily.json";
+import validPuzzleJson from "../../tests/fixtures/name-guess.daily.json";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { useNameGuessGame } from "./useNameGuessGame";
 
