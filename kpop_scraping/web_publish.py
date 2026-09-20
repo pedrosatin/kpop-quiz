@@ -16,6 +16,7 @@ from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzz
 from .quiz_generator import QuizConfig, create_session, generate_dataset
 from .quiz_schema import validate_session, write_json_atomic
 from .storage import canonical_json
+from .timeline_schema import validate_timeline_puzzle, write_timeline_puzzle_atomic
 from .word_search_schema import (
     validate_word_search_puzzle,
     write_word_search_puzzle_atomic,
@@ -27,6 +28,7 @@ GRID_DAILY_FILENAME = "grid.daily.json"
 CONNECTIONS_DAILY_FILENAME = "connections.daily.json"
 NAME_GUESS_DAILY_FILENAME = "name-guess.daily.json"
 WORD_SEARCH_DAILY_FILENAME = "word-search.daily.json"
+TIMELINE_DAILY_FILENAME = "timeline.daily.json"
 LOCALES = ("pt-BR", "en")
 DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
@@ -81,6 +83,15 @@ def _read_word_search(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"cannot read word-search artifact {path}: {exc}") from exc
     validate_word_search_puzzle(payload)
+    return payload
+
+
+def _read_timeline(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read timeline artifact {path}: {exc}") from exc
+    validate_timeline_puzzle(payload)
     return payload
 
 
@@ -205,8 +216,9 @@ def publish(
     connections: dict[str, Any] | None = None,
     name_guess: dict[str, Any] | None = None,
     word_search: dict[str, Any] | None = None,
+    timeline: dict[str, Any] | None = None,
 ) -> None:
-    """Publish static quiz sessions, optional daily grid, connections, name-guess, and word-search puzzles.
+    """Publish static quiz sessions, optional daily grid, connections, name-guess, word-search, and timeline puzzles.
 
     Args:
         output_dir: Target directory where artifacts and manifest are written.
@@ -223,6 +235,9 @@ def publish(
         word_search: Optional word search puzzle payload (written to word-search.daily.json).
             When provided, validated against word search puzzle schema before writing.
             When None, word_search artifact is omitted.
+        timeline: Optional timeline puzzle payload (written to timeline.daily.json).
+            When provided, validated against timeline puzzle schema before writing.
+            When None, timeline artifact is omitted.
     """
     for session in sessions.values():
         validate_session(session)
@@ -234,6 +249,8 @@ def publish(
         validate_name_guess_puzzle(name_guess)
     if word_search is not None:
         validate_word_search_puzzle(word_search)
+    if timeline is not None:
+        validate_timeline_puzzle(timeline)
     manifest = build_manifest(sessions)
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
@@ -244,6 +261,8 @@ def publish(
         write_name_guess_puzzle_atomic(output_dir / NAME_GUESS_DAILY_FILENAME, name_guess)
     if word_search is not None:
         write_word_search_puzzle_atomic(output_dir / WORD_SEARCH_DAILY_FILENAME, word_search)
+    if timeline is not None:
+        write_timeline_puzzle_atomic(output_dir / TIMELINE_DAILY_FILENAME, timeline)
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
@@ -256,8 +275,9 @@ def verify(
     require_connections: bool = False,
     require_name_guess: bool = False,
     require_word_search: bool = False,
+    require_timeline: bool = False,
 ) -> None:
-    """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, and word-search.
+    """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, word-search, and timeline.
 
     Args:
         output_dir: Directory containing manifest-v2.json and artifact files.
@@ -269,18 +289,23 @@ def verify(
         require_connections: Verification policy flag for connections puzzle (connections.daily.json).
             When False (default): backwards-compatible policy. If connections.daily.json
             exists on disk, it is schema-validated; if absent, verification passes.
-            When True: connections.daily.json is mandatory and must exist and satisfy
-            schema validation, raising ValueError if missing or invalid.
+            When True: connections.daily.json is mandatory and must exist and
+            satisfy schema validation, raising ValueError if missing or invalid.
         require_name_guess: Verification policy flag for name-guess puzzle (name-guess.daily.json).
             When False (default): backwards-compatible policy. If name-guess.daily.json
             exists on disk, it is schema-validated; if absent, verification passes.
-            When True: name-guess.daily.json is mandatory and must exist and satisfy
-            schema validation, raising ValueError if missing or invalid.
+            When True: name-guess.daily.json is mandatory and must exist and
+            satisfy schema validation, raising ValueError if missing or invalid.
         require_word_search: Verification policy flag for word-search puzzle (word-search.daily.json).
             When False (default): backwards-compatible policy. If word-search.daily.json
             exists on disk, it is schema-validated; if absent, verification passes.
-            When True: word-search.daily.json is mandatory and must exist and satisfy
-            schema validation, raising ValueError if missing or invalid.
+            When True: word-search.daily.json is mandatory and must exist and
+            satisfy schema validation, raising ValueError if missing or invalid.
+        require_timeline: Verification policy flag for timeline puzzle (timeline.daily.json).
+            When False (default): backwards-compatible policy. If timeline.daily.json
+            exists on disk, it is schema-validated; if absent, verification passes.
+            When True: timeline.daily.json is mandatory and must exist and
+            satisfy schema validation, raising ValueError if missing or invalid.
     """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
@@ -315,6 +340,11 @@ def verify(
         _read_word_search(word_search_path)
     elif require_word_search:
         raise ValueError(f"missing required word-search artifact: {word_search_path}")
+    timeline_path = output_dir / TIMELINE_DAILY_FILENAME
+    if timeline_path.is_file():
+        _read_timeline(timeline_path)
+    elif require_timeline:
+        raise ValueError(f"missing required timeline artifact: {timeline_path}")
     session_pt_br_path = output_dir / "session.pt-BR.json"
     if session_pt_br_path.is_file():
         _read_session(session_pt_br_path)
@@ -329,6 +359,7 @@ def verify_artifacts(
     require_connections: bool = True,
     require_name_guess: bool = True,
     require_word_search: bool = True,
+    require_timeline: bool = True,
 ) -> None:
     """Verify published static quiz artifacts and daily puzzle files."""
     verify(
@@ -337,6 +368,7 @@ def verify_artifacts(
         require_connections=require_connections,
         require_name_guess=require_name_guess,
         require_word_search=require_word_search,
+        require_timeline=require_timeline,
     )
 
 
@@ -369,6 +401,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Require word-search.daily.json to exist and pass schema validation during --verify",
     )
+    parser.add_argument(
+        "--require-timeline",
+        action="store_true",
+        help="Require timeline.daily.json to exist and pass schema validation during --verify",
+    )
     return parser
 
 
@@ -383,6 +420,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--require-name-guess can only be used with --verify")
         if args.require_word_search and not args.verify:
             raise ValueError("--require-word-search can only be used with --verify")
+        if args.require_timeline and not args.verify:
+            raise ValueError("--require-timeline can only be used with --verify")
         if args.verify:
             verify(
                 args.output_dir,
@@ -390,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
                 require_connections=args.require_connections,
                 require_name_guess=args.require_name_guess,
                 require_word_search=args.require_word_search,
+                require_timeline=args.require_timeline,
             )
         elif args.database:
             if not args.database.is_file():

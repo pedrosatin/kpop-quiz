@@ -10,11 +10,13 @@ from kpop_scraping import web_publish
 from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
+from kpop_scraping.timeline_schema import validate_timeline_puzzle
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
 from kpop_scraping.web_publish import (
     CONNECTIONS_DAILY_FILENAME,
     GRID_DAILY_FILENAME,
     NAME_GUESS_DAILY_FILENAME,
+    TIMELINE_DAILY_FILENAME,
     WORD_SEARCH_DAILY_FILENAME,
     build_manifest,
     create_daily_sessions,
@@ -50,6 +52,9 @@ class WebPublishTests(unittest.TestCase):
 
     def word_search(self):
         return json.loads((FIXTURES / WORD_SEARCH_DAILY_FILENAME).read_text(encoding="utf-8"))
+
+    def timeline(self):
+        return json.loads((FIXTURES / TIMELINE_DAILY_FILENAME).read_text(encoding="utf-8"))
 
     def test_publishes_and_verifies_canonical_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -604,6 +609,100 @@ class WebPublishTests(unittest.TestCase):
                     "--require-connections",
                     "--require-name-guess",
                     "--require-word-search",
+                ]
+            )
+            self.assertEqual(code_all, 0)
+
+    def test_verify_validates_existing_timeline_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), timeline=self.timeline())
+            verify(output)
+            verify(output, require_timeline=True)
+
+    def test_verify_detects_corrupted_or_invalid_timeline_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            (output / TIMELINE_DAILY_FILENAME).write_text("{corrupt json", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "cannot read timeline artifact"):
+                verify(output)
+
+            (output / TIMELINE_DAILY_FILENAME).write_text(
+                json.dumps({"schema_version": "invalid"}), encoding="utf-8"
+            )
+            with self.assertRaises(ValueError):
+                verify(output)
+
+    def test_verify_require_timeline_fails_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            with self.assertRaisesRegex(ValueError, "missing required timeline artifact"):
+                verify(output, require_timeline=True)
+
+    def test_verify_require_timeline_false_passes_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            verify(output, require_timeline=False)
+            verify(output)
+
+    def test_publish_with_timeline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), timeline=self.timeline())
+            puzzle_path = output / TIMELINE_DAILY_FILENAME
+            self.assertTrue(puzzle_path.is_file())
+            self.assertEqual(puzzle_path.read_bytes()[-1:], b"\n")
+            payload = json.loads(puzzle_path.read_text(encoding="utf-8"))
+            validate_timeline_puzzle(payload)
+            verify(output, require_timeline=True)
+
+    def test_publish_with_invalid_timeline_fails_before_creating_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            invalid_puzzle = {"schema_version": "invalid"}
+            with self.assertRaises(ValueError):
+                publish(output, self.sessions(), timeline=invalid_puzzle)
+            self.assertFalse((output / TIMELINE_DAILY_FILENAME).exists())
+
+    def test_cli_require_timeline_without_verify_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            code = main(["--output-dir", str(output), "--require-timeline"])
+            self.assertEqual(code, 1)
+
+    def test_cli_verify_with_require_timeline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            code_missing = main(["--output-dir", str(output), "--verify", "--require-timeline"])
+            self.assertEqual(code_missing, 1)
+
+            publish(output, self.sessions(), timeline=self.timeline())
+            code_present = main(["--output-dir", str(output), "--verify", "--require-timeline"])
+            self.assertEqual(code_present, 0)
+
+            publish(
+                output,
+                self.sessions(),
+                grid=self.grid(),
+                connections=self.connections(),
+                name_guess=self.name_guess(),
+                word_search=self.word_search(),
+                timeline=self.timeline(),
+            )
+            code_all = main(
+                [
+                    "--output-dir",
+                    str(output),
+                    "--verify",
+                    "--require-grid",
+                    "--require-connections",
+                    "--require-name-guess",
+                    "--require-word-search",
+                    "--require-timeline",
                 ]
             )
             self.assertEqual(code_all, 0)
