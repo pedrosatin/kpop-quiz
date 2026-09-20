@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GridArtifactError, loadIntersectionGrid } from "./grid-loader";
 import { isIntersectionGrid } from "../lib/quiz-types";
-import validGrid from "../../public/data/grid.daily.json";
+import validGrid from "../tests/fixtures/grid.daily.json";
 
 describe("published intersection grid loader and validator", () => {
   afterEach(() => vi.unstubAllGlobals());

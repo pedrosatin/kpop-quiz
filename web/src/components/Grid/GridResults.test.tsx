@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GridResults } from "./GridResults";
 import { getMessages } from "../../i18n/catalog";
 import type { IntersectionGrid } from "../../lib/quiz-types";
-import validGridJson from "../../../public/data/grid.daily.json";
+import validGridJson from "../../tests/fixtures/grid.daily.json";
 import { cellKey, type GridCellState } from "./types";
 
 const ptMessages = getMessages("pt-BR");

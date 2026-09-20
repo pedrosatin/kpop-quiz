@@ -1,0 +1,251 @@
+{
+  "schema_version": "kpop-connections-puzzle-v1",
+  "puzzle_id": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "dataset_version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "reference_date": "2026-09-17",
+  "dimensions": {
+    "groups": 4,
+    "items_per_group": 4,
+    "total_items": 16
+  },
+  "categories": [
+    {
+      "id": "cat_jyp",
+      "label": {
+        "pt-BR": "Grupos da JYP Entertainment",
+        "en": "JYP Entertainment groups"
+      },
+      "difficulty_level": 1,
+      "item_ids": [
+        "Q21461452",
+        "Q60732822",
+        "Q43371378",
+        "Q484432"
+      ],
+      "explanation": {
+        "pt-BR": "Todos os grupos foram formados e gerenciados pela JYP Entertainment.",
+        "en": "All groups were formed and managed by JYP Entertainment."
+      },
+      "evidence": [
+        {
+          "fact_base_id": "fb-conn-jyp-01",
+          "locator": "claims/P264/Q21461452",
+          "revision_id": 1001,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q21461452"
+        }
+      ]
+    },
+    {
+      "id": "cat_sm",
+      "label": {
+        "pt-BR": "Grupos da SM Entertainment",
+        "en": "SM Entertainment groups"
+      },
+      "difficulty_level": 2,
+      "item_ids": [
+        "Q494217",
+        "Q17466548",
+        "Q100877991",
+        "Q243884"
+      ],
+      "explanation": {
+        "pt-BR": "Todos os grupos foram formados e gerenciados pela SM Entertainment.",
+        "en": "All groups were formed and managed by SM Entertainment."
+      },
+      "evidence": [
+        {
+          "fact_base_id": "fb-conn-sm-01",
+          "locator": "claims/P264/Q494217",
+          "revision_id": 1002,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q494217"
+        }
+      ]
+    },
+    {
+      "id": "cat_yg",
+      "label": {
+        "pt-BR": "Grupos da YG Entertainment",
+        "en": "YG Entertainment groups"
+      },
+      "difficulty_level": 3,
+      "item_ids": [
+        "Q25056705",
+        "Q483257",
+        "Q282287",
+        "Q14896798"
+      ],
+      "explanation": {
+        "pt-BR": "Todos os grupos foram formados e gerenciados pela YG Entertainment.",
+        "en": "All groups were formed and managed by YG Entertainment."
+      },
+      "evidence": [
+        {
+          "fact_base_id": "fb-conn-yg-01",
+          "locator": "claims/P264/Q25056705",
+          "revision_id": 1003,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q25056705"
+        }
+      ]
+    },
+    {
+      "id": "cat_debut_2020s",
+      "label": {
+        "pt-BR": "Estrearam nos anos 2020",
+        "en": "Debuted in the 2020s"
+      },
+      "difficulty_level": 4,
+      "item_ids": [
+        "Q113188737",
+        "Q111520113",
+        "Q109413204",
+        "Q100325983"
+      ],
+      "explanation": {
+        "pt-BR": "Todos os grupos tiveram suas estreias oficiais a partir de 2020.",
+        "en": "All groups had their official debuts in 2020 or later."
+      },
+      "evidence": [
+        {
+          "fact_base_id": "fb-conn-2020-01",
+          "locator": "claims/P571/Q113188737",
+          "revision_id": 1004,
+          "source_key": "wikidata",
+          "source_url": "https://www.wikidata.org/wiki/Q113188737"
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "Q21461452",
+      "canonical_name": "TWICE",
+      "labels": {
+        "pt-BR": "TWICE",
+        "en": "TWICE"
+      }
+    },
+    {
+      "id": "Q60732822",
+      "canonical_name": "ITZY",
+      "labels": {
+        "pt-BR": "ITZY",
+        "en": "ITZY"
+      }
+    },
+    {
+      "id": "Q43371378",
+      "canonical_name": "Stray Kids",
+      "labels": {
+        "pt-BR": "Stray Kids",
+        "en": "Stray Kids"
+      }
+    },
+    {
+      "id": "Q484432",
+      "canonical_name": "Wonder Girls",
+      "labels": {
+        "pt-BR": "Wonder Girls",
+        "en": "Wonder Girls"
+      }
+    },
+    {
+      "id": "Q494217",
+      "canonical_name": "EXO",
+      "labels": {
+        "pt-BR": "EXO",
+        "en": "EXO"
+      }
+    },
+    {
+      "id": "Q17466548",
+      "canonical_name": "Red Velvet",
+      "labels": {
+        "pt-BR": "Red Velvet",
+        "en": "Red Velvet"
+      }
+    },
+    {
+      "id": "Q100877991",
+      "canonical_name": "aespa",
+      "labels": {
+        "pt-BR": "aespa",
+        "en": "aespa"
+      }
+    },
+    {
+      "id": "Q243884",
+      "canonical_name": "SHINee",
+      "labels": {
+        "pt-BR": "SHINee",
+        "en": "SHINee"
+      }
+    },
+    {
+      "id": "Q25056705",
+      "canonical_name": "BLACKPINK",
+      "labels": {
+        "pt-BR": "BLACKPINK",
+        "en": "BLACKPINK"
+      }
+    },
+    {
+      "id": "Q483257",
+      "canonical_name": "2NE1",
+      "labels": {
+        "pt-BR": "2NE1",
+        "en": "2NE1"
+      }
+    },
+    {
+      "id": "Q282287",
+      "canonical_name": "BIGBANG",
+      "labels": {
+        "pt-BR": "BIGBANG",
+        "en": "BIGBANG"
+      }
+    },
+    {
+      "id": "Q14896798",
+      "canonical_name": "WINNER",
+      "labels": {
+        "pt-BR": "WINNER",
+        "en": "WINNER"
+      }
+    },
+    {
+      "id": "Q113188737",
+      "canonical_name": "NewJeans",
+      "labels": {
+        "pt-BR": "NewJeans",
+        "en": "NewJeans"
+      }
+    },
+    {
+      "id": "Q111520113",
+      "canonical_name": "LE SSERAFIM",
+      "labels": {
+        "pt-BR": "LE SSERAFIM",
+        "en": "LE SSERAFIM"
+      }
+    },
+    {
+      "id": "Q109413204",
+      "canonical_name": "IVE",
+      "labels": {
+        "pt-BR": "IVE",
+        "en": "IVE"
+      }
+    },
+    {
+      "id": "Q100325983",
+      "canonical_name": "STAYC",
+      "labels": {
+        "pt-BR": "STAYC",
+        "en": "STAYC"
+      }
+    }
+  ]
+}

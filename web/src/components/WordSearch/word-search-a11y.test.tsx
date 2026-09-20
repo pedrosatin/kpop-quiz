@@ -1,7 +1,7 @@
 import { cleanup, render, fireEvent, screen } from "@testing-library/preact";
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import validPuzzleJson from "../../../public/data/word-search.daily.json";
+import validPuzzleJson from "../../tests/fixtures/word-search.daily.json";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import { WordSearchGame } from "./WordSearchGame";
 import { WordSearchEvidenceModal } from "./WordSearchEvidenceModal";

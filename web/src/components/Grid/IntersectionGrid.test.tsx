@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/pre
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IntersectionGrid } from "./IntersectionGrid";
 import { getMessages } from "../../i18n/catalog";
-import validGridJson from "../../../public/data/grid.daily.json";
+import validGridJson from "../../tests/fixtures/grid.daily.json";
 
 const ptMessages = getMessages("pt-BR");
 

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NameGuessArtifactError, loadNameGuessPuzzle } from "./name-guess-loader";
 import { isNameGuessPuzzle } from "../lib/quiz-types";
-import validPuzzle from "../../public/data/name-guess.daily.json";
+import validPuzzle from "../tests/fixtures/name-guess.daily.json";
 
 describe("published name guess puzzle loader and validator", () => {
   afterEach(() => vi.unstubAllGlobals());

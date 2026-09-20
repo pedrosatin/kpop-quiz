@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import validPuzzleJson from "../../../public/data/name-guess.daily.json";
+import validPuzzleJson from "../../tests/fixtures/name-guess.daily.json";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessGame } from "./NameGuessGame";
 import { NAME_GUESS_I18N } from "./types";
