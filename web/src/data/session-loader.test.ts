@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadQuizSession, QuizArtifactError } from "./session-loader";
-import ptSession from "../../public/data/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
-import manifest from "../../public/data/manifest-v2.json";
+import ptSession from "../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
+import manifest from "../tests/fixtures/manifest-v2.json";
 
 describe("published session loader", () => {
   afterEach(() => vi.unstubAllGlobals());
