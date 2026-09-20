@@ -43,6 +43,20 @@ jobs:
         working-directory: web
         run: npm ci
 
+      - name: Restore database cache
+        uses: actions/cache@v4
+        with:
+          path: data/kpop.db
+          key: kpop-db-${{ github.run_id }}
+          restore-keys: |
+            kpop-db-
+
+      - name: Rebuild database from Wikipedia and Wikidata
+        timeout-minutes: 120
+        run: |
+          mkdir -p data
+          python main.py --facts --releases --database data/kpop.db
+
       - name: Generate daily puzzles
         run: |
           CMD="python -m kpop_scraping.daily_puzzles_cli --database data/kpop.db --output-dir web/public/data"

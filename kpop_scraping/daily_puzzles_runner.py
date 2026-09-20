@@ -1,11 +1,12 @@
 """Unified daily puzzle generation and publishing runner.
 
-Deterministically generates and atomically publishes the 5 daily K-pop puzzle games:
+Deterministically generates and atomically publishes the 6 daily K-pop puzzle games:
 1. Daily bilingual quiz sessions (and session.pt-BR.json, session.en.json)
 2. Intersection grid (grid.daily.json)
 3. Connections puzzle (connections.daily.json)
 4. Name guess puzzle (name-guess.daily.json)
 5. Word search puzzle (word-search.daily.json)
+6. Timeline puzzle (timeline.daily.json)
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from .grid_generator import generate_daily_grid
 from .name_guess_generator import generate_name_guess_puzzle
 from .quiz_generator import QuizConfig, create_session, generate_dataset
 from .quiz_schema import validate_session, write_json_atomic
+from .timeline_generator import generate_timeline_puzzle
 from .web_publish import (
     DIFFICULTIES,
     LOCALES,
@@ -54,7 +56,7 @@ def generate_daily_puzzles(
     base_seed: str = "web-launch-v1",
     timer_seconds: int | None = None,
 ) -> dict[str, Any]:
-    """Deterministically generate the 5 daily puzzles for reference_date."""
+    """Deterministically generate the 6 daily puzzles for reference_date."""
     iso_date = get_reference_date(reference_date)
     ref_date = date.fromisoformat(iso_date)
 
@@ -96,6 +98,12 @@ def generate_daily_puzzles(
         connection, seed=ws_seed, reference_date=ref_date
     )
 
+    # 6. Timeline puzzle
+    timeline_seed = f"kpop-timeline-daily-{iso_date}"
+    timeline = generate_timeline_puzzle(
+        connection, reference_date=ref_date, seed=timeline_seed
+    )
+
     return {
         "reference_date": iso_date,
         "dataset_version": dataset["dataset_version"],
@@ -106,6 +114,7 @@ def generate_daily_puzzles(
         "connections": connections,
         "name_guess": name_guess,
         "word_search": word_search,
+        "timeline": timeline,
     }
 
 
@@ -128,6 +137,7 @@ def publish_daily_puzzles(
             connections=puzzles["connections"],
             name_guess=puzzles["name_guess"],
             word_search=puzzles["word_search"],
+            timeline=puzzles["timeline"],
         )
         write_json_atomic(staging_dir / "session.pt-BR.json", puzzles["session_pt_br"], validate_session)
         write_json_atomic(staging_dir / "session.en.json", puzzles["session_en"], validate_session)
@@ -139,6 +149,7 @@ def publish_daily_puzzles(
             require_connections=True,
             require_name_guess=True,
             require_word_search=True,
+            require_timeline=True,
         )
 
         if dry_run:
@@ -149,6 +160,7 @@ def publish_daily_puzzles(
                 "connections_id": puzzles["connections"]["puzzle_id"],
                 "name_guess_id": puzzles["name_guess"]["puzzle_id"],
                 "word_search_id": puzzles["word_search"]["puzzle_id"],
+                "timeline_id": puzzles["timeline"]["puzzle_id"],
                 "dry_run": True,
                 "output_dir": str(output_dir),
                 "published_files": [p.name for p in sorted(staging_dir.glob("*.json"))],
@@ -188,6 +200,7 @@ def publish_daily_puzzles(
             require_connections=True,
             require_name_guess=True,
             require_word_search=True,
+            require_timeline=True,
         )
 
         return {
@@ -197,6 +210,7 @@ def publish_daily_puzzles(
             "connections_id": puzzles["connections"]["puzzle_id"],
             "name_guess_id": puzzles["name_guess"]["puzzle_id"],
             "word_search_id": puzzles["word_search"]["puzzle_id"],
+            "timeline_id": puzzles["timeline"]["puzzle_id"],
             "dry_run": False,
             "output_dir": str(output_dir),
             "published_files": [p.name for p in sorted(staging_dir.glob("*.json"))],
@@ -222,6 +236,7 @@ def run_daily_puzzles(
             require_connections=True,
             require_name_guess=True,
             require_word_search=True,
+            require_timeline=True,
         )
         return {
             "status": "verified",

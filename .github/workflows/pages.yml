@@ -50,7 +50,7 @@ jobs:
           python -m compileall -q .
       - name: Verify published quiz artifacts
         working-directory: .
-        run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search
+        run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
       - run: npm ci
       - run: npm test
       - run: npm run build
