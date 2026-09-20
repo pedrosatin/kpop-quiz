@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kpop-quiz.local/schemas/timeline-puzzle-v1.json",
+  "title": "K-pop quiz timeline puzzle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "puzzle_id",
+    "dataset_version",
+    "reference_date",
+    "theme",
+    "theme_description",
+    "events"
+  ],
+  "properties": {
+    "schema_version": {"const": "kpop-timeline-puzzle-v1"},
+    "puzzle_id": {"$ref": "#/$defs/hash"},
+    "dataset_version": {"$ref": "#/$defs/hash"},
+    "reference_date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "theme": {"$ref": "#/$defs/bilingual_text"},
+    "theme_description": {"$ref": "#/$defs/bilingual_text"},
+    "events": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/timeline_event"}
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "qid": {
+      "type": "string",
+      "pattern": "^Q[1-9][0-9]*$"
+    },
+    "bilingual_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pt-BR", "en"],
+      "properties": {
+        "pt-BR": {"type": "string", "minLength": 1},
+        "en": {"type": "string", "minLength": 1}
+      }
+    },
+    "timeline_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "event_type",
+        "date",
+        "year",
+        "display_date",
+        "title",
+        "description",
+        "entity_id",
+        "entity_name",
+        "evidence"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "event_type": {
+          "type": "string",
+          "enum": ["debut", "formation", "member_join", "disbandment", "birth"]
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$"
+        },
+        "year": {
+          "type": "integer",
+          "minimum": 1980,
+          "maximum": 2035
+        },
+        "display_date": {"$ref": "#/$defs/bilingual_text"},
+        "title": {"$ref": "#/$defs/bilingual_text"},
+        "description": {"$ref": "#/$defs/bilingual_text"},
+        "entity_id": {"$ref": "#/$defs/qid"},
+        "entity_name": {"type": "string", "minLength": 1},
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/evidence_entry"}
+        }
+      }
+    },
+    "evidence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fact_base_id",
+        "locator",
+        "revision_id",
+        "source_key",
+        "source_url"
+      ],
+      "properties": {
+        "fact_base_id": {"type": "string", "minLength": 1},
+        "locator": {"type": "string", "minLength": 1},
+        "revision_id": {"type": "integer", "minimum": 1},
+        "source_key": {"type": "string", "minLength": 1},
+        "source_url": {"type": "string", "format": "uri"}
+      }
+    }
+  }
+}

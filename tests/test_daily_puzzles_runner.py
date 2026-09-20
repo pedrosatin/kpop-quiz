@@ -22,12 +22,18 @@ from kpop_scraping.daily_puzzles_runner import (
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
 from kpop_scraping.quiz_schema import validate_session
+from kpop_scraping.timeline_schema import validate_timeline_puzzle
 from kpop_scraping.web_publish import verify_artifacts
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
 
 
+def person_wikidata_id(group_num: int, member_index: int) -> str:
+    """Q-shaped fixture ID for a person. Groups occupy Q101–Q120."""
+    return f"Q{1000 + group_num * 10 + member_index}"
+
+
 def build_test_database(db_path: Path) -> sqlite3.Connection:
-    """Create a populated SQLite database that satisfies all 5 games."""
+    """Create a populated SQLite database that satisfies all 6 games."""
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     conn.executescript(
@@ -194,7 +200,7 @@ def build_test_database(db_path: Path) -> sqlite3.Connection:
         )
 
         for m in range(member_counts[num]):
-            mqid = f"QP_{num}_{m}"
+            mqid = person_wikidata_id(num, m)
             mcname = f"Member {letters[idx]} {m}"
             cur_m = conn.execute(
                 "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, 'person', ?)",
@@ -284,6 +290,37 @@ def build_test_database(db_path: Path) -> sqlite3.Connection:
             (cur_y.lastrowid,),
         )
 
+    birth_dates = {
+        person_wikidata_id(101, 0): "1992-03-14",
+        person_wikidata_id(103, 1): "1995-07-02",
+        person_wikidata_id(106, 2): "1999-11-23",
+        person_wikidata_id(111, 0): "2002-01-30",
+        person_wikidata_id(116, 3): "2005-09-08",
+        person_wikidata_id(118, 1): "2008-04-17",
+    }
+    for mqid, born in birth_dates.items():
+        person_cur = conn.execute(
+            "SELECT id FROM entities WHERE wikidata_id = ?", (mqid,)
+        ).fetchone()
+        cur_b = conn.execute(
+            """
+            INSERT INTO facts(
+                statement_id, subject_entity_id, predicate, property_id, rank,
+                value_time, value_precision, status, quality_flags_json
+            ) VALUES (?, ?, 'born_on', 'P569', 'normal', ?, 11, 'accepted', '[]')
+            """,
+            (f"stmt-born-{mqid}", person_cur["id"], born),
+        )
+        conn.execute(
+            """
+            INSERT INTO fact_evidence(
+                fact_id, evidence_type, source_key, locator, reference_hash,
+                wikidata_snapshot_id
+            ) VALUES (?, 'wikidata_reference', 'domain:example.com', 'claims/P569/ref', 'ref1', 1)
+            """,
+            (cur_b.lastrowid,),
+        )
+
     conn.commit()
     return conn
 
@@ -316,7 +353,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_reference_date("not-a-date")
 
-    def test_full_generation_all_five_games(self):
+    def test_full_generation_all_six_games(self):
         output_dir = self.temp_path / "public_data"
         result = run_daily_puzzles(
             database=self.db_path,
@@ -335,6 +372,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             "connections.daily.json",
             "name-guess.daily.json",
             "word-search.daily.json",
+            "timeline.daily.json",
             "session.pt-BR.json",
             "session.en.json",
         ]
@@ -342,7 +380,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             file_path = output_dir / fname
             self.assertTrue(file_path.is_file(), f"Expected file {fname} to exist")
 
-        # Schema validation for all 5 games
+        # Schema validation for all 6 games
         grid_payload = json.loads((output_dir / "grid.daily.json").read_text(encoding="utf-8"))
         validate_intersection_grid(grid_payload)
         self.assertEqual(grid_payload["reference_date"], "2026-09-18")
@@ -359,6 +397,11 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         validate_word_search_puzzle(ws_payload)
         self.assertEqual(ws_payload["reference_date"], "2026-09-18")
 
+        timeline_payload = json.loads((output_dir / "timeline.daily.json").read_text(encoding="utf-8"))
+        validate_timeline_puzzle(timeline_payload)
+        self.assertEqual(timeline_payload["reference_date"], "2026-09-18")
+        self.assertEqual(result["timeline_id"], timeline_payload["puzzle_id"])
+
         pt_session = json.loads((output_dir / "session.pt-BR.json").read_text(encoding="utf-8"))
         validate_session(pt_session)
         self.assertEqual(pt_session["config"]["language"], "pt-BR")
@@ -374,6 +417,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             require_connections=True,
             require_name_guess=True,
             require_word_search=True,
+            require_timeline=True,
         )
 
     def test_dry_run_does_not_modify_output_dir(self):
@@ -395,6 +439,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertFalse((output_dir / "connections.daily.json").exists())
         self.assertFalse((output_dir / "name-guess.daily.json").exists())
         self.assertFalse((output_dir / "word-search.daily.json").exists())
+        self.assertFalse((output_dir / "timeline.daily.json").exists())
         self.assertFalse((output_dir / "manifest-v2.json").exists())
         # Sentinel file remains intact
         self.assertEqual(sentinel_file.read_text(), "untouched")
@@ -413,9 +458,16 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertEqual(res_1["connections_id"], res_2["connections_id"])
         self.assertEqual(res_1["name_guess_id"], res_2["name_guess_id"])
         self.assertEqual(res_1["word_search_id"], res_2["word_search_id"])
+        self.assertEqual(res_1["timeline_id"], res_2["timeline_id"])
 
         # Identical files for same date
-        for filename in ("grid.daily.json", "connections.daily.json", "name-guess.daily.json", "word-search.daily.json"):
+        for filename in (
+            "grid.daily.json",
+            "connections.daily.json",
+            "name-guess.daily.json",
+            "word-search.daily.json",
+            "timeline.daily.json",
+        ):
             content_1 = (out_dir_1 / filename).read_bytes()
             content_2 = (out_dir_2 / filename).read_bytes()
             self.assertEqual(content_1, content_2, f"Expected {filename} to be byte-identical")
@@ -456,6 +508,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         ])
         self.assertEqual(code, 0)
         self.assertTrue((out_dir / "grid.daily.json").is_file())
+        self.assertTrue((out_dir / "timeline.daily.json").is_file())
 
         # 2. Run verify via CLI
         verify_code = daily_puzzles_cli.main([
