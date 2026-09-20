@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConnectionsArtifactError, loadConnectionsPuzzle } from "./connections-loader";
 import { isConnectionsPuzzle } from "../lib/quiz-types";
-import validPuzzle from "../../public/data/connections.daily.json";
+import validPuzzle from "../tests/fixtures/connections.daily.json";
 
 describe("published connections puzzle loader and validator", () => {
   afterEach(() => vi.unstubAllGlobals());

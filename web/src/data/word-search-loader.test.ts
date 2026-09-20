@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WordSearchArtifactError, loadWordSearchPuzzle } from "./word-search-loader";
 import { isWordSearchPuzzle } from "../lib/word-search-types";
-import validPuzzle from "../../public/data/word-search.daily.json";
+import validPuzzle from "../tests/fixtures/word-search.daily.json";
 
 describe("published word search puzzle loader and validator", () => {
   afterEach(() => vi.unstubAllGlobals());

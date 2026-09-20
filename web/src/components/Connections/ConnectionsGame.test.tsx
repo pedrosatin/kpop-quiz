@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, cleanup } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import validPuzzleJson from "../../../public/data/connections.daily.json";
+import validPuzzleJson from "../../tests/fixtures/connections.daily.json";
 import { getMessages } from "../../i18n/catalog";
 import type { ConnectionsPuzzle } from "../../lib/quiz-types";
 import { ConnectionsGame } from "./ConnectionsGame";

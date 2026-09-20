@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/preact";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import validPuzzleJson from "../../../public/data/word-search.daily.json";
+import validPuzzleJson from "../../tests/fixtures/word-search.daily.json";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import { WordSearchGame } from "./WordSearchGame";
 import { WORD_SEARCH_I18N } from "./types";
