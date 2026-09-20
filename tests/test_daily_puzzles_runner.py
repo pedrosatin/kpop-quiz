@@ -497,6 +497,43 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             run_daily_puzzles(database=non_existent_db, output_dir=self.temp_path / "out")
 
+    def test_grid_generation_failure_keeps_previous_artifact(self):
+        output_dir = self.temp_path / "public_data"
+        first = run_daily_puzzles(
+            database=self.db_path,
+            output_dir=output_dir,
+            reference_date="2026-09-18",
+        )
+        previous_grid = (output_dir / "grid.daily.json").read_bytes()
+        self.assertTrue(previous_grid)
+
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_daily_grid",
+            side_effect=ValueError("Unable to generate a solvable 3x3 intersection grid"),
+        ):
+            result = run_daily_puzzles(
+                database=self.db_path,
+                output_dir=output_dir,
+                reference_date="2026-09-19",
+            )
+
+        self.assertEqual((output_dir / "grid.daily.json").read_bytes(), previous_grid)
+        self.assertEqual(result["grid_id"], first["grid_id"])
+        connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        self.assertEqual(connections["reference_date"], "2026-09-19")
+
+        empty_dir = self.temp_path / "no_previous_grid"
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_daily_grid",
+            side_effect=ValueError("Unable to generate a solvable 3x3 intersection grid"),
+        ):
+            with self.assertRaisesRegex(ValueError, "no previous grid.daily.json"):
+                run_daily_puzzles(
+                    database=self.db_path,
+                    output_dir=empty_dir,
+                    reference_date="2026-09-19",
+                )
+
     def test_cli_execution_success_and_verify(self):
         out_dir = self.temp_path / "cli_out"
 

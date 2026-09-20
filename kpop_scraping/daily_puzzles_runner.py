@@ -11,9 +11,11 @@ Deterministically generates and atomically publishes the 6 daily K-pop puzzle ga
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import sqlite3
+import sys
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -28,6 +30,7 @@ from .quiz_utils import reference_date_today
 from .timeline_generator import generate_timeline_puzzle
 from .web_publish import (
     DIFFICULTIES,
+    GRID_DAILY_FILENAME,
     LOCALES,
     create_daily_sessions,
     parse_daily_date,
@@ -73,8 +76,15 @@ def generate_daily_puzzles(
     session_pt_br = daily_sessions["daily.pt-BR.standard"]
     session_en = daily_sessions["daily.en.standard"]
 
-    # 2. Intersection grid
-    grid = generate_daily_grid(connection, reference_date=ref_date)
+    # 2. Intersection grid. If the catalog cannot fill a 3x3, leave grid
+    # unset so publish_daily_puzzles can reuse the previous artifact.
+    grid = None
+    grid_error = None
+    try:
+        grid = generate_daily_grid(connection, reference_date=ref_date)
+    except ValueError as exc:
+        grid_error = str(exc)
+        sys.stderr.write(f"Daily grid generation failed; keeping previous artifact: {exc}\n")
 
     # 3. Connections puzzle
     connections_seed = f"kpop-connections-daily-{iso_date}"
@@ -107,6 +117,7 @@ def generate_daily_puzzles(
         "session_pt_br": session_pt_br,
         "session_en": session_en,
         "grid": grid,
+        "grid_error": grid_error,
         "connections": connections,
         "name_guess": name_guess,
         "word_search": word_search,
@@ -135,6 +146,15 @@ def publish_daily_puzzles(
             word_search=puzzles["word_search"],
             timeline=puzzles["timeline"],
         )
+        if puzzles["grid"] is None:
+            previous_grid = output_dir / GRID_DAILY_FILENAME
+            if not previous_grid.is_file():
+                detail = puzzles.get("grid_error") or "unknown error"
+                raise ValueError(
+                    "grid generation failed and no previous "
+                    f"{GRID_DAILY_FILENAME} exists: {detail}"
+                )
+            shutil.copyfile(previous_grid, staging_dir / GRID_DAILY_FILENAME)
         write_json_atomic(staging_dir / "session.pt-BR.json", puzzles["session_pt_br"], validate_session)
         write_json_atomic(staging_dir / "session.en.json", puzzles["session_en"], validate_session)
 
@@ -148,11 +168,17 @@ def publish_daily_puzzles(
             require_timeline=True,
         )
 
+        grid_id = (
+            puzzles["grid"]["grid_id"]
+            if puzzles["grid"] is not None
+            else json.loads((staging_dir / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))["grid_id"]
+        )
+
         if dry_run:
             return {
                 "reference_date": puzzles["reference_date"],
                 "dataset_version": puzzles["dataset_version"],
-                "grid_id": puzzles["grid"]["grid_id"],
+                "grid_id": grid_id,
                 "connections_id": puzzles["connections"]["puzzle_id"],
                 "name_guess_id": puzzles["name_guess"]["puzzle_id"],
                 "word_search_id": puzzles["word_search"]["puzzle_id"],
@@ -202,7 +228,7 @@ def publish_daily_puzzles(
         return {
             "reference_date": puzzles["reference_date"],
             "dataset_version": puzzles["dataset_version"],
-            "grid_id": puzzles["grid"]["grid_id"],
+            "grid_id": grid_id,
             "connections_id": puzzles["connections"]["puzzle_id"],
             "name_guess_id": puzzles["name_guess"]["puzzle_id"],
             "word_search_id": puzzles["word_search"]["puzzle_id"],
