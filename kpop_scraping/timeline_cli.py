@@ -6,9 +6,10 @@ import argparse
 import json
 import sqlite3
 import sys
-from datetime import date, datetime, timezone
+from datetime import date
 from pathlib import Path
 
+from .quiz_utils import reference_date_today
 from .timeline_generator import generate_timeline_puzzle
 from .timeline_schema import write_timeline_puzzle_atomic
 
@@ -36,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--date",
         type=date.fromisoformat,
-        help="Calendar date YYYY-MM-DD for daily puzzle",
+        help="Calendar date YYYY-MM-DD for daily puzzle (default: today in Brasilia timezone)",
     )
     return parser
 
@@ -49,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"Database does not exist: {args.database}\n")
         return 1
 
-    reference_date = args.date or datetime.now(timezone.utc).date()
+    reference_date = args.date or date.fromisoformat(reference_date_today())
     connection = sqlite3.connect(
         f"{args.database.resolve().as_uri()}?mode=ro",
         uri=True,

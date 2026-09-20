@@ -15,7 +15,7 @@ import os
 import shutil
 import sqlite3
 import tempfile
-from datetime import date, datetime, timezone
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +24,7 @@ from .grid_generator import generate_daily_grid
 from .name_guess_generator import generate_name_guess_puzzle
 from .quiz_generator import QuizConfig, create_session, generate_dataset
 from .quiz_schema import validate_session, write_json_atomic
+from .quiz_utils import reference_date_today
 from .timeline_generator import generate_timeline_puzzle
 from .web_publish import (
     DIFFICULTIES,
@@ -39,12 +40,7 @@ from .word_search_generator import generate_word_search_puzzle
 def get_reference_date(date_val: str | date | None = None) -> str:
     """Return ISO YYYY-MM-DD date string. Default to America/Sao_Paulo (or UTC) today."""
     if date_val is None:
-        try:
-            from zoneinfo import ZoneInfo
-
-            return datetime.now(ZoneInfo("America/Sao_Paulo")).date().isoformat()
-        except Exception:
-            return datetime.now(timezone.utc).date().isoformat()
+        return reference_date_today()
     if isinstance(date_val, date):
         return date_val.isoformat()
     return parse_daily_date(date_val)
