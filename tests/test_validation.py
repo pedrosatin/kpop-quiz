@@ -300,6 +300,18 @@ class WikipediaEvidenceTest(unittest.TestCase):
             membership_evidence(named_member, ["Jennie"], ["Blackpink"])
         )
 
+    def test_member_list_accepts_short_stage_names(self):
+        listed = page("2NE1 is a group. The group consists of Bom, Dara, CL, and Minzy.")
+        for stage_name, full_name in (("Bom", "Park Bom"), ("CL", "Lee Chae-lin")):
+            self.assertIsNotNone(
+                membership_evidence(listed, [full_name, stage_name], ["2NE1"]),
+                stage_name,
+            )
+
+    def test_short_name_outside_a_member_list_is_not_evidence(self):
+        prose = page("2NE1 is a group. CL released a solo album that year.")
+        self.assertIsNone(membership_evidence(prose, ["Lee Chae-lin", "CL"], ["2NE1"]))
+
     def test_formed_by_does_not_prove_record_label(self):
         formed = page("Twice was formed by JYP Entertainment in 2015.")
         self.assertIsNone(
@@ -474,8 +486,6 @@ class WikipediaEvidenceTest(unittest.TestCase):
                 "Q485884$0bbe1d14-4649-5348-7f48-5308fa1f84d5",
                 "Q485884$6b166e50-4dc5-ad27-d30c-1af4424efd82",
                 "Q171885$7B17891F-D1F7-43C8-94FA-1D66D1C466F7",
-                "Q171885$8e9c8ab2-4d88-4bda-d482-0ebb28265c78",
-                "Q171885$c4d5e8b8-4a32-b958-0c9d-3343d4a901fa",
                 "Q389067$51885389-4c4d-7a1e-4084-39443bd244b7",
                 "Q389067$25f0ff83-4d0a-3ac1-8fa1-7e780b27440d",
                 "Q389067$d805866e-4cde-f46f-6e99-9170a059c051",
@@ -492,14 +502,12 @@ class WikipediaEvidenceTest(unittest.TestCase):
                 "Q16935427$F5549980-5AC1-49FC-83A5-90F28E08EDF9",
                 "Q30599348$A6ADE58B-C6B0-49D4-9C21-5D9C1A1F9105",
                 "Q18697707$01679e02-4905-a93b-ef21-039d8b54c07f",
-                "Q483683$ced654c4-4cf7-cc7e-568b-2a7ef206d782",
                 "Q486196$6db461e6-4737-a199-58b3-5f1e59a8653b",
                 "Q488725$03103157-4213-fc6d-0131-33de60ec492b",
                 "Q489006$1382df34-4574-2531-6c49-a4f06a94d11a",
                 "Q491515$aeb097f0-4a53-3323-a7d2-4183a1d62b16",
                 "Q492691$62b26e91-49c1-3bc5-966e-faa9da81282a",
                 "Q492767$9c3a9c16-4832-fa4b-200e-ff910c01d89a",
-                "Q494154$e41a0aed-408d-c627-1035-5df449babd4d",
                 "Q596923$b1c364f5-4fe3-964c-cab3-efe354d2321d",
                 "Q7302004$c19f17a0-42c1-83ef-e8f3-a89ffa9c91ba",
                 "Q7674722$bf0d740a-4bae-f692-1b73-8ab7e2c3e3e6",
