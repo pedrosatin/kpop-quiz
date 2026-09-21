@@ -52,7 +52,7 @@ python -m compileall -q .
 
 ## Web interface
 
-The static interface uses Astro and Preact. The build produces the `/pt-br/` and `/en/` routes under the `/kpop-scraping/` GitHub Pages path. The browser validates the manifest, the SHA-256, and the session contract before starting the quiz.
+The static interface uses Astro and Preact. The build produces the `/pt-br/` and `/en/` routes at the site root. The site is published on Cloudflare Pages at <https://kpopquiz.online> (with `kpopquiz.pages.dev` as the platform URL). The browser validates the manifest, the SHA-256, and the session contract before starting the quiz.
 
 ```bash
 cd web
@@ -61,7 +61,7 @@ npm test
 npm run build
 ```
 
-`web_publish` generates ten-question sessions in Portuguese and English for the assisted, standard, and expert modes. The files land in `web/public/data`. Each filename includes its SHA-256, and the publisher swaps `manifest-v2.json` only after validating and writing all six sessions. `manifest.json` and the v1 sessions stay published during the transition. The GitHub Pages workflow verifies the v2 artifacts before the build.
+`web_publish` generates ten-question sessions in Portuguese and English for the assisted, standard, and expert modes. The files land in `web/public/data`. Each filename includes its SHA-256, and the publisher swaps `manifest-v2.json` only after validating and writing all six sessions. `manifest.json` and the v1 sessions stay published during the transition. The deploy workflow verifies the v2 artifacts before the build.
 
 The daily cycle is automated by the unified runner and the `daily-puzzles-cron.yml` workflow. The cron job rebuilds the database from Wikipedia and Wikidata with incremental caching, generates the six daily games (`grid.daily.json`, `connections.daily.json`, `name-guess.daily.json`, `word-search.daily.json`, `timeline.daily.json`, and the daily sessions for both languages), validates each artifact against its matching schema in a temporary directory, and publishes by atomic swap only when every check passes. Each game's seed is derived from the date (`kpop-{game}-daily-{YYYY-MM-DD}`), so the same date and database produce identical bytes. The same flow runs locally with `python -m kpop_scraping.daily_puzzles_cli --database data/kpop.db --output-dir web/public/data`, with standalone verification via `--verify`.
 

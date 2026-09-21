@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita
+Substituída pela ADR 013
 
 ## Data
 
