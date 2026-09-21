@@ -1,18 +1,18 @@
 # K-pop quiz data
 
-Coletor e base de dados para quizzes verificáveis sobre grupos e artistas de K-pop. O projeto consulta as APIs da Wikipedia e do Wikidata, registra as revisões consultadas no SQLite e preserva as respostas das páginas e entidades em JSON comprimido.
+Collector and dataset for verifiable K-pop quizzes about groups and artists. The project queries the Wikipedia and Wikidata APIs, records the consulted revisions in SQLite, and preserves page and entity responses as compressed JSON.
 
-O estado atual cobre descoberta de páginas, resumos, classificação de candidatos e extração de fatos do Wikidata para grupos aceitos e integrantes. Também há um catálogo auditável de candidatos a lançamentos musicais. O catálogo rejeita listas, desambiguações, redirecionamentos e QIDs sem um tipo musical aceito. Cada fato aceito aponta para uma referência do Wikidata ou para um trecho de revisão da Wikipedia.
+The current state covers page discovery, summaries, candidate classification, and Wikidata fact extraction for accepted groups and members. There is also an auditable catalog of music release candidates. The catalog rejects lists, disambiguation pages, redirects, and QIDs without an accepted music type. Every accepted fact points to a Wikidata reference or a Wikipedia revision excerpt.
 
-## Requisitos
+## Requirements
 
-- Python 3.11 ou mais recente
-- Node.js 22 ou mais recente para a interface web
-- acesso à internet para executar a coleta
+- Python 3.11 or newer
+- Node.js 22 or newer for the web interface
+- Internet access to run the collector
 
-O coletor usa somente a biblioteca padrão do Python.
+The collector uses only the Python standard library.
 
-## Início rápido
+## Quick start
 
 ```bash
 python3 -m venv .venv
@@ -20,21 +20,21 @@ source .venv/bin/activate
 python main.py --limit 10
 ```
 
-O comando cria `data/kpop.db`, grava snapshots em `data/raw` e exporta `data/catalog-report.csv`. Retire `--limit 10` para percorrer toda a categoria.
+This creates `data/kpop.db`, writes snapshots to `data/raw`, and exports `data/catalog-report.csv`. Drop `--limit 10` to walk through the whole category.
 
-O diretório de snapshots pode ficar fora da pasta do banco:
+The snapshot directory can live outside the database folder:
 
 ```bash
 python main.py --limit 10 --database /tmp/kpop.db --raw-dir /tmp/kpop-raw
 ```
 
-Use um identificador próprio em execuções recorrentes:
+Use a custom identifier for recurring runs:
 
 ```bash
-python main.py --user-agent "kpop-quiz/0.1 (https://seu-site.example/contato)"
+python main.py --user-agent "kpop-quiz/0.1 (https://your-site.example/contact)"
 ```
 
-## Comandos
+## Commands
 
 ```bash
 python main.py --help
@@ -43,16 +43,16 @@ python main.py --limit 3 --catalog-report /tmp/kpop-catalog.csv
 python main.py --limit 45 --database /tmp/kpop.db --facts-limit 30 --facts-report /tmp/kpop-facts.csv
 python main.py --limit 45 --database /tmp/kpop.db --releases --release-group-limit 10 --release-report /tmp/kpop-releases.csv
 python main.py --limit 60 --database /tmp/kpop.db --releases --release-group-limit 25 --release-group-offset 25
-python -m kpop_scraping.quiz_cli --database /tmp/kpop.db --output /tmp/questions.json --report /tmp/quiz-report.json --session-output /tmp/session.json --seed rodada-1 --timer-seconds 20
+python -m kpop_scraping.quiz_cli --database /tmp/kpop.db --output /tmp/questions.json --report /tmp/quiz-report.json --session-output /tmp/session.json --seed round-1 --timer-seconds 20
 python -m kpop_scraping.web_publish --database /tmp/kpop.db --output-dir web/public/data --seed web-launch-v1 --timer-seconds 20
 python -m kpop_scraping.web_publish --output-dir web/public/data --verify
 python -m unittest discover -v
 python -m compileall -q .
 ```
 
-## Interface web
+## Web interface
 
-A interface estática usa Astro e Preact. O build cria as rotas `/pt-br/` e `/en/` sob o caminho `/kpop-scraping/` do GitHub Pages. O navegador valida o manifesto, o SHA-256 e o contrato da sessão antes de iniciar o quiz.
+The static interface uses Astro and Preact. The build produces the `/pt-br/` and `/en/` routes under the `/kpop-scraping/` GitHub Pages path. The browser validates the manifest, the SHA-256, and the session contract before starting the quiz.
 
 ```bash
 cd web
@@ -61,31 +61,35 @@ npm test
 npm run build
 ```
 
-O comando `web_publish` gera sessões de dez perguntas em PT-BR e inglês para os modos assistido, padrão e especialista. Os arquivos ficam em `web/public/data`. Cada nome inclui seu SHA-256, e o publicador troca `manifest-v2.json` somente depois de validar e gravar as seis sessões. `manifest.json` e as sessões v1 permanecem publicados durante a transição. O workflow do GitHub Pages verifica os artefatos v2 antes do build.
+`web_publish` generates ten-question sessions in Portuguese and English for the assisted, standard, and expert modes. The files land in `web/public/data`. Each filename includes its SHA-256, and the publisher swaps `manifest-v2.json` only after validating and writing all six sessions. `manifest.json` and the v1 sessions stay published during the transition. The GitHub Pages workflow verifies the v2 artifacts before the build.
 
-O ciclo diário é automatizado pelo runner unificado e pelo workflow `daily-puzzles-cron.yml`. O cron reconstrói o banco a partir da Wikipédia e do Wikidata com cache incremental, gera os seis jogos diários (`grid.daily.json`, `connections.daily.json`, `name-guess.daily.json`, `word-search.daily.json`, `timeline.daily.json` e as sessões diárias dos dois idiomas), valida cada artefato contra o esquema correspondente em diretório temporário e publica por troca atômica somente quando todas as verificações passam. A semente de cada jogo deriva da data (`kpop-{jogo}-daily-{YYYY-MM-DD}`), então a mesma data e o mesmo banco produzem bytes idênticos. O mesmo fluxo roda localmente com `python -m kpop_scraping.daily_puzzles_cli --database data/kpop.db --output-dir web/public/data`, e a verificação isolada com `--verify`.
+The daily cycle is automated by the unified runner and the `daily-puzzles-cron.yml` workflow. The cron job rebuilds the database from Wikipedia and Wikidata with incremental caching, generates the six daily games (`grid.daily.json`, `connections.daily.json`, `name-guess.daily.json`, `word-search.daily.json`, `timeline.daily.json`, and the daily sessions for both languages), validates each artifact against its matching schema in a temporary directory, and publishes by atomic swap only when every check passes. Each game's seed is derived from the date (`kpop-{game}-daily-{YYYY-MM-DD}`), so the same date and database produce identical bytes. The same flow runs locally with `python -m kpop_scraping.daily_puzzles_cli --database data/kpop.db --output-dir web/public/data`, with standalone verification via `--verify`.
 
-Uma nova execução atualiza cada página pela combinação de provedor, idioma e `pageid`. `collection_runs` registra sucesso ou falha. `source_pages` guarda o estado mais recente, `source_revisions` aponta para cada snapshot e seu SHA-256, e `collection_run_revisions` registra as revisões usadas em cada execução. `catalog_entries` guarda uma decisão por página. Uma revisão nova ou uma mudança nos metadados usados pelo classificador devolve a página ao estado `candidate`.
+A new run updates each page by the combination of provider, language, and `pageid`. `collection_runs` records success or failure. `source_pages` holds the latest state, `source_revisions` points to each snapshot and its SHA-256, and `collection_run_revisions` records which revisions each run used. `catalog_entries` holds one decision per page. A new revision, or a change to the metadata the classifier uses, returns the page to the `candidate` state.
 
-A etapa de fatos roda com `--facts`, `--facts-limit` ou `--facts-report`. Ela grava entidades, aliases, fatos e evidências. O CSV de cobertura mostra, por grupo e predicado, quantos fatos foram aceitos, rejeitados, substituídos ou ficaram em conflito. Sem `--facts-report`, o arquivo `facts-coverage.csv` fica ao lado do banco. Repetir a etapa atualiza cada fato pelo ID da afirmação do Wikidata.
+The facts stage runs with `--facts`, `--facts-limit`, or `--facts-report`. It records entities, aliases, facts, and evidence. The coverage CSV shows, by group and predicate, how many facts were accepted, rejected, replaced, or left in conflict. Without `--facts-report`, the file `facts-coverage.csv` lands beside the database. Re-running the stage updates each fact by its Wikidata statement ID.
 
-`--releases` usa o WDQS somente para descobrir candidatos. A consulta e a resposta ficam em snapshots com SHA-256. Cada QID é buscado de novo por `wbgetentities`; classe, artista, data e gênero são confirmados nesse snapshot direto. O pipeline consulta os sitelinks `enwiki`, `ptwiki` e `kowiki`, resolve o título pela API de cada wiki e grava a revisão do verbete. `performed_by` e `released_on` só entram no conjunto aceito quando uma referência aprovada do Wikidata ou o texto dessa revisão confirma a relação. Páginas ausentes, listas, desambiguações e páginas ligadas a outro QID ficam registradas em `release_source_pages`. O limite padrão é de 25 grupos por consulta e 100 candidatos por grupo.
+`--releases` uses the WDQS only to discover candidates; the query and its response are kept as snapshots with SHA-256. Each QID is then fetched again through `wbgetentities`, and class, artist, date, and genre are confirmed against that direct snapshot. The pipeline queries the `enwiki`, `ptwiki`, and `kowiki` sitelinks, resolves the title through each wiki's API, and records the revision of that entry. `performed_by` and `released_on` only enter the accepted set when an approved Wikidata reference or that revision's text confirms the relationship. Missing pages, lists, disambiguation pages, and pages linked to a different QID are recorded in `release_source_pages`. The default limit is 25 groups per query and 100 candidates per group.
 
-`python -m kpop_scraping.quiz_cli` lê o banco sem executar coleta. O comando grava um dataset bilíngue e um relatório em JSON canônico. `--session-output` também grava uma sessão de dez perguntas. Os filtros `--session-language`, `--theme`, `--group` e `--play-mode` podem ser combinados. `--timer-seconds` registra o limite na configuração da sessão.
+`python -m kpop_scraping.quiz_cli` reads the database without running collection. It writes a bilingual dataset and a report as canonical JSON. `--session-output` also writes a ten-question session. The `--session-language`, `--theme`, `--group`, and `--play-mode` filters can be combined. `--timer-seconds` records the limit in the session configuration.
 
-Os arquivos `schemas/quiz-dataset-v2.json` e `schemas/quiz-session-v2.json` descrevem os contratos públicos. `challenge_rating` registra a complexidade factual original; `play_mode` escolhe o modo assistido, padrão ou especialista. Pistas de década apontam para fatos aceitos e para suas evidências. A mesma entrada, versão, modo e semente produzem bytes idênticos. Os contratos v1 permanecem versionados para consumidores antigos.
+`schemas/quiz-dataset-v2.json` and `schemas/quiz-session-v2.json` describe the public contracts. `challenge_rating` records the original factual complexity; `play_mode` selects the assisted, standard, or expert mode. Decade hints point to accepted facts and their evidence. The same input, version, mode, and seed produce identical bytes. The v1 contracts stay versioned for older consumers.
 
-O coletor aplica migrações pendentes ao abrir o banco. Cada migração roda em uma transação. Bancos criados pela versão anterior mantêm execuções e páginas durante a migração.
+The collector applies pending migrations when it opens the database. Each migration runs inside a transaction. Databases created by an earlier version keep their runs and pages through the migration.
 
-## Estrutura
+## Structure
 
 ```text
-kpop_scraping/   cliente, fluxo, CLI e persistência
-schemas/          contratos JSON dos datasets e sessões
-tests/           testes unitários e fixtures
-web/             interface estática e sessões publicadas
+kpop_scraping/   client, pipeline, CLI, and persistence
+schemas/         JSON contracts for datasets and sessions
+tests/           unit tests and fixtures
+web/             static interface and published sessions
 ```
 
-## Licenças e proveniência
+## License
 
-Só use fontes cuja licença, atribuição e limites de uso tenham sido revisados. Cada dado publicável deve conservar a origem e a evidência que sustentam a afirmação. Arquivos brutos, bancos SQLite e CSVs locais não entram no Git.
+MIT, see [LICENSE](LICENSE).
+
+## Licensing and provenance
+
+Only use sources whose license, attribution, and usage limits have been reviewed. Every publishable data point must keep the source and evidence that back the claim. Raw files, SQLite databases, and local CSVs are not tracked in Git.
