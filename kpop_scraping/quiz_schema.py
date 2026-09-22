@@ -117,10 +117,11 @@ def validate_dataset(payload: dict[str, Any]) -> None:
         "logical question play modes",
     )
     for variants in variants_by_logical_language.values():
-        standard = mode_neutral_question(variants["standard"])
+        standard_question = variants["standard"]
+        standard = mode_neutral_question(standard_question, standard_question)
         _require(
             all(
-                mode_neutral_question(question) == standard
+                mode_neutral_question(question, standard_question) == standard
                 for question in variants.values()
             ),
             "play mode question equivalence",
@@ -452,30 +453,43 @@ def _validate_clue(clue: Any) -> None:
     _require(covered == set(fact_ids), "clue evidence coverage")
 
 
-def mode_neutral_question(question: dict[str, Any]) -> dict[str, Any]:
+def mode_neutral_question(
+    question: dict[str, Any], standard_question: dict[str, Any]
+) -> dict[str, Any]:
     """Return fields that must remain identical across play modes."""
     mode_fields = {
         "base_points", "clues_available", "clues_shown", "hint_cost", "id", "play_mode"
     }
     neutral = {key: value for key, value in question.items() if key not in mode_fields}
     if question.get("play_mode") == "assisted":
+        standard_labels = {
+            (option.get("id"), option.get("value"), option.get("value_type")): option.get("label")
+            for option in standard_question.get("options", [])
+        }
         neutral["options"] = [
-            {
-                **option,
-                "label": _label_without_assisted_group_suffix(option["label"]),
-            }
-            if option.get("value_type") == "person"
-            else option
+            _mode_neutral_option(option, standard_labels)
             for option in question["options"]
         ]
     return neutral
 
 
-def _label_without_assisted_group_suffix(label: str) -> str:
-    name, separator, suffix = label.rpartition(" (")
-    if separator and suffix.endswith(")"):
-        return name
-    return label
+def _mode_neutral_option(
+    option: dict[str, Any],
+    standard_labels: dict[tuple[Any, Any, Any], Any],
+) -> dict[str, Any]:
+    if option.get("value_type") != "person":
+        return option
+    key = (option.get("id"), option.get("value"), option.get("value_type"))
+    standard_label = standard_labels.get(key)
+    assisted_label = option.get("label")
+    if not isinstance(standard_label, str) or not isinstance(assisted_label, str):
+        return option
+    if assisted_label == standard_label or (
+        assisted_label.startswith(f"{standard_label} (")
+        and assisted_label.endswith(")")
+    ):
+        return {**option, "label": standard_label}
+    return option
 
 
 def _require(condition: bool, field: str) -> None:
