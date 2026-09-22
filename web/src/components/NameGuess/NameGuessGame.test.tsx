@@ -60,6 +60,8 @@ describe("NameGuessGame component", () => {
   it("shows error alert on short guess", () => {
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 
+    expect(document.querySelector(".name-guess-error-region")).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "T" }));
     fireEvent.click(screen.getByRole("button", { name: tPt.enter }));
 

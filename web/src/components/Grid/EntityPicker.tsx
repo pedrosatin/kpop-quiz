@@ -99,13 +99,15 @@ export function EntityPicker({
           </button>
         </div>
 
-        {uniquenessError && (
-          <div class="picker-alert-error" role="alert">
-            <p>
-              <strong>{uniquenessError}</strong>: {messages.gridAlreadyUsedError}
-            </p>
-          </div>
-        )}
+        <div class="picker-alert-region">
+          {uniquenessError && (
+            <div class="picker-alert-error" role="alert">
+              <p>
+                <strong>{uniquenessError}</strong>: {messages.gridAlreadyUsedError}
+              </p>
+            </div>
+          )}
+        </div>
 
         <div class="picker-search-field">
           <label for="picker-search-input" class="visually-hidden">
