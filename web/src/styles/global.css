@@ -2722,6 +2722,12 @@ footer a {
   min-block-size: 3.75rem;
 }
 
+@media (max-width: 20rem) {
+  .name-guess-error-region {
+    min-block-size: 5.5rem;
+  }
+}
+
 .name-guess-error-alert {
   box-sizing: border-box;
   width: 100%;
@@ -3533,6 +3539,5 @@ footer a {
     font-size: 1.25rem;
   }
 }
-
 
 

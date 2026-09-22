@@ -68,6 +68,17 @@ describe("NameGuessGame component", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(tPt.notEnoughLetters);
   });
 
+  it("keeps the long invalid-name error available to assistive technology", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    for (let i = 0; i < puzzle.word_length; i++) {
+      fireEvent.click(screen.getByRole("button", { name: "Z" }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: tPt.enter }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(tPt.notInWordList);
+  });
+
   it("plays winning game and displays results card with clues and copy", async () => {
     const clipboardSpy = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, {
