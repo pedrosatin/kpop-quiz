@@ -27,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-pages
+  group: cloudflare-pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -78,16 +78,16 @@ jobs:
           path: web/dist
       - name: Check Cloudflare credentials
         env:
-          HAS_CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+          HAS_CLOUDFLARE_CREDENTIALS: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
         run: |
-          if [ "$HAS_CLOUDFLARE_TOKEN" != "true" ]; then
-            echo "::warning::CLOUDFLARE_API_TOKEN secret is not set. Skipping deploy to Cloudflare Pages. Create a token with Cloudflare Pages Edit permission and add it as a repository secret to enable deploys."
+          if [ "$HAS_CLOUDFLARE_CREDENTIALS" != "true" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set. Skipping deploy to Cloudflare Pages. Add both repository secrets to enable deploys."
           fi
       - name: Deploy to Cloudflare Pages
         env:
-          HAS_CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
-        if: env.HAS_CLOUDFLARE_TOKEN == 'true'
-        uses: cloudflare/wrangler-action@v3
+          HAS_CLOUDFLARE_CREDENTIALS: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+        if: env.HAS_CLOUDFLARE_CREDENTIALS == 'true'
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
