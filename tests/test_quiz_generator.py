@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 from kpop_scraping.quiz_generator import (
     InsufficientQuestionsError,
@@ -13,6 +14,7 @@ from kpop_scraping.quiz_generator import (
 )
 from kpop_scraping.quiz_cli import main as quiz_main
 from kpop_scraping.quiz_models import Entity
+from kpop_scraping.group_relevance_scoring import ASSISTED_MIN_SCORE, EXPERT_MAX_SCORE
 from kpop_scraping.release_quiz_drafts import _release_ids_mentioning_groups
 from kpop_scraping.quiz_schema import validate_dataset, write_json_atomic
 
@@ -23,6 +25,14 @@ class QuizGeneratorTest(unittest.TestCase):
 
     def tearDown(self):
         self.connection.close()
+
+    def test_relevance_snapshot_is_loaded_once_per_dataset(self):
+        with patch(
+            "kpop_scraping.quiz_generator._load_group_relevance",
+            return_value={},
+        ) as load_relevance:
+            generate_dataset(self.connection)
+        load_relevance.assert_called_once_with(self.connection)
 
     def test_generates_supported_types_with_four_distinct_typed_options(self):
         dataset, report = generate_dataset(self.connection, date(2026, 9, 13))
@@ -688,6 +698,72 @@ class QuizGeneratorTest(unittest.TestCase):
             )
             formed_decade = 2000 if answer["label"] == "Group 1" else 2010
             self.assertEqual(question["decades"], [formed_decade])
+
+    def test_pageview_relevance_changes_session_pools_without_changing_variants(self):
+        dataset, _report = generate_dataset(self.connection)
+        logical_ids = sorted({question["logical_id"] for question in dataset["questions"]})
+        popular = set(logical_ids[:20])
+        for question in dataset["questions"]:
+            question["group_relevance_score"] = (
+                ASSISTED_MIN_SCORE if question["logical_id"] in popular
+                else EXPERT_MAX_SCORE
+            )
+        validate_dataset(dataset)
+        assisted = create_session(dataset, QuizConfig("en", "relevance", play_mode="assisted"))
+        expert = create_session(dataset, QuizConfig("en", "relevance", play_mode="expert"))
+        self.assertTrue(all(q["group_relevance_score"] >= ASSISTED_MIN_SCORE for q in assisted["questions"]))
+        self.assertTrue(all(q["group_relevance_score"] <= EXPERT_MAX_SCORE for q in expert["questions"]))
+        self.assertNotEqual(
+            [q["semantic_id"] for q in assisted["questions"]],
+            [q["semantic_id"] for q in expert["questions"]],
+        )
+
+    def test_partial_pageviews_keep_the_unfiltered_pool(self):
+        dataset, _report = generate_dataset(self.connection)
+        self.assertTrue(all("group_relevance_score" not in question for question in dataset["questions"]))
+        logical_ids = sorted({question["logical_id"] for question in dataset["questions"]})
+        measured = set(logical_ids[:15])
+        for question in dataset["questions"]:
+            if question["logical_id"] in measured and question.get("group_ids"):
+                question["group_relevance_score"] = ASSISTED_MIN_SCORE
+        self.assertTrue(any(
+            question.get("group_ids") and question.get("group_relevance_score") is None
+            for question in dataset["questions"]
+        ))
+        validate_dataset(dataset)
+        standard = create_session(dataset, QuizConfig("en", "partial", play_mode="standard"))
+        assisted = create_session(dataset, QuizConfig("en", "partial", play_mode="assisted"))
+        expert = create_session(dataset, QuizConfig("en", "partial", play_mode="expert"))
+        standard_ids = [question["semantic_id"] for question in standard["questions"]]
+        self.assertEqual([question["semantic_id"] for question in assisted["questions"]], standard_ids)
+        self.assertEqual([question["semantic_id"] for question in expert["questions"]], standard_ids)
+
+    def test_relevance_pool_falls_back_at_nine_and_filters_at_ten(self):
+        dataset, _report = generate_dataset(self.connection)
+        logical_ids = sorted({question["logical_id"] for question in dataset["questions"]})
+        popular_ids = set(logical_ids[:9])
+        for question in dataset["questions"]:
+            question["group_relevance_score"] = (
+                ASSISTED_MIN_SCORE
+                if question["logical_id"] in popular_ids
+                else EXPERT_MAX_SCORE
+            )
+        standard = create_session(dataset, QuizConfig("en", "boundary", play_mode="standard"))
+        assisted = create_session(dataset, QuizConfig("en", "boundary", play_mode="assisted"))
+        self.assertEqual(
+            [question["semantic_id"] for question in assisted["questions"]],
+            [question["semantic_id"] for question in standard["questions"]],
+        )
+
+        tenth_id = logical_ids[9]
+        for question in dataset["questions"]:
+            if question["logical_id"] == tenth_id:
+                question["group_relevance_score"] = ASSISTED_MIN_SCORE
+        assisted = create_session(dataset, QuizConfig("en", "boundary", play_mode="assisted"))
+        self.assertEqual(
+            {question["logical_id"] for question in assisted["questions"]},
+            set(logical_ids[:10]),
+        )
 
     def test_decade_clue_never_isolates_one_time_option(self):
         dataset, _report = generate_dataset(self.connection)

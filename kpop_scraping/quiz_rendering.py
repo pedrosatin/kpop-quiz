@@ -11,11 +11,32 @@ from .quiz_templates import render
 from .quiz_utils import digest, hash_payload
 
 
+def _group_relevance_score(
+    group_ids: tuple[str, ...] | list[str],
+    relevance_by_group: dict[str, int] | None,
+) -> int | None:
+    """Return the highest group score, or None if any group was not measured.
+
+    Missing groups are not zero. A zero would look like an obscure group and
+    would drop the question from assisted mode.
+    """
+    if not group_ids or not relevance_by_group:
+        return None
+    scores: list[int] = []
+    for group_id in group_ids:
+        score = relevance_by_group.get(group_id)
+        if score is None:
+            return None
+        scores.append(score)
+    return max(scores)
+
+
 def _render_draft(
     draft: Draft,
     language: str,
     reference_date: date,
     entities: dict[str, Entity],
+    relevance_by_group: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     logical_id = hash_payload({"key": draft.key, "generator": GENERATOR_VERSION})
     semantic_id = hash_payload(
@@ -95,6 +116,11 @@ def _render_draft(
         "theme": draft.theme,
         "type": draft.question_type,
     }
+    # For several groups, the best-known measured one sets mode eligibility.
+    # Leave the field off when any referenced group has no measurement.
+    score = _group_relevance_score(draft.group_ids, relevance_by_group)
+    if score is not None:
+        base_question["group_relevance_score"] = score
     return base_question
 
 
@@ -104,9 +130,10 @@ def render_play_mode_variants(
     reference_date: date,
     entities: dict[str, Entity],
     person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
+    relevance_by_group: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     """Render reproducible play modes without changing the underlying answer."""
-    base = _render_draft(draft, language, reference_date, entities)
+    base = _render_draft(draft, language, reference_date, entities, relevance_by_group)
     clues = _temporal_clues(draft, language, base)
     raw_date = draft.values.get("date") if draft.question_type == "member_at_date" else None
     on_date = raw_date if isinstance(raw_date, str) else None

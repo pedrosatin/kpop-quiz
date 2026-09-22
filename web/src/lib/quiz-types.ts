@@ -54,6 +54,7 @@ export interface QuizQuestion {
   clues_shown: string[];
   group_ids: string[];
   decades?: number[];
+  group_relevance_score?: number | null;
   prompt: string;
   options: QuizOption[];
   answer_option_id: string;
@@ -93,6 +94,7 @@ const QUESTION_TYPES = new Set([
 const SESSION_FIELDS = ["schema_version", "dataset_version", "session_id", "config", "questions"];
 const CONFIG_FIELDS = ["language", "seed", "theme", "group_id", "play_mode", "timer_seconds"];
 const QUESTION_FIELDS = ["id", "logical_id", "base_logical_id", "semantic_id", "fact_base_ids", "language", "type", "theme", "play_mode", "challenge_rating", "base_points", "hint_cost", "clues_available", "clues_shown", "group_ids", "prompt", "options", "answer_option_id", "explanation", "reference_date", "evidence"];
+const QUESTION_OPTIONAL_FIELDS = ["media", "decades", "group_relevance_score"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -204,16 +206,24 @@ export function isLicensedMedia(value: unknown): value is LicensedMedia {
 
 export function isQuestion(value: unknown, locale: Locale): value is QuizQuestion {
   if (!isRecord(value)) return false;
-  const hasMedia = Object.hasOwn(value, "media");
   const keys = Object.keys(value);
-  const hasDecades = Object.hasOwn(value, "decades");
-  if (hasMedia) {
-    if (keys.length !== QUESTION_FIELDS.length + 1 + (hasDecades ? 1 : 0)) return false;
-    if (!QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))) return false;
-    if (value.media !== null && !isLicensedMedia(value.media)) return false;
-  } else {
-    if (keys.length !== QUESTION_FIELDS.length + (hasDecades ? 1 : 0)) return false;
-    if (!QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))) return false;
+  if (keys.length < QUESTION_FIELDS.length
+    || keys.length > QUESTION_FIELDS.length + QUESTION_OPTIONAL_FIELDS.length
+    || !QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))
+    || !keys.every((field) => QUESTION_FIELDS.includes(field) || QUESTION_OPTIONAL_FIELDS.includes(field))) return false;
+  if (Object.hasOwn(value, "media") && value.media !== null && !isLicensedMedia(value.media)) return false;
+  if (Object.hasOwn(value, "group_relevance_score")
+    && value.group_relevance_score !== null
+    && (!Number.isInteger(value.group_relevance_score)
+      || (value.group_relevance_score as number) < 0
+      || (value.group_relevance_score as number) > 10_000)) return false;
+  if (Object.hasOwn(value, "decades")) {
+    if (!Array.isArray(value.decades)) return false;
+    const decades = value.decades as unknown[];
+    if (!decades.every((decade) => Number.isInteger(decade)
+        && [1990, 2000, 2010, 2020].includes(decade as number))
+      || new Set(decades).size !== decades.length
+      || decades.some((decade, index) => index > 0 && (decades[index - 1] as number) > (decade as number))) return false;
   }
   if (typeof value.id !== "string" || !HASH.test(value.id)
     || typeof value.logical_id !== "string" || !HASH.test(value.logical_id)
@@ -231,7 +241,6 @@ export function isQuestion(value: unknown, locale: Locale): value is QuizQuestio
     || !isDate(value.reference_date)
     || !isStringArray(value.fact_base_ids, false)
     || !isStringArray(value.group_ids)
-    || (hasDecades && (!Array.isArray(value.decades) || !value.decades.every((decade) => Number.isInteger(decade) && [1990, 2000, 2010, 2020].includes(decade as number))))
     || !Array.isArray(value.clues_available)
     || !(value.clues_available as unknown[]).every((clue) => isClue(clue, value.fact_base_ids as string[]))
     || !isStringArray(value.clues_shown)) return false;

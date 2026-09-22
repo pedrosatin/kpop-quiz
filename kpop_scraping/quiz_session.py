@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .group_relevance_scoring import ASSISTED_MIN_SCORE, EXPERT_MAX_SCORE
 from .quiz_models import InsufficientQuestionsError, QuizConfig
 from .quiz_schema import SESSION_SCHEMA_VERSION, validate_dataset, validate_session
 from .quiz_templates import SUPPORTED_LANGUAGES
@@ -30,6 +31,11 @@ def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any
         and (config.decade is None or config.decade in question["decades"])
         and question["play_mode"] == config.play_mode
     ]
+    relevance_filtered = _filter_by_group_relevance(eligible, config.play_mode)
+    # A partial measurement keeps the previous pool. A filtered pool smaller
+    # than ten questions also falls back, so a threshold cannot block publication.
+    if len(relevance_filtered) >= 10:
+        eligible = relevance_filtered
     if len(eligible) < 10:
         raise InsufficientQuestionsError(
             f"filters matched {len(eligible)} questions; a session requires 10"
@@ -75,3 +81,27 @@ def _session_question(question: dict[str, Any], seed: str) -> dict[str, Any]:
         key=lambda option: digest(seed, question["logical_id"], option["id"]),
     )
     return copied
+
+
+def _filter_by_group_relevance(
+    eligible: list[dict[str, Any]], play_mode: str
+) -> list[dict[str, Any]]:
+    if play_mode == "standard":
+        return eligible
+    # Apply the threshold only when every eligible group-scoped question has a score.
+    if any(
+        question.get("group_ids") and question.get("group_relevance_score") is None
+        for question in eligible
+    ):
+        return eligible
+    if play_mode == "assisted":
+        return [
+            question for question in eligible
+            if question.get("group_relevance_score") is not None
+            and question["group_relevance_score"] >= ASSISTED_MIN_SCORE
+        ]
+    return [
+        question for question in eligible
+        if question.get("group_relevance_score") is not None
+        and question["group_relevance_score"] <= EXPERT_MAX_SCORE
+    ]

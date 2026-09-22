@@ -17,7 +17,7 @@ from .quiz_models import (
     QuizConfig,
 )
 from .quiz_rendering import _draft_predicate, render_play_mode_variants
-from .quiz_repository import _dataset_version, _load_entities, _load_facts
+from .quiz_repository import _dataset_version, _load_entities, _load_facts, _load_group_relevance
 from .quiz_schema import (
     DATASET_SCHEMA_VERSION,
     QUESTION_TYPES,
@@ -27,6 +27,7 @@ from .quiz_schema import (
 )
 from .quiz_session import create_session
 from .quiz_templates import SUPPORTED_LANGUAGES, TEMPLATE_VERSION
+from .quiz_utils import hash_payload
 from .sources import SOURCE_POLICY_VERSION
 
 
@@ -46,7 +47,18 @@ def generate_dataset(
     entities = _load_entities(connection)
     facts, rejected = _load_facts(connection, entities)
     person_memberships = _person_memberships(facts)
-    dataset_version = _dataset_version(connection, entities, reference_date)
+    relevance_by_group = _load_group_relevance(connection)
+    base_dataset_version = _dataset_version(connection, entities, reference_date)
+    dataset_version = (
+        hash_payload(
+            {
+                "base_dataset_version": base_dataset_version,
+                "group_relevance_scores": relevance_by_group,
+            }
+        )
+        if relevance_by_group
+        else base_dataset_version
+    )
     drafts, generation_rejections = _build_drafts(facts, entities, reference_date)
     rejected.update(generation_rejections)
     entities_by_qid = {entity.wikidata_id: entity for entity in entities.values()}
@@ -63,7 +75,8 @@ def generate_dataset(
         decades = _subject_decades(draft, group_decades, person_memberships, performers)
         for language in selected_languages:
             for question in render_play_mode_variants(
-                draft, language, reference_date, entities_by_qid, person_memberships
+                draft, language, reference_date, entities_by_qid,
+                person_memberships, relevance_by_group,
             ):
                 question["decades"] = decades
                 questions.append(question)

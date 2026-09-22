@@ -7,11 +7,17 @@ import sqlite3
 from collections import Counter, defaultdict
 from datetime import date
 
+from .group_relevance_scoring import load_latest_relevance_scores
 from .quiz_models import Entity, Evidence, Fact, GENERATOR_VERSION
 from .quiz_schema import DATASET_SCHEMA_VERSION
 from .quiz_templates import TEMPLATE_VERSION, TEMPLATES
 from .quiz_utils import hash_payload
 from .sources import SOURCE_POLICY_VERSION
+
+
+def _load_group_relevance(connection: sqlite3.Connection) -> dict[str, int]:
+    """Load one complete scored run, or keep the prior unfiltered behavior."""
+    return load_latest_relevance_scores(connection)
 
 
 def _load_entities(connection: sqlite3.Connection) -> dict[int, Entity]:
@@ -205,16 +211,15 @@ def _dataset_version(
         }
         for entity in sorted(entities.values(), key=lambda item: item.wikidata_id)
     ]
-    return hash_payload(
-        {
-            "entities": entity_rows,
-            "evidence": evidence_rows,
-            "facts": fact_rows,
-            "generator_version": GENERATOR_VERSION,
-            "reference_date": reference_date.isoformat(),
-            "schema_version": DATASET_SCHEMA_VERSION,
-            "source_policy_version": SOURCE_POLICY_VERSION,
-            "template_version": TEMPLATE_VERSION,
-            "templates": TEMPLATES,
-        }
-    )
+    version_payload = {
+        "entities": entity_rows,
+        "evidence": evidence_rows,
+        "facts": fact_rows,
+        "generator_version": GENERATOR_VERSION,
+        "reference_date": reference_date.isoformat(),
+        "schema_version": DATASET_SCHEMA_VERSION,
+        "source_policy_version": SOURCE_POLICY_VERSION,
+        "template_version": TEMPLATE_VERSION,
+        "templates": TEMPLATES,
+    }
+    return hash_payload(version_payload)
