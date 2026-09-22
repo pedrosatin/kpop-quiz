@@ -1486,8 +1486,14 @@ footer a {
   outline: 2px solid var(--color-focus);
 }
 
+.picker-alert-region {
+  box-sizing: border-box;
+  min-block-size: 3.75rem;
+  width: 100%;
+  padding: var(--space-3) var(--space-4) 0;
+}
+
 .picker-alert-error {
-  margin: var(--space-3) var(--space-4) 0;
   padding: var(--space-2) var(--space-3);
   background: var(--color-error-bg);
   border: 1px solid var(--color-error-text);
@@ -2718,7 +2724,23 @@ footer a {
   margin: var(--space-1) 0;
 }
 
+.name-guess-error-region {
+  display: flex;
+  align-items: start;
+  justify-content: center;
+  width: 100%;
+  min-block-size: 3.75rem;
+}
+
+@media (max-width: 20rem) {
+  .name-guess-error-region {
+    min-block-size: 5.5rem;
+  }
+}
+
 .name-guess-error-alert {
+  box-sizing: border-box;
+  width: 100%;
   background: var(--color-error-bg);
   color: var(--color-error-text);
   border: 1px solid color-mix(in srgb, var(--color-error-text) 30%, transparent);
@@ -3527,6 +3549,4 @@ footer a {
     font-size: 1.25rem;
   }
 }
-
-
 

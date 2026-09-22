@@ -60,10 +60,23 @@ describe("NameGuessGame component", () => {
   it("shows error alert on short guess", () => {
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 
+    expect(document.querySelector(".name-guess-error-region")).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "T" }));
     fireEvent.click(screen.getByRole("button", { name: tPt.enter }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(tPt.notEnoughLetters);
+  });
+
+  it("keeps the long invalid-name error available to assistive technology", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    for (let i = 0; i < puzzle.word_length; i++) {
+      fireEvent.click(screen.getByRole("button", { name: "Z" }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: tPt.enter }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(tPt.notInWordList);
   });
 
   it("plays winning game and displays results card with clues and copy", async () => {

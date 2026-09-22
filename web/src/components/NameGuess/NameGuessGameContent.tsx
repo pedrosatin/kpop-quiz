@@ -131,15 +131,14 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
           </div>
         )}
 
-        {/* Transient Error Announcement */}
-        {errorDisplay && (
-          <div
-            role="alert"
-            class="name-guess-error-alert"
-          >
-            {errorDisplay}
-          </div>
-        )}
+        {/* Reserving this region keeps the board in place when validation fails. */}
+        <div class="name-guess-error-region">
+          {errorDisplay && (
+            <div role="alert" class="name-guess-error-alert">
+              {errorDisplay}
+            </div>
+          )}
+        </div>
 
         {/* Grid Board */}
         <NameGuessBoard

@@ -124,6 +124,22 @@ describe("EntityPicker component", () => {
     expect(alert).toHaveTextContent("TWICE: Este grupo já foi utilizado nesta partida.");
   });
 
+  it("keeps space for a uniqueness error before one is shown", () => {
+    const { container } = render(
+      <EntityPicker
+        candidatePool={sampleCandidates}
+        usedEntityIds={new Set()}
+        onSelectCandidate={vi.fn()}
+        onClose={vi.fn()}
+        locale="pt-BR"
+        messages={ptMessages}
+      />
+    );
+
+    expect(container.querySelector(".picker-alert-region")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("calls onSelectCandidate on click and on Enter key", () => {
     const onSelect = vi.fn();
     render(
