@@ -14,6 +14,7 @@ from .connections_schema import validate_connections_puzzle, write_connections_p
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
 from .quiz_generator import QuizConfig, create_session, generate_dataset
+from .quiz_models import InsufficientQuestionsError
 from .quiz_schema import mode_neutral_question, validate_session, write_json_atomic
 from .storage import canonical_json
 from .timeline_schema import validate_timeline_puzzle, write_timeline_puzzle_atomic
@@ -162,7 +163,7 @@ def create_decade_sessions(dataset: dict[str, Any], seed: str, timer_seconds: in
                 )
                 for locale in LOCALES for difficulty in DIFFICULTIES
             }
-        except ValueError:
+        except InsufficientQuestionsError:
             continue
         sessions.update(collection)
     return sessions
