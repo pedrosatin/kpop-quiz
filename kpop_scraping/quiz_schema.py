@@ -117,10 +117,10 @@ def validate_dataset(payload: dict[str, Any]) -> None:
         "logical question play modes",
     )
     for variants in variants_by_logical_language.values():
-        standard = _mode_neutral_question(variants["standard"])
+        standard = mode_neutral_question(variants["standard"])
         _require(
             all(
-                _mode_neutral_question(question) == standard
+                mode_neutral_question(question) == standard
                 for question in variants.values()
             ),
             "play mode question equivalence",
@@ -442,12 +442,26 @@ def _validate_clue(clue: Any) -> None:
     _require(covered == set(fact_ids), "clue evidence coverage")
 
 
-def _mode_neutral_question(question: dict[str, Any]) -> dict[str, Any]:
-    """Return fields that must remain identical across play modes."""
+def mode_neutral_question(question: dict[str, Any]) -> dict[str, Any]:
+    """Return fields that must remain identical across play modes.
+
+    Assisted mode may add a person's sourced group to an option label.  The
+    choice identity and value remain mode-neutral, so normalize only that
+    presentation detail before comparing variants.
+    """
     mode_fields = {
         "base_points", "clues_available", "clues_shown", "hint_cost", "id", "play_mode"
     }
-    return {key: value for key, value in question.items() if key not in mode_fields}
+    neutral = {key: value for key, value in question.items() if key not in mode_fields}
+    neutral["options"] = [
+        {
+            key: value
+            for key, value in option.items()
+            if key != "label" or option["value_type"] != "person"
+        }
+        for option in question["options"]
+    ]
+    return neutral
 
 
 def _require(condition: bool, field: str) -> None:

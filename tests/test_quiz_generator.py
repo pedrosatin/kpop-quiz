@@ -92,6 +92,28 @@ class QuizGeneratorTest(unittest.TestCase):
         self.assertEqual(labels[("pt-BR", "QG1")], labels[("en", "QG1")])
         self.assertEqual(labels[("pt-BR", "QP1")], labels[("en", "QP1")])
 
+    def test_assisted_mode_labels_people_with_their_sourced_groups(self):
+        dataset, _report = generate_dataset(self.connection)
+        person_questions = [
+            question for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["type"] == "member_for_group"
+            and question["group_ids"] == ["QG1"]
+        ]
+        self.assertEqual({question["play_mode"] for question in person_questions}, {
+            "assisted", "standard", "expert"
+        })
+        labels_by_mode = {
+            question["play_mode"]: next(
+                option["label"] for option in question["options"]
+                if option["value"] == "QP1"
+            )
+            for question in person_questions
+        }
+        self.assertEqual(labels_by_mode["assisted"], "Person 1 (Group 1)")
+        self.assertEqual(labels_by_mode["standard"], "Person 1")
+        self.assertEqual(labels_by_mode["expert"], "Person 1")
+
     def test_editorial_copy_exposes_comparison_values_without_pipeline_language(self):
         dataset, _report = generate_dataset(self.connection)
         forbidden = ("afirmação citada", "cited statement")
@@ -100,7 +122,10 @@ class QuizGeneratorTest(unittest.TestCase):
             self.assertTrue(all(phrase not in copy for phrase in forbidden))
             if question["type"] == "chronological_comparison":
                 for option in question["options"]:
-                    self.assertIn(option["label"], question["explanation"])
+                    label = option["label"]
+                    if option["value_type"] == "person":
+                        label = label.split(" (", 1)[0]
+                    self.assertIn(label, question["explanation"])
                 self.assertEqual(question["explanation"].count("("), 4)
 
     def test_full_dates_are_localized_in_prose(self):

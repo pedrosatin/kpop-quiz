@@ -14,7 +14,7 @@ from .connections_schema import validate_connections_puzzle, write_connections_p
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
 from .quiz_generator import QuizConfig, create_session, generate_dataset
-from .quiz_schema import validate_session, write_json_atomic
+from .quiz_schema import mode_neutral_question, validate_session, write_json_atomic
 from .storage import canonical_json
 from .timeline_schema import validate_timeline_puzzle, write_timeline_puzzle_atomic
 from .word_search_schema import (
@@ -168,20 +168,11 @@ def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
 def _validate_mode_sessions(sessions: dict[str, dict[str, Any]]) -> None:
     """Reject publications whose modes do not contain the same quiz round."""
     standard = sessions["standard"]
-    ignored = {
-        "base_points", "clues_available", "clues_shown", "hint_cost", "id", "play_mode"
-    }
-    expected = [
-        {key: value for key, value in question.items() if key not in ignored}
-        for question in standard["questions"]
-    ]
+    expected = [mode_neutral_question(question) for question in standard["questions"]]
     for mode, session in sessions.items():
         if session["config"]["seed"] != standard["config"]["seed"]:
             raise ValueError(f"session seed does not match standard mode for {mode}")
-        actual = [
-            {key: value for key, value in question.items() if key not in ignored}
-            for question in session["questions"]
-        ]
+        actual = [mode_neutral_question(question) for question in session["questions"]]
         if actual != expected:
             raise ValueError(f"session questions do not match standard mode for {mode}")
 

@@ -10,6 +10,7 @@ from typing import Any, Sequence
 from .quiz_drafts import _build_drafts
 from .quiz_models import (
     DEFAULT_REFERENCE_DATE,
+    Fact,
     GENERATOR_VERSION,
     InsufficientQuestionsError,
     QuizConfig,
@@ -43,6 +44,7 @@ def generate_dataset(
     connection.row_factory = sqlite3.Row
     entities = _load_entities(connection)
     facts, rejected = _load_facts(connection, entities)
+    person_group_ids = _person_group_ids(facts)
     dataset_version = _dataset_version(connection, entities, reference_date)
     drafts, generation_rejections = _build_drafts(facts, entities, reference_date)
     rejected.update(generation_rejections)
@@ -51,7 +53,7 @@ def generate_dataset(
         for draft in drafts
         for language in selected_languages
         for question in render_play_mode_variants(
-            draft, language, reference_date, entities_by_qid
+            draft, language, reference_date, entities_by_qid, person_group_ids
         )
     ]
     questions.sort(
@@ -100,10 +102,30 @@ def generate_dataset(
             for play_mode in ("assisted", "standard", "expert")
         },
         "clue_eligible_base_questions": sum(
-            bool(render_play_mode_variants(draft, "en", reference_date, entities_by_qid)[0]["clues_available"])
+            bool(render_play_mode_variants(
+                draft, "en", reference_date, entities_by_qid, person_group_ids
+            )[0]["clues_available"])
             for draft in drafts
         ),
     }
     validate_dataset(payload)
     validate_report(report)
     return payload, report
+
+
+def _person_group_ids(facts: Sequence[Fact]) -> dict[str, tuple[str, ...]]:
+    """Return every sourced group membership for each person, in stable order."""
+    memberships: dict[str, set[str]] = {}
+    for fact in facts:
+        if fact.predicate == "member_of" and fact.value_entity is not None:
+            memberships.setdefault(fact.subject.wikidata_id, set()).add(
+                fact.value_entity.wikidata_id
+            )
+        elif fact.predicate == "has_member" and fact.value_entity is not None:
+            memberships.setdefault(fact.value_entity.wikidata_id, set()).add(
+                fact.subject.wikidata_id
+            )
+    return {
+        person_id: tuple(sorted(group_ids))
+        for person_id, group_ids in memberships.items()
+    }

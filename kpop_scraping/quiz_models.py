@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-GENERATOR_VERSION = "quiz-generator-v9"
+GENERATOR_VERSION = "quiz-generator-v10"
 DEFAULT_REFERENCE_DATE = date(2026, 9, 13)
 
 

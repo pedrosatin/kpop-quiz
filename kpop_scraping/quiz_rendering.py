@@ -99,6 +99,7 @@ def render_play_mode_variants(
     language: str,
     reference_date: date,
     entities: dict[str, Entity],
+    person_group_ids: dict[str, tuple[str, ...]],
 ) -> list[dict[str, Any]]:
     """Render reproducible play modes without changing the underlying answer."""
     base = _render_draft(draft, language, reference_date, entities)
@@ -111,6 +112,10 @@ def render_play_mode_variants(
         question["hint_cost"] = 0 if play_mode == "assisted" else 15
         question["clues_available"] = [] if play_mode == "expert" else clues
         question["clues_shown"] = [clues[0]["id"]] if play_mode == "assisted" and clues else []
+        if play_mode == "assisted":
+            question["options"] = _add_group_labels_to_people(
+                question["options"], language, entities, person_group_ids
+            )
         question["id"] = hash_payload(
             {
                 "language": language,
@@ -120,6 +125,24 @@ def render_play_mode_variants(
         )
         variants.append(question)
     return variants
+
+
+def _add_group_labels_to_people(
+    options: list[dict[str, str]],
+    language: str,
+    entities: dict[str, Entity],
+    person_group_ids: dict[str, tuple[str, ...]],
+) -> list[dict[str, str]]:
+    """Make assisted-mode person choices recognizable without changing their IDs."""
+    labeled_options = []
+    for option in options:
+        group_ids = person_group_ids.get(option["value"], ())
+        if option["value_type"] != "person" or not group_ids:
+            labeled_options.append(option)
+            continue
+        groups = " · ".join(entities[group_id].name(language) for group_id in group_ids)
+        labeled_options.append({**option, "label": f"{option['label']} ({groups})"})
+    return labeled_options
 
 
 def _temporal_clues(
