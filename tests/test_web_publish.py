@@ -20,12 +20,14 @@ from kpop_scraping.web_publish import (
     WORD_SEARCH_DAILY_FILENAME,
     build_manifest,
     create_daily_sessions,
+    create_decade_sessions,
     main,
     parse_daily_date,
     publish,
     verify,
 )
 from kpop_scraping.quiz_generator import generate_dataset
+from kpop_scraping.quiz_models import InsufficientQuestionsError
 from kpop_scraping.quiz_schema import validate_session
 from tests.test_quiz_generator import build_quiz_database
 
@@ -227,6 +229,21 @@ class WebPublishTests(unittest.TestCase):
             hash1 = hashlib.sha256(web_publish._session_bytes(sessions_day1[key])).hexdigest()
             hash2 = hashlib.sha256(web_publish._session_bytes(sessions_day2[key])).hexdigest()
             self.assertNotEqual(hash1, hash2)
+
+    def test_decade_sessions_skip_only_decades_with_too_few_questions(self):
+        with patch(
+            "kpop_scraping.web_publish.create_session",
+            side_effect=InsufficientQuestionsError("not enough questions"),
+        ):
+            self.assertEqual(create_decade_sessions({}, "test-seed"), {})
+
+    def test_decade_sessions_propagate_unexpected_validation_errors(self):
+        with patch(
+            "kpop_scraping.web_publish.create_session",
+            side_effect=ValueError("invalid session"),
+        ):
+            with self.assertRaisesRegex(ValueError, "invalid session"):
+                create_decade_sessions({}, "test-seed")
 
     def test_manifest_and_publish_with_base_and_daily_sessions(self):
         connection = build_quiz_database()
@@ -707,4 +724,3 @@ class WebPublishTests(unittest.TestCase):
                 ]
             )
             self.assertEqual(code_all, 0)
-
