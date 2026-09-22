@@ -10,6 +10,7 @@ from typing import Any, Sequence
 from .quiz_drafts import _build_drafts, _membership_pairs
 from .quiz_models import (
     DEFAULT_REFERENCE_DATE,
+    Draft,
     Fact,
     GENERATOR_VERSION,
     InsufficientQuestionsError,
@@ -56,19 +57,16 @@ def generate_dataset(
         and fact.subject.entity_type == "group"
         and (fact.value_time or "")[:4].isdigit()
     }
-    questions = [question
-        for draft in drafts
-        for language in selected_languages
-        for question in render_play_mode_variants(
-            draft, language, reference_date, entities_by_qid, person_memberships
-        )
-    ]
-    for question in questions:
-        question["decades"] = sorted({
-            group_decades[group_id]
-            for group_id in question["group_ids"]
-            if group_id in group_decades
-        })
+    performers = _performers_by_release(facts)
+    questions = []
+    for draft in drafts:
+        decades = _subject_decades(draft, group_decades, person_memberships, performers)
+        for language in selected_languages:
+            for question in render_play_mode_variants(
+                draft, language, reference_date, entities_by_qid, person_memberships
+            ):
+                question["decades"] = decades
+                questions.append(question)
     questions.sort(
         key=lambda question: (
             question["logical_id"], question["language"], question["play_mode"]
@@ -124,6 +122,47 @@ def generate_dataset(
     validate_dataset(payload)
     validate_report(report)
     return payload, report
+
+
+SESSION_DECADES = frozenset({1990, 2000, 2010, 2020})
+
+
+def _performers_by_release(facts: Sequence[Fact]) -> dict[str, tuple[str, ...]]:
+    grouped: dict[str, set[str]] = {}
+    for fact in facts:
+        if fact.predicate == "performed_by" and fact.value_entity is not None:
+            grouped.setdefault(fact.subject.wikidata_id, set()).add(
+                fact.value_entity.wikidata_id
+            )
+    return {
+        release_id: tuple(sorted(group_ids))
+        for release_id, group_ids in grouped.items()
+    }
+
+
+def _subject_decades(
+    draft: Draft,
+    group_decades: dict[str, int],
+    memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
+    performers: dict[str, tuple[str, ...]],
+) -> list[int]:
+    """Formation decades of the answer subject, limited to 1990, 2000, 2010, and 2020."""
+    if draft.question_type == "chronological_comparison":
+        if draft.values.get("comparison_kind") == "person":
+            group_ids = tuple(
+                group_id for group_id, _facts in memberships.get(draft.answer[0], ())
+            )
+        else:
+            group_ids = (draft.answer[0],)
+    elif draft.question_type == "earliest_release":
+        group_ids = performers.get(draft.answer[0], ())
+    else:
+        group_ids = draft.group_ids
+    return sorted({
+        decade
+        for group_id in group_ids
+        if (decade := group_decades.get(group_id)) in SESSION_DECADES
+    })
 
 
 def _person_memberships(

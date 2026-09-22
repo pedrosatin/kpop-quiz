@@ -644,6 +644,38 @@ class QuizGeneratorTest(unittest.TestCase):
             [[option["id"] for option in question["options"]] for question in sessions[2]["questions"]],
         )
 
+    def test_comparison_decade_follows_the_answer_not_the_distractors(self):
+        for index, year in enumerate(range(2009, 2016), start=1):
+            self.connection.execute(
+                "UPDATE facts SET value_time=? WHERE statement_id=?",
+                (str(year), f"formation-{index}"),
+            )
+        self.connection.commit()
+        dataset, _report = generate_dataset(self.connection)
+        comparisons = [
+            question for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["play_mode"] == "standard"
+            and question["type"] == "chronological_comparison"
+            and question["prompt"] == "Which of these groups was formed first?"
+        ]
+        earliest = next(
+            question for question in comparisons
+            if next(
+                option["label"] for option in question["options"]
+                if option["id"] == question["answer_option_id"]
+            ) == "Group 1"
+        )
+        self.assertIn("QG2", earliest["group_ids"])
+        self.assertEqual(earliest["decades"], [2000])
+        for question in comparisons:
+            answer = next(
+                option for option in question["options"]
+                if option["id"] == question["answer_option_id"]
+            )
+            formed_decade = 2000 if answer["label"] == "Group 1" else 2010
+            self.assertEqual(question["decades"], [formed_decade])
+
     def test_decade_clue_never_isolates_one_time_option(self):
         dataset, _report = generate_dataset(self.connection)
         for question in dataset["questions"]:

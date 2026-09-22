@@ -20,6 +20,7 @@ export function getInitialUrlParams(): { playMode: PlayMode; theme: QuizTheme; d
     }
     const decadeParam = Number(params.get("decade"));
     if ([1990, 2000, 2010, 2020].includes(decadeParam)) decade = decadeParam as QuizDecade;
+    if (decade !== null) theme = "history";
   }
   return { playMode, theme, decade };
 }

@@ -86,12 +86,16 @@ export function Quiz({ locale }: { locale: Locale }) {
     const request = ++loadRequestRef.current;
     if (state !== "setup") setState("loading");
     loadQuizSessionWithAvailability(locale, playMode, theme, undefined, decade)
-      .then(({ session: value, availableDecades: decades }) => {
+      .then(({ session: value, availableDecades: decades, decade: loadedDecade }) => {
         if (request !== loadRequestRef.current) return;
         if (!isQuizSession(value)) throw new Error("Invalid quiz session");
         stopTimer();
         setSession(value);
         setAvailableDecades(decades);
+        if (loadedDecade !== decade) {
+          setDecade(loadedDecade);
+          updateUrlParams(playMode, loadedDecade === null ? theme : "history", loadedDecade);
+        }
         resetRound(value.questions.length, value.config.timer_seconds ?? 0, "setup");
       })
       .catch((error) => {
@@ -196,7 +200,7 @@ export function Quiz({ locale }: { locale: Locale }) {
         onSelectDecade={(value) => { setDecade(value); setTheme("history"); updateUrlParams(playMode, "history", value); }}
         onSelectMode={(mode) => { setPlayMode(mode); saveStoredPlayMode(mode); updateUrlParams(mode, theme, decade); }}
         onTimerChange={(enabled) => { setTimerEnabled(enabled); saveStoredTimerEnabled(enabled); }}
-        onStart={start} isReady={session.config.play_mode === playMode}
+        onStart={start} isReady={session.config.play_mode === playMode && (session.config.decade ?? null) === decade}
       />
     );
   }

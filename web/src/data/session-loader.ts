@@ -52,6 +52,7 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
 export interface LoadedQuizSession {
   session: QuizSession;
   availableDecades: Exclude<QuizDecade, null>[];
+  decade: QuizDecade;
 }
 
 function availableDecades(manifest: Manifest): Exclude<QuizDecade, null>[] {
@@ -78,10 +79,16 @@ export async function loadQuizSessionWithAvailability(
     throw new QuizArtifactError("invalid");
   }
   if (!isManifest(manifest)) throw new QuizArtifactError("invalid");
-  const sessionKey = decade === null
+  let resolvedDecade = decade;
+  let sessionKey = decade === null
     ? (theme === "daily" ? `daily.${locale}.${playMode}` : `${locale}.${playMode}`)
     : `decade.${decade}.${locale}.${playMode}`;
-  const entry = manifest.sessions[sessionKey];
+  let entry = manifest.sessions[sessionKey];
+  if (!entry && decade !== null) {
+    resolvedDecade = null;
+    sessionKey = theme === "daily" ? `daily.${locale}.${playMode}` : `${locale}.${playMode}`;
+    entry = manifest.sessions[sessionKey];
+  }
   if (!entry) throw new QuizArtifactError("missing");
   const response = await fetch(dataUrl(entry.path, effectiveBaseUrl));
   if (response.status === 404) throw new QuizArtifactError("missing");
@@ -96,10 +103,10 @@ export async function loadQuizSessionWithAvailability(
   }
   if (!isQuizSession(payload)) throw new QuizArtifactError("invalid");
   if (payload.config.language !== locale || payload.config.play_mode !== playMode
-    || (decade !== null && payload.config.decade !== decade)
+    || (resolvedDecade !== null && payload.config.decade !== resolvedDecade)
     || payload.dataset_version !== manifest.dataset_version
     || payload.session_id !== entry.session_id) throw new QuizArtifactError("invalid");
-  return { session: payload, availableDecades: availableDecades(manifest) };
+  return { session: payload, availableDecades: availableDecades(manifest), decade: resolvedDecade };
 }
 
 export async function loadQuizSession(
@@ -111,12 +118,4 @@ export async function loadQuizSession(
   return loaded.session;
 }
 
-export async function getAvailableQuizDecades(baseUrl?: string): Promise<Exclude<QuizDecade, null>[]> {
-  const response = await fetch(dataUrl("manifest-v2.json", baseUrl ?? import.meta.env.BASE_URL));
-  if (!response.ok) return [];
-  try {
-    const manifest: unknown = await response.json();
-    if (!isManifest(manifest)) return [];
-    return availableDecades(manifest);
-  } catch { return []; }
-}
+

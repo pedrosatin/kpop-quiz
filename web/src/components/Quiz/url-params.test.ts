@@ -32,6 +32,15 @@ describe("url-params", () => {
       });
     });
 
+    it("keeps a decade and drops daily when both are present", () => {
+      window.history.replaceState(null, "", "/?theme=daily&decade=2010");
+      expect(getInitialUrlParams()).toEqual({
+        playMode: "standard",
+        theme: "history",
+        decade: 2010,
+      });
+    });
+
     it("rejects invalid values returning defaults (mode: standard, theme: history)", () => {
       window.history.replaceState(null, "", "/?mode=invalido&theme=desconhecido");
       expect(getInitialUrlParams()).toEqual({
