@@ -222,11 +222,19 @@ def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
 def _validate_mode_sessions(sessions: dict[str, dict[str, Any]]) -> None:
     """Reject publications whose modes do not contain the same quiz round."""
     standard = sessions["standard"]
-    expected = [mode_neutral_question(question) for question in standard["questions"]]
+    expected = [
+        mode_neutral_question(question, question)
+        for question in standard["questions"]
+    ]
     for mode, session in sessions.items():
         if session["config"]["seed"] != standard["config"]["seed"]:
             raise ValueError(f"session seed does not match standard mode for {mode}")
-        actual = [mode_neutral_question(question) for question in session["questions"]]
+        actual = [
+            mode_neutral_question(question, standard_question)
+            for question, standard_question in zip(
+                session["questions"], standard["questions"], strict=False
+            )
+        ]
         if actual != expected:
             raise ValueError(f"session questions do not match standard mode for {mode}")
 

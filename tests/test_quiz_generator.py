@@ -159,11 +159,24 @@ class QuizGeneratorTest(unittest.TestCase):
             **assisted,
             "options": [{**option, "label": "Other (Group 1)"}],
         }
+        unlabeled = {
+            **assisted,
+            "options": [option],
+        }
         self.assertEqual(
-            mode_neutral_question(assisted)["options"][0]["label"], "A (B)"
+            mode_neutral_question(assisted, standard)["options"][0]["label"], "A (B)"
         )
-        self.assertEqual(mode_neutral_question(assisted), mode_neutral_question(standard))
-        self.assertNotEqual(mode_neutral_question(renamed), mode_neutral_question(standard))
+        self.assertEqual(
+            mode_neutral_question(unlabeled, standard)["options"][0]["label"], "A (B)"
+        )
+        self.assertEqual(
+            mode_neutral_question(assisted, standard),
+            mode_neutral_question(standard, standard),
+        )
+        self.assertNotEqual(
+            mode_neutral_question(renamed, standard),
+            mode_neutral_question(standard, standard),
+        )
 
     def _set_membership_interval(self, index: str, start: str, end: str) -> None:
         self.connection.execute(
