@@ -22,6 +22,7 @@ class QuizConfig:
     group_id: str | None = None
     play_mode: str = "standard"
     timer_seconds: int | None = None
+    decade: int | None = None
 
 
 @dataclass(frozen=True)

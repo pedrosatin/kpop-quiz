@@ -19,6 +19,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "expert",
         theme: "daily",
+        decade: null,
       });
     });
 
@@ -27,6 +28,16 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "assisted",
         theme: "history",
+        decade: null,
+      });
+    });
+
+    it("keeps a decade and drops daily when both are present", () => {
+      window.history.replaceState(null, "", "/?theme=daily&decade=2010");
+      expect(getInitialUrlParams()).toEqual({
+        playMode: "standard",
+        theme: "history",
+        decade: 2010,
       });
     });
 
@@ -35,6 +46,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
         theme: "history",
+        decade: null,
       });
     });
 
@@ -44,6 +56,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "expert",
         theme: "daily",
+        decade: null,
       });
     });
 
@@ -52,6 +65,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
         theme: "history",
+        decade: null,
       });
     });
   });

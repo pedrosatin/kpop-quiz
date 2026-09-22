@@ -25,7 +25,8 @@
         "theme": {"type": ["string", "null"]},
         "group_id": {"type": ["string", "null"]},
         "play_mode": {"enum": ["assisted", "standard", "expert"]},
-        "timer_seconds": {"type": ["integer", "null"], "minimum": 1}
+        "timer_seconds": {"type": ["integer", "null"], "minimum": 1},
+        "decade": {"enum": [1990, 2000, 2010, 2020, null]}
       }
     }
   },
@@ -35,4 +36,3 @@
     }
   }
 }
-

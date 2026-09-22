@@ -19,12 +19,15 @@ def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any
         raise ValueError("unsupported play mode")
     if config.timer_seconds is not None and config.timer_seconds < 1:
         raise ValueError("timer_seconds must be greater than zero")
+    if config.decade is not None and config.decade not in {1990, 2000, 2010, 2020}:
+        raise ValueError("unsupported decade")
     eligible = [
         question
         for question in dataset["questions"]
         if question["language"] == config.language
         and (config.theme is None or question["theme"] == config.theme)
         and (config.group_id is None or config.group_id in question["group_ids"])
+        and (config.decade is None or config.decade in question["decades"])
         and question["play_mode"] == config.play_mode
     ]
     if len(eligible) < 10:
@@ -44,6 +47,7 @@ def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any
         "seed": config.seed,
         "theme": config.theme,
         "timer_seconds": config.timer_seconds,
+        "decade": config.decade,
     }
     session_id = hash_payload(
         {
