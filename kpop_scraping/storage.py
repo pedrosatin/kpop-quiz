@@ -574,6 +574,81 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX release_source_pages_revision_idx ON release_source_pages(source_revision_id)",
         ),
     ),
+    (
+        8,
+        "group_pageview_relevance",
+        (
+            """
+            CREATE TABLE group_pageview_runs (
+                id INTEGER PRIMARY KEY,
+                language TEXT NOT NULL CHECK(language='en'),
+                access TEXT NOT NULL CHECK(access='all-access'),
+                agent TEXT NOT NULL CHECK(agent='user'),
+                start_date TEXT NOT NULL,
+                end_date TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                completed_at TEXT,
+                status TEXT NOT NULL CHECK(status IN ('running','completed','failed')),
+                groups_requested INTEGER NOT NULL DEFAULT 0,
+                groups_collected INTEGER NOT NULL DEFAULT 0,
+                error TEXT,
+                CHECK(start_date <= end_date)
+            )
+            """,
+            """
+            CREATE TABLE group_pageviews (
+                run_id INTEGER NOT NULL REFERENCES group_pageview_runs(id),
+                entity_id INTEGER NOT NULL REFERENCES entities(id),
+                page_title TEXT NOT NULL,
+                start_date TEXT NOT NULL,
+                end_date TEXT NOT NULL,
+                total_views INTEGER NOT NULL CHECK(total_views >= 0),
+                days_observed INTEGER NOT NULL CHECK(days_observed >= 0),
+                source_url TEXT NOT NULL,
+                response_json TEXT NOT NULL,
+                response_sha256 TEXT NOT NULL CHECK(length(response_sha256)=64),
+                fetched_at TEXT NOT NULL,
+                PRIMARY KEY(run_id, entity_id),
+                CHECK(start_date <= end_date)
+            )
+            """,
+            "CREATE INDEX group_pageviews_entity_window_idx ON group_pageviews(entity_id,start_date,end_date,run_id)",
+            """
+            CREATE TABLE group_relevance_runs (
+                id INTEGER PRIMARY KEY,
+                pageview_run_id INTEGER NOT NULL REFERENCES group_pageview_runs(id),
+                algorithm_version TEXT NOT NULL,
+                youtube_report_json TEXT,
+                youtube_report_sha256 TEXT,
+                accepted_groups INTEGER NOT NULL,
+                pageview_groups INTEGER NOT NULL,
+                youtube_subscriber_groups INTEGER NOT NULL,
+                youtube_view_groups INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                CHECK(youtube_report_sha256 IS NULL OR length(youtube_report_sha256)=64),
+                CHECK((youtube_report_json IS NULL)=(youtube_report_sha256 IS NULL)),
+                CHECK(accepted_groups > 0 AND pageview_groups=accepted_groups),
+                CHECK(youtube_subscriber_groups BETWEEN 0 AND accepted_groups),
+                CHECK(youtube_view_groups BETWEEN 0 AND accepted_groups)
+            )
+            """,
+            """
+            CREATE TABLE group_relevance_scores (
+                run_id INTEGER NOT NULL REFERENCES group_relevance_runs(id),
+                entity_id INTEGER NOT NULL REFERENCES entities(id),
+                pageviews INTEGER NOT NULL CHECK(pageviews >= 0),
+                youtube_subscribers INTEGER CHECK(youtube_subscribers >= 0),
+                youtube_views INTEGER CHECK(youtube_views >= 0),
+                pageview_percentile INTEGER NOT NULL CHECK(pageview_percentile BETWEEN 0 AND 10000),
+                subscriber_percentile INTEGER CHECK(subscriber_percentile BETWEEN 0 AND 10000),
+                youtube_view_percentile INTEGER CHECK(youtube_view_percentile BETWEEN 0 AND 10000),
+                relevance_score INTEGER NOT NULL CHECK(relevance_score BETWEEN 0 AND 10000),
+                PRIMARY KEY(run_id, entity_id)
+            )
+            """,
+            "CREATE INDEX group_relevance_scores_entity_idx ON group_relevance_scores(entity_id,run_id)",
+        ),
+    ),
 )
 
 
@@ -1156,6 +1231,63 @@ class Repository:
         self.connection.rollback()
         self.connection.execute(
             "UPDATE collection_runs SET completed_at=?, status='failed', error=? WHERE id=?",
+            (utc_now(), error[:1000], run_id),
+        )
+        self.connection.commit()
+
+    def accepted_group_pages(self) -> list[sqlite3.Row]:
+        """Return canonical English Wikipedia pages for accepted quiz groups."""
+        return self.connection.execute(
+            """
+            SELECT e.id AS entity_id, e.wikidata_id, MIN(sp.title) AS page_title
+            FROM entities e
+            JOIN catalog_entity_links cel ON cel.entity_id=e.id
+            JOIN source_pages sp ON sp.id=cel.source_page_id
+            JOIN catalog_entries ce ON ce.source_page_id=sp.id
+            WHERE e.entity_type='group' AND ce.state='accepted'
+              AND sp.provider='wikipedia' AND sp.language='en'
+            GROUP BY e.id, e.wikidata_id
+            ORDER BY e.wikidata_id
+            """
+        ).fetchall()
+
+    def start_group_pageview_run(self, start_date: str, end_date: str, groups: int) -> int:
+        cursor = self.connection.execute(
+            """INSERT INTO group_pageview_runs(
+                language,access,agent,start_date,end_date,started_at,status,groups_requested
+            ) VALUES ('en','all-access','user',?,?,?,'running',?)""",
+            (start_date, end_date, utc_now(), groups),
+        )
+        self.connection.commit()
+        return int(cursor.lastrowid)
+
+    def save_group_pageviews(
+        self, run_id: int, entity_id: int, page_title: str, start_date: str,
+        end_date: str, total_views: int, days_observed: int, source_url: str,
+        response_json: str, response_sha256: str,
+    ) -> None:
+        self.connection.execute(
+            """INSERT INTO group_pageviews(
+                run_id,entity_id,page_title,start_date,end_date,total_views,days_observed,
+                source_url,response_json,response_sha256,fetched_at
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (run_id, entity_id, page_title, start_date, end_date, total_views,
+             days_observed, source_url, response_json, response_sha256, utc_now()),
+        )
+        self.connection.commit()
+
+    def complete_group_pageview_run(self, run_id: int, groups_collected: int) -> None:
+        self.connection.execute(
+            """UPDATE group_pageview_runs SET completed_at=?,status='completed',
+               groups_collected=? WHERE id=?""",
+            (utc_now(), groups_collected, run_id),
+        )
+        self.connection.commit()
+
+    def fail_group_pageview_run(self, run_id: int, error: str) -> None:
+        self.connection.rollback()
+        self.connection.execute(
+            "UPDATE group_pageview_runs SET completed_at=?,status='failed',error=? WHERE id=?",
             (utc_now(), error[:1000], run_id),
         )
         self.connection.commit()
