@@ -443,25 +443,29 @@ def _validate_clue(clue: Any) -> None:
 
 
 def mode_neutral_question(question: dict[str, Any]) -> dict[str, Any]:
-    """Return fields that must remain identical across play modes.
-
-    Assisted mode may add a person's sourced group to an option label.  The
-    choice identity and value remain mode-neutral, so normalize only that
-    presentation detail before comparing variants.
-    """
+    """Return fields that must remain identical across play modes."""
     mode_fields = {
         "base_points", "clues_available", "clues_shown", "hint_cost", "id", "play_mode"
     }
     neutral = {key: value for key, value in question.items() if key not in mode_fields}
-    neutral["options"] = [
-        {
-            key: value
-            for key, value in option.items()
-            if key != "label" or option["value_type"] != "person"
-        }
-        for option in question["options"]
-    ]
+    if question.get("play_mode") == "assisted":
+        neutral["options"] = [
+            {
+                **option,
+                "label": _label_without_assisted_group_suffix(option["label"]),
+            }
+            if option.get("value_type") == "person"
+            else option
+            for option in question["options"]
+        ]
     return neutral
+
+
+def _label_without_assisted_group_suffix(label: str) -> str:
+    name, separator, suffix = label.rpartition(" (")
+    if separator and suffix.endswith(")"):
+        return name
+    return label
 
 
 def _require(condition: bool, field: str) -> None:

@@ -7,7 +7,7 @@ from collections import Counter
 from datetime import date
 from typing import Any, Sequence
 
-from .quiz_drafts import _build_drafts
+from .quiz_drafts import _build_drafts, _membership_pairs
 from .quiz_models import (
     DEFAULT_REFERENCE_DATE,
     Fact,
@@ -44,7 +44,7 @@ def generate_dataset(
     connection.row_factory = sqlite3.Row
     entities = _load_entities(connection)
     facts, rejected = _load_facts(connection, entities)
-    person_group_ids = _person_group_ids(facts)
+    person_memberships = _person_memberships(facts)
     dataset_version = _dataset_version(connection, entities, reference_date)
     drafts, generation_rejections = _build_drafts(facts, entities, reference_date)
     rejected.update(generation_rejections)
@@ -53,7 +53,7 @@ def generate_dataset(
         for draft in drafts
         for language in selected_languages
         for question in render_play_mode_variants(
-            draft, language, reference_date, entities_by_qid, person_group_ids
+            draft, language, reference_date, entities_by_qid, person_memberships
         )
     ]
     questions.sort(
@@ -103,7 +103,7 @@ def generate_dataset(
         },
         "clue_eligible_base_questions": sum(
             bool(render_play_mode_variants(
-                draft, "en", reference_date, entities_by_qid, person_group_ids
+                draft, "en", reference_date, entities_by_qid, person_memberships
             )[0]["clues_available"])
             for draft in drafts
         ),
@@ -113,19 +113,16 @@ def generate_dataset(
     return payload, report
 
 
-def _person_group_ids(facts: Sequence[Fact]) -> dict[str, tuple[str, ...]]:
-    """Return every sourced group membership for each person, in stable order."""
-    memberships: dict[str, set[str]] = {}
-    for fact in facts:
-        if fact.predicate == "member_of" and fact.value_entity is not None:
-            memberships.setdefault(fact.subject.wikidata_id, set()).add(
-                fact.value_entity.wikidata_id
-            )
-        elif fact.predicate == "has_member" and fact.value_entity is not None:
-            memberships.setdefault(fact.value_entity.wikidata_id, set()).add(
-                fact.subject.wikidata_id
-            )
+def _person_memberships(
+    facts: Sequence[Fact],
+) -> dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]]:
+    """Return each person's sourced group intervals, ordered by group id."""
+    grouped: dict[str, list[tuple[str, tuple[Fact, ...]]]] = {}
+    for group, person, pair_facts in _membership_pairs(list(facts)):
+        grouped.setdefault(person.wikidata_id, []).append(
+            (group.wikidata_id, pair_facts)
+        )
     return {
-        person_id: tuple(sorted(group_ids))
-        for person_id, group_ids in memberships.items()
+        person_id: tuple(sorted(pairs, key=lambda item: item[0]))
+        for person_id, pairs in grouped.items()
     }

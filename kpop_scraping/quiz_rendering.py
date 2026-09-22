@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from .quiz_models import Draft, Entity, GENERATOR_VERSION
+from .quiz_drafts import _membership_contains_date
+from .quiz_models import Draft, Entity, Fact, GENERATOR_VERSION
 from .quiz_templates import render
 from .quiz_utils import digest, hash_payload
 
@@ -99,11 +100,13 @@ def render_play_mode_variants(
     language: str,
     reference_date: date,
     entities: dict[str, Entity],
-    person_group_ids: dict[str, tuple[str, ...]],
+    person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
 ) -> list[dict[str, Any]]:
     """Render reproducible play modes without changing the underlying answer."""
     base = _render_draft(draft, language, reference_date, entities)
     clues = _temporal_clues(draft, language, base)
+    raw_date = draft.values.get("date") if draft.question_type == "member_at_date" else None
+    on_date = raw_date if isinstance(raw_date, str) else None
     variants = []
     for play_mode, points in (("assisted", 70), ("standard", 100), ("expert", 130)):
         question = dict(base)
@@ -114,7 +117,7 @@ def render_play_mode_variants(
         question["clues_shown"] = [clues[0]["id"]] if play_mode == "assisted" and clues else []
         if play_mode == "assisted":
             question["options"] = _add_group_labels_to_people(
-                question["options"], language, entities, person_group_ids
+                question["options"], language, entities, person_memberships, on_date
             )
         question["id"] = hash_payload(
             {
@@ -131,18 +134,34 @@ def _add_group_labels_to_people(
     options: list[dict[str, str]],
     language: str,
     entities: dict[str, Entity],
-    person_group_ids: dict[str, tuple[str, ...]],
+    person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
+    on_date: str | None,
 ) -> list[dict[str, str]]:
-    """Make assisted-mode person choices recognizable without changing their IDs."""
+    """Append sourced group names. A dated membership question uses that date."""
     labeled_options = []
     for option in options:
-        group_ids = person_group_ids.get(option["value"], ())
+        group_ids = _groups_for_label(person_memberships, option["value"], on_date)
         if option["value_type"] != "person" or not group_ids:
             labeled_options.append(option)
             continue
         groups = " · ".join(entities[group_id].name(language) for group_id in group_ids)
         labeled_options.append({**option, "label": f"{option['label']} ({groups})"})
     return labeled_options
+
+
+def _groups_for_label(
+    person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
+    person_id: str,
+    on_date: str | None,
+) -> tuple[str, ...]:
+    pairs = person_memberships.get(person_id, ())
+    if on_date is None:
+        return tuple(group_id for group_id, _pair_facts in pairs)
+    return tuple(
+        group_id
+        for group_id, pair_facts in pairs
+        if _membership_contains_date(pair_facts, on_date)
+    )
 
 
 def _temporal_clues(
