@@ -41,12 +41,13 @@ DATASET_FIELDS = frozenset(
         "schema_version", "source_policy_version", "template_version",
     }
 )
-QUESTION_OPTIONAL_FIELDS = frozenset({"media", "decades"})
+QUESTION_OPTIONAL_FIELDS = frozenset({"media", "decades", "group_relevance_score"})
 QUESTION_FIELDS = frozenset(
     {
         "answer_option_id", "base_logical_id", "base_points", "challenge_rating", "clues_available",
         "clues_shown", "play_mode", "evidence", "explanation", "hint_cost",
-        "fact_base_ids", "group_ids", "decades", "id", "language", "logical_id",
+        "fact_base_ids", "group_ids", "decades", "group_relevance_score",
+        "id", "language", "logical_id",
         "media", "options", "prompt", "reference_date", "semantic_id", "theme", "type",
     }
 )
@@ -324,6 +325,11 @@ def _validate_question(question: Any) -> None:
             and all(type(decade) is int and decade in {1990, 2000, 2010, 2020} for decade in decades),
             "decades",
         )
+    relevance = question.get("group_relevance_score")
+    _require(
+        relevance is None or type(relevance) is int and 0 <= relevance <= 10_000,
+        "group_relevance_score",
+    )
     fact_base_ids = question.get("fact_base_ids")
     _require(
         isinstance(fact_base_ids, list)

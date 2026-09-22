@@ -43,6 +43,8 @@ python main.py --limit 3 --catalog-report /tmp/kpop-catalog.csv
 python main.py --limit 45 --database /tmp/kpop.db --facts-limit 30 --facts-report /tmp/kpop-facts.csv
 python main.py --limit 45 --database /tmp/kpop.db --releases --release-group-limit 10 --release-report /tmp/kpop-releases.csv
 python main.py --limit 60 --database /tmp/kpop.db --releases --release-group-limit 25 --release-group-offset 25
+python -m kpop_scraping.group_relevance_cli --database /tmp/kpop.db --reference-date 2026-09-21 --user-agent "kpop-quiz/0.1 (https://your-site.example/contact)"
+python -m kpop_scraping.group_relevance_score_cli --database /tmp/kpop.db
 python -m kpop_scraping.quiz_cli --database /tmp/kpop.db --output /tmp/questions.json --report /tmp/quiz-report.json --session-output /tmp/session.json --seed round-1 --timer-seconds 20
 python -m kpop_scraping.web_publish --database /tmp/kpop.db --output-dir web/public/data --seed web-launch-v1 --timer-seconds 20
 python -m kpop_scraping.web_publish --output-dir web/public/data --verify
@@ -72,6 +74,8 @@ The facts stage runs with `--facts`, `--facts-limit`, or `--facts-report`. It re
 `--releases` uses the WDQS only to discover candidates; the query and its response are kept as snapshots with SHA-256. Each QID is then fetched again through `wbgetentities`, and class, artist, date, and genre are confirmed against that direct snapshot. The pipeline queries the `enwiki`, `ptwiki`, and `kowiki` sitelinks, resolves the title through each wiki's API, and records the revision of that entry. `performed_by` and `released_on` only enter the accepted set when an approved Wikidata reference or that revision's text confirms the relationship. Missing pages, lists, disambiguation pages, and pages linked to a different QID are recorded in `release_source_pages`. The default limit is 25 groups per query and 100 candidates per group.
 
 `python -m kpop_scraping.quiz_cli` reads the database without running collection. It writes a bilingual dataset and a report as canonical JSON. `--session-output` also writes a ten-question session. The `--session-language`, `--theme`, `--group`, and `--play-mode` filters can be combined. `--timer-seconds` records the limit in the session configuration.
+
+To enable relevance filtering, run the two relevance commands before generating the quiz dataset. `group_relevance_cli` caches 365 completed UTC days of English Wikipedia pageviews for each accepted group linked to an English article. `group_relevance_score_cli` converts one complete collection into catalog percentiles and stores the score, coverage, and algorithm version. Without a complete score run, dataset generation keeps the previous unfiltered behavior. Limited trials cannot affect sessions because the scorer requires one run that covers the full eligible catalog. [ADR-014](docs/decisions/014-pageview-relevance.md) defines the calculation and its source limitations. The separate [group signal report](docs/group-signals.md) is diagnostic and does not enter the score.
 
 `schemas/quiz-dataset-v2.json` and `schemas/quiz-session-v2.json` describe the public contracts. `challenge_rating` records the original factual complexity; `play_mode` selects the assisted, standard, or expert mode. Decade hints point to accepted facts and their evidence. The same input, version, mode, and seed produce identical bytes. The v1 contracts stay versioned for older consumers.
 

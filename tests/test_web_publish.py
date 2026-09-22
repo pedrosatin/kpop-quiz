@@ -124,17 +124,25 @@ class WebPublishTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "one dataset"):
             build_manifest(sessions)
 
-    def test_rejects_modes_with_different_questions_or_option_order(self):
+    def test_allows_relevance_specific_mode_questions_but_requires_one_seed(self):
         sessions = self.sessions()
         sessions["en.expert"]["questions"][0], sessions["en.expert"]["questions"][1] = (
             sessions["en.expert"]["questions"][1],
             sessions["en.expert"]["questions"][0],
         )
+        build_manifest(sessions)
+        sessions["en.expert"]["questions"][2]["prompt"] = "Schema-valid corruption"
         with self.assertRaisesRegex(ValueError, "questions"):
             build_manifest(sessions)
 
         sessions = self.sessions()
-        sessions["en.assisted"]["questions"][0]["options"].reverse()
+        sessions["en.assisted"]["config"]["seed"] = "another-round"
+        with self.assertRaisesRegex(ValueError, "seed"):
+            build_manifest(sessions)
+
+    def test_rejects_changed_common_question_when_mode_pools_differ(self):
+        sessions = self.sessions()
+        sessions["en.expert"]["questions"][0]["semantic_id"] = "f" * 64
         with self.assertRaisesRegex(ValueError, "questions"):
             build_manifest(sessions)
 

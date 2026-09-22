@@ -220,23 +220,29 @@ def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
 
 
 def _validate_mode_sessions(sessions: dict[str, dict[str, Any]]) -> None:
-    """Reject publications whose modes do not contain the same quiz round."""
+    """Keep a common round seed while allowing relevance-specific question pools."""
     standard = sessions["standard"]
-    expected = [
-        mode_neutral_question(question, question)
-        for question in standard["questions"]
-    ]
+    standard_by_logical_id = {
+        question["logical_id"]: question for question in standard["questions"]
+    }
+    if len(standard_by_logical_id) != len(standard["questions"]):
+        raise ValueError("standard session repeats a logical question")
     for mode, session in sessions.items():
         if session["config"]["seed"] != standard["config"]["seed"]:
             raise ValueError(f"session seed does not match standard mode for {mode}")
-        actual = [
-            mode_neutral_question(question, standard_question)
-            for question, standard_question in zip(
-                session["questions"], standard["questions"], strict=False
+        questions_by_logical_id = {
+            question["logical_id"]: question for question in session["questions"]
+        }
+        if len(questions_by_logical_id) != len(session["questions"]):
+            raise ValueError(f"session repeats a logical question for {mode}")
+        for logical_id in sorted(set(standard_by_logical_id) & set(questions_by_logical_id)):
+            standard_question = standard_by_logical_id[logical_id]
+            expected = mode_neutral_question(standard_question, standard_question)
+            actual = mode_neutral_question(
+                questions_by_logical_id[logical_id], standard_question
             )
-        ]
-        if actual != expected:
-            raise ValueError(f"session questions do not match standard mode for {mode}")
+            if actual != expected:
+                raise ValueError(f"session questions do not match standard mode for {mode}")
 
 
 def validate_manifest(payload: dict[str, Any]) -> None:
