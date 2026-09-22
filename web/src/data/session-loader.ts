@@ -49,11 +49,23 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function loadQuizSession(
+export interface LoadedQuizSession {
+  session: QuizSession;
+  availableDecades: Exclude<QuizDecade, null>[];
+}
+
+function availableDecades(manifest: Manifest): Exclude<QuizDecade, null>[] {
+  return ([1990, 2000, 2010, 2020] as const).filter((decade) =>
+    (["pt-BR", "en"] as const).every((locale) =>
+      (["assisted", "standard", "expert"] as const).every((mode) =>
+        Boolean(manifest.sessions[`decade.${decade}.${locale}.${mode}`]))));
+}
+
+export async function loadQuizSessionWithAvailability(
   locale: Locale,
   playMode: PlayMode,
   theme: QuizTheme = "history", baseUrl?: string, decade: QuizDecade = null,
-): Promise<QuizSession> {
+): Promise<LoadedQuizSession> {
   const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
 
   const manifestResponse = await fetch(dataUrl("manifest-v2.json", effectiveBaseUrl));
@@ -87,7 +99,16 @@ export async function loadQuizSession(
     || (decade !== null && payload.config.decade !== decade)
     || payload.dataset_version !== manifest.dataset_version
     || payload.session_id !== entry.session_id) throw new QuizArtifactError("invalid");
-  return payload;
+  return { session: payload, availableDecades: availableDecades(manifest) };
+}
+
+export async function loadQuizSession(
+  locale: Locale,
+  playMode: PlayMode,
+  theme: QuizTheme = "history", baseUrl?: string, decade: QuizDecade = null,
+): Promise<QuizSession> {
+  const loaded = await loadQuizSessionWithAvailability(locale, playMode, theme, baseUrl, decade);
+  return loaded.session;
 }
 
 export async function getAvailableQuizDecades(baseUrl?: string): Promise<Exclude<QuizDecade, null>[]> {
@@ -96,9 +117,6 @@ export async function getAvailableQuizDecades(baseUrl?: string): Promise<Exclude
   try {
     const manifest: unknown = await response.json();
     if (!isManifest(manifest)) return [];
-    return ([1990, 2000, 2010, 2020] as const).filter((decade) =>
-      (["pt-BR", "en"] as const).every((locale) =>
-        (["assisted", "standard", "expert"] as const).every((mode) =>
-          Boolean(manifest.sessions[`decade.${decade}.${locale}.${mode}`]))));
+    return availableDecades(manifest);
   } catch { return []; }
 }

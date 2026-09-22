@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
 import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../../lib/quiz-types";
-import { getAvailableQuizDecades, loadQuizSession, QuizArtifactError } from "../../data/session-loader";
+import { loadQuizSessionWithAvailability, QuizArtifactError } from "../../data/session-loader";
 import { GameSetup } from "../GameSetup/GameSetup";
 import { QuizRound } from "./QuizRound";
 import { groupEvidence, type DisplayEvidence } from "./AnswerFeedback";
@@ -85,12 +85,13 @@ export function Quiz({ locale }: { locale: Locale }) {
   const load = () => {
     const request = ++loadRequestRef.current;
     if (state !== "setup") setState("loading");
-    loadQuizSession(locale, playMode, theme, undefined, decade)
-      .then((value) => {
+    loadQuizSessionWithAvailability(locale, playMode, theme, undefined, decade)
+      .then(({ session: value, availableDecades: decades }) => {
         if (request !== loadRequestRef.current) return;
         if (!isQuizSession(value)) throw new Error("Invalid quiz session");
         stopTimer();
         setSession(value);
+        setAvailableDecades(decades);
         resetRound(value.questions.length, value.config.timer_seconds ?? 0, "setup");
       })
       .catch((error) => {
@@ -104,8 +105,6 @@ export function Quiz({ locale }: { locale: Locale }) {
     load();
     return () => { loadRequestRef.current += 1; stopTimer(); };
   }, [locale, playMode, theme, decade]);
-
-  useEffect(() => { getAvailableQuizDecades().then(setAvailableDecades); }, []);
 
   useEffect(() => {
     if (state === "question.answered") feedbackRef.current?.focus();
