@@ -117,10 +117,10 @@ def validate_dataset(payload: dict[str, Any]) -> None:
         "logical question play modes",
     )
     for variants in variants_by_logical_language.values():
-        standard = _mode_neutral_question(variants["standard"])
+        standard = mode_neutral_question(variants["standard"])
         _require(
             all(
-                _mode_neutral_question(question) == standard
+                mode_neutral_question(question) == standard
                 for question in variants.values()
             ),
             "play mode question equivalence",
@@ -442,12 +442,30 @@ def _validate_clue(clue: Any) -> None:
     _require(covered == set(fact_ids), "clue evidence coverage")
 
 
-def _mode_neutral_question(question: dict[str, Any]) -> dict[str, Any]:
+def mode_neutral_question(question: dict[str, Any]) -> dict[str, Any]:
     """Return fields that must remain identical across play modes."""
     mode_fields = {
         "base_points", "clues_available", "clues_shown", "hint_cost", "id", "play_mode"
     }
-    return {key: value for key, value in question.items() if key not in mode_fields}
+    neutral = {key: value for key, value in question.items() if key not in mode_fields}
+    if question.get("play_mode") == "assisted":
+        neutral["options"] = [
+            {
+                **option,
+                "label": _label_without_assisted_group_suffix(option["label"]),
+            }
+            if option.get("value_type") == "person"
+            else option
+            for option in question["options"]
+        ]
+    return neutral
+
+
+def _label_without_assisted_group_suffix(label: str) -> str:
+    name, separator, suffix = label.rpartition(" (")
+    if separator and suffix.endswith(")"):
+        return name
+    return label
 
 
 def _require(condition: bool, field: str) -> None:

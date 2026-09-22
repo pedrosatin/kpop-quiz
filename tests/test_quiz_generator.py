@@ -92,6 +92,124 @@ class QuizGeneratorTest(unittest.TestCase):
         self.assertEqual(labels[("pt-BR", "QG1")], labels[("en", "QG1")])
         self.assertEqual(labels[("pt-BR", "QP1")], labels[("en", "QP1")])
 
+    def test_assisted_mode_labels_people_with_their_sourced_groups(self):
+        dataset, _report = generate_dataset(self.connection)
+        person_questions = [
+            question for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["type"] == "member_for_group"
+            and question["group_ids"] == ["QG1"]
+        ]
+        self.assertEqual({question["play_mode"] for question in person_questions}, {
+            "assisted", "standard", "expert"
+        })
+        labels_by_mode = {
+            question["play_mode"]: next(
+                option["label"] for option in question["options"]
+                if option["value"] == "QP1"
+            )
+            for question in person_questions
+        }
+        self.assertEqual(labels_by_mode["assisted"], "Person 1 (Group 1)")
+        self.assertEqual(labels_by_mode["standard"], "Person 1")
+        self.assertEqual(labels_by_mode["expert"], "Person 1")
+
+    def test_member_at_date_labels_only_groups_active_on_that_date(self):
+        self._set_membership_interval("1", "2010-01-01", "2012-01-01")
+        self._add_membership("QG1", "QP2", "late", "2018-01-01", "2020-01-01")
+        for index in range(5, 8):
+            self.connection.execute(
+                "UPDATE facts SET status='rejected', status_reason='test_pool' "
+                "WHERE statement_id IN (?, ?, ?)",
+                (f"born-{index}", f"has-{index}", f"member-{index}"),
+            )
+        self.connection.commit()
+
+        dataset, _report = generate_dataset(self.connection)
+        dated = [
+            question for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["play_mode"] == "assisted"
+            and question["type"] == "member_at_date"
+        ]
+        early = next(question for question in dated if "2011" in question["prompt"])
+        late = next(question for question in dated if "2019" in question["prompt"])
+        early_labels = {option["value"]: option["label"] for option in early["options"]}
+        late_labels = {option["value"]: option["label"] for option in late["options"]}
+        self.assertEqual(early_labels["QP1"], "Person 1 (Group 1)")
+        self.assertIn("QP2", early_labels)
+        self.assertNotIn("Group 1", early_labels["QP2"])
+        self.assertEqual(late_labels["QP2"], "Person 2 (Group 1)")
+        self.assertIn("QP1", late_labels)
+        self.assertNotIn("Group 1", late_labels["QP1"])
+
+    def test_mode_neutral_question_keeps_the_person_name(self):
+        from kpop_scraping.quiz_schema import mode_neutral_question
+
+        option = {"id": "o", "label": "A (B)", "value": "QP1", "value_type": "person"}
+        standard = {
+            "play_mode": "standard", "base_points": 100, "hint_cost": 15,
+            "clues_available": [], "clues_shown": [], "options": [option],
+        }
+        assisted = {
+            **standard, "play_mode": "assisted", "base_points": 70, "hint_cost": 0,
+            "options": [{**option, "label": "A (B) (Group 1)"}],
+        }
+        renamed = {
+            **assisted,
+            "options": [{**option, "label": "Other (Group 1)"}],
+        }
+        self.assertEqual(
+            mode_neutral_question(assisted)["options"][0]["label"], "A (B)"
+        )
+        self.assertEqual(mode_neutral_question(assisted), mode_neutral_question(standard))
+        self.assertNotEqual(mode_neutral_question(renamed), mode_neutral_question(standard))
+
+    def _set_membership_interval(self, index: str, start: str, end: str) -> None:
+        self.connection.execute(
+            "UPDATE facts SET valid_from=?, valid_from_precision=11, valid_to=?, "
+            "valid_to_precision=11, quality_flags_json='[]' "
+            "WHERE statement_id IN (?, ?)",
+            (start, end, f"has-{index}", f"member-{index}"),
+        )
+
+    def _add_membership(
+        self, group_qid: str, person_qid: str, suffix: str, start: str, end: str
+    ) -> None:
+        group = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id=?", (group_qid,)
+        ).fetchone()[0]
+        person = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id=?", (person_qid,)
+        ).fetchone()[0]
+        for statement_id, subject, value, predicate in (
+            (f"has-{suffix}", group, person, "has_member"),
+            (f"member-{suffix}", person, group, "member_of"),
+        ):
+            value_qid = person_qid if predicate == "has_member" else group_qid
+            cursor = self.connection.execute(
+                """
+                INSERT INTO facts(
+                    statement_id, subject_entity_id, predicate, property_id, rank,
+                    value_wikidata_id, value_entity_id, value_time, value_precision,
+                    valid_from, valid_from_precision, valid_to, valid_to_precision,
+                    qualifiers_json, references_json, status, status_reason,
+                    quality_flags_json, extractor_version
+                ) VALUES (?, ?, ?, 'PTEST', 'normal', ?, ?, NULL, NULL, ?, 11, ?, 11,
+                    '{}', '[]', 'accepted', NULL, '[]', 'fixture-v1')
+                """,
+                (statement_id, subject, predicate, value_qid, value, start, end),
+            )
+            self.connection.execute(
+                """
+                INSERT INTO fact_evidence(
+                    fact_id, evidence_type, source_key, locator, reference_hash,
+                    wikidata_snapshot_id
+                ) VALUES (?, 'wikidata_reference', 'domain:example.com', ?, 'ref', 1)
+                """,
+                (cursor.lastrowid, f"claims/PTEST/{statement_id}/references/ref"),
+            )
+
     def test_editorial_copy_exposes_comparison_values_without_pipeline_language(self):
         dataset, _report = generate_dataset(self.connection)
         forbidden = ("afirmação citada", "cited statement")
@@ -100,7 +218,10 @@ class QuizGeneratorTest(unittest.TestCase):
             self.assertTrue(all(phrase not in copy for phrase in forbidden))
             if question["type"] == "chronological_comparison":
                 for option in question["options"]:
-                    self.assertIn(option["label"], question["explanation"])
+                    label = option["label"]
+                    if question["play_mode"] == "assisted" and option["value_type"] == "person":
+                        label = label.rpartition(" (")[0]
+                    self.assertIn(label, question["explanation"])
                 self.assertEqual(question["explanation"].count("("), 4)
 
     def test_full_dates_are_localized_in_prose(self):
