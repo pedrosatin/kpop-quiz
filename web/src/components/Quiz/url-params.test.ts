@@ -19,6 +19,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "expert",
         theme: "daily",
+        decade: null,
       });
     });
 
@@ -27,6 +28,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "assisted",
         theme: "history",
+        decade: null,
       });
     });
 
@@ -35,6 +37,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
         theme: "history",
+        decade: null,
       });
     });
 
@@ -44,6 +47,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "expert",
         theme: "daily",
+        decade: null,
       });
     });
 
@@ -52,6 +56,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
         theme: "history",
+        decade: null,
       });
     });
   });

@@ -49,6 +49,13 @@ def generate_dataset(
     drafts, generation_rejections = _build_drafts(facts, entities, reference_date)
     rejected.update(generation_rejections)
     entities_by_qid = {entity.wikidata_id: entity for entity in entities.values()}
+    group_decades = {
+        fact.subject.wikidata_id: (int((fact.value_time or "")[:4]) // 10) * 10
+        for fact in facts
+        if fact.predicate == "formed_on"
+        and fact.subject.entity_type == "group"
+        and (fact.value_time or "")[:4].isdigit()
+    }
     questions = [question
         for draft in drafts
         for language in selected_languages
@@ -56,6 +63,12 @@ def generate_dataset(
             draft, language, reference_date, entities_by_qid, person_memberships
         )
     ]
+    for question in questions:
+        question["decades"] = sorted({
+            group_decades[group_id]
+            for group_id in question["group_ids"]
+            if group_id in group_decades
+        })
     questions.sort(
         key=lambda question: (
             question["logical_id"], question["language"], question["play_mode"]

@@ -4,12 +4,16 @@ import type { QuizTheme } from "../Quiz/url-params";
 import { DifficultyPicker } from "./DifficultyPicker";
 import { GameCollection } from "./GameCollection";
 import { TimerControl } from "./TimerControl";
+import { DecadePicker } from "./DecadePicker";
 
 export interface GameSetupProps {
   playMode: PlayMode;
   onSelectMode: (mode: PlayMode) => void;
   theme?: QuizTheme;
   onSelectTheme?: (theme: QuizTheme) => void;
+  availableDecades?: Array<1990 | 2000 | 2010 | 2020>;
+  decade?: 1990 | 2000 | 2010 | 2020 | null;
+  onSelectDecade?: (decade: 1990 | 2000 | 2010 | 2020 | null) => void;
   timerEnabled: boolean;
   onTimerChange: (enabled: boolean) => void;
   onStart: () => void;
@@ -23,6 +27,7 @@ export function GameSetup({
   onSelectMode,
   theme = "history",
   onSelectTheme,
+  availableDecades = [], decade = null, onSelectDecade,
   timerEnabled,
   onTimerChange,
   onStart,
@@ -43,6 +48,7 @@ export function GameSetup({
           disabled={disabled}
         />
       )}
+      {onSelectDecade && <DecadePicker available={availableDecades} value={decade} onChange={onSelectDecade} messages={messages} disabled={disabled} />}
       <DifficultyPicker
         playMode={playMode}
         onSelectMode={onSelectMode}

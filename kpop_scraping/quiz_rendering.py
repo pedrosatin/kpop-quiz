@@ -82,6 +82,10 @@ def _render_draft(
         ),
         "fact_base_ids": list(draft.fact_base_ids),
         "group_ids": list(draft.group_ids),
+        # This is filled by the generator from the cited formation facts.  Keeping
+        # it here makes the published contract explicit while avoiding guesses
+        # based on a group name or a release date.
+        "decades": [],
         "id": hash_payload({"language": language, "logical_id": logical_id}),
         "language": language,
         "logical_id": logical_id,

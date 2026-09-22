@@ -566,6 +566,16 @@ a:hover {
   color: var(--color-text-muted);
 }
 
+.decade-picker {
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  border: 0;
+}
+
+.decade-options { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.decade-option { cursor: pointer; }
+.decade-option input { margin-right: var(--space-1); }
+
 .difficulty-picker {
   display: grid;
   gap: var(--space-3);
@@ -3517,7 +3527,6 @@ footer a {
     font-size: 1.25rem;
   }
 }
-
 
 
 

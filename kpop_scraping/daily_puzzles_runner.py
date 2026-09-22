@@ -33,6 +33,7 @@ from .web_publish import (
     GRID_DAILY_FILENAME,
     LOCALES,
     create_daily_sessions,
+    create_decade_sessions,
     parse_daily_date,
     publish,
     verify_artifacts,
@@ -72,7 +73,8 @@ def generate_daily_puzzles(
         for difficulty in DIFFICULTIES
     }
     daily_sessions = create_daily_sessions(dataset, iso_date, timer_seconds)
-    all_sessions = {**base_sessions, **daily_sessions}
+    decade_sessions = create_decade_sessions(dataset, base_seed, timer_seconds)
+    all_sessions = {**base_sessions, **daily_sessions, **decade_sessions}
     session_pt_br = daily_sessions["daily.pt-BR.standard"]
     session_en = daily_sessions["daily.en.standard"]
 

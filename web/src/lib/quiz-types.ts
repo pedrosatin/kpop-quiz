@@ -53,6 +53,7 @@ export interface QuizQuestion {
   clues_available: QuizClue[];
   clues_shown: string[];
   group_ids: string[];
+  decades?: number[];
   prompt: string;
   options: QuizOption[];
   answer_option_id: string;
@@ -71,6 +72,7 @@ export interface QuizSession {
     seed: string;
     theme: string | null;
     group_id: string | null;
+    decade?: number | null;
     play_mode: PlayMode;
     timer_seconds: number | null;
   };
@@ -204,12 +206,13 @@ export function isQuestion(value: unknown, locale: Locale): value is QuizQuestio
   if (!isRecord(value)) return false;
   const hasMedia = Object.hasOwn(value, "media");
   const keys = Object.keys(value);
+  const hasDecades = Object.hasOwn(value, "decades");
   if (hasMedia) {
-    if (keys.length !== QUESTION_FIELDS.length + 1) return false;
+    if (keys.length !== QUESTION_FIELDS.length + 1 + (hasDecades ? 1 : 0)) return false;
     if (!QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))) return false;
     if (value.media !== null && !isLicensedMedia(value.media)) return false;
   } else {
-    if (keys.length !== QUESTION_FIELDS.length) return false;
+    if (keys.length !== QUESTION_FIELDS.length + (hasDecades ? 1 : 0)) return false;
     if (!QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))) return false;
   }
   if (typeof value.id !== "string" || !HASH.test(value.id)
@@ -228,6 +231,7 @@ export function isQuestion(value: unknown, locale: Locale): value is QuizQuestio
     || !isDate(value.reference_date)
     || !isStringArray(value.fact_base_ids, false)
     || !isStringArray(value.group_ids)
+    || (hasDecades && (!Array.isArray(value.decades) || !value.decades.every((decade) => Number.isInteger(decade) && [1990, 2000, 2010, 2020].includes(decade as number))))
     || !Array.isArray(value.clues_available)
     || !(value.clues_available as unknown[]).every((clue) => isClue(clue, value.fact_base_ids as string[]))
     || !isStringArray(value.clues_shown)) return false;
@@ -254,7 +258,8 @@ export function isQuestion(value: unknown, locale: Locale): value is QuizQuestio
 }
 
 export function isQuizSession(value: unknown): value is QuizSession {
-  if (!isRecord(value) || !hasExactKeys(value, SESSION_FIELDS) || !isRecord(value.config) || !hasExactKeys(value.config, CONFIG_FIELDS)) return false;
+  if (!isRecord(value) || !hasExactKeys(value, SESSION_FIELDS) || !isRecord(value.config)
+    || !hasExactKeys(value.config, [...CONFIG_FIELDS, ...(Object.hasOwn(value.config, "decade") ? ["decade"] : [])])) return false;
   const { config } = value;
   if (value.schema_version !== "kpop-quiz-session-v2"
     || typeof value.dataset_version !== "string" || !HASH.test(value.dataset_version)
@@ -263,6 +268,7 @@ export function isQuizSession(value: unknown): value is QuizSession {
     || typeof config.seed !== "string"
     || !(config.theme === null || typeof config.theme === "string" && config.theme.length > 0)
     || !(config.group_id === null || typeof config.group_id === "string" && config.group_id.length > 0)
+    || !(config.decade === undefined || config.decade === null || [1990, 2000, 2010, 2020].includes(config.decade as number))
     || !(typeof config.play_mode === "string" && PLAY_MODES.has(config.play_mode as PlayMode))
     || !(config.timer_seconds === null || Number.isInteger(config.timer_seconds) && (config.timer_seconds as number) > 0)
     || !Array.isArray(value.questions) || value.questions.length !== 10) return false;
@@ -273,6 +279,7 @@ export function isQuizSession(value: unknown): value is QuizSession {
     && new Set(questions.map((question) => question.semantic_id)).size === questions.length
     && questions.every((question) => (config.theme === null || question.theme === config.theme)
       && (config.group_id === null || question.group_ids.includes(config.group_id as string))
+      && (config.decade === undefined || config.decade === null || question.decades?.includes(config.decade as number))
       && question.play_mode === config.play_mode);
 }
 

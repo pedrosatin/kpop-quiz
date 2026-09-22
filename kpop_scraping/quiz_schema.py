@@ -41,12 +41,12 @@ DATASET_FIELDS = frozenset(
         "schema_version", "source_policy_version", "template_version",
     }
 )
-QUESTION_OPTIONAL_FIELDS = frozenset({"media"})
+QUESTION_OPTIONAL_FIELDS = frozenset({"media", "decades"})
 QUESTION_FIELDS = frozenset(
     {
         "answer_option_id", "base_logical_id", "base_points", "challenge_rating", "clues_available",
         "clues_shown", "play_mode", "evidence", "explanation", "hint_cost",
-        "fact_base_ids", "group_ids", "id", "language", "logical_id",
+        "fact_base_ids", "group_ids", "decades", "id", "language", "logical_id",
         "media", "options", "prompt", "reference_date", "semantic_id", "theme", "type",
     }
 )
@@ -140,8 +140,8 @@ def validate_session(payload: dict[str, Any]) -> None:
     config = payload.get("config")
     _require(isinstance(config, dict), "config")
     _require(
-        set(config)
-        == {"language", "seed", "theme", "group_id", "play_mode", "timer_seconds"},
+        set(config) == {"language", "seed", "theme", "group_id", "play_mode", "timer_seconds"}
+        or set(config) == {"language", "seed", "theme", "group_id", "play_mode", "timer_seconds", "decade"},
         "config fields",
     )
     _require(config.get("language") in {"pt-BR", "en"}, "config.language")
@@ -157,6 +157,7 @@ def validate_session(payload: dict[str, Any]) -> None:
         "config.group_id",
     )
     _require(config.get("play_mode") in {"assisted", "standard", "expert"}, "config.play_mode")
+    _require(config.get("decade") is None or config["decade"] in {1990, 2000, 2010, 2020}, "config.decade")
     timer = config.get("timer_seconds")
     _require(timer is None or type(timer) is int and timer > 0, "config.timer_seconds")
     questions = payload.get("questions")
@@ -171,6 +172,7 @@ def validate_session(payload: dict[str, Any]) -> None:
             config["group_id"] is None or config["group_id"] in question["group_ids"],
             "question group",
         )
+        _require(config.get("decade") is None or config["decade"] in question.get("decades", []), "question decade")
         _require(
             question["play_mode"] == config["play_mode"],
             "question play mode",
@@ -313,6 +315,14 @@ def _validate_question(question: Any) -> None:
         and all(isinstance(group_id, str) and group_id for group_id in group_ids),
         "group_ids",
     )
+    if "decades" in question:
+        decades = question["decades"]
+        _require(
+            isinstance(decades, list)
+            and decades == sorted(set(decades))
+            and all(type(decade) is int and decade in {1990, 2000, 2010, 2020} for decade in decades),
+            "decades",
+        )
     fact_base_ids = question.get("fact_base_ids")
     _require(
         isinstance(fact_base_ids, list)
