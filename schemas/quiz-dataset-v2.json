@@ -140,6 +140,17 @@
           "uniqueItems": true,
           "items": {"type": "string", "minLength": 1}
         },
+        "decades": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": [1990, 2000, 2010, 2020]}
+        },
+        "group_relevance_score": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 10000,
+          "description": "Cached maximum relevance percentile score among the question groups."
+        },
         "prompt": {"type": "string", "minLength": 1},
         "options": {
           "type": "array",
@@ -162,4 +173,3 @@
     }
   }
 }
-

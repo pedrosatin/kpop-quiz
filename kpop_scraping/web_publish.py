@@ -14,7 +14,8 @@ from .connections_schema import validate_connections_puzzle, write_connections_p
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
 from .quiz_generator import QuizConfig, create_session, generate_dataset
-from .quiz_schema import validate_session, write_json_atomic
+from .quiz_models import InsufficientQuestionsError
+from .quiz_schema import mode_neutral_question, validate_session, write_json_atomic
 from .storage import canonical_json
 from .timeline_schema import validate_timeline_puzzle, write_timeline_puzzle_atomic
 from .word_search_schema import (
@@ -34,6 +35,29 @@ DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
 DAILY_KEYS = {f"daily.{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
 VALID_KEY_SETS = (BASE_KEYS, DAILY_KEYS, BASE_KEYS | DAILY_KEYS)
+DECADES = (1990, 2000, 2010, 2020)
+
+
+def _is_session_key(key: str) -> bool:
+    parts = key.split(".")
+    if len(parts) == 2:
+        return key in BASE_KEYS
+    if len(parts) == 3:
+        return key in DAILY_KEYS
+    return (
+        len(parts) == 4 and parts[0] == "decade" and parts[1] in {str(value) for value in DECADES}
+        and parts[2] in LOCALES and parts[3] in DIFFICULTIES
+    )
+
+
+def _valid_session_keys(keys: set[str]) -> bool:
+    if not keys or not all(_is_session_key(key) for key in keys):
+        return False
+    for decade in DECADES:
+        decade_keys = {f"decade.{decade}.{locale}.{mode}" for locale in LOCALES for mode in DIFFICULTIES}
+        if keys & decade_keys and not decade_keys <= keys:
+            return False
+    return keys & (BASE_KEYS | DAILY_KEYS) in VALID_KEY_SETS
 
 
 def _read_session(path: Path) -> dict[str, Any]:
@@ -126,14 +150,37 @@ def create_daily_sessions(
     }
 
 
+def create_decade_sessions(dataset: dict[str, Any], seed: str, timer_seconds: int | None = None) -> dict[str, dict[str, Any]]:
+    """Create every complete decade collection that the current dataset can fill."""
+    sessions: dict[str, dict[str, Any]] = {}
+    for decade in DECADES:
+        try:
+            collection = {
+                f"decade.{decade}.{locale}.{difficulty}": create_session(
+                    dataset,
+                    QuizConfig(locale, f"{seed}-decade-{decade}", play_mode=difficulty,
+                               timer_seconds=timer_seconds, decade=decade),
+                )
+                for locale in LOCALES for difficulty in DIFFICULTIES
+            }
+        except InsufficientQuestionsError:
+            continue
+        sessions.update(collection)
+    return sessions
+
+
 def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Describe validated locale sessions with hashes for deployment checks."""
     versions = {session["dataset_version"] for session in sessions.values()}
-    if set(sessions) not in VALID_KEY_SETS or len(versions) != 1:
+    if not _valid_session_keys(set(sessions)) or len(versions) != 1:
         raise ValueError("web publication requires every locale and difficulty from one dataset")
     for key, session in sessions.items():
         if key.startswith("daily."):
             _, locale, difficulty = key.split(".", 2)
+        elif key.startswith("decade."):
+            _, decade, locale, difficulty = key.split(".", 3)
+            if session["config"].get("decade") != int(decade):
+                raise ValueError(f"session decade does not match {decade}")
         else:
             locale, difficulty = key.split(".", 1)
         if session["config"]["language"] != locale:
@@ -150,6 +197,13 @@ def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
             _validate_mode_sessions(
                 {mode: sessions[f"daily.{locale}.{mode}"] for mode in DIFFICULTIES}
             )
+    for decade in DECADES:
+        decade_keys = {f"decade.{decade}.{locale}.{mode}" for locale in LOCALES for mode in DIFFICULTIES}
+        if decade_keys <= set(sessions):
+            for locale in LOCALES:
+                _validate_mode_sessions(
+                    {mode: sessions[f"decade.{decade}.{locale}.{mode}"] for mode in DIFFICULTIES}
+                )
     manifest = {
         "schema_version": MANIFEST_VERSION,
         "dataset_version": versions.pop(),
@@ -166,24 +220,29 @@ def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
 
 
 def _validate_mode_sessions(sessions: dict[str, dict[str, Any]]) -> None:
-    """Reject publications whose modes do not contain the same quiz round."""
+    """Keep a common round seed while allowing relevance-specific question pools."""
     standard = sessions["standard"]
-    ignored = {
-        "base_points", "clues_available", "clues_shown", "hint_cost", "id", "play_mode"
+    standard_by_logical_id = {
+        question["logical_id"]: question for question in standard["questions"]
     }
-    expected = [
-        {key: value for key, value in question.items() if key not in ignored}
-        for question in standard["questions"]
-    ]
+    if len(standard_by_logical_id) != len(standard["questions"]):
+        raise ValueError("standard session repeats a logical question")
     for mode, session in sessions.items():
         if session["config"]["seed"] != standard["config"]["seed"]:
             raise ValueError(f"session seed does not match standard mode for {mode}")
-        actual = [
-            {key: value for key, value in question.items() if key not in ignored}
-            for question in session["questions"]
-        ]
-        if actual != expected:
-            raise ValueError(f"session questions do not match standard mode for {mode}")
+        questions_by_logical_id = {
+            question["logical_id"]: question for question in session["questions"]
+        }
+        if len(questions_by_logical_id) != len(session["questions"]):
+            raise ValueError(f"session repeats a logical question for {mode}")
+        for logical_id in sorted(set(standard_by_logical_id) & set(questions_by_logical_id)):
+            standard_question = standard_by_logical_id[logical_id]
+            expected = mode_neutral_question(standard_question, standard_question)
+            actual = mode_neutral_question(
+                questions_by_logical_id[logical_id], standard_question
+            )
+            if actual != expected:
+                raise ValueError(f"session questions do not match standard mode for {mode}")
 
 
 def validate_manifest(payload: dict[str, Any]) -> None:
@@ -195,7 +254,7 @@ def validate_manifest(payload: dict[str, Any]) -> None:
     if not isinstance(dataset_version, str) or len(dataset_version) != 64 or any(c not in "0123456789abcdef" for c in dataset_version):
         raise ValueError("invalid web manifest dataset_version")
     sessions = payload["sessions"]
-    if not isinstance(sessions, dict) or set(sessions) not in VALID_KEY_SETS:
+    if not isinstance(sessions, dict) or not _valid_session_keys(set(sessions)):
         raise ValueError("invalid web manifest sessions")
     for key in sorted(sessions):
         item = sessions[key]
@@ -448,7 +507,8 @@ def main(argv: list[str] | None = None) -> int:
                 for locale in LOCALES for difficulty in DIFFICULTIES
             }
             daily_sessions = create_daily_sessions(dataset, args.date, args.timer_seconds)
-            sessions = {**base_sessions, **daily_sessions}
+            decade_sessions = create_decade_sessions(dataset, args.seed, args.timer_seconds)
+            sessions = {**base_sessions, **daily_sessions, **decade_sessions}
             publish(args.output_dir, sessions)
         else:
             raise ValueError("provide --database or --verify")

@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 from kpop_scraping.quiz_generator import (
     InsufficientQuestionsError,
@@ -13,6 +14,7 @@ from kpop_scraping.quiz_generator import (
 )
 from kpop_scraping.quiz_cli import main as quiz_main
 from kpop_scraping.quiz_models import Entity
+from kpop_scraping.group_relevance_scoring import ASSISTED_MIN_SCORE, EXPERT_MAX_SCORE
 from kpop_scraping.release_quiz_drafts import _release_ids_mentioning_groups
 from kpop_scraping.quiz_schema import validate_dataset, write_json_atomic
 
@@ -23,6 +25,14 @@ class QuizGeneratorTest(unittest.TestCase):
 
     def tearDown(self):
         self.connection.close()
+
+    def test_relevance_snapshot_is_loaded_once_per_dataset(self):
+        with patch(
+            "kpop_scraping.quiz_generator._load_group_relevance",
+            return_value={},
+        ) as load_relevance:
+            generate_dataset(self.connection)
+        load_relevance.assert_called_once_with(self.connection)
 
     def test_generates_supported_types_with_four_distinct_typed_options(self):
         dataset, report = generate_dataset(self.connection, date(2026, 9, 13))
@@ -92,6 +102,137 @@ class QuizGeneratorTest(unittest.TestCase):
         self.assertEqual(labels[("pt-BR", "QG1")], labels[("en", "QG1")])
         self.assertEqual(labels[("pt-BR", "QP1")], labels[("en", "QP1")])
 
+    def test_assisted_mode_labels_people_with_their_sourced_groups(self):
+        dataset, _report = generate_dataset(self.connection)
+        person_questions = [
+            question for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["type"] == "member_for_group"
+            and question["group_ids"] == ["QG1"]
+        ]
+        self.assertEqual({question["play_mode"] for question in person_questions}, {
+            "assisted", "standard", "expert"
+        })
+        labels_by_mode = {
+            question["play_mode"]: next(
+                option["label"] for option in question["options"]
+                if option["value"] == "QP1"
+            )
+            for question in person_questions
+        }
+        self.assertEqual(labels_by_mode["assisted"], "Person 1 (Group 1)")
+        self.assertEqual(labels_by_mode["standard"], "Person 1")
+        self.assertEqual(labels_by_mode["expert"], "Person 1")
+
+    def test_member_at_date_labels_only_groups_active_on_that_date(self):
+        self._set_membership_interval("1", "2010-01-01", "2012-01-01")
+        self._add_membership("QG1", "QP2", "late", "2018-01-01", "2020-01-01")
+        for index in range(5, 8):
+            self.connection.execute(
+                "UPDATE facts SET status='rejected', status_reason='test_pool' "
+                "WHERE statement_id IN (?, ?, ?)",
+                (f"born-{index}", f"has-{index}", f"member-{index}"),
+            )
+        self.connection.commit()
+
+        dataset, _report = generate_dataset(self.connection)
+        dated = [
+            question for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["play_mode"] == "assisted"
+            and question["type"] == "member_at_date"
+        ]
+        early = next(question for question in dated if "2011" in question["prompt"])
+        late = next(question for question in dated if "2019" in question["prompt"])
+        early_labels = {option["value"]: option["label"] for option in early["options"]}
+        late_labels = {option["value"]: option["label"] for option in late["options"]}
+        self.assertEqual(early_labels["QP1"], "Person 1 (Group 1)")
+        self.assertIn("QP2", early_labels)
+        self.assertNotIn("Group 1", early_labels["QP2"])
+        self.assertEqual(late_labels["QP2"], "Person 2 (Group 1)")
+        self.assertIn("QP1", late_labels)
+        self.assertNotIn("Group 1", late_labels["QP1"])
+
+    def test_mode_neutral_question_keeps_the_person_name(self):
+        from kpop_scraping.quiz_schema import mode_neutral_question
+
+        option = {"id": "o", "label": "A (B)", "value": "QP1", "value_type": "person"}
+        standard = {
+            "play_mode": "standard", "base_points": 100, "hint_cost": 15,
+            "clues_available": [], "clues_shown": [], "options": [option],
+        }
+        assisted = {
+            **standard, "play_mode": "assisted", "base_points": 70, "hint_cost": 0,
+            "options": [{**option, "label": "A (B) (Group 1)"}],
+        }
+        renamed = {
+            **assisted,
+            "options": [{**option, "label": "Other (Group 1)"}],
+        }
+        unlabeled = {
+            **assisted,
+            "options": [option],
+        }
+        self.assertEqual(
+            mode_neutral_question(assisted, standard)["options"][0]["label"], "A (B)"
+        )
+        self.assertEqual(
+            mode_neutral_question(unlabeled, standard)["options"][0]["label"], "A (B)"
+        )
+        self.assertEqual(
+            mode_neutral_question(assisted, standard),
+            mode_neutral_question(standard, standard),
+        )
+        self.assertNotEqual(
+            mode_neutral_question(renamed, standard),
+            mode_neutral_question(standard, standard),
+        )
+
+    def _set_membership_interval(self, index: str, start: str, end: str) -> None:
+        self.connection.execute(
+            "UPDATE facts SET valid_from=?, valid_from_precision=11, valid_to=?, "
+            "valid_to_precision=11, quality_flags_json='[]' "
+            "WHERE statement_id IN (?, ?)",
+            (start, end, f"has-{index}", f"member-{index}"),
+        )
+
+    def _add_membership(
+        self, group_qid: str, person_qid: str, suffix: str, start: str, end: str
+    ) -> None:
+        group = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id=?", (group_qid,)
+        ).fetchone()[0]
+        person = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id=?", (person_qid,)
+        ).fetchone()[0]
+        for statement_id, subject, value, predicate in (
+            (f"has-{suffix}", group, person, "has_member"),
+            (f"member-{suffix}", person, group, "member_of"),
+        ):
+            value_qid = person_qid if predicate == "has_member" else group_qid
+            cursor = self.connection.execute(
+                """
+                INSERT INTO facts(
+                    statement_id, subject_entity_id, predicate, property_id, rank,
+                    value_wikidata_id, value_entity_id, value_time, value_precision,
+                    valid_from, valid_from_precision, valid_to, valid_to_precision,
+                    qualifiers_json, references_json, status, status_reason,
+                    quality_flags_json, extractor_version
+                ) VALUES (?, ?, ?, 'PTEST', 'normal', ?, ?, NULL, NULL, ?, 11, ?, 11,
+                    '{}', '[]', 'accepted', NULL, '[]', 'fixture-v1')
+                """,
+                (statement_id, subject, predicate, value_qid, value, start, end),
+            )
+            self.connection.execute(
+                """
+                INSERT INTO fact_evidence(
+                    fact_id, evidence_type, source_key, locator, reference_hash,
+                    wikidata_snapshot_id
+                ) VALUES (?, 'wikidata_reference', 'domain:example.com', ?, 'ref', 1)
+                """,
+                (cursor.lastrowid, f"claims/PTEST/{statement_id}/references/ref"),
+            )
+
     def test_editorial_copy_exposes_comparison_values_without_pipeline_language(self):
         dataset, _report = generate_dataset(self.connection)
         forbidden = ("afirmação citada", "cited statement")
@@ -100,7 +241,10 @@ class QuizGeneratorTest(unittest.TestCase):
             self.assertTrue(all(phrase not in copy for phrase in forbidden))
             if question["type"] == "chronological_comparison":
                 for option in question["options"]:
-                    self.assertIn(option["label"], question["explanation"])
+                    label = option["label"]
+                    if question["play_mode"] == "assisted" and option["value_type"] == "person":
+                        label = label.rpartition(" (")[0]
+                    self.assertIn(label, question["explanation"])
                 self.assertEqual(question["explanation"].count("("), 4)
 
     def test_full_dates_are_localized_in_prose(self):
@@ -521,6 +665,104 @@ class QuizGeneratorTest(unittest.TestCase):
         self.assertEqual(
             [[option["id"] for option in question["options"]] for question in sessions[0]["questions"]],
             [[option["id"] for option in question["options"]] for question in sessions[2]["questions"]],
+        )
+
+    def test_comparison_decade_follows_the_answer_not_the_distractors(self):
+        for index, year in enumerate(range(2009, 2016), start=1):
+            self.connection.execute(
+                "UPDATE facts SET value_time=? WHERE statement_id=?",
+                (str(year), f"formation-{index}"),
+            )
+        self.connection.commit()
+        dataset, _report = generate_dataset(self.connection)
+        comparisons = [
+            question for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["play_mode"] == "standard"
+            and question["type"] == "chronological_comparison"
+            and question["prompt"] == "Which of these groups was formed first?"
+        ]
+        earliest = next(
+            question for question in comparisons
+            if next(
+                option["label"] for option in question["options"]
+                if option["id"] == question["answer_option_id"]
+            ) == "Group 1"
+        )
+        self.assertIn("QG2", earliest["group_ids"])
+        self.assertEqual(earliest["decades"], [2000])
+        for question in comparisons:
+            answer = next(
+                option for option in question["options"]
+                if option["id"] == question["answer_option_id"]
+            )
+            formed_decade = 2000 if answer["label"] == "Group 1" else 2010
+            self.assertEqual(question["decades"], [formed_decade])
+
+    def test_pageview_relevance_changes_session_pools_without_changing_variants(self):
+        dataset, _report = generate_dataset(self.connection)
+        logical_ids = sorted({question["logical_id"] for question in dataset["questions"]})
+        popular = set(logical_ids[:20])
+        for question in dataset["questions"]:
+            question["group_relevance_score"] = (
+                ASSISTED_MIN_SCORE if question["logical_id"] in popular
+                else EXPERT_MAX_SCORE
+            )
+        validate_dataset(dataset)
+        assisted = create_session(dataset, QuizConfig("en", "relevance", play_mode="assisted"))
+        expert = create_session(dataset, QuizConfig("en", "relevance", play_mode="expert"))
+        self.assertTrue(all(q["group_relevance_score"] >= ASSISTED_MIN_SCORE for q in assisted["questions"]))
+        self.assertTrue(all(q["group_relevance_score"] <= EXPERT_MAX_SCORE for q in expert["questions"]))
+        self.assertNotEqual(
+            [q["semantic_id"] for q in assisted["questions"]],
+            [q["semantic_id"] for q in expert["questions"]],
+        )
+
+    def test_partial_pageviews_keep_the_unfiltered_pool(self):
+        dataset, _report = generate_dataset(self.connection)
+        self.assertTrue(all("group_relevance_score" not in question for question in dataset["questions"]))
+        logical_ids = sorted({question["logical_id"] for question in dataset["questions"]})
+        measured = set(logical_ids[:15])
+        for question in dataset["questions"]:
+            if question["logical_id"] in measured and question.get("group_ids"):
+                question["group_relevance_score"] = ASSISTED_MIN_SCORE
+        self.assertTrue(any(
+            question.get("group_ids") and question.get("group_relevance_score") is None
+            for question in dataset["questions"]
+        ))
+        validate_dataset(dataset)
+        standard = create_session(dataset, QuizConfig("en", "partial", play_mode="standard"))
+        assisted = create_session(dataset, QuizConfig("en", "partial", play_mode="assisted"))
+        expert = create_session(dataset, QuizConfig("en", "partial", play_mode="expert"))
+        standard_ids = [question["semantic_id"] for question in standard["questions"]]
+        self.assertEqual([question["semantic_id"] for question in assisted["questions"]], standard_ids)
+        self.assertEqual([question["semantic_id"] for question in expert["questions"]], standard_ids)
+
+    def test_relevance_pool_falls_back_at_nine_and_filters_at_ten(self):
+        dataset, _report = generate_dataset(self.connection)
+        logical_ids = sorted({question["logical_id"] for question in dataset["questions"]})
+        popular_ids = set(logical_ids[:9])
+        for question in dataset["questions"]:
+            question["group_relevance_score"] = (
+                ASSISTED_MIN_SCORE
+                if question["logical_id"] in popular_ids
+                else EXPERT_MAX_SCORE
+            )
+        standard = create_session(dataset, QuizConfig("en", "boundary", play_mode="standard"))
+        assisted = create_session(dataset, QuizConfig("en", "boundary", play_mode="assisted"))
+        self.assertEqual(
+            [question["semantic_id"] for question in assisted["questions"]],
+            [question["semantic_id"] for question in standard["questions"]],
+        )
+
+        tenth_id = logical_ids[9]
+        for question in dataset["questions"]:
+            if question["logical_id"] == tenth_id:
+                question["group_relevance_score"] = ASSISTED_MIN_SCORE
+        assisted = create_session(dataset, QuizConfig("en", "boundary", play_mode="assisted"))
+        self.assertEqual(
+            {question["logical_id"] for question in assisted["questions"]},
+            set(logical_ids[:10]),
         )
 
     def test_decade_clue_never_isolates_one_time_option(self):

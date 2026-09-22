@@ -5,9 +5,30 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from .quiz_models import Draft, Entity, GENERATOR_VERSION
+from .quiz_drafts import _membership_contains_date
+from .quiz_models import Draft, Entity, Fact, GENERATOR_VERSION
 from .quiz_templates import render
 from .quiz_utils import digest, hash_payload
+
+
+def _group_relevance_score(
+    group_ids: tuple[str, ...] | list[str],
+    relevance_by_group: dict[str, int] | None,
+) -> int | None:
+    """Return the highest group score, or None if any group was not measured.
+
+    Missing groups are not zero. A zero would look like an obscure group and
+    would drop the question from assisted mode.
+    """
+    if not group_ids or not relevance_by_group:
+        return None
+    scores: list[int] = []
+    for group_id in group_ids:
+        score = relevance_by_group.get(group_id)
+        if score is None:
+            return None
+        scores.append(score)
+    return max(scores)
 
 
 def _render_draft(
@@ -15,6 +36,7 @@ def _render_draft(
     language: str,
     reference_date: date,
     entities: dict[str, Entity],
+    relevance_by_group: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     logical_id = hash_payload({"key": draft.key, "generator": GENERATOR_VERSION})
     semantic_id = hash_payload(
@@ -81,6 +103,9 @@ def _render_draft(
         ),
         "fact_base_ids": list(draft.fact_base_ids),
         "group_ids": list(draft.group_ids),
+        # The generator replaces this placeholder with decades derived from
+        # cited group formation facts.
+        "decades": [],
         "id": hash_payload({"language": language, "logical_id": logical_id}),
         "language": language,
         "logical_id": logical_id,
@@ -91,6 +116,11 @@ def _render_draft(
         "theme": draft.theme,
         "type": draft.question_type,
     }
+    # For several groups, the best-known measured one sets mode eligibility.
+    # Leave the field off when any referenced group has no measurement.
+    score = _group_relevance_score(draft.group_ids, relevance_by_group)
+    if score is not None:
+        base_question["group_relevance_score"] = score
     return base_question
 
 
@@ -99,10 +129,14 @@ def render_play_mode_variants(
     language: str,
     reference_date: date,
     entities: dict[str, Entity],
+    person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
+    relevance_by_group: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     """Render reproducible play modes without changing the underlying answer."""
-    base = _render_draft(draft, language, reference_date, entities)
+    base = _render_draft(draft, language, reference_date, entities, relevance_by_group)
     clues = _temporal_clues(draft, language, base)
+    raw_date = draft.values.get("date") if draft.question_type == "member_at_date" else None
+    on_date = raw_date if isinstance(raw_date, str) else None
     variants = []
     for play_mode, points in (("assisted", 70), ("standard", 100), ("expert", 130)):
         question = dict(base)
@@ -111,6 +145,10 @@ def render_play_mode_variants(
         question["hint_cost"] = 0 if play_mode == "assisted" else 15
         question["clues_available"] = [] if play_mode == "expert" else clues
         question["clues_shown"] = [clues[0]["id"]] if play_mode == "assisted" and clues else []
+        if play_mode == "assisted":
+            question["options"] = _add_group_labels_to_people(
+                question["options"], language, entities, person_memberships, on_date
+            )
         question["id"] = hash_payload(
             {
                 "language": language,
@@ -120,6 +158,40 @@ def render_play_mode_variants(
         )
         variants.append(question)
     return variants
+
+
+def _add_group_labels_to_people(
+    options: list[dict[str, str]],
+    language: str,
+    entities: dict[str, Entity],
+    person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
+    on_date: str | None,
+) -> list[dict[str, str]]:
+    """Append sourced group names. A dated membership question uses that date."""
+    labeled_options = []
+    for option in options:
+        group_ids = _groups_for_label(person_memberships, option["value"], on_date)
+        if option["value_type"] != "person" or not group_ids:
+            labeled_options.append(option)
+            continue
+        groups = " · ".join(entities[group_id].name(language) for group_id in group_ids)
+        labeled_options.append({**option, "label": f"{option['label']} ({groups})"})
+    return labeled_options
+
+
+def _groups_for_label(
+    person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
+    person_id: str,
+    on_date: str | None,
+) -> tuple[str, ...]:
+    pairs = person_memberships.get(person_id, ())
+    if on_date is None:
+        return tuple(group_id for group_id, _pair_facts in pairs)
+    return tuple(
+        group_id
+        for group_id, pair_facts in pairs
+        if _membership_contains_date(pair_facts, on_date)
+    )
 
 
 def _temporal_clues(

@@ -108,4 +108,15 @@ describe("published session loader", () => {
     await expect(loadQuizSession("pt-BR", "standard", "daily")).resolves.toMatchObject({ config: { language: "pt-BR", play_mode: "standard" } });
     expect(fetch).toHaveBeenNthCalledWith(2, `/data/${dailyManifest.sessions["daily.pt-BR.standard"].path}`);
   });
+
+  it("loads the unfiltered session when the requested decade is absent", async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
+      .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
+    vi.stubGlobal("fetch", fetch);
+    await expect(loadQuizSession("pt-BR", "standard", "history", "/data-root", 2010)).resolves.toMatchObject({
+      config: { language: "pt-BR", play_mode: "standard" },
+    });
+    expect(fetch).toHaveBeenNthCalledWith(2, `/data-root/data/${manifest.sessions["pt-BR.standard"].path}`);
+  });
 });

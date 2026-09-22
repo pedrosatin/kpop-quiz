@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-GENERATOR_VERSION = "quiz-generator-v9"
+GENERATOR_VERSION = "quiz-generator-v10"
 DEFAULT_REFERENCE_DATE = date(2026, 9, 13)
 
 
@@ -22,6 +22,7 @@ class QuizConfig:
     group_id: str | None = None
     play_mode: str = "standard"
     timer_seconds: int | None = None
+    decade: int | None = None
 
 
 @dataclass(frozen=True)

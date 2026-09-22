@@ -53,6 +53,8 @@ export interface QuizQuestion {
   clues_available: QuizClue[];
   clues_shown: string[];
   group_ids: string[];
+  decades?: number[];
+  group_relevance_score?: number | null;
   prompt: string;
   options: QuizOption[];
   answer_option_id: string;
@@ -71,6 +73,7 @@ export interface QuizSession {
     seed: string;
     theme: string | null;
     group_id: string | null;
+    decade?: number | null;
     play_mode: PlayMode;
     timer_seconds: number | null;
   };
@@ -91,6 +94,7 @@ const QUESTION_TYPES = new Set([
 const SESSION_FIELDS = ["schema_version", "dataset_version", "session_id", "config", "questions"];
 const CONFIG_FIELDS = ["language", "seed", "theme", "group_id", "play_mode", "timer_seconds"];
 const QUESTION_FIELDS = ["id", "logical_id", "base_logical_id", "semantic_id", "fact_base_ids", "language", "type", "theme", "play_mode", "challenge_rating", "base_points", "hint_cost", "clues_available", "clues_shown", "group_ids", "prompt", "options", "answer_option_id", "explanation", "reference_date", "evidence"];
+const QUESTION_OPTIONAL_FIELDS = ["media", "decades", "group_relevance_score"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -202,15 +206,24 @@ export function isLicensedMedia(value: unknown): value is LicensedMedia {
 
 export function isQuestion(value: unknown, locale: Locale): value is QuizQuestion {
   if (!isRecord(value)) return false;
-  const hasMedia = Object.hasOwn(value, "media");
   const keys = Object.keys(value);
-  if (hasMedia) {
-    if (keys.length !== QUESTION_FIELDS.length + 1) return false;
-    if (!QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))) return false;
-    if (value.media !== null && !isLicensedMedia(value.media)) return false;
-  } else {
-    if (keys.length !== QUESTION_FIELDS.length) return false;
-    if (!QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))) return false;
+  if (keys.length < QUESTION_FIELDS.length
+    || keys.length > QUESTION_FIELDS.length + QUESTION_OPTIONAL_FIELDS.length
+    || !QUESTION_FIELDS.every((field) => Object.hasOwn(value, field))
+    || !keys.every((field) => QUESTION_FIELDS.includes(field) || QUESTION_OPTIONAL_FIELDS.includes(field))) return false;
+  if (Object.hasOwn(value, "media") && value.media !== null && !isLicensedMedia(value.media)) return false;
+  if (Object.hasOwn(value, "group_relevance_score")
+    && value.group_relevance_score !== null
+    && (!Number.isInteger(value.group_relevance_score)
+      || (value.group_relevance_score as number) < 0
+      || (value.group_relevance_score as number) > 10_000)) return false;
+  if (Object.hasOwn(value, "decades")) {
+    if (!Array.isArray(value.decades)) return false;
+    const decades = value.decades as unknown[];
+    if (!decades.every((decade) => Number.isInteger(decade)
+        && [1990, 2000, 2010, 2020].includes(decade as number))
+      || new Set(decades).size !== decades.length
+      || decades.some((decade, index) => index > 0 && (decades[index - 1] as number) > (decade as number))) return false;
   }
   if (typeof value.id !== "string" || !HASH.test(value.id)
     || typeof value.logical_id !== "string" || !HASH.test(value.logical_id)
@@ -254,7 +267,8 @@ export function isQuestion(value: unknown, locale: Locale): value is QuizQuestio
 }
 
 export function isQuizSession(value: unknown): value is QuizSession {
-  if (!isRecord(value) || !hasExactKeys(value, SESSION_FIELDS) || !isRecord(value.config) || !hasExactKeys(value.config, CONFIG_FIELDS)) return false;
+  if (!isRecord(value) || !hasExactKeys(value, SESSION_FIELDS) || !isRecord(value.config)
+    || !hasExactKeys(value.config, [...CONFIG_FIELDS, ...(Object.hasOwn(value.config, "decade") ? ["decade"] : [])])) return false;
   const { config } = value;
   if (value.schema_version !== "kpop-quiz-session-v2"
     || typeof value.dataset_version !== "string" || !HASH.test(value.dataset_version)
@@ -263,6 +277,7 @@ export function isQuizSession(value: unknown): value is QuizSession {
     || typeof config.seed !== "string"
     || !(config.theme === null || typeof config.theme === "string" && config.theme.length > 0)
     || !(config.group_id === null || typeof config.group_id === "string" && config.group_id.length > 0)
+    || !(config.decade === undefined || config.decade === null || [1990, 2000, 2010, 2020].includes(config.decade as number))
     || !(typeof config.play_mode === "string" && PLAY_MODES.has(config.play_mode as PlayMode))
     || !(config.timer_seconds === null || Number.isInteger(config.timer_seconds) && (config.timer_seconds as number) > 0)
     || !Array.isArray(value.questions) || value.questions.length !== 10) return false;
@@ -273,6 +288,7 @@ export function isQuizSession(value: unknown): value is QuizSession {
     && new Set(questions.map((question) => question.semantic_id)).size === questions.length
     && questions.every((question) => (config.theme === null || question.theme === config.theme)
       && (config.group_id === null || question.group_ids.includes(config.group_id as string))
+      && (config.decade === undefined || config.decade === null || question.decades?.includes(config.decade as number))
       && question.play_mode === config.play_mode);
 }
 

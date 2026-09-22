@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
 import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../../lib/quiz-types";
-import { loadQuizSession, QuizArtifactError } from "../../data/session-loader";
+import { loadQuizSessionWithAvailability, QuizArtifactError } from "../../data/session-loader";
 import { GameSetup } from "../GameSetup/GameSetup";
 import { QuizRound } from "./QuizRound";
 import { groupEvidence, type DisplayEvidence } from "./AnswerFeedback";
@@ -10,7 +10,7 @@ import { QuizResult } from "./QuizResult";
 import { loadStoredPreferences, saveStoredPlayMode, saveStoredTimerEnabled } from "./storage";
 import { computeAwardedPoints } from "./scoring";
 import { useQuizTimer } from "./useQuizTimer";
-import { getInitialUrlParams, updateUrlParams, type QuizTheme } from "./url-params";
+import { getInitialUrlParams, updateUrlParams, type QuizDecade, type QuizTheme } from "./url-params";
 import type { QuestionResult, QuizMachineState } from "./types";
 import {
   getTodayDateString,
@@ -27,6 +27,8 @@ export function Quiz({ locale }: { locale: Locale }) {
   const [session, setSession] = useState<QuizSession | null>(null);
   const [playMode, setPlayMode] = useState<PlayMode>(() => getInitialUrlParams().playMode);
   const [theme, setTheme] = useState<QuizTheme>(() => getInitialUrlParams().theme);
+  const [decade, setDecade] = useState<QuizDecade>(() => getInitialUrlParams().decade);
+  const [availableDecades, setAvailableDecades] = useState<Exclude<QuizDecade, null>[]>([]);
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() => loadStoredPreferences().timerEnabled ?? false);
   const [revealedClues, setRevealedClues] = useState<string[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -83,12 +85,17 @@ export function Quiz({ locale }: { locale: Locale }) {
   const load = () => {
     const request = ++loadRequestRef.current;
     if (state !== "setup") setState("loading");
-    loadQuizSession(locale, playMode, theme)
-      .then((value) => {
+    loadQuizSessionWithAvailability(locale, playMode, theme, undefined, decade)
+      .then(({ session: value, availableDecades: decades, decade: loadedDecade }) => {
         if (request !== loadRequestRef.current) return;
         if (!isQuizSession(value)) throw new Error("Invalid quiz session");
         stopTimer();
         setSession(value);
+        setAvailableDecades(decades);
+        if (loadedDecade !== decade) {
+          setDecade(loadedDecade);
+          updateUrlParams(playMode, loadedDecade === null ? theme : "history", loadedDecade);
+        }
         resetRound(value.questions.length, value.config.timer_seconds ?? 0, "setup");
       })
       .catch((error) => {
@@ -101,7 +108,7 @@ export function Quiz({ locale }: { locale: Locale }) {
   useEffect(() => {
     load();
     return () => { loadRequestRef.current += 1; stopTimer(); };
-  }, [locale, playMode, theme]);
+  }, [locale, playMode, theme, decade]);
 
   useEffect(() => {
     if (state === "question.answered") feedbackRef.current?.focus();
@@ -133,7 +140,7 @@ export function Quiz({ locale }: { locale: Locale }) {
   const start = () => {
     saveStoredPlayMode(playMode);
     saveStoredTimerEnabled(timerEnabled);
-    updateUrlParams(playMode, theme);
+    updateUrlParams(playMode, theme, decade);
     focusQuestionRef.current = true;
     startTimeRef.current = Date.now();
     setSecondsLeft(timerSeconds ?? 0);
@@ -188,11 +195,12 @@ export function Quiz({ locale }: { locale: Locale }) {
   if (state === "setup") {
     return (
       <GameSetup
-        playMode={playMode} theme={theme} timerEnabled={timerEnabled} messages={messages}
-        onSelectTheme={(t) => { setTheme(t); updateUrlParams(playMode, t); }}
-        onSelectMode={(mode) => { setPlayMode(mode); saveStoredPlayMode(mode); updateUrlParams(mode, theme); }}
+        playMode={playMode} theme={theme} decade={decade} availableDecades={availableDecades} timerEnabled={timerEnabled} messages={messages}
+        onSelectTheme={(t) => { setTheme(t); setDecade(null); updateUrlParams(playMode, t); }}
+        onSelectDecade={(value) => { setDecade(value); setTheme("history"); updateUrlParams(playMode, "history", value); }}
+        onSelectMode={(mode) => { setPlayMode(mode); saveStoredPlayMode(mode); updateUrlParams(mode, theme, decade); }}
         onTimerChange={(enabled) => { setTimerEnabled(enabled); saveStoredTimerEnabled(enabled); }}
-        onStart={start} isReady={session.config.play_mode === playMode}
+        onStart={start} isReady={session.config.play_mode === playMode && (session.config.decade ?? null) === decade}
       />
     );
   }
