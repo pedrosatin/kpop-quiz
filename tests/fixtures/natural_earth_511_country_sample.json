@@ -1,0 +1,14 @@
+{
+  "dataset_version": "5.1.1",
+  "scale": "1:10m",
+  "reviewed_countries": [
+    {"wikidata_id": "Q252", "iso_3166_1": "ID"},
+    {"wikidata_id": "Q836", "iso_3166_1": "MM"},
+    {"wikidata_id": "Q884", "iso_3166_1": "KR"}
+  ],
+  "features": [
+    {"type": "Feature", "properties": {"ADM0_A3": "IDN", "ISO_A2": "ID"}, "geometry": null},
+    {"type": "Feature", "properties": {"ADM0_A3": "MMR", "ISO_A2": "MM"}, "geometry": null},
+    {"type": "Feature", "properties": {"ADM0_A3": "KOR", "ISO_A2": "KR"}, "geometry": null}
+  ]
+}
