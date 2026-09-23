@@ -6,7 +6,7 @@ import { getMessages } from "../../i18n/catalog";
 const messages = getMessages("pt-BR");
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
-<BaseLayout locale="pt-BR">
+<BaseLayout locale="pt-BR" route="nameGuess" canonicalPath="/pt-br/adivinhe/" alternatePath="/en/guess/">
   <div class="page-shell">
     <section class="intro" aria-labelledby="page-title">
       <p class="kicker">{messages.nameGuessEyebrow}</p>

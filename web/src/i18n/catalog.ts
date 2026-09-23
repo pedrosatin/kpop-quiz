@@ -1,6 +1,14 @@
 import type { Locale, PlayMode } from "../lib/quiz-types";
 
+export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch";
+
+export interface SeoMeta {
+  title: string;
+  description: string;
+}
+
 export interface Messages {
+  meta: Record<SeoRouteKey, SeoMeta>;
   skipLink: string;
   eyebrow: string;
   title: string;
@@ -18,6 +26,10 @@ export interface Messages {
   retry: string;
   reload: string;
   empty: string;
+  consentLabel: string;
+  consentText: string;
+  consentAccept: string;
+  consentReject: string;
   questionCounter: (current: number, total: number) => string;
   score: string;
   points: string;
@@ -181,6 +193,28 @@ export interface Messages {
 
 const catalogs: Record<Locale, Messages> = {
   "pt-BR": {
+    meta: {
+      quiz: {
+        title: "Quiz de K-pop: história, grupos e integrantes",
+        description: "10 perguntas de múltipla escolha sobre história do K-pop, com fontes verificáveis a cada resposta.",
+      },
+      grid: {
+        title: "Grade de Interseções: quiz 3x3 de K-pop",
+        description: "Cruze gravadora, formação e estreia para achar 9 grupos em 9 palpites, com fontes verificáveis.",
+      },
+      connections: {
+        title: "Palavras Conectadas: agrupe o K-pop em 4x4",
+        description: "Agrupe 16 itens de K-pop em 4 conexões factuais por agência, formação e marcos.",
+      },
+      nameGuess: {
+        title: "Adivinhe o Nome: entidade de K-pop do dia",
+        description: "Descubra a entidade de K-pop do dia em 6 tentativas, com retorno de cores a cada palpite.",
+      },
+      wordSearch: {
+        title: "Caça-Palavras K-pop: ache nomes na grade",
+        description: "Encontre nomes temáticos de K-pop escondidos na grade alfabética, com fontes verificadas.",
+      },
+    },
     skipLink: "Pular para o quiz",
     eyebrow: "10 perguntas · múltipla escolha",
     title: "Você conhece a história do K-pop?",
@@ -198,6 +232,11 @@ const catalogs: Record<Locale, Messages> = {
     retry: "Tentar novamente",
     reload: "Tentar novamente",
     empty: "Este quiz ainda não tem perguntas.",
+    consentLabel: "Escolha de medição de acesso",
+    consentText:
+      "Medimos acessos com Cloudflare (sem cookies) e, se você aceitar, com Google Analytics (usa cookies) para melhorar o site e preparar anúncios.",
+    consentAccept: "Aceitar medição",
+    consentReject: "Só essencial",
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
     points: "pontos",
@@ -363,6 +402,28 @@ const catalogs: Record<Locale, Messages> = {
     statsNoData: "Nenhuma partida registrada nesta categoria.",
   },
   en: {
+    meta: {
+      quiz: {
+        title: "K-pop Quiz: history, groups and members",
+        description: "10 multiple-choice questions on K-pop history, with a verifiable source for every answer.",
+      },
+      grid: {
+        title: "Intersection Grid: 3x3 K-pop quiz",
+        description: "Cross label, lineup and debut clues to solve 9 groups in 9 guesses, with verifiable sources.",
+      },
+      connections: {
+        title: "Connections: group K-pop on a 4x4 board",
+        description: "Sort 16 K-pop items into 4 factual connections by agency, lineup and milestones.",
+      },
+      nameGuess: {
+        title: "Guess the Name: daily K-pop entity",
+        description: "Guess the daily K-pop entity in 6 tries, with color feedback on every guess.",
+      },
+      wordSearch: {
+        title: "K-pop Word Search: find names in the grid",
+        description: "Find thematic K-pop names hidden in the letter grid, with verified sources.",
+      },
+    },
     skipLink: "Skip to quiz",
     eyebrow: "10 questions · multiple choice",
     title: "How well do you know K-pop history?",
@@ -380,6 +441,11 @@ const catalogs: Record<Locale, Messages> = {
     retry: "Try again",
     reload: "Try again",
     empty: "This quiz has no questions yet.",
+    consentLabel: "Visit measurement choice",
+    consentText:
+      "We measure visits with Cloudflare (cookie-free) and, if you accept, with Google Analytics (uses cookies) to improve the site and prepare ads.",
+    consentAccept: "Accept analytics",
+    consentReject: "Essential only",
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",
     points: "points",

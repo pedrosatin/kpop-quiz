@@ -183,10 +183,57 @@ Objetivo: validar a mecânica em navegador real e integrar os artefatos diários
 - validação em navegador real via Chrome DevTools em quatro resoluções (320px, 768px, 1024px e 1440px), com checagem de contraste, acessibilidade e jogabilidade;
 - suíte de testes unitários em `tests/test_web_publish.py` para publicação e validação estrita.
 
-## Fatias posteriores
+## Caça-palavras concluído
 
-Concluída a integração da mecânica de Nome por Tentativas na Fatia 21, as frentes seguintes abrangem o caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+Mecânica de caça-palavras temático com especificação na [ADR 011](decisions/011-mecanica-caca-palavras.md), contrato em `schemas/word-search-puzzle-v1.json`, gerador determinístico com CLI (`word_search_cli.py`), interface web acessível com rotas bilíngues e partidas diárias (`word-search.daily.json`) integradas ao ciclo de publicação e verificação em CI.
 
+## Linha do tempo ("Quando foi?") concluída
+
+Desafio cronológico em que o jogador ordena cinco eventos do mais antigo ao mais recente, com especificação na [ADR 012](decisions/012-mecanica-linha-do-tempo.md), contrato em `schemas/timeline-puzzle-v1.json`, gerador determinístico com CLI (`timeline_cli.py`), interface web acessível com rotas bilíngues e partidas diárias (`timeline.daily.json`) integradas ao ciclo de publicação e verificação em CI.
+
+## Publicação em produção concluída
+
+Produção no Cloudflare Pages em <https://kpopquiz.online>, conforme a [ADR 013](decisions/013-cloudflare-pages.md). A homologação usa a branch `dev` no GitHub Pages com `noindex`, conforme a [ADR 016](decisions/016-homologacao-github-pages.md), sem disputar busca com a produção.
+
+## Relevância por pageviews concluída
+
+Pontuação de relevância por pageviews da Wikipedia em inglês (`group_relevance_cli` e `group_relevance_score_cli`), com cálculo definido na [ADR 014](decisions/014-pageview-relevance.md). O filtro por relevância ajusta os modos de quiz sem afetar sessões quando a coleta não cobre o catálogo inteiro. O relatório de sinais de grupo é diagnóstico e não entra na pontuação.
+
+## Piloto do jogo de mapas em andamento
+
+Contrato de dados proposto na [ADR-015](decisions/015-contrato-de-dados-do-jogo-de-mapas.md): relatório geográfico somente leitura, validador de eventos de turnê sintéticos e crosswalk de países para feições Natural Earth por código ISO. O piloto não coleta agendas reais, não resolve cidades a partir de nomes e não gera perguntas de mapa.
+
+## Ciclo diário automatizado concluído
+
+Runner unificado e workflow `daily-puzzles-cron.yml`: reconstrói o banco com cache incremental, gera os seis jogos diários (`grid`, `connections`, `name-guess`, `word-search`, `timeline` e as sessões diárias nos dois idiomas), valida cada artefato contra seu schema em diretório temporário e publica por troca atômica somente quando todas as verificações passam. A semente de cada jogo deriva da data (`kpop-{jogo}-daily-{AAAA-MM-DD}`).
+
+## Próxima etapa: analytics de acesso e navegação
+
+Estado: implementada no código ([ADR 017](decisions/017-web-analytics.md)). Cloudflare Web Analytics entra no build de produção quando `PUBLIC_CF_BEACON_TOKEN` está configurado. O GA4 exige consentimento explícito e `PUBLIC_GA4_ID`. A ativação depende do operador registrar o site no painel Cloudflare Web Analytics, criar a propriedade GA4 e adicionar os dois secrets.
+
+Objetivo: entender os usuários agora que o site está publicado em domínio amplo (`kpopquiz.online`): volume de acessos, jogos mais usados, idiomas e fluxo de navegação.
+
+- escolher solução compatível com site estático e sem backend próprio (ex.: Cloudflare Web Analytics, Plausible ou Umami) e registrar a escolha em ADR: privacidade, cookies, LGPD/GDPR, custo e limites de uso;
+- medir por rota e por jogo (quiz, grade, conexões, adivinhação, caça-palavras, linha do tempo), por idioma (`pt-br`/`en`) e por origem (direto, busca, referência);
+- Cloudflare sem cookies nem dados pessoais; GA4 carregado somente depois do consentimento explícito;
+- excluir a homologação (`dev` no GitHub Pages) das métricas de produção;
+- documentar no README quais métricas são coletadas e onde fica o painel.
+
+Aceite: o painel mostra acessos por página, jogo, idioma e origem; a homologação fica fora das métricas; o GA4 não carrega antes do consentimento; a documentação descreve o comportamento entregue.
+
+## Etapa seguinte: SEO e indexação para buscadores e LLMs
+
+Estado: implementada no código ([ADR 018](decisions/018-seo-llm-indexing.md)); pendente verificação de propriedade no Search Console e submissão do sitemap (operador).
+
+Objetivo: deixar a página indexada, bem rankeada no Google e legível por LLMs.
+
+- `sitemap.xml` e `robots.txt` liberando a produção e mantendo `noindex` só na homologação;
+- URLs canônicas, `hreflang` pt/en, títulos e meta descriptions por rota e idioma, e tags Open Graph;
+- propriedade verificada no Google Search Console (e Bing Webmaster) com monitoramento de indexação e Core Web Vitals;
+- conteúdo legível por LLMs (ex.: `llms.txt` e versões Markdown das páginas principais);
+- registrar a estratégia em ADR: o que é indexável, o que fica fora (artefatos JSON de dados, homologação) e como medir evolução de rank e citações.
+
+Aceite: sitemap válido referenciado no `robots.txt`; Search Console sem erros de cobertura nas rotas principais; páginas de produção sem `noindex`; arquivo para LLMs publicado e documentado.
 
 
 

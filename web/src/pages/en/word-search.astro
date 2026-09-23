@@ -6,7 +6,7 @@ import { getMessages } from "../../i18n/catalog";
 const messages = getMessages("en");
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
-<BaseLayout locale="en">
+<BaseLayout locale="en" route="wordSearch" canonicalPath="/en/word-search/" alternatePath="/pt-br/caca-palavras/">
   <div class="page-shell page-shell--word-search">
     <section class="intro" aria-labelledby="page-title">
       <p class="kicker">{messages.wordSearchEyebrow}</p>

@@ -344,10 +344,25 @@ Validação em navegador real e integração de artefatos de Nome por Tentativas
 
 Aceite: aprovação da suíte de testes Python e TypeScript, verificação estrita em CI com `--require-grid --require-connections --require-name-guess`, build de produção sem erros e validação em navegador real concluída.
 
-## Etapas posteriores
+## Entregas após a Fatia 21
 
-Com o ciclo da mecânica de Nome por Tentativas concluído da especificação ao CI (Fatias 18 a 21), o planejamento prevê novas mecânicas de jogo: caça-palavras temático, desafios cronológicos ("Quando foi?") e desafios com mapas geográficos.
+O detalhamento por fatia acima para na Fatia 21. O que foi entregue depois, sem numeração própria, está registrado no [Roadmap](roadmap.md): caça-palavras ([ADR 011](decisions/011-mecanica-caca-palavras.md)), linha do tempo ([ADR 012](decisions/012-mecanica-linha-do-tempo.md)), produção no Cloudflare Pages ([ADR 013](decisions/013-cloudflare-pages.md)), relevância por pageviews ([ADR 014](decisions/014-pageview-relevance.md)), piloto do jogo de mapas ([ADR-015](decisions/015-contrato-de-dados-do-jogo-de-mapas.md)), homologação no GitHub Pages ([ADR 016](decisions/016-homologacao-github-pages.md)) e ciclo diário automatizado.
 
+## Próxima etapa: analytics de acesso e navegação
+
+Estado: implementada no código ([ADR 017](decisions/017-web-analytics.md)); pendente ativação pelo operador. Detalhe no [Roadmap](roadmap.md).
+
+Objetivo: monitorar acessos e navegação em `kpopquiz.online` (volume, jogos, idiomas, origens) com solução compatível com site estático. Cloudflare Web Analytics opera sem cookies; o GA4 usa cookies somente após a escolha explícita do visitante. A escolha fica registrada em ADR e a homologação fica fora das métricas.
+
+Aceite: painel por página, jogo, idioma e origem; homologação fora das métricas; documentação descreve o comportamento entregue.
+
+## Etapa seguinte: SEO e indexação para buscadores e LLMs
+
+Estado: implementada no código ([ADR 018](decisions/018-seo-llm-indexing.md)); pendente Search Console (operador). Detalhe no [Roadmap](roadmap.md).
+
+Objetivo: indexar a página, melhorar o rankeamento no Google (`sitemap.xml`, `robots.txt`, canônicas, `hreflang`, Search Console) e expor conteúdo legível por LLMs (ex.: `llms.txt`), com a estratégia registrada em ADR.
+
+Aceite: sitemap válido; Search Console sem erros de cobertura nas rotas principais; produção sem `noindex`; arquivo para LLMs publicado e documentado.
 
 
 

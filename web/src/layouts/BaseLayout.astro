@@ -1,12 +1,32 @@
 ---
 import "../styles/global.css";
 import type { Locale } from "../lib/quiz-types";
+import type { SeoRouteKey } from "../i18n/catalog";
 import { getMessages } from "../i18n/catalog";
+import {
+  SEO_DEFAULT_PATH,
+  SEO_OG_IMAGE_PATH,
+  SEO_PROD_ORIGIN,
+  seoOgLocale,
+} from "../lib/seo-routes";
 import { StatsNavTrigger } from "../components/Stats/StatsNavTrigger";
+import { ConsentBanner } from "../components/Consent/ConsentBanner";
 
-interface Props { locale: Locale }
-const { locale } = Astro.props;
+interface Props {
+  locale: Locale;
+  route: SeoRouteKey;
+  canonicalPath: string;
+  alternatePath: string;
+}
+const { locale, route, canonicalPath, alternatePath } = Astro.props;
 const messages = getMessages(locale);
+const meta = messages.meta[route];
+const canonicalUrl = `${SEO_PROD_ORIGIN}${canonicalPath}`;
+const alternateUrl = `${SEO_PROD_ORIGIN}${alternatePath}`;
+const defaultUrl = `${SEO_PROD_ORIGIN}${SEO_DEFAULT_PATH}`;
+const ogImageUrl = `${SEO_PROD_ORIGIN}${SEO_OG_IMAGE_PATH}`;
+const ogLocale = seoOgLocale(locale);
+const ogLocaleAlternate = seoOgLocale(locale === "pt-BR" ? "en" : "pt-BR");
 const isGrid = Astro.url.pathname.includes("/grid");
 const isConnections = Astro.url.pathname.includes("/conexoes") || Astro.url.pathname.includes("/connections");
 const isNameGuess = Astro.url.pathname.includes("/adivinhe") || Astro.url.pathname.includes("/guess");
@@ -37,6 +57,17 @@ const skipLinkText = isWordSearch
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Only the production build is served from the root; prefixed builds are staging.
 const isStaging = base !== "";
+// Cloudflare Web Analytics token. Missing/empty means no beacon is rendered.
+const cfBeaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN;
+const enableAnalytics = !isStaging && Boolean(cfBeaconToken);
+// Google Analytics 4 ID. The banner below only mounts in this case; the
+// scripts load at runtime after explicit consent (see ConsentBanner).
+// Note: the static import emits an unreferenced banner chunk in builds where
+// the island is not mounted (e.g. staging). It cannot execute without a
+// <script> tag pointing at it, so the staging guard scans *.html (the
+// executable surface) rather than the whole dist.
+const ga4Id = import.meta.env.PUBLIC_GA4_ID;
+const enableGa4 = !isStaging && Boolean(ga4Id);
 const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch;
 const games = [
   {
@@ -76,15 +107,33 @@ const games = [
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
-    <meta name="description" content={messages.intro} />
+    <meta name="description" content={meta.description} />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="alternate" hreflang="pt-BR" href={locale === "pt-BR" ? canonicalUrl : alternateUrl} />
+    <link rel="alternate" hreflang="en" href={locale === "en" ? canonicalUrl : alternateUrl} />
+    <link rel="alternate" hreflang="x-default" href={defaultUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={meta.title} />
+    <meta property="og:description" content={meta.description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:locale" content={ogLocale} />
+    <meta property="og:locale:alternate" content={ogLocaleAlternate} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={meta.title} />
+    <meta name="twitter:description" content={meta.description} />
+    <meta name="twitter:image" content={ogImageUrl} />
     {isStaging && <meta name="robots" content="noindex" />}
+    {enableAnalytics && (
+      <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: cfBeaconToken })}></script>
+    )}
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FFF8F0" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#17121C" />
     <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
     <link rel="alternate icon" href={`${base}/favicon.ico`} />
     <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
     <link rel="preload" href={`${base}/fonts/noto-sans/NotoSans[wdth,wght].woff2`} as="font" type="font/woff2" crossorigin />
-    <title>{messages.title} | K-pop Quiz</title>
+    <title>{meta.title} | K-pop Quiz</title>
     <script is:inline>
       (function () {
         try {
@@ -217,5 +266,6 @@ const games = [
         });
       })();
     </script>
+    {enableGa4 && <ConsentBanner locale={locale} ga4Id={ga4Id} client:load />}
   </body>
 </html>
