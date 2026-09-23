@@ -14,12 +14,12 @@ describe("published word search puzzle loader and validator", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(validPuzzle)));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await loadWordSearchPuzzle("pt-BR", "/kpop-scraping");
+    const result = await loadWordSearchPuzzle("pt-BR", "/base");
     expect(result.schema_version).toBe("kpop-word-search-puzzle-v1");
     expect(result.dimensions.rows).toBe(12);
     expect(result.dimensions.cols).toBe(12);
     expect(result.words.length).toBeGreaterThanOrEqual(3);
-    expect(fetchMock).toHaveBeenCalledWith("/kpop-scraping/data/word-search.daily.json");
+    expect(fetchMock).toHaveBeenCalledWith("/base/data/word-search.daily.json");
   });
 
   it("distinguishes a missing artifact with 404", async () => {

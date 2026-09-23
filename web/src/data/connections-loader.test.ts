@@ -14,11 +14,11 @@ describe("published connections puzzle loader and validator", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(validPuzzle)));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await loadConnectionsPuzzle("pt-BR", "/kpop-scraping");
+    const result = await loadConnectionsPuzzle("pt-BR", "/base");
     expect(result.schema_version).toBe("kpop-connections-puzzle-v1");
     expect(result.categories).toHaveLength(4);
     expect(result.items).toHaveLength(16);
-    expect(fetchMock).toHaveBeenCalledWith("/kpop-scraping/data/connections.daily.json");
+    expect(fetchMock).toHaveBeenCalledWith("/base/data/connections.daily.json");
   });
 
   it("distinguishes a missing artifact with 404", async () => {

@@ -71,7 +71,7 @@ O gerador foi dividido em módulos menores. `quiz_generator.py` passou de 998 pa
 
 ## Fatia 6 concluída
 
-A interface Astro e Preact gera páginas estáticas em português e inglês. O componente mantém pontuação, cronômetro e foco no navegador. O build usa `/kpop-scraping/` no GitHub Pages.
+A interface Astro e Preact gera páginas estáticas em português e inglês. O componente mantém pontuação, cronômetro e foco no navegador. Na época, o build usava `/kpop-scraping/` no GitHub Pages. Desde a [ADR 013](decisions/013-cloudflare-pages.md), a produção fica na raiz de `kpopquiz.online`.
 
 ## Fatia 7 concluída
 

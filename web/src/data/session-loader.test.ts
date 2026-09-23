@@ -12,9 +12,9 @@ describe("published session loader", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
     vi.stubGlobal("fetch", fetch);
-    await expect(loadQuizSession("pt-BR", "standard", "history", "/kpop-scraping")).resolves.toMatchObject({ config: { language: "pt-BR", play_mode: "standard" } });
-    expect(fetch).toHaveBeenNthCalledWith(1, "/kpop-scraping/data/manifest-v2.json");
-    expect(fetch).toHaveBeenNthCalledWith(2, `/kpop-scraping/data/${manifest.sessions["pt-BR.standard"].path}`);
+    await expect(loadQuizSession("pt-BR", "standard", "history", "/base")).resolves.toMatchObject({ config: { language: "pt-BR", play_mode: "standard" } });
+    expect(fetch).toHaveBeenNthCalledWith(1, "/base/data/manifest-v2.json");
+    expect(fetch).toHaveBeenNthCalledWith(2, `/base/data/${manifest.sessions["pt-BR.standard"].path}`);
   });
 
   it("distinguishes a missing artifact", async () => {

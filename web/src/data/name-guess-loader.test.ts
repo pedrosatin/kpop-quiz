@@ -14,11 +14,11 @@ describe("published name guess puzzle loader and validator", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(validPuzzle)));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await loadNameGuessPuzzle("pt-BR", "/kpop-scraping");
+    const result = await loadNameGuessPuzzle("pt-BR", "/base");
     expect(result.schema_version).toBe("kpop-name-guess-puzzle-v1");
     expect(result.word_length).toBe(5);
     expect(result.target.normalized_name).toBe("TWICE");
-    expect(fetchMock).toHaveBeenCalledWith("/kpop-scraping/data/name-guess.daily.json");
+    expect(fetchMock).toHaveBeenCalledWith("/base/data/name-guess.daily.json");
   });
 
   it("distinguishes a missing artifact with 404", async () => {
