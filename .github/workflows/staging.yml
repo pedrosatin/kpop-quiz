@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: github-pages-staging
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -28,6 +28,17 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Run Python verification
+        working-directory: .
+        run: |
+          python -m unittest discover -v
+          python -m compileall -q .
+      - name: Verify published quiz artifacts
+        working-directory: .
+        run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
       - name: Read GitHub Pages settings
         id: pages
         uses: actions/configure-pages@v6
@@ -43,6 +54,7 @@ jobs:
           path: web/dist
 
   deploy:
+    if: github.ref == 'refs/heads/dev'
     needs: build
     runs-on: ubuntu-latest
     permissions:
