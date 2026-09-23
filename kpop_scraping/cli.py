@@ -55,7 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Defaults to facts-coverage.csv beside the database"
         ),
     )
-    parser.add_argument("--user-agent", default="kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-scraping)")
+    parser.add_argument("--user-agent", default="kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)")
     return parser
 
 

@@ -40,7 +40,7 @@ class WikidataQueryClient:
     def __init__(
         self,
         endpoint: str = DEFAULT_ENDPOINT,
-        user_agent: str = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-scraping)",
+        user_agent: str = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)",
         timeout: float = 30,
         retries: int = 2,
         max_response_bytes: int = MAX_RESPONSE_BYTES,

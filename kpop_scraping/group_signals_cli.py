@@ -35,7 +35,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pause-seconds", type=float, default=1.0)
     parser.add_argument(
         "--user-agent",
-        default="kpop-quiz-group-signals/1.0 (https://github.com/pedrosatin/kpop-scraping)",
+        default="kpop-quiz-group-signals/1.0 (https://github.com/pedrosatin/kpop-quiz)",
     )
     args = parser.parse_args(argv)
     if args.limit is not None and args.limit < 1:
