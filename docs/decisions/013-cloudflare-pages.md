@@ -36,4 +36,4 @@ O conteúdo já é gerado como arquivos estáticos. Um servidor acrescentaria op
 - A configuração do Astro gera assets com caminhos iniciados em `/`.
 - A publicação contínua depende de um token Cloudflare com permissão Pages Edit armazenado como secret do GitHub.
 - A interface continua estática e os jogos mantêm os dados publicados em `web/public/data`.
-- Desde a [ADR 015](015-homologacao-github-pages.md), o GitHub Pages publica só a homologação da branch `dev`.
+- Desde a [ADR 016](016-homologacao-github-pages.md), o GitHub Pages publica só a homologação da branch `dev`.
