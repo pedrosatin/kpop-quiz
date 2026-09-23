@@ -1,6 +1,6 @@
 import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../lib/quiz-types";
 import type { QuizTheme } from "../components/Quiz/url-params";
-import type { QuizDecade } from "../components/Quiz/url-params";
+import type { QuizDecadeSelection, QuizDecadeValue } from "../components/Quiz/url-params";
 
 export class QuizArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -51,21 +51,76 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
 
 export interface LoadedQuizSession {
   session: QuizSession;
-  availableDecades: Exclude<QuizDecade, null>[];
-  decade: QuizDecade;
+  availableDecades: QuizDecadeValue[];
+  decades: QuizDecadeSelection;
 }
 
-function availableDecades(manifest: Manifest): Exclude<QuizDecade, null>[] {
+function availableDecades(manifest: Manifest): QuizDecadeValue[] {
   return ([1990, 2000, 2010, 2020] as const).filter((decade) =>
     (["pt-BR", "en"] as const).every((locale) =>
       (["assisted", "standard", "expert"] as const).every((mode) =>
         Boolean(manifest.sessions[`decade.${decade}.${locale}.${mode}`]))));
 }
 
+const DECADES = [1990, 2000, 2010, 2020] as const;
+
+async function readSession(entry: ManifestEntry, manifest: Manifest, locale: Locale, playMode: PlayMode, decade: QuizDecadeValue | null, baseUrl: string): Promise<QuizSession> {
+  const response = await fetch(dataUrl(entry.path, baseUrl));
+  if (response.status === 404) throw new QuizArtifactError("missing");
+  if (!response.ok) throw new QuizArtifactError("invalid");
+  let payload: unknown;
+  try {
+    const bytes = await response.arrayBuffer();
+    if (await sha256(bytes) !== entry.sha256) throw new QuizArtifactError("invalid");
+    payload = JSON.parse(new TextDecoder().decode(bytes));
+  } catch (error) {
+    if (error instanceof QuizArtifactError) throw error;
+    throw new QuizArtifactError("invalid");
+  }
+  if (!isQuizSession(payload)) throw new QuizArtifactError("invalid");
+  if (payload.config.language !== locale || payload.config.play_mode !== playMode
+    || (decade !== null && payload.config.decade !== decade)
+    || payload.dataset_version !== manifest.dataset_version
+    || payload.session_id !== entry.session_id) throw new QuizArtifactError("invalid");
+  return payload;
+}
+
+async function combineSessions(sessions: QuizSession[], decades: QuizDecadeValue[]): Promise<QuizSession> {
+  const questions = [] as QuizSession["questions"];
+  const seenIds = new Set<string>();
+  const seenSemanticIds = new Set<string>();
+  const questionCount = Math.max(...sessions.map(({ questions: items }) => items.length));
+  for (let index = 0; index < questionCount && questions.length < 10; index += 1) {
+    for (const session of sessions) {
+      const question = session.questions[index];
+      if (!question) continue;
+      if (seenIds.has(question.id) || seenSemanticIds.has(question.semantic_id)) continue;
+      seenIds.add(question.id);
+      seenSemanticIds.add(question.semantic_id);
+      questions.push(question);
+      if (questions.length === 10) break;
+    }
+  }
+  if (questions.length !== 10) throw new QuizArtifactError("invalid");
+  const identity = JSON.stringify({
+    dataset_version: sessions[0]!.dataset_version,
+    decades,
+    source_sessions: sessions.map(({ session_id }) => session_id),
+    question_ids: questions.map(({ id }) => id),
+  });
+  const id = await sha256(new TextEncoder().encode(identity).buffer);
+  return {
+    ...sessions[0]!,
+    session_id: id,
+    config: { ...sessions[0]!.config, decade: null, seed: id },
+    questions,
+  };
+}
+
 export async function loadQuizSessionWithAvailability(
   locale: Locale,
   playMode: PlayMode,
-  theme: QuizTheme = "history", baseUrl?: string, decade: QuizDecade = null,
+  theme: QuizTheme = "history", baseUrl?: string, decades: readonly QuizDecadeValue[] = [],
 ): Promise<LoadedQuizSession> {
   const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
 
@@ -79,43 +134,30 @@ export async function loadQuizSessionWithAvailability(
     throw new QuizArtifactError("invalid");
   }
   if (!isManifest(manifest)) throw new QuizArtifactError("invalid");
-  let resolvedDecade = decade;
-  let sessionKey = decade === null
-    ? (theme === "daily" ? `daily.${locale}.${playMode}` : `${locale}.${playMode}`)
-    : `decade.${decade}.${locale}.${playMode}`;
-  let entry = manifest.sessions[sessionKey];
-  if (!entry && decade !== null) {
-    resolvedDecade = null;
-    sessionKey = theme === "daily" ? `daily.${locale}.${playMode}` : `${locale}.${playMode}`;
-    entry = manifest.sessions[sessionKey];
+  const selected = [...new Set(decades)].filter((decade) => DECADES.includes(decade)).sort((a, b) => a - b);
+  const available = availableDecades(manifest);
+  if (selected.length) {
+    const resolved = selected.filter((decade) => Boolean(manifest.sessions[`decade.${decade}.${locale}.${playMode}`]));
+    if (resolved.length) {
+      const sessions = await Promise.all(resolved.map((decade) => readSession(
+        manifest.sessions[`decade.${decade}.${locale}.${playMode}`]!, manifest, locale, playMode, decade, effectiveBaseUrl,
+      )));
+      const session = sessions.length === 1 ? sessions[0]! : await combineSessions(sessions, resolved);
+      return { session, availableDecades: available, decades: resolved };
+    }
   }
+  const sessionKey = theme === "daily" ? `daily.${locale}.${playMode}` : `${locale}.${playMode}`;
+  const entry = manifest.sessions[sessionKey];
   if (!entry) throw new QuizArtifactError("missing");
-  const response = await fetch(dataUrl(entry.path, effectiveBaseUrl));
-  if (response.status === 404) throw new QuizArtifactError("missing");
-  if (!response.ok) throw new QuizArtifactError("invalid");
-  let payload: unknown;
-  try {
-    const bytes = await response.arrayBuffer();
-    if (await sha256(bytes) !== entry.sha256) throw new QuizArtifactError("invalid");
-    payload = JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    throw new QuizArtifactError("invalid");
-  }
-  if (!isQuizSession(payload)) throw new QuizArtifactError("invalid");
-  if (payload.config.language !== locale || payload.config.play_mode !== playMode
-    || (resolvedDecade !== null && payload.config.decade !== resolvedDecade)
-    || payload.dataset_version !== manifest.dataset_version
-    || payload.session_id !== entry.session_id) throw new QuizArtifactError("invalid");
-  return { session: payload, availableDecades: availableDecades(manifest), decade: resolvedDecade };
+  const session = await readSession(entry, manifest, locale, playMode, null, effectiveBaseUrl);
+  return { session, availableDecades: available, decades: [] };
 }
 
 export async function loadQuizSession(
   locale: Locale,
   playMode: PlayMode,
-  theme: QuizTheme = "history", baseUrl?: string, decade: QuizDecade = null,
+  theme: QuizTheme = "history", baseUrl?: string, decades: readonly QuizDecadeValue[] = [],
 ): Promise<QuizSession> {
-  const loaded = await loadQuizSessionWithAvailability(locale, playMode, theme, baseUrl, decade);
+  const loaded = await loadQuizSessionWithAvailability(locale, playMode, theme, baseUrl, decades);
   return loaded.session;
 }
-
-

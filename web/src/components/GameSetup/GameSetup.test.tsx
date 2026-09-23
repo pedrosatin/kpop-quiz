@@ -37,6 +37,30 @@ describe("GameSetup components", () => {
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
+  it("allows selecting more than one formation decade", () => {
+    const onSelectDecades = vi.fn();
+    render(
+      <GameSetup
+        playMode="standard"
+        onSelectMode={vi.fn()}
+        availableDecades={[1990, 2000, 2010, 2020]}
+        decades={[1990]}
+        onSelectDecades={onSelectDecades}
+        timerEnabled={false}
+        onTimerChange={vi.fn()}
+        onStart={vi.fn()}
+        isReady={true}
+        messages={messages}
+      />
+    );
+
+    const nineties = screen.getByRole("checkbox", { name: "Anos 1990" });
+    const twoThousands = screen.getByRole("checkbox", { name: "Anos 2000" });
+    expect(nineties).toBeChecked();
+    fireEvent.click(twoThousands);
+    expect(onSelectDecades).toHaveBeenCalledWith([1990, 2000]);
+  });
+
   it("renders GameSetup with rules and disables start button when not ready", () => {
     const onStart = vi.fn();
     const { rerender } = render(
