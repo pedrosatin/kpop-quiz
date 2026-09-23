@@ -71,7 +71,7 @@ class MediaWikiClient:
     def __init__(
         self,
         api_url: str = "https://en.wikipedia.org/w/api.php",
-        user_agent: str = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-scraping)",
+        user_agent: str = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)",
         timeout: float = 30,
         retries: int = 3,
         provider: str = "wikipedia",
