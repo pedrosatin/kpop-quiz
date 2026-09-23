@@ -381,6 +381,71 @@ def _build_axes_for_categories(
     return axes
 
 
+def _find_mixed_axis_grid(
+    criteria: list[dict[str, Any]],
+    criterion_groups: dict[str, set[str]],
+    seed: str,
+) -> tuple[
+    tuple[dict[str, Any], ...],
+    tuple[dict[str, Any], ...],
+    dict[tuple[int, int], list[str]],
+] | None:
+    """Search all mixed criterion axes for a complete, unique 3x3 grid."""
+    ordered_criteria = sorted(criteria, key=lambda item: item["id"])
+    row_axes = list(itertools.combinations(ordered_criteria, 3))
+    rng = random.Random(
+        hashlib.sha256(f"{seed}|mixed-axis-fallback".encode("utf-8")).digest()
+    )
+    rng.shuffle(row_axes)
+    intersection_cache: dict[tuple[str, str], list[str]] = {}
+
+    def criterion_intersection(row_id: str, col_id: str) -> list[str]:
+        key = (row_id, col_id)
+        if key not in intersection_cache:
+            intersection_cache[key] = sorted(
+                criterion_groups[row_id] & criterion_groups[col_id]
+            )
+        return intersection_cache[key]
+
+    for row_axis in row_axes:
+        row_ids = {criterion["id"] for criterion in row_axis}
+        compatible_columns = [
+            criterion
+            for criterion in ordered_criteria
+            if criterion["id"] not in row_ids
+            and all(
+                criterion_intersection(row_criterion["id"], criterion["id"])
+                for row_criterion in row_axis
+            )
+        ]
+        possible_entities: set[str] = set()
+        for criterion in compatible_columns:
+            for row_criterion in row_axis:
+                possible_entities.update(
+                    criterion_intersection(row_criterion["id"], criterion["id"])
+                )
+        if len(possible_entities) < 9:
+            continue
+
+        rng.shuffle(compatible_columns)
+
+        for col_axis in itertools.combinations(compatible_columns, 3):
+            cells_valid = {
+                (r, c): criterion_intersection(
+                    row_axis[r]["id"], col_axis[c]["id"]
+                )
+                for r in range(3)
+                for c in range(3)
+            }
+            cell_options = [
+                cells_valid[(r, c)] for r in range(3) for c in range(3)
+            ]
+            if has_distinct_assignment(cell_options):
+                return row_axis, col_axis, cells_valid
+
+    return None
+
+
 def generate_intersection_grid(
     connection: sqlite3.Connection,
     seed: str,
@@ -469,9 +534,6 @@ def generate_intersection_grid(
                 if r_ids.isdisjoint(c_ids):
                     candidate_pairs.append((r_axis, c_axis))
 
-    if not candidate_pairs:
-        raise ValueError("No orthogonal candidate criteria pairs available for grid generation")
-
     # Sort deterministically before pseudo-random shuffle
     candidate_pairs.sort(
         key=lambda pair: (
@@ -515,6 +577,16 @@ def generate_intersection_grid(
         chosen_col = col_criteria
         chosen_cells_data = cells_valid
         break
+
+    # The curated partitions above are preferred because they keep each axis
+    # semantically focused. If none has a solution, exhaustively search all
+    # triples of active evidence-backed criteria before reporting failure.
+    if chosen_row is None or chosen_col is None:
+        fallback_grid = _find_mixed_axis_grid(
+            list(active_criteria.values()), criterion_groups, seed
+        )
+        if fallback_grid is not None:
+            chosen_row, chosen_col, chosen_cells_data = fallback_grid
 
     if chosen_row is None or chosen_col is None:
         raise ValueError(
@@ -607,4 +679,3 @@ def generate_daily_grid(
 
     grid_seed = seed if seed is not None else f"kpop-grid-daily-{ref_date.isoformat()}"
     return generate_intersection_grid(connection, seed=grid_seed, reference_date=ref_date)
-
