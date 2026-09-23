@@ -1,0 +1,73 @@
+[
+  {
+    "name": "synthetic_event_candidate",
+    "candidate": {
+      "source_url": "https://events.example.com/schedule/1",
+      "subject_wikidata_id": "Q999999999999991",
+      "artist_musicbrainz_mbid": "11111111-1111-4111-8111-111111111111",
+      "event_mbid": "22222222-2222-4222-8222-222222222222",
+      "event_date": "2030-07-05",
+      "event_type": "concert",
+      "event_status": "scheduled",
+      "billing_role": "headliner",
+      "place_mbid": "33333333-3333-4333-8333-333333333333",
+      "city_area_mbid": "44444444-4444-4444-8444-444444444444",
+      "country_wikidata_id": "Q999999999999999",
+      "country_iso_3166_1": "KR"
+    }
+  },
+  {
+    "name": "cancelled_event",
+    "candidate": {
+      "source_url": "https://events.example.com/schedule/2",
+      "subject_wikidata_id": "Q999999999999991",
+      "artist_musicbrainz_mbid": "11111111-1111-4111-8111-111111111111",
+      "event_mbid": "22222222-2222-4222-8222-222222222222",
+      "event_date": "2030-07-06",
+      "event_type": "concert",
+      "event_status": "cancelled",
+      "billing_role": "headliner",
+      "place_mbid": "33333333-3333-4333-8333-333333333333",
+      "city_area_mbid": "44444444-4444-4444-8444-444444444444",
+      "country_wikidata_id": "Q999999999999999",
+      "country_iso_3166_1": "KR"
+    },
+    "expected_issue": "event_cancelled"
+  },
+  {
+    "name": "impossible_date",
+    "candidate": {
+      "source_url": "https://events.example.com/schedule/3",
+      "subject_wikidata_id": "Q999999999999991",
+      "artist_musicbrainz_mbid": "11111111-1111-4111-8111-111111111111",
+      "event_mbid": "22222222-2222-4222-8222-222222222222",
+      "event_date": "2030-02-30",
+      "event_type": "concert",
+      "event_status": "scheduled",
+      "billing_role": "headliner",
+      "place_mbid": "33333333-3333-4333-8333-333333333333",
+      "city_area_mbid": "44444444-4444-4444-8444-444444444444",
+      "country_wikidata_id": "Q999999999999999",
+      "country_iso_3166_1": "KR"
+    },
+    "expected_issue": "invalid_event_date"
+  },
+  {
+    "name": "malformed_artist_mbid",
+    "candidate": {
+      "source_url": "https://events.example.com/schedule/4",
+      "subject_wikidata_id": "Q999999999999991",
+      "artist_musicbrainz_mbid": "not-a-mbid",
+      "event_mbid": "22222222-2222-4222-8222-222222222222",
+      "event_date": "2030-07-07",
+      "event_type": "concert",
+      "event_status": "scheduled",
+      "billing_role": "headliner",
+      "place_mbid": "33333333-3333-4333-8333-333333333333",
+      "city_area_mbid": "44444444-4444-4444-8444-444444444444",
+      "country_wikidata_id": "Q999999999999999",
+      "country_iso_3166_1": "KR"
+    },
+    "expected_issue": "invalid_artist_musicbrainz_mbid"
+  }
+]

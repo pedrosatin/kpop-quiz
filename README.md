@@ -8,6 +8,8 @@ Every answer comes from Wikipedia and Wikidata. A Python collector queries both 
 
 The collector covers page discovery, summaries, candidate classification, and Wikidata fact extraction for accepted groups and members. It also keeps an auditable catalog of music release candidates. The catalog rejects lists, disambiguation pages, redirects, and QIDs without an accepted music type.
 
+The map-game pilot has a read-only geography coverage report, a synthetic tour-event candidate validator, and an offline country-to-map-feature crosswalk builder. The crosswalk joins reviewed country IDs to Natural Earth features by ISO code and leaves missing or ambiguous matches unresolved. The pilot does not collect or store real schedules, resolve cities from names, or generate map questions. [ADR-015](docs/decisions/015-contrato-de-dados-do-jogo-de-mapas.md) records the source review and current limits.
+
 ## Requirements
 
 - Python 3.11 or newer
