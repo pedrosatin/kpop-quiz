@@ -1,0 +1,69 @@
+name: Build and deploy staging to GitHub Pages
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages-staging
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Run Python verification
+        working-directory: .
+        run: |
+          python -m unittest discover -v
+          python -m compileall -q .
+      - name: Verify published quiz artifacts
+        working-directory: .
+        run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
+      - name: Read GitHub Pages settings
+        id: pages
+        uses: actions/configure-pages@v6
+      - run: npm ci
+      - run: npm test
+      - name: Build for the repository subdirectory
+        env:
+          ASTRO_SITE: ${{ steps.pages.outputs.origin }}
+          ASTRO_BASE: ${{ steps.pages.outputs.base_path }}
+        run: npm run build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: web/dist
+
+  deploy:
+    if: github.ref == 'refs/heads/dev'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

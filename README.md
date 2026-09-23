@@ -54,13 +54,14 @@ python -m compileall -q .
 
 ## Web interface
 
-The static interface uses Astro and Preact. The build produces the `/pt-br/` and `/en/` routes at the site root. The site is published on Cloudflare Pages at <https://kpopquiz.online> (with `kpopquiz.pages.dev` as the platform URL). The browser validates the manifest, the SHA-256, and the session contract before starting the quiz.
+The static interface uses Astro and Preact. The production build produces the `/pt-br/` and `/en/` routes at the site root. The site is published on Cloudflare Pages at <https://kpopquiz.online> (with `kpopquiz.pages.dev` as the platform URL). A push to the `dev` branch deploys a staging build to GitHub Pages at <https://pedrosatin.github.io/kpop-quiz/>. The staging workflow sets `ASTRO_SITE` and `ASTRO_BASE`, so page and asset URLs start with `/kpop-quiz/`. The browser validates the manifest, the SHA-256, and the session contract before starting the quiz.
 
 ```bash
 cd web
 npm ci
 npm test
 npm run build
+ASTRO_SITE=https://pedrosatin.github.io ASTRO_BASE=/kpop-quiz npm run build  # staging build under /kpop-quiz/
 ```
 
 `web_publish` generates ten-question sessions in Portuguese and English for the assisted, standard, and expert modes. The files land in `web/public/data`. Each filename includes its SHA-256, and the publisher swaps `manifest-v2.json` only after validating and writing all six sessions. `manifest.json` and the v1 sessions stay published during the transition. The deploy workflow verifies the v2 artifacts before the build.
