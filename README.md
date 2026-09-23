@@ -1,8 +1,12 @@
-# K-pop quiz data
+# K-pop Quiz
 
-Collector and dataset for verifiable K-pop quizzes about groups and artists. The project queries the Wikipedia and Wikidata APIs, records the consulted revisions in SQLite, and preserves page and entity responses as compressed JSON.
+Daily K-pop quiz and puzzle games about groups and artists, in Portuguese and English. Play at <https://kpopquiz.online>.
 
-The current state covers page discovery, summaries, candidate classification, and Wikidata fact extraction for accepted groups and members. There is also an auditable catalog of music release candidates. The catalog rejects lists, disambiguation pages, redirects, and QIDs without an accepted music type. Every accepted fact points to a Wikidata reference or a Wikipedia revision excerpt.
+The site has five games: a ten-question quiz with assisted, standard, and expert modes, a grid, connections, name guess, and word search. New puzzles are published every day.
+
+Every answer comes from Wikipedia and Wikidata. A Python collector queries both APIs, records the consulted revisions in SQLite, and keeps page and entity responses as compressed JSON. Each accepted fact points to a Wikidata reference or a Wikipedia revision excerpt, and the games only use accepted facts.
+
+The collector covers page discovery, summaries, candidate classification, and Wikidata fact extraction for accepted groups and members. It also keeps an auditable catalog of music release candidates. The catalog rejects lists, disambiguation pages, redirects, and QIDs without an accepted music type.
 
 ## Requirements
 

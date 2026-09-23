@@ -14,10 +14,10 @@ describe("published intersection grid loader and validator", () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(validGrid)));
     vi.stubGlobal("fetch", fetch);
 
-    const result = await loadIntersectionGrid("pt-BR", "/kpop-scraping");
+    const result = await loadIntersectionGrid("pt-BR", "/base");
     expect(result.schema_version).toBe("kpop-intersection-grid-v1");
     expect(result.cells).toHaveLength(9);
-    expect(fetch).toHaveBeenCalledWith("/kpop-scraping/data/grid.daily.json");
+    expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json");
   });
 
   it("distinguishes a missing artifact with 404", async () => {
