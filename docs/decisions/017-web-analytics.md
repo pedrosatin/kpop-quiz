@@ -28,7 +28,8 @@ Nenhum cabeçalho CSP foi adicionado (`web/public/_headers` não criado): o site
 O operador optou por adicionar o Google Analytics 4 para abrir o leque de anúncios (públicos, remarketing, conversões no Google Ads). O Cloudflare Web Analytics entra no build quando `PUBLIC_CF_BEACON_TOKEN` está configurado e opera sem cookies. O GA4 só carrega após aceite explícito:
 
 - o componente `ConsentBanner` (montado no `BaseLayout` somente quando `!isStaging && PUBLIC_GA4_ID` presente) exibe o banner quando não há escolha gravada em `kpop-quiz-consent`;
-- aceitar grava `accepted` e injeta `gtag/js` + `config` em runtime; recusar grava `rejected` e nada do Google é carregado;
+- aceitar grava `accepted` e injeta `gtag/js` + `config` em runtime; recusar grava `rejected`, define `ga-disable-<ID>` e atualiza o Consent Mode para negar armazenamento e personalização;
+- após qualquer escolha, o botão de preferências continua visível. Ele reabre o banner para que o visitante possa revogar o aceite;
 - `pages.yml` repassa `secrets.PUBLIC_GA4_ID`; o build de homologação recebe um ID dummy e o guard de staging falha se `googletagmanager.com` ou `google-analytics.com` aparecer em `web/dist`;
 - nenhum ID `G-` real é commitado; o teste `web/src/tests/ga4-consent.test.ts` trava o gate e a ausência de ID fixo;
 - o import estático do `ConsentBanner` faz o Astro emitir o chunk da ilha mesmo em builds que não a montam (ex.: homologação). O chunk não referenciado não executa sem tag `<script>` que aponte para ele; por isso o guard de staging varre só `*.html`. Tentativa de import dinâmico condicional foi revertida: quebra a hidratação da ilha no build de produção.

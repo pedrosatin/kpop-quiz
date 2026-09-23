@@ -38,6 +38,8 @@ describe("GA4 consent gate", () => {
     expect(source).toContain("googletagmanager.com/gtag/js");
     expect(source).toContain('"accepted"');
     expect(source).toContain("kpop-quiz-consent");
+    expect(source).toContain("ga-disable-");
+    expect(source).toContain("consentPreferences");
   });
 
   it("guards the staging build against Google hosts", () => {

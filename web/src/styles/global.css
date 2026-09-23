@@ -3612,14 +3612,29 @@ footer a {
 }
 
 .consent-banner-accept:focus-visible,
-.consent-banner-reject:focus-visible {
+.consent-banner-reject:focus-visible,
+.consent-preferences:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
 }
 
+.consent-preferences {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  padding: 0.5rem 0.75rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
 @media (forced-colors: active) {
   .consent-banner-accept,
-  .consent-banner-reject {
+  .consent-banner-reject,
+  .consent-preferences {
     border: 2px solid ButtonText;
   }
 }

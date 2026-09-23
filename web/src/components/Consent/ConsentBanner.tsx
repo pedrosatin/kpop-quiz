@@ -13,6 +13,7 @@ export interface ConsentBannerProps {
 function loadGoogleAnalytics(ga4Id: string): void {
   try {
     const w = window as unknown as Record<string, unknown>;
+    w[`ga-disable-${ga4Id}`] = false;
     if (typeof w.gtag === "function") return;
     w.dataLayer = w.dataLayer ?? [];
     const gtag = (...args: unknown[]) => {
@@ -25,6 +26,23 @@ function loadGoogleAnalytics(ga4Id: string): void {
     document.head.appendChild(script);
     gtag("js", new Date());
     gtag("config", ga4Id);
+  } catch {
+    // Measurement must never break the page.
+  }
+}
+
+function disableGoogleAnalytics(ga4Id: string): void {
+  try {
+    const w = window as unknown as Record<string, unknown>;
+    w[`ga-disable-${ga4Id}`] = true;
+    if (typeof w.gtag === "function") {
+      (w.gtag as (...args: unknown[]) => void)("consent", "update", {
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+        analytics_storage: "denied",
+      });
+    }
   } catch {
     // Measurement must never break the page.
   }
@@ -50,10 +68,12 @@ export function ConsentBanner({ locale, ga4Id }: ConsentBannerProps) {
     setReady(true);
     if (stored === "accepted") {
       loadGoogleAnalytics(ga4Id);
+    } else if (stored === "rejected") {
+      disableGoogleAnalytics(ga4Id);
     }
   }, [ga4Id]);
 
-  if (!ready || choice !== null) {
+  if (!ready) {
     return null;
   }
 
@@ -66,8 +86,22 @@ export function ConsentBanner({ locale, ga4Id }: ConsentBannerProps) {
     setChoice(next);
     if (next === "accepted") {
       loadGoogleAnalytics(ga4Id);
+    } else {
+      disableGoogleAnalytics(ga4Id);
     }
   };
+
+  if (choice !== null) {
+    return (
+      <button
+        type="button"
+        class="consent-preferences"
+        onClick={() => setChoice(null)}
+      >
+        {messages.consentPreferences}
+      </button>
+    );
+  }
 
   return (
     <div class="consent-banner" role="region" aria-label={messages.consentLabel} aria-live="polite">
