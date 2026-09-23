@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from kpop_scraping.grid_cli import main as cli_main
 from kpop_scraping.grid_generator import (
+    _find_mixed_axis_grid,
     evaluate_group_criteria,
     generate_intersection_grid,
     has_distinct_assignment,
@@ -358,6 +359,87 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         self.assertEqual(len(grid["row_criteria"]), 3)
         self.assertEqual(len(grid["col_criteria"]), 3)
         self.assertEqual(len(grid["candidate_pool"]), 15)
+
+    def test_mixed_axis_fallback_generates_evidenced_unique_grid(self) -> None:
+        # Simulate a dataset for which none of the curated category partitions
+        # are available. The broader search must still use accepted criteria,
+        # preserve all nine distinct answers, and pass the unchanged schema.
+        with patch("kpop_scraping.grid_generator._build_axes_for_categories", return_value=[]):
+            grid = generate_intersection_grid(
+                self.connection, seed="mixed-axis-fallback-regression"
+            )
+
+        validate_intersection_grid(grid)
+        self.assertEqual(grid["dimensions"], {"rows": 3, "cols": 3})
+        self.assertTrue(
+            has_distinct_assignment(
+                [cell["valid_entity_ids"] for cell in grid["cells"]]
+            )
+        )
+        self.assertTrue(all(cell["valid_entity_ids"] for cell in grid["cells"]))
+        self.assertTrue(all(cell["evidence"] for cell in grid["cells"]))
+
+    def test_mixed_axis_search_does_not_stop_at_old_attempt_limit(self) -> None:
+        criteria = [
+            {
+                "id": f"criterion_{index:02d}",
+                "category": "formed_on",
+                "label": {"pt-BR": f"Critério {index}", "en": f"Criterion {index}"},
+            }
+            for index in range(50)
+        ]
+        all_groups = {f"Q{index}" for index in range(1, 10)}
+        criterion_groups = {criterion["id"]: all_groups for criterion in criteria}
+        original_matching = has_distinct_assignment
+        calls = 0
+
+        def delay_acceptance(cell_options: list[list[str]]) -> bool:
+            nonlocal calls
+            calls += 1
+            if calls <= 50_000:
+                return False
+            return original_matching(cell_options)
+
+        with patch(
+            "kpop_scraping.grid_generator.has_distinct_assignment",
+            side_effect=delay_acceptance,
+        ):
+            result = _find_mixed_axis_grid(
+                criteria, criterion_groups, seed="solution-after-old-limit"
+            )
+
+        self.assertIsNotNone(result)
+        self.assertGreater(calls, 50_000)
+        assert result is not None
+        self.assertTrue(
+            original_matching(
+                [result[2][(row, col)] for row in range(3) for col in range(3)]
+            )
+        )
+
+    def test_mixed_axis_search_prunes_when_fewer_than_nine_answers_exist(self) -> None:
+        criteria = [
+            {
+                "id": f"criterion_{index:02d}",
+                "category": "formed_on",
+                "label": {"pt-BR": f"Critério {index}", "en": f"Criterion {index}"},
+            }
+            for index in range(29)
+        ]
+        only_eight_groups = {f"Q{index}" for index in range(1, 9)}
+        criterion_groups = {
+            criterion["id"]: only_eight_groups for criterion in criteria
+        }
+
+        with patch(
+            "kpop_scraping.grid_generator.has_distinct_assignment",
+            side_effect=AssertionError("matching should be pruned before column triples"),
+        ):
+            result = _find_mixed_axis_grid(
+                criteria, criterion_groups, seed="eight-groups-impossible"
+            )
+
+        self.assertIsNone(result)
 
     def test_insufficient_groups_raises_error(self) -> None:
         small_conn = sqlite3.connect(":memory:")
