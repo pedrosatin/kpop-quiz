@@ -572,9 +572,16 @@ a:hover {
   border: 0;
 }
 
-.decade-options { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
-.decade-option { cursor: pointer; }
-.decade-option input { margin-right: var(--space-1); }
+.decade-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.decade-option {
+  cursor: pointer;
+}
 
 .difficulty-picker {
   display: grid;
@@ -3549,4 +3556,3 @@ footer a {
     font-size: 1.25rem;
   }
 }
-

@@ -19,7 +19,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "expert",
         theme: "daily",
-        decade: null,
+        decades: [],
       });
     });
 
@@ -28,17 +28,22 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "assisted",
         theme: "history",
-        decade: null,
+        decades: [],
       });
     });
 
-    it("keeps a decade and drops daily when both are present", () => {
+    it("keeps multiple decades and drops daily when both are present", () => {
       window.history.replaceState(null, "", "/?theme=daily&decade=2010");
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
         theme: "history",
-        decade: 2010,
+        decades: [2010],
       });
+    });
+
+    it("reads, deduplicates, and sorts multiple decade parameters", () => {
+      window.history.replaceState(null, "", "/?decade=2020&decade=1990&decade=2020");
+      expect(getInitialUrlParams().decades).toEqual([1990, 2020]);
     });
 
     it("rejects invalid values returning defaults (mode: standard, theme: history)", () => {
@@ -46,7 +51,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
         theme: "history",
-        decade: null,
+        decades: [],
       });
     });
 
@@ -56,7 +61,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "expert",
         theme: "daily",
-        decade: null,
+        decades: [],
       });
     });
 
@@ -65,7 +70,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
         theme: "history",
-        decade: null,
+        decades: [],
       });
     });
   });
@@ -117,5 +122,12 @@ describe("url-params", () => {
       vi.stubGlobal("window", undefined);
       expect(() => updateUrlParams("expert", "daily")).not.toThrow();
     });
+  });
+
+  it("serializes multiple decades in stable order", () => {
+    window.history.replaceState(null, "", "/quiz?decade=1990");
+    updateUrlParams("standard", "history", [2020, 1990, 2020]);
+
+    expect(window.location.search).toBe("?mode=standard&theme=history&decade=1990&decade=2020");
   });
 });

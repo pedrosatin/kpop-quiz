@@ -1,6 +1,6 @@
 import type { PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
-import type { QuizTheme } from "../Quiz/url-params";
+import type { QuizDecadeSelection, QuizTheme } from "../Quiz/url-params";
 import { DifficultyPicker } from "./DifficultyPicker";
 import { GameCollection } from "./GameCollection";
 import { TimerControl } from "./TimerControl";
@@ -12,8 +12,8 @@ export interface GameSetupProps {
   theme?: QuizTheme;
   onSelectTheme?: (theme: QuizTheme) => void;
   availableDecades?: Array<1990 | 2000 | 2010 | 2020>;
-  decade?: 1990 | 2000 | 2010 | 2020 | null;
-  onSelectDecade?: (decade: 1990 | 2000 | 2010 | 2020 | null) => void;
+  decades?: QuizDecadeSelection;
+  onSelectDecades?: (decades: QuizDecadeSelection) => void;
   timerEnabled: boolean;
   onTimerChange: (enabled: boolean) => void;
   onStart: () => void;
@@ -27,7 +27,7 @@ export function GameSetup({
   onSelectMode,
   theme = "history",
   onSelectTheme,
-  availableDecades = [], decade = null, onSelectDecade,
+  availableDecades = [], decades = [], onSelectDecades,
   timerEnabled,
   onTimerChange,
   onStart,
@@ -48,7 +48,7 @@ export function GameSetup({
           disabled={disabled}
         />
       )}
-      {onSelectDecade && <DecadePicker available={availableDecades} value={decade} onChange={onSelectDecade} messages={messages} disabled={disabled} />}
+      {onSelectDecades && <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />}
       <DifficultyPicker
         playMode={playMode}
         onSelectMode={onSelectMode}

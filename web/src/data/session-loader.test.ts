@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadQuizSession, QuizArtifactError } from "./session-loader";
+import { loadQuizSession, loadQuizSessionWithAvailability, QuizArtifactError } from "./session-loader";
+import type { QuizSession } from "../lib/quiz-types";
 import ptSession from "../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import manifest from "../tests/fixtures/manifest-v2.json";
 
@@ -114,9 +115,53 @@ describe("published session loader", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
     vi.stubGlobal("fetch", fetch);
-    await expect(loadQuizSession("pt-BR", "standard", "history", "/data-root", 2010)).resolves.toMatchObject({
+    await expect(loadQuizSession("pt-BR", "standard", "history", "/data-root", [2010])).resolves.toMatchObject({
       config: { language: "pt-BR", play_mode: "standard" },
     });
     expect(fetch).toHaveBeenNthCalledWith(2, `/data-root/data/${manifest.sessions["pt-BR.standard"].path}`);
+  });
+
+  it("continues combining after an index contains only duplicate questions", async () => {
+    const combinedManifest = structuredClone(manifest) as Record<string, any>;
+    const artifacts = new Map<string, string>();
+    for (const decade of [1990, 2010]) {
+      const session = structuredClone(ptSession) as unknown as QuizSession;
+      session.config.decade = decade;
+      session.session_id = decade.toString().padStart(64, "0");
+      session.questions.forEach((question, index) => {
+        question.id = `${decade}${index}`.padStart(64, "0");
+        question.decades = [decade];
+        question.semantic_id = `${decade}${index}`.padStart(64, "0");
+      });
+      if (decade === 2010) {
+        // Both index-1 questions overlap an index-0 question from the other
+        // session. Index 2 onward still contains unique questions.
+        session.questions[1]!.semantic_id = "19900".padStart(64, "0");
+      } else {
+        session.questions[1]!.semantic_id = "20100".padStart(64, "0");
+      }
+      const bytes = `${JSON.stringify(session)}\n`;
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(bytes));
+      const sha = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      const key = `decade.${decade}.pt-BR.standard`;
+      const path = `session.${key}.${sha}.json`;
+      combinedManifest.sessions[key] = { path, sha256: sha, session_id: session.session_id };
+      artifacts.set(`/data/${path}`, bytes);
+    }
+    const fetch = vi.fn(async (input: string) => input.endsWith("manifest-v2.json")
+      ? new Response(JSON.stringify(combinedManifest))
+      : new Response(artifacts.get(input)));
+    vi.stubGlobal("fetch", fetch);
+
+    const first = await loadQuizSessionWithAvailability("pt-BR", "standard", "history", undefined, [2010, 1990, 1990]);
+    const second = await loadQuizSessionWithAvailability("pt-BR", "standard", "history", undefined, [1990, 2010]);
+
+    expect(first.decades).toEqual([1990, 2010]);
+    expect(first.session.questions).toHaveLength(10);
+    expect(new Set(first.session.questions.map(({ id }) => id)).size).toBe(10);
+    expect(new Set(first.session.questions.map(({ semantic_id }) => semantic_id)).size).toBe(10);
+    expect(first.session.questions.some(({ id }) => id === "19902".padStart(64, "0"))).toBe(true);
+    expect(first.session.questions.some(({ id }) => id === "20102".padStart(64, "0"))).toBe(true);
+    expect(first.session.session_id).toBe(second.session.session_id);
   });
 });

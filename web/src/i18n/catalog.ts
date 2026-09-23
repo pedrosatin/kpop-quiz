@@ -23,8 +23,8 @@ export interface Messages {
   points: string;
   setupKicker: string;
   chooseDifficulty: string;
-  chooseDecade: string;
-  allDecades: string;
+  chooseDecades: string;
+  decadeHelp: string;
   decadeLabel: (decade: number) => string;
   roundRules: string;
   difficultyName: (playMode: PlayMode) => string;
@@ -203,8 +203,8 @@ const catalogs: Record<Locale, Messages> = {
     points: "pontos",
     setupKicker: "Antes da rodada",
     chooseDifficulty: "Escolha como jogar",
-    chooseDecade: "Escolha a década de formação dos grupos",
-    allDecades: "Todas as décadas",
+    chooseDecades: "Escolha uma ou mais décadas de formação",
+    decadeHelp: "Sem seleção, o quiz inclui todas as décadas.",
     decadeLabel: (decade) => `Anos ${decade}`,
     roundRules: "10 perguntas de múltipla escolha com fontes verificáveis a cada resposta.",
     difficultyName: (difficulty) => ({ assisted: "Assistido", standard: "Padrão", expert: "Especialista" })[difficulty],
@@ -385,8 +385,8 @@ const catalogs: Record<Locale, Messages> = {
     points: "points",
     setupKicker: "Before the round",
     chooseDifficulty: "Choose how to play",
-    chooseDecade: "Choose the groups’ formation decade",
-    allDecades: "All decades",
+    chooseDecades: "Choose one or more formation decades",
+    decadeHelp: "With no selection, the quiz includes all decades.",
     decadeLabel: (decade) => `${decade}s`,
     roundRules: "10 multiple choice questions with verifiable sources for every answer.",
     difficultyName: (difficulty) => ({ assisted: "Assisted", standard: "Standard", expert: "Expert" })[difficulty],
