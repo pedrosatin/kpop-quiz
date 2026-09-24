@@ -17,10 +17,21 @@ interface Props {
   route: SeoRouteKey;
   canonicalPath: string;
   alternatePath: string;
+  indexable?: boolean;
+  showGameNavigation?: boolean;
+  pageMeta?: { title: string; description: string };
 }
-const { locale, route, canonicalPath, alternatePath } = Astro.props;
+const {
+  locale,
+  route,
+  canonicalPath,
+  alternatePath,
+  indexable = true,
+  showGameNavigation = true,
+  pageMeta,
+} = Astro.props;
 const messages = getMessages(locale);
-const meta = messages.meta[route];
+const meta = pageMeta ?? messages.meta[route];
 const canonicalUrl = `${SEO_PROD_ORIGIN}${canonicalPath}`;
 const alternateUrl = `${SEO_PROD_ORIGIN}${alternatePath}`;
 const defaultUrl = `${SEO_PROD_ORIGIN}${SEO_DEFAULT_PATH}`;
@@ -31,11 +42,16 @@ const isGrid = Astro.url.pathname.includes("/grid");
 const isConnections = Astro.url.pathname.includes("/conexoes") || Astro.url.pathname.includes("/connections");
 const isNameGuess = Astro.url.pathname.includes("/adivinhe") || Astro.url.pathname.includes("/guess");
 const isWordSearch = Astro.url.pathname.includes("/caca-palavras") || Astro.url.pathname.includes("/word-search");
-const skipTarget = isWordSearch
+const isPrivacy = canonicalPath.endsWith("/privacidade/") || canonicalPath.endsWith("/privacy/");
+const skipTarget = isPrivacy
+  ? "#privacy-notice"
+  : (isWordSearch
   ? "#word-search"
-  : (isNameGuess ? "#name-guess" : (isConnections ? "#connections" : (isGrid ? "#grid" : "#quiz")));
+  : (isNameGuess ? "#name-guess" : (isConnections ? "#connections" : (isGrid ? "#grid" : "#quiz"))));
 const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
-let otherPath = targetBase;
+let otherPath = isPrivacy
+  ? (locale === "pt-BR" ? "/en/privacy/" : "/pt-br/privacidade/")
+  : targetBase;
 if (isGrid) {
   otherPath = `${targetBase}grid/`;
 } else if (isConnections) {
@@ -45,7 +61,9 @@ if (isGrid) {
 } else if (isWordSearch) {
   otherPath = locale === "pt-BR" ? `${targetBase}word-search/` : `${targetBase}caca-palavras/`;
 }
-const skipLinkText = isWordSearch
+const skipLinkText = isPrivacy
+  ? (locale === "pt-BR" ? "Pular para a política de privacidade" : "Skip to privacy policy")
+  : (isWordSearch
   ? (locale === "pt-BR" ? "Pular para o caça-palavras" : "Skip to word search game")
   : (isNameGuess
     ? (locale === "pt-BR" ? "Pular para o jogo de adivinhação" : "Skip to name guess game")
@@ -53,7 +71,7 @@ const skipLinkText = isWordSearch
       ? (locale === "pt-BR" ? "Pular para palavras conectadas" : "Skip to connections game")
       : (isGrid
         ? (locale === "pt-BR" ? "Pular para a grade de interseções" : "Skip to intersection grid")
-        : messages.skipLink)));
+        : messages.skipLink))));
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Only the production build is served from the root; prefixed builds are staging.
 const isStaging = base !== "";
@@ -68,6 +86,7 @@ const enableAnalytics = !isStaging && Boolean(cfBeaconToken);
 // executable surface) rather than the whole dist.
 const ga4Id = import.meta.env.PUBLIC_GA4_ID;
 const enableGa4 = !isStaging && Boolean(ga4Id);
+const privacyPath = locale === "pt-BR" ? "/pt-br/privacidade/" : "/en/privacy/";
 const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch;
 const games = [
   {
@@ -123,7 +142,7 @@ const games = [
     <meta name="twitter:title" content={meta.title} />
     <meta name="twitter:description" content={meta.description} />
     <meta name="twitter:image" content={ogImageUrl} />
-    {isStaging && <meta name="robots" content="noindex" />}
+    {(isStaging || !indexable) && <meta name="robots" content="noindex" />}
     {enableAnalytics && (
       <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: cfBeaconToken })}></script>
     )}
@@ -170,25 +189,27 @@ const games = [
         </nav>
       </div>
     </header>
-    <nav class="game-nav-bar" aria-label={messages.gameNavLabel}>
-      <div class="game-nav-container">
-        {games.map((g) => (
-          <a
-            href={`${base}${g.path}`}
-            class={`game-nav-item ${g.isActive ? "is-active" : ""}`}
-            aria-current={g.isActive ? "page" : undefined}
-          >
-            {g.label}
-          </a>
-        ))}
-        <StatsNavTrigger locale={locale} client:load />
-      </div>
-    </nav>
+    {showGameNavigation && (
+      <nav class="game-nav-bar" aria-label={messages.gameNavLabel}>
+        <div class="game-nav-container">
+          {games.map((g) => (
+            <a
+              href={`${base}${g.path}`}
+              class={`game-nav-item ${g.isActive ? "is-active" : ""}`}
+              aria-current={g.isActive ? "page" : undefined}
+            >
+              {g.label}
+            </a>
+          ))}
+          <StatsNavTrigger locale={locale} client:load />
+        </div>
+      </nav>
+    )}
     <main>
       <slot />
     </main>
     <footer>
-      <p>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a></p>
+      <p>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a> · <a href={`${base}${privacyPath}`}>{messages.privacyLink}</a></p>
     </footer>
     <script is:inline>
       (function () {
@@ -266,6 +287,6 @@ const games = [
         });
       })();
     </script>
-    {enableGa4 && <ConsentBanner locale={locale} ga4Id={ga4Id} client:load />}
+    {enableGa4 && <ConsentBanner locale={locale} ga4Id={ga4Id} privacyUrl={`${base}${privacyPath}`} client:load />}
   </body>
 </html>

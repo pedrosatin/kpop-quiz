@@ -31,6 +31,8 @@ export interface Messages {
   consentAccept: string;
   consentReject: string;
   consentPreferences: string;
+  consentPrivacyLink: string;
+  privacyLink: string;
   questionCounter: (current: number, total: number) => string;
   score: string;
   points: string;
@@ -237,8 +239,10 @@ const catalogs: Record<Locale, Messages> = {
     consentText:
       "Medimos acessos com Cloudflare (sem cookies) e, se você aceitar, com Google Analytics (usa cookies) para melhorar o site e preparar anúncios.",
     consentAccept: "Aceitar medição",
-    consentReject: "Só essencial",
+    consentReject: "Recusar medição",
     consentPreferences: "Preferências de medição",
+    consentPrivacyLink: "Leia a política de privacidade",
+    privacyLink: "Privacidade",
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
     points: "pontos",
@@ -447,8 +451,10 @@ const catalogs: Record<Locale, Messages> = {
     consentText:
       "We measure visits with Cloudflare (cookie-free) and, if you accept, with Google Analytics (uses cookies) to improve the site and prepare ads.",
     consentAccept: "Accept analytics",
-    consentReject: "Essential only",
+    consentReject: "Reject analytics",
     consentPreferences: "Analytics preferences",
+    consentPrivacyLink: "Read the privacy policy",
+    privacyLink: "Privacy",
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",
     points: "points",
