@@ -1,12 +1,16 @@
-<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0;url=./pt-br/" />
-    <meta name="robots" content="noindex" />
-    <title>K-pop Quiz</title>
-  </head>
-  <body>
-    <a href="./pt-br/">Abrir K-pop Quiz</a>
-  </body>
-</html>
+import { Quiz } from "../components/Quiz/Quiz";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getMessages } from "../i18n/catalog";
+
+const messages = getMessages("pt-BR");
+---
+<BaseLayout locale="pt-BR" route="quiz" canonicalPath="/pt-br/" alternatePath="/en/">
+  <div class="page-shell">
+    <section class="intro" aria-labelledby="page-title">
+      <p class="kicker">{messages.eyebrow}</p>
+      <h1 id="page-title">{messages.title}</h1>
+      <p>{messages.intro}</p>
+    </section>
+    <Quiz locale="pt-BR" client:load />
+  </div>
+</BaseLayout>

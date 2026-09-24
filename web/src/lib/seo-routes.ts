@@ -23,7 +23,7 @@ function pair(
   ];
 }
 
-// Exactly the 10 indexable content routes. The `/` redirect, `/data/*`,
+// Exactly the 10 indexable content routes. The `/` canonical alias, `/data/*`,
 // staging builds and `?mode`/`?theme` variants stay out of the index.
 export const SEO_ROUTES: readonly SeoRoute[] = [
   ...pair("quiz", "/pt-br/", "/en/"),
