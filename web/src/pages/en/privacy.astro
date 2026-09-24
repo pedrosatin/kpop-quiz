@@ -1,0 +1,40 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  locale="en"
+  route="quiz"
+  canonicalPath="/en/privacy/"
+  alternatePath="/pt-br/privacidade/"
+  indexable={false}
+  showGameNavigation={false}
+  pageMeta={{
+    title: "Privacy and analytics",
+    description: "How K-pop Quiz uses visit analytics, cookies and consent choices.",
+  }}
+>
+  <article id="privacy-notice" class="privacy-notice">
+    <p class="eyebrow">K-pop Quiz</p>
+    <h1>Privacy and analytics</h1>
+    <p>Updated September 24, 2026.</p>
+
+    <h2>Controller and contact</h2>
+    <p>K-pop Quiz determines how this site configures analytics. For privacy questions or requests, email <a href="mailto:email@pedrosatin.com">email@pedrosatin.com</a>.</p>
+
+    <h2>Browsing data</h2>
+    <p>Cloudflare Web Analytics measures visited pages, traffic source, and aggregated device and location data. Cloudflare states that the tool does not use its own cookies or collect personal data.</p>
+
+    <h2>Google Analytics</h2>
+    <p>Google Analytics 4 loads only after you agree. It uses cookies and identifiers to measure use of the site and support audience and advertising analysis. Google processes this data under its own policies.</p>
+
+    <h2>Analytics choices</h2>
+    <p>The banner lets you accept Google Analytics or keep only Cloudflare's cookie-free measurement. The "Analytics preferences" button remains available after your choice. Selecting "Reject analytics" stops new GA4 measurement on this and later visits.</p>
+
+    <h2>Sharing and retention</h2>
+    <p>Cloudflare metrics are available in the Cloudflare dashboard. Accepted GA4 metrics are available in the site’s Google Analytics property for the retention period configured there. The site does not sell browsing data.</p>
+
+    <h2>Your rights</h2>
+    <p>You can ask about data processing, correct data, request deletion where applicable, or revoke GA4 consent. Use the email above.</p>
+  </article>
+</BaseLayout>

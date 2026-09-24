@@ -1172,6 +1172,36 @@ footer a {
   color: var(--color-link);
 }
 
+.privacy-notice {
+  width: min(100% - 2rem, 48rem);
+  margin: 0 auto;
+  padding: var(--space-7) 0 var(--space-8);
+}
+
+.privacy-notice h1 {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-title);
+  font-size: clamp(2.25rem, 7vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.privacy-notice h2 {
+  margin: var(--space-6) 0 var(--space-2);
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+}
+
+.privacy-notice p,
+.privacy-notice li {
+  color: var(--color-text-muted);
+}
+
+.privacy-notice a,
+.consent-banner-link {
+  color: var(--color-link);
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -3577,6 +3607,10 @@ footer a {
   max-width: 44rem;
   font-size: 0.875rem;
   color: var(--color-text);
+}
+
+.consent-banner-link {
+  font-size: 0.875rem;
 }
 
 .consent-banner-actions {

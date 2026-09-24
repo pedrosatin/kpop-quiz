@@ -4,6 +4,7 @@ import { CONSENT_STORAGE_KEY, ConsentBanner } from "./ConsentBanner";
 import { getMessages } from "../../i18n/catalog";
 
 const GA_ID = "G-TEST123456";
+const PRIVACY_URL = "/pt-br/privacidade/";
 const messages = getMessages("pt-BR");
 
 function gaScripts(): HTMLScriptElement[] {
@@ -25,17 +26,18 @@ afterEach(() => {
 
 describe("ConsentBanner", () => {
   it("shows the banner with accept and reject actions when undecided", async () => {
-    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} />);
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     await waitFor(() => {
       expect(screen.getByText(messages.consentText)).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: messages.consentAccept })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: messages.consentReject })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: messages.consentPrivacyLink })).toHaveAttribute("href", PRIVACY_URL);
     expect(gaScripts()).toHaveLength(0);
   });
 
   it("loads Google Analytics and stores the choice on accept", async () => {
-    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} />);
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     const accept = await screen.findByRole("button", { name: messages.consentAccept });
     fireEvent.click(accept);
     expect(window.localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("accepted");
@@ -48,7 +50,7 @@ describe("ConsentBanner", () => {
   });
 
   it("stores rejection and never loads Google Analytics", async () => {
-    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} />);
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     const reject = await screen.findByRole("button", { name: messages.consentReject });
     fireEvent.click(reject);
     expect(window.localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("rejected");
@@ -58,7 +60,7 @@ describe("ConsentBanner", () => {
 
   it("skips the banner and loads analytics for a stored acceptance", async () => {
     window.localStorage.setItem(CONSENT_STORAGE_KEY, "accepted");
-    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} />);
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     await waitFor(() => {
       expect(gaScripts()).toHaveLength(1);
     });
@@ -66,7 +68,7 @@ describe("ConsentBanner", () => {
   });
 
   it("lets a visitor revoke acceptance and disables future GA4 measurement", async () => {
-    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} />);
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     fireEvent.click(await screen.findByRole("button", { name: messages.consentAccept }));
     await waitFor(() => {
       expect(gaScripts()).toHaveLength(1);
@@ -80,7 +82,7 @@ describe("ConsentBanner", () => {
   });
 
   it("reenables GA4 when a visitor accepts again after revoking consent", async () => {
-    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} />);
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     fireEvent.click(await screen.findByRole("button", { name: messages.consentAccept }));
     fireEvent.click(screen.getByRole("button", { name: messages.consentPreferences }));
     fireEvent.click(screen.getByRole("button", { name: messages.consentReject }));

@@ -8,6 +8,7 @@ export type ConsentChoice = "accepted" | "rejected";
 export interface ConsentBannerProps {
   locale: Locale;
   ga4Id: string;
+  privacyUrl: string;
 }
 
 function loadGoogleAnalytics(ga4Id: string): void {
@@ -57,7 +58,7 @@ export function readConsentChoice(): ConsentChoice | null {
   }
 }
 
-export function ConsentBanner({ locale, ga4Id }: ConsentBannerProps) {
+export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps) {
   const messages = getMessages(locale);
   const [choice, setChoice] = useState<ConsentChoice | null>(null);
   const [ready, setReady] = useState(false);
@@ -106,6 +107,7 @@ export function ConsentBanner({ locale, ga4Id }: ConsentBannerProps) {
   return (
     <div class="consent-banner" role="region" aria-label={messages.consentLabel} aria-live="polite">
       <p class="consent-banner-text">{messages.consentText}</p>
+      <a class="consent-banner-link" href={privacyUrl}>{messages.consentPrivacyLink}</a>
       <div class="consent-banner-actions">
         <button type="button" class="consent-banner-reject" onClick={() => decide("rejected")}>
           {messages.consentReject}
