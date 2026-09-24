@@ -237,7 +237,7 @@ const catalogs: Record<Locale, Messages> = {
     empty: "Este quiz ainda não tem perguntas.",
     consentLabel: "Preferências de privacidade",
     consentText:
-      "Usamos o Cloudflare Web Analytics para medir o uso do site sem cookies. Se você aceitar, o Google Analytics também usará cookies e identificadores para gerar estatísticas de audiência.",
+      "Usamos o Cloudflare Web Analytics para medir o uso do site sem cookies. Se você aceitar o uso do Google Analytics, ele usará cookies e identificadores para gerar estatísticas de audiência.",
     consentAccept: "Aceitar Google Analytics",
     consentReject: "Recusar Google Analytics",
     consentPreferences: "Preferências de privacidade",
