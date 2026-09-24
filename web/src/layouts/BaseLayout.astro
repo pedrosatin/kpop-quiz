@@ -10,6 +10,7 @@ import {
   seoOgLocale,
 } from "../lib/seo-routes";
 import { StatsNavTrigger } from "../components/Stats/StatsNavTrigger";
+import { OPEN_CONSENT_PREFERENCES_EVENT } from "../components/Consent/ConsentBanner";
 import { ConsentBanner } from "../components/Consent/ConsentBanner";
 
 interface Props {
@@ -209,8 +210,13 @@ const games = [
       <slot />
     </main>
     <footer>
-      <p>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a> · <a href={`${base}${privacyPath}`}>{messages.privacyLink}</a></p>
+      <p>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a> · <a href={`${base}${privacyPath}`}>{messages.privacyLink}</a>{enableGa4 && <> · <button class="footer-privacy-preferences" type="button" data-consent-preferences>{messages.consentPreferences}</button></>}</p>
     </footer>
+    <script is:inline define:vars={{ consentPreferencesEvent: OPEN_CONSENT_PREFERENCES_EVENT }}>
+      document.querySelector("[data-consent-preferences]")?.addEventListener("click", function () {
+        window.dispatchEvent(new Event(consentPreferencesEvent));
+      });
+    </script>
     <script is:inline>
       (function () {
         var langLink = document.querySelector(".language-link");

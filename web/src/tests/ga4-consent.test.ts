@@ -39,7 +39,7 @@ describe("GA4 consent gate", () => {
     expect(source).toContain('"accepted"');
     expect(source).toContain("kpop-quiz-consent");
     expect(source).toContain("ga-disable-");
-    expect(source).toContain("consentPreferences");
+    expect(source).toContain("OPEN_CONSENT_PREFERENCES_EVENT");
   });
 
   it("guards the staging build against Google hosts", () => {
