@@ -60,7 +60,7 @@ python -m compileall -q .
 
 ## Web interface
 
-The static interface uses Astro and Preact. The production build produces the `/pt-br/` and `/en/` routes at the site root. The site is published on Cloudflare Pages at <https://kpopquiz.online> (with `kpopquiz.pages.dev` as the platform URL). A push to the `dev` branch deploys a staging build to GitHub Pages at <https://pedrosatin.github.io/kpop-quiz/>. The staging workflow sets `ASTRO_SITE` and `ASTRO_BASE`, so page and asset URLs start with `/kpop-quiz/`. The browser validates the manifest, the SHA-256, and the session contract before starting the quiz.
+The static interface uses Astro and Preact. The production build produces the `/pt-br/` and `/en/` routes at the site root. Opening `/` renders the Portuguese quiz directly and uses `/pt-br/` as its canonical URL. The site is published on Cloudflare Pages at <https://kpopquiz.online> (with `kpopquiz.pages.dev` as the platform URL). A push to the `dev` branch deploys a staging build to GitHub Pages at <https://pedrosatin.github.io/kpop-quiz/>. The staging workflow sets `ASTRO_SITE` and `ASTRO_BASE`, so page and asset URLs start with `/kpop-quiz/`. The browser validates the manifest, the SHA-256, and the session contract before starting the quiz.
 
 ```bash
 cd web

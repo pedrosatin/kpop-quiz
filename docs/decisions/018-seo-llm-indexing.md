@@ -19,8 +19,9 @@ A produção serve o Astro estático na raiz de `https://kpopquiz.online`
 páginas repetiam `messages.intro` como description e não emitiam
 `canonical`, `hreflang` ou Open Graph.
 
-O site tem 10 rotas de conteúdo (5 jogos × 2 idiomas). O redirect `/`
-(para `/pt-br/`) carrega `noindex` permanente. O jogo de linha do tempo
+O site tem 10 rotas de conteúdo (5 jogos × 2 idiomas). A raiz `/` também
+renderiza o quiz em português, sem redirecionamento, e usa `/pt-br/` como
+canonical para não duplicar conteúdo no índice. O jogo de linha do tempo
 não tem rotas web (só `timeline.daily.json` + fixtures), então o sitemap
 cobre exatamente 10 URLs. `web/public/data/` (~159 JSON) nunca entra no
 índice. Query strings (`?mode`, `?theme`) são variantes de apresentação
@@ -34,8 +35,7 @@ builds de produção e homologação. A homologação continua `noindex` em
 todas as páginas, então o canônico absoluto nunca cria conteúdo
 duplicado indexável.
 
-Tabela hreflang (5 pares + `x-default` apontando para `pt-BR`, destino do
-redirect `/`):
+Tabela hreflang (5 pares + `x-default` apontando para `pt-BR`):
 
 | pt-BR | en | x-default |
 |---|---|---|
@@ -45,7 +45,7 @@ redirect `/`):
 | `/pt-br/adivinhe/` | `/en/guess/` | — |
 | `/pt-br/caca-palavras/` | `/en/word-search/` | — |
 
-Fora do índice: redirect `/`, `/data/*`, homologação inteira,
+Fora do sitemap: alias canônico `/`, `/data/*`, homologação inteira,
 `?mode`/`?theme`.
 
 Sitemap e robots são endpoints gerados (`sitemap.xml.ts` + `robots.txt.ts`),
@@ -95,8 +95,9 @@ para a produção, os dois sinais concordam.
 ## Consequências
 
 - `npm run seo:verify` + passos em `pages.yml`/`staging.yml` afirmam:
-  sitemap parseável com 10 URLs, robots por env, prod sem `noindex`
-  (exceto o redirect `/`), staging com `noindex`, sem `/data/` no sitemap.
+  raiz renderizada e canônica em `/pt-br/`, sitemap parseável com 10 URLs,
+  robots por env, produção sem `noindex`, staging com `noindex`, sem
+  `/data/` no sitemap.
 - Títulos de meta ≤60 chars e descrições ≤155 chars por rota por idioma,
   cobertos por teste em `web/src/i18n/catalog.test.ts`.
 - B8 (Search Console/Bing: verificar propriedade, submeter sitemap,

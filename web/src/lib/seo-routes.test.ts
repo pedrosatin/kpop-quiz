@@ -12,7 +12,7 @@ describe("SEO route table", () => {
     expect(SEO_ROUTES).toHaveLength(10);
   });
 
-  it("keeps /data/*, the redirect stub and query variants out of the index", () => {
+  it("keeps /data/*, the root alias and query variants out of the sitemap", () => {
     for (const route of SEO_ROUTES) {
       expect(route.path).not.toContain("/data/");
       expect(route.path).not.toBe("/");
@@ -44,7 +44,7 @@ describe("SEO route table", () => {
     expect(seoOgLocale("en")).toBe("en_US");
   });
 
-  it("points x-default at the redirect target", () => {
+  it("points x-default at the default language route", () => {
     expect(SEO_DEFAULT_PATH).toBe("/pt-br/");
     expect(byPathHas("/pt-br/")).toBe(true);
 

@@ -129,11 +129,20 @@ function main() {
     }
   }
 
-  // Prod keeps noindex only on the redirect stub.
+  // The root renders the Portuguese quiz and canonicalizes to /pt-br/.
   const rootIndex = join(dist, "index.html");
-  if (env === "prod" && existsSync(rootIndex)) {
+  check(existsSync(rootIndex), "dist/index.html missing");
+  if (existsSync(rootIndex)) {
     const root = readFileSync(rootIndex, "utf-8");
-    check(noindexRe.test(root), "dist/index.html (redirect stub) must stay noindex");
+    check(
+      root.includes(`<link rel="canonical" href="${PROD_ORIGIN}/pt-br/"`),
+      "dist/index.html must canonicalize to /pt-br/",
+    );
+    check(root.includes('id="page-title"'), "dist/index.html must render the quiz landing content");
+    check(
+      noindexRe.test(root) === (env === "staging"),
+      `dist/index.html must ${env === "staging" ? "be" : "not be"} noindex in ${env}`,
+    );
   }
 
   // Defense in depth: _headers ships X-Robots-Tag for /data/*.
@@ -161,7 +170,7 @@ function main() {
     for (const failure of failures) console.error(`seo:verify FAIL: ${failure}`);
     process.exit(1);
   }
-  console.log(`seo:verify OK (${env}): sitemap 10 URLs, robots, head tags, _headers, llms.txt`);
+  console.log(`seo:verify OK (${env}): root alias, sitemap 10 URLs, robots, head tags, _headers, llms.txt`);
 }
 
 main();
