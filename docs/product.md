@@ -2,7 +2,7 @@
 
 ## Estado deste documento
 
-Direção do primeiro lançamento confirmada em 12 de setembro de 2026. O produto atenderá jogadores com níveis diferentes de conhecimento, começará em português e inglês e usará múltipla escolha. A métrica que decidirá a expansão após o MVP ainda precisa de confirmação.
+Direção do primeiro lançamento confirmada em 12 de setembro de 2026. O produto atenderá jogadores com níveis diferentes de conhecimento, começará em português e inglês e usará múltipla escolha. As métricas que decidirão a expansão após o MVP serão definidas com os dados de analytics descritos no [Roadmap](roadmap.md).
 
 A proposta completa está em [Plataforma de quizzes de K-pop](ideas/kpop-quiz-platform.md).
 

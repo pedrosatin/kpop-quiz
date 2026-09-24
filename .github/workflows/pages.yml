@@ -57,7 +57,12 @@ jobs:
         run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
       - run: npm ci
       - run: npm test
-      - run: npm run build
+      - name: Build production site
+        env:
+          PUBLIC_CF_BEACON_TOKEN: ${{ secrets.PUBLIC_CF_BEACON_TOKEN }}
+          PUBLIC_GA4_ID: ${{ secrets.PUBLIC_GA4_ID }}
+        run: npm run build
+      - run: npm run seo:verify -- --env prod
       - uses: actions/upload-artifact@v7
         with:
           name: web-dist

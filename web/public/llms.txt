@@ -1,0 +1,40 @@
+# K-pop Quiz — llms.txt
+
+K-pop Quiz em https://kpopquiz.online: jogos diários de K-pop em
+português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
+
+## Jogos
+
+- Quiz (múltipla escolha): https://kpopquiz.online/pt-br/ ·
+  https://kpopquiz.online/en/
+- Grade de Interseções / Intersection Grid:
+  https://kpopquiz.online/pt-br/grid/ · https://kpopquiz.online/en/grid/
+- Palavras Conectadas / Connections:
+  https://kpopquiz.online/pt-br/conexoes/ ·
+  https://kpopquiz.online/en/connections/
+- Adivinhe o Nome / Guess the Name:
+  https://kpopquiz.online/pt-br/adivinhe/ ·
+  https://kpopquiz.online/en/guess/
+- Caça-Palavras / Word Search:
+  https://kpopquiz.online/pt-br/caca-palavras/ ·
+  https://kpopquiz.online/en/word-search/
+
+## Resumos por rota (Markdown)
+
+- llms/pt-br-quiz.md
+- llms/pt-br-grid.md
+- llms/pt-br-conexoes.md
+- llms/pt-br-adivinhe.md
+- llms/pt-br-caca-palavras.md
+- llms/en-quiz.md
+- llms/en-grid.md
+- llms/en-connections.md
+- llms/en-guess.md
+- llms/en-word-search.md
+
+## Proveniência e licença
+
+Cada resposta cita a fonte: Wikidata (CC0,
+https://www.wikidata.org/wiki/Wikidata:Copyright) e Wikipedia
+(CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/).
+Os arquivos em `/data/` são dados brutos para o app e não são indexados.

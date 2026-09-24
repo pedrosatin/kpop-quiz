@@ -48,7 +48,27 @@ jobs:
         env:
           ASTRO_SITE: ${{ steps.pages.outputs.origin }}
           ASTRO_BASE: ${{ steps.pages.outputs.base_path }}
+          # Dummy IDs so the analytics guard below exercises the
+          # isStaging gate instead of passing vacuously (ADR 017).
+          PUBLIC_CF_BEACON_TOKEN: staging-guard-dummy-token
+          PUBLIC_GA4_ID: G-STAGINGGUARD
         run: npm run build
+      - name: Guard against analytics in staging
+        run: |
+          # HTML is the executable surface: no page may reference a
+          # measurement host. (An unreferenced banner chunk may exist in
+          # dist/_astro; it cannot execute without a <script> tag, see ADR 017.)
+          if grep -RqE "cloudflareinsights.com|googletagmanager.com|google-analytics.com" --include='*.html' dist/; then
+            echo "::error::Analytics snippet leaked into the staging build."
+            exit 1
+          fi
+          missing=$(grep -RL 'name="robots" content="noindex"' --include='*.html' dist/ || true)
+          if [ -n "$missing" ]; then
+            echo "::error::Staging HTML missing noindex: $missing"
+            exit 1
+          fi
+      - name: Verify SEO guards on the staging build
+        run: npm run seo:verify -- --env staging
       - uses: actions/upload-pages-artifact@v5
         with:
           path: web/dist
