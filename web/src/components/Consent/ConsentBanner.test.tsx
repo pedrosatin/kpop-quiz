@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/preact";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/preact";
 import { afterEach, describe, expect, it } from "vitest";
 import { CONSENT_STORAGE_KEY, ConsentBanner, OPEN_CONSENT_PREFERENCES_EVENT } from "./ConsentBanner";
 import { getMessages } from "../../i18n/catalog";
@@ -11,6 +11,12 @@ function gaScripts(): HTMLScriptElement[] {
   return Array.from(document.head.querySelectorAll("script")).filter((s) =>
     s.src.includes("googletagmanager.com")
   );
+}
+
+function openPreferences(): void {
+  act(() => {
+    window.dispatchEvent(new Event(OPEN_CONSENT_PREFERENCES_EVENT));
+  });
 }
 
 afterEach(() => {
@@ -73,7 +79,7 @@ describe("ConsentBanner", () => {
     await waitFor(() => {
       expect(gaScripts()).toHaveLength(1);
     });
-    window.dispatchEvent(new Event(OPEN_CONSENT_PREFERENCES_EVENT));
+    openPreferences();
     fireEvent.click(await screen.findByRole("button", { name: messages.consentReject }));
 
     expect(window.localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("rejected");
@@ -84,9 +90,9 @@ describe("ConsentBanner", () => {
   it("reenables GA4 when a visitor accepts again after revoking consent", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     fireEvent.click(await screen.findByRole("button", { name: messages.consentAccept }));
-    window.dispatchEvent(new Event(OPEN_CONSENT_PREFERENCES_EVENT));
+    openPreferences();
     fireEvent.click(screen.getByRole("button", { name: messages.consentReject }));
-    window.dispatchEvent(new Event(OPEN_CONSENT_PREFERENCES_EVENT));
+    openPreferences();
     fireEvent.click(screen.getByRole("button", { name: messages.consentAccept }));
 
     expect(window.localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("accepted");
