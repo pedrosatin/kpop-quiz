@@ -1172,6 +1172,21 @@ footer a {
   color: var(--color-link);
 }
 
+.footer-privacy-preferences {
+  padding: 0;
+  color: var(--color-link);
+  font: inherit;
+  text-decoration: underline;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.footer-privacy-preferences:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .privacy-notice {
   width: min(100% - 2rem, 48rem);
   margin: 0 auto;
@@ -3628,47 +3643,27 @@ footer a {
   cursor: pointer;
 }
 
-.consent-banner-accept {
-  background: var(--color-action);
-  border: 2px solid var(--color-action);
-  color: var(--color-action-text);
-}
-
-.consent-banner-accept:hover {
-  background: var(--color-action-hover);
-  border-color: var(--color-action-hover);
-}
-
+.consent-banner-accept,
 .consent-banner-reject {
   background: transparent;
   border: 2px solid var(--color-border);
   color: var(--color-text);
 }
 
+.consent-banner-accept:hover,
+.consent-banner-reject:hover {
+  background: var(--color-surface-muted);
+}
+
 .consent-banner-accept:focus-visible,
-.consent-banner-reject:focus-visible,
-.consent-preferences:focus-visible {
+.consent-banner-reject:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
 }
 
-.consent-preferences {
-  position: fixed;
-  right: 1rem;
-  bottom: 1rem;
-  z-index: 60;
-  padding: 0.5rem 0.75rem;
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-control);
-  cursor: pointer;
-}
-
 @media (forced-colors: active) {
   .consent-banner-accept,
-  .consent-banner-reject,
-  .consent-preferences {
+  .consent-banner-reject {
     border: 2px solid ButtonText;
   }
 }

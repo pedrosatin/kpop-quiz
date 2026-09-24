@@ -3,6 +3,7 @@ import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 
 export const CONSENT_STORAGE_KEY = "kpop-quiz-consent";
+export const OPEN_CONSENT_PREFERENCES_EVENT = "kpop-quiz-open-consent-preferences";
 export type ConsentChoice = "accepted" | "rejected";
 
 export interface ConsentBannerProps {
@@ -64,6 +65,9 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    const openPreferences = () => setChoice(null);
+    window.addEventListener(OPEN_CONSENT_PREFERENCES_EVENT, openPreferences);
+
     const stored = readConsentChoice();
     setChoice(stored);
     setReady(true);
@@ -72,6 +76,8 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
     } else if (stored === "rejected") {
       disableGoogleAnalytics(ga4Id);
     }
+
+    return () => window.removeEventListener(OPEN_CONSENT_PREFERENCES_EVENT, openPreferences);
   }, [ga4Id]);
 
   if (!ready) {
@@ -93,15 +99,7 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
   };
 
   if (choice !== null) {
-    return (
-      <button
-        type="button"
-        class="consent-preferences"
-        onClick={() => setChoice(null)}
-      >
-        {messages.consentPreferences}
-      </button>
-    );
+    return null;
   }
 
   return (
