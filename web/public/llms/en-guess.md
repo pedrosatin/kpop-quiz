@@ -1,9 +1,10 @@
-# Guess the Name
+# Guess the name
 
 Canonical: https://kpopquiz.online/en/guess/
 Also in Portuguese: https://kpopquiz.online/pt-br/adivinhe/
 
-Figure out the K-pop entity name with color feedback on every guess.
+Find today's K-pop artist or group. After each guess, colors show which
+letters are right.
 
 6 attempts · 1 daily entity. Guess the K-pop artist or group name within
 6 attempts with colored letter feedback.

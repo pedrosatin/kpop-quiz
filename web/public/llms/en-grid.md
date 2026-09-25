@@ -1,9 +1,10 @@
-# Intersection Grid
+# Intersection grid
 
 Canonical: https://kpopquiz.online/en/grid/
 Also in Portuguese: https://kpopquiz.online/pt-br/grid/
 
-Cross row and column criteria to select valid musical groups.
+In each square, pick a group that fits both the row rule and the column
+rule.
 
 9 cells · 9 guesses. 3x3 matrix with intersecting criteria for labels,
 members and dates.

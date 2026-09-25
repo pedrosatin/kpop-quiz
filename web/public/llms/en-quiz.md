@@ -3,7 +3,8 @@
 Canonical: https://kpopquiz.online/en/
 Also in Portuguese: https://kpopquiz.online/pt-br/
 
-Groups, members and dates, with a source for every answer.
+Questions about groups, members and dates. Every answer shows its
+source.
 
 10 questions · multiple choice. 10 multiple choice questions with
 verifiable sources for every answer.
