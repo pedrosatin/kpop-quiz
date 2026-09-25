@@ -1,7 +1,5 @@
 ---
 interface Props {
-  /** Stable id used to remember that the player has already read the rules. */
-  gameId: string;
   kicker: string;
   title: string;
   intro: string;
@@ -9,7 +7,7 @@ interface Props {
   howToPlaySteps?: readonly string[];
 }
 
-const { gameId, kicker, title, intro, howToPlayTitle, howToPlaySteps } = Astro.props;
+const { kicker, title, intro, howToPlayTitle, howToPlaySteps } = Astro.props;
 const hasHowToPlay = Boolean(howToPlayTitle && howToPlaySteps?.length);
 ---
 <section class="intro" aria-labelledby="page-title">
@@ -17,7 +15,7 @@ const hasHowToPlay = Boolean(howToPlayTitle && howToPlaySteps?.length);
   <h1 id="page-title">{title}</h1>
   <p class="intro-text">{intro}</p>
   {hasHowToPlay && (
-    <details class="how-to-play" data-how-to-play={gameId}>
+    <details class="how-to-play">
       <summary class="btn btn-secondary btn-sm">{howToPlayTitle}</summary>
       <ol class="how-to-play-steps">
         {howToPlaySteps!.map((step) => <li>{step}</li>)}
@@ -25,19 +23,3 @@ const hasHowToPlay = Boolean(howToPlayTitle && howToPlaySteps?.length);
     </details>
   )}
 </section>
-{hasHowToPlay && (
-  <script is:inline define:vars={{ gameId }}>
-    (function () {
-      var details = document.querySelector('[data-how-to-play="' + gameId + '"]');
-      if (!details) return;
-      var key = "kpop-quiz-how-to-play-seen:" + gameId;
-      try {
-        // Open the rules on the first visit to each game, then remember it.
-        if (!localStorage.getItem(key)) {
-          details.open = true;
-          localStorage.setItem(key, "1");
-        }
-      } catch (e) {}
-    })();
-  </script>
-)}

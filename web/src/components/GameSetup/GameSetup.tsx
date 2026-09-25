@@ -36,39 +36,44 @@ export function GameSetup({
   disabled = false,
 }: GameSetupProps) {
   return (
-    <section id="quiz" class="game-card quiz-setup" aria-labelledby="difficulty-heading">
-      <p class="kicker">{messages.setupKicker}</p>
-      <h2 id="difficulty-heading" class="game-card-title">{messages.setupTitle}</h2>
-      <p class="setup-rules">{messages.roundRules}</p>
-      {onSelectTheme && (
-        <GameCollection
-          selectedTheme={theme}
-          onSelectTheme={onSelectTheme}
+    <section id="quiz" class="game-card game-card--wide quiz-setup" aria-labelledby="difficulty-heading">
+      <div class="setup-options">
+        <p class="kicker">{messages.setupKicker}</p>
+        <h2 id="difficulty-heading" class="game-card-title">{messages.setupTitle}</h2>
+        {onSelectTheme && (
+          <GameCollection
+            selectedTheme={theme}
+            onSelectTheme={onSelectTheme}
+            messages={messages}
+            disabled={disabled}
+          />
+        )}
+        {onSelectDecades && <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />}
+        <DifficultyPicker
+          playMode={playMode}
+          onSelectMode={onSelectMode}
           messages={messages}
           disabled={disabled}
         />
-      )}
-      {onSelectDecades && <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />}
-      <DifficultyPicker
-        playMode={playMode}
-        onSelectMode={onSelectMode}
-        messages={messages}
-        disabled={disabled}
-      />
-      <TimerControl
-        enabled={timerEnabled}
-        onChange={onTimerChange}
-        label={messages.enableTimer}
-        disabled={disabled}
-      />
-      <button
-        class="btn btn-primary quiz-start"
-        type="button"
-        disabled={!isReady || disabled}
-        onClick={onStart}
-      >
-        {messages.start}
-      </button>
+      </div>
+      {/* Stays in view while the player scrolls the options, so starting is always one tap away. */}
+      <div class="setup-actions">
+        <p class="setup-rules">{messages.roundRules}</p>
+        <TimerControl
+          enabled={timerEnabled}
+          onChange={onTimerChange}
+          label={messages.enableTimer}
+          disabled={disabled}
+        />
+        <button
+          class="btn btn-primary quiz-start"
+          type="button"
+          disabled={!isReady || disabled}
+          onClick={onStart}
+        >
+          {messages.start}
+        </button>
+      </div>
     </section>
   );
 }

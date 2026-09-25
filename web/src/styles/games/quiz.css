@@ -60,13 +60,50 @@
   accent-color: var(--color-theme);
 }
 
-.quiz-start {
-  width: 100%;
+/* On phones the start button sticks to the bottom of the screen while the
+   options scroll; from 56rem the actions become a sticky side column. */
+
+.setup-actions {
+  display: contents;
 }
 
-@media (min-width: 40rem) {
+.setup-rules {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.quiz-start {
+  position: sticky;
+  bottom: var(--space-3);
+  width: 100%;
+  box-shadow: var(--shadow-overlay);
+}
+
+@media (min-width: 56rem) {
+  .quiz-setup {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 17rem;
+    gap: var(--space-6);
+    align-items: start;
+  }
+
+  .quiz-setup fieldset:last-child {
+    margin-bottom: 0;
+  }
+
+  .setup-actions {
+    display: block;
+    position: sticky;
+    top: var(--space-4);
+    padding: var(--space-4);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-control);
+    background: var(--color-surface-muted);
+  }
+
   .quiz-start {
-    width: auto;
+    position: static;
+    box-shadow: none;
   }
 }
 

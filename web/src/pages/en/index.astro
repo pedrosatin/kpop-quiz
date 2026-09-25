@@ -7,9 +7,8 @@ import { getMessages } from "../../i18n/catalog";
 const messages = getMessages("en");
 ---
 <BaseLayout locale="en" route="quiz" canonicalPath="/en/" alternatePath="/pt-br/">
-  <div class="page-shell">
+  <div class="page-shell page-shell--wide">
     <GameIntro
-      gameId="quiz"
       kicker={messages.eyebrow}
       title={messages.title}
       howToPlayTitle={messages.howToPlayTitle}
