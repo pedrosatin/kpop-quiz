@@ -120,9 +120,10 @@ export function WordSearchGrid({
                 }}
                 onPointerEnter={() => onCellPointerEnter(r, c)}
                 onPointerUp={(e) => {
-                  // A touch lifted outside the grid is left to the window listener
-                  // in the hook, which ends the drag on the last cell crossed.
-                  const released = cellAtPoint(e.clientX, e.clientY) ?? (e.pointerType === "touch" ? null : { row: r, col: c });
+                  // A touch or pen lifted outside the grid is left to the window
+                  // listener in the hook, which ends the drag on the last cell crossed.
+                  const captured = e.pointerType === "touch" || e.pointerType === "pen";
+                  const released = cellAtPoint(e.clientX, e.clientY) ?? (captured ? null : { row: r, col: c });
                   if (released) onCellPointerUp(released.row, released.col);
                 }}
               >
