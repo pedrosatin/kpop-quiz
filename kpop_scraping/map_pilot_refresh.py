@@ -47,6 +47,9 @@ MAP_DATASET_VERSION = "5.1.1"
 MAP_SCALE = "1:10m"
 DEFAULT_OUTPUT = Path("data/map-pilot/deadline-events.json")
 DEFAULT_MAP = Path("web/src/data/map-pilot/world-map.json")
+# The monthly job can wait out replication lag: 8 retries back off for up to
+# 255 s in total, while the default 3 give up after 7 s.
+WIKIDATA_RETRIES = 8
 
 
 @dataclass(frozen=True)
@@ -510,7 +513,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     schedule = parse_yg_tour_schedule(fetch_schedule_html(config.schedule_url, args.user_agent))
     snapshot = collect_musicbrainz(MusicBrainzClient(user_agent=args.user_agent), config)
     area_countries = collect_area_countries(
-        WikidataEntityClient(user_agent=args.user_agent), area_wikidata_ids(snapshot)
+        WikidataEntityClient(user_agent=args.user_agent, retries=WIKIDATA_RETRIES), area_wikidata_ids(snapshot)
     )
     dataset, excluded = build_map_pilot_dataset(
         config, schedule, snapshot, area_countries, world_map, checked_at

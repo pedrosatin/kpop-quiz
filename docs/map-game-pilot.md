@@ -21,7 +21,7 @@ As rotas têm `noindex`, ficam fora do sitemap e não aparecem no menu de jogos.
 
 ## Atualização
 
-`python -m kpop_scraping.map_pilot_refresh` refaz `data/map-pilot/deadline-events.json` a partir das fontes. O comando baixa a agenda uma vez e consulta o MusicBrainz em sequência, com intervalo mínimo de 1,1 s entre chamadas, timeout de 30 s e `User-Agent` com a URL do repositório. Ao Wikidata, faz uma chamada `wbgetentities` com `maxlag=5`. Uma execução completa faz cerca de 110 chamadas e termina em aproximadamente dois minutos.
+`python -m kpop_scraping.map_pilot_refresh` refaz `data/map-pilot/deadline-events.json` a partir das fontes. O comando baixa a agenda uma vez e consulta o MusicBrainz em sequência, com intervalo mínimo de 1,1 s entre chamadas, timeout de 30 s e `User-Agent` com a URL do repositório. Ao Wikidata, faz uma chamada `wbgetentities` com `maxlag=5`. Se o Wikidata responder que está atrasado, o comando tenta de novo até 8 vezes, com espera dobrada a cada vez, somando até 255 s. Uma execução completa faz cerca de 110 chamadas e termina em aproximadamente dois minutos.
 
 A data é a chave entre a agenda e o MusicBrainz, porque a turnê tem no máximo um show por dia. Um evento entra no conjunto quando todas estas condições valem:
 
