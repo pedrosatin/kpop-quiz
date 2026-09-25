@@ -84,6 +84,25 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("moves focus into the picker and back to the cell when it closes", async () => {
+    render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("grid")).toBeInTheDocument();
+    });
+
+    const cellBtn = screen.getAllByRole("button", { name: /Linha 1/ })[0]!;
+    cellBtn.focus();
+    fireEvent.click(cellBtn);
+
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(cellBtn).toHaveFocus();
+  });
+
   it("submits a correct guess and updates board and score", async () => {
     render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
 
