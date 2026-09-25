@@ -71,6 +71,33 @@ describe("WordSearchGame component", () => {
     expect(wordItem).toHaveClass("is-found");
   });
 
+  it("finds a word dragged by touch, where the browser sends every event to the first cell", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+
+    const target = puzzle.words.find((w) => w.word === "SHINDONG")!;
+    const startCell = screen.getByLabelText(new RegExp(`^Linha ${target.start_row + 1}, coluna ${target.start_col + 1},`));
+    const endCell = screen.getByLabelText(new RegExp(`^Linha ${target.end_row + 1}, coluna ${target.end_col + 1},`));
+    const grid = screen.getByRole("grid");
+
+    // Touch input captures the pointer on the element it started on, so the
+    // move and up events keep targeting the first cell. Only the coordinates
+    // say where the finger is.
+    const underFinger = vi.fn<(x: number, y: number) => Element | null>(() => startCell);
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: underFinger });
+
+    try {
+      fireEvent.pointerDown(startCell, { clientX: 1, clientY: 1, buttons: 1 });
+      underFinger.mockReturnValue(endCell.querySelector(".cell-letter") ?? endCell);
+      fireEvent.pointerMove(grid, { clientX: 99, clientY: 99, buttons: 1 });
+      fireEvent.pointerUp(startCell, { clientX: 99, clientY: 99 });
+    } finally {
+      delete (document as { elementFromPoint?: unknown }).elementFromPoint;
+    }
+
+    expect(screen.getByTestId("found-counter")).toHaveTextContent(`1 / ${puzzle.words.length}`);
+    expect(document.querySelector(`[data-word-id="${target.id}"]`)).toHaveClass("is-found");
+  });
+
   it("toggles easy mode and hides/reveals word names", () => {
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
 

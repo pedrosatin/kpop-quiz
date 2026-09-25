@@ -130,8 +130,10 @@
   transition: border-color var(--transition-fast);
 }
 
-.option:hover {
-  border-color: var(--color-text);
+@media (hover: hover) {
+  .option:hover {
+    border-color: var(--color-text);
+  }
 }
 
 .option input {

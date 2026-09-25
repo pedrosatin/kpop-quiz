@@ -119,9 +119,11 @@
   transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.grid-cell-btn:hover:not(:disabled) {
-  border-color: var(--color-action);
-  background: var(--color-surface-muted);
+@media (hover: hover) {
+  .grid-cell-btn:hover:not(:disabled) {
+    border-color: var(--color-action);
+    background: var(--color-surface-muted);
+  }
 }
 
 .grid-cell-btn:focus-visible,
@@ -215,9 +217,20 @@
   border-bottom: 0;
 }
 
-.picker-candidate-item:hover,
 .picker-candidate-item.active {
   background: var(--color-surface-muted);
+}
+
+@media (hover: hover) {
+  .picker-candidate-item:hover {
+    background: var(--color-surface-muted);
+  }
+}
+
+@media (pointer: coarse) {
+  .picker-candidate-item {
+    min-height: var(--control-height);
+  }
 }
 
 .picker-candidate-item.used {
@@ -269,8 +282,16 @@
     border: 2px dashed CanvasText;
   }
 
-  .picker-candidate-item:hover,
   .picker-candidate-item.active {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+@media (forced-colors: active) and (hover: hover) {
+  .picker-candidate-item:hover {
+    forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
   }

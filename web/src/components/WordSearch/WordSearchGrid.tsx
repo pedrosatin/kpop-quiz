@@ -44,16 +44,21 @@ export function WordSearchGrid({
     }
   }, [focusedCell]);
 
+  // Touch input keeps sending move and up events to the cell where the finger
+  // went down, so the cell under the pointer comes from its coordinates.
+  const cellAtPoint = (x: number, y: number): CellCoord | null => {
+    const cellBtn = document.elementFromPoint?.(x, y)?.closest<HTMLElement>(".word-search-cell");
+    if (!cellBtn || !gridRef.current?.contains(cellBtn)) return null;
+    const row = parseInt(cellBtn.getAttribute("data-row") ?? "-1", 10);
+    const col = parseInt(cellBtn.getAttribute("data-col") ?? "-1", 10);
+    return row >= 0 && col >= 0 ? { row, col } : null;
+  };
+
   const handleGridPointerMove = (e: PointerEvent) => {
     if (e.buttons === 0 && !anchorCell) return;
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const cellBtn = el?.closest<HTMLElement>(".word-search-cell");
-    if (cellBtn) {
-      const r = parseInt(cellBtn.getAttribute("data-row") ?? "-1", 10);
-      const c = parseInt(cellBtn.getAttribute("data-col") ?? "-1", 10);
-      if (r >= 0 && c >= 0) {
-        onCellPointerEnter(r, c);
-      }
+    const cell = cellAtPoint(e.clientX, e.clientY);
+    if (cell) {
+      onCellPointerEnter(cell.row, cell.col);
     }
   };
 
@@ -104,15 +109,23 @@ export function WordSearchGrid({
                 aria-label={t.cellAria(r, c, letter, isSelected, isFound)}
                 onPointerDown={(e) => {
                   e.preventDefault();
-                  try {
-                    if ((e.currentTarget as HTMLElement).hasPointerCapture?.(e.pointerId)) {
-                      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-                    }
-                  } catch {}
+                  // Touch captures the pointer on the element under the finger,
+                  // often the letter span, so release it wherever it landed.
+                  for (const el of [e.target, e.currentTarget] as Element[]) {
+                    try {
+                      if (el?.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
+                    } catch {}
+                  }
                   onCellPointerDown(r, c);
                 }}
                 onPointerEnter={() => onCellPointerEnter(r, c)}
-                onPointerUp={() => onCellPointerUp(r, c)}
+                onPointerUp={(e) => {
+                  // A touch or pen lifted outside the grid is left to the window
+                  // listener in the hook, which ends the drag on the last cell crossed.
+                  const captured = e.pointerType === "touch" || e.pointerType === "pen";
+                  const released = cellAtPoint(e.clientX, e.clientY) ?? (captured ? null : { row: r, col: c });
+                  if (released) onCellPointerUp(released.row, released.col);
+                }}
               >
                 <span class="cell-letter">{letter}</span>
               </button>

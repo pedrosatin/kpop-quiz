@@ -190,8 +190,10 @@
   }
 }
 
-.keyboard-key:hover:not(:disabled) {
-  border-color: var(--color-text);
+@media (hover: hover) {
+  .keyboard-key:hover:not(:disabled) {
+    border-color: var(--color-text);
+  }
 }
 
 .keyboard-key:active:not(:disabled) {
@@ -279,11 +281,15 @@
   40%, 80% { transform: translateX(4px); }
 }
 
-/* Forced colors: status is carried by the border style, not the fill. */
+/*
+  Forced colors: status is carried by the border style, not the fill.
+  Hit is double, near is dashed, miss is dotted; a letter still being typed
+  keeps the plain solid border.
+*/
 @media (forced-colors: active) {
   .name-guess-cell.is-correct,
   .keyboard-key.key-correct {
-    border: 2px solid Highlight;
+    border: 4px double Highlight;
   }
 
   .name-guess-cell.is-present,

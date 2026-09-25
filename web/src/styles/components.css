@@ -50,9 +50,11 @@
   color: var(--color-action-text);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-action-hover);
-  border-color: var(--color-action-hover);
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-action-hover);
+    border-color: var(--color-action-hover);
+  }
 }
 
 .btn-secondary {
@@ -61,18 +63,22 @@
   color: var(--color-text);
 }
 
-.btn-secondary:hover:not(:disabled) {
-  background: var(--color-surface-muted);
-  border-color: var(--color-text);
+@media (hover: hover) {
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-surface-muted);
+    border-color: var(--color-text);
+  }
 }
 
 .btn-ghost {
   color: var(--color-text-muted);
 }
 
-.btn-ghost:hover:not(:disabled) {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
+@media (hover: hover) {
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--color-surface-muted);
+    color: var(--color-text);
+  }
 }
 
 /* Toggle buttons (aria-pressed) look selected when on. */
@@ -87,6 +93,13 @@
   min-height: 2.25rem;
   padding: var(--space-1) var(--space-3);
   font-size: 0.8125rem;
+}
+
+/* On touch screens a small button keeps the small type but not a small target. */
+@media (pointer: coarse) {
+  .btn-sm {
+    min-height: var(--control-height);
+  }
 }
 
 .btn-icon {
@@ -107,6 +120,24 @@
 @media (forced-colors: active) {
   .btn {
     border: 2px solid ButtonBorder;
+  }
+
+  .btn-primary,
+  .btn[aria-pressed="true"],
+  .btn[aria-pressed="true"]:hover:not(:disabled) {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+
+  /* Opacity alone does not read as disabled on a system palette. */
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    opacity: 1;
+    background: Canvas;
+    border-color: GrayText;
+    color: GrayText;
   }
 }
 
@@ -194,8 +225,10 @@
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.choice:hover {
-  border-color: var(--color-text);
+@media (hover: hover) {
+  .choice:hover {
+    border-color: var(--color-text);
+  }
 }
 
 .choice input {
@@ -227,6 +260,13 @@
 @media (forced-colors: active) {
   .choice {
     border-width: 2px;
+  }
+
+  /* The inset shadow that thickens the selected border is dropped. */
+  .choice.selected:not(:has(input:focus-visible)),
+  .choice:has(input:checked):not(:has(input:focus-visible)) {
+    outline: 2px solid Highlight;
+    outline-offset: -5px;
   }
 }
 

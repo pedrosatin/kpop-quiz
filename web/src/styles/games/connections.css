@@ -137,9 +137,11 @@
 
 /* Hover only tints the background and darkens the border: the text keeps the
    regular text color, so contrast stays the same in both themes. */
-.connections-tile:hover:not(:disabled):not(.selected) {
-  border-color: var(--color-text);
-  background: color-mix(in srgb, var(--color-theme) 14%, var(--color-surface-muted));
+@media (hover: hover) {
+  .connections-tile:hover:not(:disabled):not(.selected) {
+    border-color: var(--color-text);
+    background: color-mix(in srgb, var(--color-theme) 14%, var(--color-surface-muted));
+  }
 }
 
 /* Selected tiles are inverted, a change that does not depend on hue. */
@@ -173,9 +175,17 @@
   }
 
   .connections-tile.selected {
+    forced-color-adjust: none;
     border: 3px solid Highlight;
     background: Highlight;
     color: HighlightText;
+  }
+
+  .connections-tile:disabled {
+    opacity: 1;
+    background: Canvas;
+    border-color: GrayText;
+    color: GrayText;
   }
 
   .connections-tile:focus-visible {
@@ -184,6 +194,17 @@
 
   .connections-banner {
     border: 2px solid CanvasText;
+  }
+
+  /* Without the level colors, the banner shows its level as text. */
+  .connections-banner-level {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
   }
 
   .mistake-dot.active {
