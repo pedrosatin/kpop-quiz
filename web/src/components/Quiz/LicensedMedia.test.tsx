@@ -68,7 +68,7 @@ describe("LicensedMedia", () => {
       expect(image).toHaveAttribute("src", validMedia.asset_url);
 
       // Creator credit
-      expect(screen.getByText(/Foto por Dispatch/)).toBeInTheDocument();
+      expect(screen.getByText(/Foto: Dispatch/)).toBeInTheDocument();
 
       // License link
       const licenseLink = screen.getByRole("link", { name: "CC BY 3.0" });
@@ -92,7 +92,7 @@ describe("LicensedMedia", () => {
         />
       );
 
-      expect(screen.getByText(/Photo by Dispatch/)).toBeInTheDocument();
+      expect(screen.getByText(/Photo: Dispatch/)).toBeInTheDocument();
       const sourceLink = screen.getByRole("link", { name: "Image source" });
       expect(sourceLink).toHaveAttribute("href", "https://commons.wikimedia.org/wiki/File:Twice_photo.jpg");
       expect(sourceLink).toHaveAttribute("rel", "noopener noreferrer");

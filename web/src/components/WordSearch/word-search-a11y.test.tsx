@@ -29,7 +29,7 @@ describe("Automated accessibility audits with axe-core for WordSearch", () => {
   it("validates WordSearchGame during word selection with zero violations", async () => {
     const { container } = render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
 
-    const cell = screen.getByLabelText(/^Linha 1, Coluna 1,/);
+    const cell = screen.getByLabelText(/^Linha 1, coluna 1,/);
     fireEvent.pointerDown(cell);
 
     const results = await axe.run(container);
@@ -67,8 +67,8 @@ describe("Automated accessibility audits with axe-core for WordSearch", () => {
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
 
     const grid = screen.getByRole("grid");
-    const cell00 = screen.getByLabelText(/^Linha 1, Coluna 1,/);
-    const cell10 = screen.getByLabelText(/^Linha 2, Coluna 1,/);
+    const cell00 = screen.getByLabelText(/^Linha 1, coluna 1,/);
+    const cell10 = screen.getByLabelText(/^Linha 2, coluna 1,/);
 
     expect(cell00).toHaveAttribute("tabindex", "0");
     expect(cell10).toHaveAttribute("tabindex", "-1");

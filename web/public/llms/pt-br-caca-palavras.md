@@ -1,10 +1,10 @@
-# Caça-Palavras K-pop
+# Caça-palavras
 
 Canonical: https://kpopquiz.online/pt-br/caca-palavras/
 Também em inglês: https://kpopquiz.online/en/word-search/
 
-Encontre os nomes temáticos escondidos na grade alfabética com fontes
-verificadas.
+Encontre os nomes do tema escondidos na grade. Eles podem estar na
+horizontal, na vertical ou na diagonal, inclusive de trás para frente.
 
 Grade temática · Palavras auditadas. Localize nomes temáticos escondidos
 em 8 direções na grade alfabética.

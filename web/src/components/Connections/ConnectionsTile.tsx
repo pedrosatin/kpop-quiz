@@ -9,9 +9,7 @@ export function ConnectionsTile({
   messages,
 }: ConnectionsTileProps) {
   const displayName = item.labels[locale] || item.canonical_name;
-  const ariaLabel = messages.connectionsItemAriaLabel
-    ? messages.connectionsItemAriaLabel(displayName, isSelected)
-    : `${displayName}, ${isSelected ? "selecionado" : "não selecionado"}`;
+  const ariaLabel = messages.connectionsItemAriaLabel(displayName, isSelected);
 
   return (
     <button

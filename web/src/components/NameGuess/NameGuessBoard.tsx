@@ -7,7 +7,6 @@ interface NameGuessBoardProps {
   guesses: string[];
   feedbacks: LetterStatus[][];
   currentInput: string;
-  highContrast: boolean;
   t: NameGuessTranslations;
 }
 
@@ -17,7 +16,6 @@ export function NameGuessBoard({
   guesses,
   feedbacks,
   currentInput,
-  highContrast,
   t,
 }: NameGuessBoardProps) {
   const rows = [];
@@ -34,7 +32,6 @@ export function NameGuessBoard({
         feedback={isSubmitted ? feedbacks[r] : undefined}
         isCurrent={isCurrent}
         currentInput={isCurrent ? currentInput : undefined}
-        highContrast={highContrast}
         rowIndex={r}
         t={t}
       />
@@ -45,8 +42,8 @@ export function NameGuessBoard({
     <div
       role="region"
       aria-label={t.boardAria}
-      class={`name-guess-board ${highContrast ? "high-contrast" : ""}`.trim()}
-      data-contrast={highContrast ? "high" : "normal"}
+      class="name-guess-board"
+      style={`--word-length: ${wordLength}`}
     >
       {rows}
     </div>

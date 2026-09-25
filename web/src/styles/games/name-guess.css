@@ -1,0 +1,298 @@
+/*
+  Name guess: letter board, on-screen keyboard and the end-of-game clues.
+  The card, HUD, buttons, alert and result layout come from components.css.
+
+  Letter feedback reads the --ng-* variables below. High contrast is a single
+  switch, data-contrast="high" on the game card, that swaps them for the
+  blue/orange tokens.
+*/
+
+.name-guess {
+  --ng-hit: var(--color-hit);
+  --ng-hit-text: var(--color-hit-text);
+  --ng-near: var(--color-near);
+  --ng-near-text: var(--color-near-text);
+  --ng-miss: var(--color-miss);
+  --ng-miss-text: var(--color-miss-text);
+  --ng-gap: 0.375rem;
+}
+
+.name-guess[data-contrast="high"] {
+  --ng-hit: var(--color-hit-hc);
+  --ng-hit-text: var(--color-hit-hc-text);
+  --ng-near: var(--color-near-hc);
+  --ng-near-text: var(--color-near-hc-text);
+}
+
+/* Narrow phones need the card's inline padding for the keyboard. */
+@media (max-width: 30rem) {
+  .name-guess {
+    padding-inline: var(--space-2);
+  }
+}
+
+/* HUD */
+
+.name-guess-hud-info {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.name-guess-hud-info .hud-label {
+  display: block;
+  font-size: 0.8125rem;
+}
+
+.name-guess-date {
+  white-space: nowrap;
+}
+
+/* Board */
+
+.name-guess-play {
+  position: relative;
+  container-type: inline-size;
+}
+
+/* The alert floats over the top of the board and disappears on its own. */
+.name-guess-error-region {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.name-guess-toast {
+  max-width: 100%;
+  box-shadow: var(--shadow-overlay);
+  animation: shake 0.3s ease-in-out;
+}
+
+.name-guess-board {
+  --ng-tile: min(3.5rem, (100cqi - (var(--word-length, 5) - 1) * var(--ng-gap)) / var(--word-length, 5));
+  display: grid;
+  justify-content: center;
+  gap: var(--ng-gap);
+  user-select: none;
+}
+
+.name-guess-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--ng-gap);
+}
+
+.name-guess-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--ng-tile);
+  aspect-ratio: 1;
+  border: 2px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-title);
+  font-size: calc(var(--ng-tile) * 0.5);
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  transition: transform var(--transition-fast), background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.name-guess-cell.is-active {
+  border-color: var(--color-text);
+  transform: scale(1.05);
+  animation: popIn 0.1s ease-in-out;
+}
+
+.name-guess-cell.is-correct,
+.name-guess-cell.is-present,
+.name-guess-cell.is-absent {
+  animation: flipReveal 0.4s ease forwards;
+}
+
+/* Feedback colors, shared by tiles and keys */
+
+.name-guess-cell.is-correct,
+.keyboard-key.key-correct {
+  background: var(--ng-hit);
+  border-color: var(--ng-hit);
+  color: var(--ng-hit-text);
+}
+
+.name-guess-cell.is-present,
+.keyboard-key.key-present {
+  background: var(--ng-near);
+  border-color: var(--ng-near);
+  color: var(--ng-near-text);
+}
+
+.name-guess-cell.is-absent,
+.keyboard-key.key-absent {
+  background: var(--ng-miss);
+  border-color: var(--ng-miss);
+  color: var(--ng-miss-text);
+}
+
+/* Keyboard */
+
+.virtual-keyboard {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 32rem;
+  margin: var(--space-5) auto 0;
+  user-select: none;
+}
+
+.keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-1);
+}
+
+.keyboard-key {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform 0.05s ease;
+}
+
+/* Action keys size to their label; the letter keys share what is left. */
+.keyboard-key.key-action {
+  flex: 0 1 auto;
+  min-width: 3rem;
+  padding: 0 var(--space-2);
+  font-size: clamp(0.625rem, 2.8vw, 0.8125rem);
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 22.5rem) {
+  .keyboard-key.key-action {
+    min-width: 0;
+    padding: 0 var(--space-1);
+    letter-spacing: 0;
+  }
+}
+
+.keyboard-key:hover:not(:disabled) {
+  border-color: var(--color-text);
+}
+
+.keyboard-key:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.keyboard-key:focus-visible {
+  z-index: 1;
+}
+
+.keyboard-key:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Results */
+
+.name-guess-result {
+  margin-top: var(--space-5);
+}
+
+.name-guess-target-name {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-title);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.name-guess-hints {
+  display: grid;
+  gap: var(--space-3);
+  text-align: left;
+}
+
+.name-guess-hints-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.name-guess-hints-desc {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
+.name-guess-hints .result-stat {
+  background: var(--color-surface);
+  text-align: center;
+}
+
+.name-guess-stat-text {
+  font-size: 0.9375rem;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.name-guess-evidence {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Animations (base.css turns them off for prefers-reduced-motion) */
+
+@keyframes popIn {
+  0% { transform: scale(0.9); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1.05); }
+}
+
+@keyframes flipReveal {
+  0% { transform: rotateX(0deg); }
+  50% { transform: rotateX(90deg); }
+  100% { transform: rotateX(0deg); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+/* Forced colors: status is carried by the border style, not the fill. */
+@media (forced-colors: active) {
+  .name-guess-cell.is-correct,
+  .keyboard-key.key-correct {
+    border: 2px solid Highlight;
+  }
+
+  .name-guess-cell.is-present,
+  .keyboard-key.key-present {
+    border: 2px dashed Highlight;
+  }
+
+  .name-guess-cell.is-absent,
+  .keyboard-key.key-absent {
+    border: 1px dotted ButtonBorder;
+  }
+}

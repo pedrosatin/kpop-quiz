@@ -1,9 +1,10 @@
-# K-pop Word Search
+# Word search
 
 Canonical: https://kpopquiz.online/en/word-search/
 Also in Portuguese: https://kpopquiz.online/pt-br/caca-palavras/
 
-Find the thematic names hidden in the letter grid with verified sources.
+Find the theme's names hidden in the grid. They can run across, down or
+diagonally, and backwards too.
 
 Thematic grid · Audited words. Find thematic names hidden in 8
 directions across the letter grid.

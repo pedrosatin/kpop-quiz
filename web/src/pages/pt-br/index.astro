@@ -1,16 +1,21 @@
 ---
 import { Quiz } from "../../components/Quiz/Quiz";
+import GameIntro from "../../components/GameIntro.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getMessages } from "../../i18n/catalog";
+
 const messages = getMessages("pt-BR");
 ---
 <BaseLayout locale="pt-BR" route="quiz" canonicalPath="/pt-br/" alternatePath="/en/">
   <div class="page-shell">
-    <section class="intro" aria-labelledby="page-title">
-      <p class="kicker">{messages.eyebrow}</p>
-      <h1 id="page-title">{messages.title}</h1>
-      <p>{messages.intro}</p>
-    </section>
+    <GameIntro
+      gameId="quiz"
+      kicker={messages.eyebrow}
+      title={messages.title}
+      howToPlayTitle={messages.howToPlayTitle}
+      howToPlaySteps={messages.quizHowToPlay}
+      intro={messages.intro}
+    />
     <Quiz locale="pt-BR" client:load />
   </div>
 </BaseLayout>

@@ -12,8 +12,8 @@ export function ReviewAnswers({ items, messages }: ReviewAnswersProps) {
   if (items.length === 0) return null;
 
   return (
-    <section class="review-answers" aria-labelledby="review-answers-heading">
-      <h3 id="review-answers-heading" class="review-title">
+    <section class="review-section" aria-labelledby="review-answers-heading">
+      <h3 id="review-answers-heading" class="review-section-title">
         {messages.reviewTitle}
       </h3>
       <ol class="review-list">
@@ -27,16 +27,16 @@ export function ReviewAnswers({ items, messages }: ReviewAnswersProps) {
           const displayedEvidence = groupEvidence(item.question.evidence);
 
           return (
-            <li key={item.question.id} class="review-item">
+            <li key={item.question.id} class={`review-item ${item.isCorrect ? "is-correct" : "is-wrong"}`}>
               <div class="review-item-header">
-                <span class={`review-badge ${item.isCorrect ? "success" : "failure"}`}>
+                <span class={`badge ${item.isCorrect ? "badge-success" : "badge-failure"}`}>
                   {item.isCorrect ? messages.correct : messages.incorrect}
                 </span>
-                <span class="review-item-counter">
+                <span class="review-item-counter text-muted">
                   {messages.questionCounter(index + 1, items.length)}
                 </span>
               </div>
-              <h4 class="review-prompt">{item.question.prompt}</h4>
+              <h4 class="review-item-title">{item.question.prompt}</h4>
               {item.question.media && (
                 <LicensedMedia
                   media={item.question.media}
@@ -44,23 +44,23 @@ export function ReviewAnswers({ items, messages }: ReviewAnswersProps) {
                   messages={messages}
                 />
               )}
-              <div class="review-details">
-                <p class="review-row">
+              <div>
+                <p>
                   <span class="review-label">{messages.yourAnswer}: </span>
-                  <strong class="review-value">
+                  <strong>
                     {selectedOption ? selectedOption.label : messages.noAnswer}
                   </strong>
                 </p>
-                <p class="review-row">
+                <p>
                   <span class="review-label">{messages.correctAnswer}: </span>
-                  <strong class="review-value">
+                  <strong>
                     {correctOption ? correctOption.label : ""}
                   </strong>
                 </p>
               </div>
               <p class="review-explanation">{item.question.explanation}</p>
               {displayedEvidence.length > 0 && (
-                <details class="review-evidence">
+                <details class="evidence-details">
                   <summary>{messages.evidence}</summary>
                   {displayedEvidence.map((ev) => (
                     <p key={`${ev.source_url}-${ev.revision_id}-${ev.locator}`}>

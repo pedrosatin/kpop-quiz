@@ -7,7 +7,6 @@ interface NameGuessRowProps {
   feedback?: LetterStatus[] | undefined;
   isCurrent?: boolean | undefined;
   currentInput?: string | undefined;
-  highContrast: boolean;
   rowIndex: number;
   t: NameGuessTranslations;
 }
@@ -18,7 +17,6 @@ export function NameGuessRow({
   feedback,
   isCurrent,
   currentInput = "",
-  highContrast,
   rowIndex,
   t,
 }: NameGuessRowProps) {
@@ -41,7 +39,6 @@ export function NameGuessRow({
         key={i}
         letter={letter}
         status={status}
-        highContrast={highContrast}
         position={i}
         t={t}
       />

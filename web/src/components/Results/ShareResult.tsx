@@ -142,7 +142,7 @@ export function ShareResult({
       {(!showFallback || canShare || canCopy) && (
         <button
           type="button"
-          class="secondary-action share-button"
+          class="btn btn-secondary share-button"
           onClick={handleAction}
         >
           {canShare ? messages.share : messages.copyResult}
@@ -160,7 +160,7 @@ export function ShareResult({
           </label>
           <textarea
             id="share-text-area"
-            class="share-textarea"
+            class="share-preview"
             readOnly
             value={shareText}
             rows={3}

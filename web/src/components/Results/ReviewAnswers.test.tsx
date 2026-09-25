@@ -128,14 +128,14 @@ describe("ReviewAnswers", () => {
   it("displays the questions list, selected answers, correct answers, explanations and evidence in PT-BR", () => {
     render(<ReviewAnswers items={sampleItems} messages={ptMessages} />);
 
-    expect(screen.getByRole("heading", { level: 3, name: "Revisão das respostas" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Suas respostas" })).toBeInTheDocument();
 
     // Question 1: Correct
     expect(screen.getByText("Qual grupo lançou Cheer Up?")).toBeInTheDocument();
     expect(screen.getByText("Pergunta 1 de 3")).toBeInTheDocument();
-    expect(screen.getByText("Acertou.")).toBeInTheDocument();
+    expect(screen.getByText("Você acertou.")).toBeInTheDocument();
     expect(screen.getByText("Cheer Up foi lançado pelo TWICE em 2016.")).toBeInTheDocument();
-    const wikidataLink = screen.getByRole("link", { name: "Abrir revisão no Wikidata" });
+    const wikidataLink = screen.getByRole("link", { name: "Abrir a revisão no Wikidata" });
     expect(wikidataLink).toHaveAttribute(
       "href",
       "https://www.wikidata.org/wiki/Q1"
@@ -147,7 +147,7 @@ describe("ReviewAnswers", () => {
     expect(screen.getByText("Pergunta 2 de 3")).toBeInTheDocument();
     expect(screen.getAllByText("Não foi dessa vez.")).toHaveLength(2);
     expect(screen.getByText("Red Velvet estreou em agosto de 2014.")).toBeInTheDocument();
-    const wikipediaLink = screen.getByRole("link", { name: "Abrir revisão no Wikipedia" });
+    const wikipediaLink = screen.getByRole("link", { name: "Abrir a revisão no Wikipedia" });
     expect(wikipediaLink).toHaveAttribute(
       "href",
       "https://pt.wikipedia.org/wiki/Red_Velvet"
@@ -167,7 +167,7 @@ describe("ReviewAnswers", () => {
   it("renders properly with English labels", () => {
     render(<ReviewAnswers items={sampleItems.slice(0, 1)} messages={enMessages} />);
 
-    expect(screen.getByRole("heading", { level: 3, name: "Review answers" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Your answers" })).toBeInTheDocument();
     expect(screen.getByText("Question 1 of 1")).toBeInTheDocument();
     expect(screen.getByText("Correct.")).toBeInTheDocument();
     expect(screen.getByText("Your answer:")).toBeInTheDocument();
@@ -196,7 +196,7 @@ describe("ReviewAnswers", () => {
 
     const image = screen.getByRole("img");
     expect(image).toHaveAttribute("src", itemWithMedia.question.media!.asset_url);
-    expect(screen.getByText(/Foto por Dispatch/)).toBeInTheDocument();
+    expect(screen.getByText(/Foto: Dispatch/)).toBeInTheDocument();
 
     const licenseLink = screen.getByRole("link", { name: "CC BY 3.0" });
     expect(licenseLink).toHaveAttribute("href", "https://creativecommons.org/licenses/by/3.0/");

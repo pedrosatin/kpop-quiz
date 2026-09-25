@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
-import { WORD_SEARCH_I18N } from "./types";
+import { getMessages } from "../../i18n/catalog";
 import { formatTime, generateWordSearchShareSummary } from "./utils";
 import type { Locale } from "../../lib/quiz-types";
 
@@ -21,7 +21,7 @@ export function WordSearchResultModal({
   elapsedSeconds,
   onClose,
 }: WordSearchResultModalProps) {
-  const t = WORD_SEARCH_I18N[locale];
+  const t = getMessages(locale).wordSearch;
   const [copied, setCopied] = useState<boolean>(false);
   const shareBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -68,7 +68,7 @@ export function WordSearchResultModal({
       }}
     >
       <div
-        class="modal-card result-modal"
+        class="modal-card word-search-modal result-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="result-dialog-title"
@@ -79,7 +79,7 @@ export function WordSearchResultModal({
           </h2>
           <button
             type="button"
-            class="modal-close-btn"
+            class="btn btn-ghost btn-icon modal-close"
             onClick={onClose}
             aria-label={t.close}
           >
@@ -87,21 +87,21 @@ export function WordSearchResultModal({
           </button>
         </div>
 
-        <div class="modal-body">
-          <p class="result-summary-message">{t.allWordsFound}</p>
+        <div class="modal-body result">
+          <p class="result-summary">{t.allWordsFound}</p>
 
-          <div class="result-metrics">
-            <div class="metric-item">
-              <span class="metric-label">{t.wordsFound}</span>
-              <strong class="metric-val">{foundCount} / {totalCount}</strong>
+          <div class="result-stats">
+            <div class="result-stat">
+              <span class="result-stat-label">{t.wordsFound}</span>
+              <strong class="result-stat-value">{foundCount} / {totalCount}</strong>
             </div>
-            <div class="metric-item">
-              <span class="metric-label">{t.elapsedTime}</span>
-              <strong class="metric-val">{formatTime(elapsedSeconds)}</strong>
+            <div class="result-stat">
+              <span class="result-stat-label">{t.elapsedTime}</span>
+              <strong class="result-stat-value">{formatTime(elapsedSeconds)}</strong>
             </div>
           </div>
 
-          <div class="result-share-box">
+          <div class="share-box">
             <pre class="share-preview">
               {generateWordSearchShareSummary(
                 puzzle,
@@ -110,14 +110,16 @@ export function WordSearchResultModal({
                 elapsedSeconds
               )}
             </pre>
-            <button
-              ref={shareBtnRef}
-              type="button"
-              class="share-btn primary-btn"
-              onClick={handleShare}
-            >
-              {copied ? t.copied : t.shareResult}
-            </button>
+            <div class="btn-row">
+              <button
+                ref={shareBtnRef}
+                type="button"
+                class="btn btn-primary share-btn"
+                onClick={handleShare}
+              >
+                {copied ? t.copied : t.shareResult}
+              </button>
+            </div>
           </div>
         </div>
       </div>

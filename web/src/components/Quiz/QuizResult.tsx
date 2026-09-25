@@ -38,9 +38,9 @@ export function QuizResult({
   const clues = cluesUsedCount ?? history.reduce((acc, h) => acc + h.cluesUsedCount, 0);
 
   return (
-    <section id="quiz" class="quiz-card result" aria-labelledby="result-heading">
+    <section id="quiz" class="game-card result" aria-labelledby="result-heading">
       <p class="kicker">{messages.score}</p>
-      <h2 id="result-heading" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
+      <h2 id="result-heading" class="result-title" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
         {messages.resultTitle}
       </h2>
       <ScoreSummary
@@ -51,7 +51,7 @@ export function QuizResult({
         cluesUsedCount={clues}
         messages={messages}
       />
-      <div class="result-actions">
+      <div class="btn-row">
         <ShareResult
           correctCount={correct}
           totalQuestions={total}
@@ -62,7 +62,7 @@ export function QuizResult({
           messages={messages}
           dailyDate={dailyDate}
         />
-        <button class="primary-action" type="button" onClick={onRestart}>
+        <button class="btn btn-primary" type="button" onClick={onRestart}>
           {messages.restart}
         </button>
       </div>

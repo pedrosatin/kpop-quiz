@@ -1,9 +1,10 @@
-# Grade de Interseções
+# Grade de interseções
 
 Canonical: https://kpopquiz.online/pt-br/grid/
 Também em inglês: https://kpopquiz.online/en/grid/
 
-Cruze critérios de linhas e colunas para escolher grupos musicais válidos.
+Em cada casa, escolha um grupo que atenda ao critério da linha e ao da
+coluna.
 
 9 células · 9 palpites. Matriz 3x3 com critérios cruzados de gravadora,
 integrantes e data.

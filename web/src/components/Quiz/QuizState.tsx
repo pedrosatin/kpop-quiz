@@ -18,11 +18,11 @@ export function QuizState({
   const content = message ?? label;
   const buttonLabel = actionLabel ?? action;
   return (
-    <section id="quiz" class="quiz-card state" aria-live="polite" aria-busy={busy}>
+    <section id="quiz" class="game-card state" aria-live="polite" aria-busy={busy}>
       {busy && <span class="loader" aria-hidden="true" />}
       {content && <p>{content}</p>}
       {buttonLabel && (
-        <button class="primary-action" type="button" onClick={onAction}>
+        <button class="btn btn-primary" type="button" onClick={onAction}>
           {buttonLabel}
         </button>
       )}

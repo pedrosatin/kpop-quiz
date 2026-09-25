@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import { WordSearchArtifactError, loadWordSearchPuzzle } from "../../data/word-search-loader";
 import { WordSearchGameContent } from "./WordSearchGameContent";
-import { WORD_SEARCH_I18N, type WordSearchGameProps } from "./types";
+import { getMessages } from "../../i18n/catalog";
+import type { WordSearchGameProps } from "./types";
 
 export function WordSearchGame({
   puzzle: initialPuzzle,
   locale,
   baseUrl,
 }: WordSearchGameProps) {
-  const t = WORD_SEARCH_I18N[locale] || WORD_SEARCH_I18N["pt-BR"];
+  const t = getMessages(locale).wordSearch;
   const [loadedPuzzle, setLoadedPuzzle] = useState<WordSearchPuzzle | null>(
     initialPuzzle ?? null
   );
@@ -45,7 +46,8 @@ export function WordSearchGame({
       <section
         id="word-search"
         aria-live="polite"
-        class="word-search-loading-container"
+        aria-busy="true"
+        class="game-card game-card--wide state word-search-state"
       >
         <span class="loader" aria-hidden="true" />
         <p class="loading-message">{t.loading}</p>
@@ -56,12 +58,12 @@ export function WordSearchGame({
   if (status === "error" || !loadedPuzzle) {
     const errorMsg = errorKind === "missing" ? t.artifactMissing : t.loadError;
     return (
-      <section id="word-search" class="word-search-error-container">
-        <p class="error-message">{errorMsg}</p>
+      <section id="word-search" class="game-card game-card--wide state word-search-state">
+        <p class="state-error">{errorMsg}</p>
         <button
           type="button"
           onClick={loadData}
-          class="retry-btn primary-btn"
+          class="btn btn-primary"
         >
           {t.retry}
         </button>

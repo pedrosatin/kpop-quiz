@@ -1,0 +1,198 @@
+/*
+  Connections: board, tiles, solved-category banners and the mistakes dots.
+  The card, HUD, alerts, buttons and result screen come from components.css.
+*/
+
+.connections-game {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.connections-hud {
+  justify-content: center;
+  margin-bottom: 0;
+}
+
+/* Mistakes left, one dot per attempt */
+
+.mistakes-dots {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.mistake-dot {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  transition: background-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.mistake-dot.active {
+  background-color: var(--color-text);
+}
+
+.mistake-dot.used {
+  background-color: var(--color-border);
+  opacity: 0.35;
+}
+
+/* Board */
+
+.connections-board,
+.connections-solved-categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Solved-category banners, colored by difficulty level */
+
+.connections-banner {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-control);
+  text-align: center;
+}
+
+.connections-banner-level-1 {
+  background: var(--color-level-1);
+  color: var(--color-level-1-text);
+}
+
+.connections-banner-level-2 {
+  background: var(--color-level-2);
+  color: var(--color-level-2-text);
+}
+
+.connections-banner-level-3 {
+  background: var(--color-level-3);
+  color: var(--color-level-3-text);
+}
+
+.connections-banner-level-4 {
+  background: var(--color-level-4);
+  color: var(--color-level-4-text);
+}
+
+.connections-banner-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.connections-banner-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.connections-banner-items {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.connections-banner-explanation {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+/* Tiles */
+
+.connections-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+
+@media (max-width: 480px) {
+  .connections-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.connections-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 4.5rem;
+  padding: var(--space-2);
+  border: 2px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+/* Hover only tints the background and darkens the border: the text keeps the
+   regular text color, so contrast stays the same in both themes. */
+.connections-tile:hover:not(:disabled):not(.selected) {
+  border-color: var(--color-text);
+  background: color-mix(in srgb, var(--color-theme) 14%, var(--color-surface-muted));
+}
+
+/* Selected tiles are inverted, a change that does not depend on hue. */
+.connections-tile.selected {
+  border-color: var(--color-text);
+  background: var(--color-text);
+  color: var(--color-canvas);
+}
+
+.connections-tile:focus-visible {
+  outline: 0.2rem solid var(--color-focus);
+  outline-offset: 0.15rem;
+}
+
+.connections-tile:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Result screen sits below the board, inside the same card */
+
+.connections-results {
+  margin-top: var(--space-2);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+@media (forced-colors: active) {
+  .connections-tile {
+    border: 2px solid ButtonBorder;
+  }
+
+  .connections-tile.selected {
+    border: 3px solid Highlight;
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .connections-tile:focus-visible {
+    outline: 3px solid Highlight;
+  }
+
+  .connections-banner {
+    border: 2px solid CanvasText;
+  }
+
+  .mistake-dot.active {
+    border: 1px solid CanvasText;
+    background: CanvasText;
+  }
+
+  .mistake-dot.used {
+    border: 1px dashed CanvasText;
+    background: transparent;
+  }
+}

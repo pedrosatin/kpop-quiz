@@ -84,7 +84,7 @@ describe("useWordSearchGame hook", () => {
 
     expect(result.current.foundWordIds).toContain(target.id);
     expect(result.current.anchorCell).toBeNull();
-    expect(result.current.announcement).toContain("Palavra encontrada");
+    expect(result.current.announcement).toContain("Você encontrou");
   });
 
   it("finds a word via reverse coordinates", () => {

@@ -3,7 +3,6 @@ import type { NameGuessTranslations, TileStatus } from "./types";
 interface NameGuessTileProps {
   letter: string;
   status: TileStatus;
-  highContrast: boolean;
   position: number;
   t: NameGuessTranslations;
 }
@@ -11,7 +10,6 @@ interface NameGuessTileProps {
 export function NameGuessTile({
   letter,
   status,
-  highContrast,
   position,
   t,
 }: NameGuessTileProps) {
@@ -27,16 +25,13 @@ export function NameGuessTile({
     tileLabel = t.absentTile(position + 1, letter);
   }
 
-  const statusClass = `is-${status}`;
-  const contrastClass = highContrast ? "high-contrast" : "";
 
   return (
     <div
       role="img"
       aria-label={tileLabel}
-      class={`name-guess-cell ${statusClass} ${contrastClass}`.trim()}
+      class={`name-guess-cell is-${status}`}
       data-status={status}
-      data-contrast={highContrast ? "high" : "normal"}
     >
       {letter}
     </div>

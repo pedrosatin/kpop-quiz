@@ -33,7 +33,12 @@ export function EntityPicker({
   const listboxId = useId();
 
   useEffect(() => {
+    // Return focus to the cell that opened the picker once it closes.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     inputRef.current?.focus();
+    return () => {
+      if (opener?.isConnected && !opener.hasAttribute("disabled")) opener.focus();
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -70,28 +75,28 @@ export function EntityPicker({
   };
 
   return (
-    <div class="picker-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div class="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div
-        class="picker-dialog"
+        class="modal-card grid-picker"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={handleKeyDown}
       >
-        <div class="picker-header">
+        <div class="modal-header">
           <div>
-            <h2 id={titleId} class="picker-title">
+            <h2 id={titleId} class="modal-title">
               {messages.gridPickerTitle}
             </h2>
             {rowLabel && colLabel && (
-              <p class="picker-criteria-hint">
+              <p class="modal-subtitle">
                 {rowLabel} ∩ {colLabel}
               </p>
             )}
           </div>
           <button
             type="button"
-            class="picker-close-btn"
+            class="btn btn-ghost btn-icon modal-close"
             onClick={onClose}
             aria-label={messages.gridClosePicker}
           >
@@ -101,7 +106,7 @@ export function EntityPicker({
 
         <div class="picker-alert-region">
           {uniquenessError && (
-            <div class="picker-alert-error" role="alert">
+            <div class="alert-error" role="alert">
               <p>
                 <strong>{uniquenessError}</strong>: {messages.gridAlreadyUsedError}
               </p>
@@ -109,7 +114,7 @@ export function EntityPicker({
           )}
         </div>
 
-        <div class="picker-search-field">
+        <div>
           <label for="picker-search-input" class="visually-hidden">
             {messages.gridPickerSearchLabel}
           </label>
@@ -117,7 +122,7 @@ export function EntityPicker({
             id="picker-search-input"
             ref={inputRef}
             type="search"
-            class="picker-search-input"
+            class="text-input"
             value={query}
             onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
             placeholder={messages.gridPickerSearchPlaceholder}
@@ -138,7 +143,7 @@ export function EntityPicker({
           aria-label={messages.gridPickerTitle}
         >
           {filtered.length === 0 ? (
-            <li class="picker-no-matches">{messages.gridPickerNoMatches}</li>
+            <li class="picker-no-matches text-muted">{messages.gridPickerNoMatches}</li>
           ) : (
             filtered.map((candidate, idx) => {
               const isUsed = usedEntityIds.has(candidate.id);
@@ -157,7 +162,7 @@ export function EntityPicker({
                 >
                   <span class="candidate-name">{displayName}</span>
                   {isUsed && (
-                    <span class="candidate-badge-used">{messages.gridAlreadyUsedBadge}</span>
+                    <span class="badge">{messages.gridAlreadyUsedBadge}</span>
                   )}
                 </li>
               );

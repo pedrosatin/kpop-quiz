@@ -38,3 +38,48 @@ describe("SEO meta catalog", () => {
     });
   }
 });
+
+const HOW_TO_PLAY_KEYS = [
+  "quizHowToPlay",
+  "gridHowToPlay",
+  "connectionsHowToPlay",
+  "nameGuessHowToPlay",
+  "wordSearchHowToPlay",
+] as const;
+
+describe("how to play catalog", () => {
+  for (const key of HOW_TO_PLAY_KEYS) {
+    it(`defines 3 to 4 steps for "${key}" with the same count in both locales`, () => {
+      const pt = getMessages("pt-BR")[key];
+      const en = getMessages("en")[key];
+      expect(pt.length).toBeGreaterThanOrEqual(3);
+      expect(pt.length).toBeLessThanOrEqual(4);
+      expect(en.length).toBe(pt.length);
+      for (const step of [...pt, ...en]) {
+        expect(step.trim().length).toBeGreaterThan(0);
+      }
+    });
+  }
+});
+
+describe("UI copy", () => {
+  it("defines a skip link for every route and the privacy page", () => {
+    for (const locale of ["pt-BR", "en"] as const) {
+      const { skipLinks } = getMessages(locale);
+      for (const key of [...ROUTE_KEYS, "privacy"] as const) {
+        expect(skipLinks[key].length, `${locale}.skipLinks.${key}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("keeps internal jargon out of user-facing strings", () => {
+    const collect = (value: unknown): string[] => {
+      if (typeof value === "string") return [value];
+      if (Array.isArray(value)) return value.flatMap(collect);
+      if (value && typeof value === "object") return Object.values(value).flatMap(collect);
+      return [];
+    };
+    const text = [...collect(getMessages("pt-BR")), ...collect(getMessages("en"))].join("\n");
+    expect(text).not.toMatch(/entidade|entity|auditad|audited|retorno de cores|grade temática/i);
+  });
+});

@@ -1,23 +1,21 @@
 ---
 import { NameGuessGame } from "../../components/NameGuess/NameGuessGame";
+import GameIntro from "../../components/GameIntro.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getMessages } from "../../i18n/catalog";
 
 const messages = getMessages("en");
-const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 <BaseLayout locale="en" route="nameGuess" canonicalPath="/en/guess/" alternatePath="/pt-br/adivinhe/">
   <div class="page-shell">
-    <section class="intro" aria-labelledby="page-title">
-      <p class="kicker">{messages.nameGuessEyebrow}</p>
-      <h1 id="page-title">{messages.nameGuessTitle}</h1>
-      <p>{messages.nameGuessIntro}</p>
-      <div class="game-mode-switch">
-        <a class="switch-link" href={`${base}/en/`}>
-          ← {messages.quizModeLink}
-        </a>
-      </div>
-    </section>
+    <GameIntro
+      gameId="name-guess"
+      kicker={messages.nameGuessEyebrow}
+      title={messages.nameGuessTitle}
+      howToPlayTitle={messages.howToPlayTitle}
+      howToPlaySteps={messages.nameGuessHowToPlay}
+      intro={messages.nameGuessIntro}
+    />
     <NameGuessGame locale="en" client:load />
   </div>
 </BaseLayout>

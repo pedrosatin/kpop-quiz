@@ -74,7 +74,7 @@ describe("StatsModal component", () => {
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(dialog).toHaveAttribute("aria-labelledby", "stats-modal-title");
-    expect(screen.getByText("Estatísticas do jogador")).toBeInTheDocument();
+    expect(screen.getByText("Suas estatísticas")).toBeInTheDocument();
   });
 
   it("displays correct overall summary metrics", () => {
@@ -108,7 +108,7 @@ describe("StatsModal component", () => {
     const nameGuessTab = screen.getByRole("tab", { name: "Adivinhe" });
     fireEvent.click(nameGuessTab);
 
-    expect(screen.getByText("Distribuição de tentativas")).toBeInTheDocument();
+    expect(screen.getByText("Palpites por partida")).toBeInTheDocument();
     const chart = container.querySelector(".stats-distribution-chart");
     expect(chart).toBeInTheDocument();
     // Verify rows 1 through 6 exist inside the chart
@@ -177,8 +177,8 @@ describe("StatsModal component", () => {
       <StatsModal isOpen={true} onClose={vi.fn()} locale="en" stats={sampleStats} />
     );
 
-    expect(screen.getByText("Player statistics")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close statistics" })).toBeInTheDocument();
+    expect(screen.getByText("Your stats")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close stats" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Overall" })).toBeInTheDocument();
   });
 });

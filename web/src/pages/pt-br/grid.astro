@@ -1,23 +1,21 @@
 ---
 import { IntersectionGrid } from "../../components/Grid/IntersectionGrid";
+import GameIntro from "../../components/GameIntro.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getMessages } from "../../i18n/catalog";
 
 const messages = getMessages("pt-BR");
-const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 <BaseLayout locale="pt-BR" route="grid" canonicalPath="/pt-br/grid/" alternatePath="/en/grid/">
   <div class="page-shell">
-    <section class="intro" aria-labelledby="page-title">
-      <p class="kicker">{messages.gridEyebrow}</p>
-      <h1 id="page-title">{messages.gridTitle}</h1>
-      <p>{messages.gridIntro}</p>
-      <div class="game-mode-switch">
-        <a class="switch-link" href={`${base}/pt-br/`}>
-          ← {messages.quizModeLink}
-        </a>
-      </div>
-    </section>
+    <GameIntro
+      gameId="grid"
+      kicker={messages.gridEyebrow}
+      title={messages.gridTitle}
+      howToPlayTitle={messages.howToPlayTitle}
+      howToPlaySteps={messages.gridHowToPlay}
+      intro={messages.gridIntro}
+    />
     <IntersectionGrid locale="pt-BR" client:load />
   </div>
 </BaseLayout>

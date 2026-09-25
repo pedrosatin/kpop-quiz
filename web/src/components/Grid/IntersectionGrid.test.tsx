@@ -25,11 +25,11 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(screen.getByText(ptMessages.loading)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByRole("grid", { name: "Grade de Interseções" })).toBeInTheDocument();
+      expect(screen.getByRole("grid", { name: "Grade de interseções" })).toBeInTheDocument();
     });
 
     expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
-    expect(screen.getByText("0/9 células corretas")).toBeInTheDocument();
+    expect(screen.getByText("0 de 9 casas certas")).toBeInTheDocument();
 
     expect(screen.getByText("Estreou nos anos 2010")).toBeInTheDocument();
     expect(screen.getByText("Estreou nos anos 2000")).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe("IntersectionGrid orchestrator component", () => {
     fireEvent.click(retryBtn);
 
     await waitFor(() => {
-      expect(screen.getByRole("grid", { name: "Grade de Interseções" })).toBeInTheDocument();
+      expect(screen.getByRole("grid", { name: "Grade de interseções" })).toBeInTheDocument();
     });
   });
 
@@ -76,12 +76,31 @@ describe("IntersectionGrid orchestrator component", () => {
     fireEvent.click(cellBtn);
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Selecione o grupo musical")).toBeInTheDocument();
+    expect(screen.getByText("Escolha um grupo")).toBeInTheDocument();
 
-    const closeBtn = screen.getByLabelText("Fechar seletor");
+    const closeBtn = screen.getByLabelText("Fechar");
     fireEvent.click(closeBtn);
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("moves focus into the picker and back to the cell when it closes", async () => {
+    render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("grid")).toBeInTheDocument();
+    });
+
+    const cellBtn = screen.getAllByRole("button", { name: /Linha 1/ })[0]!;
+    cellBtn.focus();
+    fireEvent.click(cellBtn);
+
+    expect(screen.getByRole("searchbox")).toHaveFocus();
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(cellBtn).toHaveFocus();
   });
 
   it("submits a correct guess and updates board and score", async () => {
@@ -104,7 +123,7 @@ describe("IntersectionGrid orchestrator component", () => {
     });
 
     expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
-    expect(screen.getByText("1/9 células corretas")).toBeInTheDocument();
+    expect(screen.getByText("1 de 9 casas certas")).toBeInTheDocument();
     expect(screen.getByText("TWICE")).toBeInTheDocument();
   });
 
@@ -128,7 +147,7 @@ describe("IntersectionGrid orchestrator component", () => {
     });
 
     expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
-    expect(screen.getByText("0/9 células corretas")).toBeInTheDocument();
+    expect(screen.getByText("0 de 9 casas certas")).toBeInTheDocument();
     expect(screen.getByText("SHINee")).toBeInTheDocument();
   });
 
@@ -146,7 +165,7 @@ describe("IntersectionGrid orchestrator component", () => {
     fireEvent.click(within(dialog1).getByText("TWICE"));
 
     await waitFor(() => {
-      expect(screen.getByText("1/9 células corretas")).toBeInTheDocument();
+      expect(screen.getByText("1 de 9 casas certas")).toBeInTheDocument();
     });
 
     // Cell (0, 1): try to pick TWICE again
@@ -158,7 +177,7 @@ describe("IntersectionGrid orchestrator component", () => {
     fireEvent.click(twiceOption);
 
     // Should NOT close dialog and should display uniqueness error
-    expect(screen.getByRole("alert")).toHaveTextContent("TWICE: Este grupo já foi utilizado nesta partida.");
+    expect(screen.getByRole("alert")).toHaveTextContent("TWICE: este grupo já está em outra casa.");
     expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
   });
 
@@ -182,6 +201,6 @@ describe("IntersectionGrid orchestrator component", () => {
       expect(screen.getByText("Fim da partida")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("0/9 acertos (9 palpites usados)")).toBeInTheDocument();
+    expect(screen.getByText("0 de 9 casas certas com 9 palpites")).toBeInTheDocument();
   });
 });

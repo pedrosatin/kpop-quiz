@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
+import { getMessages } from "../../i18n/catalog";
 import { useWordSearchGame } from "./useWordSearchGame";
 import { WordSearchHeader } from "./WordSearchHeader";
 import { WordSearchGrid } from "./WordSearchGrid";
@@ -20,6 +21,7 @@ interface WordSearchGameContentProps {
 }
 
 export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentProps) {
+  const t = getMessages(locale).wordSearch;
   const {
     foundWordIds,
     elapsedSeconds,
@@ -59,7 +61,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   }, [status, puzzle]);
 
   return (
-    <div class="word-search-container" id="word-search">
+    <section class="game-card game-card--wide word-search" id="word-search">
       <WordSearchHeader
         puzzle={puzzle}
         locale={locale}
@@ -71,7 +73,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
       />
 
       <div class="word-search-layout">
-        <div class="word-search-main-col">
+        <div class="word-search-board">
           <WordSearchGrid
             puzzle={puzzle}
             locale={locale}
@@ -84,42 +86,36 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
             onCellPointerUp={handleCellPointerUp}
             onKeyDown={handleKeyDown}
           />
-          <div class="word-search-selection-bar" aria-live="polite">
+          <div class="callout word-search-selection-bar" aria-live="polite">
             {activePath.length > 1 ? (
               <span class="active-selection-text">
-                <strong class="selection-label">{locale === "pt-BR" ? "Palavra: " : "Word: "}</strong>
+                <strong class="selection-label">{t.selectionLabel} </strong>
                 <span class="selection-letters">
                   {activePath.map((c) => puzzle.grid[c.row]?.[c.col] ?? "").join("")}
                 </span>
                 <span class="selection-count">
-                  ({activePath.length} {locale === "pt-BR" ? "letras" : "letters"})
+                  ({t.lettersCount(activePath.length)})
                 </span>
               </span>
             ) : anchorCell ? (
               <span class="hint-selection-text anchor-active-hint">
-                {locale === "pt-BR"
-                  ? `🎯 Letra inicial "${puzzle.grid[anchorCell.row]?.[anchorCell.col] ?? ""}" fixada! Agora clique na última letra da palavra.`
-                  : `🎯 Initial letter "${puzzle.grid[anchorCell.row]?.[anchorCell.col] ?? ""}" anchored! Now click the last letter of the word.`}
+                {t.anchorHint(puzzle.grid[anchorCell.row]?.[anchorCell.col] ?? "")}
               </span>
             ) : (
               <span class="hint-selection-text">
-                {locale === "pt-BR"
-                  ? "💡 Dica: Clique na primeira letra e depois na última para marcar, ou arraste."
-                  : "💡 Tip: Click the first letter and then the last letter to select, or drag."}
+                {t.selectionHint}
               </span>
             )}
           </div>
         </div>
 
-        <div class="word-search-side-col">
-          <WordSearchList
-            puzzle={puzzle}
-            locale={locale}
-            foundWordIds={foundWordIds}
-            easyMode={easyMode}
-            onSelectEvidenceWord={(w) => setEvidenceWord(w)}
-          />
-        </div>
+        <WordSearchList
+          puzzle={puzzle}
+          locale={locale}
+          foundWordIds={foundWordIds}
+          easyMode={easyMode}
+          onSelectEvidenceWord={(w) => setEvidenceWord(w)}
+        />
       </div>
 
       <div class="visually-hidden" aria-live="polite" aria-atomic="true">
@@ -144,6 +140,6 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
           onClose={() => setShowResultModal(false)}
         />
       )}
-    </div>
+    </section>
   );
 }

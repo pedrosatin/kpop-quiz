@@ -47,8 +47,8 @@ describe("GridResults component", () => {
     );
 
     expect(screen.getByText("Fim da partida")).toBeInTheDocument();
-    expect(screen.getByText("2/9 acertos (5 palpites usados)")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Matriz de resultado" })).toBeInTheDocument();
+    expect(screen.getByText("2 de 9 casas certas com 5 palpites")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Resultado da grade" })).toBeInTheDocument();
   });
 
   it("toggles high-contrast monochrome symbols (■ and □)", () => {
@@ -64,7 +64,7 @@ describe("GridResults component", () => {
       />
     );
 
-    const matrix = screen.getByRole("img", { name: "Matriz de resultado" });
+    const matrix = screen.getByRole("img", { name: "Resultado da grade" });
     expect(matrix.textContent).toContain("🟩");
 
     const checkbox = screen.getByRole("checkbox", { name: /alto contraste/i });
@@ -101,7 +101,7 @@ describe("GridResults component", () => {
     expect(copiedContent).toContain("1/9 acertos (3 palpites)");
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toHaveTextContent("Resultado copiado para a área de transferência.");
+      expect(screen.getByRole("status")).toHaveTextContent("Resultado copiado.");
     });
   });
 
@@ -123,12 +123,12 @@ describe("GridResults component", () => {
       />
     );
 
-    const shareBtn = screen.getByRole("button", { name: "Compartilhar grade" });
+    const shareBtn = screen.getByRole("button", { name: "Compartilhar resultado" });
     fireEvent.click(shareBtn);
 
     expect(shareMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        title: "Grade de Interseções",
+        title: "Grade de interseções",
         text: expect.stringContaining("K-pop Grid 2026-09-17"),
       })
     );
@@ -147,8 +147,8 @@ describe("GridResults component", () => {
       />
     );
 
-    expect(screen.getByText("Revisão factual da grade")).toBeInTheDocument();
-    expect(screen.getByText("Célula (1, 1)")).toBeInTheDocument();
+    expect(screen.getByText("Respostas e fontes")).toBeInTheDocument();
+    expect(screen.getByText("Linha 1, coluna 1")).toBeInTheDocument();
 
     const evidenceLinks = screen.getAllByRole("link");
     expect(evidenceLinks.length).toBeGreaterThan(0);

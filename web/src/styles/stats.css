@@ -1,0 +1,140 @@
+/* Player statistics: header trigger and modal (tabs and guess distribution). */
+
+.stats-trigger-icon {
+  flex: none;
+}
+
+@media (max-width: 40rem) {
+  .stats-trigger-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .stats-trigger {
+    min-width: var(--control-height);
+    min-height: var(--control-height);
+    padding: 0;
+  }
+}
+
+.stats-modal-card {
+  max-width: 34rem;
+}
+
+.stats-tabs-container {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border-subtle);
+  scrollbar-width: none;
+}
+
+.stats-tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+.stats-tab-btn {
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.stats-tab-btn:hover {
+  color: var(--color-text);
+}
+
+.stats-tab-btn.is-active {
+  color: var(--color-action);
+  border-bottom-color: var(--color-action);
+}
+
+.stats-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.stats-summary-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 30rem) {
+  .stats-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.stats-distribution-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stats-distribution-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.stats-distribution-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stats-distribution-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+}
+
+.stats-attempt-num {
+  width: 1rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.stats-bar-track {
+  flex: 1;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+}
+
+.stats-bar-fill {
+  height: 100%;
+  min-width: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control);
+  background: var(--color-border);
+  color: var(--color-canvas);
+  transition: width 0.3s ease;
+}
+
+.stats-bar-fill.has-count {
+  background: var(--color-action);
+  color: var(--color-action-text);
+}
+
+.stats-bar-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+}

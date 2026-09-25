@@ -23,14 +23,14 @@ export function ProgressHeader({
 
   return (
     <header class="quiz-progress-header">
-      <div class="quiz-meta">
-        <p>{counterText}</p>
-        <p>
-          {messages.score}: <strong>{score}</strong>
+      <div class="game-hud quiz-hud">
+        <p class="hud-item hud-value">{counterText}</p>
+        <p class="hud-item">
+          <span class="hud-label">{messages.score}:</span> <strong class="hud-value">{score}</strong>
         </p>
         {timerVisible && (
-          <p role="timer">
-            {messages.time}: <strong>{secondsLeft}{messages.seconds}</strong>
+          <p class="hud-item" role="timer">
+            <span class="hud-label">{messages.time}:</span> <strong class="hud-value">{secondsLeft}{messages.seconds}</strong>
           </p>
         )}
       </div>

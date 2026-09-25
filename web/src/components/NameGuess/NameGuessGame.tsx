@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessArtifactError, loadNameGuessPuzzle } from "../../data/name-guess-loader";
 import { NameGuessGameContent } from "./NameGuessGameContent";
-import { NAME_GUESS_I18N, type NameGuessGameProps } from "./types";
+import { getMessages } from "../../i18n/catalog";
+import type { NameGuessGameProps } from "./types";
 
 export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGuessGameProps) {
-  const t = NAME_GUESS_I18N[locale] || NAME_GUESS_I18N["pt-BR"];
+  const t = getMessages(locale).nameGuess;
   const [loadedPuzzle, setLoadedPuzzle] = useState<NameGuessPuzzle | null>(initialPuzzle ?? null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(initialPuzzle ? "ready" : "loading");
   const [errorKind, setErrorKind] = useState<"missing" | "invalid" | undefined>();
@@ -34,13 +35,9 @@ export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGu
 
   if (status === "loading") {
     return (
-      <section
-        id="name-guess"
-        aria-live="polite"
-        class="name-guess-shell name-guess-loading-container"
-      >
+      <section id="name-guess" aria-live="polite" aria-busy="true" class="game-card state">
         <span class="loader" aria-hidden="true" />
-        <p class="name-guess-loading-text">{t.loading}</p>
+        <p class="text-muted">{t.loading}</p>
       </section>
     );
   }
@@ -48,16 +45,9 @@ export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGu
   if (status === "error" || !loadedPuzzle) {
     const errorMsg = errorKind === "missing" ? t.artifactMissing : t.loadError;
     return (
-      <section
-        id="name-guess"
-        class="name-guess-shell name-guess-error-container"
-      >
-        <p class="name-guess-error-message">{errorMsg}</p>
-        <button
-          type="button"
-          onClick={loadData}
-          class="name-guess-retry-btn"
-        >
+      <section id="name-guess" class="game-card state">
+        <p class="state-error">{errorMsg}</p>
+        <button type="button" onClick={loadData} class="btn btn-primary">
           {t.retry}
         </button>
       </section>

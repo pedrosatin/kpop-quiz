@@ -1,0 +1,627 @@
+/*
+  Shared building blocks used by every game. A game stylesheet should only
+  describe what is unique to that game (its board, tiles or keyboard).
+
+  .btn             buttons: .btn-primary, .btn-secondary, .btn-ghost, .btn-sm, .btn-icon
+  .btn-row         a centered, wrapping row of buttons
+  .game-card       the panel that holds a game; .game-card--wide for large boards
+  .game-hud        counters above the board (.hud-item, .hud-label, .hud-value)
+  .choice          selectable option card (radio or checkbox inside a label)
+  .callout         neutral note; .alert-error, .alert-warning for problems
+  .badge           small pill label (.badge-success, .badge-failure)
+  .modal-*         dialog backdrop, card, header, title
+  .state, .loader  loading and error placeholders
+  .result-*        end-of-game summary, stats tiles and share box
+  .text-input      single-line text field
+*/
+
+/* Buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-5);
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.btn-primary {
+  background: var(--color-action);
+  border-color: var(--color-action);
+  color: var(--color-action-text);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-action-hover);
+  border-color: var(--color-action-hover);
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+  border-color: var(--color-text);
+}
+
+.btn-ghost {
+  color: var(--color-text-muted);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+/* Toggle buttons (aria-pressed) look selected when on. */
+.btn[aria-pressed="true"],
+.btn[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--color-text);
+  border-color: var(--color-text);
+  color: var(--color-canvas);
+}
+
+.btn-sm {
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.8125rem;
+}
+
+.btn-icon {
+  min-width: var(--control-height);
+  padding: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+@media (forced-colors: active) {
+  .btn {
+    border: 2px solid ButtonBorder;
+  }
+}
+
+/* Game card */
+
+.game-card {
+  position: relative;
+  width: 100%;
+  max-width: var(--game-max);
+  margin: 0 auto;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-top: 0.35rem solid var(--color-theme);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.game-card--wide {
+  max-width: var(--game-max-wide);
+}
+
+@media (min-width: 48rem) {
+  .game-card {
+    padding: var(--space-6);
+  }
+}
+
+@media (forced-colors: active) {
+  .game-card {
+    border-width: 2px;
+  }
+}
+
+.game-card-title {
+  margin: 0 0 var(--space-4);
+  font-size: clamp(1.375rem, 4vw, 1.875rem);
+  line-height: 1.2;
+}
+
+/* HUD: counters shown above a board */
+
+.game-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-size: 0.9375rem;
+}
+
+.hud-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.hud-label {
+  color: var(--color-text-muted);
+}
+
+.hud-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Choice cards */
+
+.choice {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: var(--space-1);
+  min-height: 3.5rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.choice:hover {
+  border-color: var(--color-text);
+}
+
+.choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.choice:has(input:focus-visible) {
+  outline: 0.2rem solid var(--color-focus);
+  outline-offset: 0.15rem;
+}
+
+.choice.selected,
+.choice:has(input:checked) {
+  border-color: var(--color-theme);
+  box-shadow: inset 0 0 0 1px var(--color-theme);
+}
+
+.choice-title {
+  font-weight: 700;
+}
+
+.choice-description {
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+}
+
+@media (forced-colors: active) {
+  .choice {
+    border-width: 2px;
+  }
+}
+
+/* Callouts and alerts */
+
+.callout {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 0.25rem solid var(--color-theme);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.alert-error,
+.alert-warning {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid;
+  border-radius: var(--radius-control);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.alert-error {
+  background: var(--color-error-bg);
+  border-color: color-mix(in srgb, var(--color-error-text) 40%, transparent);
+  color: var(--color-error-text);
+}
+
+.alert-warning {
+  background: var(--color-warning-bg);
+  border-color: color-mix(in srgb, var(--color-warning-text) 40%, transparent);
+  color: var(--color-warning-text);
+}
+
+.alert-error p,
+.alert-warning p {
+  margin: 0;
+}
+
+.text-success {
+  color: var(--color-success-text);
+}
+
+.text-error {
+  color: var(--color-error-text);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+/* Badges */
+
+.badge {
+  display: inline-block;
+  padding: 0.125rem var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badge-success {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.badge-failure {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+}
+
+@media (forced-colors: active) {
+  .badge {
+    border-color: ButtonBorder;
+  }
+}
+
+/* Modal dialogs */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--color-overlay);
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 32rem;
+  max-height: 90vh;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-overlay);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.modal-body {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.modal-body p {
+  margin: 0;
+}
+
+.modal-subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+@media (forced-colors: active) {
+  .modal-card {
+    border: 2px solid CanvasText;
+  }
+}
+
+/* Loading and error states */
+
+.state {
+  min-height: 18rem;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.state p {
+  margin: 0;
+  max-width: 28rem;
+}
+
+.state-error {
+  color: var(--color-error-text);
+  font-weight: 700;
+}
+
+.loader {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0.25rem solid var(--color-border);
+  border-top-color: var(--color-action);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Results */
+
+.result {
+  display: grid;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.result-title {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+}
+
+.result-title.is-won {
+  color: var(--color-success-text);
+}
+
+.result-title.is-lost {
+  color: var(--color-error-text);
+}
+
+.result-summary {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+}
+
+.result-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: var(--space-2);
+}
+
+.result-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-2);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+}
+
+.result-stat-label {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.result-stat-value {
+  font-family: var(--font-title);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Share box: preview of the text that will be copied, options and actions. */
+
+.share-box {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+}
+
+.share-preview {
+  width: 100%;
+  max-width: 24rem;
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  text-align: left;
+  white-space: pre-wrap;
+  resize: none;
+}
+
+.share-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.share-toggle input {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--color-theme);
+}
+
+.share-feedback {
+  min-height: 1.25rem;
+  margin: 0;
+  color: var(--color-success-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Text field */
+
+.text-input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.9375rem;
+}
+
+/* Review list shown after a game */
+
+.review-section {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+  text-align: left;
+}
+
+.review-section-title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.375rem;
+}
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-item {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-left: 0.25rem solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}
+
+.review-item.is-correct {
+  border-left-color: var(--color-success-text);
+}
+
+.review-item.is-wrong {
+  border-left-color: var(--color-error-text);
+}
+
+.review-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.review-item-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.review-item p {
+  margin: var(--space-1) 0;
+  font-size: 0.9375rem;
+}
+
+.review-label {
+  color: var(--color-text-muted);
+}
+
+.evidence-details {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.evidence-details summary {
+  color: var(--color-link);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.evidence-details ul {
+  margin: var(--space-1) 0;
+  padding-left: var(--space-5);
+}
+
+.evidence-details p,
+.evidence-details a {
+  overflow-wrap: anywhere;
+}
+
+@media (forced-colors: active) {
+  .review-item {
+    border-width: 2px;
+  }
+}

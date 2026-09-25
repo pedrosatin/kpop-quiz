@@ -46,6 +46,18 @@ describe("Automated accessibility audits with axe-core for Connections", () => {
     expect(results.violations).toEqual([]);
   });
 
+  it("colors CategoryBanner through a level class instead of inline styles", () => {
+    for (const category of puzzle.categories) {
+      const { getByRole, unmount } = render(
+        <CategoryBanner category={category} allItems={puzzle.items} locale="pt-BR" messages={ptMessages} />
+      );
+      const banner = getByRole("region");
+      expect(banner).toHaveClass(`connections-banner-level-${category.difficulty_level}`);
+      expect(banner).not.toHaveAttribute("style");
+      unmount();
+    }
+  });
+
   it("validates CategoryBanner for all 4 difficulty levels with zero violations", async () => {
     for (const category of puzzle.categories) {
       const { container } = render(

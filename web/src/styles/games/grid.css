@@ -1,0 +1,277 @@
+/*
+  Intersection grid: the 3x3 board, its criterion headers and cell states,
+  plus the few picker and share details the shared primitives do not cover.
+*/
+
+/* Board */
+
+.grid-board-wrapper {
+  padding: var(--space-1) 0;
+}
+
+.grid-board-table {
+  width: 100%;
+  max-width: 36rem;
+  margin: 0 auto;
+  border-collapse: separate;
+  border-spacing: var(--space-1);
+  table-layout: fixed;
+}
+
+/* On the narrowest phones the board borrows part of the card padding. */
+@media (max-width: 22.49rem) {
+  .grid-board-wrapper {
+    margin-inline: calc(var(--space-2) * -1);
+  }
+
+  .grid-board-table {
+    border-spacing: 0.125rem;
+  }
+}
+
+@media (min-width: 30rem) {
+  .grid-board-table {
+    border-spacing: var(--space-2);
+  }
+}
+
+.grid-corner-cell,
+.grid-col-header,
+.grid-row-header,
+.grid-cell-wrapper {
+  width: 25%;
+}
+
+.grid-col-header,
+.grid-row-header {
+  padding: var(--space-2) 0.125rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.grid-col-header {
+  vertical-align: bottom;
+}
+
+.grid-row-header {
+  vertical-align: middle;
+}
+
+.criterion-category {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--color-theme);
+  font-size: clamp(0.5625rem, 2.3vw, 0.6875rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.criterion-label {
+  display: block;
+  color: var(--color-text);
+  font-size: clamp(0.625rem, 2.7vw, 0.8125rem);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+@media (min-width: 30rem) {
+  .grid-col-header,
+  .grid-row-header {
+    padding-inline: var(--space-1);
+  }
+
+  .criterion-category {
+    letter-spacing: 0.05em;
+  }
+}
+
+/* Cells */
+
+.grid-cell-wrapper {
+  height: 5rem;
+  padding: 0;
+}
+
+.grid-cell-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 4.5rem;
+  padding: var(--space-1);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: clamp(0.625rem, 2.7vw, 0.875rem);
+  text-align: center;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.grid-cell-btn:hover:not(:disabled) {
+  border-color: var(--color-action);
+  background: var(--color-surface-muted);
+}
+
+.grid-cell-btn:focus-visible,
+.grid-cell-btn.selected {
+  outline: 0.2rem solid var(--color-focus);
+  outline-offset: 0.15rem;
+}
+
+.grid-cell-btn.selected {
+  background: var(--color-surface-muted);
+}
+
+.grid-cell-btn.solved {
+  border-color: var(--color-success-text);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  cursor: default;
+}
+
+.grid-cell-btn.failed {
+  border-color: var(--color-error-text);
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+}
+
+.cell-solved-name,
+.cell-failed-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+}
+
+.cell-solved-name strong {
+  line-height: 1.2;
+}
+
+.cell-attempt-text {
+  opacity: 0.85;
+  text-decoration: line-through;
+}
+
+.cell-empty-prompt {
+  color: var(--color-text-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.cell-icon {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* Picker: the search field and alert stay put while the list scrolls. */
+
+.grid-picker {
+  gap: var(--space-3);
+  overflow: hidden;
+}
+
+/* Reserve one alert line so the list does not jump when an error appears. */
+.picker-alert-region {
+  min-block-size: 2.5rem;
+}
+
+.picker-candidate-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 45vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  list-style: none;
+}
+
+.picker-candidate-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.picker-candidate-item:last-child {
+  border-bottom: 0;
+}
+
+.picker-candidate-item:hover,
+.picker-candidate-item.active {
+  background: var(--color-surface-muted);
+}
+
+.picker-candidate-item.used {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.candidate-name {
+  font-weight: 500;
+}
+
+.picker-no-matches {
+  padding: var(--space-4);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Share matrix: emoji squares read better centered and larger. */
+
+.grid-share-matrix {
+  max-width: 12rem;
+  font-size: 1.5rem;
+  letter-spacing: 0.25rem;
+  line-height: 1.4;
+  text-align: center;
+  user-select: all;
+}
+
+@media (forced-colors: active) {
+  .grid-col-header,
+  .grid-row-header {
+    border: 1px solid CanvasText;
+  }
+
+  .grid-cell-btn {
+    border: 2px solid ButtonBorder;
+  }
+
+  .grid-cell-btn:focus-visible,
+  .grid-cell-btn.selected {
+    outline: 3px solid Highlight;
+  }
+
+  .grid-cell-btn.solved {
+    border: 2px solid Highlight;
+  }
+
+  .grid-cell-btn.failed {
+    border: 2px dashed CanvasText;
+  }
+
+  .picker-candidate-item:hover,
+  .picker-candidate-item.active {
+    background: Highlight;
+    color: HighlightText;
+  }
+}

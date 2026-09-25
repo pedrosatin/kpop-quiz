@@ -28,195 +28,69 @@ function contrastRatio(hex1: string, hex2: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+const tokensCss = fs.readFileSync(path.resolve(__dirname, "tokens.css"), "utf-8");
+
+/** Reads `--name: light-dark(#a, #b)` or `--name: #a` from tokens.css. */
+function token(name: string, theme: "light" | "dark"): string {
+  const match = tokensCss.match(new RegExp(`--${name}:\\s*([^;]+);`));
+  if (!match) throw new Error(`Token --${name} not found`);
+  const value = match[1]!.trim();
+  const pair = value.match(/^light-dark\((#[0-9A-Fa-f]{6}),\s*(#[0-9A-Fa-f]{6})\)$/);
+  if (pair) return theme === "light" ? pair[1]! : pair[2]!;
+  if (/^#[0-9A-Fa-f]{6}$/.test(value)) return value;
+  throw new Error(`Token --${name} is not a literal color: ${value}`);
+}
+
+const TEXT_PAIRS: Array<[string, string]> = [
+  ["color-text", "color-canvas"],
+  ["color-text", "color-surface"],
+  ["color-text", "color-surface-muted"],
+  ["color-text-muted", "color-canvas"],
+  ["color-text-muted", "color-surface"],
+  ["color-text-muted", "color-surface-muted"],
+  ["color-action-text", "color-action"],
+  ["color-action-text", "color-action-hover"],
+  ["color-link", "color-canvas"],
+  ["color-link", "color-surface"],
+  ["color-success-text", "color-success-bg"],
+  ["color-error-text", "color-error-bg"],
+  ["color-warning-text", "color-warning-bg"],
+  ["color-hit-text", "color-hit"],
+  ["color-near-text", "color-near"],
+  ["color-miss-text", "color-miss"],
+  ["color-hit-hc-text", "color-hit-hc"],
+  ["color-near-hc-text", "color-near-hc"],
+  ["color-level-1-text", "color-level-1"],
+  ["color-level-2-text", "color-level-2"],
+  ["color-level-3-text", "color-level-3"],
+  ["color-level-4-text", "color-level-4"],
+  ...[0, 1, 2, 3, 4, 5].map((i): [string, string] => [`color-found-${i}-text`, `color-found-${i}`]),
+];
+
+const UI_PAIRS: Array<[string, string]> = [
+  ["color-border", "color-surface"],
+  ["color-border", "color-canvas"],
+  ["color-focus", "color-surface"],
+  ["color-focus", "color-canvas"],
+];
+
 describe("Design Tokens - WCAG 2.2 AA Contrast Ratios", () => {
-  describe("Light Theme Tokens", () => {
-    const tokens = {
-      canvas: "#FFF8F0",
-      surface: "#FFFFFF",
-      surfaceMuted: "#F7EFF8",
-      text: "#24182B",
-      textMuted: "#66566D",
-      border: "#94879D",
-      action: "#B31555",
-      actionHover: "#8F1044",
-      actionText: "#FFFFFF",
-      link: "#006E73",
-      focus: "#0067CC",
-      successText: "#0E693D",
-      successBg: "#E4F5EB",
-      errorText: "#A32119",
-      errorBg: "#FDEAE7",
-    };
+  for (const theme of ["light", "dark"] as const) {
+    describe(`${theme} theme`, () => {
+      it.each(TEXT_PAIRS)("%s on %s meets 4.5:1", (fg, bg) => {
+        expect(contrastRatio(token(fg, theme), token(bg, theme))).toBeGreaterThanOrEqual(4.5);
+      });
 
-    it("ensures normal text against canvas meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.text, tokens.canvas);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(16.07, 1);
+      it.each(UI_PAIRS)("%s against %s meets 3:1", (fg, bg) => {
+        expect(contrastRatio(token(fg, theme), token(bg, theme))).toBeGreaterThanOrEqual(3.0);
+      });
     });
+  }
 
-    it("ensures normal text against surface meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.text, tokens.surface);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(16.93, 1);
-    });
-
-    it("ensures normal text against surface-muted meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.text, tokens.surfaceMuted);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(15.04, 1);
-    });
-
-    it("ensures muted text against canvas meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.textMuted, tokens.canvas);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(6.40, 1);
-    });
-
-    it("ensures action button text meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.action, tokens.actionText);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(6.66, 1);
-    });
-
-    it("ensures action hover state meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.actionHover, tokens.actionText);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(9.03, 1);
-    });
-
-    it("ensures links against canvas and surface meet WCAG 2.2 AA (>= 4.5:1)", () => {
-      expect(contrastRatio(tokens.link, tokens.canvas)).toBeGreaterThanOrEqual(4.5);
-      expect(contrastRatio(tokens.link, tokens.surface)).toBeGreaterThanOrEqual(4.5);
-    });
-
-    it("ensures success message meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.successText, tokens.successBg);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(5.97, 1);
-    });
-
-    it("ensures error message meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.errorText, tokens.errorBg);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(6.49, 1);
-    });
-
-    it("ensures border against surface and canvas meets UI component requirement (>= 3.0:1)", () => {
-      expect(contrastRatio(tokens.border, tokens.surface)).toBeGreaterThanOrEqual(3.0);
-      expect(contrastRatio(tokens.border, tokens.canvas)).toBeGreaterThanOrEqual(3.0);
-    });
-
-    it("ensures focus indicator against canvas and surface meets UI requirement (>= 3.0:1)", () => {
-      expect(contrastRatio(tokens.focus, tokens.canvas)).toBeGreaterThanOrEqual(3.0);
-      expect(contrastRatio(tokens.focus, tokens.surface)).toBeGreaterThanOrEqual(3.0);
-    });
-  });
-
-  describe("Dark Theme Tokens", () => {
-    const tokens = {
-      canvas: "#17121C",
-      surface: "#251C2C",
-      surfaceMuted: "#30263A",
-      text: "#FFF7FB",
-      textMuted: "#CFC3D5",
-      border: "#776A82",
-      action: "#FF74AC",
-      actionHover: "#FFA7CC",
-      actionText: "#25182A",
-      link: "#67DAD7",
-      focus: "#7CC4FF",
-      successText: "#74E3A8",
-      successBg: "#123C2A",
-      errorText: "#FF9A91",
-      errorBg: "#4B201E",
-    };
-
-    it("ensures normal text against canvas meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.text, tokens.canvas);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(17.50, 1);
-    });
-
-    it("ensures normal text against surface meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.text, tokens.surface);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(15.57, 1);
-    });
-
-    it("ensures normal text against surface-muted meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.text, tokens.surfaceMuted);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(13.63, 1);
-    });
-
-    it("ensures muted text against canvas meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.textMuted, tokens.canvas);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(10.90, 1);
-    });
-
-    it("ensures action button text meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.action, tokens.actionText);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(6.72, 1);
-    });
-
-    it("ensures action hover state meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.actionHover, tokens.actionText);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(9.38, 1);
-    });
-
-    it("ensures links against canvas and surface meet WCAG 2.2 AA (>= 4.5:1)", () => {
-      expect(contrastRatio(tokens.link, tokens.canvas)).toBeGreaterThanOrEqual(4.5);
-      expect(contrastRatio(tokens.link, tokens.surface)).toBeGreaterThanOrEqual(4.5);
-    });
-
-    it("ensures success message meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.successText, tokens.successBg);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(7.80, 1);
-    });
-
-    it("ensures error message meets WCAG 2.2 AA (>= 4.5:1)", () => {
-      const ratio = contrastRatio(tokens.errorText, tokens.errorBg);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-      expect(ratio).toBeCloseTo(6.75, 1);
-    });
-
-    it("ensures border against surface and canvas meets UI component requirement (>= 3.0:1)", () => {
-      expect(contrastRatio(tokens.border, tokens.surface)).toBeGreaterThanOrEqual(3.0);
-      expect(contrastRatio(tokens.border, tokens.canvas)).toBeGreaterThanOrEqual(3.0);
-    });
-
-    it("ensures focus indicator against canvas and surface meets UI requirement (>= 3.0:1)", () => {
-      expect(contrastRatio(tokens.focus, tokens.canvas)).toBeGreaterThanOrEqual(3.0);
-      expect(contrastRatio(tokens.focus, tokens.surface)).toBeGreaterThanOrEqual(3.0);
-    });
-  });
-
-  describe("Theme Palette Colors", () => {
-    it("ensures all light theme accents meet WCAG 2.2 AA with designated text colors", () => {
-      // Rosa
-      expect(contrastRatio("#B31555", "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
-      // Violeta
-      expect(contrastRatio("#6039B2", "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
-      // Ciano
-      expect(contrastRatio("#006E73", "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
-      // Amarelo
-      expect(contrastRatio("#F5C542", "#24182B")).toBeGreaterThanOrEqual(4.5);
-    });
-
-    it("ensures all dark theme accents meet WCAG 2.2 AA with designated text colors", () => {
-      // Rosa
-      expect(contrastRatio("#FF74AC", "#25182A")).toBeGreaterThanOrEqual(4.5);
-      // Violeta
-      expect(contrastRatio("#BCA2FF", "#25182A")).toBeGreaterThanOrEqual(4.5);
-      // Ciano
-      expect(contrastRatio("#67DAD7", "#25182A")).toBeGreaterThanOrEqual(4.5);
-      // Amarelo
-      expect(contrastRatio("#FFD95A", "#25182A")).toBeGreaterThanOrEqual(4.5);
-    });
+  it("keeps the documented light palette", () => {
+    expect(token("color-canvas", "light")).toBe("#FFF8F0");
+    expect(token("color-canvas", "dark")).toBe("#17121C");
+    expect(token("color-action", "light")).toBe("#B31555");
   });
 });
 
@@ -225,7 +99,7 @@ describe("Local Font Assets and CSS Declarations", () => {
   const fontsDir = path.resolve(__dirname, "../../public/fonts");
 
   it("contains valid global.css with no external Google Fonts imports", () => {
-    const css = fs.readFileSync(cssPath, "utf-8");
+    const css = fs.readFileSync(path.resolve(__dirname, "base.css"), "utf-8");
     expect(css).not.toContain("fonts.googleapis.com");
     expect(css).not.toContain("fonts.gstatic.com");
     expect(css).toContain('@font-face');
@@ -234,8 +108,8 @@ describe("Local Font Assets and CSS Declarations", () => {
     expect(css).toContain("font-display: swap");
   });
 
-  it("declares required design token variables in global.css", () => {
-    const css = fs.readFileSync(cssPath, "utf-8");
+  it("declares required design token variables in tokens.css", () => {
+    const css = tokensCss;
     const requiredTokens = [
       "--color-canvas",
       "--color-surface",
@@ -267,12 +141,21 @@ describe("Local Font Assets and CSS Declarations", () => {
     }
   });
 
-  it("supports light, dark, system, forced-colors, and reduced motion in global.css", () => {
+  it("supports light, dark, system, forced-colors, and reduced motion", () => {
+    const base = fs.readFileSync(path.resolve(__dirname, "base.css"), "utf-8");
+    // System preference by default, overridable by the theme selector.
+    expect(tokensCss).toContain("color-scheme: light dark;");
+    expect(tokensCss).toMatch(/:root\[data-theme="light"\]\s*\{\s*color-scheme: light;/);
+    expect(tokensCss).toMatch(/:root\[data-theme="dark"\]\s*\{\s*color-scheme: dark;/);
+    expect(tokensCss).toContain("@media (forced-colors: active)");
+    expect(base).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
+  it("imports every stylesheet from the global entry point", () => {
     const css = fs.readFileSync(cssPath, "utf-8");
-    expect(css).toContain(':root[data-theme="dark"]');
-    expect(css).toContain("@media (prefers-color-scheme: dark)");
-    expect(css).toContain("@media (forced-colors: active)");
-    expect(css).toContain("@media (prefers-reduced-motion: reduce)");
+    for (const file of ["tokens", "base", "components", "stats", "games/quiz", "games/grid", "games/connections", "games/name-guess", "games/word-search"]) {
+      expect(css).toContain(`@import "./${file}.css";`);
+    }
   });
 
   it("verifies presence of Space Grotesk WOFF2 and license files", () => {
