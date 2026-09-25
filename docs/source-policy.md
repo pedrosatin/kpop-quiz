@@ -58,3 +58,14 @@ Uma alteração na lista exige estes registros:
 
 Uma fonte permanece `unreviewed` até cumprir os itens acima. O processo não
 promove domínios apenas porque parecem oficiais ou aparecem muitas vezes.
+
+## Agendas oficiais de turnê
+
+As regras acima tratam das referências de fatos do Wikidata. O jogo de mapas usa
+outra fonte, a agenda oficial de turnê publicada pelo artista ou pela agência.
+A agenda da YG da DEADLINE WORLD TOUR está aprovada para data, cidade e local de
+cada show. O projeto guarda só esses fatos e o localizador da entrada, e cada
+pergunta leva o link da agenda. Um evento só entra no jogo depois do cruzamento
+com o MusicBrainz e com o `P17` do Wikidata, descrito na
+[ADR-015](decisions/015-contrato-de-dados-do-jogo-de-mapas.md) e em
+[Piloto do jogo de mapas](map-game-pilot.md).

@@ -44,6 +44,56 @@ class TourEventAssessmentTest(unittest.TestCase):
         self.assertEqual(result.normalized.status, "candidate")
         self.assertEqual(result.normalized.country_iso_3166_1, "KR")
 
+    def test_listed_schedule_candidate_requires_a_source_locator_and_check_date(self):
+        candidate = dict(fixture_cases()[0]["candidate"])
+        candidate.pop("event_status")
+        candidate.update(
+            {
+                "schedule_status": "listed",
+                "source_locator": "July 27 listing for Citi Field",
+                "source_checked_at": "2025-07-27",
+            }
+        )
+
+        result = assess_tour_event_candidate(candidate, standard_context())
+        self.assertEqual(result.issues, ())
+        self.assertTrue(result.ready_for_editor_review)
+        self.assertEqual(result.normalized.schedule_status, "listed")
+        self.assertIsNone(result.normalized.event_status)
+        self.assertEqual(result.normalized.status, "candidate")
+
+        for field in ("source_locator", "source_checked_at"):
+            with self.subTest(missing=field):
+                incomplete = dict(candidate)
+                del incomplete[field]
+                assessment = assess_tour_event_candidate(incomplete, standard_context())
+                self.assertIn(f"missing_field:{field}", assessment.issues)
+                self.assertFalse(assessment.ready_for_editor_review)
+
+    def test_schedule_status_cannot_claim_show_completion_or_conflict_with_legacy_status(self):
+        candidate = dict(fixture_cases()[0]["candidate"])
+        candidate.pop("event_status")
+        candidate.update(
+            {
+                "schedule_status": "completed",
+                "source_locator": "listing",
+                "source_checked_at": "2025-07-27",
+            }
+        )
+        invalid_status = assess_tour_event_candidate(candidate, standard_context())
+        self.assertIn("invalid_schedule_status", invalid_status.issues)
+
+        conflict = dict(fixture_cases()[0]["candidate"])
+        conflict.update(
+            {
+                "schedule_status": "listed",
+                "source_locator": "listing",
+                "source_checked_at": "2025-07-27",
+            }
+        )
+        conflicting_statuses = assess_tour_event_candidate(conflict, standard_context())
+        self.assertIn("conflicting_status_fields", conflicting_statuses.issues)
+
     def test_rejects_cancelled_dates_and_malformed_mbids(self):
         for case in fixture_cases()[1:]:
             with self.subTest(case=case["name"]):

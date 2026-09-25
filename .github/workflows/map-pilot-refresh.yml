@@ -1,0 +1,58 @@
+name: Refresh map pilot tour dates
+
+on:
+  schedule:
+    - cron: '0 5 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: map-pilot-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Rebuild tour dates from the YG schedule, MusicBrainz and Wikidata
+        timeout-minutes: 15
+        run: python -m kpop_scraping.map_pilot_refresh
+
+      - name: Validate the refreshed dataset
+        run: python -m unittest tests.test_map_pilot_refresh -v
+
+      - name: Run map pilot web tests
+        working-directory: web
+        run: |
+          npm ci
+          npx vitest run src/data/map-pilot.test.ts src/components/MapPilot
+
+      - name: Commit and push refreshed dates if changed
+        run: |
+          if [ -z "$(git status --porcelain data/map-pilot)" ]; then
+            echo "No changes in data/map-pilot"
+            exit 0
+          fi
+          git config user.name "Pedro Satin"
+          git config user.email "33128737+pedrosatin@users.noreply.github.com"
+          git add data/map-pilot
+          git commit -m "Refresh map pilot tour dates for $(date -u +%F)"
+          git pull --rebase origin master
+          git push origin master

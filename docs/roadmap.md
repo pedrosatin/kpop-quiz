@@ -199,9 +199,11 @@ Produção no Cloudflare Pages em <https://kpopquiz.online>, conforme a [ADR 013
 
 Pontuação de relevância por pageviews da Wikipedia em inglês (`group_relevance_cli` e `group_relevance_score_cli`), com cálculo definido na [ADR 014](decisions/014-pageview-relevance.md). O filtro por relevância ajusta os modos de quiz sem afetar sessões quando a coleta não cobre o catálogo inteiro. O relatório de sinais de grupo é diagnóstico e não entra na pontuação.
 
-## Piloto do jogo de mapas em andamento
+## Piloto do jogo de mapas concluído
 
-Contrato de dados proposto na [ADR-015](decisions/015-contrato-de-dados-do-jogo-de-mapas.md): relatório geográfico somente leitura, validador de eventos de turnê sintéticos e crosswalk de países para feições Natural Earth por código ISO. O piloto não coleta agendas reais, não resolve cidades a partir de nomes e não gera perguntas de mapa.
+O jogo em PT e EN pergunta em que país a agenda oficial listou cada data da DEADLINE WORLD TOUR de BLACKPINK, com 10 datas por rodada, resposta pelo mapa ou pela lista e links para a agenda e para o MusicBrainz. As rotas têm `noindex` e não aparecem no menu de jogos.
+
+`kpop_scraping.map_pilot_refresh` refaz o conjunto cruzando a agenda da YG, o MusicBrainz e o `P17` do Wikidata, e o workflow `map-pilot-refresh.yml` roda esse comando no dia 1 de cada mês. Em 25 de setembro de 2026, 31 das 33 datas da agenda passaram no cruzamento, em 14 países. Regras e cobertura estão em [Piloto do jogo de mapas](map-game-pilot.md) e na [ADR-015](decisions/015-contrato-de-dados-do-jogo-de-mapas.md).
 
 ## Ciclo diário automatizado concluído
 
@@ -234,7 +236,3 @@ Objetivo: deixar a página indexada, bem rankeada no Google e legível por LLMs.
 - registrar a estratégia em ADR: o que é indexável, o que fica fora (artefatos JSON de dados, homologação) e como medir evolução de rank e citações.
 
 Aceite: sitemap válido referenciado no `robots.txt`; Search Console sem erros de cobertura nas rotas principais; páginas de produção sem `noindex`; arquivo para LLMs publicado e documentado.
-
-
-
-

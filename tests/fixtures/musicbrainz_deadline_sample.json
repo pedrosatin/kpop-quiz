@@ -1,0 +1,981 @@
+{
+ "areas": {
+  "0373cdff-eac8-3fbc-92dc-36a607da06d1": {
+   "disambiguation": "",
+   "id": "0373cdff-eac8-3fbc-92dc-36a607da06d1",
+   "iso-3166-1-codes": [
+    "HK"
+   ],
+   "iso-3166-2-codes": [
+    "CN-91"
+   ],
+   "life-span": {
+    "begin": null,
+    "end": null,
+    "ended": false
+   },
+   "name": "Hong Kong",
+   "relations": [
+    {
+     "area": {
+      "disambiguation": "",
+      "id": "7c81bb69-a99b-3487-b6d4-0f76d7a29ca0",
+      "iso-3166-1-codes": [
+       "CN"
+      ],
+      "name": "China",
+      "sort-name": "China",
+      "type": "Country",
+      "type-id": "06dd0ae4-8c74-30bb-b43d-95dcedf961de"
+     },
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "backward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "area",
+     "type": "part of",
+     "type-id": "de7cc874-8b1b-3a05-8272-f3834c968fb7"
+    },
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "85c5256f-aef1-484f-979a-42007218a1c2",
+     "url": {
+      "id": "8f254764-2780-4cd2-8037-1c64b867a2d4",
+      "resource": "https://www.wikidata.org/wiki/Q8646"
+     }
+    }
+   ],
+   "sort-name": "Hong Kong",
+   "type": "Subdivision",
+   "type-id": "fd3d44c5-80a1-3842-9745-2c4972d35afa"
+  },
+  "03be6fde-7d55-4dea-ab29-1791782cb858": {
+   "disambiguation": "",
+   "id": "03be6fde-7d55-4dea-ab29-1791782cb858",
+   "iso-3166-2-codes": [
+    "TW-KHH"
+   ],
+   "life-span": {
+    "begin": null,
+    "end": null,
+    "ended": false
+   },
+   "name": "Kaohsiung",
+   "relations": [
+    {
+     "area": {
+      "disambiguation": "",
+      "id": "41637cec-9a4f-389c-86d2-fc6abf3357b5",
+      "iso-3166-1-codes": [
+       "TW"
+      ],
+      "iso-3166-2-codes": [
+       "CN-71"
+      ],
+      "name": "Taiwan",
+      "sort-name": "Taiwan",
+      "type": "Country",
+      "type-id": "06dd0ae4-8c74-30bb-b43d-95dcedf961de"
+     },
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "backward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "area",
+     "type": "part of",
+     "type-id": "de7cc874-8b1b-3a05-8272-f3834c968fb7"
+    },
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "85c5256f-aef1-484f-979a-42007218a1c2",
+     "url": {
+      "id": "03363a05-9225-4175-b28b-0ead2a6ac6e0",
+      "resource": "https://www.wikidata.org/wiki/Q181557"
+     }
+    }
+   ],
+   "sort-name": "Kaohsiung",
+   "type": "City",
+   "type-id": "6fd8f29a-3d0a-32fc-980d-ea697b69da78"
+  },
+  "2747553f-b44d-44c4-a7c3-b67412b6f10b": {
+   "disambiguation": "",
+   "id": "2747553f-b44d-44c4-a7c3-b67412b6f10b",
+   "iso-3166-2-codes": [
+    "CA-ON"
+   ],
+   "life-span": {
+    "begin": null,
+    "end": null,
+    "ended": false
+   },
+   "name": "Ontario",
+   "relations": [
+    {
+     "area": {
+      "disambiguation": "",
+      "id": "71bbafaa-e825-3e15-8ca9-017dcad1748b",
+      "iso-3166-1-codes": [
+       "CA"
+      ],
+      "name": "Canada",
+      "sort-name": "Canada",
+      "type": "Country",
+      "type-id": "06dd0ae4-8c74-30bb-b43d-95dcedf961de"
+     },
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "backward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "area",
+     "type": "part of",
+     "type-id": "de7cc874-8b1b-3a05-8272-f3834c968fb7"
+    },
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "85c5256f-aef1-484f-979a-42007218a1c2",
+     "url": {
+      "id": "fd76b7c5-d29b-4736-85e8-c94df662ba28",
+      "resource": "https://www.wikidata.org/wiki/Q1904"
+     }
+    }
+   ],
+   "sort-name": "Ontario",
+   "type": "Subdivision",
+   "type-id": "fd3d44c5-80a1-3842-9745-2c4972d35afa"
+  },
+  "41637cec-9a4f-389c-86d2-fc6abf3357b5": {
+   "disambiguation": "",
+   "id": "41637cec-9a4f-389c-86d2-fc6abf3357b5",
+   "iso-3166-1-codes": [
+    "TW"
+   ],
+   "iso-3166-2-codes": [
+    "CN-71"
+   ],
+   "life-span": {
+    "begin": null,
+    "end": null,
+    "ended": false
+   },
+   "name": "Taiwan",
+   "relations": [
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "85c5256f-aef1-484f-979a-42007218a1c2",
+     "url": {
+      "id": "9a920aa1-f41e-4f62-a45f-b41c7e236d30",
+      "resource": "https://www.wikidata.org/wiki/Q865"
+     }
+    }
+   ],
+   "sort-name": "Taiwan",
+   "type": "Country",
+   "type-id": "06dd0ae4-8c74-30bb-b43d-95dcedf961de"
+  },
+  "71bbafaa-e825-3e15-8ca9-017dcad1748b": {
+   "disambiguation": "",
+   "id": "71bbafaa-e825-3e15-8ca9-017dcad1748b",
+   "iso-3166-1-codes": [
+    "CA"
+   ],
+   "life-span": {
+    "begin": null,
+    "end": null,
+    "ended": false
+   },
+   "name": "Canada",
+   "relations": [
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "85c5256f-aef1-484f-979a-42007218a1c2",
+     "url": {
+      "id": "2f21890b-48d9-4449-a883-18752b3f4508",
+      "resource": "https://www.wikidata.org/wiki/Q16"
+     }
+    }
+   ],
+   "sort-name": "Canada",
+   "type": "Country",
+   "type-id": "06dd0ae4-8c74-30bb-b43d-95dcedf961de"
+  },
+  "74b24e62-d2fe-42d2-9d96-31f2da756c77": {
+   "disambiguation": "",
+   "id": "74b24e62-d2fe-42d2-9d96-31f2da756c77",
+   "life-span": {
+    "begin": null,
+    "end": null,
+    "ended": false
+   },
+   "name": "Toronto",
+   "relations": [
+    {
+     "area": {
+      "disambiguation": "",
+      "id": "2747553f-b44d-44c4-a7c3-b67412b6f10b",
+      "iso-3166-2-codes": [
+       "CA-ON"
+      ],
+      "name": "Ontario",
+      "sort-name": "Ontario",
+      "type": "Subdivision",
+      "type-id": "fd3d44c5-80a1-3842-9745-2c4972d35afa"
+     },
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "backward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "area",
+     "type": "part of",
+     "type-id": "de7cc874-8b1b-3a05-8272-f3834c968fb7"
+    },
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "85c5256f-aef1-484f-979a-42007218a1c2",
+     "url": {
+      "id": "1e5a835e-c3c6-4bde-a0ee-d7b25eb8f313",
+      "resource": "https://www.wikidata.org/wiki/Q172"
+     }
+    }
+   ],
+   "sort-name": "Toronto",
+   "type": "City",
+   "type-id": "6fd8f29a-3d0a-32fc-980d-ea697b69da78"
+  },
+  "7c81bb69-a99b-3487-b6d4-0f76d7a29ca0": {
+   "disambiguation": "",
+   "id": "7c81bb69-a99b-3487-b6d4-0f76d7a29ca0",
+   "iso-3166-1-codes": [
+    "CN"
+   ],
+   "life-span": {
+    "begin": null,
+    "end": null,
+    "ended": false
+   },
+   "name": "China",
+   "relations": [
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "85c5256f-aef1-484f-979a-42007218a1c2",
+     "url": {
+      "id": "f038ffc9-b699-4b27-b505-482d8333612d",
+      "resource": "https://www.wikidata.org/wiki/Q148"
+     }
+    }
+   ],
+   "sort-name": "China",
+   "type": "Country",
+   "type-id": "06dd0ae4-8c74-30bb-b43d-95dcedf961de"
+  },
+  "9944d513-c11f-428c-8b18-80fa1b5f8ea5": {
+   "disambiguation": "",
+   "id": "9944d513-c11f-428c-8b18-80fa1b5f8ea5",
+   "life-span": {
+    "begin": null,
+    "end": null,
+    "ended": false
+   },
+   "name": "North York",
+   "relations": [
+    {
+     "area": {
+      "disambiguation": "",
+      "id": "74b24e62-d2fe-42d2-9d96-31f2da756c77",
+      "name": "Toronto",
+      "sort-name": "Toronto",
+      "type": "City",
+      "type-id": "6fd8f29a-3d0a-32fc-980d-ea697b69da78"
+     },
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "backward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "area",
+     "type": "part of",
+     "type-id": "de7cc874-8b1b-3a05-8272-f3834c968fb7"
+    },
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "85c5256f-aef1-484f-979a-42007218a1c2",
+     "url": {
+      "id": "68d57cf3-c018-434f-9961-412361d05129",
+      "resource": "https://www.wikidata.org/wiki/Q1586510"
+     }
+    }
+   ],
+   "sort-name": "North York",
+   "type": "District",
+   "type-id": "84039871-5e47-38ca-a66a-45e512c8290f"
+  },
+  "bfbfa8f8-db56-476d-8012-129f6041f97a": {
+   "disambiguation": "",
+   "id": "bfbfa8f8-db56-476d-8012-129f6041f97a",
+   "life-span": {
+    "begin": null,
+    "end": null,
+    "ended": false
+   },
+   "name": "Kowloon City District",
+   "relations": [
+    {
+     "area": {
+      "disambiguation": "",
+      "id": "0373cdff-eac8-3fbc-92dc-36a607da06d1",
+      "iso-3166-1-codes": [
+       "HK"
+      ],
+      "iso-3166-2-codes": [
+       "CN-91"
+      ],
+      "name": "Hong Kong",
+      "sort-name": "Hong Kong",
+      "type": "Subdivision",
+      "type-id": "fd3d44c5-80a1-3842-9745-2c4972d35afa"
+     },
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "backward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "area",
+     "type": "part of",
+     "type-id": "de7cc874-8b1b-3a05-8272-f3834c968fb7"
+    },
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "85c5256f-aef1-484f-979a-42007218a1c2",
+     "url": {
+      "id": "018f7c21-7653-46c0-b0ff-02326e89eed7",
+      "resource": "https://www.wikidata.org/wiki/Q986415"
+     }
+    }
+   ],
+   "sort-name": "Kowloon City District",
+   "type": "Subdivision",
+   "type-id": "fd3d44c5-80a1-3842-9745-2c4972d35afa"
+  }
+ },
+ "artist": {
+  "id": "48646387-1664-4c9a-9139-9bfd091b823c",
+  "name": "BLACKPINK",
+  "relations": [
+   {
+    "attribute-ids": {},
+    "attribute-values": {},
+    "attributes": [],
+    "begin": null,
+    "direction": "forward",
+    "end": null,
+    "ended": false,
+    "source-credit": "",
+    "target-credit": "",
+    "target-type": "url",
+    "type": "wikidata",
+    "type-id": "689870a4-a1e4-4912-b17f-7b2664215698",
+    "url": {
+     "id": "d1202aa0-4b13-458d-a1e0-4e64b90a0890",
+     "resource": "https://www.wikidata.org/wiki/Q25056945"
+    }
+   }
+  ],
+  "type": "Group"
+ },
+ "events": {
+  "44a493ce-9594-4fb0-b84d-2e199ec2ab68": {
+   "cancelled": false,
+   "disambiguation": "night 1",
+   "id": "44a493ce-9594-4fb0-b84d-2e199ec2ab68",
+   "life-span": {
+    "begin": "2026-01-24",
+    "end": "2026-01-24",
+    "ended": true
+   },
+   "name": "DEADLINE WORLD TOUR: Hong Kong",
+   "relations": [
+    {
+     "artist": {
+      "country": "KR",
+      "disambiguation": "",
+      "id": "48646387-1664-4c9a-9139-9bfd091b823c",
+      "name": "BLACKPINK",
+      "sort-name": "BLACKPINK",
+      "type": "Group",
+      "type-id": "e431f5f6-b5d2-343d-8b36-72607fffb74b"
+     },
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "backward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "artist",
+     "type": "main performer",
+     "type-id": "936c7c95-3156-3889-a062-8a0cd57f8946"
+    },
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "place": {
+      "address": "Kai Tak Sports Park, 38 Shing Kai Road, Kai Tak, Kowloon, Hong Kong",
+      "area": {
+       "disambiguation": "",
+       "id": "bfbfa8f8-db56-476d-8012-129f6041f97a",
+       "name": "Kowloon City District",
+       "sort-name": "Kowloon City District",
+       "type": "Subdivision",
+       "type-id": "fd3d44c5-80a1-3842-9745-2c4972d35afa"
+      },
+      "coordinates": {
+       "latitude": 22.322323,
+       "longitude": 114.197236
+      },
+      "disambiguation": "",
+      "id": "412059ca-c3ff-456b-bf78-e37cce007729",
+      "name": "啟德主場館",
+      "type": "Stadium",
+      "type-id": "62664fbd-cd55-3b5f-a5ea-fb5d1bc0113c"
+     },
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "place",
+     "type": "held at",
+     "type-id": "e2c6f697-07dc-38b1-be0b-83d740165532"
+    }
+   ],
+   "setlist": "",
+   "time": "",
+   "type": "Concert",
+   "type-id": "ef55e8d7-3d00-394a-8012-f5506a29ff0b"
+  },
+  "aa9f9117-1949-48c0-8346-aa0096384d5c": {
+   "cancelled": false,
+   "disambiguation": "night 1",
+   "id": "aa9f9117-1949-48c0-8346-aa0096384d5c",
+   "life-span": {
+    "begin": "2025-10-18",
+    "end": "2025-10-18",
+    "ended": true
+   },
+   "name": "DEADLINE WORLD TOUR: Kaohsiung",
+   "relations": [
+    {
+     "artist": {
+      "country": "KR",
+      "disambiguation": "",
+      "id": "48646387-1664-4c9a-9139-9bfd091b823c",
+      "name": "BLACKPINK",
+      "sort-name": "BLACKPINK",
+      "type": "Group",
+      "type-id": "e431f5f6-b5d2-343d-8b36-72607fffb74b"
+     },
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "backward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "artist",
+     "type": "main performer",
+     "type-id": "936c7c95-3156-3889-a062-8a0cd57f8946"
+    },
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "place": {
+      "address": "",
+      "area": {
+       "disambiguation": "",
+       "id": "03be6fde-7d55-4dea-ab29-1791782cb858",
+       "iso-3166-2-codes": [
+        "TW-KHH"
+       ],
+       "name": "Kaohsiung",
+       "sort-name": "Kaohsiung",
+       "type": "City",
+       "type-id": "6fd8f29a-3d0a-32fc-980d-ea697b69da78"
+      },
+      "coordinates": null,
+      "disambiguation": "",
+      "id": "b84fa472-824b-44af-aa51-5458e1b8419b",
+      "name": "國家體育場",
+      "type": "Stadium",
+      "type-id": "62664fbd-cd55-3b5f-a5ea-fb5d1bc0113c"
+     },
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "place",
+     "type": "held at",
+     "type-id": "e2c6f697-07dc-38b1-be0b-83d740165532"
+    }
+   ],
+   "setlist": "",
+   "time": "",
+   "type": "Concert",
+   "type-id": "ef55e8d7-3d00-394a-8012-f5506a29ff0b"
+  },
+  "c05133b5-a387-4a79-b263-909bcc0e8676": {
+   "cancelled": false,
+   "disambiguation": "night 1",
+   "id": "c05133b5-a387-4a79-b263-909bcc0e8676",
+   "life-span": {
+    "begin": "2025-07-22",
+    "end": "2025-07-22",
+    "ended": true
+   },
+   "name": "DEADLINE WORLD TOUR: Toronto",
+   "relations": [
+    {
+     "artist": {
+      "country": "KR",
+      "disambiguation": "",
+      "id": "48646387-1664-4c9a-9139-9bfd091b823c",
+      "name": "BLACKPINK",
+      "sort-name": "BLACKPINK",
+      "type": "Group",
+      "type-id": "e431f5f6-b5d2-343d-8b36-72607fffb74b"
+     },
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "backward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "artist",
+     "type": "main performer",
+     "type-id": "936c7c95-3156-3889-a062-8a0cd57f8946"
+    },
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "place": {
+      "address": "105 Carl Hall Rd, North York, ON M3K 2C1",
+      "area": {
+       "disambiguation": "",
+       "id": "9944d513-c11f-428c-8b18-80fa1b5f8ea5",
+       "name": "North York",
+       "sort-name": "North York",
+       "type": "District",
+       "type-id": "84039871-5e47-38ca-a66a-45e512c8290f"
+      },
+      "coordinates": {
+       "latitude": 43.742778,
+       "longitude": -79.465556
+      },
+      "disambiguation": "",
+      "id": "f369ed37-739d-470b-99a0-34823a333d9d",
+      "name": "Rogers Stadium",
+      "type": "Stadium",
+      "type-id": "62664fbd-cd55-3b5f-a5ea-fb5d1bc0113c"
+     },
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "place",
+     "type": "held at",
+     "type-id": "e2c6f697-07dc-38b1-be0b-83d740165532"
+    }
+   ],
+   "setlist": "",
+   "time": "20:00",
+   "type": "Concert",
+   "type-id": "ef55e8d7-3d00-394a-8012-f5506a29ff0b"
+  }
+ },
+ "places": {
+  "412059ca-c3ff-456b-bf78-e37cce007729": {
+   "address": "Kai Tak Sports Park, 38 Shing Kai Road, Kai Tak, Kowloon, Hong Kong",
+   "area": {
+    "disambiguation": "",
+    "id": "bfbfa8f8-db56-476d-8012-129f6041f97a",
+    "name": "Kowloon City District",
+    "sort-name": "Kowloon City District",
+    "type": null,
+    "type-id": null
+   },
+   "coordinates": {
+    "latitude": 22.322323,
+    "longitude": 114.197236
+   },
+   "disambiguation": "",
+   "id": "412059ca-c3ff-456b-bf78-e37cce007729",
+   "life-span": {
+    "begin": "2025-03-01",
+    "end": null,
+    "ended": false
+   },
+   "name": "啟德主場館",
+   "relations": [
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "e6826618-b410-4b8d-b3b5-52e29eac5e1f",
+     "url": {
+      "id": "42c56e2c-c9f8-408a-87e0-854f84b32e0f",
+      "resource": "https://www.wikidata.org/wiki/Q134593792"
+     }
+    }
+   ],
+   "type": "Stadium",
+   "type-id": "62664fbd-cd55-3b5f-a5ea-fb5d1bc0113c"
+  },
+  "b84fa472-824b-44af-aa51-5458e1b8419b": {
+   "address": "",
+   "area": {
+    "disambiguation": "",
+    "id": "03be6fde-7d55-4dea-ab29-1791782cb858",
+    "iso-3166-2-codes": [
+     "TW-KHH"
+    ],
+    "name": "Kaohsiung",
+    "sort-name": "Kaohsiung",
+    "type": null,
+    "type-id": null
+   },
+   "coordinates": null,
+   "disambiguation": "",
+   "id": "b84fa472-824b-44af-aa51-5458e1b8419b",
+   "life-span": {
+    "begin": "2009-05",
+    "end": null,
+    "ended": false
+   },
+   "name": "國家體育場",
+   "relations": [
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "e6826618-b410-4b8d-b3b5-52e29eac5e1f",
+     "url": {
+      "id": "f9a252bb-bbae-4a4d-a17d-806ec7615ad5",
+      "resource": "https://www.wikidata.org/wiki/Q713442"
+     }
+    }
+   ],
+   "type": "Stadium",
+   "type-id": "62664fbd-cd55-3b5f-a5ea-fb5d1bc0113c"
+  },
+  "f369ed37-739d-470b-99a0-34823a333d9d": {
+   "address": "105 Carl Hall Rd, North York, ON M3K 2C1",
+   "area": {
+    "disambiguation": "",
+    "id": "9944d513-c11f-428c-8b18-80fa1b5f8ea5",
+    "name": "North York",
+    "sort-name": "North York",
+    "type": null,
+    "type-id": null
+   },
+   "coordinates": {
+    "latitude": 43.742778,
+    "longitude": -79.465556
+   },
+   "disambiguation": "",
+   "id": "f369ed37-739d-470b-99a0-34823a333d9d",
+   "life-span": {
+    "begin": "2025-06-29",
+    "end": null,
+    "ended": false
+   },
+   "name": "Rogers Stadium",
+   "relations": [
+    {
+     "attribute-ids": {},
+     "attribute-values": {},
+     "attributes": [],
+     "begin": null,
+     "direction": "forward",
+     "end": null,
+     "ended": false,
+     "source-credit": "",
+     "target-credit": "",
+     "target-type": "url",
+     "type": "wikidata",
+     "type-id": "e6826618-b410-4b8d-b3b5-52e29eac5e1f",
+     "url": {
+      "id": "bbaa4fe9-eab7-4748-9849-319ffc11a28e",
+      "resource": "https://www.wikidata.org/wiki/Q7359340"
+     }
+    }
+   ],
+   "type": "Stadium",
+   "type-id": "62664fbd-cd55-3b5f-a5ea-fb5d1bc0113c"
+  }
+ },
+ "series": {
+  "disambiguation": "",
+  "id": "510f1af4-7a2e-40f2-abd4-776d8da29b94",
+  "name": "DEADLINE WORLD TOUR",
+  "relations": [
+   {
+    "attribute-ids": {
+     "number": "a59c5830-5ec7-38fe-9a21-c7ea54f6650a"
+    },
+    "attribute-values": {
+     "number": "4.15"
+    },
+    "attributes": [
+     "number"
+    ],
+    "begin": null,
+    "direction": "backward",
+    "end": null,
+    "ended": false,
+    "event": {
+     "cancelled": false,
+     "disambiguation": "night 1",
+     "id": "44a493ce-9594-4fb0-b84d-2e199ec2ab68",
+     "life-span": {
+      "begin": "2026-01-24",
+      "end": "2026-01-24",
+      "ended": true
+     },
+     "name": "DEADLINE WORLD TOUR: Hong Kong",
+     "setlist": "",
+     "time": "",
+     "type": "Concert",
+     "type-id": "ef55e8d7-3d00-394a-8012-f5506a29ff0b"
+    },
+    "ordering-key": 30,
+    "source-credit": "",
+    "target-credit": "",
+    "target-type": "event",
+    "type": "part of",
+    "type-id": "707d947d-9563-328a-9a7d-0c5b9c3a9791"
+   },
+   {
+    "attribute-ids": {
+     "number": "a59c5830-5ec7-38fe-9a21-c7ea54f6650a"
+    },
+    "attribute-values": {
+     "number": "4.1"
+    },
+    "attributes": [
+     "number"
+    ],
+    "begin": null,
+    "direction": "backward",
+    "end": null,
+    "ended": false,
+    "event": {
+     "cancelled": false,
+     "disambiguation": "night 1",
+     "id": "aa9f9117-1949-48c0-8346-aa0096384d5c",
+     "life-span": {
+      "begin": "2025-10-18",
+      "end": "2025-10-18",
+      "ended": true
+     },
+     "name": "DEADLINE WORLD TOUR: Kaohsiung",
+     "setlist": "",
+     "time": "",
+     "type": "Concert",
+     "type-id": "ef55e8d7-3d00-394a-8012-f5506a29ff0b"
+    },
+    "ordering-key": 16,
+    "source-credit": "",
+    "target-credit": "",
+    "target-type": "event",
+    "type": "part of",
+    "type-id": "707d947d-9563-328a-9a7d-0c5b9c3a9791"
+   },
+   {
+    "attribute-ids": {
+     "number": "a59c5830-5ec7-38fe-9a21-c7ea54f6650a"
+    },
+    "attribute-values": {
+     "number": "2.4"
+    },
+    "attributes": [
+     "number"
+    ],
+    "begin": null,
+    "direction": "backward",
+    "end": null,
+    "ended": false,
+    "event": {
+     "cancelled": false,
+     "disambiguation": "night 1",
+     "id": "c05133b5-a387-4a79-b263-909bcc0e8676",
+     "life-span": {
+      "begin": "2025-07-22",
+      "end": "2025-07-22",
+      "ended": true
+     },
+     "name": "DEADLINE WORLD TOUR: Toronto",
+     "setlist": "",
+     "time": "20:00",
+     "type": "Concert",
+     "type-id": "ef55e8d7-3d00-394a-8012-f5506a29ff0b"
+    },
+    "ordering-key": 6,
+    "source-credit": "",
+    "target-credit": "",
+    "target-type": "event",
+    "type": "part of",
+    "type-id": "707d947d-9563-328a-9a7d-0c5b9c3a9791"
+   }
+  ],
+  "type": "Tour",
+  "type-id": "8ff6df0e-3dce-3bdf-bd57-d386c51b0060"
+ }
+}

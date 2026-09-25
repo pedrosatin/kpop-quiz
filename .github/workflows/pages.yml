@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "web/**"
+      - "data/map-pilot/**"
       - "kpop_scraping/**"
       - "tests/**"
       - "schemas/**"
@@ -13,6 +14,7 @@ on:
     branches: [master]
     paths:
       - "web/**"
+      - "data/map-pilot/**"
       - "kpop_scraping/**"
       - "tests/**"
       - "schemas/**"
@@ -20,7 +22,7 @@ on:
       - ".github/workflows/pages.yml"
   workflow_dispatch:
   workflow_run:
-    workflows: ["Generate and publish daily K-pop puzzles"]
+    workflows: ["Generate and publish daily K-pop puzzles", "Refresh map pilot tour dates"]
     types: [completed]
 
 permissions:

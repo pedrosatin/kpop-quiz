@@ -98,6 +98,26 @@ class CountryCrosswalkTests(unittest.TestCase):
         )
         self.assertEqual(report["unresolved_countries"], [])
 
+    def test_prefers_wikidata_identity_when_feature_iso_conflicts(self):
+        features = {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "properties": {"ADM0_A3": "AAA", "ISO_A2": "BB", "WIKIDATAID": "Q1"}, "geometry": None},
+                {"type": "Feature", "properties": {"ADM0_A3": "BBB", "ISO_A2": "AA", "WIKIDATAID": "Q2"}, "geometry": None},
+            ],
+        }
+        countries = [
+            {"wikidata_id": "Q1", "iso_3166_1": "AA"},
+            {"wikidata_id": "Q2", "iso_3166_1": "BB"},
+        ]
+
+        report = self.build(features=features, countries=countries)
+        self.assertEqual(
+            [(row["wikidata_id"], row["map_feature_id"]) for row in report["matched_countries"]],
+            [("Q1", "AAA"), ("Q2", "BBB")],
+        )
+        self.assertEqual(report["unresolved_countries"], [])
+
     def test_rejects_duplicate_catalog_ids_and_invalid_input_shape(self):
         countries = synthetic_countries()
         countries.append({"wikidata_id": "Q990000009", "iso_3166_1": "AA"})
