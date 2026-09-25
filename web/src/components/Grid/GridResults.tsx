@@ -80,36 +80,32 @@ export function GridResults({
   const hasNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
   return (
-    <section class="grid-results-container" aria-labelledby="grid-gameover-title">
-      <header class="grid-results-header">
+    <section class="result" aria-labelledby="grid-gameover-title">
+      <header>
         <p class="kicker">{messages.gridEyebrow}</p>
-        <h2 id="grid-gameover-title">{messages.gridGameOverTitle}</h2>
-        <p class="results-summary-text">
-          {messages.gridGameOverSummary(correctCount, guessesUsed)}
-        </p>
+        <h2 id="grid-gameover-title" class="result-title">
+          {messages.gridGameOverTitle}
+        </h2>
       </header>
+      <p class="result-summary">{messages.gridGameOverSummary(correctCount, guessesUsed)}</p>
 
-      <div class="grid-share-card">
-        <div class="share-matrix-preview" aria-label={messages.gridShareMatrixAriaLabel} role="img">
+      <div class="share-box">
+        <div class="share-preview grid-share-matrix" aria-label={messages.gridShareMatrixAriaLabel} role="img">
           {matrixLines.map((line, idx) => (
-            <div key={idx} class="share-matrix-row">
-              {line}
-            </div>
+            <div key={idx}>{line}</div>
           ))}
         </div>
 
-        <div class="share-options">
-          <label class="monochrome-toggle">
-            <input
-              type="checkbox"
-              checked={monochrome}
-              onChange={(e) => setMonochrome((e.target as HTMLInputElement).checked)}
-            />
-            <span>{messages.gridHighContrastShare}</span>
-          </label>
-        </div>
+        <label class="share-toggle">
+          <input
+            type="checkbox"
+            checked={monochrome}
+            onChange={(e) => setMonochrome((e.target as HTMLInputElement).checked)}
+          />
+          <span>{messages.gridHighContrastShare}</span>
+        </label>
 
-        <div class="share-actions">
+        <div class="btn-row">
           {hasNativeShare && (
             <button type="button" class="btn btn-primary" onClick={handleShare}>
               {messages.gridShareButton}
@@ -127,14 +123,9 @@ export function GridResults({
           </button>
         </div>
 
-        <div class="visually-hidden" aria-live="polite" aria-atomic="true">
-          {copied && messages.gridCopiedNotice}
-        </div>
-        {copied && (
-          <p class="copy-feedback-alert" role="status">
-            {messages.gridCopiedNotice}
-          </p>
-        )}
+        <p class="share-feedback" role="status" aria-live="polite" aria-atomic="true">
+          {copied ? messages.gridCopiedNotice : ""}
+        </p>
       </div>
 
       <GridReview grid={grid} cellStates={cellStates} locale={locale} messages={messages} />
