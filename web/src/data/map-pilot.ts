@@ -1,4 +1,4 @@
-import candidateData from "../../../data/map-pilot/deadline-candidate-events.json";
+import eventData from "../../../data/map-pilot/deadline-events.json";
 import worldMap from "./map-pilot/world-map.json";
 
 export interface MapPilotEvent {
@@ -16,6 +16,8 @@ export interface MapPilotEvent {
   city_area_type: string;
   country_wikidata_id: string;
   country_iso_3166_1: string;
+  country_check_wikidata_id: string;
+  country_check_wikidata_revid: number;
   map_feature_id: string;
   map_dataset: string;
   map_dataset_version: string;
@@ -24,8 +26,7 @@ export interface MapPilotEvent {
   source_locator: string;
   source_checked_at: string;
   musicbrainz_event_url: string;
-  status: "candidate";
-  source_policy_status: "unreviewed";
+  status: "accepted";
 }
 
 export interface MapPilotCountry {
@@ -35,11 +36,10 @@ export interface MapPilotCountry {
   label: string;
 }
 
-interface CandidateDataset {
+interface MapPilotDataset {
   schema_version: string;
   reference_date: string;
   country_crosswalk_id: string;
-  source_policy_status: string;
   events: MapPilotEvent[];
   countries: Array<Omit<MapPilotCountry, "label">>;
 }
@@ -51,7 +51,7 @@ interface WorldMap {
   features: Array<{ id: string; label: string; path: string }>;
 }
 
-const data = candidateData as CandidateDataset;
+const data = eventData as MapPilotDataset;
 const map = worldMap as WorldMap;
 const mapFeatures = new Map(map.features.map((feature) => [feature.id, feature]));
 
@@ -64,7 +64,6 @@ export const mapPilotFeatures = map.features;
 export const mapPilotMetadata = {
   referenceDate: data.reference_date,
   crosswalkId: data.country_crosswalk_id,
-  sourcePolicyStatus: data.source_policy_status,
   mapCredit: map.dataset.credit,
   mapSource: map.dataset.name,
   mapVersion: map.dataset.version,
@@ -104,11 +103,10 @@ function isIsoDate(value: unknown): value is string {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 
-export function isMapPilotDataset(value: unknown): value is CandidateDataset {
+export function isMapPilotDataset(value: unknown): value is MapPilotDataset {
   if (!isRecord(value)) return false;
   if (
-    value.schema_version !== "kpop-map-pilot-events-v1"
-    || value.source_policy_status !== "unreviewed"
+    value.schema_version !== "kpop-map-pilot-events-v2"
     || !isIsoDate(value.reference_date)
     || typeof value.country_crosswalk_id !== "string"
     || !Array.isArray(value.events)
@@ -121,8 +119,7 @@ export function isMapPilotDataset(value: unknown): value is CandidateDataset {
     if (!isRecord(event)
       || event.predicate !== "announced_performance_city"
       || event.schedule_status !== "listed"
-      || event.status !== "candidate"
-      || event.source_policy_status !== "unreviewed"
+      || event.status !== "accepted"
       || event.event_type !== "concert"
       || (event.billing_role !== "headliner" && event.billing_role !== "co_headliner")
       || !isIsoDate(event.event_date)
@@ -177,5 +174,5 @@ export function selectMapPilotRound(
 }
 
 export function isBundledMapPilotDatasetValid(): boolean {
-  return isMapPilotDataset(candidateData);
+  return isMapPilotDataset(eventData);
 }

@@ -8,7 +8,7 @@ Every answer comes from Wikipedia and Wikidata. A Python collector queries both 
 
 The collector covers page discovery, summaries, candidate classification, and Wikidata fact extraction for accepted groups and members. It also keeps an auditable catalog of music release candidates. The catalog rejects lists, disambiguation pages, redirects, and QIDs without an accepted music type.
 
-The map-game pilot has a read-only geography coverage report, a synthetic tour-event candidate validator, and an offline country-to-map-feature crosswalk builder. The crosswalk joins reviewed country IDs to Natural Earth features by ISO code and leaves missing or ambiguous matches unresolved. The pilot does not collect or store real schedules, resolve cities from names, or generate map questions. [ADR-015](docs/decisions/015-contrato-de-dados-do-jogo-de-mapas.md) records the source review and current limits.
+The map-game pilot at `/pt-br/mapa/` and `/en/map/` asks in which country the official schedule listed each date of BLACKPINK's DEADLINE WORLD TOUR. `python -m kpop_scraping.map_pilot_refresh` rebuilds `data/map-pilot/deadline-events.json`. An event enters it only when the YG schedule lists the date and city, MusicBrainz records the concert at one venue, and the venue area's current Wikidata country (P17) matches the MusicBrainz area hierarchy. The country then maps to a Natural Earth feature by Wikidata QID. A workflow runs the refresh on the first day of each month. The pilot routes are `noindex` and stay out of the game menu. [ADR-015](docs/decisions/015-contrato-de-dados-do-jogo-de-mapas.md) and [the pilot notes](docs/map-game-pilot.md) record the sources and checks.
 
 ## Requirements
 

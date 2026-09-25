@@ -199,11 +199,11 @@ Produção no Cloudflare Pages em <https://kpopquiz.online>, conforme a [ADR 013
 
 Pontuação de relevância por pageviews da Wikipedia em inglês (`group_relevance_cli` e `group_relevance_score_cli`), com cálculo definido na [ADR 014](decisions/014-pageview-relevance.md). O filtro por relevância ajusta os modos de quiz sem afetar sessões quando a coleta não cobre o catálogo inteiro. O relatório de sinais de grupo é diagnóstico e não entra na pontuação.
 
-## Piloto do jogo de mapas concluído com restrições
+## Piloto do jogo de mapas concluído
 
-Implementado o protótipo PT/EN com mapa local, rodada diária de 10 datas candidatas, escolha via mapa ou lista, feedback e links de evidência. As rotas ficam `noindex`; o conjunto não entra no pipeline de publicação. A implementação e o parecer de fonte estão em [Piloto do jogo de mapas](map-game-pilot.md) e na [ADR-015](decisions/015-contrato-de-dados-do-jogo-de-mapas.md).
+O jogo em PT e EN pergunta em que país a agenda oficial listou cada data da DEADLINE WORLD TOUR de BLACKPINK, com 10 datas por rodada, resposta pelo mapa ou pela lista e links para a agenda e para o MusicBrainz. As rotas têm `noindex` e não aparecem no menu de jogos.
 
-A amostra BLACKPINK tem 31 datas candidatas cruzadas com a agenda da YG (33 datas no total; duas sem registro MusicBrainz) e 14 códigos ISO. A hierarquia resolve Hong Kong para China (`CN`/`CHN`) e Taiwan para `TW`/`TWN`. A fonte YG continua `unreviewed` para coleta e publicação. As páginas estão no build estático e acessíveis por URL, apesar de `noindex`; não fazer deploy do piloto antes de rever as evidências e a política de fonte.
+`kpop_scraping.map_pilot_refresh` refaz o conjunto cruzando a agenda da YG, o MusicBrainz e o `P17` do Wikidata, e o workflow `map-pilot-refresh.yml` roda esse comando no dia 1 de cada mês. Em 25 de setembro de 2026, 31 das 33 datas da agenda passaram no cruzamento, em 14 países. Regras e cobertura estão em [Piloto do jogo de mapas](map-game-pilot.md) e na [ADR-015](decisions/015-contrato-de-dados-do-jogo-de-mapas.md).
 
 ## Ciclo diário automatizado concluído
 

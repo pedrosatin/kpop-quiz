@@ -43,4 +43,10 @@ describe("map pilot game", () => {
     expect(getByRole("status").textContent).toContain("País correto");
     expect(getByRole("status").textContent).toContain(answerLabel);
   });
+
+  it("chooses the daily round after mount so the server HTML matches the first client render", async () => {
+    const { findByText, getByRole } = render(<MapPilotGame locale="en" />);
+    expect(await findByText("Question 1 of 10")).toBeTruthy();
+    expect(getByRole("heading", { level: 2 }).textContent).toContain("Which country");
+  });
 });

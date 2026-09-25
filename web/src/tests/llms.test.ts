@@ -32,8 +32,8 @@ function visibleCopy(locale: Locale, key: SeoRouteKey): { h1: string; intro: str
       return {
         h1: locale === "pt-BR" ? "Quiz de mapa: BLACKPINK" : "Map quiz: BLACKPINK",
         intro: locale === "pt-BR"
-          ? "Use a agenda oficial da turnê para localizar cada data no mapa. O piloto tem 31 datas candidatas, cada uma ligada a uma fonte consultável."
-          : "Use the official tour schedule to locate each date on the map. The pilot has 31 candidate dates, each linked to a source you can inspect.",
+          ? "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou. Cada data tem link para a agenda e para o registro no MusicBrainz."
+          : "For each tour date, pick on the map the country the official schedule listed. Every date links to the schedule and to its MusicBrainz record.",
       };
   }
 }

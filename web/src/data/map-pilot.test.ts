@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import candidateData from "../../../data/map-pilot/deadline-candidate-events.json";
+import eventData from "../../../data/map-pilot/deadline-events.json";
 import {
   isBundledMapPilotDatasetValid,
   isMapPilotDataset,
@@ -9,14 +9,14 @@ import {
   selectMapPilotRound,
 } from "./map-pilot";
 
-describe("map pilot candidate data", () => {
-  it("bundles the reviewed pilot shape with unique candidate event IDs", () => {
+describe("map pilot data", () => {
+  it("bundles accepted events with unique IDs and a map feature for every country", () => {
     expect(isBundledMapPilotDatasetValid()).toBe(true);
-    expect(isMapPilotDataset(candidateData)).toBe(true);
-    expect(mapPilotEvents).toHaveLength(31);
-    expect(new Set(mapPilotEvents.map((event) => event.event_mbid)).size).toBe(31);
-    expect(mapPilotCountries).toHaveLength(14);
-    expect(mapPilotEvents.every((event) => event.status === "candidate" && event.schedule_status === "listed")).toBe(true);
+    expect(isMapPilotDataset(eventData)).toBe(true);
+    expect(mapPilotEvents.length).toBeGreaterThanOrEqual(10);
+    expect(new Set(mapPilotEvents.map((event) => event.event_mbid)).size).toBe(mapPilotEvents.length);
+    expect(mapPilotCountries).toHaveLength(eventData.countries.length);
+    expect(mapPilotEvents.every((event) => event.status === "accepted" && event.schedule_status === "listed")).toBe(true);
   });
 
   it("selects a stable daily round and does not repeat events within it", () => {
@@ -44,7 +44,7 @@ describe("map pilot candidate data", () => {
   });
 
   it("rejects duplicate event identities", () => {
-    const invalid = structuredClone(candidateData);
+    const invalid = structuredClone(eventData);
     invalid.events[1]!.event_mbid = invalid.events[0]!.event_mbid;
     expect(isMapPilotDataset(invalid)).toBe(false);
   });

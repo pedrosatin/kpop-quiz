@@ -243,7 +243,6 @@ export interface Messages {
   gameConnections: string;
   gameNameGuess: string;
   gameWordSearch: string;
-  gameMap: string;
   statsTitle: string;
   statsNavLabel: string;
   statsOpenButton: string;
@@ -281,7 +280,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       mapPilot: {
         title: "Quiz de mapa K-pop: turnê DEADLINE",
-        description: "Piloto de quiz de mapa com agenda de turnê, locais identificados e fontes consultáveis.",
+        description: "Piloto de quiz de mapa com as datas da turnê DEADLINE de BLACKPINK, cada uma com link para a fonte.",
       },
     },
     skipLinks: {
@@ -557,7 +556,6 @@ const catalogs: Record<Locale, Messages> = {
     gameConnections: "Conexões",
     gameNameGuess: "Adivinhe",
     gameWordSearch: "Caça-palavras",
-    gameMap: "Mapa",
     statsTitle: "Suas estatísticas",
     statsNavLabel: "Estatísticas",
     statsOpenButton: "Ver estatísticas e sequência",
@@ -593,7 +591,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       mapPilot: {
         title: "K-pop Map Quiz: DEADLINE tour",
-        description: "A map quiz pilot based on tour schedules, identified venues and reviewable sources.",
+        description: "Map quiz pilot with the dates of BLACKPINK's DEADLINE tour, each linked to its source.",
       },
     },
     skipLinks: {
@@ -869,7 +867,6 @@ const catalogs: Record<Locale, Messages> = {
     gameConnections: "Connections",
     gameNameGuess: "Guess",
     gameWordSearch: "Word search",
-    gameMap: "Map",
     statsTitle: "Your stats",
     statsNavLabel: "Stats",
     statsOpenButton: "See stats and streak",

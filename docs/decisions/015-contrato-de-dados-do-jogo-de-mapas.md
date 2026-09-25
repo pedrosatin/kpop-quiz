@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for the internal pilot; publication remains blocked
+Accepted. Amended on 2026-09-25 to approve the official YG schedule for the pilot and to add the monthly refresh.
 
 ## Date
 
@@ -24,7 +24,7 @@ O coletor seguirá o limite publicado pela API de no máximo uma chamada por seg
 
 Cada evento elegível também precisa de uma fonte primária revisada, como página oficial do grupo, agência, promotora ou local do show, que confirme o grupo, a data e o local. A chave da fonte precisa ser aprovada pela política versionada do projeto. Se não houver confirmação, o evento fica fora do conjunto jogável.
 
-O piloto de cobertura deve começar por agendas mantidas por grupos ou agências e avisos oficiais de turnê publicados em plataformas como Weverse. Deve registrar URLs e uma pequena amostra de linhas, verificar termos e licença aplicáveis, e resolver cada cidade a país por identificador geográfico estável. Uma página acessível ou publicada por conta oficial não é, por si só, aprovação para coleta automatizada ou cópia persistente. Até a revisão exigida por `docs/source-policy.md`, esses domínios permanecem `unreviewed`.
+O piloto de cobertura começa por agendas mantidas por grupos ou agências. Ele registra URLs e resolve cada cidade a país por identificador geográfico estável. A emenda de 25 de setembro de 2026, descrita abaixo, aprovou a agenda oficial da YG para o piloto.
 
 O mapa de países usará a camada Natural Earth Admin 0. A página informa que há 258 países e descreve a separação entre países e unidades de mapa. Os limites padrão representam fronteiras de facto. Cada versão incorporada terá a versão do conjunto, a escala e o identificador da feição registrados. Entidades sem correspondência inequívoca ficam fora das perguntas.
 
@@ -47,6 +47,7 @@ O pipeline deve preservar IDs dos provedores e normalizar os fatos necessários 
 | `tour_mbid` | MBID da turnê, opcional. Só preencher quando a fonte relacionar explicitamente o evento à turnê. |
 | `country_wikidata_id` | QID do país resolvido por relação geográfica explícita. Obrigatório para perguntas jogáveis. |
 | `country_iso_3166_1` | Código ISO 3166-1 alpha-2 validado contra o país resolvido. |
+| `country_check_wikidata_id` e `country_check_wikidata_revid` | QID e revisão da área do local cujo `P17` confirmou o país. |
 | `map_dataset` e `map_feature_id` | Nome e versão do conjunto de geometrias, mais identificador da feição correspondente. |
 | `source_url` e `source_locator` | URL da evidência e localizador da data/cidade dentro da página. A validação do host não verifica o conteúdo da página. |
 | `source_checked_at` | Data ISO em que a entrada da agenda foi conferida manualmente. |
@@ -67,7 +68,7 @@ Antes da publicação, cada tema precisa de uma medição reproduzível da cober
 
 O conjunto diário deve ser gerado a partir de fatos aceitos e versão fixa das geometrias. O modo livre usa o mesmo conjunto elegível, com seleção de tema. Ambos mantêm a regra de resposta exata por país.
 
-Esta aceitação fixa o contrato semântico e o escopo do piloto interno. Não aprova YG, Weverse ou MusicBrainz como fontes persistentes, nem autoriza coletor ou publicação. O resultado do piloto e as condições para reabrir a implementação estão em [Piloto do jogo de mapas](../map-game-pilot.md).
+Com o status Accepted, este contrato vale para o piloto. A emenda de 25 de setembro de 2026 descreve as fontes aprovadas e a atualização mensal. O funcionamento atual está em [Piloto do jogo de mapas](../map-game-pilot.md).
 
 ## Etapa de cobertura offline
 
@@ -75,21 +76,23 @@ O comando `python -m kpop_scraping.geo_coverage --database <banco.sqlite> --outp
 
 ## Escopo inicial do piloto de turnês
 
-A primeira amostra será a agenda oficial da DEADLINE WORLD TOUR de BLACKPINK. A página da YG lista várias datas e cidades, e a série da turnê no MusicBrainz contém eventos com IDs, datas, artista principal e locais. MusicBrainz serve apenas para localizar candidatos. A revisão manual compara cada data e cidade com a agenda da YG.
+A primeira amostra usou a agenda oficial da DEADLINE WORLD TOUR de BLACKPINK. A página da YG lista datas, cidades e locais, e a série da turnê no MusicBrainz tem eventos com IDs, datas, artista principal e locais.
 
-A pergunta do jogo será: "Em qual país a agenda oficial listou uma apresentação de BLACKPINK em YYYY-MM-DD?" A resposta descreve o que a agenda publicou e não afirma que a apresentação ocorreu. Cada data é um evento separado, inclusive quando há várias apresentações na mesma cidade.
+A pergunta do jogo é: "Em qual país a agenda oficial listou um show de BLACKPINK em YYYY-MM-DD?" A resposta descreve o que a agenda publicou e não afirma que o show ocorreu. Cada data é um evento separado, inclusive quando há várias apresentações na mesma cidade.
 
-A amostra será montada sem crawler e sem cópias de páginas. Cada registro candidato terá os IDs estáveis do evento e das entidades geográficas, a URL oficial e um localizador que permita revisar a data e a cidade. Hash e data de consulta só serão guardados se os termos da fonte permitirem. A fonte permanece `unreviewed` para coleta automatizada e publicação até a revisão da política. O relatório de piloto não será usado como conjunto jogável.
+O levantamento manual de 24 de setembro de 2026 encontrou 33 datas em 16 destinos na agenda da YG e 31 eventos na série do MusicBrainz. Os 31 coincidiam com a agenda por data e local. As datas 28 de novembro de 2025, em Singapura, e 26 de janeiro de 2026, em Hong Kong, não tinham evento correspondente.
 
-O relatório contará candidatos localizados, datas confirmadas na agenda oficial, países distintos, cidades sem resolução inequívoca, datas repetidas por cidade e associações de artista não revisadas. A cobertura observada decidirá se outra turnê ou grupo entra na amostra.
+## Emenda de 25 de setembro de 2026: fonte aprovada e atualização mensal
 
-O levantamento de 24 de setembro de 2026 encontrou 33 datas em 16 destinos na agenda da YG e 31 eventos candidatos na série MusicBrainz. Os 31 registros foram comparados com a agenda por data e local; duas datas não têm candidato correspondente: 28 de novembro de 2025 em Singapura e 26 de janeiro de 2026 em Hong Kong. O crosswalk Natural Earth 5.1.1 relaciona os países a feições por `WIKIDATAID`. A hierarquia geográfica resolve Hong Kong para China (`Q148`, `CN`, feição `CHN`) e Taiwan para a feição `TWN`. O protótipo PT/EN está implementado, com 10 perguntas por rodada, ligações para evidência e rotas `noindex`. `noindex` e a ausência no sitemap não impedem acesso direto: as páginas e os candidatos integram o build estático. A fonte YG permanece `unreviewed` para coleta e publicação. Detalhes, artefatos e limitações estão em [Piloto do jogo de mapas](../map-game-pilot.md).
+O mantenedor aprovou a agenda oficial da YG como fonte do piloto. A agenda é uma página pública com fatos de data, cidade e local. O projeto guarda só esses três fatos e o localizador da entrada, sem texto, imagem ou HTML da página, e cada pergunta leva o link da agenda. A decisão vale para agendas oficiais de turnê publicadas pelo artista ou pela agência. Avisos do Weverse ficam fora, porque os termos da plataforma restringem cópia e publicação de conteúdo.
 
-## Revisão de fontes e contrato de candidatos
+A revisão manual das 31 linhas foi substituída por um cruzamento automático em `kpop_scraping/map_pilot_refresh.py`. Um evento só entra no conjunto jogável, com `status=accepted`, quando a agenda da YG lista a data e a cidade, o MusicBrainz registra o show com BLACKPINK como atração principal em um único local, a hierarquia de áreas do MusicBrainz chega a um único país e o `P17` atual da área do local no Wikidata inclui o mesmo país. O MusicBrainz continua sem sustentar a pergunta sozinho. A agenda da YG confirma data e cidade, e o Wikidata confere o país. O `P17` entra só como verificação de identidade geográfica, sem virar fato de quiz, e por isso a regra da [ADR 004](004-wikidata-facts-and-evidence.md) sobre referências de fatos não se aplica a ele.
 
-A revisão de fontes não encontrou licença que autorize a coleta automatizada e a persistência de agendas da YG ou do Weverse. O site institucional da YG declara que todo o conteúdo da empresa é protegido por direitos autorais. A lei sul-coreana também prevê direitos de produtores de bases de dados; esta ADR não determina se a agenda se enquadra nesses direitos ou se um uso específico os violaria. Para membros, os termos integrados atuais do Weverse, vigentes desde 1º de junho de 2026, limitam o uso de conteúdo ao escopo pessoal e não comercial e restringem cópia, publicação e compartilhamento sem permissão. Eles não esclarecem a extração de campos factuais de avisos públicos. Os dois domínios seguem `unreviewed` para agendas; a permissão para referenciar uma fonte Wikidata não autoriza coletar sua agenda.
+O cruzamento usa o `P17` da área em vez do QID do local porque vínculos de locais erram mais. Na primeira execução, o Rogers Stadium de Toronto estava ligado no MusicBrainz a outro estádio, com país Estados Unidos. O `P17` da área North York indica Canadá, igual à hierarquia do MusicBrainz.
 
-`kpop_scraping/tour_events.py` valida registros sem rede ou banco. Novos registros de agenda exigem `schedule_status="listed"`, `source_locator` e `source_checked_at`; o formato legado `event_status` permanece apenas para os fixtures sintéticos existentes. A validação exige associação revisada entre QID e MBID, artista relacionado ao evento, local ligado a uma única cidade, resolução única da cidade para país, data válida e papel de atração principal ou co-principal. O resultado mantém `status=candidate`; o validador não aceita fatos nem aprova fontes. As URLs dos fixtures usam `example.com`. A validação do host não confere o conteúdo da página. A implementação não autoriza ingestão de YG, Weverse ou MusicBrainz.
+O workflow `map-pilot-refresh.yml` refaz o conjunto no dia 1 de cada mês, roda os testes do piloto e faz o commit se os dados mudaram. Uma falha de rede, uma mudança de layout na agenda ou um conjunto vazio interrompe o workflow antes do commit. Datas da agenda sem evento no MusicBrainz ficam em `unmatched_schedule_dates` e entram na primeira atualização depois que alguém registrar o evento.
+
+`kpop_scraping/tour_events.py` continua validando o formato de cada evento sem rede nem banco. Registros de agenda exigem `schedule_status="listed"`, `source_locator` e `source_checked_at`. O formato legado `event_status` permanece só para os fixtures sintéticos existentes.
 
 `kpop_scraping/country_crosswalk.py` implementa o crosswalk offline país→feição. Ele relaciona QIDs revisados a `WIKIDATAID` das feições Natural Earth e retorna o identificador `ADM0_A3`; para feições sem QID válido, usa ISO 3166-1 alpha-2 com `ISO_A2`. Nomes não participam das junções. Identificadores ausentes ou associados a mais de uma feição ficam sem correspondência. O artefato registra versão, escala e quantidade de feições, além de receber um hash canônico. A suíte contém casos sintéticos e uma amostra reduzida com três associações reais.
 

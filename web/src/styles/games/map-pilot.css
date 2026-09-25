@@ -71,9 +71,5 @@
 
 @media (min-width: 48rem) {
   .page-shell--map-pilot { display: block; max-width: 76rem; padding-top: 3rem; }
-}
-
-@media (min-width: 48rem) {
-  .page-shell--map-pilot { display: block; max-width: 76rem; padding-top: 3rem; }
   .page-shell--map-pilot .intro { position: static; max-width: 64rem; margin-bottom: 2rem; }
 }

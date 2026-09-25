@@ -1,7 +1,7 @@
 """Download Natural Earth and emit compact SVG paths for the map pilot.
 
 Natural Earth country data is public domain. The output stores only feature
-IDs, display labels and simplified paths; no schedule source content is copied.
+IDs, display labels, Wikidata and ISO identifiers and simplified paths; no schedule source content is copied.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ SOURCE_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
     "v5.1.1/geojson/ne_10m_admin_0_countries.geojson"
 )
-USER_AGENT = "kpop-quiz-pilot/1.0 (Natural Earth map asset; contact: repo maintainer)"
+USER_AGENT = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)"
 WIDTH = 1200
 HEIGHT = 600
 SIMPLIFY_PX = 0.35
@@ -114,12 +114,14 @@ def build_map(features: dict[str, Any]) -> dict[str, Any]:
                 {
                     "id": feature_id,
                     "label": properties.get("ADMIN") or feature_id,
+                    "wikidata_id": properties.get("WIKIDATAID"),
+                    "iso_a2": properties.get("ISO_A2"),
                     "path": path,
                 }
             )
     rows.sort(key=lambda row: row["id"])
     return {
-        "schema_version": "natural-earth-map-paths-v1",
+        "schema_version": "natural-earth-map-paths-v2",
         "dataset": {
             "name": "Natural Earth Admin 0 - Countries",
             "version": "5.1.1",

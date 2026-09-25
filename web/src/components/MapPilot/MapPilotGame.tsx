@@ -1,4 +1,4 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import {
   mapPilotCountries,
   mapPilotCountryLabel,
@@ -17,6 +17,8 @@ interface MapPilotGameProps {
 
 interface Copy {
   pilot: string;
+  loading: string;
+  empty: string;
   question: (date: string) => string;
   instructions: string;
   mapLabel: string;
@@ -40,6 +42,8 @@ interface Copy {
 const COPY: Record<Locale, Copy> = {
   "pt-BR": {
     pilot: "PILOTO · DEADLINE WORLD TOUR",
+    loading: "Preparando a rodada de hoje…",
+    empty: "Não há perguntas de mapa disponíveis.",
     question: (date) => `Em qual país a agenda oficial listou um show de BLACKPINK em ${date}?`,
     instructions: "Escolha uma área no mapa ou use a lista de países abaixo.",
     mapLabel: "Mapa interativo de países. Use Tab e Enter para escolher uma área destacada.",
@@ -53,7 +57,7 @@ const COPY: Record<Locale, Copy> = {
     score: (correct, total) => `${correct} de ${total} respostas corretas.`,
     restart: "Jogar outra rodada",
     evidence: "Evidência da agenda",
-    musicBrainz: "Registro candidato no MusicBrainz",
+    musicBrainz: "Registro no MusicBrainz",
     scheduleNote: "A data aparece na agenda. Isso não confirma que o show aconteceu.",
     checkedAt: (date) => `Agenda conferida em ${date}.`,
     mapCredit: "Dados cartográficos: Natural Earth, domínio público.",
@@ -61,6 +65,8 @@ const COPY: Record<Locale, Copy> = {
   },
   en: {
     pilot: "PILOT · DEADLINE WORLD TOUR",
+    loading: "Preparing today's round…",
+    empty: "No map questions are available.",
     question: (date) => `Which country did the official schedule list for a BLACKPINK show on ${date}?`,
     instructions: "Choose a highlighted area on the map or use the country list below.",
     mapLabel: "Interactive country map. Use Tab and Enter to choose a highlighted area.",
@@ -74,7 +80,7 @@ const COPY: Record<Locale, Copy> = {
     score: (correct, total) => `${correct} of ${total} answers correct.`,
     restart: "Play another round",
     evidence: "Schedule evidence",
-    musicBrainz: "Candidate record at MusicBrainz",
+    musicBrainz: "MusicBrainz record",
     scheduleNote: "The date appears in the schedule. This does not confirm the show took place.",
     checkedAt: (date) => `Schedule checked on ${date}.`,
     mapCredit: "Map data: Natural Earth, public domain.",
@@ -94,8 +100,16 @@ function formatDate(value: string, locale: Locale): string {
 
 export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
   const copy = COPY[locale];
-  const roundSeed = seedDate ?? new Date().toISOString().slice(0, 10);
-  const round = useMemo(() => selectMapPilotRound(mapPilotEvents, roundSeed), [roundSeed]);
+  // The static build and the visitor's browser disagree on "today", so the
+  // daily round is chosen only after hydration.
+  const [roundSeed, setRoundSeed] = useState<string | null>(seedDate ?? null);
+  useEffect(() => {
+    if (roundSeed === null) setRoundSeed(new Date().toISOString().slice(0, 10));
+  }, [roundSeed]);
+  const round = useMemo(
+    () => (roundSeed === null ? [] : selectMapPilotRound(mapPilotEvents, roundSeed)),
+    [roundSeed],
+  );
   const [questionIndex, setQuestionIndex] = useState(0);
   const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
   const [score, setScore] = useState(0);
@@ -132,8 +146,12 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
     setIsComplete(false);
   }
 
+  if (roundSeed === null) {
+    return <section class="map-pilot-state" role="status">{copy.loading}</section>;
+  }
+
   if (round.length === 0) {
-    return <section class="map-pilot-state" role="status">No map questions are available.</section>;
+    return <section class="map-pilot-state" role="status">{copy.empty}</section>;
   }
 
   if (isComplete) {

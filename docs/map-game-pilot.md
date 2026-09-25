@@ -1,44 +1,58 @@
 # Piloto do jogo de mapas
 
-## Resultado
+## Jogo
 
-O piloto funcional foi implementado nas rotas `/pt-br/mapa/` e `/en/map/`. Cada rodada escolhe até 10 das 31 datas candidatas da DEADLINE WORLD TOUR de BLACKPINK, pergunta em qual país a agenda oficial listou uma apresentação naquela data e aceita a feição de país resolvida no mapa. O jogo não afirma que a apresentação ocorreu.
+As rotas `/pt-br/mapa/` e `/en/map/` fazem até 10 perguntas por rodada sobre as datas da DEADLINE WORLD TOUR de BLACKPINK. Cada pergunta mostra uma data e pede o país em que a agenda oficial listou o show. O jogador responde clicando no mapa ou na lista de países. Depois da resposta, o jogo mostra o link da [agenda oficial da YG](https://artist.ygfamily.com/ARTISTS/BLACKPINK/concert/2025TOUR/index2.html), o link do evento no MusicBrainz e a data da última conferência.
 
-As páginas têm `noindex` e não entram no sitemap. Esses controles não restringem acesso direto: o build estático contém as rotas e o bundle client-side com os eventos candidatos. Um deploy disponibiliza o jogo e esses dados a qualquer pessoa com o URL. A amostra não passa pelo pipeline de publicação dos outros jogos, mas já está incluída no build deste protótipo. O modo mostra, após cada resposta, o link da [agenda oficial da YG](https://artist.ygfamily.com/ARTISTS/BLACKPINK/concert/2025TOUR/index2.html), o registro candidato do MusicBrainz, a data da conferência e o aviso de que a agenda não confirma a realização do show. O mapa local usa Natural Earth Admin 0, versão 5.1.1, escala 1:10m, domínio público.
+A pergunta descreve o que a agenda publicou. Uma data listada não prova que o show aconteceu, e o jogo exibe esse aviso junto da resposta.
 
-## Cobertura e identidade geográfica
+O navegador sorteia a rodada depois de carregar a página, a partir da data local. O HTML estático mostra só um aviso de carregamento, então a página gerada no build e a primeira renderização no navegador são iguais.
 
-A agenda da YG lista 33 datas em 16 destinos. Foram consultados individualmente 31 registros da [série DEADLINE no MusicBrainz](https://musicbrainz.org/series/510f1af4-7a2e-40f2-abd4-776d8da29b94); os 31 coincidem com a agenda por data e local. A série não tem candidatos para 28 de novembro de 2025 em Singapura nem 26 de janeiro de 2026 em Hong Kong. O piloto cobre 14 áreas de país/cartográficas.
+As rotas têm `noindex`, ficam fora do sitemap e não aparecem no menu de jogos. Quem tiver a URL consegue abrir as páginas.
 
-O crosswalk identifica feições Natural Earth por QID Wikidata, com ISO alpha-2 como fallback apenas quando a feição não tem QID válido. Hong Kong resolve hierarquicamente para China (`Q148`, `CN`, feição `CHN`); Taiwan resolve para `TW`/`TWN`. Portanto, o quiz marca China como resposta para datas no Kai Tak Stadium. Isso segue a hierarquia geográfica dos dados usados pelo piloto; não é uma regra universal de nomenclatura política.
+## Fontes
 
-O arquivo de execução é [deadline-candidate-events.json](../data/map-pilot/deadline-candidate-events.json). Os registros mantêm IDs estáveis, data, localizador da entrada, URL, data de conferência e estado `candidate`/`unreviewed`. Respostas brutas da API MusicBrainz não foram retidas. A agenda normalizada, o relatório de cobertura e o crosswalk de pesquisa ficam como arquivos locais de revisão.
+| Fonte | Dado usado | Licença e atribuição |
+| --- | --- | --- |
+| Agenda oficial da YG | cidade, local e datas de cada destino | Fatos de agenda publicados para o público. O projeto guarda cidade, local e data, sem copiar texto, imagem ou HTML da página. Cada pergunta leva o link da agenda. |
+| MusicBrainz | MBID do evento, artista, local e hierarquia de áreas até o país | CC0 nos dados principais. Cada pergunta leva o link do evento. |
+| Wikidata | país atual (`P17`) da área onde fica o local | CC0. O conjunto registra o QID e a revisão consultada. |
+| Natural Earth Admin 0, 5.1.1, 1:10m | contorno dos países, `ADM0_A3`, `WIKIDATAID` e `ISO_A2` | Domínio público. O rodapé do jogo cita a fonte. |
 
-## Limite de uso das fontes
+## Atualização
 
-Dados publicamente acessíveis não significam automaticamente que qualquer coleta ou reutilização é permitida. MusicBrainz declara os dados principais da base como CC0 ([licenciamento](https://musicbrainz.org/doc/About/Data_License)); Natural Earth declara seus dados em domínio público ([termos](https://www.naturalearthdata.com/about/terms-of-use/)). A revisão não encontrou licença da YG que autorize coleta automatizada ou persistência da agenda, e o site declara proteção autoral. A lei sul-coreana prevê direitos de produtores de bases de dados (artigos 91 e 93 da [Copyright Act](https://www.law.go.kr/lsInfoP.do?ancYnChk=0&lsId=000798)). Isso não determina que o uso factual deste piloto seja ilícito; significa que a fonte permanece `unreviewed` para coleta automatizada e publicação até revisão apropriada.
+`python -m kpop_scraping.map_pilot_refresh` refaz `data/map-pilot/deadline-events.json` a partir das fontes. O comando baixa a agenda uma vez e consulta o MusicBrainz em sequência, com intervalo mínimo de 1,1 s entre chamadas, timeout de 30 s e `User-Agent` com a URL do repositório. Ao Wikidata, faz uma chamada `wbgetentities` com `maxlag=5`. Uma execução completa faz cerca de 110 chamadas e termina em aproximadamente dois minutos.
 
-O piloto registra fatos e IDs, sem copiar prosa, imagens, HTML ou capturas da fonte. O código, os JSONs e o bundle client-side estão no repositório e entram no build estático. `noindex` controla indexação por mecanismos de busca; não é controle de acesso. Antes de fazer deploy, rever a política de fontes em [source-policy.md](source-policy.md), aprovar a fonte para esse uso e concluir a revisão editorial das 31 linhas. Alternativamente, remover as rotas e dados do build até essa revisão.
+A data é a chave entre a agenda e o MusicBrainz, porque a turnê tem no máximo um show por dia. Um evento entra no conjunto quando todas estas condições valem:
 
-## Implementação e verificação
+1. A agenda da YG lista a data, e a cidade da agenda coincide com o nome do evento no MusicBrainz ou com uma das áreas do local.
+2. O MusicBrainz registra um show não cancelado, em um único dia, com BLACKPINK como atração principal em um único local.
+3. O artista no MusicBrainz aponta para o QID `Q25056945` no Wikidata.
+4. A hierarquia de áreas do local chega a um país com um código ISO e um QID.
+5. O `P17` atual da área do local no Wikidata inclui esse país. O validador descarta declarações com data de término (`P582`) e declarações depreciadas.
+6. O QID do país corresponde a uma única feição do mapa Natural Earth.
 
-- `kpop_scraping/country_crosswalk.py`: associação offline entre países revisados e feições do mapa; sem joins por nome.
-- `kpop_scraping/tour_events.py`: validação de candidatos, mantendo separado `schedule_status=listed` de realização do evento.
-- `scripts/build_map_pilot_map.py`: geração do mapa SVG local a partir do GeoJSON Natural Earth, com timeout e User-Agent identificável.
-- `web/src/data/map-pilot.ts`: validação do conjunto local e seleção determinística de até 10 datas por dia.
-- `web/src/components/MapPilot/MapPilotGame.tsx`: jogo acessível por mapa ou lista de países, PT/EN, feedback e fontes por resposta.
-- Rotas Astro: `web/src/pages/pt-br/mapa.astro` e `web/src/pages/en/map.astro`, ambas `noindex`.
+Um evento que falha em alguma condição fica fora do conjunto, e o comando imprime o motivo. Datas da agenda sem evento aceito vão para `unmatched_schedule_dates`. O validador `validate_map_pilot_dataset` roda nos testes e confere o arquivo versionado sem acesso à rede.
 
-Testes de regressão cobrem preferência por QID diante de ISO conflitante, unicidade dos eventos, distribuição geográfica, seleção diária estável, feedback de acerto/erro e links de evidência.
+O workflow `map-pilot-refresh.yml` executa o comando no dia 1 de cada mês e depois roda os testes do piloto. Se o arquivo mudou, o workflow faz o commit na `master`. O deploy do Cloudflare Pages começa quando esse workflow termina com sucesso. Uma falha de rede, uma mudança de layout na página da YG ou um conjunto vazio interrompe o workflow antes do commit, e o site mantém os dados anteriores.
 
-Comandos canônicos executados:
+## Cobertura em 25 de setembro de 2026
 
-```bash
-python -m unittest discover -v
-cd web && npm test
-cd web && npm run build
-```
+A agenda da YG lista 33 datas em 16 destinos. A série da turnê no MusicBrainz tem 31 eventos, e os 31 passaram nas seis condições. As datas 28 de novembro de 2025, em Singapura, e 26 de janeiro de 2026, em Hong Kong, não têm evento no MusicBrainz. Elas entram no jogo na primeira atualização depois que alguém registrar os eventos.
 
-## Continuação
+Os 31 eventos cobrem 14 países. O MusicBrainz registra Hong Kong como subdivisão da China, e o `P17` da área Kowloon City District no Wikidata é `Q148`. Por isso o jogo aceita China nas datas do Kai Tak Stadium. Taiwan resolve para `TW` e para a feição `TWN`.
 
-O objetivo de viabilidade e o protótipo jogável estão concluídos. Próximo passo: revisar as capturas e os dados do piloto; decidir se a YG pode ser mantida como fonte para esse uso ou se a amostra deve ser substituída. Até essa decisão, não fazer deploy deste estado: `noindex` e a ausência no sitemap não impedem acesso ao bundle. A rota já pode ser removida do build se o restante do site precisar ser publicado antes da revisão.
+Na primeira execução, o QID associado ao Rogers Stadium no MusicBrainz apontava para outro estádio, com país Estados Unidos. O validador consulta o `P17` da área do local, North York, em vez do QID do estádio, e por isso esse vínculo errado não afeta a resposta.
+
+## Arquivos
+
+- `kpop_scraping/official_schedule.py` lê cidade, local e datas da página da YG e interrompe a execução se o layout mudar.
+- `kpop_scraping/musicbrainz.py` é o cliente sequencial da API do MusicBrainz.
+- `kpop_scraping/map_pilot_refresh.py` faz a coleta, o cruzamento, a validação e a gravação do conjunto.
+- `kpop_scraping/country_crosswalk.py` associa QIDs de país às feições do mapa pelo `WIKIDATAID`, com ISO alpha-2 como alternativa para feições sem QID.
+- `kpop_scraping/tour_events.py` valida o formato e os identificadores de cada evento.
+- `scripts/build_map_pilot_map.py` gera o mapa SVG a partir do GeoJSON Natural Earth, com QID e ISO em cada feição.
+- `web/src/data/map-pilot.ts` valida o conjunto no build e sorteia as datas da rodada.
+- `web/src/components/MapPilot/MapPilotGame.tsx` é o jogo em PT e EN.
+
+Os testes em `tests/test_map_pilot_refresh.py` usam uma amostra real de três eventos do MusicBrainz e uma agenda sintética com o layout da página da YG. Eles cobrem o leitor da agenda, o intervalo e as novas tentativas do cliente, a leitura do `P17` e as regras de exclusão. Os testes em `web/src` cobrem o formato do conjunto, o sorteio diário, o fluxo da rodada e a renderização do jogo.
