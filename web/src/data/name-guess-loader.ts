@@ -3,6 +3,7 @@ import {
   type NameGuessPuzzle,
   type Locale,
 } from "../lib/quiz-types";
+import { preferNextDaily } from "./daily-artifact";
 
 export class NameGuessArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -52,5 +53,5 @@ export async function loadNameGuessPuzzle(
     throw new NameGuessArtifactError("invalid");
   }
 
-  return payload;
+  return preferNextDaily(payload, "name-guess.daily.json", effectiveBaseUrl, isNameGuessPuzzle);
 }

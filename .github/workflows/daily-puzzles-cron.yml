@@ -1,14 +1,21 @@
 name: Generate and publish daily K-pop puzzles
 
 on:
+  # 15:00 UTC is noon in Sao Paulo. GitHub has been starting scheduled runs
+  # about 5 hours late, so the next day's set still lands before midnight.
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '0 15 * * *'
   workflow_dispatch:
     inputs:
       date:
         description: 'Reference date YYYY-MM-DD (optional, defaults to current date)'
         required: false
         type: string
+      regenerate:
+        description: 'Generate the date again even if it is already published'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -81,7 +88,10 @@ jobs:
 
       - name: Generate daily puzzles
         run: |
-          CMD="python -m kpop_scraping.daily_puzzles_cli --database data/kpop.db --output-dir web/public/data"
+          CMD="python -m kpop_scraping.daily_puzzles_cli --database data/kpop.db --output-dir web/public/data --ahead"
+          if [ "${{ github.event.inputs.regenerate }}" = "true" ]; then
+            CMD="$CMD --regenerate"
+          fi
           if [ -n "${{ github.event.inputs.date }}" ]; then
             CMD="$CMD --date ${{ github.event.inputs.date }}"
           fi

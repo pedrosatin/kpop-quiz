@@ -540,6 +540,85 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
                     reference_date="2026-09-19",
                 )
 
+    def test_ahead_publishes_the_next_day_under_next(self):
+        output_dir = self.temp_path / "ahead"
+        result = run_daily_puzzles(
+            database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True
+        )
+        self.assertEqual(result["next"]["reference_date"], "2026-09-19")
+        for name, directory, expected in (
+            ("connections.daily.json", output_dir, "2026-09-18"),
+            ("connections.daily.json", output_dir / "next", "2026-09-19"),
+            ("word-search.daily.json", output_dir / "next", "2026-09-19"),
+        ):
+            payload = json.loads((directory / name).read_text(encoding="utf-8"))
+            self.assertEqual(payload["reference_date"], expected)
+        manifest = json.loads((output_dir / "next" / "manifest-v2.json").read_text(encoding="utf-8"))
+        daily = json.loads(
+            (output_dir / "next" / manifest["sessions"]["daily.en.standard"]["path"]).read_text(encoding="utf-8")
+        )
+        self.assertEqual(daily["config"]["seed"], "kpop-daily-2026-09-19")
+        self.assertEqual(run_daily_puzzles(output_dir=output_dir, verify_only=True)["status"], "verified")
+
+    def test_next_run_promotes_the_set_published_ahead(self):
+        output_dir = self.temp_path / "promote"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        ahead_files = {
+            path.name: path.read_bytes() for path in (output_dir / "next").iterdir() if path.is_file()
+        }
+        generated_dates = []
+        original = generate_daily_puzzles
+
+        def recording(connection, reference_date=None, **kwargs):
+            generated_dates.append(reference_date)
+            return original(connection, reference_date=reference_date, **kwargs)
+
+        with patch("kpop_scraping.daily_puzzles_runner.generate_daily_puzzles", side_effect=recording):
+            result = run_daily_puzzles(
+                database=self.db_path, output_dir=output_dir, reference_date="2026-09-19", ahead=True
+            )
+
+        self.assertTrue(result["promoted_from_next"])
+        self.assertEqual(generated_dates, ["2026-09-20"])
+        for name, content in ahead_files.items():
+            self.assertEqual((output_dir / name).read_bytes(), content, name)
+        next_connections = json.loads((output_dir / "next" / "connections.daily.json").read_text(encoding="utf-8"))
+        self.assertEqual(next_connections["reference_date"], "2026-09-20")
+
+    def test_rerun_keeps_the_published_day_unless_regenerated(self):
+        output_dir = self.temp_path / "rerun"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        published = (output_dir / "connections.daily.json").read_bytes()
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_daily_puzzles",
+            side_effect=AssertionError("the day must not be generated again"),
+        ):
+            result = run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        self.assertTrue(result["already_published"])
+        self.assertEqual((output_dir / "connections.daily.json").read_bytes(), published)
+
+        with patch("kpop_scraping.daily_puzzles_runner.generate_daily_puzzles", wraps=generate_daily_puzzles) as generate:
+            run_daily_puzzles(
+                database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", regenerate=True
+            )
+        self.assertEqual(generate.call_count, 1)
+
+    def test_next_directory_keeps_only_one_day(self):
+        output_dir = self.temp_path / "prune"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        stale = output_dir / "next" / "session.daily.en.standard.0000.json"
+        stale.write_text("{}", encoding="utf-8")
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-19", ahead=True)
+        self.assertFalse(stale.exists())
+
+    def test_generates_the_day_when_next_holds_another_date(self):
+        output_dir = self.temp_path / "gap"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        result = run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-21")
+        self.assertNotIn("promoted_from_next", result)
+        connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        self.assertEqual(connections["reference_date"], "2026-09-21")
+
     def test_cli_warns_in_github_actions_when_grid_is_kept(self):
         out_dir = self.temp_path / "cli_kept_grid"
         self.assertEqual(

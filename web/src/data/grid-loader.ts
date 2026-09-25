@@ -3,6 +3,7 @@ import {
   type IntersectionGrid,
   type Locale,
 } from "../lib/quiz-types";
+import { preferNextDaily } from "./daily-artifact";
 
 export class GridArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -47,5 +48,5 @@ export async function loadIntersectionGrid(
     throw new GridArtifactError("invalid");
   }
 
-  return payload;
+  return preferNextDaily(payload, "grid.daily.json", effectiveBaseUrl, isIntersectionGrid);
 }

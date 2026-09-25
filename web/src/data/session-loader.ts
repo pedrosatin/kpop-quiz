@@ -1,6 +1,7 @@
 import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../lib/quiz-types";
 import type { QuizTheme } from "../components/Quiz/url-params";
 import type { QuizDecadeSelection, QuizDecadeValue } from "../components/Quiz/url-params";
+import { dailyReferenceDate } from "./daily-artifact";
 
 export class QuizArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -64,8 +65,8 @@ function availableDecades(manifest: Manifest): QuizDecadeValue[] {
 
 const DECADES = [1990, 2000, 2010, 2020] as const;
 
-async function readSession(entry: ManifestEntry, manifest: Manifest, locale: Locale, playMode: PlayMode, decade: QuizDecadeValue | null, baseUrl: string): Promise<QuizSession> {
-  const response = await fetch(dataUrl(entry.path, baseUrl));
+async function readSession(entry: ManifestEntry, manifest: Manifest, locale: Locale, playMode: PlayMode, decade: QuizDecadeValue | null, baseUrl: string, dir = ""): Promise<QuizSession> {
+  const response = await fetch(dataUrl(`${dir}${entry.path}`, baseUrl));
   if (response.status === 404) throw new QuizArtifactError("missing");
   if (!response.ok) throw new QuizArtifactError("invalid");
   let payload: unknown;
@@ -83,6 +84,33 @@ async function readSession(entry: ManifestEntry, manifest: Manifest, locale: Loc
     || payload.dataset_version !== manifest.dataset_version
     || payload.session_id !== entry.session_id) throw new QuizArtifactError("invalid");
   return payload;
+}
+
+const DAILY_SEED = /^kpop-daily-(\d{4}-\d{2}-\d{2})$/;
+
+function dailySessionDate(session: QuizSession): string | null {
+  return DAILY_SEED.exec(session.config.seed)?.[1] ?? null;
+}
+
+// Daily sessions for the next day are published ahead under data/next/.
+// See daily-artifact.ts.
+async function nextDailySession(current: QuizSession, sessionKey: string, locale: Locale, playMode: PlayMode, baseUrl: string): Promise<QuizSession | null> {
+  const today = dailyReferenceDate();
+  const currentDate = dailySessionDate(current);
+  if (currentDate === null || currentDate >= today) return null;
+  try {
+    const response = await fetch(dataUrl("next/manifest-v2.json", baseUrl));
+    if (!response.ok) return null;
+    const manifest: unknown = await response.json();
+    if (!isManifest(manifest)) return null;
+    const entry = manifest.sessions[sessionKey];
+    if (!entry) return null;
+    const session = await readSession(entry, manifest, locale, playMode, null, baseUrl, "next/");
+    const nextDate = dailySessionDate(session);
+    return nextDate !== null && nextDate > currentDate && nextDate <= today ? session : null;
+  } catch {
+    return null;
+  }
 }
 
 async function combineSessions(sessions: QuizSession[], decades: QuizDecadeValue[]): Promise<QuizSession> {
@@ -150,7 +178,8 @@ export async function loadQuizSessionWithAvailability(
   const entry = manifest.sessions[sessionKey];
   if (!entry) throw new QuizArtifactError("missing");
   const session = await readSession(entry, manifest, locale, playMode, null, effectiveBaseUrl);
-  return { session, availableDecades: available, decades: [] };
+  const next = theme === "daily" ? await nextDailySession(session, sessionKey, locale, playMode, effectiveBaseUrl) : null;
+  return { session: next ?? session, availableDecades: available, decades: [] };
 }
 
 export async function loadQuizSession(
