@@ -205,7 +205,6 @@
 .picker-candidate-item {
   display: flex;
   align-items: center;
-  min-height: var(--control-height);
   justify-content: space-between;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
@@ -225,6 +224,12 @@
 @media (hover: hover) {
   .picker-candidate-item:hover {
     background: var(--color-surface-muted);
+  }
+}
+
+@media (pointer: coarse) {
+  .picker-candidate-item {
+    min-height: var(--control-height);
   }
 }
 
@@ -277,8 +282,15 @@
     border: 2px dashed CanvasText;
   }
 
-  .picker-candidate-item:hover,
   .picker-candidate-item.active {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+@media (forced-colors: active) and (hover: hover) {
+  .picker-candidate-item:hover {
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;

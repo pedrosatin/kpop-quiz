@@ -183,6 +183,7 @@
 
   .connections-tile:disabled {
     opacity: 1;
+    background: Canvas;
     border-color: GrayText;
     color: GrayText;
   }
