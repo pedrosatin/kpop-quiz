@@ -55,6 +55,10 @@ export function VirtualKeyboard({
                 key={key}
                 type="button"
                 disabled={disabled}
+                // A click or tap leaves focus where it was. Otherwise the key keeps focus
+                // and a later physical Enter presses it again instead of submitting.
+                // Tab still focuses the keys for keyboard users.
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleKeyClick(key)}
                 aria-label={label}
                 class={`keyboard-key ${actionClass} ${statusClass}`.trim()}

@@ -101,6 +101,36 @@ describe("useNameGuessGame hook", () => {
     expect(result.current.keyStatuses.T).toBe("correct");
   });
 
+  it("submits the row typed in the same batch, even through callbacks from the previous render", () => {
+    const { result } = renderHook(() => useNameGuessGame(puzzle));
+    const { addLetter, submitGuess } = result.current;
+
+    act(() => {
+      ["T", "W", "I", "C", "E"].forEach((l) => addLetter(l));
+      submitGuess();
+    });
+
+    expect(result.current.errorMessage).toBeNull();
+    expect(result.current.guesses).toEqual(["TWICE"]);
+    expect(result.current.currentInput).toBe("");
+    expect(result.current.status).toBe("won");
+  });
+
+  it("ignores input after the winning guess in the same batch", () => {
+    const { result } = renderHook(() => useNameGuessGame(puzzle));
+    const { addLetter, submitGuess } = result.current;
+
+    act(() => {
+      ["T", "W", "I", "C", "E"].forEach((l) => addLetter(l));
+      submitGuess();
+      addLetter("A");
+      submitGuess();
+    });
+
+    expect(result.current.guesses).toEqual(["TWICE"]);
+    expect(result.current.currentInput).toBe("");
+  });
+
   it("toggles high contrast mode and persists in localStorage", () => {
     const { result } = renderHook(() => useNameGuessGame(puzzle));
 

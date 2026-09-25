@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useReducer } from "preact/hooks";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus } from "./types";
 
@@ -42,15 +42,101 @@ interface SavedGameState {
   highContrast: boolean;
 }
 
+type ErrorCode = "notEnoughLetters" | "notInWordList";
+
+interface GameState {
+  guesses: string[];
+  feedbacks: LetterStatus[][];
+  currentInput: string;
+  status: GameStatus;
+  errorMessage: ErrorCode | null;
+  highContrast: boolean;
+}
+
+type GameAction =
+  | { type: "addLetter"; char: string; puzzle: NameGuessPuzzle }
+  | { type: "removeLetter" }
+  | { type: "submitGuess"; puzzle: NameGuessPuzzle }
+  | { type: "toggleHighContrast" }
+  | { type: "clearError" }
+  | { type: "reset" }
+  | { type: "restore"; saved: SavedGameState };
+
+const INITIAL_STATE: GameState = {
+  guesses: [],
+  feedbacks: [],
+  currentInput: "",
+  status: "playing",
+  errorMessage: null,
+  highContrast: false,
+};
+
+// Every input goes through this reducer, so each key sees the state left by the
+// previous one even when several keys arrive before the component re-renders.
+function nameGuessReducer(state: GameState, action: GameAction): GameState {
+  switch (action.type) {
+    case "addLetter": {
+      if (state.status !== "playing") return state;
+      const clean = action.char.toUpperCase();
+      if (!/^[A-Z]$/.test(clean)) return state;
+      const currentInput =
+        state.currentInput.length < action.puzzle.word_length
+          ? state.currentInput + clean
+          : state.currentInput;
+      return { ...state, currentInput, errorMessage: null };
+    }
+    case "removeLetter":
+      if (state.status !== "playing") return state;
+      return { ...state, currentInput: state.currentInput.slice(0, -1), errorMessage: null };
+    case "submitGuess": {
+      if (state.status !== "playing") return state;
+      const { puzzle } = action;
+      const guess = state.currentInput;
+      if (guess.length !== puzzle.word_length) {
+        return { ...state, errorMessage: "notEnoughLetters" };
+      }
+      if (!puzzle.valid_guesses.includes(guess)) {
+        return { ...state, errorMessage: "notInWordList" };
+      }
+      const guesses = [...state.guesses, guess];
+      const feedbacks = [...state.feedbacks, computeFeedback(puzzle.target.normalized_name, guess)];
+      let status: GameStatus = "playing";
+      if (guess === puzzle.target.normalized_name) {
+        status = "won";
+      } else if (guesses.length >= puzzle.max_attempts) {
+        status = "lost";
+      }
+      return { ...state, guesses, feedbacks, currentInput: "", status };
+    }
+    case "toggleHighContrast":
+      return { ...state, highContrast: !state.highContrast };
+    case "clearError":
+      return state.errorMessage === null ? state : { ...state, errorMessage: null };
+    case "reset":
+      return {
+        ...state,
+        guesses: [],
+        feedbacks: [],
+        currentInput: "",
+        status: "playing",
+        errorMessage: null,
+      };
+    case "restore":
+      return {
+        ...state,
+        guesses: action.saved.guesses,
+        feedbacks: action.saved.feedbacks,
+        status: action.saved.status || "playing",
+        highContrast: Boolean(action.saved.highContrast),
+      };
+  }
+}
+
 export function useNameGuessGame(puzzle: NameGuessPuzzle) {
   const storageKey = `kpop_guess_state_${puzzle.puzzle_id}`;
 
-  const [guesses, setGuesses] = useState<string[]>([]);
-  const [feedbacks, setFeedbacks] = useState<LetterStatus[][]>([]);
-  const [currentInput, setCurrentInput] = useState<string>("");
-  const [status, setStatus] = useState<GameStatus>("playing");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [highContrast, setHighContrast] = useState<boolean>(false);
+  const [state, dispatch] = useReducer(nameGuessReducer, INITIAL_STATE);
+  const { guesses, feedbacks, currentInput, status, errorMessage, highContrast } = state;
 
   // Restore saved state
   useEffect(() => {
@@ -59,10 +145,7 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle) {
       if (raw) {
         const parsed = JSON.parse(raw) as SavedGameState;
         if (Array.isArray(parsed.guesses) && Array.isArray(parsed.feedbacks)) {
-          setGuesses(parsed.guesses);
-          setFeedbacks(parsed.feedbacks);
-          setStatus(parsed.status || "playing");
-          setHighContrast(Boolean(parsed.highContrast));
+          dispatch({ type: "restore", saved: parsed });
         }
       }
     } catch {
@@ -84,60 +167,23 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle) {
   // Clear transient error message after delay
   useEffect(() => {
     if (!errorMessage) return;
-    const timer = setTimeout(() => setErrorMessage(null), 2500);
+    const timer = setTimeout(() => dispatch({ type: "clearError" }), 2500);
     return () => clearTimeout(timer);
   }, [errorMessage]);
 
-  const addLetter = useCallback((char: string) => {
-    if (status !== "playing") return;
-    const clean = char.toUpperCase();
-    if (!/^[A-Z]$/.test(clean)) return;
-    setErrorMessage(null);
-    setCurrentInput((prev) => (prev.length < puzzle.word_length ? prev + clean : prev));
-  }, [status, puzzle.word_length]);
+  const addLetter = useCallback(
+    (char: string) => dispatch({ type: "addLetter", char, puzzle }),
+    [puzzle]
+  );
 
-  const removeLetter = useCallback(() => {
-    if (status !== "playing") return;
-    setErrorMessage(null);
-    setCurrentInput((prev) => prev.slice(0, -1));
-  }, [status]);
+  const removeLetter = useCallback(() => dispatch({ type: "removeLetter" }), []);
 
-  const submitGuess = useCallback(() => {
-    if (status !== "playing") return;
-    if (currentInput.length !== puzzle.word_length) {
-      setErrorMessage("notEnoughLetters");
-      return;
-    }
-    if (!puzzle.valid_guesses.includes(currentInput)) {
-      setErrorMessage("notInWordList");
-      return;
-    }
+  const submitGuess = useCallback(() => dispatch({ type: "submitGuess", puzzle }), [puzzle]);
 
-    const fb = computeFeedback(puzzle.target.normalized_name, currentInput);
-    const nextGuesses = [...guesses, currentInput];
-    const nextFeedbacks = [...feedbacks, fb];
-
-    setGuesses(nextGuesses);
-    setFeedbacks(nextFeedbacks);
-    setCurrentInput("");
-
-    if (currentInput === puzzle.target.normalized_name) {
-      setStatus("won");
-    } else if (nextGuesses.length >= puzzle.max_attempts) {
-      setStatus("lost");
-    }
-  }, [status, currentInput, puzzle, guesses, feedbacks]);
-
-  const toggleHighContrast = useCallback(() => {
-    setHighContrast((prev) => !prev);
-  }, []);
+  const toggleHighContrast = useCallback(() => dispatch({ type: "toggleHighContrast" }), []);
 
   const resetGame = useCallback(() => {
-    setGuesses([]);
-    setFeedbacks([]);
-    setCurrentInput("");
-    setStatus("playing");
-    setErrorMessage(null);
+    dispatch({ type: "reset" });
     try {
       localStorage.removeItem(storageKey);
     } catch {

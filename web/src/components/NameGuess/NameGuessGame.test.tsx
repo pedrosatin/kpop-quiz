@@ -157,6 +157,101 @@ describe("NameGuessGame component", () => {
     expect(within(row1).queryByLabelText("Posição 1: letra A")).not.toBeInTheDocument();
   });
 
+  it("submits a complete row when Enter arrives before the last letter re-renders", async () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    // Plain dispatches skip act(), so no render or effect runs between the keys,
+    // like a fast typist pressing the last letter and Enter in the same frame.
+    for (const key of ["t", "w", "i", "c", "e", "Enter"]) {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    }
+
+    await waitFor(() => {
+      expect(screen.getByText(tPt.wonTitle)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(tPt.notEnoughLetters)).not.toBeInTheDocument();
+  });
+
+  it("lets Enter on a focused button do only the button's action", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    const row1 = screen.getByRole("group", { name: "Palpite 1" });
+    for (const key of ["t", "w", "i", "c"]) {
+      fireEvent.keyDown(window, { key });
+    }
+
+    // The browser turns Enter on a focused button into a click on that button.
+    const keyE = screen.getByRole("button", { name: "E" });
+    keyE.focus();
+    fireEvent.keyDown(keyE, { key: "Enter" });
+    fireEvent.click(keyE);
+
+    expect(within(row1).getByLabelText("Posição 5: letra E")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText(tPt.wonTitle)).not.toBeInTheDocument();
+
+    const toggle = screen.getByRole("button", { name: tPt.highContrast });
+    toggle.focus();
+    fireEvent.keyDown(toggle, { key: "Enter" });
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText(tPt.wonTitle)).not.toBeInTheDocument();
+  });
+
+  it("still types letters from the physical keyboard while a virtual key has focus", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    const row1 = screen.getByRole("group", { name: "Palpite 1" });
+    const keyT = screen.getByRole("button", { name: "T" });
+    fireEvent.click(keyT);
+    keyT.focus();
+
+    fireEvent.keyDown(keyT, { key: "w" });
+    fireEvent.keyDown(keyT, { key: "Backspace" });
+    fireEvent.keyDown(keyT, { key: "i" });
+
+    expect(within(row1).getByLabelText("Posição 1: letra T")).toBeInTheDocument();
+    expect(within(row1).getByLabelText("Posição 2: letra I")).toBeInTheDocument();
+  });
+
+  it("submits with a physical Enter after a click on a virtual key", async () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    // Browsers focus a clicked button unless its mousedown is canceled.
+    const keyT = screen.getByRole("button", { name: "T" });
+    if (fireEvent.mouseDown(keyT)) keyT.focus();
+    fireEvent.click(keyT);
+
+    for (const key of ["w", "i", "c", "e", "Enter"]) {
+      fireEvent.keyDown(document.activeElement ?? window, { key });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByText(tPt.wonTitle)).toBeInTheDocument();
+    });
+  });
+
+  it("ignores key events already handled elsewhere or pressed with a modifier", () => {
+    const claimLetterA = (e: KeyboardEvent) => {
+      if (e.key === "a") e.preventDefault();
+    };
+    document.addEventListener("keydown", claimLetterA);
+    try {
+      render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+      const row1 = screen.getByRole("group", { name: "Palpite 1" });
+
+      fireEvent.keyDown(document.body, { key: "a" });
+      fireEvent.keyDown(window, { key: "b", ctrlKey: true });
+      fireEvent.keyDown(window, { key: "c", metaKey: true });
+      fireEvent.keyDown(window, { key: "d", altKey: true });
+
+      expect(within(row1).getByLabelText("Posição 1: vazia")).toBeInTheDocument();
+    } finally {
+      document.removeEventListener("keydown", claimLetterA);
+    }
+  });
+
   it("loads puzzle asynchronously via fetch when initial puzzle is omitted", async () => {
     vi.stubGlobal(
       "fetch",
