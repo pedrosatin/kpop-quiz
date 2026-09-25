@@ -313,7 +313,7 @@ const catalogs: Record<Locale, Messages> = {
     privacyLink: "Privacidade",
     howToPlayTitle: "Como jogar",
     quizHowToPlay: [
-      "Escolha um modo. No Assistido aparecem pistas, no Padrão você pode abrir uma pista e perde pontos, e no Especialista não há pistas.",
+      "Escolha um modo. No Assistido aparecem pistas. No Padrão, abrir uma pista custa alguns pontos. No Especialista não há pistas.",
       "Se quiser, filtre pela década de formação dos grupos e limite cada pergunta a 20 segundos.",
       "Responda 10 perguntas de múltipla escolha. Cada acerto soma pontos.",
       "Depois de cada resposta, você vê a resposta correta e a fonte.",
@@ -355,7 +355,7 @@ const catalogs: Record<Locale, Messages> = {
     difficultyName: (difficulty) => ({ assisted: "Assistido", standard: "Padrão", expert: "Especialista" })[difficulty],
     difficultyDescription: (difficulty) => ({
       assisted: "Mostra uma pista sempre que ela não entrega a resposta.",
-      standard: "Começa sem pista. Você pode abrir uma e perde alguns pontos.",
+      standard: "Começa sem pista. Abrir uma custa alguns pontos.",
       expert: "Sem pistas. Cada acerto vale mais pontos.",
     })[difficulty],
     start: "Começar partida",
