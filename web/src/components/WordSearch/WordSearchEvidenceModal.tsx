@@ -42,7 +42,7 @@ export function WordSearchEvidenceModal({
       }}
     >
       <div
-        class="modal-card evidence-modal"
+        class="modal-card word-search-modal evidence-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="evidence-dialog-title"

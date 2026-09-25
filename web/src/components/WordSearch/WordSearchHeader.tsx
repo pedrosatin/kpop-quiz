@@ -35,35 +35,33 @@ export function WordSearchHeader({
   return (
     <header class="word-search-header">
       <div class="word-search-theme-info">
-        <h2 class="word-search-theme-title">{themeTitle}</h2>
+        <h2 class="game-card-title word-search-theme-title">{themeTitle}</h2>
         {themeDesc && <p class="word-search-theme-desc">{themeDesc}</p>}
       </div>
 
-      <div class="word-search-meta-bar" role="region" aria-label={t.title}>
-        <div class="meta-stat counter-stat">
-          <span class="stat-label">{t.wordsFound}:</span>
-          <strong class="stat-value" data-testid="found-counter">
+      <div class="game-hud word-search-hud" role="region" aria-label={t.title}>
+        <div class="hud-item">
+          <span class="hud-label">{t.wordsFound}:</span>
+          <strong class="hud-value" data-testid="found-counter">
             {foundCount} / {totalCount}
           </strong>
         </div>
 
-        <div class="meta-stat timer-stat">
-          <span class="stat-label">{t.timerLabel}:</span>
-          <strong class="stat-value timer-display" data-testid="timer-display">
+        <div class="hud-item">
+          <span class="hud-label">{t.timerLabel}:</span>
+          <strong class="hud-value timer-display" data-testid="timer-display">
             {formatTime(elapsedSeconds)}
           </strong>
         </div>
 
-        <div class="meta-actions">
-          <button
-            type="button"
-            class="toggle-clue-btn toggle-mode-btn"
-            onClick={toggleMode}
-            aria-pressed={isEasy}
-          >
-            {isEasy ? t.normalMode : t.easyMode}
-          </button>
-        </div>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm toggle-mode-btn"
+          onClick={toggleMode}
+          aria-pressed={isEasy}
+        >
+          {isEasy ? t.normalMode : t.easyMode}
+        </button>
       </div>
     </header>
   );

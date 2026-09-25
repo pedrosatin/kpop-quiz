@@ -59,7 +59,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   }, [status, puzzle]);
 
   return (
-    <div class="word-search-container" id="word-search">
+    <section class="game-card game-card--wide word-search" id="word-search">
       <WordSearchHeader
         puzzle={puzzle}
         locale={locale}
@@ -71,7 +71,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
       />
 
       <div class="word-search-layout">
-        <div class="word-search-main-col">
+        <div class="word-search-board">
           <WordSearchGrid
             puzzle={puzzle}
             locale={locale}
@@ -84,7 +84,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
             onCellPointerUp={handleCellPointerUp}
             onKeyDown={handleKeyDown}
           />
-          <div class="word-search-selection-bar" aria-live="polite">
+          <div class="callout word-search-selection-bar" aria-live="polite">
             {activePath.length > 1 ? (
               <span class="active-selection-text">
                 <strong class="selection-label">{locale === "pt-BR" ? "Palavra: " : "Word: "}</strong>
@@ -111,15 +111,13 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
           </div>
         </div>
 
-        <div class="word-search-side-col">
-          <WordSearchList
-            puzzle={puzzle}
-            locale={locale}
-            foundWordIds={foundWordIds}
-            easyMode={easyMode}
-            onSelectEvidenceWord={(w) => setEvidenceWord(w)}
-          />
-        </div>
+        <WordSearchList
+          puzzle={puzzle}
+          locale={locale}
+          foundWordIds={foundWordIds}
+          easyMode={easyMode}
+          onSelectEvidenceWord={(w) => setEvidenceWord(w)}
+        />
       </div>
 
       <div class="visually-hidden" aria-live="polite" aria-atomic="true">
@@ -144,6 +142,6 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
           onClose={() => setShowResultModal(false)}
         />
       )}
-    </div>
+    </section>
   );
 }

@@ -56,7 +56,7 @@ export function WordSearchList({
               </div>
               <button
                 type="button"
-                class="evidence-trigger-btn"
+                class="btn btn-ghost btn-icon evidence-trigger-btn"
                 aria-label={`${t.viewEvidence}: ${localizedName}`}
                 onClick={() => onSelectEvidenceWord(word)}
               >
