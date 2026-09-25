@@ -32,7 +32,7 @@ export function CategoryBanner({
     >
       <div class="connections-banner-content">
         <h3 class="connections-banner-title">
-          <span class="visually-hidden">{messages.connectionsLevelAria} {category.difficulty_level}: </span>
+          <span class="visually-hidden connections-banner-level">{messages.connectionsLevelAria} {category.difficulty_level}: </span>
           {categoryLabel}
         </h3>
         <p class="connections-banner-items">{itemNames}</p>

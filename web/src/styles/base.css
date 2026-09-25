@@ -75,6 +75,17 @@ a:hover {
   text-decoration-thickness: 0.14em;
 }
 
+/* Taps on controls never wait for a double-tap zoom. */
+a,
+button,
+input,
+label,
+select,
+summary,
+textarea {
+  touch-action: manipulation;
+}
+
 :focus-visible {
   outline: 0.2rem solid var(--color-focus);
   outline-offset: 0.15rem;
@@ -246,15 +257,31 @@ a:hover {
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
-.game-nav-item:hover {
-  color: var(--color-text);
-  background: var(--color-surface-muted);
+@media (hover: hover) {
+  .game-nav-item:hover {
+    color: var(--color-text);
+    background: var(--color-surface-muted);
+  }
 }
 
 .game-nav-item.is-active {
   color: var(--color-action-text);
   background: var(--color-action);
   font-weight: 700;
+}
+
+/*
+  Forced colors draw a Canvas backplate behind text, which hides a
+  HighlightText label on a Highlight fill. Such elements opt out with
+  forced-color-adjust: none and set only system colors.
+*/
+@media (forced-colors: active) {
+  .game-nav-item.is-active,
+  .skip-link {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
 }
 
 /* Page layout: a short intro above the game, both centered. */

@@ -108,8 +108,10 @@
   transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
-.word-search-cell:hover:not(.is-selected, .is-anchor, .is-found) {
-  background: var(--color-surface-muted);
+@media (hover: hover) {
+  .word-search-cell:hover:not(.is-selected, .is-anchor, .is-found) {
+    background: var(--color-surface-muted);
+  }
 }
 
 .word-search-cell:focus-visible {
@@ -290,21 +292,30 @@
 /* Forced colors: backgrounds are dropped, so mark state with system colors. */
 
 @media (forced-colors: active) {
+  /* Each cell draws its own border, so the gaps stay Canvas and the
+     inverted found cells do not merge with them. */
   .word-search-grid {
     border: 1px solid CanvasText;
+    background: Canvas;
   }
 
   .word-search-cell {
     border: 1px solid ButtonBorder;
   }
 
-  .word-search-cell.is-found {
-    text-decoration: underline;
+  /* Found letters are inverted, selected ones use Highlight: three states
+     that stay apart in any system palette. The grid prefix outranks the
+     .color-N fills, which forced-color-adjust: none would otherwise keep. */
+  .word-search-grid .word-search-cell.is-found {
+    forced-color-adjust: none;
+    background: CanvasText;
     border-color: CanvasText;
+    color: Canvas;
+    text-decoration: underline;
   }
 
-  .word-search-cell.is-selected,
-  .word-search-cell.is-anchor {
+  .word-search-grid .word-search-cell.is-selected,
+  .word-search-grid .word-search-cell.is-anchor {
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
