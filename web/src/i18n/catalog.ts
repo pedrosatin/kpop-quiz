@@ -198,7 +198,6 @@ export interface Messages {
   gridReviewTitle: string;
   gridReviewCellHeader: (row: number, col: number) => string;
   gridAcceptedAnswers: string;
-  gridEvidenceSource: string;
   gridRestart: string;
   gridShareHeader: (date: string, correct: number, guesses: number) => string;
   gridAxesHeader: string;
@@ -433,7 +432,6 @@ const catalogs: Record<Locale, Messages> = {
     gridReviewTitle: "Respostas e fontes",
     gridReviewCellHeader: (row, col) => `Linha ${row + 1}, coluna ${col + 1}`,
     gridAcceptedAnswers: "Respostas aceitas:",
-    gridEvidenceSource: "Fonte:",
     gridRestart: "Jogar novamente",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 acertos (${guesses} palpites)`,
     gridAxesHeader: "Critérios",
@@ -740,7 +738,6 @@ const catalogs: Record<Locale, Messages> = {
     gridReviewTitle: "Answers and sources",
     gridReviewCellHeader: (row, col) => `Row ${row + 1}, column ${col + 1}`,
     gridAcceptedAnswers: "Accepted answers:",
-    gridEvidenceSource: "Source:",
     gridRestart: "Play again",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 correct (${guesses} guesses)`,
     gridAxesHeader: "Rules",

@@ -80,6 +80,11 @@ a:hover {
   outline-offset: 0.15rem;
 }
 
+/* Headings receive focus from code to announce a new step; they are not controls. */
+[tabindex="-1"]:focus {
+  outline: none;
+}
+
 @media (forced-colors: active) {
   :focus-visible {
     outline: 2px solid Highlight !important;
