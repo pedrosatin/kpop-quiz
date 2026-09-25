@@ -18,12 +18,12 @@ describe("GameCollection component", () => {
     );
 
     expect(screen.getByText("Quiz geral")).toBeInTheDocument();
-    expect(screen.getByText("Partida diária")).toBeInTheDocument();
+    expect(screen.getByText("Quiz do dia")).toBeInTheDocument();
     expect(screen.getByText(ptMessages.generalGameDescription)).toBeInTheDocument();
     expect(screen.getByText(ptMessages.dailyGameDescription)).toBeInTheDocument();
 
     const historyRadio = screen.getByRole("radio", { name: /Quiz geral/ });
-    const dailyRadio = screen.getByRole("radio", { name: /Partida diária/ });
+    const dailyRadio = screen.getByRole("radio", { name: /Quiz do dia/ });
 
     expect(historyRadio).toBeChecked();
     expect(dailyRadio).not.toBeChecked();
@@ -58,7 +58,7 @@ describe("GameCollection component", () => {
       />
     );
 
-    const dailyRadio = screen.getByRole("radio", { name: /Partida diária/ });
+    const dailyRadio = screen.getByRole("radio", { name: /Quiz do dia/ });
     fireEvent.click(dailyRadio);
     expect(onSelect).toHaveBeenCalledWith("daily");
   });
@@ -76,7 +76,7 @@ describe("GameCollection component", () => {
     const fieldset = screen.getByRole("group", { hidden: true });
     expect(fieldset).toBeDisabled();
     expect(screen.getByRole("radio", { name: /Quiz geral/ })).toBeDisabled();
-    expect(screen.getByRole("radio", { name: /Partida diária/ })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: /Quiz do dia/ })).toBeDisabled();
   });
 
   it("renders link to the Intersection Grid game", () => {

@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessArtifactError, loadNameGuessPuzzle } from "../../data/name-guess-loader";
 import { NameGuessGameContent } from "./NameGuessGameContent";
-import { NAME_GUESS_I18N, type NameGuessGameProps } from "./types";
+import { getMessages } from "../../i18n/catalog";
+import type { NameGuessGameProps } from "./types";
 
 export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGuessGameProps) {
-  const t = NAME_GUESS_I18N[locale] || NAME_GUESS_I18N["pt-BR"];
+  const t = getMessages(locale).nameGuess;
   const [loadedPuzzle, setLoadedPuzzle] = useState<NameGuessPuzzle | null>(initialPuzzle ?? null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(initialPuzzle ? "ready" : "loading");
   const [errorKind, setErrorKind] = useState<"missing" | "invalid" | undefined>();

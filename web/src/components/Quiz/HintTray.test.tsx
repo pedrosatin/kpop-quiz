@@ -46,7 +46,7 @@ describe("HintTray", () => {
         messages={messages}
       />
     );
-    const button = screen.getByRole("button", { name: "Revelar pista (-15 pontos)" });
+    const button = screen.getByRole("button", { name: "Ver pista (-15 pontos)" });
     fireEvent.click(button);
     expect(onReveal).toHaveBeenCalledTimes(1);
   });

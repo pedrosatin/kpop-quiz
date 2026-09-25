@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import { WordSearchArtifactError, loadWordSearchPuzzle } from "../../data/word-search-loader";
 import { WordSearchGameContent } from "./WordSearchGameContent";
-import { WORD_SEARCH_I18N, type WordSearchGameProps } from "./types";
+import { getMessages } from "../../i18n/catalog";
+import type { WordSearchGameProps } from "./types";
 
 export function WordSearchGame({
   puzzle: initialPuzzle,
   locale,
   baseUrl,
 }: WordSearchGameProps) {
-  const t = WORD_SEARCH_I18N[locale] || WORD_SEARCH_I18N["pt-BR"];
+  const t = getMessages(locale).wordSearch;
   const [loadedPuzzle, setLoadedPuzzle] = useState<WordSearchPuzzle | null>(
     initialPuzzle ?? null
   );

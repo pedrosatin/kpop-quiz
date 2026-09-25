@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ConnectionsResultsProps } from "./types";
 import { DIFFICULTY_COLORS } from "./types";
+import { getMessages } from "../../i18n/catalog";
 
 export function generateShareText({
   puzzle,
@@ -22,16 +23,9 @@ export function generateShareText({
   ).length;
 
   const header = `K-pop Connections ${puzzle.reference_date}`;
-  const isPt = locale === "pt-BR";
-  const resultLine = isPt
-    ? `Resultado: ${solvedCount}/4 grupos`
-    : `Result: ${solvedCount}/4 groups`;
-  const mistakesLabel = isPt
-    ? `${mistakesUsed} ${mistakesUsed === 1 ? "erro" : "erros"}`
-    : `${mistakesUsed} ${mistakesUsed === 1 ? "mistake" : "mistakes"}`;
-  const attemptsLine = isPt
-    ? `Tentativas: ${attempts} (${mistakesLabel})`
-    : `Attempts: ${attempts} (${mistakesLabel})`;
+  const messages = getMessages(locale);
+  const resultLine = messages.connectionsShareResultLine(solvedCount);
+  const attemptsLine = messages.connectionsShareGuessesLine(attempts, mistakesUsed);
 
   const rows = guessHistory.map((guess) => {
     return guess

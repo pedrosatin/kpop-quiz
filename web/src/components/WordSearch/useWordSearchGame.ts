@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
-import { type CellCoord, type GameStatus, WORD_SEARCH_I18N } from "./types";
+import { getMessages } from "../../i18n/catalog";
+import type { CellCoord, GameStatus } from "./types";
 import {
   getLinearPath,
   formatTime,
@@ -13,7 +14,7 @@ import type { Locale } from "../../lib/quiz-types";
 
 export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   const storageKey = `kpop-word-search-${puzzle.puzzle_id}`;
-  const t = WORD_SEARCH_I18N[locale];
+  const t = getMessages(locale).wordSearch;
 
   const initial = useMemo(() => loadStoredProgress(storageKey), [storageKey]);
   const [foundWordIds, setFoundWordIds] = useState<string[]>(initial.foundWordIds);

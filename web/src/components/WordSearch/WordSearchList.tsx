@@ -1,5 +1,5 @@
 import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
-import { WORD_SEARCH_I18N } from "./types";
+import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
 
 interface WordSearchListProps {
@@ -19,22 +19,26 @@ export function WordSearchList({
   clueMode,
   onSelectEvidenceWord,
 }: WordSearchListProps) {
-  const t = WORD_SEARCH_I18N[locale];
+  const t = getMessages(locale).wordSearch;
   const isEasy = easyMode ?? clueMode ?? false;
+  const clueFor = (word: WordSearchWord) => word.clue?.[locale] || word.clue?.en || "";
+  // A clue shared by every word repeats the theme and tells the player nothing.
+  const cluesAreIdentical =
+    puzzle.words.length > 1 && puzzle.words.every((word) => clueFor(word) === clueFor(puzzle.words[0]!));
 
   return (
-    <aside class="word-search-list-section" aria-label={t.wordsRemaining}>
+    <aside class="word-search-list-section" aria-label={t.wordsHeading}>
       <h2 class="word-search-list-heading">
-        {t.wordsRemaining} ({foundWordIds.length}/{puzzle.words.length})
+        {t.wordsHeading}
       </h2>
       <ul class="word-search-words" role="list">
         {puzzle.words.map((word) => {
           const isFound = foundWordIds.includes(word.id);
           const localizedName = word.labels[locale] || word.canonical_name;
-          const localizedClue = word.clue?.[locale] || word.clue?.en || "";
+          const localizedClue = cluesAreIdentical ? "" : clueFor(word);
           const pendingHint = localizedClue
             ? `${localizedClue} (${t.lettersCount(word.word.length)})`
-            : `${"•".repeat(word.word.length)} (${t.lettersCount(word.word.length)})`;
+            : t.lettersCount(word.word.length);
 
           const displayText = isFound
             ? localizedName

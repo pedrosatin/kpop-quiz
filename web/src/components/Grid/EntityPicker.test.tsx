@@ -43,7 +43,7 @@ describe("EntityPicker component", () => {
     );
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Selecione o grupo musical")).toBeInTheDocument();
+    expect(screen.getByText("Escolha um grupo")).toBeInTheDocument();
     expect(screen.getByText(/Estreou nos anos 2010 ∩ JYP Entertainment/)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Buscar grupo...")).toBeInTheDocument();
     expect(screen.getByText("TWICE")).toBeInTheDocument();
@@ -101,7 +101,7 @@ describe("EntityPicker component", () => {
       />
     );
 
-    expect(screen.getByText("Já utilizado")).toBeInTheDocument();
+    expect(screen.getByText("Já usado")).toBeInTheDocument();
     const twiceOption = screen.getByText("TWICE").closest("li");
     expect(twiceOption).toHaveAttribute("aria-disabled", "true");
   });
@@ -121,7 +121,7 @@ describe("EntityPicker component", () => {
 
     const alert = screen.getByRole("alert");
     expect(alert).toBeInTheDocument();
-    expect(alert).toHaveTextContent("TWICE: Este grupo já foi utilizado nesta partida.");
+    expect(alert).toHaveTextContent("TWICE: este grupo já está em outra casa.");
   });
 
   it("keeps space for a uniqueness error before one is shown", () => {
@@ -175,7 +175,7 @@ describe("EntityPicker component", () => {
       />
     );
 
-    const closeBtn = screen.getByLabelText("Fechar seletor");
+    const closeBtn = screen.getByLabelText("Fechar");
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledTimes(1);
 

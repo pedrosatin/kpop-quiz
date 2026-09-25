@@ -6,9 +6,7 @@ export function MistakesRemaining({
   messages,
 }: MistakesRemainingProps) {
   const dots = Array.from({ length: maxMistakes }, (_, i) => i < mistakesRemaining);
-  const text = messages.connectionsMistakesRemaining
-    ? messages.connectionsMistakesRemaining(mistakesRemaining)
-    : `${mistakesRemaining} tentativas restantes`;
+  const text = messages.connectionsMistakesRemaining(mistakesRemaining);
 
   return (
     <div class="mistakes-remaining" aria-live="polite">

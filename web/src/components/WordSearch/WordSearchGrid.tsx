@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { CellCoord } from "./types";
-import { WORD_SEARCH_I18N } from "./types";
+import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
 
 interface WordSearchGridProps {
@@ -29,7 +29,7 @@ export function WordSearchGrid({
   onCellPointerUp,
   onKeyDown,
 }: WordSearchGridProps) {
-  const t = WORD_SEARCH_I18N[locale];
+  const t = getMessages(locale).wordSearch;
   const { rows, cols } = puzzle.dimensions;
   const gridRef = useRef<HTMLDivElement>(null);
 
