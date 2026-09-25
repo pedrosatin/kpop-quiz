@@ -35,14 +35,14 @@ export function HintTray({
       {activeClueIds.map((id) => {
         const clue = cluesAvailable.find((item) => item.id === id);
         return clue ? (
-          <p class="quiz-clue" id={`clue-${id}`} key={id} role="status" aria-live="polite">
+          <p class="callout quiz-clue" id={`clue-${id}`} key={id} role="status" aria-live="polite">
             <strong>{messages.clue}:</strong> {clue.text}
           </p>
         ) : null;
       })}
       {canShowRevealButton && (
         <button
-          class="secondary-action"
+          class="btn btn-secondary"
           type="button"
           disabled={answered || !nextClue}
           aria-controls={

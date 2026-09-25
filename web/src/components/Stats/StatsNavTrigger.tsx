@@ -32,7 +32,7 @@ export function StatsNavTrigger({ locale }: StatsNavTriggerProps) {
       <button
         type="button"
         id="stats-open-nav-btn"
-        class="game-nav-item game-nav-stats-btn"
+        class="btn btn-ghost btn-sm stats-trigger"
         onClick={() => {
           setActiveTab("overall");
           setIsOpen(true);
@@ -40,8 +40,12 @@ export function StatsNavTrigger({ locale }: StatsNavTriggerProps) {
         aria-label={messages.statsOpenButton}
         title={messages.statsOpenButton}
       >
-        <span class="stats-btn-icon" aria-hidden="true">📊</span>
-        <span class="stats-btn-label">{messages.statsNavLabel}</span>
+        <svg class="stats-trigger-icon" aria-hidden="true" viewBox="0 0 20 20" width="18" height="18" fill="currentColor">
+          <rect x="2" y="10" width="4" height="8" rx="1" />
+          <rect x="8" y="5" width="4" height="13" rx="1" />
+          <rect x="14" y="2" width="4" height="16" rx="1" />
+        </svg>
+        <span class="stats-trigger-label">{messages.statsNavLabel}</span>
       </button>
 
       {isOpen && (

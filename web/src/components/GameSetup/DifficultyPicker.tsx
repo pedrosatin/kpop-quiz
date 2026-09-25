@@ -18,9 +18,9 @@ export function DifficultyPicker({
 }: DifficultyPickerProps) {
   return (
     <fieldset class="difficulty-picker" disabled={disabled}>
-      <legend class="visually-hidden">{messages.chooseDifficulty}</legend>
+      <legend class="setup-legend">{messages.chooseDifficulty}</legend>
       {MODES.map((mode) => (
-        <label class={`difficulty-option ${playMode === mode ? "selected" : ""}`} key={mode}>
+        <label class={`choice ${playMode === mode ? "selected" : ""}`} key={mode}>
           <input
             type="radio"
             name="play-mode"
@@ -28,8 +28,8 @@ export function DifficultyPicker({
             checked={playMode === mode}
             onChange={() => onSelectMode(mode)}
           />
-          <strong>{messages.difficultyName(mode)}</strong>
-          <span>{messages.difficultyDescription(mode)}</span>
+          <span class="choice-title">{messages.difficultyName(mode)}</span>
+          <span class="choice-description">{messages.difficultyDescription(mode)}</span>
         </label>
       ))}
     </fieldset>

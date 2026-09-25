@@ -51,7 +51,7 @@ export function QuizRound({
   const totalQuestions = session?.questions?.length ?? 1;
 
   return (
-    <section id="quiz" class="quiz-card" aria-labelledby="question-heading">
+    <section id="quiz" class="game-card" aria-labelledby="question-heading">
       <ProgressHeader
         currentIndex={questionIndex}
         totalQuestions={totalQuestions}

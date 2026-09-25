@@ -1,0 +1,142 @@
+/*
+  Design tokens.
+
+  Each color is declared once with light-dark(light, dark). The active pair
+  follows `color-scheme`: the system preference by default, or the value
+  forced by the theme selector through `data-theme` on <html>.
+*/
+
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces and text */
+  --color-canvas: light-dark(#FFF8F0, #17121C);
+  --color-surface: light-dark(#FFFFFF, #251C2C);
+  --color-surface-muted: light-dark(#F7EFF8, #30263A);
+  --color-text: light-dark(#24182B, #FFF7FB);
+  --color-text-muted: light-dark(#66566D, #CFC3D5);
+  --color-border: light-dark(#94879D, #776A82);
+  --color-border-subtle: color-mix(in srgb, var(--color-border) 40%, transparent);
+
+  /* Actions and links */
+  --color-action: light-dark(#B31555, #FF74AC);
+  --color-action-hover: light-dark(#8F1044, #FFA7CC);
+  --color-action-text: light-dark(#FFFFFF, #25182A);
+  --color-link: light-dark(#006E73, #67DAD7);
+  --color-focus: light-dark(#0067CC, #7CC4FF);
+
+  /* Accent used by game cards, progress bars and selected choices */
+  --color-theme: var(--color-action);
+  --color-theme-text: var(--color-action-text);
+
+  /* Feedback */
+  --color-success-text: light-dark(#0E693D, #74E3A8);
+  --color-success-bg: light-dark(#E4F5EB, #123C2A);
+  --color-error-text: light-dark(#A32119, #FF9A91);
+  --color-error-bg: light-dark(#FDEAE7, #4B201E);
+  --color-warning-text: light-dark(#713F12, #FDE68A);
+  --color-warning-bg: light-dark(#FEF3C7, #3D2E0A);
+
+  /* Letter feedback (Name Guess tiles and keyboard) */
+  --color-hit: light-dark(#15803D, #22C55E);
+  --color-hit-text: light-dark(#FFFFFF, #052E16);
+  --color-near: light-dark(#B45309, #EAB308);
+  --color-near-text: light-dark(#FFFFFF, #451A03);
+  --color-miss: light-dark(#64748B, #475569);
+  --color-miss-text: #FFFFFF;
+  /* High-contrast alternative for players who cannot tell green from amber */
+  --color-hit-hc: light-dark(#0369A1, #38BDF8);
+  --color-hit-hc-text: light-dark(#FFFFFF, #082F49);
+  --color-near-hc: light-dark(#C2410C, #FB923C);
+  --color-near-hc-text: light-dark(#FFFFFF, #431407);
+
+  /* Connections difficulty levels (same in both themes) */
+  --color-level-1: #FDE047;
+  --color-level-1-text: #1F2937;
+  --color-level-2: #86EFAC;
+  --color-level-2-text: #064E3B;
+  --color-level-3: #93C5FD;
+  --color-level-3-text: #172554;
+  --color-level-4: #D8B4FE;
+  --color-level-4-text: #3B0764;
+
+  /* Word Search found-word highlights */
+  --color-found-0: light-dark(#E8F5E9, #1B5E20);
+  --color-found-0-text: light-dark(#1B5E20, #E8F5E9);
+  --color-found-1: light-dark(#E3F2FD, #0D47A1);
+  --color-found-1-text: light-dark(#0D47A1, #E3F2FD);
+  --color-found-2: light-dark(#FFF3E0, #BF360C);
+  --color-found-2-text: light-dark(#BF360C, #FBE9E7);
+  --color-found-3: light-dark(#F3E5F5, #4A148C);
+  --color-found-3-text: light-dark(#4A148C, #F3E5F5);
+  --color-found-4: light-dark(#E0F2F1, #004D40);
+  --color-found-4-text: light-dark(#004D40, #E0F2F1);
+  --color-found-5: light-dark(#FCE4EC, #880E4F);
+  --color-found-5-text: light-dark(#880E4F, #FCE4EC);
+
+  /* Overlays */
+  --color-overlay: rgb(0 0 0 / 0.6);
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* Radii */
+  --radius-control: 0.375rem;
+  --radius-card: 0.75rem;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-card: 0 0.5rem 0 color-mix(in srgb, var(--color-text) 12%, transparent);
+  --shadow-overlay: 0 1rem 2.5rem rgb(0 0 0 / 0.3);
+  --shadow-focus: 0 0 0 0.2rem var(--color-focus);
+
+  /* Typography */
+  --font-title: "Space Grotesk", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Sizes */
+  --control-height: 2.75rem;
+  --content-max: 72rem;
+  --game-max: 42rem;
+  --game-max-wide: 64rem;
+
+  /* Motion */
+  --transition-fast: 150ms ease;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* Windows High Contrast and other forced-colors modes */
+@media (forced-colors: active) {
+  :root {
+    --shadow-card: none;
+    --shadow-overlay: none;
+    --shadow-focus: 0 0 0 2px Highlight;
+    --color-canvas: Canvas;
+    --color-surface: Canvas;
+    --color-surface-muted: Canvas;
+    --color-text: CanvasText;
+    --color-text-muted: CanvasText;
+    --color-border: ButtonBorder;
+    --color-border-subtle: ButtonBorder;
+    --color-action: Highlight;
+    --color-action-hover: Highlight;
+    --color-action-text: HighlightText;
+    --color-link: LinkText;
+    --color-focus: Highlight;
+  }
+}

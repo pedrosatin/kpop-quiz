@@ -1,23 +1,19 @@
 ---
 import { ConnectionsGame } from "../../components/Connections/ConnectionsGame";
+import GameIntro from "../../components/GameIntro.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getMessages } from "../../i18n/catalog";
 
 const messages = getMessages("en");
-const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 <BaseLayout locale="en" route="connections" canonicalPath="/en/connections/" alternatePath="/pt-br/conexoes/">
   <div class="page-shell">
-    <section class="intro" aria-labelledby="page-title">
-      <p class="kicker">{messages.connectionsEyebrow}</p>
-      <h1 id="page-title">{messages.connectionsTitle}</h1>
-      <p>{messages.connectionsIntro}</p>
-      <div class="game-mode-switch">
-        <a class="switch-link" href={`${base}/en/`}>
-          ← {messages.quizModeLink}
-        </a>
-      </div>
-    </section>
+    <GameIntro
+      gameId="connections"
+      kicker={messages.connectionsEyebrow}
+      title={messages.connectionsTitle}
+      intro={messages.connectionsIntro}
+    />
     <ConnectionsGame locale="en" client:load />
   </div>
 </BaseLayout>

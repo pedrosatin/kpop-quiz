@@ -36,9 +36,9 @@ export function GameSetup({
   disabled = false,
 }: GameSetupProps) {
   return (
-    <section id="quiz" class="quiz-card setup" aria-labelledby="difficulty-heading">
+    <section id="quiz" class="game-card quiz-setup" aria-labelledby="difficulty-heading">
       <p class="kicker">{messages.setupKicker}</p>
-      <h2 id="difficulty-heading">{messages.chooseDifficulty}</h2>
+      <h2 id="difficulty-heading" class="game-card-title">{messages.chooseDifficulty}</h2>
       <p class="setup-rules">{messages.roundRules}</p>
       {onSelectTheme && (
         <GameCollection
@@ -62,7 +62,7 @@ export function GameSetup({
         disabled={disabled}
       />
       <button
-        class="primary-action"
+        class="btn btn-primary quiz-start"
         type="button"
         disabled={!isReady || disabled}
         onClick={onStart}

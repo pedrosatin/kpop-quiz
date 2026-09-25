@@ -30,7 +30,7 @@ export function QuestionCard({
 }: QuestionCardProps) {
   return (
     <div class="quiz-question-card">
-      <h2 id="question-heading" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
+      <h2 id="question-heading" class="game-card-title" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
         {prompt}
       </h2>
       {children}
@@ -63,7 +63,7 @@ export function QuestionCard({
       </fieldset>
       {!answered && (
         <button
-          class="primary-action"
+          class="btn btn-primary"
           type="button"
           disabled={!selectedOptionId}
           onClick={onSubmit}

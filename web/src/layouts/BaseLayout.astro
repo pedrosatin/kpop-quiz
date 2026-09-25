@@ -177,6 +177,7 @@ const games = [
         <span>K</span>Q
       </a>
       <div class="header-actions">
+        {showGameNavigation && <StatsNavTrigger locale={locale} client:load />}
         <div class="theme-control">
           <label for="theme-select" class="visually-hidden">{messages.themeLabel}</label>
           <select id="theme-select" class="theme-select" aria-label={messages.themeLabel}>
@@ -202,9 +203,30 @@ const games = [
               {g.label}
             </a>
           ))}
-          <StatsNavTrigger locale={locale} client:load />
         </div>
       </nav>
+    )}
+    {showGameNavigation && (
+      <script is:inline>
+        (function () {
+          var bar = document.querySelector(".game-nav-bar");
+          var list = bar && bar.querySelector(".game-nav-container");
+          if (!list) return;
+          var active = list.querySelector(".is-active");
+          if (active && active.scrollIntoView) {
+            active.scrollIntoView({ block: "nearest", inline: "center" });
+          }
+          function update() {
+            var parts = [];
+            if (list.scrollLeft > 4) parts.push("start");
+            if (list.scrollLeft + list.clientWidth < list.scrollWidth - 4) parts.push("end");
+            bar.setAttribute("data-overflow", parts.join(" "));
+          }
+          update();
+          list.addEventListener("scroll", update, { passive: true });
+          window.addEventListener("resize", update);
+        })();
+      </script>
     )}
     <main>
       <slot />

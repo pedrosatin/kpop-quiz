@@ -57,7 +57,7 @@ export function AnswerFeedback({
 
   return (
     <div class="feedback" {...(feedbackRef ? { ref: feedbackRef } : {})} tabIndex={-1} role="status">
-      <p class={`feedback-title ${isCorrect && !timedOut ? "success" : "failure"}`}>
+      <p class={`feedback-title ${isCorrect && !timedOut ? "text-success" : "text-error"}`}>
         {timedOut ? messages.timedOut : isCorrect ? messages.correct : messages.incorrect}
       </p>
       {(!isCorrect || timedOut) && (
@@ -66,7 +66,7 @@ export function AnswerFeedback({
         </p>
       )}
       <p>{explanation}</p>
-      <details>
+      <details class="evidence-details">
         <summary>{messages.evidence}</summary>
         {displayedEvidence.map((item) => (
           <p key={`${item.source_url}-${item.revision_id}-${item.locator}`}>
@@ -81,7 +81,7 @@ export function AnswerFeedback({
           </p>
         ))}
       </details>
-      <button class="primary-action" type="button" onClick={onAdvance}>
+      <button class="btn btn-primary" type="button" onClick={onAdvance}>
         {isLastQuestion ? messages.finish : messages.next}
       </button>
     </div>

@@ -1,23 +1,19 @@
 ---
 import { WordSearchGame } from "../../components/WordSearch/WordSearchGame";
+import GameIntro from "../../components/GameIntro.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getMessages } from "../../i18n/catalog";
 
 const messages = getMessages("en");
-const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 <BaseLayout locale="en" route="wordSearch" canonicalPath="/en/word-search/" alternatePath="/pt-br/caca-palavras/">
-  <div class="page-shell page-shell--word-search">
-    <section class="intro" aria-labelledby="page-title">
-      <p class="kicker">{messages.wordSearchEyebrow}</p>
-      <h1 id="page-title">{messages.wordSearchTitle}</h1>
-      <p>{messages.wordSearchIntro}</p>
-      <div class="game-mode-switch">
-        <a class="switch-link" href={`${base}/en/`}>
-          ← {messages.quizModeLink}
-        </a>
-      </div>
-    </section>
+  <div class="page-shell page-shell--wide">
+    <GameIntro
+      gameId="word-search"
+      kicker={messages.wordSearchEyebrow}
+      title={messages.wordSearchTitle}
+      intro={messages.wordSearchIntro}
+    />
     <WordSearchGame locale="en" client:load />
   </div>
 </BaseLayout>

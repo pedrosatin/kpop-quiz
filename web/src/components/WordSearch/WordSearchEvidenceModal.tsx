@@ -54,7 +54,7 @@ export function WordSearchEvidenceModal({
           <button
             ref={closeBtnRef}
             type="button"
-            class="modal-close-btn"
+            class="btn btn-ghost btn-icon modal-close"
             onClick={onClose}
             aria-label={t.close}
           >

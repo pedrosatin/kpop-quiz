@@ -107,10 +107,10 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
       <p class="consent-banner-text">{messages.consentText}</p>
       <a class="consent-banner-link" href={privacyUrl}>{messages.consentPrivacyLink}</a>
       <div class="consent-banner-actions">
-        <button type="button" class="consent-banner-reject" onClick={() => decide("rejected")}>
+        <button type="button" class="btn btn-secondary btn-sm" onClick={() => decide("rejected")}>
           {messages.consentReject}
         </button>
-        <button type="button" class="consent-banner-accept" onClick={() => decide("accepted")}>
+        <button type="button" class="btn btn-secondary btn-sm" onClick={() => decide("accepted")}>
           {messages.consentAccept}
         </button>
       </div>
