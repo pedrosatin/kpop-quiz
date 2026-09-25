@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import io
 import json
+import os
 import sqlite3
 import string
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import date
 from pathlib import Path
 from unittest.mock import patch
@@ -519,6 +522,9 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
         self.assertEqual((output_dir / "grid.daily.json").read_bytes(), previous_grid)
         self.assertEqual(result["grid_id"], first["grid_id"])
+        self.assertIsNone(first["grid_reused"])
+        self.assertEqual(result["grid_reused"]["reference_date"], "2026-09-18")
+        self.assertIn("3x3", result["grid_reused"]["error"])
         connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
         self.assertEqual(connections["reference_date"], "2026-09-19")
 
@@ -533,6 +539,24 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
                     output_dir=empty_dir,
                     reference_date="2026-09-19",
                 )
+
+    def test_cli_warns_in_github_actions_when_grid_is_kept(self):
+        out_dir = self.temp_path / "cli_kept_grid"
+        self.assertEqual(
+            daily_puzzles_cli.main(["--database", str(self.db_path), "--output-dir", str(out_dir), "--date", "2026-09-18"]),
+            0,
+        )
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_daily_grid",
+            side_effect=ValueError("Unable to generate a solvable 3x3 intersection grid"),
+        ), patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), redirect_stdout(stdout), redirect_stderr(stderr):
+            code = daily_puzzles_cli.main(
+                ["--database", str(self.db_path), "--output-dir", str(out_dir), "--date", "2026-09-19"]
+            )
+        self.assertEqual(code, 0)
+        self.assertIn("::warning title=Daily grid not updated::Grid kept from 2026-09-18", stdout.getvalue())
+        self.assertIn("WARNING: Grid kept from 2026-09-18", stderr.getvalue())
 
     def test_cli_execution_success_and_verify(self):
         out_dir = self.temp_path / "cli_out"

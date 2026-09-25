@@ -53,11 +53,31 @@ jobs:
           restore-keys: |
             kpop-db-
 
+      # Wikidata answers maxlag while its query service lags, sometimes for
+      # longer than the client's own backoff. Retry the rebuild; if it keeps
+      # failing, restore the cached database and publish from it, so the day
+      # still gets puzzles built from the previous day's facts.
       - name: Rebuild database from Wikipedia and Wikidata
         timeout-minutes: 120
         run: |
           mkdir -p data
-          python main.py --facts --releases --database data/kpop.db
+          if [ -f data/kpop.db ]; then cp data/kpop.db data/kpop.db.cached; fi
+          for attempt in 1 2 3; do
+            if python main.py --facts --releases --database data/kpop.db; then
+              rm -f data/kpop.db.cached
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Rebuild attempt $attempt failed; retrying in 10 minutes"
+              sleep 600
+            fi
+          done
+          if [ ! -f data/kpop.db.cached ]; then
+            echo "::error::Rebuild failed and no cached database is available"
+            exit 1
+          fi
+          mv data/kpop.db.cached data/kpop.db
+          echo "::warning title=Database not refreshed::Rebuild failed 3 times; puzzles use the cached database"
 
       - name: Generate daily puzzles
         run: |
