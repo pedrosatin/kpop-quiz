@@ -112,9 +112,19 @@ describe("WordSearchGame component", () => {
     expect(screen.getByText("Shindong")).toBeInTheDocument();
   });
 
+  it("hides the sources button while a word is still hidden", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+
+    const target = puzzle.words[0]!;
+    expect(
+      screen.queryByRole("button", { name: new RegExp(`${tPt.viewEvidence}: ${target.canonical_name}`) }),
+    ).not.toBeInTheDocument();
+  });
+
   it("opens and closes evidence modal", () => {
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
 
+    fireEvent.click(screen.getByRole("button", { name: tPt.showWords }));
     const target = puzzle.words[0]!;
     const triggerBtn = screen.getByRole("button", {
       name: new RegExp(`${tPt.viewEvidence}: ${target.canonical_name}`),

@@ -58,14 +58,17 @@ export function WordSearchList({
                   {displayText}
                 </span>
               </div>
-              <button
-                type="button"
-                class="evidence-trigger-btn"
-                aria-label={`${t.viewEvidence}: ${localizedName}`}
-                onClick={() => onSelectEvidenceWord(word)}
-              >
-                ℹ
-              </button>
+              {/* Sources name the word, so they only open once the word is visible. */}
+              {(isFound || isEasy) && (
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-icon evidence-trigger-btn"
+                  aria-label={`${t.viewEvidence}: ${localizedName}`}
+                  onClick={() => onSelectEvidenceWord(word)}
+                >
+                  ℹ
+                </button>
+              )}
             </li>
           );
         })}
