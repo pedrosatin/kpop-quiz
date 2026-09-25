@@ -46,8 +46,6 @@ body {
   background: var(--color-canvas);
   color: var(--color-text);
   line-height: 1.55;
-  /* clip, not hidden: hidden makes body a scroll container and breaks position: sticky. */
-  overflow-x: clip;
 }
 
 main {

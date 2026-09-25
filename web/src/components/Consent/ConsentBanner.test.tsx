@@ -1,6 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/preact";
 import { afterEach, describe, expect, it } from "vitest";
-import { CONSENT_STORAGE_KEY, ConsentBanner, OPEN_CONSENT_PREFERENCES_EVENT } from "./ConsentBanner";
+import {
+  CONSENT_BANNER_HEIGHT_VAR,
+  CONSENT_STORAGE_KEY,
+  ConsentBanner,
+  OPEN_CONSENT_PREFERENCES_EVENT,
+} from "./ConsentBanner";
 import { getMessages } from "../../i18n/catalog";
 
 const GA_ID = "G-TEST123456";
@@ -97,5 +102,16 @@ describe("ConsentBanner", () => {
 
     expect(window.localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("accepted");
     expect((window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`]).toBe(false);
+  });
+
+  it("publishes its height while open and clears it after a choice", async () => {
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    const root = document.documentElement.style;
+    await waitFor(() => {
+      expect(root.getPropertyValue(CONSENT_BANNER_HEIGHT_VAR)).toMatch(/px$/);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: messages.consentReject }));
+    expect(root.getPropertyValue(CONSENT_BANNER_HEIGHT_VAR)).toBe("");
   });
 });

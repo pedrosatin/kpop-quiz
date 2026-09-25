@@ -60,8 +60,9 @@
   accent-color: var(--color-theme);
 }
 
-/* On phones the start button sticks to the bottom of the screen while the
-   options scroll; from 56rem the actions become a sticky side column. */
+/* On phones the start button sticks to the bottom of the screen, above the
+   consent banner when it is open. From 56rem the actions move to a side
+   column that sticks to the top. */
 
 .setup-actions {
   display: contents;
@@ -74,9 +75,24 @@
 
 .quiz-start {
   position: sticky;
-  bottom: var(--space-3);
+  bottom: calc(var(--consent-banner-height, 0px) + var(--space-3));
   width: 100%;
   box-shadow: var(--shadow-overlay);
+}
+
+@media (max-width: 55.99rem) {
+  /* The sticky button covers what sits behind it, so a disabled one stays opaque. */
+  .quiz-start:disabled {
+    opacity: 1;
+    border-color: var(--color-border);
+    background: var(--color-surface-muted);
+    color: var(--color-text-muted);
+  }
+
+  /* Keep keyboard focus from landing behind the sticky button. */
+  .quiz-setup input {
+    scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--control-height) + var(--space-6));
+  }
 }
 
 @media (min-width: 56rem) {
@@ -87,7 +103,7 @@
     align-items: start;
   }
 
-  .quiz-setup fieldset:last-child {
+  .setup-options > :last-child {
     margin-bottom: 0;
   }
 

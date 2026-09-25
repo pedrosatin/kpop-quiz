@@ -56,8 +56,7 @@ export function GameSetup({
           disabled={disabled}
         />
       </div>
-      {/* Stays in view while the player scrolls the options, so starting is always one tap away. */}
-      <div class="setup-actions">
+            <div class="setup-actions">
         <p class="setup-rules">{messages.roundRules}</p>
         <TimerControl
           enabled={timerEnabled}

@@ -1,10 +1,12 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 
 export const CONSENT_STORAGE_KEY = "kpop-quiz-consent";
 export const OPEN_CONSENT_PREFERENCES_EVENT = "kpop-quiz-open-consent-preferences";
 export type ConsentChoice = "accepted" | "rejected";
+/** Height of the open banner, so sticky controls at the bottom can sit above it. */
+export const CONSENT_BANNER_HEIGHT_VAR = "--consent-banner-height";
 
 export interface ConsentBannerProps {
   locale: Locale;
@@ -63,6 +65,7 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
   const messages = getMessages(locale);
   const [choice, setChoice] = useState<ConsentChoice | null>(null);
   const [ready, setReady] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const openPreferences = () => setChoice(null);
@@ -79,6 +82,20 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
 
     return () => window.removeEventListener(OPEN_CONSENT_PREFERENCES_EVENT, openPreferences);
   }, [ga4Id]);
+
+  useEffect(() => {
+    const banner = bannerRef.current;
+    const root = document.documentElement.style;
+    if (!banner) return;
+    const publishHeight = () => root.setProperty(CONSENT_BANNER_HEIGHT_VAR, `${banner.offsetHeight}px`);
+    publishHeight();
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(publishHeight) : null;
+    observer?.observe(banner);
+    return () => {
+      observer?.disconnect();
+      root.removeProperty(CONSENT_BANNER_HEIGHT_VAR);
+    };
+  }, [ready, choice]);
 
   if (!ready) {
     return null;
@@ -103,7 +120,7 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
   }
 
   return (
-    <div class="consent-banner" role="region" aria-label={messages.consentLabel} aria-live="polite">
+    <div ref={bannerRef} class="consent-banner" role="region" aria-label={messages.consentLabel} aria-live="polite">
       <p class="consent-banner-text">{messages.consentText}</p>
       <a class="consent-banner-link" href={privacyUrl}>{messages.consentPrivacyLink}</a>
       <div class="consent-banner-actions">

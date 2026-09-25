@@ -93,4 +93,29 @@ describe("GameSetup components", () => {
     fireEvent.click(button);
     expect(onStart).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps the start button after every option so focus order matches the layout", () => {
+    render(
+      <GameSetup
+        playMode="standard"
+        onSelectMode={vi.fn()}
+        onSelectTheme={vi.fn()}
+        availableDecades={[1990, 2000]}
+        decades={[]}
+        onSelectDecades={vi.fn()}
+        timerEnabled={false}
+        onTimerChange={vi.fn()}
+        onStart={vi.fn()}
+        isReady={true}
+        messages={messages}
+      />
+    );
+    const start = screen.getByRole("button", { name: messages.start });
+    const timer = screen.getByRole("checkbox", { name: messages.enableTimer });
+    const lastMode = screen.getByRole("radio", { name: /Especialista/ });
+
+    expect(start.closest(".setup-actions")).not.toBeNull();
+    expect(lastMode.compareDocumentPosition(timer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(timer.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
