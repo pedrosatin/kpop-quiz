@@ -107,7 +107,6 @@ export interface Messages {
   consentPrivacyLink: string;
   privacyLink: string;
   howToPlayTitle: string;
-  howToPlayClose: string;
   quizHowToPlay: string[];
   gridHowToPlay: string[];
   connectionsHowToPlay: string[];
@@ -117,6 +116,7 @@ export interface Messages {
   score: string;
   points: string;
   setupKicker: string;
+  setupTitle: string;
   chooseDifficulty: string;
   chooseDecades: string;
   decadeHelp: string;
@@ -162,26 +162,19 @@ export interface Messages {
   yourAnswer: string;
   correctAnswer: string;
   noAnswer: string;
-  explanationLabel: string;
   collectionTitle: string;
-  collectionKicker: string;
   generalGameTitle: string;
   generalGameDescription: string;
   dailyGameTitle: string;
   dailyGameDescription: string;
-  themeHistory: string;
-  themeDaily: string;
   shareDailyHeader: (date: string, correct: number, total: number) => string;
   mediaAltClue: string;
   mediaCreator: string;
-  mediaLicense: string;
   mediaSource: string;
   mediaUnavailable: string;
   gridTitle: string;
   gridEyebrow: string;
   gridIntro: string;
-  gridGameTitle: string;
-  gridGameDescription: string;
   gridGuessesLeft: (count: number) => string;
   gridCorrectCount: (correct: number, total: number) => string;
   gridCellLabel: (row: number, col: number, rowLabel: string, colLabel: string, status: string) => string;
@@ -189,14 +182,12 @@ export interface Messages {
   gridCellSolved: (groupName: string) => string;
   gridCellFailed: (lastAttempt?: string) => string;
   gridPickerTitle: string;
-  gridPickerInstructions: string;
   gridPickerSearchPlaceholder: string;
   gridPickerSearchLabel: string;
   gridPickerNoMatches: string;
   gridPickerResultsCount: (count: number) => string;
   gridAlreadyUsedError: string;
   gridAlreadyUsedBadge: string;
-  gridSelectButton: string;
   gridClosePicker: string;
   gridGameOverTitle: string;
   gridGameOverSummary: (correct: number, guesses: number) => string;
@@ -209,8 +200,6 @@ export interface Messages {
   gridAcceptedAnswers: string;
   gridEvidenceSource: string;
   gridRestart: string;
-  gridModeLink: string;
-  quizModeLink: string;
   gridShareHeader: (date: string, correct: number, guesses: number) => string;
   gridAxesHeader: string;
   gridShareMatrixAriaLabel: string;
@@ -220,8 +209,6 @@ export interface Messages {
   connectionsTitle: string;
   connectionsEyebrow: string;
   connectionsIntro: string;
-  connectionsGameTitle: string;
-  connectionsGameDescription: string;
   connectionsMistakesRemaining: (count: number) => string;
   connectionsOneAway: string;
   connectionsAlreadyGuessed: string;
@@ -237,7 +224,6 @@ export interface Messages {
   connectionsShareButton: string;
   connectionsHighContrastShare: string;
   connectionsRestart: string;
-  connectionsModeLink: string;
   connectionsItemAriaLabel: (name: string, selected: boolean) => string;
   connectionsCategorySolvedAria: (difficulty: number, label: string, items: string) => string;
   connectionsBoardAria: string;
@@ -247,16 +233,10 @@ export interface Messages {
   nameGuessTitle: string;
   nameGuessEyebrow: string;
   nameGuessIntro: string;
-  nameGuessGameTitle: string;
-  nameGuessGameDescription: string;
-  nameGuessModeLink: string;
   nameGuess: NameGuessMessages;
   wordSearchTitle: string;
   wordSearchEyebrow: string;
   wordSearchIntro: string;
-  wordSearchGameTitle: string;
-  wordSearchGameDescription: string;
-  wordSearchModeLink: string;
   wordSearch: WordSearchMessages;
   gameNavLabel: string;
   gameQuiz: string;
@@ -270,12 +250,10 @@ export interface Messages {
   statsClose: string;
   statsTabOverall: string;
   statsPlayed: string;
-  statsWon: string;
   statsWinRate: string;
   statsCurrentStreak: string;
   statsMaxStreak: string;
   statsGuessDistribution: string;
-  statsNoData: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -335,7 +313,6 @@ const catalogs: Record<Locale, Messages> = {
     consentPrivacyLink: "Ler a política de privacidade",
     privacyLink: "Privacidade",
     howToPlayTitle: "Como jogar",
-    howToPlayClose: "Fechar",
     quizHowToPlay: [
       "Escolha um modo. No Assistido aparecem pistas, no Padrão você pode abrir uma pista e perde pontos, e no Especialista não há pistas.",
       "Se quiser, filtre pela década de formação dos grupos e limite cada pergunta a 20 segundos.",
@@ -370,6 +347,7 @@ const catalogs: Record<Locale, Messages> = {
     score: "Pontos",
     points: "pontos",
     setupKicker: "Antes de começar",
+    setupTitle: "Monte sua partida",
     chooseDifficulty: "Escolha o modo",
     chooseDecades: "Filtrar por década de formação",
     decadeHelp: "Sem nenhuma década marcada, o quiz usa todas.",
@@ -419,26 +397,19 @@ const catalogs: Record<Locale, Messages> = {
     yourAnswer: "Sua resposta",
     correctAnswer: "Resposta correta",
     noAnswer: "Sem resposta",
-    explanationLabel: "Explicação",
     collectionTitle: "Escolha o jogo",
-    collectionKicker: "Jogos",
     generalGameTitle: "Quiz geral",
     generalGameDescription: "Perguntas sobre história, lançamentos e integrantes.",
     dailyGameTitle: "Quiz do dia",
     dailyGameDescription: "As perguntas de hoje, com resultado para compartilhar.",
-    themeHistory: "História do K-pop",
-    themeDaily: "Quiz do dia",
     shareDailyHeader: (date, correct, total) => `K-pop Quiz Diário ${date} ${correct}/${total}`,
     mediaAltClue: "Foto usada como pista desta pergunta",
     mediaCreator: "Foto:",
-    mediaLicense: "Licença",
     mediaSource: "Fonte da imagem",
     mediaUnavailable: "Imagem indisponível",
     gridTitle: "Grade de interseções",
     gridEyebrow: "9 casas · 9 palpites",
     gridIntro: "Em cada casa, escolha um grupo que atenda ao critério da linha e ao da coluna.",
-    gridGameTitle: "Grade de interseções",
-    gridGameDescription: "Grade 3x3 que cruza agência, integrantes e ano de estreia.",
     gridGuessesLeft: (count) => (count === 1 ? "1 palpite restante" : `${count} palpites restantes`),
     gridCorrectCount: (correct, total) => `${correct} de ${total} casas certas`,
     gridCellLabel: (row, col, rowLabel, colLabel, status) => `Linha ${row + 1}, ${rowLabel}. Coluna ${col + 1}, ${colLabel}. ${status}`,
@@ -446,14 +417,12 @@ const catalogs: Record<Locale, Messages> = {
     gridCellSolved: (groupName) => `Certa: ${groupName}`,
     gridCellFailed: (lastAttempt) => (lastAttempt ? `Errada: você tentou ${lastAttempt}` : "Errada"),
     gridPickerTitle: "Escolha um grupo",
-    gridPickerInstructions: "Digite para buscar pelo nome do grupo.",
     gridPickerSearchPlaceholder: "Buscar grupo...",
     gridPickerSearchLabel: "Buscar grupo pelo nome",
     gridPickerNoMatches: "Nenhum grupo encontrado.",
     gridPickerResultsCount: (count) => (count === 1 ? "1 grupo encontrado" : `${count} grupos encontrados`),
     gridAlreadyUsedError: "este grupo já está em outra casa.",
     gridAlreadyUsedBadge: "Já usado",
-    gridSelectButton: "Confirmar palpite",
     gridClosePicker: "Fechar",
     gridGameOverTitle: "Fim da partida",
     gridGameOverSummary: (correct, guesses) => `${correct} de 9 casas certas com ${guesses} palpites`,
@@ -466,8 +435,6 @@ const catalogs: Record<Locale, Messages> = {
     gridAcceptedAnswers: "Respostas aceitas:",
     gridEvidenceSource: "Fonte:",
     gridRestart: "Jogar novamente",
-    gridModeLink: "Jogar Grade de interseções",
-    quizModeLink: "Ir para o quiz",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 acertos (${guesses} palpites)`,
     gridAxesHeader: "Critérios",
     gridShareMatrixAriaLabel: "Resultado da grade",
@@ -477,8 +444,6 @@ const catalogs: Record<Locale, Messages> = {
     connectionsTitle: "Conexões",
     connectionsEyebrow: "4 categorias · 16 nomes",
     connectionsIntro: "Separe os 16 nomes em 4 categorias de 4. Você pode errar 4 vezes.",
-    connectionsGameTitle: "Conexões",
-    connectionsGameDescription: "Separe 16 nomes do K-pop em 4 categorias, como agência, formação ou marcos da carreira.",
     connectionsMistakesRemaining: (count) => (count === 1 ? "1 erro restante" : `${count} erros restantes`),
     connectionsOneAway: "Quase. 3 desses nomes são da mesma categoria.",
     connectionsAlreadyGuessed: "Você já tentou essa combinação.",
@@ -496,7 +461,6 @@ const catalogs: Record<Locale, Messages> = {
     connectionsShareButton: "Compartilhar resultado",
     connectionsHighContrastShare: "Versão sem cores (alto contraste)",
     connectionsRestart: "Jogar novamente",
-    connectionsModeLink: "Jogar Conexões",
     connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selecionado" : "não selecionado"}`,
     connectionsCategorySolvedAria: (difficulty, label, items) => `Nível ${difficulty}: ${label}. Nomes: ${items}.`,
     connectionsBoardAria: "Tabuleiro do Conexões",
@@ -506,9 +470,6 @@ const catalogs: Record<Locale, Messages> = {
     nameGuessTitle: "Adivinhe o nome",
     nameGuessEyebrow: "6 palpites · 1 nome por dia",
     nameGuessIntro: "Descubra o artista ou grupo de K-pop do dia. A cada palpite, as cores mostram quais letras estão certas.",
-    nameGuessGameTitle: "Adivinhe o nome",
-    nameGuessGameDescription: "Descubra o nome de um artista ou grupo de K-pop em até 6 palpites.",
-    nameGuessModeLink: "Jogar Adivinhe o nome",
     nameGuess: {
       title: "Adivinhe o nome",
       subtitle: "Nome do dia",
@@ -546,9 +507,6 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchTitle: "Caça-palavras",
     wordSearchEyebrow: "1 tema por dia · 8 direções",
     wordSearchIntro: "Encontre os nomes do tema escondidos na grade. Eles podem estar na horizontal, na vertical ou na diagonal, inclusive de trás para frente.",
-    wordSearchGameTitle: "Caça-palavras",
-    wordSearchGameDescription: "Encontre nomes do K-pop escondidos na grade, em 8 direções.",
-    wordSearchModeLink: "Jogar Caça-palavras",
     wordSearch: {
       title: "Caça-palavras",
       gridLabel: "Grade de letras",
@@ -601,12 +559,10 @@ const catalogs: Record<Locale, Messages> = {
     statsClose: "Fechar estatísticas",
     statsTabOverall: "Geral",
     statsPlayed: "Partidas",
-    statsWon: "Vitórias",
     statsWinRate: "% de vitórias",
     statsCurrentStreak: "Sequência atual",
     statsMaxStreak: "Maior sequência",
     statsGuessDistribution: "Palpites por partida",
-    statsNoData: "Nenhuma partida registrada ainda.",
   },
   en: {
     meta: {
@@ -664,7 +620,6 @@ const catalogs: Record<Locale, Messages> = {
     consentPrivacyLink: "Read the privacy policy",
     privacyLink: "Privacy",
     howToPlayTitle: "How to play",
-    howToPlayClose: "Close",
     quizHowToPlay: [
       "Pick a mode. Assisted shows clues, Standard lets you open a clue for a few points, and Expert has no clues.",
       "If you like, filter by the decade the groups formed and limit each question to 20 seconds.",
@@ -699,6 +654,7 @@ const catalogs: Record<Locale, Messages> = {
     score: "Score",
     points: "points",
     setupKicker: "Before you start",
+    setupTitle: "Set up your game",
     chooseDifficulty: "Choose a mode",
     chooseDecades: "Filter by formation decade",
     decadeHelp: "With no decade selected, the quiz uses all of them.",
@@ -748,26 +704,19 @@ const catalogs: Record<Locale, Messages> = {
     yourAnswer: "Your answer",
     correctAnswer: "Correct answer",
     noAnswer: "No answer",
-    explanationLabel: "Explanation",
     collectionTitle: "Choose a game",
-    collectionKicker: "Games",
     generalGameTitle: "General quiz",
     generalGameDescription: "Questions about history, releases and members.",
     dailyGameTitle: "Daily quiz",
     dailyGameDescription: "Today's questions, with a result you can share.",
-    themeHistory: "K-pop history",
-    themeDaily: "Daily quiz",
     shareDailyHeader: (date, correct, total) => `K-pop Quiz Daily ${date} ${correct}/${total}`,
     mediaAltClue: "Photo used as a clue for this question",
     mediaCreator: "Photo:",
-    mediaLicense: "License",
     mediaSource: "Image source",
     mediaUnavailable: "Image unavailable",
     gridTitle: "Intersection grid",
     gridEyebrow: "9 squares · 9 guesses",
     gridIntro: "In each square, pick a group that fits both the row rule and the column rule.",
-    gridGameTitle: "Intersection grid",
-    gridGameDescription: "A 3x3 grid that crosses agency, members and debut year.",
     gridGuessesLeft: (count) => (count === 1 ? "1 guess left" : `${count} guesses left`),
     gridCorrectCount: (correct, total) => `${correct} of ${total} squares correct`,
     gridCellLabel: (row, col, rowLabel, colLabel, status) => `Row ${row + 1}, ${rowLabel}. Column ${col + 1}, ${colLabel}. ${status}`,
@@ -775,14 +724,12 @@ const catalogs: Record<Locale, Messages> = {
     gridCellSolved: (groupName) => `Correct: ${groupName}`,
     gridCellFailed: (lastAttempt) => (lastAttempt ? `Wrong: you tried ${lastAttempt}` : "Wrong"),
     gridPickerTitle: "Pick a group",
-    gridPickerInstructions: "Type to search by group name.",
     gridPickerSearchPlaceholder: "Search groups...",
     gridPickerSearchLabel: "Search groups by name",
     gridPickerNoMatches: "No groups found.",
     gridPickerResultsCount: (count) => (count === 1 ? "1 group found" : `${count} groups found`),
     gridAlreadyUsedError: "this group is already in another square.",
     gridAlreadyUsedBadge: "Already used",
-    gridSelectButton: "Confirm guess",
     gridClosePicker: "Close",
     gridGameOverTitle: "Game over",
     gridGameOverSummary: (correct, guesses) => `${correct} of 9 squares correct in ${guesses} guesses`,
@@ -795,8 +742,6 @@ const catalogs: Record<Locale, Messages> = {
     gridAcceptedAnswers: "Accepted answers:",
     gridEvidenceSource: "Source:",
     gridRestart: "Play again",
-    gridModeLink: "Play Intersection grid",
-    quizModeLink: "Go to the quiz",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 correct (${guesses} guesses)`,
     gridAxesHeader: "Rules",
     gridShareMatrixAriaLabel: "Grid result",
@@ -806,8 +751,6 @@ const catalogs: Record<Locale, Messages> = {
     connectionsTitle: "Connections",
     connectionsEyebrow: "4 categories · 16 names",
     connectionsIntro: "Sort the 16 names into 4 categories of 4. You can make 4 mistakes.",
-    connectionsGameTitle: "Connections",
-    connectionsGameDescription: "Sort 16 K-pop names into 4 categories, such as agency, lineup or career milestones.",
     connectionsMistakesRemaining: (count) => (count === 1 ? "1 mistake left" : `${count} mistakes left`),
     connectionsOneAway: "Close. 3 of these names share a category.",
     connectionsAlreadyGuessed: "You already tried this combination.",
@@ -825,7 +768,6 @@ const catalogs: Record<Locale, Messages> = {
     connectionsShareButton: "Share result",
     connectionsHighContrastShare: "No-color version (high contrast)",
     connectionsRestart: "Play again",
-    connectionsModeLink: "Play Connections",
     connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selected" : "not selected"}`,
     connectionsCategorySolvedAria: (difficulty, label, items) => `Level ${difficulty}: ${label}. Names: ${items}.`,
     connectionsBoardAria: "Connections board",
@@ -835,9 +777,6 @@ const catalogs: Record<Locale, Messages> = {
     nameGuessTitle: "Guess the name",
     nameGuessEyebrow: "6 guesses · 1 name a day",
     nameGuessIntro: "Find today's K-pop artist or group. After each guess, colors show which letters are right.",
-    nameGuessGameTitle: "Guess the name",
-    nameGuessGameDescription: "Guess the name of a K-pop artist or group in up to 6 guesses.",
-    nameGuessModeLink: "Play Guess the name",
     nameGuess: {
       title: "Guess the name",
       subtitle: "Today's name",
@@ -875,9 +814,6 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchTitle: "Word search",
     wordSearchEyebrow: "1 theme a day · 8 directions",
     wordSearchIntro: "Find the theme's names hidden in the grid. They can run across, down or diagonally, and backwards too.",
-    wordSearchGameTitle: "Word search",
-    wordSearchGameDescription: "Find K-pop names hidden in the grid, in 8 directions.",
-    wordSearchModeLink: "Play Word search",
     wordSearch: {
       title: "Word search",
       gridLabel: "Letter grid",
@@ -930,12 +866,10 @@ const catalogs: Record<Locale, Messages> = {
     statsClose: "Close stats",
     statsTabOverall: "Overall",
     statsPlayed: "Played",
-    statsWon: "Won",
     statsWinRate: "Win %",
     statsCurrentStreak: "Current streak",
     statsMaxStreak: "Best streak",
     statsGuessDistribution: "Guesses per game",
-    statsNoData: "No games recorded yet.",
   },
 };
 

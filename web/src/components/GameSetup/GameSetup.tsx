@@ -38,7 +38,7 @@ export function GameSetup({
   return (
     <section id="quiz" class="game-card quiz-setup" aria-labelledby="difficulty-heading">
       <p class="kicker">{messages.setupKicker}</p>
-      <h2 id="difficulty-heading" class="game-card-title">{messages.chooseDifficulty}</h2>
+      <h2 id="difficulty-heading" class="game-card-title">{messages.setupTitle}</h2>
       <p class="setup-rules">{messages.roundRules}</p>
       {onSelectTheme && (
         <GameCollection

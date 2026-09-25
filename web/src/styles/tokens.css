@@ -40,8 +40,8 @@
   /* Letter feedback (Name Guess tiles and keyboard) */
   --color-hit: light-dark(#15803D, #22C55E);
   --color-hit-text: light-dark(#FFFFFF, #052E16);
-  --color-near: light-dark(#B45309, #EAB308);
-  --color-near-text: light-dark(#FFFFFF, #451A03);
+  --color-near: #EAB308;
+  --color-near-text: #451A03;
   --color-miss: light-dark(#64748B, #475569);
   --color-miss-text: #FFFFFF;
   /* High-contrast alternative for players who cannot tell green from amber */
