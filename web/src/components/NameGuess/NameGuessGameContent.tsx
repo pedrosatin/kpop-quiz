@@ -12,6 +12,21 @@ import {
   recordGameFinish,
 } from "../../lib/player-stats";
 
+function isTextEntry(el: HTMLElement): boolean {
+  return (
+    el.tagName === "INPUT" ||
+    el.tagName === "SELECT" ||
+    el.tagName === "TEXTAREA" ||
+    el.isContentEditable
+  );
+}
+
+// Letters and Backspace still reach the game from these elements, so typing keeps
+// working after a click on a virtual key; only Enter belongs to them.
+function isActivatable(el: HTMLElement): boolean {
+  return el.closest("button, a[href], summary, [role='button'], [role='link']") !== null;
+}
+
 export interface NameGuessGameContentProps {
   puzzle: NameGuessPuzzle;
   locale: Locale;
@@ -37,18 +52,12 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
   // Physical keyboard listener
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "SELECT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target && isTextEntry(target)) return;
       if (e.key === "Enter") {
+        // Enter on a focused button already activates that button.
+        if (target && isActivatable(target)) return;
         submitGuess();
       } else if (e.key === "Backspace") {
         removeLetter();
