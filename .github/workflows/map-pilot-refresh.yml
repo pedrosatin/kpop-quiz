@@ -2,7 +2,7 @@ name: Refresh map pilot tour dates
 
 on:
   schedule:
-    - cron: '0 5 1 * *'
+    - cron: '0 2 1 * *'
   workflow_dispatch:
 
 permissions:
@@ -31,9 +31,19 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # Wikidata answers maxlag while its query service lags, which can last
+      # longer than the client's own backoff. Retry the whole rebuild later.
       - name: Rebuild tour dates from the YG schedule, MusicBrainz and Wikidata
-        timeout-minutes: 15
-        run: python -m kpop_scraping.map_pilot_refresh
+        timeout-minutes: 90
+        run: |
+          for attempt in 1 2 3 4; do
+            python -m kpop_scraping.map_pilot_refresh && exit 0
+            if [ "$attempt" -lt 4 ]; then
+              echo "Attempt $attempt failed; retrying in 15 minutes"
+              sleep 900
+            fi
+          done
+          exit 1
 
       - name: Validate the refreshed dataset
         run: python -m unittest tests.test_map_pilot_refresh -v
