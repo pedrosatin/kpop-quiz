@@ -69,24 +69,22 @@ export function ConnectionsGameContent({
   }, [isGameOver, gameStatus, puzzle]);
 
   return (
-    <section id="connections" class="connections-card-shell" aria-labelledby="connections-heading">
-      <header class="connections-header">
+    <section id="connections" class="game-card connections-game" aria-labelledby="connections-heading">
+      <header class="game-hud connections-hud">
         <h2 id="connections-heading" class="visually-hidden">
           {messages.connectionsTitle}
         </h2>
-        <div class="connections-hud">
-          <MistakesRemaining mistakesRemaining={mistakesRemaining} messages={messages} />
-        </div>
+        <MistakesRemaining mistakesRemaining={mistakesRemaining} messages={messages} />
       </header>
 
       {proximityFeedback && (
-        <div class="connections-proximity-banner" role="status" aria-live="polite">
+        <div class="alert-warning" role="status" aria-live="polite">
           {messages.connectionsOneAway}
         </div>
       )}
 
       {alreadyGuessedFeedback && (
-        <div class="connections-proximity-banner" role="status" aria-live="polite">
+        <div class="alert-warning" role="status" aria-live="polite">
           {messages.connectionsAlreadyGuessed}
         </div>
       )}
@@ -104,13 +102,13 @@ export function ConnectionsGameContent({
       />
 
       {!isGameOver && (
-        <div class="connections-controls">
-          <button type="button" class="connections-ctrl-btn" onClick={shuffleItems}>
+        <div class="btn-row connections-controls">
+          <button type="button" class="btn btn-secondary" onClick={shuffleItems}>
             {messages.connectionsShuffle}
           </button>
           <button
             type="button"
-            class="connections-ctrl-btn"
+            class="btn btn-secondary"
             disabled={selectedItemIds.length === 0}
             onClick={clearSelection}
           >
@@ -118,7 +116,7 @@ export function ConnectionsGameContent({
           </button>
           <button
             type="button"
-            class="connections-ctrl-btn connections-submit-btn"
+            class="btn btn-primary"
             disabled={selectedItemIds.length !== 4}
             onClick={submitGuess}
           >
@@ -177,18 +175,18 @@ export function ConnectionsGame({
 
   if (status === "loading") {
     return (
-      <section id="connections" class="connections-card-shell" aria-live="polite">
+      <div id="connections">
         <QuizState message={messages.loading} busy={true} />
-      </section>
+      </div>
     );
   }
 
   if (status === "error" || !loadedPuzzle) {
     const errorMsg = errorKind === "missing" ? messages.artifactMissing : messages.loadError;
     return (
-      <section id="connections" class="connections-card-shell">
+      <div id="connections">
         <QuizState message={errorMsg} actionLabel={messages.retry} onAction={loadData} />
-      </section>
+      </div>
     );
   }
 

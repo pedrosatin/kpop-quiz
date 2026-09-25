@@ -1,5 +1,4 @@
 import type { CategoryBannerProps } from "./types";
-import { DIFFICULTY_COLORS } from "./types";
 
 export function CategoryBanner({
   category,
@@ -8,7 +7,6 @@ export function CategoryBanner({
   locale,
   messages,
 }: CategoryBannerProps) {
-  const color = DIFFICULTY_COLORS[category.difficulty_level];
   const itemsList = allItems ?? items ?? [];
   const itemNames = category.item_ids
     .map(
@@ -28,11 +26,7 @@ export function CategoryBanner({
 
   return (
     <div
-      class={`connections-banner difficulty-${category.difficulty_level} connections-banner-level-${category.difficulty_level}`}
-      style={{
-        backgroundColor: color.bg,
-        color: color.textColor || color.text,
-      }}
+      class={`connections-banner connections-banner-level-${category.difficulty_level}`}
       role="region"
       aria-label={ariaDescription}
     >

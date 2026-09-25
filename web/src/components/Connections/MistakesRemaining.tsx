@@ -9,16 +9,16 @@ export function MistakesRemaining({
   const text = messages.connectionsMistakesRemaining(mistakesRemaining);
 
   return (
-    <div class="mistakes-remaining" aria-live="polite">
-      <span class="mistakes-label">{text}</span>
-      <div class="mistakes-dots" aria-hidden="true">
+    <p class="hud-item mistakes-remaining" aria-live="polite">
+      <span class="hud-label">{text}</span>
+      <span class="mistakes-dots" aria-hidden="true">
         {dots.map((active, index) => (
           <span
             key={index}
             class={`mistake-dot ${active ? "active" : "used"}`}
           />
         ))}
-      </div>
-    </div>
+      </span>
+    </p>
   );
 }
