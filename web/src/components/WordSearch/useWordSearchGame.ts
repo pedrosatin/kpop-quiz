@@ -27,6 +27,14 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   const [currentHoverCell, setCurrentHoverCell] = useState<CellCoord | null>(null);
   const [announcement, setAnnouncement] = useState<string>("");
 
+  const focusedRef = useRef<CellCoord>(focusedCell);
+  focusedRef.current = focusedCell;
+
+  const focusCell = useCallback((cell: CellCoord) => {
+    focusedRef.current = cell;
+    setFocusedCell(cell);
+  }, []);
+
   const anchorRef = useRef<CellCoord | null>(null);
   anchorRef.current = anchorCell;
 
@@ -123,7 +131,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     pointerDownCellRef.current = { row, col };
     anchorAtPointerDownRef.current = anchorRef.current;
     didDragRef.current = false;
-    setFocusedCell({ row, col });
+    focusCell({ row, col });
 
     if (!anchorRef.current) {
       anchorRef.current = { row, col };
@@ -136,7 +144,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
 
   const handleCellPointerEnter = useCallback((row: number, col: number) => {
     const target = { row, col };
-    setFocusedCell(target);
+    focusCell(target);
 
     if (isPointerDownRef.current) {
       const downCell = pointerDownCellRef.current;
@@ -226,19 +234,27 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     };
   }, [checkSelection]);
 
+  // Keys can arrive faster than re-renders, so the handler reads and writes the
+  // refs instead of the values captured by the last render.
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       handleWordSearchKeyDown(e, {
-        focusedCell,
-        anchorCell,
+        focusedCell: focusedRef.current,
+        anchorCell: anchorRef.current,
         dimensions: puzzle.dimensions,
-        setFocusedCell,
-        setAnchorCell,
-        setCurrentHoverCell,
+        setFocusedCell: focusCell,
+        setAnchorCell: (cell) => {
+          anchorRef.current = cell;
+          setAnchorCell(cell);
+        },
+        setCurrentHoverCell: (cell) => {
+          currentHoverRef.current = cell;
+          setCurrentHoverCell(cell);
+        },
         checkSelection,
       });
     },
-    [focusedCell, anchorCell, puzzle.dimensions, checkSelection]
+    [puzzle.dimensions, focusCell, checkSelection]
   );
 
   const cancelSelection = useCallback(() => {
@@ -259,7 +275,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     clueMode: easyMode,
     setClueMode: setEasyMode,
     focusedCell,
-    setFocusedCell,
+    setFocusedCell: focusCell,
     anchorCell,
     activePath,
     foundCellsMap,

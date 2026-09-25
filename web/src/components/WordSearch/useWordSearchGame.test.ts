@@ -129,6 +129,24 @@ describe("useWordSearchGame hook", () => {
     expect(result.current.foundWordIds).toContain(target.id);
   });
 
+  it("processes keys pressed faster than the grid re-renders", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const target = puzzle.words.find((w) => w.word === "LEESUNGMIN")!; // from (0,0) to (9,0)
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+    const { handleKeyDown } = result.current;
+    const press = (key: string) => handleKeyDown(new KeyboardEvent("keydown", { key }));
+
+    act(() => {
+      press("Enter");
+      for (let i = 0; i < 9; i++) press("ArrowDown");
+      press("Enter");
+    });
+
+    expect(result.current.focusedCell).toEqual({ row: 9, col: 0 });
+    expect(result.current.anchorCell).toBeNull();
+    expect(result.current.foundWordIds).toContain(target.id);
+  });
+
   it("selects a word via two clicks (first click to anchor, second click to validate)", () => {
     const puzzle = validPuzzle as unknown as WordSearchPuzzle;
     const target = puzzle.words.find((w) => w.word === "SHINDONG")!;
