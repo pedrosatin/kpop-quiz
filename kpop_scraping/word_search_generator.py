@@ -174,10 +174,10 @@ def _merge_serialized_evidence(*groups: Iterable[dict[str, Any]]) -> list[dict[s
 def _display_name(entity: Entity, min_dim: int) -> tuple[str, str] | None:
     """Return the name shown to the player and its normalized grid word.
 
-    People and groups are identities, not translations (see ``Entity.name``),
-    so the same source name labels the word in every locale.  The canonical
-    name wins; Wikidata labels and aliases are used only when the canonical
-    name does not fit the grid.
+    People and groups keep one name in every locale (see ``Entity.name``), so
+    the same source name labels the word in both locales.  The canonical name
+    wins; Wikidata labels and aliases are used only when the canonical name
+    does not fit the grid.
     """
     max_len = min(16, min_dim)
     names = [

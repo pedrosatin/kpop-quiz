@@ -65,13 +65,13 @@ A distribuição de frequências das letras de preenchimento utiliza pesos propo
 
 Para preservar o objetivo educativo do projeto, cada palavra associada ao quebra-cabeça inclui metadados factuais auditados:
 1. Identificador Wikidata invariante (`id`, padrão QID).
-2. Nome canônico da entidade e rótulos para `pt-BR` e `en`. Pessoas e grupos são identidades, não traduções: os dois rótulos recebem o mesmo nome, aquele que gerou a palavra da grade (o nome canônico quando cabe na grade; senão, o primeiro rótulo ou alias que caiba). Rótulos de gravadoras usados em temas e pistas continuam localizados.
+2. Nome canônico da entidade e rótulos para `pt-BR` e `en`. Para pessoas e grupos, os dois rótulos recebem o mesmo nome, o que gerou a palavra da grade. Esse nome é o canônico quando ele cabe na grade; senão, é o primeiro rótulo ou alias que caiba. Rótulos de gravadoras usados em temas e pistas continuam localizados.
 3. Pista opcional bilíngue (`clue`), que diferencia a palavra das demais do tema. A regra está na seção seguinte.
 4. Lista de evidências auditadas (`evidence`), com `fact_base_id`, `locator`, `revision_id`, `source_key` e URL HTTPS para auditoria externa no Wikidata ou na Wikipédia. A lista reúne a evidência do fato que coloca a palavra no tema e, quando há pista, a evidência do fato citado na pista.
 
 ### Regra das pistas
 
-A pista cita um único fato aceito, com evidência, sobre a própria entidade. O fato que define o tema nunca é repetido como pista. As opções por tipo de tema são:
+A pista cita um único fato aceito, com evidência, sobre a própria entidade. Nos temas de integrantes e de gravadora, o fato que define o tema nunca vira pista. No tema de década, o ano de formação vem da mesma declaração `formed_on` que define o tema, e a pista informa o ano exato, que o título do tema não traz. As opções por tipo de tema são:
 
 | Tema | Opções de pista |
 | --- | --- |
@@ -79,7 +79,7 @@ A pista cita um único fato aceito, com evidência, sobre a própria entidade. O
 | Grupos de uma gravadora | ano de formação (`formed_on`); outra gravadora do grupo (`record_label`) |
 | Grupos de uma década | ano de formação (`formed_on`); gravadora (`record_label`) |
 
-Entre as opções de uma palavra, o gerador escolhe o texto compartilhado pelo menor número de palavras candidatas do tema; empates seguem a ordem nascimento, formação, gravadora, outro grupo, e depois o texto em inglês. Datas com precisão abaixo de ano ou anos divergentes entre declarações não geram pista. Datas de entrada e saída de integrantes não são usadas, porque a validação marca esses qualificadores como `validity_not_evidenced`.
+Entre as opções de uma palavra, o gerador escolhe o texto compartilhado pelo menor número de palavras candidatas do tema; empates seguem a ordem nascimento, formação, gravadora, outro grupo, e depois o texto em inglês. Datas com precisão menor que ano, como década ou século, e anos divergentes entre declarações não geram pista. Datas de entrada e saída de integrantes não são usadas, porque a validação marca esses qualificadores como `validity_not_evidenced`.
 
 Sem opção, a palavra fica sem `clue`, e a interface mostra só a contagem de letras. Se, depois do sorteio, todas as palavras com pista tiverem o mesmo texto, o gerador remove todas as pistas da partida e a evidência que só elas usavam. A função `validate_word_search_clues` rejeita pista igual ao título do tema em qualquer idioma e partida com duas ou mais pistas todas iguais. O gerador a executa em toda partida. Ela fica fora de `validate_word_search_puzzle` para que artefatos publicados antes desta regra continuem passando na verificação estrutural até a próxima geração diária.
 
