@@ -34,7 +34,7 @@ A data é a chave entre a agenda e o MusicBrainz, porque a turnê tem no máximo
 
 Um evento que falha em alguma condição fica fora do conjunto, e o comando imprime o motivo. Datas da agenda sem evento aceito vão para `unmatched_schedule_dates`. O validador `validate_map_pilot_dataset` roda nos testes e confere o arquivo versionado sem acesso à rede.
 
-O workflow `map-pilot-refresh.yml` executa o comando no dia 1 de cada mês e depois roda os testes do piloto. Se o arquivo mudou, o workflow faz o commit na `master`. O deploy do Cloudflare Pages começa quando esse workflow termina com sucesso. Uma falha de rede, uma mudança de layout na página da YG ou um conjunto vazio interrompe o workflow antes do commit, e o site mantém os dados anteriores.
+O workflow `map-pilot-refresh.yml` executa o comando às 02:00 UTC do dia 1 de cada mês e depois roda os testes do piloto. Se o comando falhar, o workflow tenta de novo até 4 vezes, com 15 minutos entre as tentativas. Durante o dia, o Wikidata costuma responder `maxlag` aos runners do GitHub por mais tempo que a espera do próprio cliente. Se o arquivo mudou, o workflow faz o commit na `master`. O deploy do Cloudflare Pages começa quando esse workflow termina com sucesso. Uma falha de rede, uma mudança de layout na página da YG ou um conjunto vazio interrompe o workflow antes do commit, e o site mantém os dados anteriores.
 
 ## Cobertura em 25 de setembro de 2026
 
