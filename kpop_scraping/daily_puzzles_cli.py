@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -48,6 +49,19 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def report_reused_grid(grid_reused: dict[str, str] | None) -> None:
+    """Make a kept grid visible; GitHub Actions shows ::warning:: lines in the run summary."""
+    if not grid_reused:
+        return
+    message = (
+        f"Grid kept from {grid_reused['reference_date']} because generation failed: "
+        f"{grid_reused['error']}"
+    )
+    sys.stderr.write(f"WARNING: {message}\n")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=Daily grid not updated::{message}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -72,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
             dry_run=args.dry_run,
             timer_seconds=args.timer_seconds,
         )
+        report_reused_grid(result.get("grid_reused"))
         mode_str = "[dry-run] " if result.get("dry_run") else ""
         print(
             f"{mode_str}Daily puzzles for {result['reference_date']} generated and verified successfully in {result['output_dir']}"

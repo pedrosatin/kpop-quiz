@@ -170,10 +170,20 @@ def publish_daily_puzzles(
             require_timeline=True,
         )
 
-        grid_id = (
-            puzzles["grid"]["grid_id"]
+        published_grid = (
+            puzzles["grid"]
             if puzzles["grid"] is not None
-            else json.loads((staging_dir / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))["grid_id"]
+            else json.loads((staging_dir / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))
+        )
+        grid_id = published_grid["grid_id"]
+        # Set only when the previous day's grid was kept.
+        grid_reused = (
+            None
+            if puzzles["grid"] is not None
+            else {
+                "reference_date": published_grid.get("reference_date"),
+                "error": puzzles.get("grid_error") or "unknown error",
+            }
         )
 
         if dry_run:
@@ -181,6 +191,7 @@ def publish_daily_puzzles(
                 "reference_date": puzzles["reference_date"],
                 "dataset_version": puzzles["dataset_version"],
                 "grid_id": grid_id,
+            "grid_reused": grid_reused,
                 "connections_id": puzzles["connections"]["puzzle_id"],
                 "name_guess_id": puzzles["name_guess"]["puzzle_id"],
                 "word_search_id": puzzles["word_search"]["puzzle_id"],
@@ -231,6 +242,7 @@ def publish_daily_puzzles(
             "reference_date": puzzles["reference_date"],
             "dataset_version": puzzles["dataset_version"],
             "grid_id": grid_id,
+            "grid_reused": grid_reused,
             "connections_id": puzzles["connections"]["puzzle_id"],
             "name_guess_id": puzzles["name_guess"]["puzzle_id"],
             "word_search_id": puzzles["word_search"]["puzzle_id"],
