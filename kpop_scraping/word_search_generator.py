@@ -9,7 +9,7 @@ import sqlite3
 import unicodedata
 from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
-from typing import Any, Iterable, NamedTuple
+from typing import Any, Callable, Iterable, NamedTuple
 
 from .connections_generator import KNOWN_RECORD_LABELS
 from .quiz_models import Entity, Evidence, Fact
@@ -18,6 +18,7 @@ from .quiz_utils import hash_payload
 from .word_search_schema import (
     WORD_SEARCH_SCHEMA_VERSION,
     extract_word_coordinates,
+    validate_word_search_clues,
     validate_word_search_puzzle,
 )
 
@@ -108,6 +109,22 @@ class WordCandidate(NamedTuple):
     labels: dict[str, str]
     clue: dict[str, str] | None
     evidence: list[dict[str, Any]]
+    # Evidence for the fact quoted in ``clue``. It is published together with
+    # ``evidence`` only while the clue is kept.
+    clue_evidence: tuple[dict[str, Any], ...] | list[dict[str, Any]] = ()
+
+    def published_evidence(self) -> list[dict[str, Any]]:
+        if self.clue is None or not self.clue_evidence:
+            return self.evidence
+        return _merge_serialized_evidence(self.evidence, self.clue_evidence)
+
+
+class ClueOption(NamedTuple):
+    """One audited fact that can tell a word apart from the other theme words."""
+
+    kind: str
+    text: dict[str, str]
+    evidence: tuple[Evidence, ...]
 
 
 class ThemeDefinition(NamedTuple):
@@ -128,30 +145,68 @@ class PlacedWord(NamedTuple):
     direction: tuple[int, int]
 
 
+# Lower value wins when two clue options are equally rare within a theme.
+CLUE_KIND_PRIORITY: dict[str, int] = {
+    "birth_year": 0,
+    "formation_year": 1,
+    "record_label": 2,
+    "other_group": 3,
+}
+
+_YEAR_PRECISION = 9
+
+
+def _merge_serialized_evidence(*groups: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    unique: dict[tuple[str, str, int, str, str], dict[str, Any]] = {}
+    for group in groups:
+        for item in group:
+            key = (
+                item["fact_base_id"],
+                item["locator"],
+                item["revision_id"],
+                item["source_key"],
+                item["source_url"],
+            )
+            unique.setdefault(key, item)
+    return [unique[key] for key in sorted(unique)]
+
+
+def _display_name(entity: Entity, min_dim: int) -> tuple[str, str] | None:
+    """Return the name shown to the player and its normalized grid word.
+
+    People and groups are identities, not translations (see ``Entity.name``),
+    so the same source name labels the word in every locale.  The canonical
+    name wins; Wikidata labels and aliases are used only when the canonical
+    name does not fit the grid.
+    """
+    max_len = min(16, min_dim)
+    names = [
+        entity.canonical_name,
+        entity.names.get("pt"),
+        entity.names.get("en"),
+        *entity.aliases,
+    ]
+    for name in names:
+        if name:
+            word = normalize_word(name)
+            if 3 <= len(word) <= max_len:
+                return name, word
+    return None
+
+
 def _build_candidate(
     entity: Entity,
     facts: list[Fact],
     min_dim: int,
-    clue: dict[str, str] | None = None,
 ) -> WordCandidate | None:
     """Build a word candidate if entity has a valid name and audited evidence."""
     if not bool(QID_REGEX.match(entity.wikidata_id)):
         return None
 
-    # Determine word representation: try canonical_name first, then aliases/labels
-    norm = normalize_word(entity.canonical_name)
-    if not (3 <= len(norm) <= min(16, min_dim)):
-        alt_names = [entity.names.get("pt"), entity.names.get("en")] + list(entity.aliases)
-        found = False
-        for alt in alt_names:
-            if alt:
-                alt_norm = normalize_word(alt)
-                if 3 <= len(alt_norm) <= min(16, min_dim):
-                    norm = alt_norm
-                    found = True
-                    break
-        if not found:
-            return None
+    display = _display_name(entity, min_dim)
+    if display is None:
+        return None
+    name, norm = display
 
     all_evidence: list[Evidence] = []
     for f in facts:
@@ -161,22 +216,192 @@ def _build_candidate(
     if not serialized:
         return None
 
-    pt_name = entity.names.get("pt") or entity.names.get("pt-BR") or entity.canonical_name
-    en_name = entity.names.get("en") or entity.canonical_name
-    if normalize_word(pt_name) != norm:
-        pt_name = entity.canonical_name
-    if normalize_word(en_name) != norm:
-        en_name = entity.canonical_name
-    labels = {"pt-BR": pt_name, "en": en_name}
-
     return WordCandidate(
         id=entity.wikidata_id,
         word=norm,
         canonical_name=entity.canonical_name,
-        labels=labels,
-        clue=clue,
+        labels={"pt-BR": name, "en": name},
+        clue=None,
         evidence=serialized,
     )
+
+
+def _fact_year(fact: Fact) -> int | None:
+    """Return the year of a time fact when its precision covers at least a year."""
+    if not fact.value_time:
+        return None
+    if fact.value_precision is not None and fact.value_precision < _YEAR_PRECISION:
+        return None
+    match = re.match(r"^[+-]?(\d{4})-", fact.value_time)
+    return int(match.group(1)) if match else None
+
+
+def _year_option(kind: str, facts: list[Fact], text: dict[str, str]) -> ClueOption | None:
+    years = {_fact_year(fact) for fact in facts}
+    if len(years) != 1 or None in years:
+        # Missing or disagreeing years are not stated as a clue.
+        return None
+    (year,) = years
+    return ClueOption(
+        kind,
+        {lang: value.format(year=year) for lang, value in text.items()},
+        tuple(ev for fact in facts for ev in fact.evidence),
+    )
+
+
+class _FactIndex:
+    """Accepted facts grouped by subject for clue lookups."""
+
+    def __init__(self, facts: list[Fact]) -> None:
+        self.born: dict[str, list[Fact]] = defaultdict(list)
+        self.formed: dict[str, list[Fact]] = defaultdict(list)
+        self.labels: dict[str, dict[str, tuple[Entity, list[Fact]]]] = defaultdict(dict)
+        self.groups: dict[str, dict[str, tuple[Entity, list[Fact]]]] = defaultdict(dict)
+        for fact in facts:
+            subject_id = fact.subject.wikidata_id
+            if fact.predicate == "born_on":
+                self.born[subject_id].append(fact)
+            elif fact.predicate == "formed_on":
+                self.formed[subject_id].append(fact)
+            elif fact.predicate == "record_label" and fact.value_entity:
+                label = fact.value_entity
+                entry = self.labels[subject_id].setdefault(label.wikidata_id, (label, []))
+                entry[1].append(fact)
+            elif fact.predicate in {"has_member", "member_of"} and fact.value_entity:
+                if fact.predicate == "has_member":
+                    group, person = fact.subject, fact.value_entity
+                else:
+                    group, person = fact.value_entity, fact.subject
+                entry = self.groups[person.wikidata_id].setdefault(
+                    group.wikidata_id, (group, [])
+                )
+                entry[1].append(fact)
+
+    def birth_year(self, entity: Entity) -> ClueOption | None:
+        return _year_option(
+            "birth_year",
+            self.born.get(entity.wikidata_id, []),
+            {"pt-BR": "Nasceu em {year}", "en": "Born in {year}"},
+        )
+
+    def formation_year(self, entity: Entity) -> ClueOption | None:
+        return _year_option(
+            "formation_year",
+            self.formed.get(entity.wikidata_id, []),
+            {"pt-BR": "Grupo formado em {year}", "en": "Group formed in {year}"},
+        )
+
+    def record_labels(self, entity: Entity, exclude: str | None = None) -> list[ClueOption]:
+        options = []
+        for label_qid, (label, label_facts) in sorted(self.labels.get(entity.wikidata_id, {}).items()):
+            if label_qid == exclude:
+                continue
+            options.append(
+                ClueOption(
+                    "record_label",
+                    {
+                        "pt-BR": f"Grupo da gravadora {label.name('pt-BR')}",
+                        "en": f"Group from record label {label.name('en')}",
+                    },
+                    tuple(ev for fact in label_facts for ev in fact.evidence),
+                )
+            )
+        return options
+
+    def other_groups(self, entity: Entity, exclude: str) -> list[ClueOption]:
+        options = []
+        for group_qid, (group, group_facts) in sorted(self.groups.get(entity.wikidata_id, {}).items()):
+            if group_qid == exclude:
+                continue
+            options.append(
+                ClueOption(
+                    "other_group",
+                    {
+                        "pt-BR": f"Também integrante de {group.name('pt-BR')}",
+                        "en": f"Also a member of {group.name('en')}",
+                    },
+                    tuple(ev for fact in group_facts for ev in fact.evidence),
+                )
+            )
+        return options
+
+
+def _text_key(text: dict[str, str]) -> tuple[str, str]:
+    return (text["pt-BR"].strip().casefold(), text["en"].strip().casefold())
+
+
+def _assign_clues(
+    pairs: list[tuple[WordCandidate, list[ClueOption]]],
+    theme: dict[str, str],
+) -> list[WordCandidate]:
+    """Give each candidate the audited clue that is rarest within its theme.
+
+    Rule: among the candidate's clue options, pick the text shared by the
+    fewest candidates of the theme, then by ``CLUE_KIND_PRIORITY``, then by the
+    English text.  Options whose text equals the theme title are discarded.  A
+    candidate without options gets no clue; the theme alone is not a clue.
+    """
+    theme_key = _text_key(theme)
+    usable: list[list[ClueOption]] = [
+        [
+            option
+            for option in options
+            if option.text["pt-BR"].strip().casefold() != theme_key[0]
+            and option.text["en"].strip().casefold() != theme_key[1]
+        ]
+        for _cand, options in pairs
+    ]
+    frequency: Counter[tuple[str, str]] = Counter()
+    for options in usable:
+        frequency.update({_text_key(option.text) for option in options})
+
+    result: list[WordCandidate] = []
+    for (cand, _options), options in zip(pairs, usable):
+        if not options:
+            result.append(cand._replace(clue=None, clue_evidence=()))
+            continue
+        best = min(
+            options,
+            key=lambda option: (
+                frequency[_text_key(option.text)],
+                CLUE_KIND_PRIORITY[option.kind],
+                option.text["en"],
+            ),
+        )
+        result.append(
+            cand._replace(
+                clue=dict(best.text),
+                clue_evidence=_serialize_evidence(best.evidence),
+            )
+        )
+    return result
+
+
+def _drop_uninformative_clues(candidates: list[WordCandidate]) -> list[WordCandidate]:
+    """Remove clues when every clued word in a puzzle carries the same text."""
+    clued = [cand for cand in candidates if cand.clue is not None]
+    if len(clued) >= 2 and len({_text_key(cand.clue) for cand in clued}) == 1:  # type: ignore[arg-type]
+        return [cand._replace(clue=None, clue_evidence=()) for cand in candidates]
+    return candidates
+
+
+def _collect_candidates(
+    entries: list[tuple[Entity, list[Fact]]],
+    min_dim: int,
+    clue_options: Callable[[Entity], list[ClueOption | None]],
+) -> list[tuple[WordCandidate, list[ClueOption]]]:
+    seen_words: set[str] = set()
+    seen_qids: set[str] = set()
+    pairs: list[tuple[WordCandidate, list[ClueOption]]] = []
+    for entity, entity_facts in sorted(entries, key=lambda item: item[0].wikidata_id):
+        if entity.wikidata_id in seen_qids:
+            continue
+        cand = _build_candidate(entity, entity_facts, min_dim)
+        if cand is not None and cand.word not in seen_words:
+            seen_words.add(cand.word)
+            seen_qids.add(cand.id)
+            pairs.append((cand, [option for option in clue_options(entity) if option]))
+    return pairs
 
 
 def extract_viable_themes(
@@ -189,6 +414,7 @@ def extract_viable_themes(
     """Extract all thematic groups satisfying candidate count thresholds."""
     min_dim = min(rows, cols)
     viable_themes: list[ThemeDefinition] = []
+    index = _FactIndex(facts)
 
     # 1. Record label themes
     label_groups: dict[str, list[tuple[Entity, list[Fact]]]] = defaultdict(list)
@@ -202,33 +428,22 @@ def extract_viable_themes(
 
     for label_qid, group_entries in label_groups.items():
         label_ent = label_entities[label_qid]
-        pt_label = label_ent.names.get("pt") or label_ent.names.get("pt-BR") or label_ent.canonical_name
-        en_label = label_ent.names.get("en") or label_ent.canonical_name
+        pt_label = label_ent.name("pt-BR")
+        en_label = label_ent.name("en")
+        theme = {
+            "pt-BR": f"Grupos da gravadora {pt_label}",
+            "en": f"Groups from {en_label}",
+        }
+        pairs = _collect_candidates(
+            group_entries,
+            min_dim,
+            lambda entity, label_qid=label_qid: [
+                index.formation_year(entity),
+                *index.record_labels(entity, exclude=label_qid),
+            ],
+        )
 
-        seen_words: set[str] = set()
-        seen_qids: set[str] = set()
-        candidates: list[WordCandidate] = []
-
-        # Sort group entries deterministically
-        sorted_entries = sorted(group_entries, key=lambda item: item[0].wikidata_id)
-        for group_ent, group_facts in sorted_entries:
-            if group_ent.wikidata_id in seen_qids:
-                continue
-            cand = _build_candidate(
-                group_ent,
-                group_facts,
-                min_dim,
-                clue={
-                    "pt-BR": f"Grupo musical da gravadora {pt_label}",
-                    "en": f"Music group from record label {en_label}",
-                },
-            )
-            if cand is not None and cand.word not in seen_words:
-                seen_words.add(cand.word)
-                seen_qids.add(cand.id)
-                candidates.append(cand)
-
-        if len(candidates) >= min_candidates:
+        if len(pairs) >= min_candidates:
             if label_qid in KNOWN_RECORD_LABELS:
                 theme_id = KNOWN_RECORD_LABELS[label_qid][0]
             else:
@@ -239,15 +454,12 @@ def extract_viable_themes(
                     theme_id=theme_id,
                     category="record_label",
                     target_id=label_qid,
-                    theme={
-                        "pt-BR": f"Grupos da gravadora {pt_label}",
-                        "en": f"Groups from {en_label}",
-                    },
+                    theme=theme,
                     theme_description={
                         "pt-BR": f"Grupos musicais associados à gravadora {pt_label}.",
                         "en": f"Music groups associated with record label {en_label}.",
                     },
-                    candidates=candidates,
+                    candidates=_assign_clues(pairs, theme),
                 )
             )
 
@@ -263,43 +475,28 @@ def extract_viable_themes(
                     decade_groups[decade].append((fact.subject, [fact]))
 
     for decade, group_entries in decade_groups.items():
-        seen_words = set()
-        seen_qids = set()
-        candidates = []
+        theme = {
+            "pt-BR": f"Grupos dos anos {decade}",
+            "en": f"{decade}s Groups",
+        }
+        pairs = _collect_candidates(
+            group_entries,
+            min_dim,
+            lambda entity: [index.formation_year(entity), *index.record_labels(entity)],
+        )
 
-        sorted_entries = sorted(group_entries, key=lambda item: item[0].wikidata_id)
-        for group_ent, group_facts in sorted_entries:
-            if group_ent.wikidata_id in seen_qids:
-                continue
-            cand = _build_candidate(
-                group_ent,
-                group_facts,
-                min_dim,
-                clue={
-                    "pt-BR": f"Grupo formado na década de {decade}",
-                    "en": f"Group formed in the {decade}s",
-                },
-            )
-            if cand is not None and cand.word not in seen_words:
-                seen_words.add(cand.word)
-                seen_qids.add(cand.id)
-                candidates.append(cand)
-
-        if len(candidates) >= min_candidates:
+        if len(pairs) >= min_candidates:
             viable_themes.append(
                 ThemeDefinition(
                     theme_id=f"formed_{decade}s",
                     category="formed_on",
                     target_id=str(decade),
-                    theme={
-                        "pt-BR": f"Grupos dos anos {decade}",
-                        "en": f"{decade}s Groups",
-                    },
+                    theme=theme,
                     theme_description={
                         "pt-BR": f"Grupos de K-pop formados na década de {decade}.",
                         "en": f"K-pop groups formed in the {decade}s.",
                     },
-                    candidates=candidates,
+                    candidates=_assign_clues(pairs, theme),
                 )
             )
 
@@ -321,46 +518,33 @@ def extract_viable_themes(
 
     for group_qid, member_entries in members_by_group.items():
         group_ent = group_entities[group_qid]
-        group_pt = group_ent.names.get("pt") or group_ent.names.get("pt-BR") or group_ent.canonical_name
-        group_en = group_ent.names.get("en") or group_ent.canonical_name
+        group_pt = group_ent.name("pt-BR")
+        group_en = group_ent.name("en")
+        theme = {
+            "pt-BR": f"Integrantes do grupo {group_pt}",
+            "en": f"Members of {group_en}",
+        }
+        pairs = _collect_candidates(
+            member_entries,
+            min_dim,
+            lambda entity, group_qid=group_qid: [
+                index.birth_year(entity),
+                *index.other_groups(entity, exclude=group_qid),
+            ],
+        )
 
-        seen_words = set()
-        seen_qids = set()
-        candidates = []
-
-        sorted_entries = sorted(member_entries, key=lambda item: item[0].wikidata_id)
-        for member_ent, member_facts in sorted_entries:
-            if member_ent.wikidata_id in seen_qids:
-                continue
-            cand = _build_candidate(
-                member_ent,
-                member_facts,
-                min_dim,
-                clue={
-                    "pt-BR": f"Integrante do grupo {group_pt}",
-                    "en": f"Member of {group_en}",
-                },
-            )
-            if cand is not None and cand.word not in seen_words:
-                seen_words.add(cand.word)
-                seen_qids.add(cand.id)
-                candidates.append(cand)
-
-        if len(candidates) >= min_candidates:
+        if len(pairs) >= min_candidates:
             viable_themes.append(
                 ThemeDefinition(
                     theme_id=f"members_{group_qid.lower()}",
                     category="has_member",
                     target_id=group_qid,
-                    theme={
-                        "pt-BR": f"Integrantes do grupo {group_pt}",
-                        "en": f"Members of {group_en}",
-                    },
+                    theme=theme,
                     theme_description={
                         "pt-BR": f"Integrantes documentados do grupo {group_pt}.",
                         "en": f"Documented members of the group {group_en}.",
                     },
-                    candidates=candidates,
+                    candidates=_assign_clues(pairs, theme),
                 )
             )
 
@@ -609,21 +793,23 @@ def generate_word_search_puzzle(
         )
 
     # Build words payload sorted alphabetically by word
+    ordered_placed = sorted(final_placed, key=lambda item: item.candidate.word)
+    final_candidates = _drop_uninformative_clues([p.candidate for p in ordered_placed])
     words_payload: list[dict[str, Any]] = []
-    for p in sorted(final_placed, key=lambda item: item.candidate.word):
+    for p, candidate in zip(ordered_placed, final_candidates):
         word_entry: dict[str, Any] = {
-            "id": p.candidate.id,
-            "word": p.candidate.word,
-            "canonical_name": p.candidate.canonical_name,
-            "labels": p.candidate.labels,
+            "id": candidate.id,
+            "word": candidate.word,
+            "canonical_name": candidate.canonical_name,
+            "labels": candidate.labels,
             "start_row": p.start_row,
             "start_col": p.start_col,
             "end_row": p.end_row,
             "end_col": p.end_col,
-            "evidence": p.candidate.evidence,
+            "evidence": candidate.published_evidence(),
         }
-        if p.candidate.clue is not None:
-            word_entry["clue"] = p.candidate.clue
+        if candidate.clue is not None:
+            word_entry["clue"] = candidate.clue
         words_payload.append(word_entry)
 
     reference_date_str = reference_date.isoformat()
@@ -657,4 +843,5 @@ def generate_word_search_puzzle(
         puzzle["theme_description"] = chosen_theme.theme_description
 
     validate_word_search_puzzle(puzzle)
+    validate_word_search_clues(puzzle)
     return puzzle
