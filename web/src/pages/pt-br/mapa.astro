@@ -1,0 +1,19 @@
+---
+import { MapPilotGame } from "../../components/MapPilot/MapPilotGame";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+<BaseLayout locale="pt-BR" route="mapPilot" canonicalPath="/pt-br/mapa/" alternatePath="/en/map/" indexable={false}>
+  <div class="page-shell page-shell--map-pilot">
+    <section class="intro" aria-labelledby="page-title">
+      <p class="kicker">PILOTO · DEADLINE WORLD TOUR</p>
+      <h1 id="page-title">Quiz de mapa: BLACKPINK</h1>
+      <p>Use a agenda oficial da turnê para localizar cada data no mapa. O piloto tem 31 datas candidatas, cada uma ligada a uma fonte consultável.</p>
+      <p class="map-pilot-notice">Uma data na agenda não confirma que o show aconteceu. Os dados e a política das fontes ainda estão em revisão.</p>
+      <div class="game-mode-switch">
+        <a class="switch-link" href={`${base}/pt-br/`}>← Voltar ao quiz</a>
+      </div>
+    </section>
+    <MapPilotGame locale="pt-BR" client:load />
+  </div>
+</BaseLayout>

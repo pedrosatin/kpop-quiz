@@ -7,7 +7,7 @@ import json
 import re
 from typing import Any, Iterable, Mapping
 
-SCHEMA_VERSION = "kpop-country-crosswalk-v1"
+SCHEMA_VERSION = "kpop-country-crosswalk-v2"
 _QID_PATTERN = re.compile(r"^Q[1-9][0-9]*$")
 _ISO_A2_PATTERN = re.compile(r"^[A-Z]{2}$")
 _FEATURE_ID_PATTERN = re.compile(r"^[A-Z0-9]{3}$")
@@ -20,10 +20,11 @@ def build_country_crosswalk(
     dataset_version: str,
     scale: str,
 ) -> dict[str, Any]:
-    """Match reviewed Wikidata countries to Natural Earth features by ISO code.
+    """Match reviewed country identities to Natural Earth features by Wikidata QID.
 
-    Names are intentionally excluded from the join. Features with missing or
-    duplicated ISO codes stay unresolved and are listed in the report.
+    ISO codes are retained as reviewed metadata and used only when a feature
+    has no valid Wikidata QID. Names are intentionally excluded from the join.
+    Missing or duplicated identifiers stay unresolved and are listed.
     """
     _require(isinstance(dataset_version, str) and dataset_version.strip(), "dataset_version required")
     _require(isinstance(scale, str) and scale.strip(), "scale required")
@@ -35,7 +36,8 @@ def build_country_crosswalk(
     )
 
     countries = _normalize_countries(reviewed_countries)
-    features_by_iso: dict[str, list[str | None]] = {}
+    features_by_qid: dict[str, list[str | None]] = {}
+    features_by_iso_without_qid: dict[str, list[str | None]] = {}
     invalid_features = 0
     for feature in feature_collection["features"]:
         properties = (
@@ -47,20 +49,30 @@ def build_country_crosswalk(
             invalid_features += 1
             continue
         iso = properties.get("ISO_A2")
+        qid = properties.get("WIKIDATAID")
         feature_id = properties.get("ADM0_A3")
-        if not isinstance(iso, str) or not _ISO_A2_PATTERN.fullmatch(iso):
-            invalid_features += 1
-            continue
+        valid_qid = isinstance(qid, str) and bool(_QID_PATTERN.fullmatch(qid))
+        valid_iso = isinstance(iso, str) and bool(_ISO_A2_PATTERN.fullmatch(iso))
         if not isinstance(feature_id, str) or not _FEATURE_ID_PATTERN.fullmatch(feature_id):
             invalid_features += 1
-            features_by_iso.setdefault(iso, []).append(None)
+            if valid_qid:
+                features_by_qid.setdefault(qid, []).append(None)
+            elif valid_iso:
+                features_by_iso_without_qid.setdefault(iso, []).append(None)
             continue
-        features_by_iso.setdefault(iso, []).append(feature_id)
+        if valid_qid:
+            features_by_qid.setdefault(qid, []).append(feature_id)
+        elif valid_iso:
+            features_by_iso_without_qid.setdefault(iso, []).append(feature_id)
+        else:
+            invalid_features += 1
 
     matched: list[dict[str, str]] = []
     unresolved: list[dict[str, str]] = []
     for country in countries:
-        matching_features = features_by_iso.get(country["iso_3166_1"], [])
+        matching_features = features_by_qid.get(country["wikidata_id"])
+        if matching_features is None:
+            matching_features = features_by_iso_without_qid.get(country["iso_3166_1"], [])
         if len(matching_features) == 1 and matching_features[0] is not None:
             matched.append(
                 {

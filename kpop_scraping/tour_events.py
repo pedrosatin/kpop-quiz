@@ -20,7 +20,6 @@ REQUIRED_FIELDS = frozenset(
         "event_mbid",
         "event_date",
         "event_type",
-        "event_status",
         "billing_role",
         "place_mbid",
         "city_area_mbid",
@@ -28,7 +27,9 @@ REQUIRED_FIELDS = frozenset(
         "country_iso_3166_1",
     }
 )
-OPTIONAL_FIELDS = frozenset({"tour_mbid"})
+OPTIONAL_FIELDS = frozenset(
+    {"tour_mbid", "event_status", "schedule_status", "source_locator", "source_checked_at"}
+)
 
 
 @dataclass(frozen=True)
@@ -57,12 +58,15 @@ class NormalizedTourEvent:
     event_mbid: str
     event_date: str
     event_type: str
-    event_status: str
     billing_role: str
     place_mbid: str
     city_area_mbid: str
     country_wikidata_id: str
     country_iso_3166_1: str
+    event_status: str | None = None
+    schedule_status: str | None = None
+    source_locator: str | None = None
+    source_checked_at: str | None = None
     tour_mbid: str | None = None
     status: str = "candidate"
 
@@ -87,6 +91,16 @@ def assess_tour_event_candidate(
     unknown = payload.keys() - REQUIRED_FIELDS - OPTIONAL_FIELDS
     issues.extend(f"missing_field:{field}" for field in sorted(missing))
     issues.extend(f"unknown_field:{field}" for field in sorted(unknown))
+    has_legacy_event_status = "event_status" in payload
+    has_schedule_status = "schedule_status" in payload
+    if not has_legacy_event_status and not has_schedule_status:
+        issues.append("missing_field:schedule_status")
+    if has_legacy_event_status and has_schedule_status:
+        issues.append("conflicting_status_fields")
+    if has_schedule_status:
+        for field in ("source_locator", "source_checked_at"):
+            if field not in payload:
+                issues.append(f"missing_field:{field}")
     if missing:
         return TourEventAssessment(None, tuple(issues), False)
 
@@ -149,10 +163,22 @@ def assess_tour_event_candidate(
         issues.append("unsupported_event_type")
     if string_values["billing_role"] not in {"headliner", "co_headliner"}:
         issues.append("ineligible_billing_role")
-    if string_values["event_status"] not in {"scheduled", "completed", "cancelled"}:
-        issues.append("invalid_event_status")
-    elif string_values["event_status"] == "cancelled":
-        issues.append("event_cancelled")
+    event_status = string_values.get("event_status")
+    if event_status is not None:
+        if event_status not in {"scheduled", "completed", "cancelled"}:
+            issues.append("invalid_event_status")
+        elif event_status == "cancelled":
+            issues.append("event_cancelled")
+
+    schedule_status = string_values.get("schedule_status")
+    if schedule_status is not None and schedule_status != "listed":
+        issues.append("invalid_schedule_status")
+    source_locator = string_values.get("source_locator")
+    if source_locator is not None and not source_locator.strip():
+        issues.append("invalid_source_locator")
+    source_checked_at = string_values.get("source_checked_at")
+    if source_checked_at is not None and not _is_iso_date(source_checked_at):
+        issues.append("invalid_source_checked_at")
 
     place_id = string_values["place_mbid"]
     city_id = string_values["city_area_mbid"]
@@ -193,12 +219,15 @@ def assess_tour_event_candidate(
         event_mbid=event_id,
         event_date=event_date,
         event_type=string_values["event_type"],
-        event_status=string_values["event_status"],
         billing_role=string_values["billing_role"],
         place_mbid=place_id,
         city_area_mbid=city_id,
         country_wikidata_id=country_id,
         country_iso_3166_1=country_iso,
+        event_status=event_status,
+        schedule_status=schedule_status,
+        source_locator=source_locator,
+        source_checked_at=source_checked_at,
         tour_mbid=tour_id,
     )
     unique_issues = tuple(dict.fromkeys(issues))

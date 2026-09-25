@@ -43,12 +43,15 @@ const isGrid = Astro.url.pathname.includes("/grid");
 const isConnections = Astro.url.pathname.includes("/conexoes") || Astro.url.pathname.includes("/connections");
 const isNameGuess = Astro.url.pathname.includes("/adivinhe") || Astro.url.pathname.includes("/guess");
 const isWordSearch = Astro.url.pathname.includes("/caca-palavras") || Astro.url.pathname.includes("/word-search");
+const isMapPilot = Astro.url.pathname.includes("/mapa") || Astro.url.pathname.includes("/map/");
 const isPrivacy = canonicalPath.endsWith("/privacidade/") || canonicalPath.endsWith("/privacy/");
 const skipTarget = isPrivacy
   ? "#privacy-notice"
+  : (isMapPilot
+  ? "#map-game"
   : (isWordSearch
   ? "#word-search"
-  : (isNameGuess ? "#name-guess" : (isConnections ? "#connections" : (isGrid ? "#grid" : "#quiz"))));
+  : (isNameGuess ? "#name-guess" : (isConnections ? "#connections" : (isGrid ? "#grid" : "#quiz")))));
 const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
 let otherPath = isPrivacy
   ? (locale === "pt-BR" ? "/en/privacy/" : "/pt-br/privacidade/")
@@ -61,12 +64,16 @@ if (isGrid) {
   otherPath = locale === "pt-BR" ? `${targetBase}guess/` : `${targetBase}adivinhe/`;
 } else if (isWordSearch) {
   otherPath = locale === "pt-BR" ? `${targetBase}word-search/` : `${targetBase}caca-palavras/`;
+} else if (isMapPilot) {
+  otherPath = locale === "pt-BR" ? `${targetBase}map/` : `${targetBase}mapa/`;
 }
 const skipLinkKey: SkipLinkKey = isPrivacy
   ? "privacy"
+  : (isMapPilot
+  ? "mapPilot"
   : (isWordSearch
   ? "wordSearch"
-  : (isNameGuess ? "nameGuess" : (isConnections ? "connections" : (isGrid ? "grid" : "quiz"))));
+  : (isNameGuess ? "nameGuess" : (isConnections ? "connections" : (isGrid ? "grid" : "quiz")))));
 const skipLinkText = messages.skipLinks[skipLinkKey];
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Only the production build is served from the root; prefixed builds are staging.
@@ -83,7 +90,7 @@ const enableAnalytics = !isStaging && Boolean(cfBeaconToken);
 const ga4Id = import.meta.env.PUBLIC_GA4_ID;
 const enableGa4 = !isStaging && Boolean(ga4Id);
 const privacyPath = locale === "pt-BR" ? "/pt-br/privacidade/" : "/en/privacy/";
-const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch;
+const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot;
 const games = [
   {
     id: "quiz",
@@ -114,6 +121,12 @@ const games = [
     label: messages.gameWordSearch,
     path: locale === "pt-BR" ? "/pt-br/caca-palavras/" : "/en/word-search/",
     isActive: isWordSearch,
+  },
+  {
+    id: "map-pilot",
+    label: messages.gameMap,
+    path: locale === "pt-BR" ? "/pt-br/mapa/" : "/en/map/",
+    isActive: isMapPilot,
   },
 ];
 ---
@@ -168,7 +181,7 @@ const games = [
   <body>
     <a class="skip-link" href={skipTarget}>{skipLinkText}</a>
     <header class="site-header">
-      <a class="wordmark" href={`${base}/${locale === "pt-BR" ? "pt-br" : "en"}/`} aria-label={messages.homeLabel}>
+      <a class="wordmark" href={`${base}/${locale === "pt-BR" ? "pt-br" : "en"}/`} aria-label={`KQ, ${messages.homeLabel}`}>
         <span>K</span>Q
       </a>
       <div class="header-actions">
@@ -227,7 +240,14 @@ const games = [
       <slot />
     </main>
     <footer>
-      <p>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a> · <a href={`${base}${privacyPath}`}>{messages.privacyLink}</a>{enableGa4 && <> · <button class="footer-privacy-preferences" type="button" data-consent-preferences>{messages.consentPreferences}</button></>}</p>
+      <p>
+        {isMapPilot ? (
+          <>{locale === "pt-BR" ? "Fontes do piloto: agenda YG (uso em revisão); eventos MusicBrainz · CC0; mapa Natural Earth · domínio público." : "Pilot sources: YG schedule (use under review); MusicBrainz events · CC0; Natural Earth map · public domain."}</>
+        ) : (
+          <>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a></>
+        )}
+        {" · "}<a href={`${base}${privacyPath}`}>{messages.privacyLink}</a>{enableGa4 && <> · <button class="footer-privacy-preferences" type="button" data-consent-preferences>{messages.consentPreferences}</button></>}
+      </p>
     </footer>
     <script is:inline define:vars={{ consentPreferencesEvent: OPEN_CONSENT_PREFERENCES_EVENT }}>
       document.querySelector("[data-consent-preferences]")?.addEventListener("click", function () {

@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted for the internal pilot; publication remains blocked
 
 ## Date
 
@@ -37,26 +37,27 @@ O pipeline deve preservar IDs dos provedores e normalizar os fatos necessários 
 | Campo | Regra |
 | --- | --- |
 | `subject_wikidata_id` | QID do grupo ou integrante do catálogo. |
-| `predicate` | `origin_country`, `born_in` ou `performance_city`. |
+| `predicate` | `origin_country`, `born_in` ou `announced_performance_city`. |
 | `value_provider` e `value_id` | Provedor e ID estável do país, local ou evento. Para MusicBrainz, guardar MBID; para Wikidata, QID. |
-| `event_mbid` | MBID do evento candidato. Obrigatório para `performance_city`. |
+| `event_mbid` | MBID do evento candidato. Obrigatório para `announced_performance_city`. |
 | `artist_musicbrainz_mbid` | MBID do artista ligado ao QID do grupo. A associação precisa de revisão e não pode depender só de nome. |
-| `event_date`, `event_type` e `event_status` | Data completa em `YYYY-MM-DD`, tipo `concert` e estado `scheduled`, `completed` ou `cancelled`. Eventos cancelados são inelegíveis. |
+| `event_date`, `event_type` e `schedule_status` | Data completa em `YYYY-MM-DD`, tipo `concert` e estado `listed`. `listed` significa que a fonte oficial mostrava a entrada na data da revisão. Não afirma que o show ocorreu. |
 | `billing_role` | `headliner` ou `co_headliner`. Atrações de apoio ou sem posição confirmada são inelegíveis. |
 | `place_mbid` e `city_area_mbid` | MBIDs do local e da cidade, quando disponíveis. A cidade precisa resolver a um país sem ambiguidade. |
 | `tour_mbid` | MBID da turnê, opcional. Só preencher quando a fonte relacionar explicitamente o evento à turnê. |
 | `country_wikidata_id` | QID do país resolvido por relação geográfica explícita. Obrigatório para perguntas jogáveis. |
 | `country_iso_3166_1` | Código ISO 3166-1 alpha-2 validado contra o país resolvido. |
 | `map_dataset` e `map_feature_id` | Nome e versão do conjunto de geometrias, mais identificador da feição correspondente. |
-| `source_url` | URL da evidência a revisar, com chave da fonte aprovada pela política. A validação do host não verifica o conteúdo da página. |
-| `retrieved_at` e `content_sha256` | Data da consulta e hash da resposta consultada. Guardar cópia do conteúdo somente quando a licença e os termos da fonte permitirem. |
+| `source_url` e `source_locator` | URL da evidência e localizador da data/cidade dentro da página. A validação do host não verifica o conteúdo da página. |
+| `source_checked_at` | Data ISO em que a entrada da agenda foi conferida manualmente. |
+| `content_sha256` | Hash da resposta consultada. Só guardar se a licença e os termos da fonte permitirem. Não guardar cópia do conteúdo sem autorização. |
 | `status` | `candidate`, `accepted`, `rejected` ou `conflict`, com motivo para estados diferentes de `accepted`. |
 
 Regras específicas:
 
 1. `origin_country` só entra no mapa quando QID, código ISO e feição de país apontam para a mesma entidade.
 2. `born_in` só entra quando o local tem país pai explícito e aceito. O pipeline não infere país por nome, capital ou coordenada aproximada. Valores conflitantes ou sem hierarquia ficam fora do jogo.
-3. Um evento de turnê precisa de MBID, artista associado por identificador estável, data completa, local, cidade resolvida e país. Eventos cancelados, associações ambíguas e apresentações em que o grupo aparece apenas como atração de apoio não entram no MVP.
+3. `announced_performance_city` exige uma entrada de agenda com MBID, artista associado por identificador estável, data completa, local, cidade resolvida e país. O estado `listed` registra a publicação da data e não confirma a realização. Associações ambíguas e apresentações em que o grupo aparece apenas como atração de apoio não entram no MVP.
 4. O nome da turnê é opcional. Se a fonte não vincular o show a uma turnê específica, a pergunta descreve uma apresentação, sem atribuir nome de turnê.
 5. Cada pergunta publicada referencia um fato aceito, sua evidência e a versão do conjunto de geometrias. A seleção do país no mapa compara o ID normalizado da resposta, não o ponto aproximado do toque.
 
@@ -66,17 +67,31 @@ Antes da publicação, cada tema precisa de uma medição reproduzível da cober
 
 O conjunto diário deve ser gerado a partir de fatos aceitos e versão fixa das geometrias. O modo livre usa o mesmo conjunto elegível, com seleção de tema. Ambos mantêm a regra de resposta exata por país.
 
+Esta aceitação fixa o contrato semântico e o escopo do piloto interno. Não aprova YG, Weverse ou MusicBrainz como fontes persistentes, nem autoriza coletor ou publicação. O resultado do piloto e as condições para reabrir a implementação estão em [Piloto do jogo de mapas](../map-game-pilot.md).
+
 ## Etapa de cobertura offline
 
 O comando `python -m kpop_scraping.geo_coverage --database <banco.sqlite> --output <relatorio.json>` lê um banco existente em modo somente leitura e resume grupos com fatos processados, distribuição de `origin_country` aceitos e valores `born_in` aceitos. O relatório não resolve cidades a países e não consulta fontes externas. Essa medição precede qualquer coletor de agendas ou conjunto de perguntas.
 
+## Escopo inicial do piloto de turnês
+
+A primeira amostra será a agenda oficial da DEADLINE WORLD TOUR de BLACKPINK. A página da YG lista várias datas e cidades, e a série da turnê no MusicBrainz contém eventos com IDs, datas, artista principal e locais. MusicBrainz serve apenas para localizar candidatos. A revisão manual compara cada data e cidade com a agenda da YG.
+
+A pergunta do jogo será: "Em qual país a agenda oficial listou uma apresentação de BLACKPINK em YYYY-MM-DD?" A resposta descreve o que a agenda publicou e não afirma que a apresentação ocorreu. Cada data é um evento separado, inclusive quando há várias apresentações na mesma cidade.
+
+A amostra será montada sem crawler e sem cópias de páginas. Cada registro candidato terá os IDs estáveis do evento e das entidades geográficas, a URL oficial e um localizador que permita revisar a data e a cidade. Hash e data de consulta só serão guardados se os termos da fonte permitirem. A fonte permanece `unreviewed` para coleta automatizada e publicação até a revisão da política. O relatório de piloto não será usado como conjunto jogável.
+
+O relatório contará candidatos localizados, datas confirmadas na agenda oficial, países distintos, cidades sem resolução inequívoca, datas repetidas por cidade e associações de artista não revisadas. A cobertura observada decidirá se outra turnê ou grupo entra na amostra.
+
+O levantamento de 24 de setembro de 2026 encontrou 33 datas em 16 destinos na agenda da YG e 31 eventos candidatos na série MusicBrainz. Os 31 registros foram comparados com a agenda por data e local; duas datas não têm candidato correspondente: 28 de novembro de 2025 em Singapura e 26 de janeiro de 2026 em Hong Kong. O crosswalk Natural Earth 5.1.1 relaciona os países a feições por `WIKIDATAID`. A hierarquia geográfica resolve Hong Kong para China (`Q148`, `CN`, feição `CHN`) e Taiwan para a feição `TWN`. O protótipo PT/EN está implementado, com 10 perguntas por rodada, ligações para evidência e rotas `noindex`. `noindex` e a ausência no sitemap não impedem acesso direto: as páginas e os candidatos integram o build estático. A fonte YG permanece `unreviewed` para coleta e publicação. Detalhes, artefatos e limitações estão em [Piloto do jogo de mapas](../map-game-pilot.md).
+
 ## Revisão de fontes e contrato de candidatos
 
-A revisão de fontes não encontrou licença que autorize a coleta automatizada e a persistência de agendas da YG ou do Weverse. O site institucional da YG declara que todo o conteúdo da empresa é protegido por direitos autorais. Para membros, os termos integrados atuais do Weverse, vigentes desde 1º de junho de 2026, limitam o uso de conteúdo ao escopo pessoal e não comercial e restringem cópia, publicação e compartilhamento sem permissão. Eles não esclarecem a extração de campos factuais de avisos públicos. Os dois domínios seguem `unreviewed` para agendas; a permissão para referenciar uma fonte Wikidata não autoriza coletar sua agenda.
+A revisão de fontes não encontrou licença que autorize a coleta automatizada e a persistência de agendas da YG ou do Weverse. O site institucional da YG declara que todo o conteúdo da empresa é protegido por direitos autorais. A lei sul-coreana também prevê direitos de produtores de bases de dados; esta ADR não determina se a agenda se enquadra nesses direitos ou se um uso específico os violaria. Para membros, os termos integrados atuais do Weverse, vigentes desde 1º de junho de 2026, limitam o uso de conteúdo ao escopo pessoal e não comercial e restringem cópia, publicação e compartilhamento sem permissão. Eles não esclarecem a extração de campos factuais de avisos públicos. Os dois domínios seguem `unreviewed` para agendas; a permissão para referenciar uma fonte Wikidata não autoriza coletar sua agenda.
 
-`kpop_scraping/tour_events.py` valida registros sintéticos sem rede ou banco. A validação exige associação revisada entre QID e MBID, artista relacionado ao evento, local ligado a uma única cidade, uma resolução única da cidade para país, data válida, show não cancelado e papel de atração principal ou co-principal. O registro resultante mantém `status=candidate` e só fica pronto para revisão editorial; o validador não aceita fatos nem aprova fontes. Os QIDs e MBIDs de teste têm formato válido e representam valores sintéticos. As URLs usam o domínio reservado `example.com`; nenhum teste reproduz agenda. A validação do host não confere o conteúdo da URL. A implementação não autoriza ingestão de YG, Weverse ou MusicBrainz.
+`kpop_scraping/tour_events.py` valida registros sem rede ou banco. Novos registros de agenda exigem `schedule_status="listed"`, `source_locator` e `source_checked_at`; o formato legado `event_status` permanece apenas para os fixtures sintéticos existentes. A validação exige associação revisada entre QID e MBID, artista relacionado ao evento, local ligado a uma única cidade, resolução única da cidade para país, data válida e papel de atração principal ou co-principal. O resultado mantém `status=candidate`; o validador não aceita fatos nem aprova fontes. As URLs dos fixtures usam `example.com`. A validação do host não confere o conteúdo da página. A implementação não autoriza ingestão de YG, Weverse ou MusicBrainz.
 
-`kpop_scraping/country_crosswalk.py` implementa o crosswalk offline país→feição. Ele relaciona somente códigos ISO 3166-1 alpha-2 revisados a `ISO_A2` das feições Natural Earth e retorna o identificador `ADM0_A3`; nomes não participam das junções. Códigos ausentes ou associados a mais de uma feição ficam sem correspondência. O artefato registra versão, escala e quantidade de feições, além de receber um hash canônico. A suíte contém casos sintéticos e uma amostra reduzida com três associações reais.
+`kpop_scraping/country_crosswalk.py` implementa o crosswalk offline país→feição. Ele relaciona QIDs revisados a `WIKIDATAID` das feições Natural Earth e retorna o identificador `ADM0_A3`; para feições sem QID válido, usa ISO 3166-1 alpha-2 com `ISO_A2`. Nomes não participam das junções. Identificadores ausentes ou associados a mais de uma feição ficam sem correspondência. O artefato registra versão, escala e quantidade de feições, além de receber um hash canônico. A suíte contém casos sintéticos e uma amostra reduzida com três associações reais.
 
 O teste de regressão `tests/fixtures/natural_earth_511_country_sample.json` preserva três associações reais de identificadores sem incluir geometrias. A propriedade `P297` de `Q836` inclui `MM` e o código antigo `BU`; a seleção de `MM` segue o histórico publicado pela ISO, que registra a mudança de Burma (`BU`) para Myanmar (`MM`) em 1989. A revisão usou os códigos como identificadores geográficos, sem alterar a política que impede fatos do Wikidata de sustentar respostas de quiz.
 

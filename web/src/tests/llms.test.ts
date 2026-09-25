@@ -7,7 +7,7 @@ import { SEO_ROUTES, seoAbsoluteUrl } from "../lib/seo-routes";
 
 const LLMS_DIR = join(import.meta.dirname, "../../public/llms");
 
-const FILE_SLUG: Record<SeoRouteKey, Record<Locale, string>> = {
+const FILE_SLUG: Partial<Record<SeoRouteKey, Record<Locale, string>>> = {
   quiz: { "pt-BR": "pt-br-quiz.md", en: "en-quiz.md" },
   grid: { "pt-BR": "pt-br-grid.md", en: "en-grid.md" },
   connections: { "pt-BR": "pt-br-conexoes.md", en: "en-connections.md" },
@@ -28,6 +28,13 @@ function visibleCopy(locale: Locale, key: SeoRouteKey): { h1: string; intro: str
       return { h1: messages.nameGuessTitle, intro: messages.nameGuessIntro };
     case "wordSearch":
       return { h1: messages.wordSearchTitle, intro: messages.wordSearchIntro };
+    case "mapPilot":
+      return {
+        h1: locale === "pt-BR" ? "Quiz de mapa: BLACKPINK" : "Map quiz: BLACKPINK",
+        intro: locale === "pt-BR"
+          ? "Use a agenda oficial da turnê para localizar cada data no mapa. O piloto tem 31 datas candidatas, cada uma ligada a uma fonte consultável."
+          : "Use the official tour schedule to locate each date on the map. The pilot has 31 candidate dates, each linked to a source you can inspect.",
+      };
   }
 }
 
@@ -39,7 +46,9 @@ describe("LLM route summaries", () => {
 
   for (const route of SEO_ROUTES) {
     it(`summarizes ${route.path} with matching visible copy`, () => {
-      const file = join(LLMS_DIR, FILE_SLUG[route.key][route.locale]);
+      const slug = FILE_SLUG[route.key]?.[route.locale];
+      if (!slug) return;
+      const file = join(LLMS_DIR, slug);
       expect(existsSync(file), file).toBe(true);
       const body = readFileSync(file, "utf-8").replace(/\s+/g, " ");
       const { h1, intro } = visibleCopy(route.locale, route.key);

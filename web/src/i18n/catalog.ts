@@ -1,6 +1,6 @@
 import type { Locale, PlayMode } from "../lib/quiz-types";
 
-export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch";
+export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot";
 
 export type SkipLinkKey = SeoRouteKey | "privacy";
 
@@ -243,6 +243,7 @@ export interface Messages {
   gameConnections: string;
   gameNameGuess: string;
   gameWordSearch: string;
+  gameMap: string;
   statsTitle: string;
   statsNavLabel: string;
   statsOpenButton: string;
@@ -278,6 +279,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "Caça-palavras de K-pop: ache os nomes",
         description: "Encontre nomes do K-pop escondidos na grade de letras, em 8 direções. Cada nome tem fonte.",
       },
+      mapPilot: {
+        title: "Quiz de mapa K-pop: turnê DEADLINE",
+        description: "Piloto de quiz de mapa com agenda de turnê, locais identificados e fontes consultáveis.",
+      },
     },
     skipLinks: {
       quiz: "Pular para o quiz",
@@ -285,6 +290,7 @@ const catalogs: Record<Locale, Messages> = {
       connections: "Pular para o jogo",
       nameGuess: "Pular para o jogo",
       wordSearch: "Pular para o caça-palavras",
+      mapPilot: "Pular para o jogo de mapa",
       privacy: "Pular para a política de privacidade",
     },
     eyebrow: "10 perguntas · múltipla escolha",
@@ -551,6 +557,7 @@ const catalogs: Record<Locale, Messages> = {
     gameConnections: "Conexões",
     gameNameGuess: "Adivinhe",
     gameWordSearch: "Caça-palavras",
+    gameMap: "Mapa",
     statsTitle: "Suas estatísticas",
     statsNavLabel: "Estatísticas",
     statsOpenButton: "Ver estatísticas e sequência",
@@ -584,6 +591,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "K-pop word search: find the names",
         description: "Find K-pop names hidden in the letter grid, in 8 directions. Every name has a source.",
       },
+      mapPilot: {
+        title: "K-pop Map Quiz: DEADLINE tour",
+        description: "A map quiz pilot based on tour schedules, identified venues and reviewable sources.",
+      },
     },
     skipLinks: {
       quiz: "Skip to the quiz",
@@ -591,6 +602,7 @@ const catalogs: Record<Locale, Messages> = {
       connections: "Skip to the game",
       nameGuess: "Skip to the game",
       wordSearch: "Skip to the word search",
+      mapPilot: "Skip to the map game",
       privacy: "Skip to the privacy policy",
     },
     eyebrow: "10 questions · multiple choice",
@@ -857,6 +869,7 @@ const catalogs: Record<Locale, Messages> = {
     gameConnections: "Connections",
     gameNameGuess: "Guess",
     gameWordSearch: "Word search",
+    gameMap: "Map",
     statsTitle: "Your stats",
     statsNavLabel: "Stats",
     statsOpenButton: "See stats and streak",
