@@ -162,6 +162,33 @@ class TestMemberThemeClues(unittest.TestCase):
         validate_word_search_clues(puzzle)
 
 
+    def test_rarer_option_beats_kind_priority(self) -> None:
+        # Momo's birth year (1996) is shared by three members; NCT membership
+        # is shared by two, so it wins over the higher-priority birth year.
+        _insert_fact(self.conn, "momo-member-of-nct", "Q21040355", "member_of", value_qid="Q23765422")
+        self.conn.commit()
+        by_word = {cand.word: cand for cand in _themes(self.conn)[f"members_{TWICE.lower()}"].candidates}
+        self.assertEqual(by_word["MOMO"].clue["en"], "Also a member of NCT")
+        self.assertIn("momo-member-of-nct", {item["fact_base_id"] for item in by_word["MOMO"].published_evidence()})
+        self.assertNotIn("born-momo", {item["fact_base_id"] for item in by_word["MOMO"].published_evidence()})
+
+    def test_equally_rare_options_follow_kind_priority(self) -> None:
+        # Nayeon's birth year and her Red Velvet membership are both unique.
+        _insert_fact(self.conn, "nayeon-member-of-rv", "Q21040333", "member_of", value_qid=RED_VELVET)
+        self.conn.commit()
+        by_word = {cand.word: cand for cand in _themes(self.conn)[f"members_{TWICE.lower()}"].candidates}
+        self.assertEqual(by_word["NAYEON"].clue["en"], "Born in 1995")
+
+    def test_conflicting_birth_years_give_no_birth_clue(self) -> None:
+        _insert_fact(
+            self.conn, "born-chaeyoung-alt", "Q21040400", "born_on",
+            value_time="+2000-04-23T00:00:00Z", value_precision=11,
+        )
+        self.conn.commit()
+        by_word = {cand.word: cand for cand in _themes(self.conn)[f"members_{TWICE.lower()}"].candidates}
+        self.assertIsNone(by_word["CHAEYOUNG"].clue)
+        self.assertEqual(by_word["CHAEYOUNG"].clue_evidence, ())
+
 class TestGroupThemeClues(unittest.TestCase):
     def setUp(self) -> None:
         self.conn = build_word_search_test_database()
