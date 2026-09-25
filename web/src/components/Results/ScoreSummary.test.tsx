@@ -26,8 +26,8 @@ describe("ScoreSummary", () => {
     expect(screen.getByText("03:42")).toBeInTheDocument();
     expect(screen.getByText("Tempo total")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
-    expect(screen.getByText("Pistas reveladas")).toBeInTheDocument();
-    expect(screen.getByText("Você terminou a rodada com 850 pontos.")).toBeInTheDocument();
+    expect(screen.getByText("Pistas usadas")).toBeInTheDocument();
+    expect(screen.getByText("Você fez 850 pontos.")).toBeInTheDocument();
   });
 
   it("renders correctly in English", () => {
@@ -49,7 +49,7 @@ describe("ScoreSummary", () => {
     expect(screen.getByText("01:35")).toBeInTheDocument();
     expect(screen.getByText("Total time")).toBeInTheDocument();
     expect(screen.getByText("0")).toBeInTheDocument();
-    expect(screen.getByText("Clues revealed")).toBeInTheDocument();
-    expect(screen.getByText("You finished the round with 1000 points.")).toBeInTheDocument();
+    expect(screen.getByText("Clues used")).toBeInTheDocument();
+    expect(screen.getByText("You scored 1000 points.")).toBeInTheDocument();
   });
 });

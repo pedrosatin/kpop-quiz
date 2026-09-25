@@ -115,7 +115,7 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
               aria-pressed={highContrast}
               class="contrast-toggle-btn"
             >
-              {t.highContrast}: {highContrast ? "ON" : "OFF"}
+              {t.highContrast}
             </button>
           </div>
         </div>

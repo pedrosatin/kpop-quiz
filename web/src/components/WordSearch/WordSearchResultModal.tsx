@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
-import { WORD_SEARCH_I18N } from "./types";
+import { getMessages } from "../../i18n/catalog";
 import { formatTime, generateWordSearchShareSummary } from "./utils";
 import type { Locale } from "../../lib/quiz-types";
 
@@ -21,7 +21,7 @@ export function WordSearchResultModal({
   elapsedSeconds,
   onClose,
 }: WordSearchResultModalProps) {
-  const t = WORD_SEARCH_I18N[locale];
+  const t = getMessages(locale).wordSearch;
   const [copied, setCopied] = useState<boolean>(false);
   const shareBtnRef = useRef<HTMLButtonElement>(null);
 

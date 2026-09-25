@@ -1,5 +1,5 @@
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
-import { WORD_SEARCH_I18N } from "./types";
+import { getMessages } from "../../i18n/catalog";
 import { formatTime } from "./utils";
 import type { Locale } from "../../lib/quiz-types";
 
@@ -26,7 +26,7 @@ export function WordSearchHeader({
   clueMode,
   onToggleClueMode,
 }: WordSearchHeaderProps) {
-  const t = WORD_SEARCH_I18N[locale];
+  const t = getMessages(locale).wordSearch;
   const isEasy = easyMode ?? clueMode ?? false;
   const toggleMode = onToggleEasyMode ?? onToggleClueMode;
   const themeTitle = puzzle.theme[locale] || puzzle.theme.en;
@@ -59,9 +59,8 @@ export function WordSearchHeader({
             type="button"
             class="toggle-clue-btn toggle-mode-btn"
             onClick={toggleMode}
-            aria-pressed={isEasy}
           >
-            {isEasy ? t.normalMode : t.easyMode}
+            {isEasy ? t.hideWords : t.showWords}
           </button>
         </div>
       </div>

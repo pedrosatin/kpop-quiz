@@ -52,7 +52,7 @@ describe("ShareResult helper functions", () => {
       messages: enMessages,
     });
 
-    const expected = "K-pop Quiz 8/10\n■■■■□ ■■■■□\nStandard · 1 hint · 03:42";
+    const expected = "K-pop Quiz 8/10\n■■■■□ ■■■■□\nStandard · 1 clue · 03:42";
     expect(text).toBe(expected);
   });
 
@@ -77,7 +77,7 @@ describe("ShareResult helper functions", () => {
       elapsedSeconds: 85,
       messages: enMessages,
     });
-    expect(textEn).toContain("Expert · 0 hints · 01:25");
+    expect(textEn).toContain("Expert · 0 clues · 01:25");
   });
 
   it("includes daily date indicator in share text when dailyDate is provided", () => {
@@ -103,7 +103,7 @@ describe("ShareResult helper functions", () => {
       messages: enMessages,
       dailyDate: "2026-09-16",
     });
-    expect(textEn).toBe("K-pop Quiz Daily 2026-09-16 8/10\n■■■■□ ■■■■□\nStandard · 1 hint · 03:42");
+    expect(textEn).toBe("K-pop Quiz Daily 2026-09-16 8/10\n■■■■□ ■■■■□\nStandard · 1 clue · 03:42");
   });
 });
 
@@ -211,7 +211,7 @@ describe("ShareResult component", () => {
     );
 
     const feedback = await screen.findByRole("status");
-    expect(feedback).toHaveTextContent("Copiado para a área de transferência.");
+    expect(feedback).toHaveTextContent("Resultado copiado.");
   });
 
   it("falls back to textarea when neither navigator.share nor clipboard is available", () => {
@@ -234,7 +234,7 @@ describe("ShareResult component", () => {
     );
 
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    const textarea = screen.getByRole("textbox", { name: "Texto para cópia" }) as HTMLTextAreaElement;
+    const textarea = screen.getByRole("textbox", { name: "Texto do resultado" }) as HTMLTextAreaElement;
     expect(textarea).toBeInTheDocument();
     expect(textarea.readOnly).toBe(true);
     expect(textarea.value).toBe("K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42");
@@ -263,7 +263,7 @@ describe("ShareResult component", () => {
     const copyBtn = screen.getByRole("button", { name: "Copiar resultado" });
     fireEvent.click(copyBtn);
 
-    const textarea = await screen.findByRole("textbox", { name: "Texto para cópia" });
+    const textarea = await screen.findByRole("textbox", { name: "Texto do resultado" });
     expect(textarea).toBeInTheDocument();
   });
 

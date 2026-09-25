@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { WordSearchWord } from "../../lib/word-search-types";
-import { WORD_SEARCH_I18N } from "./types";
+import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
 
 interface WordSearchEvidenceModalProps {
@@ -14,7 +14,7 @@ export function WordSearchEvidenceModal({
   locale,
   onClose,
 }: WordSearchEvidenceModalProps) {
-  const t = WORD_SEARCH_I18N[locale];
+  const t = getMessages(locale).wordSearch;
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export function WordSearchEvidenceModal({
 
         <div class="modal-body">
           <p>
-            <strong>Wikidata ID:</strong>{" "}
+            <strong>{t.evidenceWikidataId}</strong>{" "}
             <a
               href={`https://www.wikidata.org/wiki/${word.id}`}
               target="_blank"
@@ -75,24 +75,24 @@ export function WordSearchEvidenceModal({
           </p>
           {word.clue && (
             <p>
-              <strong>Dica / Clue:</strong> {word.clue[locale] || word.clue.en}
+              <strong>{t.evidenceClue}</strong> {word.clue[locale] || word.clue.en}
             </p>
           )}
 
-          <h3 class="evidence-list-heading">Fontes Auditadas:</h3>
+          <h3 class="evidence-list-heading">{t.evidenceSourcesHeading}</h3>
           <ul class="evidence-list">
             {word.evidence.map((item, idx) => (
               <li key={`ev-${idx}`} class="evidence-item">
-                <span class="evidence-source">Fonte: {item.source_key}</span>
-                <span class="evidence-locator">Localizador: {item.locator}</span>
-                <span class="evidence-rev">Revisão: {item.revision_id}</span>
+                <span class="evidence-source">{t.evidenceSource} {item.source_key}</span>
+                <span class="evidence-locator">{t.evidenceLocator} {item.locator}</span>
+                <span class="evidence-rev">{t.evidenceRevision} {item.revision_id}</span>
                 <a
                   href={item.source_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   class="evidence-link"
                 >
-                  Abrir evidência original
+                  {t.evidenceOpen}
                 </a>
               </li>
             ))}

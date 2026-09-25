@@ -22,9 +22,9 @@ describe("ConnectionsGame component integration", () => {
     const messages = getMessages("pt-BR");
     render(<ConnectionsGame locale="pt-BR" puzzle={puzzle} messages={messages} />);
 
-    expect(screen.getByText("4 tentativas restantes")).toBeInTheDocument();
+    expect(screen.getByText("4 erros restantes")).toBeInTheDocument();
     expect(screen.getByText("Embaralhar")).toBeInTheDocument();
-    expect(screen.getByText("Desmarcar tudo")).toBeInTheDocument();
+    expect(screen.getByText("Limpar seleção")).toBeInTheDocument();
     expect(screen.getByText("Enviar")).toBeInTheDocument();
 
     // Check that TWICE tile exists
@@ -37,9 +37,9 @@ describe("ConnectionsGame component integration", () => {
     const messages = getMessages("en");
     render(<ConnectionsGame locale="en" puzzle={puzzle} messages={messages} />);
 
-    expect(screen.getByText("4 mistakes remaining")).toBeInTheDocument();
+    expect(screen.getByText("4 mistakes left")).toBeInTheDocument();
     expect(screen.getByText("Shuffle")).toBeInTheDocument();
-    expect(screen.getByText("Deselect all")).toBeInTheDocument();
+    expect(screen.getByText("Clear selection")).toBeInTheDocument();
     expect(screen.getByText("Submit")).toBeInTheDocument();
   });
 
@@ -69,7 +69,7 @@ describe("ConnectionsGame component integration", () => {
     expect(twiceBtn).toHaveAttribute("aria-pressed", "true");
     expect(itzyBtn).toHaveAttribute("aria-pressed", "true");
 
-    const deselectBtn = screen.getByText("Desmarcar tudo");
+    const deselectBtn = screen.getByText("Limpar seleção");
     fireEvent.click(deselectBtn);
 
     expect(twiceBtn).toHaveAttribute("aria-pressed", "false");
@@ -116,8 +116,8 @@ describe("ConnectionsGame component integration", () => {
     const submitBtn = screen.getByText("Enviar");
     fireEvent.click(submitBtn);
 
-    expect(screen.getByText("Falta 1...")).toBeInTheDocument();
-    expect(screen.getByText("3 tentativas restantes")).toBeInTheDocument();
+    expect(screen.getByText("Quase. 3 desses nomes são da mesma categoria.")).toBeInTheDocument();
+    expect(screen.getByText("3 erros restantes")).toBeInTheDocument();
   });
 
   it("handles async loading lifecycle when puzzle prop is omitted", async () => {

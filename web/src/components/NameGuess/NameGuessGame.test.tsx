@@ -3,10 +3,10 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/name-guess.daily.json";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessGame } from "./NameGuessGame";
-import { NAME_GUESS_I18N } from "./types";
+import { getMessages } from "../../i18n/catalog";
 
 const puzzle = validPuzzleJson as unknown as NameGuessPuzzle;
-const tPt = NAME_GUESS_I18N["pt-BR"];
+const tPt = getMessages("pt-BR").nameGuess;
 
 describe("NameGuessGame component", () => {
   beforeEach(() => {
@@ -24,15 +24,28 @@ describe("NameGuessGame component", () => {
 
     expect(screen.getByRole("heading", { name: tPt.title })).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`${tPt.attemptsLeft}: 6/6`))).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Alto contraste: OFF/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: tPt.highContrast })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: tPt.enter })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: tPt.backspace })).toBeInTheDocument();
+  });
+
+  it("labels the high-contrast toggle in the locale and exposes its state through aria-pressed", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    const toggle = screen.getByRole("button", { name: tPt.highContrast });
+    expect(toggle).toHaveTextContent(/^Cores de alto contraste$/);
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveTextContent(/^Cores de alto contraste$/);
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
   });
 
   it("handles virtual keyboard clicks and backspace", () => {
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 
-    const row1 = screen.getByRole("group", { name: "Tentativa 1" });
+    const row1 = screen.getByRole("group", { name: "Palpite 1" });
 
     fireEvent.click(screen.getByRole("button", { name: "T" }));
     fireEvent.click(screen.getByRole("button", { name: "W" }));
@@ -40,13 +53,13 @@ describe("NameGuessGame component", () => {
     expect(within(row1).getByLabelText("Posição 2: letra W")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: tPt.backspace }));
-    expect(within(row1).getByLabelText("Posição 2: vazio")).toBeInTheDocument();
+    expect(within(row1).getByLabelText("Posição 2: vazia")).toBeInTheDocument();
   });
 
   it("handles physical keyboard inputs", () => {
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 
-    const row1 = screen.getByRole("group", { name: "Tentativa 1" });
+    const row1 = screen.getByRole("group", { name: "Palpite 1" });
 
     fireEvent.keyDown(window, { key: "a" });
     fireEvent.keyDown(window, { key: "e" });
@@ -54,7 +67,7 @@ describe("NameGuessGame component", () => {
     expect(within(row1).getByLabelText("Posição 2: letra E")).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Backspace" });
-    expect(within(row1).getByLabelText("Posição 2: vazio")).toBeInTheDocument();
+    expect(within(row1).getByLabelText("Posição 2: vazia")).toBeInTheDocument();
   });
 
   it("shows error alert on short guess", () => {
@@ -113,7 +126,7 @@ describe("NameGuessGame component", () => {
   });
 
   it("renders localized aria labels when locale is en", () => {
-    const tEn = NAME_GUESS_I18N["en"];
+    const tEn = getMessages("en").nameGuess;
     render(<NameGuessGame locale="en" puzzle={puzzle} />);
 
     expect(screen.getByRole("region", { name: tEn.boardAria })).toBeInTheDocument();
@@ -130,7 +143,7 @@ describe("NameGuessGame component", () => {
     );
 
     const input = screen.getByTestId("form-input");
-    const row1 = screen.getByRole("group", { name: "Tentativa 1" });
+    const row1 = screen.getByRole("group", { name: "Palpite 1" });
 
     fireEvent.keyDown(input, { key: "a" });
     expect(within(row1).queryByLabelText("Posição 1: letra A")).not.toBeInTheDocument();

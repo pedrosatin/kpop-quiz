@@ -30,7 +30,7 @@ describe("AnswerFeedback", () => {
         onAdvance={onAdvance}
       />
     );
-    expect(screen.getByText("Acertou.")).toBeInTheDocument();
+    expect(screen.getByText("Você acertou.")).toBeInTheDocument();
     expect(screen.getByText("TWICE estreou em 2015.")).toBeInTheDocument();
     const nextBtn = screen.getByRole("button", { name: "Próxima pergunta" });
     fireEvent.click(nextBtn);
@@ -50,7 +50,7 @@ describe("AnswerFeedback", () => {
         onAdvance={vi.fn()}
       />
     );
-    expect(screen.getByText("O tempo acabou.")).toBeInTheDocument();
+    expect(screen.getByText("Acabou o tempo.")).toBeInTheDocument();
     expect(screen.getByText("Resposta correta:")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ver resultado" })).toBeInTheDocument();
   });
@@ -68,7 +68,7 @@ describe("AnswerFeedback", () => {
         onAdvance={vi.fn()}
       />
     );
-    expect(screen.getByText("O tempo acabou.")).toBeInTheDocument();
+    expect(screen.getByText("Acabou o tempo.")).toBeInTheDocument();
     expect(screen.getByText("Resposta correta:")).toBeInTheDocument();
     expect(screen.getByText("TWICE")).toBeInTheDocument();
   });

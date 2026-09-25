@@ -6,10 +6,11 @@ import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessGame } from "./NameGuessGame";
 import { NameGuessResults } from "./NameGuessResults";
 import { VirtualKeyboard } from "./VirtualKeyboard";
-import { NAME_GUESS_I18N, type LetterStatus } from "./types";
+import { getMessages } from "../../i18n/catalog";
+import type { LetterStatus } from "./types";
 
 const puzzle = validPuzzleJson as unknown as NameGuessPuzzle;
-const tPt = NAME_GUESS_I18N["pt-BR"];
+const tPt = getMessages("pt-BR").nameGuess;
 
 describe("Automated accessibility audits with axe-core for NameGuess", () => {
   beforeEach(() => {

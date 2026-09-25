@@ -3,7 +3,8 @@
 Canonical: https://kpopquiz.online/pt-br/
 Também em inglês: https://kpopquiz.online/en/
 
-Grupos, integrantes e datas com fontes consultáveis a cada resposta.
+Perguntas sobre grupos, integrantes e datas. Cada resposta mostra a
+fonte.
 
 10 perguntas · múltipla escolha. 10 perguntas de múltipla escolha com
 fontes verificáveis a cada resposta.
