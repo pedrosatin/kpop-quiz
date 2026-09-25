@@ -3,6 +3,7 @@ import {
   type WordSearchPuzzle,
 } from "../lib/word-search-types";
 import type { Locale } from "../lib/quiz-types";
+import { preferNextDaily } from "./daily-artifact";
 
 export class WordSearchArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -51,5 +52,5 @@ export async function loadWordSearchPuzzle(
     throw new WordSearchArtifactError("invalid");
   }
 
-  return payload;
+  return preferNextDaily(payload, "word-search.daily.json", effectiveBaseUrl, isWordSearchPuzzle);
 }

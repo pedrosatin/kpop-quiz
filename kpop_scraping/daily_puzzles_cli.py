@@ -42,6 +42,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Verify all published daily puzzle artifacts in output directory against schemas",
     )
     parser.add_argument(
+        "--ahead",
+        action="store_true",
+        help="Also publish the next day's puzzles under <output-dir>/next/",
+    )
+    parser.add_argument(
+        "--regenerate",
+        action="store_true",
+        help="Generate the day again even if it is already published or waiting in next/",
+    )
+    parser.add_argument(
         "--timer-seconds",
         type=int,
         help="Optional question timer limit in seconds for quiz sessions",
@@ -85,12 +95,24 @@ def main(argv: list[str] | None = None) -> int:
             reference_date=args.date,
             dry_run=args.dry_run,
             timer_seconds=args.timer_seconds,
+            ahead=args.ahead,
+            regenerate=args.regenerate,
         )
         report_reused_grid(result.get("grid_reused"))
         mode_str = "[dry-run] " if result.get("dry_run") else ""
-        print(
-            f"{mode_str}Daily puzzles for {result['reference_date']} generated and verified successfully in {result['output_dir']}"
+        action = (
+            "promoted from next/"
+            if result.get("promoted_from_next")
+            else "already published"
+            if result.get("already_published")
+            else "generated"
         )
+        print(
+            f"{mode_str}Daily puzzles for {result['reference_date']} {action} and verified successfully in {result['output_dir']}"
+        )
+        if "next" in result:
+            report_reused_grid(result["next"].get("grid_reused"))
+            print(f"{mode_str}Daily puzzles for {result['next']['reference_date']} published ahead in {result['next']['output_dir']}")
         return 0
     except Exception as exc:
         sys.stderr.write(f"Daily puzzles generation failed: {exc}\n")

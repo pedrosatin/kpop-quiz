@@ -3,6 +3,7 @@ import {
   type ConnectionsPuzzle,
   type Locale,
 } from "../lib/quiz-types";
+import { preferNextDaily } from "./daily-artifact";
 
 export class ConnectionsArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -47,5 +48,5 @@ export async function loadConnectionsPuzzle(
     throw new ConnectionsArtifactError("invalid");
   }
 
-  return payload;
+  return preferNextDaily(payload, "connections.daily.json", effectiveBaseUrl, isConnectionsPuzzle);
 }

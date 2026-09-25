@@ -482,14 +482,19 @@ def main(argv: list[str] | None = None) -> int:
         if args.require_timeline and not args.verify:
             raise ValueError("--require-timeline can only be used with --verify")
         if args.verify:
-            verify(
-                args.output_dir,
-                require_grid=args.require_grid,
-                require_connections=args.require_connections,
-                require_name_guess=args.require_name_guess,
-                require_word_search=args.require_word_search,
-                require_timeline=args.require_timeline,
-            )
+            # next/ holds the following day's set when the daily run publishes ahead.
+            next_dir = args.output_dir / "next"
+            for directory in (args.output_dir, next_dir):
+                if directory is next_dir and not (next_dir / MANIFEST_FILENAME).is_file():
+                    continue
+                verify(
+                    directory,
+                    require_grid=args.require_grid,
+                    require_connections=args.require_connections,
+                    require_name_guess=args.require_name_guess,
+                    require_word_search=args.require_word_search,
+                    require_timeline=args.require_timeline,
+                )
         elif args.database:
             if not args.database.is_file():
                 raise ValueError(f"database does not exist: {args.database}")
