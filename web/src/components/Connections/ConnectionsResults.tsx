@@ -91,64 +91,47 @@ export function ConnectionsResults({
 
   return (
     <section
-      class="connections-results"
+      class="result connections-results"
       role="dialog"
       aria-modal="true"
       aria-labelledby="connections-result-title"
     >
-      <div class="connections-results-card">
-        <h2
-          id="connections-result-title"
-          ref={titleRef}
-          tabIndex={-1}
-          class="connections-results-title"
-        >
-          {title}
-        </h2>
-        <p class="connections-results-summary">{summary}</p>
+      <h2
+        id="connections-result-title"
+        ref={titleRef}
+        tabIndex={-1}
+        class={`result-title ${isWon ? "is-won" : "is-lost"}`}
+      >
+        {title}
+      </h2>
+      <p class="result-summary">{summary}</p>
 
-        <div class="connections-share-box">
-          <label class="connections-mono-toggle">
-            <input
-              type="checkbox"
-              checked={monochrome}
-              onChange={(e) => setMonochrome((e.target as HTMLInputElement).checked)}
-            />
-            <span>{messages.connectionsHighContrastShare}</span>
-          </label>
+      <div class="share-box">
+        <label class="share-toggle">
+          <input
+            type="checkbox"
+            checked={monochrome}
+            onChange={(e) => setMonochrome((e.target as HTMLInputElement).checked)}
+          />
+          <span>{messages.connectionsHighContrastShare}</span>
+        </label>
 
-          <pre
-            class="connections-share-preview"
-            aria-label={messages.shareTextLabel}
-          >
-            {shareText}
-          </pre>
+        <pre class="share-preview" aria-label={messages.shareTextLabel}>
+          {shareText}
+        </pre>
 
-          <div class="connections-results-actions">
-            <button
-              type="button"
-              class="connections-btn connections-btn-primary"
-              onClick={handleCopy}
-            >
-              {messages.connectionsShareButton}
-            </button>
-            <button
-              type="button"
-              class="connections-btn connections-btn-secondary"
-              onClick={onRestart}
-            >
-              {messages.connectionsRestart}
-            </button>
-          </div>
-
-          <div
-            class="connections-copied-notice"
-            role="status"
-            aria-live="polite"
-          >
-            {copied && messages.copiedToClipboard}
-          </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" onClick={handleCopy}>
+            {messages.connectionsShareButton}
+          </button>
+          <button type="button" class="btn btn-secondary" onClick={onRestart}>
+            {messages.connectionsRestart}
+          </button>
         </div>
+
+        <p class="share-feedback" role="status" aria-live="polite">
+          {copied && messages.copiedToClipboard}
+        </p>
       </div>
     </section>
   );

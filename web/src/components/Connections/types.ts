@@ -76,12 +76,13 @@ export interface ConnectionsResultsProps {
   messages: Messages;
 }
 
-export const DIFFICULTY_COLORS: Record<
-  ConnectionsDifficulty,
-  { bg: string; text: string; textColor: string; emoji: string; mono: string }
-> = {
-  1: { bg: "#fde047", text: "#1f2937", textColor: "#1f2937", emoji: "🟨", mono: "①" },
-  2: { bg: "#86efac", text: "#064e3b", textColor: "#064e3b", emoji: "🟩", mono: "②" },
-  3: { bg: "#93c5fd", text: "#172554", textColor: "#172554", emoji: "🟦", mono: "③" },
-  4: { bg: "#d8b4fe", text: "#3b0764", textColor: "#3b0764", emoji: "🟪", mono: "④" },
+/**
+ * Share-text symbols per difficulty level. Banner colors live in
+ * connections.css (.connections-banner-level-N) and use the --color-level-N tokens.
+ */
+export const DIFFICULTY_COLORS: Record<ConnectionsDifficulty, { emoji: string; mono: string }> = {
+  1: { emoji: "🟨", mono: "①" },
+  2: { emoji: "🟩", mono: "②" },
+  3: { emoji: "🟦", mono: "③" },
+  4: { emoji: "🟪", mono: "④" },
 };
