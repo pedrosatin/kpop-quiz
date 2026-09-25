@@ -373,6 +373,43 @@ def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
             _validate_evidence(ev, f"{context}.evidence[{ev_idx}]")
 
 
+def _clue_key(text: dict[str, str]) -> tuple[str, str]:
+    return (text["pt-BR"].strip().casefold(), text["en"].strip().casefold())
+
+
+def validate_word_search_clues(payload: dict[str, Any]) -> None:
+    """Reject clues that give the player nothing beyond the theme title.
+
+    A clue may not repeat the theme in either locale, and a puzzle with two or
+    more clued words may not give all of them the same clue.  Words without a
+    clue are allowed.  Call after ``validate_word_search_puzzle``.
+
+    The generator enforces this check on every puzzle it builds.  It is kept
+    out of ``validate_word_search_puzzle`` so that artifacts published before
+    the per-word clue rule still pass structural verification until the next
+    daily regeneration replaces them.
+    """
+    theme = _clue_key(payload["theme"])
+    clue_keys: set[tuple[str, str]] = set()
+    clued = 0
+    for idx, word_obj in enumerate(payload["words"]):
+        clue = word_obj.get("clue")
+        if clue is None:
+            continue
+        key = _clue_key(clue)
+        for lang_idx, lang in enumerate(("pt-BR", "en")):
+            _require(
+                key[lang_idx] != theme[lang_idx],
+                f"words[{idx}].clue.{lang} repeats the theme title",
+            )
+        clue_keys.add(key)
+        clued += 1
+    _require(
+        clued < 2 or len(clue_keys) > 1,
+        "all word clues are identical; clues must tell words apart or be omitted",
+    )
+
+
 def write_word_search_puzzle_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
     """Validate and atomically write a word search puzzle JSON file."""
     return write_json_atomic(target_path, payload, validate_word_search_puzzle)

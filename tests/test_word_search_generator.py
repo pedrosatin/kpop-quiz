@@ -21,6 +21,7 @@ from kpop_scraping.word_search_generator import (
 )
 from kpop_scraping.word_search_schema import (
     extract_word_coordinates,
+    validate_word_search_clues,
     validate_word_search_puzzle,
 )
 
@@ -635,19 +636,23 @@ class TestWordSearchRealDatabase(unittest.TestCase):
 
         conn = sqlite3.connect(str(real_db))
         try:
-            puzzle = generate_word_search_puzzle(
-                conn,
-                seed="kpop-word-search-daily-2026-09-18",
-                reference_date=date(2026, 9, 18),
-            )
+            puzzles = [
+                generate_word_search_puzzle(
+                    conn,
+                    seed="kpop-word-search-daily-2026-09-18",
+                    reference_date=date(2026, 9, 18),
+                )
+                for _ in range(2)
+            ]
         finally:
             conn.close()
 
+        puzzle = puzzles[0]
         validate_word_search_puzzle(puzzle)
-        self.assertEqual(
-            puzzle["puzzle_id"],
-            "db1345015f91925c9bcb8965c15e9753e668e70a18094e9abfe19739f229dfbb",
-        )
+        validate_word_search_clues(puzzle)
+        # The local database changes with every collection run, so the test
+        # pins determinism instead of a fixed puzzle_id.
+        self.assertEqual(puzzle["puzzle_id"], puzzles[1]["puzzle_id"])
         self.assertEqual(puzzle["reference_date"], "2026-09-18")
 
     def test_candidate_label_fallback_when_normalized_differs(self) -> None:
