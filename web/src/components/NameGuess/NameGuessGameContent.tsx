@@ -22,7 +22,7 @@ function isTextEntry(el: HTMLElement): boolean {
 }
 
 // Letters and Backspace still reach the game from these elements, so typing keeps
-// working after a click on a virtual key; only Enter belongs to them.
+// working while a virtual key has focus; only Enter belongs to them.
 function isActivatable(el: HTMLElement): boolean {
   return el.closest("button, a[href], summary, [role='button'], [role='link']") !== null;
 }

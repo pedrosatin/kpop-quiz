@@ -215,6 +215,23 @@ describe("NameGuessGame component", () => {
     expect(within(row1).getByLabelText("Posição 2: letra I")).toBeInTheDocument();
   });
 
+  it("submits with a physical Enter after a click on a virtual key", async () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    // Browsers focus a clicked button unless its mousedown is canceled.
+    const keyT = screen.getByRole("button", { name: "T" });
+    if (fireEvent.mouseDown(keyT)) keyT.focus();
+    fireEvent.click(keyT);
+
+    for (const key of ["w", "i", "c", "e", "Enter"]) {
+      fireEvent.keyDown(document.activeElement ?? window, { key });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByText(tPt.wonTitle)).toBeInTheDocument();
+    });
+  });
+
   it("ignores key events already handled elsewhere or pressed with a modifier", () => {
     const claimLetterA = (e: KeyboardEvent) => {
       if (e.key === "a") e.preventDefault();
