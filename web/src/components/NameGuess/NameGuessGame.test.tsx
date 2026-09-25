@@ -22,11 +22,28 @@ describe("NameGuessGame component", () => {
   it("renders header, attempts remaining, board, and virtual keyboard", () => {
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 
-    expect(screen.getByRole("heading", { name: tPt.title })).toBeInTheDocument();
+    // The page intro owns the visible title; the game region keeps it as its name.
+    expect(screen.getByRole("region", { name: tPt.title })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: tPt.title })).not.toBeInTheDocument();
     expect(screen.getByText(new RegExp(`${tPt.attemptsLeft}: 6/6`))).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Alto contraste: OFF/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: tPt.enter })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: tPt.backspace })).toBeInTheDocument();
+  });
+
+  it("switches high contrast with a single attribute on the game card", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    const game = screen.getByRole("region", { name: tPt.title });
+    const toggle = screen.getByRole("button", { name: new RegExp(tPt.highContrast, "i") });
+    expect(game).toHaveAttribute("data-contrast", "normal");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(toggle);
+
+    expect(game).toHaveAttribute("data-contrast", "high");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(game.querySelectorAll("[data-contrast], .high-contrast")).toHaveLength(0);
   });
 
   it("handles virtual keyboard clicks and backspace", () => {
@@ -65,7 +82,9 @@ describe("NameGuessGame component", () => {
     fireEvent.click(screen.getByRole("button", { name: "T" }));
     fireEvent.click(screen.getByRole("button", { name: tPt.enter }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(tPt.notEnoughLetters);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(tPt.notEnoughLetters);
+    expect(alert.closest(".name-guess-error-region")).not.toBeNull();
   });
 
   it("keeps the long invalid-name error available to assistive technology", () => {
@@ -151,7 +170,7 @@ describe("NameGuessGame component", () => {
     expect(screen.getByText(tPt.loading)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: tPt.title })).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: tPt.title })).toBeInTheDocument();
     });
   });
 

@@ -115,7 +115,6 @@ describe("Automated accessibility audits with axe-core for NameGuess", () => {
         onChar={vi.fn()}
         onEnter={vi.fn()}
         onBackspace={vi.fn()}
-        highContrast={false}
         t={tPt}
         disabled={false}
       />
