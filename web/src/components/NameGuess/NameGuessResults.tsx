@@ -64,26 +64,29 @@ export function NameGuessResults({
   const descriptionText = target.clues?.description?.[locale];
   const primaryEvidence = target.evidence[0];
 
+  const hasStats = Boolean(target.clues?.debut_year || agencyName || target.clues?.members_count);
+
   return (
     <div
       role="region"
       aria-label={t.resultsAria}
-      class={`name-guess-results name-guess-modal ${highContrast ? "high-contrast" : ""}`.trim()}
-      data-contrast={highContrast ? "high" : "normal"}
+      class="result name-guess-result"
     >
-      <h2 class={`name-guess-results-title ${won ? "is-won" : "is-lost"}`}>
+      <h2 class={`result-title ${won ? "is-won" : "is-lost"}`}>
         {won ? t.wonTitle : t.lostTitle}
       </h2>
 
-      <p class="name-guess-target-prompt">
-        {t.targetWas}
-      </p>
-      <p class="name-guess-target-name">
-        {targetDisplayName}
-      </p>
+      <div>
+        <p class="result-summary">
+          {t.targetWas}
+        </p>
+        <p class="name-guess-target-name">
+          {targetDisplayName}
+        </p>
+      </div>
 
       {target.clues && (
-        <div class="name-guess-hints-card">
+        <div class="callout name-guess-hints">
           <h3 class="name-guess-hints-title">
             {t.hints}
           </h3>
@@ -92,50 +95,51 @@ export function NameGuessResults({
               {descriptionText}
             </p>
           )}
-          <div class="name-guess-hints-grid">
-            {target.clues.debut_year && (
-              <div class="name-guess-hint-item">
-                <span class="hint-label">{t.debutYear}</span> <span class="hint-value">{target.clues.debut_year}</span>
-              </div>
-            )}
-            {agencyName && (
-              <div class="name-guess-hint-item">
-                <span class="hint-label">{t.agency}</span> <span class="hint-value">{agencyName}</span>
-              </div>
-            )}
-            {target.clues.members_count && (
-              <div class="name-guess-hint-item">
-                <span class="hint-label">{t.members}</span> <span class="hint-value">{target.clues.members_count}</span>
-              </div>
-            )}
-          </div>
+          {hasStats && (
+            <div class="result-stats">
+              {target.clues.debut_year && (
+                <div class="result-stat">
+                  <span class="result-stat-label">{t.debutYear}</span> <strong class="result-stat-value">{target.clues.debut_year}</strong>
+                </div>
+              )}
+              {agencyName && (
+                <div class="result-stat">
+                  <span class="result-stat-label">{t.agency}</span> <strong class="result-stat-value name-guess-stat-text">{agencyName}</strong>
+                </div>
+              )}
+              {target.clues.members_count && (
+                <div class="result-stat">
+                  <span class="result-stat-label">{t.members}</span> <strong class="result-stat-value">{target.clues.members_count}</strong>
+                </div>
+              )}
+            </div>
+          )}
           {primaryEvidence && (
-            <div class="name-guess-evidence">
+            <p class="name-guess-evidence">
               <a
                 href={primaryEvidence.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="evidence-link"
               >
                 {t.evidenceLink}
               </a>
-            </div>
+            </p>
           )}
         </div>
       )}
 
-      <div class="name-guess-results-actions">
+      <div class="btn-row">
         <button
           type="button"
           onClick={handleCopy}
-          class="name-guess-share-btn"
+          class="btn btn-primary"
         >
           {copied ? t.copied : t.copyResults}
         </button>
         <button
           type="button"
           onClick={onReset}
-          class="name-guess-reset-btn"
+          class="btn btn-secondary"
         >
           {t.playAgain}
         </button>

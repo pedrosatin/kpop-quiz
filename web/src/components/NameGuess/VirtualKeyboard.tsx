@@ -5,7 +5,6 @@ interface VirtualKeyboardProps {
   onChar: (char: string) => void;
   onEnter: () => void;
   onBackspace: () => void;
-  highContrast: boolean;
   t: NameGuessTranslations;
   disabled?: boolean;
 }
@@ -21,7 +20,6 @@ export function VirtualKeyboard({
   onChar,
   onEnter,
   onBackspace,
-  highContrast,
   t,
   disabled = false,
 }: VirtualKeyboardProps) {
@@ -40,8 +38,7 @@ export function VirtualKeyboard({
     <div
       role="group"
       aria-label={t.keyboardAria}
-      class={`virtual-keyboard ${highContrast ? "high-contrast" : ""}`.trim()}
-      data-contrast={highContrast ? "high" : "normal"}
+      class="virtual-keyboard"
     >
       {KEYBOARD_ROWS.map((row, rIdx) => (
         <div key={rIdx} class="keyboard-row">

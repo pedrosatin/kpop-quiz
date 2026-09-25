@@ -93,89 +93,73 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
     <section
       id="name-guess"
       aria-label={t.title}
-      class={`name-guess-shell ${highContrast ? "high-contrast" : ""}`.trim()}
+      class="game-card name-guess"
       data-contrast={highContrast ? "high" : "normal"}
     >
-      <div class="name-guess-container">
-        {/* Game Header */}
-        <div class="name-guess-header">
-          <div class="name-guess-header-info">
-            <h1 class="name-guess-title">
-              {t.title}
-            </h1>
-            <p class="name-guess-subtitle">
-              {t.subtitle} · {puzzle.reference_date}
+      {/* The page intro already shows the title, so the HUD only carries the date and counters. */}
+      <div class="game-hud">
+        <div class="name-guess-hud-info">
+          <p class="hud-item hud-label">
+            {t.subtitle} · <span class="name-guess-date">{puzzle.reference_date}</span>
+          </p>
+          {!isGameOver && (
+            <p role="status" aria-live="polite" class="hud-item hud-value">
+              {t.attemptsLeft}: {attemptsRemaining}/{puzzle.max_attempts}
             </p>
-          </div>
-
-          <div class="name-guess-controls">
-            <button
-              type="button"
-              onClick={toggleHighContrast}
-              aria-pressed={highContrast}
-              class="contrast-toggle-btn"
-            >
-              {t.highContrast}
-            </button>
-          </div>
+          )}
         </div>
 
-        {/* Attempts Remaining */}
-        {!isGameOver && (
-          <div
-            role="status"
-            aria-live="polite"
-            class="name-guess-attempts"
-          >
-            {t.attemptsLeft}: {attemptsRemaining}/{puzzle.max_attempts}
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={toggleHighContrast}
+          aria-pressed={highContrast}
+          class="btn btn-secondary btn-sm"
+        >
+          {t.highContrast}
+        </button>
+      </div>
 
-        {/* Reserving this region keeps the board in place when validation fails. */}
+      <div class="name-guess-play">
+        {/* The alert floats over the board, so showing it never moves the tiles. */}
         <div class="name-guess-error-region">
           {errorDisplay && (
-            <div role="alert" class="name-guess-error-alert">
+            <div role="alert" class="alert-error name-guess-toast">
               {errorDisplay}
             </div>
           )}
         </div>
 
-        {/* Grid Board */}
         <NameGuessBoard
           wordLength={puzzle.word_length}
           maxAttempts={puzzle.max_attempts}
           guesses={guesses}
           feedbacks={feedbacks}
           currentInput={currentInput}
-          highContrast={highContrast}
           t={t}
-        />
-
-        {/* Results Screen */}
-        {isGameOver && (
-          <NameGuessResults
-            puzzle={puzzle}
-            guesses={guesses}
-            feedbacks={feedbacks}
-            status={status}
-            locale={locale}
-            highContrast={highContrast}
-            t={t}
-            onReset={resetGame}
-          />
-        )}
-
-        {/* Virtual Keyboard */}
-        <VirtualKeyboard
-          keyStatuses={keyStatuses}
-          onChar={addLetter}
-          onEnter={submitGuess}
-          onBackspace={removeLetter}
-          highContrast={highContrast}
-          t={t}
-          disabled={isGameOver}
         />
       </div>
+
+      {isGameOver && (
+        <NameGuessResults
+          puzzle={puzzle}
+          guesses={guesses}
+          feedbacks={feedbacks}
+          status={status}
+          locale={locale}
+          highContrast={highContrast}
+          t={t}
+          onReset={resetGame}
+        />
+      )}
+
+      <VirtualKeyboard
+        keyStatuses={keyStatuses}
+        onChar={addLetter}
+        onEnter={submitGuess}
+        onBackspace={removeLetter}
+        t={t}
+        disabled={isGameOver}
+      />
     </section>
   );
 }

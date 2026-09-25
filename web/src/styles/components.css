@@ -76,7 +76,8 @@
 }
 
 /* Toggle buttons (aria-pressed) look selected when on. */
-.btn[aria-pressed="true"] {
+.btn[aria-pressed="true"],
+.btn[aria-pressed="true"]:hover:not(:disabled) {
   background: var(--color-text);
   border-color: var(--color-text);
   color: var(--color-canvas);
