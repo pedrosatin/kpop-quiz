@@ -183,4 +183,105 @@ describe("EntityPicker component", () => {
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps Tab inside the dialog", () => {
+    render(
+      <EntityPicker
+        candidatePool={sampleCandidates}
+        usedEntityIds={new Set()}
+        onSelectCandidate={vi.fn()}
+        onClose={vi.fn()}
+        locale="pt-BR"
+        messages={ptMessages}
+      />
+    );
+
+    const dialog = screen.getByRole("dialog");
+    const search = screen.getByRole("searchbox");
+    const close = screen.getByLabelText("Fechar");
+    expect(search).toHaveFocus();
+
+    // Close comes first in the dialog, the search field last.
+    fireEvent.keyDown(search, { key: "Tab" });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: "Tab", shiftKey: true });
+    expect(search).toHaveFocus();
+
+    // Focus that escaped to the page is pulled back in.
+    document.body.focus();
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it("points the search field at the highlighted option", () => {
+    render(
+      <EntityPicker
+        candidatePool={sampleCandidates}
+        usedEntityIds={new Set()}
+        onSelectCandidate={vi.fn()}
+        onClose={vi.fn()}
+        locale="pt-BR"
+        messages={ptMessages}
+      />
+    );
+
+    const search = screen.getByRole("searchbox");
+    expect(search).toHaveAttribute("aria-activedescendant", "candidate-opt-Q21461452");
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+    expect(search).toHaveAttribute("aria-activedescendant", "candidate-opt-Q25056705");
+    expect(screen.getByRole("option", { name: "BLACKPINK" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("ignores Enter on Close and a held Enter", () => {
+    const onSelect = vi.fn();
+    render(
+      <EntityPicker
+        candidatePool={sampleCandidates}
+        usedEntityIds={new Set()}
+        onSelectCandidate={onSelect}
+        onClose={vi.fn()}
+        locale="pt-BR"
+        messages={ptMessages}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByLabelText("Fechar"), { key: "Enter" });
+    fireEvent.keyDown(screen.getByRole("searchbox"), { key: "Enter", repeat: true });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("fits the backdrop to the visual viewport, above a phone keyboard", () => {
+    const listeners = new Map<string, () => void>();
+    const viewport = {
+      height: 508,
+      offsetTop: 0,
+      addEventListener: (type: string, fn: () => void) => listeners.set(type, fn),
+      removeEventListener: vi.fn(),
+    };
+    vi.stubGlobal("visualViewport", viewport);
+
+    const { unmount } = render(
+      <EntityPicker
+        candidatePool={sampleCandidates}
+        usedEntityIds={new Set()}
+        onSelectCandidate={vi.fn()}
+        onClose={vi.fn()}
+        locale="pt-BR"
+        messages={ptMessages}
+      />
+    );
+
+    const backdrop = screen.getByRole("dialog").parentElement!;
+    expect(backdrop.style.getPropertyValue("--picker-vv-height")).toBe("508px");
+
+    viewport.height = 400;
+    viewport.offsetTop = 30;
+    listeners.get("resize")!();
+    expect(backdrop.style.getPropertyValue("--picker-vv-height")).toBe("400px");
+    expect(backdrop.style.getPropertyValue("--picker-vv-top")).toBe("30px");
+
+    unmount();
+    expect(viewport.removeEventListener).toHaveBeenCalledWith("resize", expect.any(Function));
+    vi.unstubAllGlobals();
+  });
 });

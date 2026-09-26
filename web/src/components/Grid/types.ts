@@ -16,6 +16,12 @@ export interface GridCellState {
   lastAttempt?: string;
 }
 
+/** What localStorage keeps of one grid, under `kpop-grid-<grid_id>`. */
+export interface GridStoredState {
+  guessesUsed: number;
+  cells: Record<string, GridCellState>;
+}
+
 export interface GridGameState {
   status: GridGameStatus;
   grid: IntersectionGrid | null;

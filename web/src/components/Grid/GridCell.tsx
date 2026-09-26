@@ -47,12 +47,22 @@ export function GridCell({
     .filter(Boolean)
     .join(" ");
 
+  // A solved cell, or any cell once the game ends, stays focusable: the
+  // arrow keys move through it and a screen reader still reads its group.
+  const inactive = disabled || cellState.solved;
+
   return (
     <button
       type="button"
       class={cellClasses}
-      onClick={onSelect}
-      disabled={disabled || cellState.solved}
+      onClick={() => {
+        if (!inactive) onSelect();
+      }}
+      // A held Enter that picked a group must not open the next cell.
+      onKeyDown={(event) => {
+        if (event.repeat && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+      }}
+      aria-disabled={inactive}
       aria-label={ariaLabel}
       aria-pressed={isSelected}
       data-row={row}
@@ -70,7 +80,8 @@ export function GridCell({
           <span class="cell-attempt-text">{cellState.lastAttempt}</span>
         </span>
       )}
-      {!cellState.solved && !cellState.failed && (
+      {/* The plus invites a pick, so a finished board does not show it. */}
+      {!cellState.solved && !cellState.failed && !disabled && (
         <span class="cell-empty-prompt" aria-hidden="true">
           +
         </span>

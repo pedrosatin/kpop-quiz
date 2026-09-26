@@ -1,3 +1,4 @@
+import type { Ref } from "preact";
 import type { GridCriterionCategory, IntersectionGrid, Locale } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { cellKey, type CellCoordinates, type GridCellState } from "./types";
@@ -9,6 +10,7 @@ export interface GridBoardProps {
   selectedCell: CellCoordinates | null;
   onSelectCell: (row: number, col: number) => void;
   disabled: boolean;
+  boardRef?: Ref<HTMLDivElement>;
   locale: Locale;
   messages: Messages;
 }
@@ -30,6 +32,7 @@ export function GridBoard({
   selectedCell,
   onSelectCell,
   disabled,
+  boardRef,
   locale,
   messages,
 }: GridBoardProps) {
@@ -65,7 +68,7 @@ export function GridBoard({
   };
 
   return (
-    <div class="grid-board-wrapper" onKeyDown={handleKeyDown}>
+    <div class="grid-board-wrapper" {...(boardRef ? { ref: boardRef } : {})} onKeyDown={handleKeyDown}>
       <table class="grid-board-table" role="grid" aria-label={messages.gridTitle}>
         <caption class="visually-hidden">{messages.gridIntro}</caption>
         <thead>
