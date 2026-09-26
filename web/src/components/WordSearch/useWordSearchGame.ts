@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
-import { getMessages } from "../../i18n/catalog";
-import type { CellCoord, GameStatus } from "./types";
+import type { CellCoord, GameStatus, SelectionCheck } from "./types";
 import {
   getLinearPath,
-  formatTime,
   isWordMatch,
   loadStoredProgress,
   type StoredProgress,
@@ -14,7 +12,6 @@ import type { Locale } from "../../lib/quiz-types";
 
 export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   const storageKey = `kpop-word-search-${puzzle.puzzle_id}`;
-  const t = getMessages(locale).wordSearch;
 
   const initial = useMemo(() => loadStoredProgress(storageKey), [storageKey]);
   const [foundWordIds, setFoundWordIds] = useState<string[]>(initial.foundWordIds);
@@ -25,7 +22,9 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   const [focusedCell, setFocusedCell] = useState<CellCoord>({ row: 0, col: 0 });
   const [anchorCell, setAnchorCell] = useState<CellCoord | null>(null);
   const [currentHoverCell, setCurrentHoverCell] = useState<CellCoord | null>(null);
-  const [announcement, setAnnouncement] = useState<string>("");
+  // Verdict of the last finished selection, cleared when the next one starts.
+  const [lastCheck, setLastCheck] = useState<SelectionCheck | null>(null);
+  const checkCountRef = useRef(0);
 
   const focusedRef = useRef<CellCoord>(focusedCell);
   focusedRef.current = focusedCell;
@@ -94,36 +93,30 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   const checkSelection = useCallback(
     (start: CellCoord, end: CellCoord) => {
       const path = getLinearPath(start, end);
-      if (path.length < 3) return false;
+      if (path.length < 2) return false;
 
       const letters = path.map((c) => puzzle.grid[c.row]?.[c.col] ?? "").join("");
       const revLetters = letters.split("").reverse().join("");
+      const n = ++checkCountRef.current;
 
       const currentFound = foundWordIdsRef.current;
-      const match = puzzle.words.find((w) => {
-        if (currentFound.includes(w.id)) return false;
-        return isWordMatch(w, start, end, letters, revLetters, locale);
-      });
+      const matches = (w: WordSearchPuzzle["words"][number]) =>
+        path.length >= 3 && isWordMatch(w, start, end, letters, revLetters, locale);
+      const match = puzzle.words.find((w) => !currentFound.includes(w.id) && matches(w));
 
       if (match) {
-        setFoundWordIds((prev) => {
-          if (prev.includes(match.id)) return prev;
-          const nextFound = [...prev, match.id];
-          foundWordIdsRef.current = nextFound;
-          const name = match.labels[locale] || match.canonical_name;
-          if (nextFound.length === puzzle.words.length) {
-            setStatus("completed");
-            setAnnouncement(t.gameCompleteAnnouncement(puzzle.words.length, formatTime(elapsedSeconds)));
-          } else {
-            setAnnouncement(t.wordFoundAnnouncement(name, nextFound.length, puzzle.words.length));
-          }
-          return nextFound;
-        });
+        const nextFound = [...currentFound, match.id];
+        foundWordIdsRef.current = nextFound;
+        setFoundWordIds(nextFound);
+        if (nextFound.length === puzzle.words.length) setStatus("completed");
+        setLastCheck({ kind: "found", wordId: match.id, n });
         return true;
       }
+      const again = puzzle.words.find((w) => currentFound.includes(w.id) && matches(w));
+      setLastCheck(again ? { kind: "repeat", wordId: again.id, n } : { kind: "miss", letters, n });
       return false;
     },
-    [puzzle, locale, t, elapsedSeconds]
+    [puzzle, locale]
   );
 
   const handleCellPointerDown = useCallback((row: number, col: number) => {
@@ -131,6 +124,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     pointerDownCellRef.current = { row, col };
     anchorAtPointerDownRef.current = anchorRef.current;
     didDragRef.current = false;
+    setLastCheck(null);
     focusCell({ row, col });
 
     if (!anchorRef.current) {
@@ -245,6 +239,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
         setFocusedCell: focusCell,
         setAnchorCell: (cell) => {
           anchorRef.current = cell;
+          if (cell) setLastCheck(null);
           setAnchorCell(cell);
         },
         setCurrentHoverCell: (cell) => {
@@ -279,7 +274,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     anchorCell,
     activePath,
     foundCellsMap,
-    announcement,
+    lastCheck,
     handleCellPointerDown,
     handleCellPointerEnter,
     handleCellPointerUp,
