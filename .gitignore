@@ -12,3 +12,6 @@ __pycache__
 /web/.astro/
 /docs/evidence/map-game-pilot/
 .wrangler/
+
+# Local agent configuration
+/.claude/
