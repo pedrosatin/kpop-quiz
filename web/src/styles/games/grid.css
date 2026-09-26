@@ -3,6 +3,16 @@
   plus the few picker and share details the shared primitives do not cover.
 */
 
+.grid-game.game-card {
+  --game-actions-inset: var(--space-4);
+}
+
+@media (min-width: 48rem) {
+  .grid-game.game-card {
+    --game-actions-inset: var(--space-6);
+  }
+}
+
 /* Board */
 
 .grid-board-wrapper {
@@ -120,7 +130,7 @@
 }
 
 @media (hover: hover) {
-  .grid-cell-btn:hover:not(:disabled) {
+  .grid-cell-btn:hover:not([aria-disabled="true"]) {
     border-color: var(--color-action);
     background: var(--color-surface-muted);
   }
@@ -136,11 +146,14 @@
   background: var(--color-surface-muted);
 }
 
+.grid-cell-btn[aria-disabled="true"] {
+  cursor: default;
+}
+
 .grid-cell-btn.solved {
   border-color: var(--color-success-text);
   background: var(--color-success-bg);
   color: var(--color-success-text);
-  cursor: default;
 }
 
 .grid-cell-btn.failed {
@@ -167,6 +180,16 @@
   text-decoration: line-through;
 }
 
+/* A long name must not grow its row; the cell label keeps the full name. */
+.cell-solved-name strong,
+.cell-attempt-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
 .cell-empty-prompt {
   color: var(--color-text-muted);
   font-size: 1.5rem;
@@ -178,11 +201,33 @@
   font-weight: 700;
 }
 
-/* Picker: the search field and alert stay put while the list scrolls. */
+/*
+  Picker: the search field and alert stay put while the list scrolls. The
+  backdrop follows the visual viewport (set by EntityPicker), so with a
+  phone keyboard open the dialog sits above it and the list shrinks.
+*/
+
+.grid-picker-backdrop {
+  inset: auto 0;
+  top: var(--picker-vv-top, 0px);
+  height: var(--picker-vv-height, 100dvh);
+}
 
 .grid-picker {
   gap: var(--space-3);
+  max-height: 100%;
   overflow: hidden;
+}
+
+@media (max-width: 30rem) {
+  .grid-picker-backdrop {
+    align-items: flex-start;
+    padding: var(--space-2);
+  }
+
+  .grid-picker {
+    padding: var(--space-4);
+  }
 }
 
 /* Reserve one alert line so the list does not jump when an error appears. */
@@ -194,6 +239,7 @@
   flex: 1 1 auto;
   min-height: 0;
   max-height: 45vh;
+  max-height: 45dvh;
   margin: 0;
   padding: 0;
   overflow-y: auto;
@@ -248,15 +294,224 @@
   text-align: center;
 }
 
-/* Share matrix: emoji squares read better centered and larger. */
+/*
+  At the end the bar holds the result, about 245px tall on a phone and up
+  to 175px on a desktop when the verdict of the last guess takes a second
+  line, and would cover the last row. The icon moves beside the name, names
+  keep two lines and the rows get shorter, so all nine cells stay above the
+  bar at 390x844 and 1440x900. On phones a right cell drops its check mark
+  to keep the name's width; a wrong one still has the cross and the
+  strike-through, so the states differ by more than color.
+*/
+.grid-game:has(.grid-result) :is(.cell-solved-name, .cell-failed-status) {
+  flex-direction: row;
+  gap: 0.2rem;
+}
 
-.grid-share-matrix {
-  max-width: 12rem;
-  font-size: 1.5rem;
-  letter-spacing: 0.25rem;
-  line-height: 1.4;
-  text-align: center;
-  user-select: all;
+.grid-game:has(.grid-result) :is(.cell-solved-name strong, .cell-attempt-text) {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+@media (min-width: 30rem) {
+  .grid-game:has(.grid-result) .grid-cell-wrapper {
+    height: 3.5rem;
+  }
+
+  .grid-game:has(.grid-result) .grid-cell-btn {
+    min-height: 3.5rem;
+  }
+}
+
+@media (max-width: 30rem) {
+  .grid-game:has(.grid-result) .criterion-category,
+  .grid-game:has(.grid-result) .cell-solved-name .cell-icon {
+    display: none;
+  }
+
+  .grid-game:has(.grid-result) .grid-cell-wrapper {
+    height: var(--control-height);
+  }
+
+  .grid-game:has(.grid-result) .grid-cell-btn {
+    min-height: var(--control-height);
+  }
+}
+
+/* Action bar: verdict and counters while playing, the result at the end */
+
+.grid-actions {
+  flex-wrap: nowrap;
+  column-gap: var(--space-3);
+}
+
+/* The message always takes two lines, so a verdict does not grow the bar. */
+.grid-message {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: calc(2lh + 0.2rem);
+}
+
+.grid-message.visually-hidden {
+  min-height: 0;
+}
+
+.grid-message p {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.grid-progress {
+  flex: 0 0 auto;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.grid-progress p {
+  margin: 0;
+}
+
+.grid-actions:has(.grid-result) {
+  flex-wrap: wrap;
+}
+
+.grid-result {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-5);
+}
+
+.grid-verdict {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+}
+
+.grid-result-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+}
+
+.grid-result-summary {
+  margin: 0;
+}
+
+.grid-result-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.grid-share-toggle {
+  flex: 1 1 100%;
+  min-height: var(--control-height);
+  color: inherit;
+}
+
+/* Only after share and copy both fail: the text to copy by hand. */
+.grid-share-fallback {
+  flex: 1 1 100%;
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.grid-share-fallback p {
+  margin: 0;
+}
+
+.grid-share-fallback .share-preview {
+  max-width: none;
+}
+
+@media (max-width: 30rem) {
+  .grid-result-buttons {
+    display: grid;
+    flex: 1 1 100%;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .grid-result-buttons > .btn-primary {
+    grid-column: 1 / -1;
+  }
+
+  .grid-result-buttons > .btn {
+    padding-inline: var(--space-2);
+  }
+}
+
+/*
+  The answers panel opens inside the bar, like the quiz source: long text
+  scrolls inside it. A sticky bar that tall would cover the board, so the bar
+  stops being sticky while the panel is open; opening it scrolls it into view.
+*/
+.grid-source {
+  flex: 1 1 100%;
+  max-height: min(40dvh, 18rem);
+  overflow-y: auto;
+  scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3));
+  color: var(--color-text);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+@media (max-height: 30rem) {
+  .grid-source {
+    max-height: 30dvh;
+  }
+}
+
+.grid-source[hidden] {
+  display: none;
+}
+
+.grid-actions:has(.grid-source:not([hidden])) {
+  position: static;
+}
+
+.grid-review {
+  margin: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.grid-review .review-section-title {
+  margin-bottom: var(--space-2);
+  font-size: 1rem;
+}
+
+.grid-review .review-item {
+  padding: var(--space-3);
+}
+
+.grid-sources ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}
+
+.grid-sources li {
+  overflow-wrap: anywhere;
+}
+
+.grid-source-locator {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
 }
 
 @media (forced-colors: active) {

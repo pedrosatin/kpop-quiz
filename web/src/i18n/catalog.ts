@@ -192,16 +192,23 @@ export interface Messages {
   gridGameOverTitle: string;
   gridGameOverSummary: (correct: number, guesses: number) => string;
   gridShareButton: string;
-  gridCopyButton: string;
-  gridCopiedNotice: string;
   gridHighContrastShare: string;
+  gridHint: string;
+  gridGuessRight: (groupName: string) => string;
+  gridGuessWrong: (groupName: string) => string;
   gridReviewTitle: string;
+  gridReviewCorrect: string;
+  gridReviewWrong: string;
+  gridReviewEmpty: string;
+  gridSourcesSummary: (count: number) => string;
+  gridSourceLocator: string;
+  gridLocatorExtract: (start: number, end: number) => string;
+  gridLocatorClaim: (property: string) => string;
   gridReviewCellHeader: (row: number, col: number) => string;
   gridAcceptedAnswers: string;
   gridRestart: string;
   gridShareHeader: (date: string, correct: number, guesses: number) => string;
   gridAxesHeader: string;
-  gridShareMatrixAriaLabel: string;
   gridCategoryDebut: string;
   gridCategoryAgency: string;
   gridCategoryMembers: string;
@@ -449,16 +456,23 @@ const catalogs: Record<Locale, Messages> = {
     gridGameOverTitle: "Fim da partida",
     gridGameOverSummary: (correct, guesses) => `${correct} de 9 casas certas com ${guesses} palpites`,
     gridShareButton: "Compartilhar resultado",
-    gridCopyButton: "Copiar resultado",
-    gridCopiedNotice: "Resultado copiado.",
     gridHighContrastShare: "Versão sem cores (alto contraste)",
+    gridHint: "Escolha uma casa e um grupo para ela.",
+    gridGuessRight: (groupName) => `Certa: ${groupName}.`,
+    gridGuessWrong: (groupName) => `Errada: ${groupName}.`,
     gridReviewTitle: "Respostas e fontes",
+    gridReviewCorrect: "Certa",
+    gridReviewWrong: "Errada",
+    gridReviewEmpty: "Vazia",
+    gridSourcesSummary: (count) => (count === 1 ? "1 fonte" : `${count} fontes`),
+    gridSourceLocator: "Local na fonte:",
+    gridLocatorExtract: (start, end) => `caracteres ${start} a ${end} do resumo`,
+    gridLocatorClaim: (property) => `declaração ${property} e sua referência`,
     gridReviewCellHeader: (row, col) => `Linha ${row + 1}, coluna ${col + 1}`,
     gridAcceptedAnswers: "Respostas aceitas:",
     gridRestart: "Jogar novamente",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 acertos (${guesses} palpites)`,
     gridAxesHeader: "Critérios",
-    gridShareMatrixAriaLabel: "Resultado da grade",
     gridCategoryDebut: "Estreia",
     gridCategoryAgency: "Agência",
     gridCategoryMembers: "Integrantes",
@@ -769,16 +783,23 @@ const catalogs: Record<Locale, Messages> = {
     gridGameOverTitle: "Game over",
     gridGameOverSummary: (correct, guesses) => `${correct} of 9 squares correct in ${guesses} guesses`,
     gridShareButton: "Share result",
-    gridCopyButton: "Copy result",
-    gridCopiedNotice: "Result copied.",
     gridHighContrastShare: "No-color version (high contrast)",
+    gridHint: "Pick a square, then a group for it.",
+    gridGuessRight: (groupName) => `Correct: ${groupName}.`,
+    gridGuessWrong: (groupName) => `Wrong: ${groupName}.`,
     gridReviewTitle: "Answers and sources",
+    gridReviewCorrect: "Correct",
+    gridReviewWrong: "Wrong",
+    gridReviewEmpty: "Empty",
+    gridSourcesSummary: (count) => (count === 1 ? "1 source" : `${count} sources`),
+    gridSourceLocator: "Location in source:",
+    gridLocatorExtract: (start, end) => `extract characters ${start}–${end}`,
+    gridLocatorClaim: (property) => `statement ${property} and its reference`,
     gridReviewCellHeader: (row, col) => `Row ${row + 1}, column ${col + 1}`,
     gridAcceptedAnswers: "Accepted answers:",
     gridRestart: "Play again",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 correct (${guesses} guesses)`,
     gridAxesHeader: "Rules",
-    gridShareMatrixAriaLabel: "Grid result",
     gridCategoryDebut: "Debut",
     gridCategoryAgency: "Agency",
     gridCategoryMembers: "Members",

@@ -32,12 +32,33 @@ export function EntityPicker({
   const titleId = useId();
   const listboxId = useId();
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // The owner returns focus when the picker closes: to the cell after Close
+  // or Escape, and to the next open cell after a guess.
   useEffect(() => {
-    // Return focus to the cell that opened the picker once it closes.
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  // A phone keyboard covers the bottom of the layout viewport without
+  // resizing it, so the backdrop follows the visual viewport and the list
+  // shrinks to the part of the screen above the keyboard.
+  useEffect(() => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    const backdrop = backdropRef.current;
+    if (!vv || !backdrop) return;
+    const fit = () => {
+      backdrop.style.setProperty("--picker-vv-top", `${vv.offsetTop}px`);
+      backdrop.style.setProperty("--picker-vv-height", `${vv.height}px`);
+    };
+    fit();
+    vv.addEventListener("resize", fit);
+    vv.addEventListener("scroll", fit);
     return () => {
-      if (opener?.isConnected && !opener.hasAttribute("disabled")) opener.focus();
+      vv.removeEventListener("resize", fit);
+      vv.removeEventListener("scroll", fit);
     };
   }, []);
 
@@ -55,18 +76,50 @@ export function EntityPicker({
     setActiveIndex(0);
   }, [query]);
 
+  const activeCandidate = filtered[activeIndex];
+  const activeOptionId = activeCandidate ? `candidate-opt-${activeCandidate.id}` : undefined;
+
+  // Arrow keys move the highlight; keep it inside the scrolled list.
+  useEffect(() => {
+    if (!activeOptionId) return;
+    const option = listRef.current?.querySelector<HTMLElement>(`[id="${activeOptionId}"]`);
+    option?.scrollIntoView?.({ block: "nearest" });
+  }, [activeOptionId]);
+
+  // Tab and Shift+Tab cycle between the search field and Close, so focus
+  // never reaches the page behind the dialog.
+  const trapTab = (e: KeyboardEvent) => {
+    const focusables = [
+      ...(dialogRef.current?.querySelectorAll<HTMLElement>("button, input, [href], [tabindex]:not([tabindex='-1'])") ?? []),
+    ].filter((el) => !el.hasAttribute("disabled"));
+    if (focusables.length === 0) return;
+    const first = focusables[0]!;
+    const last = focusables[focusables.length - 1]!;
+    const active = document.activeElement;
+    if (e.shiftKey && (active === first || !dialogRef.current?.contains(active))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (active === last || !dialogRef.current?.contains(active))) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
       e.preventDefault();
       onClose();
+    } else if (e.key === "Tab") {
+      trapTab(e);
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIndex((prev) => (filtered.length > 0 ? Math.min(prev + 1, filtered.length - 1) : 0));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActiveIndex((prev) => Math.max(prev - 1, 0));
-    } else if (e.key === "Enter") {
+    } else if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement)) {
       e.preventDefault();
+      if (e.repeat) return;
       const selected = filtered[activeIndex];
       if (selected) {
         onSelectCandidate(selected);
@@ -75,8 +128,13 @@ export function EntityPicker({
   };
 
   return (
-    <div class="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      ref={backdropRef}
+      class="modal-backdrop grid-picker-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div
+        ref={dialogRef}
         class="modal-card grid-picker"
         role="dialog"
         aria-modal="true"
@@ -127,8 +185,12 @@ export function EntityPicker({
             onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
             placeholder={messages.gridPickerSearchPlaceholder}
             autocomplete="off"
+            // The list stays open under the field while the picker is open.
+            role="combobox"
+            aria-expanded="true"
             aria-autocomplete="list"
             aria-controls={listboxId}
+            aria-activedescendant={activeOptionId}
           />
         </div>
 
@@ -137,6 +199,7 @@ export function EntityPicker({
         </div>
 
         <ul
+          ref={listRef}
           id={listboxId}
           class="picker-candidate-list"
           role="listbox"
