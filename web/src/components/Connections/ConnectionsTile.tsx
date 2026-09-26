@@ -1,5 +1,15 @@
 import type { ConnectionsTileProps } from "./types";
 
+/**
+ * Splits a name after ":", "-", "." or "/" ("DAILY:" + "DIRECTION"). The
+ * tile marks those places as break points that stay off until the name
+ * does not fit at the smallest font (see fitTileText).
+ */
+export function tileNameParts(name: string): string[] {
+  // No lookbehind: Safari before 16.4 fails to parse it and drops the chunk.
+  return name.replace(/([:\-./])(?=\S)/g, "$1\n").split("\n");
+}
+
 export function ConnectionsTile({
   item,
   isSelected,
@@ -20,7 +30,14 @@ export function ConnectionsTile({
       disabled={disabled}
       onClick={() => onToggle(item.id)}
     >
-      <span class="connections-tile-text">{displayName}</span>
+      <span class="connections-tile-text">
+        {tileNameParts(displayName).map((part, index) => (
+          <span key={index}>
+            {index > 0 && <span class="connections-tile-break">{"\u200B"}</span>}
+            {part}
+          </span>
+        ))}
+      </span>
     </button>
   );
 }

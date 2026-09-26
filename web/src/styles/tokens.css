@@ -117,6 +117,9 @@
       390x844    above 34.5rem (551px)   answered bar 11rem (168px + 0.5rem gap)
     Phones get their own values below. The floor keeps a board on screen on
     short landscape viewports.
+    Connections (--cx-above in games/connections.css) and Name guess
+    (--ng-above in games/name-guess.css) keep their own budgets; measure
+    them again when the header or GameIntro changes.
   */
   --play-above: 30.5rem;
   --play-bar-answered: 6.75rem;

@@ -18,7 +18,6 @@ export function CategoryBanner({
     .join(", ");
 
   const categoryLabel = category.label[locale] || category.label["pt-BR"];
-  const categoryExplanation = category.explanation[locale] || category.explanation["pt-BR"];
 
   const ariaDescription = messages.connectionsCategorySolvedAria
     ? messages.connectionsCategorySolvedAria(category.difficulty_level, categoryLabel, itemNames)
@@ -36,7 +35,6 @@ export function CategoryBanner({
           {categoryLabel}
         </h3>
         <p class="connections-banner-items">{itemNames}</p>
-        <p class="connections-banner-explanation">{categoryExplanation}</p>
       </div>
     </div>
   );

@@ -22,15 +22,21 @@ export function loadSavedState(key: string | null): ConnectionsStoredState | nul
     if (!saved) return null;
     const p: ConnectionsStoredState = JSON.parse(saved);
     if (
-      Array.isArray(p.boardItemIds) &&
-      p.boardItemIds.length > 0 &&
-      Array.isArray(p.solvedCategoryIds) &&
-      Array.isArray(p.guessHistory) &&
-      typeof p.mistakesRemaining === "number" &&
-      typeof p.gameStatus === "string"
+      !Array.isArray(p.boardItemIds) ||
+      !Array.isArray(p.solvedCategoryIds) ||
+      !Array.isArray(p.guessHistory) ||
+      typeof p.mistakesRemaining !== "number"
     ) {
-      return p;
+      return null;
     }
+    // A finished game keeps an empty board; one in progress never has one.
+    // A win has all four categories solved. Anything else is discarded, so a
+    // broken save never shows a result the player did not reach.
+    if (p.gameStatus === "in_progress") return p.boardItemIds.length > 0 ? p : null;
+    if (p.gameStatus !== "won" && p.gameStatus !== "lost") return null;
+    if (p.boardItemIds.length > 0) return null;
+    if (p.gameStatus === "won" && new Set(p.solvedCategoryIds).size !== 4) return null;
+    return p;
   } catch {}
   return null;
 }
@@ -103,7 +109,7 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
     if (isRepeat) {
       setAlreadyGuessedFeedback(true);
       setProximityFeedback(false);
-      return { success: false, oneAway: false };
+      return { success: false, oneAway: false, alreadyGuessed: true };
     }
 
     setGuessHistory((prev) => [...prev, selectedItemIds]);

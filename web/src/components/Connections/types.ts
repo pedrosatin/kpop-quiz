@@ -4,6 +4,7 @@ import type {
   ConnectionsPuzzle,
   Locale,
 } from "../../lib/quiz-types";
+import type { RefObject } from "preact";
 import type { Messages } from "../../i18n/catalog";
 
 export type ConnectionsGameStatus = "in_progress" | "won" | "lost";
@@ -21,6 +22,8 @@ export interface ConnectionsStoredState {
 export interface GuessResult {
   success: boolean;
   oneAway: boolean;
+  /** The same four names were already submitted; no mistake is counted. */
+  alreadyGuessed?: boolean;
   category?: ConnectionsCategory;
 }
 
@@ -39,6 +42,7 @@ export interface ConnectionsBoardProps {
   selectedItemIds: string[];
   onToggleItem: (id: string) => void;
   disabled?: boolean;
+  gridRef?: RefObject<HTMLDivElement> | undefined;
   locale: Locale;
   messages: Messages;
 }
@@ -72,6 +76,11 @@ export interface ConnectionsResultsProps {
   guessHistory: string[][];
   mistakesRemaining: number;
   onRestart: () => void;
+  /** Called after the share text reaches the clipboard. */
+  onCopied?: () => void;
+  /** Called when neither the share sheet nor the clipboard took the text. */
+  onShareFailed?: () => void;
+  titleRef?: RefObject<HTMLHeadingElement> | undefined;
   locale: Locale;
   messages: Messages;
 }

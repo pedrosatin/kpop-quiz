@@ -15,6 +15,7 @@ import {
   markGameMatchRecorded,
   recordGameFinish,
 } from "../../lib/player-stats";
+import { useFocusOnChange } from "../../lib/use-focus-on-change";
 
 export interface ConnectionsGameContentProps {
   puzzle: ConnectionsPuzzle;
@@ -22,6 +23,15 @@ export interface ConnectionsGameContentProps {
   messages: Messages;
   onReload?: () => void;
 }
+
+/** How long Submit ignores a second activation after a guess. */
+export const SUBMIT_GUARD_MS = 300;
+
+type Feedback =
+  | { kind: "solved"; categoryId: string }
+  | { kind: "wrong" | "oneAway" | "repeat" }
+  // n changes on every share, so the same message is announced again.
+  | { kind: "copied" | "shareFailed"; n: number };
 
 export function ConnectionsGameContent({
   puzzle,
@@ -35,8 +45,6 @@ export function ConnectionsGameContent({
     guessHistory,
     gameStatus,
     boardItemIds,
-    proximityFeedback,
-    alreadyGuessedFeedback,
     toggleSelectItem,
     clearSelection,
     shuffleItems,
@@ -51,6 +59,67 @@ export function ConnectionsGameContent({
   }, [puzzle, boardItemIds]);
 
   const isGameOver = gameStatus === "won" || gameStatus === "lost";
+
+  // The verdict of the last guess shows in the action bar until the next
+  // tile or Clear. It never sits above the board, so the tiles do not move.
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const shares = useRef(0);
+
+  // Only a game finished in this visit moves focus to the result; a game
+  // restored from storage leaves focus where the page put it.
+  const playedHere = useRef(false);
+  const lastSubmitAt = useRef(-Infinity);
+  const grid = useRef<HTMLDivElement>(null);
+  const resultTitle = useRef<HTMLHeadingElement>(null);
+  const [solvedHere, setSolvedHere] = useState(0);
+  const [restarts, setRestarts] = useState(0);
+
+  const toggle = useCallback((id: string) => {
+    setFeedback(null);
+    toggleSelectItem(id);
+  }, [toggleSelectItem]);
+
+  // Clear disables itself, so focus moves to the board instead of the page.
+  const clear = useCallback(() => {
+    setFeedback(null);
+    clearSelection();
+    grid.current?.querySelector<HTMLButtonElement>(".connections-tile")?.focus({ preventScroll: true });
+  }, [clearSelection]);
+
+  // A double click or a held Enter would send the same four names again and
+  // replace the verdict with "already tried".
+  const submit = useCallback(() => {
+    const now = performance.now();
+    if (now - lastSubmitAt.current < SUBMIT_GUARD_MS) return;
+    lastSubmitAt.current = now;
+    playedHere.current = true;
+    const result = submitGuess();
+    if (result.success && result.category) {
+      setFeedback({ kind: "solved", categoryId: result.category.id });
+      setSolvedHere((n) => n + 1);
+    } else if (result.alreadyGuessed) {
+      setFeedback({ kind: "repeat" });
+    } else {
+      setFeedback({ kind: result.oneAway ? "oneAway" : "wrong" });
+    }
+  }, [submitGuess]);
+
+  const restart = useCallback(() => {
+    setFeedback(null);
+    restartGame();
+    setRestarts((n) => n + 1);
+  }, [restartGame]);
+
+  // A solved group takes its four tiles and disables Submit, so focus moves
+  // to the first tile left instead of falling to the page. Play again does
+  // the same with the new board.
+  const focusStep = `${solvedHere}:${restarts}`;
+  const refocusBoard = !isGameOver && (solvedHere > 0 || restarts > 0);
+  useEffect(() => {
+    if (!refocusBoard) return;
+    grid.current?.querySelector<HTMLButtonElement>(".connections-tile")?.focus({ preventScroll: true });
+  }, [refocusBoard, focusStep]);
+  useFocusOnChange(resultTitle, isGameOver && playedHere.current);
 
   const recordedMatchRef = useRef<string | null>(null);
 
@@ -68,6 +137,38 @@ export function ConnectionsGameContent({
     }
   }, [isGameOver, gameStatus, puzzle]);
 
+  let message = null;
+  if (isGameOver) {
+    // A new key replaces the paragraph, so a second copy is announced again.
+    if (feedback?.kind === "copied") message = <p key={feedback.n}>{messages.copiedToClipboard}</p>;
+    else if (feedback?.kind === "shareFailed") message = <p key={feedback.n}>{messages.shareFailed}</p>;
+  } else if (feedback?.kind === "solved") {
+    const category = puzzle.categories.find((c) => c.id === feedback.categoryId);
+    if (category) {
+      message = (
+        <p class="connections-feedback">
+          <strong class="game-actions-title">
+            {messages.connectionsSolved(category.label[locale] || category.label["pt-BR"])}
+          </strong>{" "}
+          {category.explanation[locale] || category.explanation["pt-BR"]}
+        </p>
+      );
+    }
+  } else if (feedback?.kind === "oneAway") {
+    message = <p class="connections-feedback game-actions-title">{messages.connectionsOneAway}</p>;
+  } else if (feedback?.kind === "wrong") {
+    message = <p class="connections-feedback game-actions-title">{messages.connectionsWrong}</p>;
+  } else if (feedback?.kind === "repeat") {
+    message = <p class="connections-feedback game-actions-title">{messages.connectionsAlreadyGuessed}</p>;
+  } else {
+    message = <p class="game-actions-hint">{messages.connectionsHint}</p>;
+  }
+
+  let barState = "";
+  if (isGameOver) barState = gameStatus === "won" ? " is-correct" : " is-incorrect";
+  else if (feedback?.kind === "solved") barState = " is-correct";
+  else if (feedback?.kind === "wrong" || feedback?.kind === "oneAway") barState = " is-incorrect";
+
   return (
     <section id="connections" class="game-card connections-game" aria-labelledby="connections-heading">
       <header class="game-hud connections-hud">
@@ -77,65 +178,68 @@ export function ConnectionsGameContent({
         <MistakesRemaining mistakesRemaining={mistakesRemaining} messages={messages} />
       </header>
 
-      {proximityFeedback && (
-        <div class="alert-warning" role="status" aria-live="polite">
-          {messages.connectionsOneAway}
-        </div>
-      )}
-
-      {alreadyGuessedFeedback && (
-        <div class="alert-warning" role="status" aria-live="polite">
-          {messages.connectionsAlreadyGuessed}
-        </div>
-      )}
-
       <ConnectionsBoard
         categories={puzzle.categories}
         solvedCategoryIds={solvedCategoryIds}
         boardItems={boardItems}
         allItems={puzzle.items}
         selectedItemIds={selectedItemIds}
-        onToggleItem={toggleSelectItem}
+        onToggleItem={toggle}
         disabled={isGameOver}
+        gridRef={grid}
         locale={locale}
         messages={messages}
       />
 
-      {!isGameOver && (
-        <div class="btn-row connections-controls">
-          <button type="button" class="btn btn-secondary" onClick={shuffleItems}>
-            {messages.connectionsShuffle}
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            disabled={selectedItemIds.length === 0}
-            onClick={clearSelection}
-          >
-            {messages.connectionsDeselectAll}
-          </button>
-          <button
-            type="button"
-            class="btn btn-primary"
-            disabled={selectedItemIds.length !== 4}
-            onClick={submitGuess}
-          >
-            {messages.connectionsSubmit}
-          </button>
+      {/* Controls while playing, the result at the end; the board above never moves. */}
+      <div class={`game-actions connections-actions${barState}`}>
+        {/* Mounted from the start so the first verdict is announced. At the end
+            the result title takes the screen, and this only announces the copy. */}
+        <div
+          class={`game-actions-message connections-message${isGameOver ? " visually-hidden" : ""}`}
+          role="status"
+          aria-live="polite"
+        >
+          {message}
         </div>
-      )}
-
-      {isGameOver && (
-        <ConnectionsResults
-          puzzle={puzzle}
-          gameStatus={gameStatus}
-          guessHistory={guessHistory}
-          mistakesRemaining={mistakesRemaining}
-          onRestart={restartGame}
-          locale={locale}
-          messages={messages}
-        />
-      )}
+        {isGameOver ? (
+          <ConnectionsResults
+            puzzle={puzzle}
+            gameStatus={gameStatus}
+            guessHistory={guessHistory}
+            mistakesRemaining={mistakesRemaining}
+            onRestart={restart}
+            onCopied={() => setFeedback({ kind: "copied", n: ++shares.current })}
+            onShareFailed={() => setFeedback({ kind: "shareFailed", n: ++shares.current })}
+            titleRef={resultTitle}
+            locale={locale}
+            messages={messages}
+          />
+        ) : (
+          <div class="connections-controls">
+            <button type="button" class="btn btn-secondary" onClick={shuffleItems}>
+              {messages.connectionsShuffle}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              disabled={selectedItemIds.length === 0}
+              onClick={clear}
+            >
+              {messages.connectionsDeselectAll}
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              disabled={selectedItemIds.length !== 4}
+              onKeyDown={(event) => { if (event.repeat) event.preventDefault(); }}
+              onClick={submit}
+            >
+              {messages.connectionsSubmit}
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
