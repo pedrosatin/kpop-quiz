@@ -5,9 +5,10 @@ import validPuzzleJson from "../../tests/fixtures/connections.daily.json";
 import { getMessages } from "../../i18n/catalog";
 import type { ConnectionsPuzzle } from "../../lib/quiz-types";
 import { CategoryBanner } from "./CategoryBanner";
-import { ConnectionsBoard } from "./ConnectionsBoard";
+import { ConnectionsBoard, fitTileText } from "./ConnectionsBoard";
 import { ConnectionsGame } from "./ConnectionsGame";
 import { ConnectionsResults } from "./ConnectionsResults";
+import { tileNameParts } from "./ConnectionsTile";
 import { MistakesRemaining } from "./MistakesRemaining";
 
 const puzzle = validPuzzleJson as unknown as ConnectionsPuzzle;
@@ -140,5 +141,82 @@ describe("Automated accessibility audits with axe-core for Connections", () => {
     );
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);
+  });
+
+  it("validates the result with the source panel open with zero violations", async () => {
+    const guessHistory = puzzle.categories.map((c) => c.item_ids);
+    const { container, getByRole } = render(
+      <ConnectionsResults
+        puzzle={puzzle}
+        gameStatus="won"
+        guessHistory={guessHistory}
+        mistakesRemaining={4}
+        onRestart={vi.fn()}
+        locale="pt-BR"
+        messages={ptMessages}
+      />
+    );
+    fireEvent.click(getByRole("button", { name: ptMessages.showSource }));
+    const results = await axe.run(container);
+    expect(results.violations).toEqual([]);
+  });
+});
+
+describe("fitTileText", () => {
+  // A fake layout: the text is as wide as its font size times its length.
+  function fakeTile(chars: number, width: number, height = 60) {
+    const tile = document.createElement("button");
+    const text = document.createElement("span");
+    text.className = "connections-tile-text";
+    tile.append(text);
+    Object.defineProperty(tile, "clientHeight", { value: height });
+    Object.defineProperty(text, "clientWidth", { value: width });
+    Object.defineProperty(text, "scrollWidth", { configurable: true, get: () => parseFloat(text.style.fontSize) * 0.6 * chars });
+    Object.defineProperty(text, "offsetHeight", { get: () => parseFloat(text.style.fontSize) * 1.2 });
+    return { tile, text };
+  }
+
+  it("keeps the largest size when the name fits", () => {
+    const { tile, text } = fakeTile(5, 140);
+    fitTileText(tile, 16);
+    expect(text.style.fontSize).toBe("15px");
+    expect(text).not.toHaveClass("is-broken");
+  });
+
+  it("shrinks a long word until it fits", () => {
+    const { tile, text } = fakeTile(10, 80);
+    fitTileText(tile, 16);
+    const size = parseFloat(text.style.fontSize);
+    expect(size).toBeLessThan(15);
+    expect(size * 0.6 * 10).toBeLessThanOrEqual(80.5);
+    expect(text).not.toHaveClass("is-broken");
+  });
+
+  it("uses the break points after punctuation before breaking inside a word", () => {
+    const { tile, text } = fakeTile(15, 70);
+    const breakMark = document.createElement("span");
+    breakMark.className = "connections-tile-break";
+    text.append(breakMark);
+    // With the break points on, the widest piece is 9 characters.
+    Object.defineProperty(text, "scrollWidth", {
+      get: () => parseFloat(text.style.fontSize) * 0.6 * (text.classList.contains("has-breaks") ? 9 : 15),
+    });
+    fitTileText(tile, 16);
+    expect(text).toHaveClass("has-breaks");
+    expect(text).not.toHaveClass("is-broken");
+    expect(parseFloat(text.style.fontSize) * 0.6 * 9).toBeLessThanOrEqual(70.5);
+  });
+
+  it("splits names after punctuation only", () => {
+    expect(tileNameParts("DAILY:DIRECTION")).toEqual(["DAILY:", "DIRECTION"]);
+    expect(tileNameParts("G-Friend")).toEqual(["G-", "Friend"]);
+    expect(tileNameParts("Kiss of Life")).toEqual(["Kiss of Life"]);
+  });
+
+  it("lets a word break inside only below the smallest size", () => {
+    const { tile, text } = fakeTile(14, 70);
+    fitTileText(tile, 16);
+    expect(text.style.fontSize).toBe("11px");
+    expect(text).toHaveClass("is-broken");
   });
 });

@@ -1,17 +1,66 @@
 /*
-  Connections: board, tiles, solved-category banners and the mistakes dots.
-  The card, HUD, alerts, buttons and result screen come from components.css.
+  Connections: board, tiles, solved-category banners, the mistakes dots and
+  the result in the action bar. The card, HUD, buttons and the sticky
+  .game-actions bar come from components.css.
+
+  The controls live in the bar; the verdict of each guess shows there too,
+  in a message area that always takes two lines, so a guess never moves the
+  board. A solved category's banner takes the height of the row it replaces.
 */
 
 .connections-game {
+  --game-actions-inset: var(--space-4);
+  --cx-gap: var(--space-2);
+  /*
+    Height budget: the rows shrink so the board and the whole bar fit the
+    viewport. Measured at 390x844 and 1440x900, worst of both locales:
+      --cx-above    page top to the board: site header, game nav, GameIntro
+                    with its "How to play" line, card padding and the HUD
+      --cx-actions  the bar (two-line message, controls, padding) and the
+                    margin above it
+    To remeasure, load the game scrolled to the top and read the board's
+    getBoundingClientRect().top for --cx-above, and the bar's height plus
+    its margin-top for --cx-actions; keep the largest of each. Rows stop at
+    --control-height, the touch target; below that the page scrolls and the
+    sticky bar stays.
+  */
+  --cx-above: 25.5rem;
+  --cx-actions: 8.75rem;
+  --cx-row: clamp(
+    var(--control-height),
+    (100dvh - var(--consent-banner-height, 0px) - var(--cx-above) - var(--cx-actions) - 3 * var(--cx-gap)) / 4,
+    4.5rem
+  );
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+}
+
+@media (min-width: 48rem) {
+  .connections-game {
+    --game-actions-inset: var(--space-6);
+    --cx-actions: 9.5rem;
+  }
+}
+
+/*
+  At the end every row is a banner and the bar holds the result, which is
+  taller than the controls. The banners give up height so all four stay
+  above the bar: the budget uses the result bar instead (measured the same
+  way, with the result of a lost game, whose summary is the longest).
+*/
+.connections-game:has(.connections-result) {
+  --cx-actions: 14rem;
+}
+
+@media (min-width: 48rem) {
+  .connections-game:has(.connections-result) {
+    --cx-actions: 10.75rem;
+  }
 }
 
 .connections-hud {
   justify-content: center;
-  margin-bottom: 0;
+  margin-bottom: var(--space-3);
 }
 
 /* Mistakes left, one dot per attempt */
@@ -44,13 +93,19 @@
 .connections-solved-categories {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--cx-gap);
 }
 
 /* Solved-category banners, colored by difficulty level */
 
+/* A banner replaces one row of tiles and keeps its height; a list of names
+   too long for two lines grows it. */
 .connections-banner {
-  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--cx-row);
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-control);
   text-align: center;
 }
@@ -78,61 +133,78 @@
 .connections-banner-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 0.125rem;
 }
 
 .connections-banner-title {
   margin: 0;
   font-family: var(--font-body);
-  font-size: 1.0625rem;
+  font-size: 0.9375rem;
   font-weight: 700;
+  line-height: 1.25;
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .connections-banner-items {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
+  line-height: 1.25;
 }
 
-.connections-banner-explanation {
-  margin: 0;
-  font-size: 0.8125rem;
-}
-
-/* Tiles */
+/* Tiles: four columns at every width, rows sized by --cx-row */
 
 .connections-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-2);
-}
-
-@media (max-width: 480px) {
-  .connections-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: var(--cx-row);
+  gap: var(--cx-gap);
 }
 
 .connections-tile {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 4.5rem;
-  padding: var(--space-2);
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: var(--space-1) 0.125rem;
   border: 2px solid var(--color-border-subtle);
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
   color: var(--color-text);
   font-family: inherit;
-  font-size: 0.9375rem;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.2;
   text-align: center;
-  overflow-wrap: anywhere;
   cursor: pointer;
   transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+/*
+  ConnectionsBoard sets the font size of each name so every word fits on one
+  line (fitTileText, 15px down to 11px). If none fits, the name may break
+  after ":", "-", "." or "/" (has-breaks), and a word still too wide at 11px breaks
+  inside (is-broken), with a hyphen where the browser knows the language.
+*/
+.connections-tile-text {
+  display: block;
+  max-width: 100%;
+  font-size: 0.9375rem;
+  overflow-wrap: normal;
+}
+
+.connections-tile-break {
+  display: none;
+}
+
+.connections-tile-text.has-breaks .connections-tile-break {
+  display: inline;
+}
+
+.connections-tile-text.is-broken {
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 /* Hover only tints the background and darkens the border: the text keeps the
@@ -161,12 +233,184 @@
   cursor: not-allowed;
 }
 
-/* Result screen sits below the board, inside the same card */
+/* Action bar: controls while playing, the result at the end */
 
-.connections-results {
-  margin-top: var(--space-2);
-  padding-top: var(--space-5);
-  border-top: 1px solid var(--color-border-subtle);
+/* The message always takes two lines, so a verdict does not grow the bar. */
+.connections-message {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 100%;
+  justify-content: center;
+  min-height: calc(2lh + 0.2rem);
+}
+
+.connections-message.visually-hidden {
+  min-height: 0;
+}
+
+/* A long explanation is cut at two lines on screen; the live region still
+   announces all of it, and "Show source" at the end repeats it. */
+.connections-feedback {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.connections-feedback.game-actions-title {
+  font-weight: 800;
+}
+
+/* Shuffle and Clear on the left, Submit on the right, one row on phones. */
+.connections-controls {
+  display: flex;
+  flex: 1 1 100%;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.connections-controls .btn-primary {
+  min-width: 6rem;
+}
+
+@media (max-width: 30rem) {
+  .connections-game {
+    --game-actions-inset: var(--space-3);
+    padding-inline: var(--space-3);
+  }
+
+  .connections-controls .btn {
+    flex: 1 1 auto;
+    padding-inline: var(--space-2);
+  }
+
+  .connections-controls .btn-primary {
+    min-width: 0;
+  }
+}
+
+.connections-result {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-5);
+}
+
+/* Title and summary share a line when they fit, so the bar stays short. */
+.connections-verdict {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+}
+
+.connections-result-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+}
+
+.connections-result-title.is-won {
+  color: var(--color-success-text);
+}
+
+.connections-result-title.is-lost {
+  color: var(--color-error-text);
+}
+
+.connections-result-summary {
+  margin: 0;
+}
+
+.connections-result-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.connections-share-toggle {
+  flex: 1 1 100%;
+  min-height: var(--control-height);
+  color: inherit;
+}
+
+@media (max-width: 30rem) {
+  .connections-verdict {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .connections-result-buttons {
+    display: grid;
+    flex: 1 1 100%;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .connections-result-buttons > .btn-primary {
+    grid-column: 1 / -1;
+  }
+
+  .connections-result-buttons > .btn {
+    padding-inline: var(--space-2);
+  }
+
+  .connections-share-toggle {
+    justify-content: center;
+  }
+}
+
+/*
+  The source panel opens inside the bar, like the quiz source: long text
+  scrolls inside it. A sticky bar that tall would cover the board, so the bar
+  stops being sticky while the panel is open; opening it scrolls it into view.
+*/
+.connections-source {
+  flex: 1 1 100%;
+  display: grid;
+  gap: var(--space-3);
+  max-height: min(40dvh, 18rem);
+  overflow-y: auto;
+  scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3));
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+@media (max-height: 30rem) {
+  .connections-source {
+    max-height: 30dvh;
+  }
+}
+
+.connections-source[hidden] {
+  display: none;
+}
+
+.connections-actions:has(.connections-source:not([hidden])) {
+  position: static;
+}
+
+.connections-source-title {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+}
+
+.connections-source p {
+  margin: 0 0 var(--space-1);
+}
+
+.connections-source ul {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.connections-source li {
+  overflow-wrap: anywhere;
 }
 
 @media (forced-colors: active) {

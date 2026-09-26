@@ -2,7 +2,7 @@ import { renderHook, act } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/connections.daily.json";
 import type { ConnectionsPuzzle } from "../../lib/quiz-types";
-import { useConnectionsGame } from "./useConnectionsGame";
+import { loadSavedState, useConnectionsGame } from "./useConnectionsGame";
 
 const puzzle = validPuzzleJson as unknown as ConnectionsPuzzle;
 
@@ -175,5 +175,32 @@ describe("useConnectionsGame state machine", () => {
     );
     const { result } = renderHook(() => useConnectionsGame(puzzle));
     expect(result.current.boardItemIds).toHaveLength(16);
+  });
+
+  it("restores a finished game, whose board is empty", () => {
+    const key = `kpop-connections-${puzzle.puzzle_id}`;
+    const saved = {
+      solvedCategoryIds: puzzle.categories.map((c) => c.id),
+      mistakesRemaining: 0,
+      guessHistory: [],
+      gameStatus: "lost",
+      boardItemIds: [],
+    };
+    localStorage.setItem(key, JSON.stringify(saved));
+    expect(loadSavedState(key)).toEqual(saved);
+    const { result } = renderHook(() => useConnectionsGame(puzzle));
+    expect(result.current.gameStatus).toBe("lost");
+    expect(result.current.boardItemIds).toEqual([]);
+  });
+
+  it("reports a repeated guess without counting a mistake", () => {
+    const { result } = renderHook(() => useConnectionsGame(puzzle));
+    const ids = [...puzzle.categories[0]!.item_ids.slice(0, 3), puzzle.categories[1]!.item_ids[0]!];
+    submitIds(result, ids);
+    expect(result.current.mistakesRemaining).toBe(3);
+    let res;
+    act(() => { res = result.current.submitGuess(); });
+    expect(res).toEqual({ success: false, oneAway: false, alreadyGuessed: true });
+    expect(result.current.mistakesRemaining).toBe(3);
   });
 });

@@ -21,9 +21,11 @@ export function loadSavedState(key: string | null): ConnectionsStoredState | nul
     const saved = localStorage.getItem(key);
     if (!saved) return null;
     const p: ConnectionsStoredState = JSON.parse(saved);
+    // A finished game keeps an empty board; one in progress never has one.
+    const finished = p.gameStatus === "won" || p.gameStatus === "lost";
     if (
       Array.isArray(p.boardItemIds) &&
-      p.boardItemIds.length > 0 &&
+      (p.boardItemIds.length > 0 || finished) &&
       Array.isArray(p.solvedCategoryIds) &&
       Array.isArray(p.guessHistory) &&
       typeof p.mistakesRemaining === "number" &&
@@ -103,7 +105,7 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
     if (isRepeat) {
       setAlreadyGuessedFeedback(true);
       setProximityFeedback(false);
-      return { success: false, oneAway: false };
+      return { success: false, oneAway: false, alreadyGuessed: true };
     }
 
     setGuessHistory((prev) => [...prev, selectedItemIds]);
