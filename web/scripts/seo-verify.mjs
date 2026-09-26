@@ -11,11 +11,13 @@ const EXPECTED_PATHS = [
   "/pt-br/conexoes/",
   "/pt-br/adivinhe/",
   "/pt-br/caca-palavras/",
+  "/pt-br/mapa/",
   "/en/",
   "/en/grid/",
   "/en/connections/",
   "/en/guess/",
   "/en/word-search/",
+  "/en/map/",
 ];
 
 const EXPECTED_LLMS = [
@@ -24,11 +26,13 @@ const EXPECTED_LLMS = [
   "pt-br-conexoes.md",
   "pt-br-adivinhe.md",
   "pt-br-caca-palavras.md",
+  "pt-br-mapa.md",
   "en-quiz.md",
   "en-grid.md",
   "en-connections.md",
   "en-guess.md",
   "en-word-search.md",
+  "en-map.md",
 ];
 
 function parseArgs(argv) {
@@ -57,7 +61,7 @@ function main() {
   const dist = dir;
   check(["prod", "staging"].includes(env), `unknown --env "${env}"`);
 
-  // Sitemap: parseable XML with exactly the 10 canonical prod URLs.
+  // Sitemap: parseable XML with exactly the 12 canonical prod URLs.
   const sitemapCandidates = existsSync(dist)
     ? readdirSync(dist).filter((name) => /^sitemap.*\.xml$/.test(name))
     : [];
@@ -68,7 +72,7 @@ function main() {
   if (sitemapCandidates.length === 1) {
     const sitemap = readFileSync(join(dist, sitemapCandidates[0]), "utf-8");
     const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-    check(locs.length === 10, `sitemap has ${locs.length} <loc> entries, expected 10`);
+    check(locs.length === EXPECTED_PATHS.length, `sitemap has ${locs.length} <loc> entries, expected ${EXPECTED_PATHS.length}`);
     for (const expected of EXPECTED_PATHS) {
       check(
         locs.includes(`${PROD_ORIGIN}${expected}`),
@@ -170,7 +174,7 @@ function main() {
     for (const failure of failures) console.error(`seo:verify FAIL: ${failure}`);
     process.exit(1);
   }
-  console.log(`seo:verify OK (${env}): root alias, sitemap 10 URLs, robots, head tags, _headers, llms.txt`);
+  console.log(`seo:verify OK (${env}): root alias, sitemap ${EXPECTED_PATHS.length} URLs, robots, head tags, _headers, llms.txt`);
 }
 
 main();
