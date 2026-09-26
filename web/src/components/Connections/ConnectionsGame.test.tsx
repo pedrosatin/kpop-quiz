@@ -158,6 +158,10 @@ describe("ConnectionsGame component integration", () => {
     render(<ConnectionsGame locale="pt-BR" />);
 
     expect(screen.getByText(messages.loading)).toBeInTheDocument();
+    // Connections keeps the 42rem card while loading; only the quiz is wide.
+    const loadingCard = screen.getByText(messages.loading).closest(".game-card");
+    expect(loadingCard).not.toBeNull();
+    expect(loadingCard).not.toHaveClass("game-card--wide");
 
     const twiceBtn = await screen.findByRole("button", { name: /TWICE/ });
     expect(twiceBtn).toBeInTheDocument();

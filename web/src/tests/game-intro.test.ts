@@ -13,9 +13,9 @@ const read = (path: string) => readFileSync(join(SRC, path), "utf-8");
 // Pages whose game card is 64rem (.game-card--wide, or the map card, which
 // takes the whole .page-shell) pass `wide` so the intro shares its left edge.
 const GAME_PAGES: Record<string, boolean> = {
-  "pages/index.astro": false,
-  "pages/pt-br/index.astro": false,
-  "pages/en/index.astro": false,
+  "pages/index.astro": true,
+  "pages/pt-br/index.astro": true,
+  "pages/en/index.astro": true,
   "pages/pt-br/grid.astro": false,
   "pages/en/grid.astro": false,
   "pages/pt-br/conexoes.astro": false,

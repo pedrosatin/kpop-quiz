@@ -250,6 +250,51 @@ describe("Quiz", () => {
     await vi.waitFor(() => expect(title).toHaveFocus());
   });
 
+  it("keeps the quiz in the same wide card from loading to the result", async () => {
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    const card = () => document.getElementById("quiz")!;
+    const expectWide = () => {
+      expect(card()).toHaveClass("game-card");
+      expect(card()).toHaveClass("game-card--wide");
+    };
+    expectWide();
+    await screen.findByRole("heading", { name: "Monte sua partida" });
+    expectWide();
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
+    for (let index = 0; index < ptSession.questions.length; index += 1) {
+      expectWide();
+      fireEvent.click(screen.getByRole("radio", { name: ptSession.questions[index]!.options[0]!.label }));
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      expectWide();
+      clickNext(index === ptSession.questions.length - 1 ? "Ver resultado" : "Próxima pergunta");
+    }
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    expectWide();
+  });
+
+  it("keeps the options in A, B, C, D order in the DOM, the order of the two-column grid", async () => {
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const labels = [...document.querySelectorAll<HTMLLabelElement>("#quiz .options .option")];
+    expect(labels.map((label) => label.querySelector(".option-key")!.textContent)).toEqual(["A", "B", "C", "D"]);
+    expect(labels.map((label) => label.querySelector("input")!.value)).toEqual(question.options.map((option) => option.id));
+    // Arrow keys and Tab follow DOM order; the radios are the only focusable
+    // elements in the group, in the same order.
+    const focusable = [...document.querySelectorAll<HTMLElement>("#quiz .options input, #quiz .options button, #quiz .options a")];
+    expect(focusable).toEqual(labels.map((label) => label.querySelector("input")));
+    // Answering keeps the same order and the same classes on the grid.
+    const grid = document.querySelector("#quiz .options")!;
+    const gridClass = grid.className;
+    fireEvent.click(screen.getByRole("radio", { name: question.options[2]!.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    expect(document.querySelector("#quiz .options")!.className).toBe(gridClass);
+    expect([...document.querySelectorAll("#quiz .options .option-key")].map((key) => key.textContent)).toEqual(["A", "B", "C", "D"]);
+    // The CSS side (no order, reverse or grid placement) is in
+    // src/tests/quiz-layout.test.ts.
+  });
+
   it("records one point when submission is triggered twice", async () => {
     await renderReady();
     const question = ptSession.questions[0]!;

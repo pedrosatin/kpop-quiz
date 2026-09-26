@@ -60,8 +60,9 @@
   accent-color: var(--color-theme);
 }
 
-/* Setup and question share the 42rem card; Start, Submit and Next sit in
-   the sticky .game-actions bar at the foot of it. */
+/* Setup, question and result share the 64rem card (.game-card--wide), so
+   the card keeps its width from one state to the next; Start, Submit and
+   Next sit in the sticky .game-actions bar at the foot of it. */
 
 .quiz-setup,
 .quiz-round {
@@ -75,8 +76,42 @@
   }
 }
 
-.setup-options > :last-child {
+.setup-group:last-child > :last-child {
   margin-bottom: 0;
+}
+
+/* From 60rem the setup runs in two columns under its title: the kind of quiz
+   and the decades on the left, the mode and the timer on the right. Every
+   option and Start then fit above the fold at 1362x940 and 1440x900. */
+@media (min-width: 60rem) {
+  .setup-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 var(--space-6);
+    align-items: start;
+  }
+
+  .setup-heading {
+    grid-column: 1 / -1;
+  }
+
+  /* A setup with only the mode and timer group spans the whole row. */
+  .setup-heading + .setup-group:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .setup-group > :last-child {
+    margin-bottom: 0;
+  }
+
+  /* Four decades on one row of the half-width column, not three and one. */
+  .decade-options {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
+  }
+
+  .decade-options .choice-compact {
+    padding-inline: var(--space-2);
+  }
 }
 
 /* Keep keyboard focus from landing behind the sticky bar. Its tallest case
@@ -294,6 +329,36 @@
   overflow-wrap: anywhere;
 }
 
+/* From 60rem the wide card has room for the message and the buttons on one
+   row: hint or verdict on the left, Submit or the toggle and Next on the
+   right. The message keeps its two-line height, so answering does not move
+   the card. The buttons wrapper drops out of the layout (it has no role), so
+   an open panel takes a full-width row below, still between the toggle and
+   Next in DOM order, and Next follows at the right. */
+@media (min-width: 60rem) {
+  .quiz-actions {
+    flex-wrap: wrap;
+    column-gap: var(--space-2);
+  }
+
+  .quiz-actions .game-actions-message {
+    flex: 1 1 0;
+    margin-inline-end: var(--space-4);
+  }
+
+  .quiz-actions-buttons {
+    display: contents;
+  }
+
+  .quiz-actions .btn {
+    flex: 0 0 auto;
+  }
+
+  .quiz-actions .btn-primary {
+    margin-inline-start: auto;
+  }
+}
+
 @media (max-width: 420px) {
   .quiz-actions .game-actions-message {
     font-size: 0.9375rem;
@@ -305,6 +370,70 @@
 }
 
 /* Result */
+
+.quiz-result-summary {
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* From 60rem the title, text and buttons sit at the left of the stats, and
+   the review runs in two columns. Items fill each row left to right, the
+   same order as the DOM, and an opened source grows its own row only. */
+@media (min-width: 60rem) {
+  .quiz-result {
+    text-align: start;
+  }
+
+  .quiz-result-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "kicker stats"
+      "title stats"
+      "text stats"
+      "actions stats";
+    gap: var(--space-2) var(--space-6);
+    align-items: center;
+  }
+
+  .quiz-result-summary > .kicker {
+    grid-area: kicker;
+  }
+
+  .quiz-result-summary > .result-title {
+    grid-area: title;
+  }
+
+  /* Keep .score-summary a plain div with no role: some browsers drop the
+     role of an element with display: contents. */
+  .quiz-result .score-summary {
+    display: contents;
+  }
+
+  .quiz-result .result-stats {
+    grid-area: stats;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quiz-result .result-summary {
+    grid-area: text;
+  }
+
+  .quiz-result-summary > .btn-row {
+    grid-area: actions;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .quiz-result .share-result {
+    align-items: flex-start;
+  }
+
+  /* Cards in a row stretch to the same height while their sources are closed. */
+  .quiz-result .review-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 
 .share-result {
   display: flex;

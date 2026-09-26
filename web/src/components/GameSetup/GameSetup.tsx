@@ -35,32 +35,45 @@ export function GameSetup({
   messages,
   disabled = false,
 }: GameSetupProps) {
+  // Without a theme or decade picker the left column would be empty.
+  const hasPoolGroup = Boolean(onSelectTheme || onSelectDecades);
   return (
-    <section id="quiz" class="game-card quiz-setup" aria-labelledby="difficulty-heading">
+    <section id="quiz" class="game-card game-card--wide quiz-setup" aria-labelledby="difficulty-heading">
       <div class="setup-options">
-        <p class="kicker">{messages.setupKicker}</p>
-        <h2 id="difficulty-heading" class="game-card-title">{messages.setupTitle}</h2>
-        {onSelectTheme && (
-          <GameCollection
-            selectedTheme={theme}
-            onSelectTheme={onSelectTheme}
+        <div class="setup-heading">
+          <p class="kicker">{messages.setupKicker}</p>
+          <h2 id="difficulty-heading" class="game-card-title">{messages.setupTitle}</h2>
+        </div>
+        {/* From 60rem the two groups sit side by side: which questions on the
+            left, how to play them on the right. DOM order stays the reading
+            and Tab order in both layouts. */}
+        {hasPoolGroup && (
+          <div class="setup-group">
+            {onSelectTheme && (
+              <GameCollection
+                selectedTheme={theme}
+                onSelectTheme={onSelectTheme}
+                messages={messages}
+                disabled={disabled}
+              />
+            )}
+            {onSelectDecades && <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />}
+          </div>
+        )}
+        <div class="setup-group">
+          <DifficultyPicker
+            playMode={playMode}
+            onSelectMode={onSelectMode}
             messages={messages}
             disabled={disabled}
           />
-        )}
-        {onSelectDecades && <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />}
-        <DifficultyPicker
-          playMode={playMode}
-          onSelectMode={onSelectMode}
-          messages={messages}
-          disabled={disabled}
-        />
-        <TimerControl
-          enabled={timerEnabled}
-          onChange={onTimerChange}
-          label={messages.enableTimer}
-          disabled={disabled}
-        />
+          <TimerControl
+            enabled={timerEnabled}
+            onChange={onTimerChange}
+            label={messages.enableTimer}
+            disabled={disabled}
+          />
+        </div>
       </div>
       <div class="game-actions setup-actions">
         <p class="game-actions-message game-actions-hint setup-rules">{messages.roundRules}</p>

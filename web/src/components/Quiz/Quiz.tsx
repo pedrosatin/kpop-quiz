@@ -195,9 +195,9 @@ export function Quiz({ locale }: { locale: Locale }) {
     if (next) setRevealedClues((val) => [...val, next.id]);
   };
 
-  if (state === "loading") return <QuizState label={messages.loading} busy />;
-  if (state === "missing" || state === "invalid") return <QuizState label={state === "missing" ? messages.artifactMissing : messages.artifactInvalid} action={messages.retry} onAction={load} />;
-  if (state === "empty" || !session || !question) return <QuizState label={messages.empty} />;
+  if (state === "loading") return <QuizState label={messages.loading} busy wide />;
+  if (state === "missing" || state === "invalid") return <QuizState label={state === "missing" ? messages.artifactMissing : messages.artifactInvalid} action={messages.retry} onAction={load} wide />;
+  if (state === "empty" || !session || !question) return <QuizState label={messages.empty} wide />;
   if (state === "setup") {
     return (
       <GameSetup

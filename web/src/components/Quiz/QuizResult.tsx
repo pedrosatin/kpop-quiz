@@ -38,33 +38,37 @@ export function QuizResult({
   const clues = cluesUsedCount ?? history.reduce((acc, h) => acc + h.cluesUsedCount, 0);
 
   return (
-    <section id="quiz" class="game-card result" aria-labelledby="result-heading">
-      <p class="kicker">{messages.score}</p>
-      <h2 id="result-heading" class="result-title" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
-        {messages.resultTitle}
-      </h2>
-      <ScoreSummary
-        correctCount={correct}
-        totalQuestions={total}
-        score={score}
-        elapsedSeconds={elapsedSeconds}
-        cluesUsedCount={clues}
-        messages={messages}
-      />
-      <div class="btn-row">
-        <ShareResult
+    <section id="quiz" class="game-card game-card--wide result quiz-result" aria-labelledby="result-heading">
+      {/* From 60rem the title, text and buttons sit beside the stats, and the
+          review below them runs in two columns. */}
+      <div class="quiz-result-summary">
+        <p class="kicker">{messages.score}</p>
+        <h2 id="result-heading" class="result-title" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
+          {messages.resultTitle}
+        </h2>
+        <ScoreSummary
           correctCount={correct}
           totalQuestions={total}
-          results={history.map((h) => h.isCorrect)}
-          playMode={playMode}
-          cluesUsedCount={clues}
+          score={score}
           elapsedSeconds={elapsedSeconds}
+          cluesUsedCount={clues}
           messages={messages}
-          dailyDate={dailyDate}
         />
-        <button class="btn btn-primary" type="button" onClick={onRestart}>
-          {messages.restart}
-        </button>
+        <div class="btn-row">
+          <ShareResult
+            correctCount={correct}
+            totalQuestions={total}
+            results={history.map((h) => h.isCorrect)}
+            playMode={playMode}
+            cluesUsedCount={clues}
+            elapsedSeconds={elapsedSeconds}
+            messages={messages}
+            dailyDate={dailyDate}
+          />
+          <button class="btn btn-primary" type="button" onClick={onRestart}>
+            {messages.restart}
+          </button>
+        </div>
       </div>
       <ReviewAnswers items={history} messages={messages} />
     </section>
