@@ -516,7 +516,7 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchIntro: "Encontre os nomes do tema escondidos na grade. Eles podem estar na horizontal, na vertical ou na diagonal, inclusive de trás para frente.",
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
     mapTitle: "Quiz de mapa: BLACKPINK",
-    mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou. Cada resposta tem link para a agenda e para o registro no MusicBrainz.",
+    mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou. Uma data na agenda não confirma que o show aconteceu.",
     wordSearch: {
       title: "Caça-palavras",
       gridLabel: "Grade de letras",
@@ -831,7 +831,7 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchIntro: "Find the theme's names hidden in the grid. They can run across, down or diagonally, and backwards too.",
     mapEyebrow: "10 dates per round · DEADLINE tour",
     mapTitle: "Map quiz: BLACKPINK",
-    mapIntro: "For each tour date, pick on the map the country the official schedule listed. Every answer links to the schedule and to its MusicBrainz record.",
+    mapIntro: "For each tour date, pick on the map the country the official schedule listed. A date on the schedule does not confirm that the show took place.",
     wordSearch: {
       title: "Word search",
       gridLabel: "Letter grid",

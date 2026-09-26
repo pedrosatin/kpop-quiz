@@ -42,6 +42,24 @@ describe("map pilot game", () => {
     expect(getByRole("status").textContent).toContain("Essa não é a resposta.");
     expect(getByRole("status").textContent).toContain("País correto");
     expect(getByRole("status").textContent).toContain(answerLabel);
+    const wrongLabel = mapPilotCountryLabel(
+      mapPilotCountries.find((country) => country.iso_3166_1 === wrong.country_iso_3166_1)!,
+      "pt-BR",
+    );
+    expect(getByRole("status").textContent).toContain(`Sua resposta: ${wrongLabel}`);
+  });
+
+  it("keeps the next action in the action bar and focuses it after an answer", () => {
+    const date = "2026-09-24";
+    const [event] = selectMapPilotRound(mapPilotEvents, date);
+    const { getByRole, getByTestId } = render(<MapPilotGame locale="pt-BR" seedDate={date} />);
+    expect(getByRole("status").textContent).toContain("Escolha um país destacado");
+    fireEvent.click(getByTestId(`answer-country-${event!.country_iso_3166_1}`));
+    const next = getByRole("button", { name: "Próxima data" });
+    expect(next.closest(".map-pilot-action-bar")).toBe(getByRole("status"));
+    expect(document.activeElement).toBe(next);
+    fireEvent.click(next);
+    expect(getByRole("status").textContent).toContain("Escolha um país destacado");
   });
 
   it("chooses the daily round after mount so the server HTML matches the first client render", async () => {

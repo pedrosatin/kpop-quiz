@@ -4,11 +4,11 @@ Canonical: https://kpopquiz.online/en/map/
 Also in Portuguese: https://kpopquiz.online/pt-br/mapa/
 
 For each tour date, pick on the map the country the official schedule
-listed. Every answer links to the schedule and to its MusicBrainz record.
+listed. A date on the schedule does not confirm that the show took place.
 
-10 dates per round from the DEADLINE WORLD TOUR. A date on the schedule
-does not confirm that the show took place. The dates are checked again
-every month.
+10 dates per round from the DEADLINE WORLD TOUR. Every answer links to the
+schedule and to its MusicBrainz record. The dates are checked again every
+month.
 
 ## Provenance and license
 
