@@ -201,7 +201,7 @@ Pontuação de relevância por pageviews da Wikipedia em inglês (`group_relevan
 
 ## Piloto do jogo de mapas concluído
 
-O jogo em PT e EN pergunta em que país a agenda oficial listou cada data da DEADLINE WORLD TOUR de BLACKPINK, com 10 datas por rodada, resposta pelo mapa ou pela lista e links para a agenda e para o MusicBrainz. As rotas têm `noindex` e não aparecem no menu de jogos.
+O jogo em PT e EN pergunta em que país a agenda oficial listou cada data da DEADLINE WORLD TOUR de BLACKPINK, com 10 datas por rodada, resposta pelo mapa ou pela lista e links para a agenda e para o MusicBrainz. As rotas aparecem no menu de jogos e no sitemap desde 25 de setembro de 2026.
 
 `kpop_scraping.map_pilot_refresh` refaz o conjunto cruzando a agenda da YG, o MusicBrainz e o `P17` do Wikidata, e o workflow `map-pilot-refresh.yml` roda esse comando no dia 1 de cada mês. Em 25 de setembro de 2026, 31 das 33 datas da agenda passaram no cruzamento, em 14 países. Regras e cobertura estão em [Piloto do jogo de mapas](map-game-pilot.md) e na [ADR-015](decisions/015-contrato-de-dados-do-jogo-de-mapas.md).
 

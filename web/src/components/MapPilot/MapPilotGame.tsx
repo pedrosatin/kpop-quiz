@@ -39,6 +39,9 @@ interface Copy {
   roundProgress: (current: number, total: number) => string;
 }
 
+// Equirectangular 1200x600 map cropped to 84°N–60°S. The polar rows hold no tour dates.
+const MAP_VIEW_BOX = "0 20 1200 480";
+
 const COPY: Record<Locale, Copy> = {
   "pt-BR": {
     pilot: "PILOTO · DEADLINE WORLD TOUR",
@@ -168,7 +171,6 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
   return (
     <section class="map-pilot-game" id="map-game" aria-labelledby="map-game-title">
       <header class="map-pilot-question-header">
-        <p class="map-pilot-kicker">{copy.pilot}</p>
         <p class="map-pilot-progress" aria-live="polite">{copy.roundProgress(questionIndex + 1, round.length)}</p>
         <h2 id="map-game-title">{copy.question(formatDate(current!.event_date, locale))}</h2>
         <p class="map-pilot-instructions">{copy.instructions}</p>
@@ -178,7 +180,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
         <div class="map-pilot-map-wrap">
           <svg
             class="map-pilot-world-map"
-            viewBox="0 0 1200 600"
+            viewBox={MAP_VIEW_BOX}
             role="group"
             aria-label={copy.mapLabel}
           >

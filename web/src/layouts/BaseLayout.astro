@@ -122,6 +122,12 @@ const games = [
     path: locale === "pt-BR" ? "/pt-br/caca-palavras/" : "/en/word-search/",
     isActive: isWordSearch,
   },
+  {
+    id: "map",
+    label: messages.gameMap,
+    path: locale === "pt-BR" ? "/pt-br/mapa/" : "/en/map/",
+    isActive: isMapPilot,
+  },
 ];
 ---
 <!doctype html>
@@ -236,7 +242,7 @@ const games = [
     <footer>
       <p>
         {isMapPilot ? (
-          <>{locale === "pt-BR" ? "Fontes do piloto: agenda oficial da YG; eventos MusicBrainz e Wikidata · CC0; mapa Natural Earth · domínio público." : "Pilot sources: official YG schedule; MusicBrainz and Wikidata · CC0; Natural Earth map · public domain."}</>
+          <>{locale === "pt-BR" ? "Fontes do jogo de mapa: agenda oficial da YG; eventos MusicBrainz e Wikidata · CC0; mapa Natural Earth · domínio público." : "Map game sources: official YG schedule; MusicBrainz and Wikidata · CC0; Natural Earth map · public domain."}</>
         ) : (
           <>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a></>
         )}

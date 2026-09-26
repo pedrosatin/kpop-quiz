@@ -18,6 +18,8 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 - Caça-Palavras / Word Search:
   https://kpopquiz.online/pt-br/caca-palavras/ ·
   https://kpopquiz.online/en/word-search/
+- Quiz de mapa / Map quiz (turnê DEADLINE de BLACKPINK):
+  https://kpopquiz.online/pt-br/mapa/ · https://kpopquiz.online/en/map/
 
 ## Resumos por rota (Markdown)
 
@@ -26,15 +28,18 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 - llms/pt-br-conexoes.md
 - llms/pt-br-adivinhe.md
 - llms/pt-br-caca-palavras.md
+- llms/pt-br-mapa.md
 - llms/en-quiz.md
 - llms/en-grid.md
 - llms/en-connections.md
 - llms/en-guess.md
 - llms/en-word-search.md
+- llms/en-map.md
 
 ## Proveniência e licença
 
 Cada resposta cita a fonte: Wikidata (CC0,
 https://www.wikidata.org/wiki/Wikidata:Copyright) e Wikipedia
 (CC BY-SA 4.0, https://creativecommons.org/licenses/by-sa/4.0/).
+O quiz de mapa cita a agenda oficial da YG e o MusicBrainz (CC0).
 Os arquivos em `/data/` são dados brutos para o app e não são indexados.

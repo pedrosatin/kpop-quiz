@@ -1,18 +1,16 @@
 ---
 import { MapPilotGame } from "../../components/MapPilot/MapPilotGame";
 import BaseLayout from "../../layouts/BaseLayout.astro";
-const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { getMessages } from "../../i18n/catalog";
+
+const messages = getMessages("pt-BR");
 ---
-<BaseLayout locale="pt-BR" route="mapPilot" canonicalPath="/pt-br/mapa/" alternatePath="/en/map/" indexable={false}>
+<BaseLayout locale="pt-BR" route="mapPilot" canonicalPath="/pt-br/mapa/" alternatePath="/en/map/">
   <div class="page-shell page-shell--map-pilot">
     <section class="intro" aria-labelledby="page-title">
-      <p class="kicker">PILOTO · DEADLINE WORLD TOUR</p>
-      <h1 id="page-title">Quiz de mapa: BLACKPINK</h1>
-      <p>Para cada data da turnê, escolha no mapa o país que a agenda oficial listou. Cada data tem link para a agenda e para o registro no MusicBrainz.</p>
-      <p class="map-pilot-notice">Uma data na agenda não confirma que o show aconteceu. Todo mês, as datas são conferidas de novo na agenda da YG, no MusicBrainz e no Wikidata.</p>
-      <div class="game-mode-switch">
-        <a class="switch-link" href={`${base}/pt-br/`}>← Voltar ao quiz</a>
-      </div>
+      <p class="kicker">{messages.mapEyebrow}</p>
+      <h1 id="page-title">{messages.mapTitle}</h1>
+      <p class="intro-text">{messages.mapIntro}</p>
     </section>
     <MapPilotGame locale="pt-BR" client:load />
   </div>

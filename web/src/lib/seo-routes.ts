@@ -23,7 +23,7 @@ function pair(
   ];
 }
 
-// Exactly the 10 indexable content routes. The `/` canonical alias, `/data/*`,
+// Exactly the 12 indexable content routes. The `/` canonical alias, `/data/*`,
 // staging builds and `?mode`/`?theme` variants stay out of the index.
 export const SEO_ROUTES: readonly SeoRoute[] = [
   ...pair("quiz", "/pt-br/", "/en/"),
@@ -31,6 +31,7 @@ export const SEO_ROUTES: readonly SeoRoute[] = [
   ...pair("connections", "/pt-br/conexoes/", "/en/connections/"),
   ...pair("nameGuess", "/pt-br/adivinhe/", "/en/guess/"),
   ...pair("wordSearch", "/pt-br/caca-palavras/", "/en/word-search/"),
+  ...pair("mapPilot", "/pt-br/mapa/", "/en/map/"),
 ];
 
 export function seoAbsoluteUrl(path: string): string {

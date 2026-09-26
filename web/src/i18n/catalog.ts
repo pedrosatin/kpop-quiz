@@ -236,6 +236,9 @@ export interface Messages {
   wordSearchTitle: string;
   wordSearchEyebrow: string;
   wordSearchIntro: string;
+  mapEyebrow: string;
+  mapTitle: string;
+  mapIntro: string;
   wordSearch: WordSearchMessages;
   gameNavLabel: string;
   gameQuiz: string;
@@ -243,6 +246,7 @@ export interface Messages {
   gameConnections: string;
   gameNameGuess: string;
   gameWordSearch: string;
+  gameMap: string;
   statsTitle: string;
   statsNavLabel: string;
   statsOpenButton: string;
@@ -280,7 +284,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       mapPilot: {
         title: "Quiz de mapa K-pop: turnê DEADLINE",
-        description: "Piloto de quiz de mapa com as datas da turnê DEADLINE de BLACKPINK, cada uma com link para a fonte.",
+        description: "Ache no mapa o país de cada show da turnê DEADLINE de BLACKPINK. São 10 datas por rodada, cada uma com link para a agenda oficial.",
       },
     },
     skipLinks: {
@@ -510,6 +514,9 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchTitle: "Caça-palavras",
     wordSearchEyebrow: "1 tema por dia · 8 direções",
     wordSearchIntro: "Encontre os nomes do tema escondidos na grade. Eles podem estar na horizontal, na vertical ou na diagonal, inclusive de trás para frente.",
+    mapEyebrow: "10 datas por rodada · turnê DEADLINE",
+    mapTitle: "Quiz de mapa: BLACKPINK",
+    mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou. Cada resposta tem link para a agenda e para o registro no MusicBrainz.",
     wordSearch: {
       title: "Caça-palavras",
       gridLabel: "Grade de letras",
@@ -556,6 +563,7 @@ const catalogs: Record<Locale, Messages> = {
     gameConnections: "Conexões",
     gameNameGuess: "Adivinhe",
     gameWordSearch: "Caça-palavras",
+    gameMap: "Mapa",
     statsTitle: "Suas estatísticas",
     statsNavLabel: "Estatísticas",
     statsOpenButton: "Ver estatísticas e sequência",
@@ -591,7 +599,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       mapPilot: {
         title: "K-pop Map Quiz: DEADLINE tour",
-        description: "Map quiz pilot with the dates of BLACKPINK's DEADLINE tour, each linked to its source.",
+        description: "Find on the map the country of each show on BLACKPINK's DEADLINE tour. 10 dates per round, each linked to the official schedule.",
       },
     },
     skipLinks: {
@@ -821,6 +829,9 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchTitle: "Word search",
     wordSearchEyebrow: "1 theme a day · 8 directions",
     wordSearchIntro: "Find the theme's names hidden in the grid. They can run across, down or diagonally, and backwards too.",
+    mapEyebrow: "10 dates per round · DEADLINE tour",
+    mapTitle: "Map quiz: BLACKPINK",
+    mapIntro: "For each tour date, pick on the map the country the official schedule listed. Every answer links to the schedule and to its MusicBrainz record.",
     wordSearch: {
       title: "Word search",
       gridLabel: "Letter grid",
@@ -867,6 +878,7 @@ const catalogs: Record<Locale, Messages> = {
     gameConnections: "Connections",
     gameNameGuess: "Guess",
     gameWordSearch: "Word search",
+    gameMap: "Map",
     statsTitle: "Your stats",
     statsNavLabel: "Stats",
     statsOpenButton: "See stats and streak",
