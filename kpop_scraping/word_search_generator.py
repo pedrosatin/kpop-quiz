@@ -18,6 +18,7 @@ from .quiz_utils import hash_payload
 from .word_search_schema import (
     WORD_SEARCH_SCHEMA_VERSION,
     extract_word_coordinates,
+    normalize_word,
     validate_word_search_clues,
     validate_word_search_puzzle,
 )
@@ -70,14 +71,6 @@ _WEIGHTED_LETTERS = list(LETTER_WEIGHTS.keys())
 _WEIGHTS_LIST = list(LETTER_WEIGHTS.values())
 
 
-def normalize_word(name: str) -> str:
-    """Normalize a display name to uppercase ASCII alphabetic characters.
-
-    Decomposes accents via NFKD, strips non-alphabetical characters and spaces,
-    and returns uppercase letters in the [A-Z] range.
-    """
-    decomposed = unicodedata.normalize("NFKD", name).upper()
-    return "".join(c for c in decomposed if "A" <= c <= "Z")
 
 
 def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
@@ -175,13 +168,21 @@ def _display_name(entity: Entity, min_dim: int) -> tuple[str, str] | None:
     """Return the name shown to the player and its normalized grid word.
 
     People and groups keep one name in every locale (see ``Entity.name``), so
-    the same source name labels the word in both locales.  The canonical name
+    the same source name labels the word in both locales. The canonical name
     wins; Wikidata labels and aliases are used only when the canonical name
-    does not fit the grid.
+    is too long to fit the grid. Entities whose canonical name normalizes to
+    fewer than 3 letters are discarded per ADR 011 to prevent accidental
+    collisions on the grid.
     """
+    canonical_norm = normalize_word(entity.canonical_name)
+    if len(canonical_norm) < 3:
+        return None
+
     max_len = min(16, min_dim)
+    if len(canonical_norm) <= max_len:
+        return entity.canonical_name, canonical_norm
+
     names = [
-        entity.canonical_name,
         entity.names.get("pt"),
         entity.names.get("en"),
         *entity.aliases,

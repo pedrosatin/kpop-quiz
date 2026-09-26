@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,16 @@ _QID_PATTERN = re.compile(r"^Q[1-9][0-9]*$")
 _DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _WORD_PATTERN = re.compile(r"^[A-Z]{3,16}$")
 _GRID_CELL_PATTERN = re.compile(r"^[A-Z]$")
+
+
+def normalize_word(name: str) -> str:
+    """Normalize a display name to uppercase ASCII alphabetic characters.
+
+    Decomposes accents via NFKD, strips non-alphabetical characters and spaces,
+    and returns uppercase letters in the [A-Z] range.
+    """
+    decomposed = unicodedata.normalize("NFKD", name).upper()
+    return "".join(c for c in decomposed if "A" <= c <= "Z")
 
 
 def _require(condition: bool, message: str) -> None:
@@ -324,6 +335,13 @@ def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
             f"{context}.canonical_name must be a non-empty string",
         )
         _require_bilingual_text(word_obj["labels"], f"{context}.labels")
+        for lang in ("pt-BR", "en"):
+            label = word_obj["labels"][lang]
+            norm_label = normalize_word(label)
+            _require(
+                norm_label == word_str,
+                f"{context}.labels.{lang} ('{label}') normalizes to '{norm_label}', which does not match word '{word_str}'",
+            )
 
         # Coordinates
         start_row = word_obj["start_row"]

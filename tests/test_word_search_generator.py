@@ -694,6 +694,56 @@ class TestWordSearchRealDatabase(unittest.TestCase):
         self.assertEqual(cand.labels["pt-BR"], "Lee Sungmin")
         self.assertEqual(cand.labels["en"], "Lee Sungmin")
 
+    def test_short_canonical_names_under_three_letters_are_discarded(self) -> None:
+        from kpop_scraping.quiz_models import Entity, Evidence, Fact
+        from kpop_scraping.word_search_generator import _build_candidate, _display_name
+
+        ev = Evidence("Q1$1", "test", "test", "https://example.com/test", 1)
+
+        # I.N (Stray Kids) normalizes to "IN" (2 letters). Even with longer aliases,
+        # it must be discarded to prevent accidental grid collisions and label mismatch.
+        in_entity = Entity(
+            wikidata_id="Q59831589",
+            entity_type="person",
+            canonical_name="I.N",
+            names={"pt": "I.N", "en": "I.N"},
+            aliases=("Yang Jeong-in", "Jeongin"),
+        )
+        self.assertIsNone(_display_name(in_entity, min_dim=12))
+        fact_in = Fact("s_in", in_entity, "has_member", None, None, None, None, None, None, None, (), (ev,))
+        self.assertIsNone(_build_candidate(in_entity, [fact_in], min_dim=12))
+
+        # V (BTS) normalizes to "V" (1 letter). Must also be discarded.
+        v_entity = Entity(
+            wikidata_id="Q13856101",
+            entity_type="person",
+            canonical_name="V",
+            names={"pt": "V", "en": "V"},
+            aliases=("Kim Tae-hyung", "Taehyung"),
+        )
+        self.assertIsNone(_display_name(v_entity, min_dim=12))
+        fact_v = Fact("s_v", v_entity, "has_member", None, None, None, None, None, None, None, (), (ev,))
+        self.assertIsNone(_build_candidate(v_entity, [fact_v], min_dim=12))
+
+    def test_long_canonical_names_fall_back_to_alias_when_fitting(self) -> None:
+        from kpop_scraping.quiz_models import Entity
+        from kpop_scraping.word_search_generator import _display_name
+
+        # A name with 18 letters exceeds a 12x12 grid, but has an alias of 7 letters.
+        long_entity = Entity(
+            wikidata_id="Q999999",
+            entity_type="person",
+            canonical_name="Super Long Idol Name Here",
+            names={"pt": "Super Long Idol Name Here", "en": "Super Long Idol Name Here"},
+            aliases=("Shortie",),
+        )
+        display = _display_name(long_entity, min_dim=12)
+        self.assertIsNotNone(display)
+        assert display is not None
+        name, word = display
+        self.assertEqual(name, "Shortie")
+        self.assertEqual(word, "SHORTIE")
+
 
 if __name__ == "__main__":
     unittest.main()

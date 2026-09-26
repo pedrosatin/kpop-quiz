@@ -90,4 +90,11 @@ describe("published word search puzzle loader and validator", () => {
     invalid.words = invalid.words.slice(0, 2);
     expect(isWordSearchPuzzle(invalid)).toBe(false);
   });
+
+  it("rejects words whose labels do not normalize to the word", () => {
+    const invalid = structuredClone(validPuzzle);
+    // E.g. word is EUNHYUK, but label is set to "I.N"
+    invalid.words[0]!.labels.en = "I.N";
+    expect(isWordSearchPuzzle(invalid)).toBe(false);
+  });
 });
