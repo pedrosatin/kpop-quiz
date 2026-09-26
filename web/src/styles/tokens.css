@@ -107,6 +107,17 @@
   --content-max: 72rem;
   --game-max: 42rem;
   --game-max-wide: 64rem;
+  /*
+    Tallest a game board may grow so the question, the board and the action
+    bar fit one viewport. Subtract what sits above and below the board from
+    the dynamic viewport height. Measured at 1440x900:
+      site header and game nav       7.5rem
+      intro with How to play         14.5rem
+      card padding and question      7rem
+      credit line and action bar     7rem (--control-height + padding)
+    The floor keeps the board usable on short landscape screens.
+  */
+  --play-max-h: max(12rem, calc(100dvh - 36rem));
 
   /* Motion */
   --transition-fast: 150ms ease;

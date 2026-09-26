@@ -283,16 +283,15 @@ textarea {
   }
 }
 
-/* Page layout: a short intro above the game, both centered. */
+/*
+  Page layout: a short intro above the game, both centered. Every game page
+  shares this width; each game card sets its own max-width inside it.
+*/
 
 .page-shell {
-  width: min(100% - 2rem, var(--game-max));
+  width: min(100% - 2rem, var(--game-max-wide));
   margin: 0 auto;
   padding: var(--space-5) 0 var(--space-8);
-}
-
-.page-shell--wide {
-  width: min(100% - 2rem, var(--game-max-wide));
 }
 
 .intro {

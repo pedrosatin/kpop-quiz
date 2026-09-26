@@ -56,7 +56,7 @@ describe("map pilot game", () => {
     expect(getByRole("status").textContent).toContain("Escolha um país destacado");
     fireEvent.click(getByTestId(`answer-country-${event!.country_iso_3166_1}`));
     const next = getByRole("button", { name: "Próxima data" });
-    expect(next.closest(".map-pilot-action-bar")).toBe(getByRole("status"));
+    expect(next.closest(".game-actions")).toBe(getByRole("status"));
     expect(document.activeElement).toBe(next);
     fireEvent.click(next);
     expect(getByRole("status").textContent).toContain("Escolha um país destacado");

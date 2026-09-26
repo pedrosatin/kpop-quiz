@@ -9,6 +9,7 @@ import {
   type MapPilotEvent,
 } from "../../data/map-pilot";
 import type { Locale } from "../../lib/quiz-types";
+import { useFocusOnChange } from "../../lib/use-focus-on-change";
 
 interface MapPilotGameProps {
   locale: Locale;
@@ -133,9 +134,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
 
   // The next button appears in the sticky action bar, already in view, so
   // focusing it lets Enter advance without moving the page.
-  useEffect(() => {
-    if (answerState !== null) nextButton.current?.focus({ preventScroll: true });
-  }, [answerState, questionIndex]);
+  useFocusOnChange(nextButton, answerState !== null, questionIndex);
 
   function chooseCountry(featureId: string) {
     if (!current || selectedFeature !== null || !countryByFeature.has(featureId)) return;
@@ -173,7 +172,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
         <p class="map-pilot-kicker">{copy.pilot}</p>
         <h2 id="map-result-title">{copy.complete}</h2>
         <p class="map-pilot-score">{copy.score(score, round.length)}</p>
-        <button class="map-pilot-primary" type="button" onClick={restart}>{copy.restart}</button>
+        <button class="btn btn-primary" type="button" onClick={restart}>{copy.restart}</button>
       </section>
     );
   }
@@ -240,11 +239,11 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
         </div>
       </div>
 
-      <div class={`map-pilot-action-bar ${answerState ? `is-${answerState}` : ""}`} role="status" aria-live="polite">
+      <div class={`game-actions ${answerState ? `is-${answerState}` : ""}`} role="status" aria-live="polite">
         {answerState && current && answerCountry ? (
           <>
-            <div class="map-pilot-feedback">
-              <p class="map-pilot-feedback-title">{answerState === "correct" ? copy.correct : copy.incorrect}</p>
+            <div class="game-actions-message">
+              <p class="game-actions-title">{answerState === "correct" ? copy.correct : copy.incorrect}</p>
               <p>
                 {selectedCountry && answerState === "incorrect" && <>{copy.yourAnswer}: <strong>{mapPilotCountryLabel(selectedCountry, locale)}</strong> · </>}
                 {copy.answerWas}: <strong>{mapPilotCountryLabel(answerCountry, locale)}</strong>
@@ -255,12 +254,12 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
                 <span>{copy.checkedAt(formatDate(current.source_checked_at, locale))} {copy.scheduleNote}</span>
               </p>
             </div>
-            <button ref={nextButton} class="map-pilot-primary" type="button" onClick={nextQuestion}>
+            <button ref={nextButton} class="btn btn-primary" type="button" onClick={nextQuestion}>
               {questionIndex + 1 === round.length ? copy.finish : copy.next}
             </button>
           </>
         ) : (
-          <p class="map-pilot-instructions">{copy.instructions}</p>
+          <p class="game-actions-hint">{copy.instructions}</p>
         )}
       </div>
     </section>
