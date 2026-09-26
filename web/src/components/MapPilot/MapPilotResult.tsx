@@ -23,7 +23,7 @@ interface ResultCopy {
   locator: string;
   musicBrainzEvent: string;
   openMusicBrainz: string;
-  wikidataCheck: (revision: number) => string;
+  wikidataCheck: (qid: string, revision: number) => string;
   checkedAt: (date: string) => string;
   scheduleNote: string;
 }
@@ -33,7 +33,7 @@ const COPY: Record<Locale, ResultCopy> = {
     complete: "Rodada concluída",
     summary: (correct, total) => `${correct} de ${total} certas.`,
     shareLine: (correct, total) => `${correct}/${total} datas certas`,
-    restart: "Jogar outra rodada",
+    restart: "Jogar novamente",
     reviewTitle: "Datas da rodada",
     right: "Certa",
     wrong: "Errada",
@@ -44,15 +44,16 @@ const COPY: Record<Locale, ResultCopy> = {
     locator: "Local na fonte:",
     musicBrainzEvent: "Evento no MusicBrainz.",
     openMusicBrainz: "Abrir o evento",
-    wikidataCheck: (revision) => `País da área do local no Wikidata, revisão ${revision}.`,
-    checkedAt: (date) => `Conferida em ${date}.`,
-    scheduleNote: "Cada data aparece na agenda oficial. Isso não confirma que o show aconteceu.",
+    // The checked item is the venue's MusicBrainz area: a city, a district or a subdivision.
+    wikidataCheck: (qid, revision) => `País do local do show no Wikidata (${qid}), revisão ${revision}.`,
+    checkedAt: (date) => `Agenda conferida em ${date}.`,
+    scheduleNote: "Estar na agenda oficial não confirma que o show aconteceu.",
   },
   en: {
     complete: "Round complete",
     summary: (correct, total) => `${correct} of ${total} right.`,
     shareLine: (correct, total) => `${correct}/${total} dates right`,
-    restart: "Play another round",
+    restart: "Play again",
     reviewTitle: "Dates in this round",
     right: "Right",
     wrong: "Wrong",
@@ -63,9 +64,9 @@ const COPY: Record<Locale, ResultCopy> = {
     locator: "Location in source:",
     musicBrainzEvent: "MusicBrainz event.",
     openMusicBrainz: "Open the event",
-    wikidataCheck: (revision) => `Country of the venue's area on Wikidata, revision ${revision}.`,
-    checkedAt: (date) => `Checked on ${date}.`,
-    scheduleNote: "Each date appears in the official schedule. This does not confirm the show took place.",
+    wikidataCheck: (qid, revision) => `Country of the show's location on Wikidata (${qid}), revision ${revision}.`,
+    checkedAt: (date) => `Schedule checked on ${date}.`,
+    scheduleNote: "Being on the official schedule does not confirm the show took place.",
   },
 };
 
@@ -89,13 +90,17 @@ export function readableScheduleLocator(locator: string, eventDate: string): str
   return parts.join(", ") || locator;
 }
 
+export function wikidataRevisionUrl(event: Pick<MapPilotEvent, "country_check_wikidata_id" | "country_check_wikidata_revid">): string {
+  return `https://www.wikidata.org/w/index.php?title=${event.country_check_wikidata_id}&oldid=${event.country_check_wikidata_revid}`;
+}
+
 export function mapShareText(
   roundDate: string,
   round: readonly MapPilotEvent[],
   answers: readonly string[],
   locale: Locale,
 ): string {
-  const marks = round.map((event, i) => (answers[i] === event.map_feature_id ? "🟩" : "🟥")).join("");
+  const marks = round.map((event, i) => (answers[i] === event.map_feature_id ? "🟩" : "⬛")).join("");
   const correct = round.filter((event, i) => answers[i] === event.map_feature_id).length;
   return `K-pop Map ${roundDate}\n${COPY[locale].shareLine(correct, round.length)}\n${marks}`;
 }
@@ -288,9 +293,9 @@ export function MapPilotResult({
                         <a href={event.musicbrainz_event_url} target="_blank" rel="noreferrer">{copy.openMusicBrainz}</a>
                       </li>
                       <li>
-                        {copy.wikidataCheck(event.country_check_wikidata_revid)}{" "}
+                        {copy.wikidataCheck(event.country_check_wikidata_id, event.country_check_wikidata_revid)}{" "}
                         <a
-                          href={`https://www.wikidata.org/w/index.php?oldid=${event.country_check_wikidata_revid}`}
+                          href={wikidataRevisionUrl(event)}
                           target="_blank"
                           rel="noreferrer"
                         >

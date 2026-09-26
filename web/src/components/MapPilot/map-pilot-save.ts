@@ -22,8 +22,23 @@ export function mapPilotStorageKey(roundDate: string): string {
   return `kpop-map-${roundDate}`;
 }
 
+const ROUND_KEY = /^kpop-map-\d{4}-\d{2}-\d{2}$/;
+
+/** Removes the saves of other days, so old rounds do not pile up in storage. */
+export function pruneMapPilotSaves(roundDate: string): void {
+  try {
+    const keep = mapPilotStorageKey(roundDate);
+    const stale: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key !== null && key !== keep && ROUND_KEY.test(key)) stale.push(key);
+    }
+    for (const key of stale) localStorage.removeItem(key);
+  } catch {}
+}
+
 /**
- * Reads the save of this round. A save for other events, with a feature
+ * Reads the save of this round and removes the saves of other days. A save for other events, with a feature
  * outside the playable countries, or with a count that play cannot reach
  * is dropped, so a stale or edited save never shows a round the player did
  * not play.
@@ -33,6 +48,7 @@ export function loadMapPilotSave(
   round: readonly MapPilotEvent[],
   playableFeatures: ReadonlySet<string>,
 ): MapPilotSave | null {
+  pruneMapPilotSaves(roundDate);
   let saved: unknown;
   try {
     const raw = localStorage.getItem(mapPilotStorageKey(roundDate));

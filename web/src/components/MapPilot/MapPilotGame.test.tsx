@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, within } from "@testing-library/preact
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MapPilotGame, NEXT_GUARD_MS } from "./MapPilotGame";
-import { mapShareText, readableScheduleLocator, RESULT_GUARD_MS } from "./MapPilotResult";
+import { mapShareText, readableScheduleLocator, RESULT_GUARD_MS, wikidataRevisionUrl } from "./MapPilotResult";
 import { mapPilotStorageKey } from "./map-pilot-save";
 import {
   mapPilotCountries,
@@ -151,6 +151,25 @@ describe("map pilot game", () => {
     expect(getByRole("heading", { level: 2 }).textContent).toContain("Which country");
   });
 
+  it("gives every map path the SVG fill-rule attribute", () => {
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    const paths = Array.from(view.container.querySelectorAll("path.map-pilot-feature"));
+    expect(paths.length).toBeGreaterThan(0);
+    // SVG reads only the lowercase attribute; fillRule would be ignored.
+    for (const path of paths) expect(path.getAttribute("fill-rule")).toBe("evenodd");
+    expect(view.container.querySelector("[fillRule]")).toBeNull();
+  });
+
+  it("keeps the schedule notice in the answer for screen readers", () => {
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    answer(view, wrongFor(round[0]!).country_iso_3166_1);
+    const notice = view.container.querySelector(".map-pilot-evidence span") as HTMLElement;
+    expect(notice).toBeTruthy();
+    expect(view.getByRole("status").contains(notice)).toBe(true);
+    expect(notice).toHaveTextContent("Agenda conferida em");
+    expect(notice).toHaveTextContent("Estar na agenda oficial não confirma que o show aconteceu.");
+  });
+
   it("answers from the map with Enter on a highlighted country", () => {
     const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     const path = view.container.querySelector(`path[aria-label="${label(round[0]!.country_iso_3166_1)}"]`) as SVGPathElement;
@@ -203,11 +222,11 @@ describe("map pilot country list and select", () => {
     const select = view.getByRole("combobox", { name: "Countries in this round" }) as HTMLSelectElement;
     const submit = view.getByRole("button", { name: "Answer" });
     expect(select.value).toBe("");
-    expect(submit).toBeDisabled();
+    expect(submit).toHaveAttribute("aria-disabled", "true");
     const wrong = wrongFor(round[0]!);
     fireEvent.change(select, { target: { value: wrong.map_feature_id } });
     expect(view.getByRole("status").textContent).toContain("Choose a highlighted country");
-    expect(submit).toBeEnabled();
+    expect(submit).not.toHaveAttribute("aria-disabled");
     fireEvent.click(submit);
     expect(view.getByRole("status").textContent).toContain(`Your answer: ${label(wrong.country_iso_3166_1, "en")}`);
     expect(view.queryByRole("combobox")).toBeNull();
@@ -225,7 +244,29 @@ describe("map pilot country list and select", () => {
     fireEvent.click(view.getByRole("button", { name: "Responder" }));
     next(view);
     expect((view.getByRole("combobox") as HTMLSelectElement).value).toBe("");
-    expect(view.getByRole("button", { name: "Responder" })).toBeDisabled();
+    expect(view.getByRole("button", { name: "Responder" })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("keeps Answer focusable and says to pick a country when none is chosen", () => {
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    const submit = view.getByRole("button", { name: "Responder" });
+    // aria-disabled, not disabled: Tab still reaches it and it can explain itself.
+    expect(submit).not.toBeDisabled();
+    expect(submit).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(submit);
+    expect(view.getByRole("status")).toHaveTextContent("Escolha um país primeiro.");
+    expect(view.getByText("Pergunta 1 de 10")).toBeTruthy();
+    expect(stored()).toBeNull();
+    // Picking a country brings the instructions back.
+    fireEvent.change(view.getByRole("combobox"), { target: { value: round[0]!.map_feature_id } });
+    expect(view.getByRole("status")).toHaveTextContent("Escolha um país destacado");
+  });
+
+  it("says to pick a country in English and on Enter in the empty select", () => {
+    const view = render(<MapPilotGame locale="en" seedDate={DATE} />);
+    const form = view.container.querySelector(".map-pilot-pick") as HTMLFormElement;
+    fireEvent.submit(form);
+    expect(view.getByRole("status")).toHaveTextContent("Pick a country first.");
   });
 });
 
@@ -306,6 +347,52 @@ describe("map pilot saved progress", () => {
     const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     expect(view.getByText("Pergunta 1 de 10")).toBeTruthy();
   });
+
+  it("removes the saves of other days and keeps other keys", () => {
+    save({ events: eventIds, answers: rightAnswers.slice(0, 2), index: 2 });
+    save({ events: eventIds, answers: rightAnswers, index: 10 }, "2026-09-23");
+    save({ events: [], answers: [], index: 0 }, "2025-01-01");
+    localStorage.setItem("kpop-map-settings", "keep");
+    localStorage.setItem("other-key", "keep");
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(view.getByText("Pergunta 3 de 10")).toBeTruthy();
+    expect(stored("2026-09-23")).toBeNull();
+    expect(stored("2025-01-01")).toBeNull();
+    expect(stored()).toEqual({ events: eventIds, answers: rightAnswers.slice(0, 2), index: 2 });
+    expect(localStorage.getItem("kpop-map-settings")).toBe("keep");
+    expect(localStorage.getItem("other-key")).toBe("keep");
+  });
+
+  it("still loads when storage throws", () => {
+    vi.spyOn(Storage.prototype, "key").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(view.getByText("Pergunta 1 de 10")).toBeTruthy();
+  });
+});
+
+describe("map pilot round date", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function roundDateAt(iso: string): Promise<string> {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(iso));
+    const view = render(<MapPilotGame locale="pt-BR" />);
+    await view.findByText("Pergunta 1 de 10");
+    answer(view, round[0]!.country_iso_3166_1);
+    const key = Object.keys(localStorage).find((name) => name.startsWith("kpop-map-"))!;
+    cleanup();
+    localStorage.clear();
+    return key.slice("kpop-map-".length);
+  }
+
+  it("turns the day at midnight in Sao Paulo, like the other daily games", async () => {
+    expect(await roundDateAt("2026-09-26T02:30:00Z")).toBe("2026-09-25");
+    expect(await roundDateAt("2026-09-26T03:30:00Z")).toBe("2026-09-26");
+  });
 });
 
 describe("map pilot result", () => {
@@ -347,9 +434,22 @@ describe("map pilot result", () => {
 
   it("builds a short share text with the round date", () => {
     expect(mapShareText(DATE, round, oneWrong, "pt-BR")).toBe(
-      `K-pop Map ${DATE}\n9/10 datas certas\n🟩🟥${"🟩".repeat(8)}`,
+      `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}`,
     );
     expect(mapShareText(DATE, round, rightAnswers, "en")).toBe(`K-pop Map ${DATE}\n10/10 dates right\n${"🟩".repeat(10)}`);
+  });
+
+  it("marks wrong dates with a black square, like Adivinhe", () => {
+    const allWrong = round.map((event) => wrongFor(event).map_feature_id);
+    const text = mapShareText(DATE, round, allWrong, "en");
+    expect(text.endsWith("⬛".repeat(10))).toBe(true);
+    expect(text).not.toContain("🟥");
+  });
+
+  it("links the Wikidata revision of the checked item by QID", () => {
+    expect(wikidataRevisionUrl({ country_check_wikidata_id: "Q50435", country_check_wikidata_revid: 123 })).toBe(
+      "https://www.wikidata.org/w/index.php?title=Q50435&oldid=123",
+    );
   });
 
   it("uses the share sheet first and does not copy", async () => {
@@ -403,21 +503,21 @@ describe("map pilot result", () => {
     playRound(view);
     await act(async () => {
       fireEvent.click(view.getByRole("button", { name: "Compartilhar resultado" }));
-      fireEvent.click(view.getByRole("button", { name: "Jogar outra rodada" }));
+      fireEvent.click(view.getByRole("button", { name: "Jogar novamente" }));
       fireEvent.click(view.getByRole("button", { name: "Ver fonte" }));
     });
     expect(writeText).not.toHaveBeenCalled();
     expect(view.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
     expect(view.getByRole("button", { name: "Ver fonte" })).toHaveAttribute("aria-expanded", "false");
     advanceClock();
-    pressEnter(view.getByRole("button", { name: "Jogar outra rodada" }), true);
+    pressEnter(view.getByRole("button", { name: "Jogar novamente" }), true);
     expect(view.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
   });
 
   it("starts the round again, clears the save and focuses the first question", () => {
     const view = finished();
     advanceClock();
-    fireEvent.click(view.getByRole("button", { name: "Jogar outra rodada" }));
+    fireEvent.click(view.getByRole("button", { name: "Jogar novamente" }));
     expect(view.getByText("Pergunta 1 de 10")).toBeTruthy();
     expect(stored()).toBeNull();
     const question = view.getByRole("heading", { level: 2 });
@@ -448,11 +548,13 @@ describe("map pilot result", () => {
     expect(hrefs).toEqual([
       wrongEvent.source_url,
       wrongEvent.musicbrainz_event_url,
-      `https://www.wikidata.org/w/index.php?oldid=${wrongEvent.country_check_wikidata_revid}`,
+      `https://www.wikidata.org/w/index.php?title=${wrongEvent.country_check_wikidata_id}&oldid=${wrongEvent.country_check_wikidata_revid}`,
     ]);
-    expect(second).toHaveTextContent(`revisão ${wrongEvent.country_check_wikidata_revid}`);
+    expect(second).toHaveTextContent(
+      `País do local do show no Wikidata (${wrongEvent.country_check_wikidata_id}), revisão ${wrongEvent.country_check_wikidata_revid}.`,
+    );
     expect(second).toHaveTextContent(`Local na fonte: ${readableScheduleLocator(wrongEvent.source_locator, wrongEvent.event_date)}`);
-    expect(second).toHaveTextContent("Conferida em");
+    expect(second).toHaveTextContent("Agenda conferida em");
     expect(items[0]).toHaveClass("is-correct");
     expect(items[0]).toHaveTextContent("Certa");
 

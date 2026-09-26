@@ -10,6 +10,7 @@ import {
 } from "../../data/map-pilot";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
+import { dailyReferenceDate } from "../../data/daily-artifact";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { clearMapPilotSave, loadMapPilotSave, storeMapPilotSave } from "./map-pilot-save";
 import { formatMapDate, MapPilotResult } from "./MapPilotResult";
@@ -29,6 +30,7 @@ interface Copy {
   countryChoices: string;
   pickPlaceholder: string;
   answer: string;
+  pickFirst: string;
   correct: string;
   incorrect: string;
   answerWas: string;
@@ -61,6 +63,7 @@ const COPY: Record<Locale, Copy> = {
     countryChoices: "Países desta rodada",
     pickPlaceholder: "Escolha um país",
     answer: "Responder",
+    pickFirst: "Escolha um país primeiro.",
     correct: "Resposta correta.",
     incorrect: "Essa não é a resposta.",
     answerWas: "País correto",
@@ -70,8 +73,8 @@ const COPY: Record<Locale, Copy> = {
     complete: "Rodada concluída",
     evidence: "Agenda oficial",
     musicBrainz: "MusicBrainz",
-    scheduleNote: "A data aparece na agenda. Isso não confirma que o show aconteceu.",
-    checkedAt: (date) => `Conferida em ${date}.`,
+    scheduleNote: "Estar na agenda oficial não confirma que o show aconteceu.",
+    checkedAt: (date) => `Agenda conferida em ${date}.`,
     mapCredit: "Dados cartográficos: Natural Earth, domínio público.",
     roundProgress: (current, total) => `Pergunta ${current} de ${total}`,
   },
@@ -85,6 +88,7 @@ const COPY: Record<Locale, Copy> = {
     countryChoices: "Countries in this round",
     pickPlaceholder: "Choose a country",
     answer: "Answer",
+    pickFirst: "Pick a country first.",
     correct: "Correct answer.",
     incorrect: "That is not the answer.",
     answerWas: "Correct country",
@@ -94,8 +98,8 @@ const COPY: Record<Locale, Copy> = {
     complete: "Round complete",
     evidence: "Official schedule",
     musicBrainz: "MusicBrainz",
-    scheduleNote: "The date appears in the schedule. This does not confirm the show took place.",
-    checkedAt: (date) => `Checked on ${date}.`,
+    scheduleNote: "Being on the official schedule does not confirm the show took place.",
+    checkedAt: (date) => `Schedule checked on ${date}.`,
     mapCredit: "Map data: Natural Earth, public domain.",
     roundProgress: (current, total) => `Question ${current} of ${total}`,
   },
@@ -117,11 +121,12 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
   const copy = COPY[locale];
   const messages = getMessages(locale);
   // The static build and the visitor's browser disagree on "today", so the
-  // daily round and its save are read only after hydration.
+  // daily round and its save are read only after hydration. The day turns at
+  // midnight in Sao Paulo, like the other daily games.
   const [game, setGame] = useState<RoundState | null>(null);
   useEffect(() => {
     if (game !== null) return;
-    const date = seedDate ?? new Date().toISOString().slice(0, 10);
+    const date = seedDate ?? dailyReferenceDate();
     const saved = loadMapPilotSave(date, selectMapPilotRound(mapPilotEvents, date), playableFeatures);
     setGame({ date, answers: saved?.answers ?? [], index: saved?.index ?? 0 });
   }, [game, seedDate]);
@@ -132,6 +137,8 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
   );
 
   const [listChoice, setListChoice] = useState("");
+  // Answer pressed with no country picked: the live region says so.
+  const [pickPrompt, setPickPrompt] = useState(0);
   const [notice, setNotice] = useState<ShareNotice | null>(null);
   const notices = useRef(0);
   const nextButton = useRef<HTMLButtonElement>(null);
@@ -172,7 +179,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
   useFocusOnChange(nextButton, answerState !== null && playedHere.current, questionIndex);
   // At the end the result takes the bar, so focus its title to start reading there.
   useFocusOnChange(resultTitle, isComplete && playedHere.current);
-  // After Play another round, the first question.
+  // After Play again, the first question.
   useFocusOnChange(questionTitle, restarts > 0 && !isComplete, restarts);
 
   const sortedCountries = useMemo(
@@ -194,6 +201,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
     if (!game || performance.now() - answeredAt.current < NEXT_GUARD_MS) return;
     playedHere.current = true;
     setListChoice("");
+    setPickPrompt(0);
     setGame({ ...game, index: game.index + 1 });
   }
 
@@ -203,6 +211,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
     playedHere.current = true;
     answeredAt.current = -Infinity;
     setListChoice("");
+    setPickPrompt(0);
     setNotice(null);
     setGame({ date: game.date, answers: [], index: 0 });
     setRestarts((value) => value + 1);
@@ -324,6 +333,9 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
                 <span>{copy.checkedAt(formatMapDate(current.source_checked_at, locale, "short"))} {copy.scheduleNote}</span>
               </p>
             </>
+          ) : pickPrompt > 0 ? (
+            // A new key replaces the paragraph, so a second empty Answer is announced again.
+            <p key={pickPrompt} class="game-actions-hint">{copy.pickFirst}</p>
           ) : (
             <p class="game-actions-hint">{copy.instructions}</p>
           )}
@@ -358,13 +370,17 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
             onSubmit={(event) => {
               event.preventDefault();
               if (listChoice) chooseCountry(listChoice);
+              else setPickPrompt((value) => value + 1);
             }}
           >
             <select
               class="map-pilot-select"
               aria-label={copy.countryChoices}
               value={listChoice}
-              onChange={(event) => setListChoice((event.currentTarget as HTMLSelectElement).value)}
+              onChange={(event) => {
+                setListChoice((event.currentTarget as HTMLSelectElement).value);
+                setPickPrompt(0);
+              }}
             >
               <option value="" disabled>{copy.pickPlaceholder}</option>
               {sortedCountries.map((country) => (
@@ -373,7 +389,8 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
                 </option>
               ))}
             </select>
-            <button class="btn btn-primary" type="submit" disabled={!listChoice}>{copy.answer}</button>
+            {/* aria-disabled keeps Answer in the Tab order and lets it say why nothing happened. */}
+            <button class="btn btn-primary" type="submit" aria-disabled={listChoice ? undefined : "true"}>{copy.answer}</button>
           </form>
         )}
       </div>
