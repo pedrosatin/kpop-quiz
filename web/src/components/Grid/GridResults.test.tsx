@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GridResults, RESULT_GUARD_MS, gridShareText } from "./GridResults";
-import { cellSources } from "./GridReview";
+import { cellSources, GridReview, readableLocator } from "./GridReview";
 import { getMessages } from "../../i18n/catalog";
 import type { IntersectionGrid } from "../../lib/quiz-types";
 import validGridJson from "../../tests/fixtures/grid.daily.json";
@@ -177,10 +177,44 @@ describe("GridResults component", () => {
       expect(link).toHaveAccessibleName("Abrir a revisão no Wikidata");
     }
     expect(within(panel).getAllByText(/Wikidata, revisão 1001\./).length).toBeGreaterThan(0);
-    expect(within(panel).getAllByText("Local na fonte: claims/P264/Q21461452$1234/references/hash1").length).toBeGreaterThan(0);
+    expect(panel.querySelector(".grid-source-locator")).toHaveTextContent("Local na fonte: declaração P264 e sua referência");
+    expect(within(panel).getAllByTitle("claims/P264/Q21461452$1234/references/hash1").length).toBeGreaterThan(0);
 
     fireEvent.click(toggle);
     expect(panel).toHaveAttribute("hidden");
+  });
+
+  it("ignores Ver fonte right after the result appears and on a held Enter", () => {
+    render(
+      <GridResults
+        grid={validGrid}
+        cellStates={sampleCellStates()}
+        guessesUsed={9}
+        onRestart={vi.fn()}
+        locale="pt-BR"
+        messages={ptMessages}
+      />
+    );
+
+    const toggle = screen.getByRole("button", { name: "Ver fonte" });
+    clock += RESULT_GUARD_MS - 1;
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    const held = new KeyboardEvent("keydown", { key: "Enter", repeat: true, bubbles: true, cancelable: true });
+    toggle.dispatchEvent(held);
+    expect(held.defaultPrevented).toBe(true);
+
+    clock += 1;
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("puts the verdict of the last guess before the summary", () => {
+    renderResults({ guessesUsed: 9, verdict: "Errada: SHINee." });
+
+    const title = screen.getByRole("heading", { name: "Fim da partida" });
+    expect(title).toHaveAccessibleDescription("Errada: SHINee. 1 de 9 casas certas com 9 palpites");
   });
 
   it("marks each cell right, wrong or empty in the answers", () => {
@@ -251,5 +285,40 @@ describe("cellSources", () => {
       expect.objectContaining({ project: "Wikidata", revision: 9, locators: ["claims/P264"] }),
     ]);
     expect(cellSources(grid, cell, "en").map((g) => g.name)).toEqual(["Two", "One"]);
+  });
+});
+
+describe("readableLocator", () => {
+  // Both formats come from public/data/grid.daily.json.
+  const extract = "wikipedia:en:pageid=19515908:revid=1375666829#extract[140:148]";
+  const claim = "claims/P527/Q492035$c6af000e-44b9-5907-4bfd-e0147407b7ff/references/d6367644222118ee913f72f24c8ac6564ec08025";
+
+  it("names a span of the summary and a Wikidata statement in both languages", () => {
+    expect(readableLocator(extract, ptMessages)).toBe("caracteres 140 a 148 do resumo");
+    expect(readableLocator(extract, getMessages("en"))).toBe("extract characters 140–148");
+    expect(readableLocator(claim, ptMessages)).toBe("declaração P527 e sua referência");
+    expect(readableLocator(claim, getMessages("en"))).toBe("statement P527 and its reference");
+    expect(readableLocator("page#section-2", ptMessages)).toBe("section-2");
+  });
+
+  it("shows the readable place and keeps the raw locator in the title", () => {
+    const grid = {
+      ...validGrid,
+      cells: validGrid.cells.map((cell, i) =>
+        i === 0
+          ? {
+              ...cell,
+              evidence: [
+                { ...cell.evidence[0]!, locator: extract, source_url: "https://en.wikipedia.org/w/index.php?curid=19515908&oldid=1375666829" },
+                { ...cell.evidence[0]!, locator: claim },
+              ],
+            }
+          : cell,
+      ),
+    };
+    render(<GridReview grid={grid} cellStates={sampleCellStates()} locale="pt-BR" messages={ptMessages} />);
+
+    expect(screen.getByTitle(extract)).toHaveTextContent("caracteres 140 a 148 do resumo");
+    expect(screen.getByTitle(claim)).toHaveTextContent("declaração P527 e sua referência");
   });
 });

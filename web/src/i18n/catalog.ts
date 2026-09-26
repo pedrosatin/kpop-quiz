@@ -202,6 +202,8 @@ export interface Messages {
   gridReviewEmpty: string;
   gridSourcesSummary: (count: number) => string;
   gridSourceLocator: string;
+  gridLocatorExtract: (start: number, end: number) => string;
+  gridLocatorClaim: (property: string) => string;
   gridReviewCellHeader: (row: number, col: number) => string;
   gridAcceptedAnswers: string;
   gridRestart: string;
@@ -455,7 +457,7 @@ const catalogs: Record<Locale, Messages> = {
     gridGameOverSummary: (correct, guesses) => `${correct} de 9 casas certas com ${guesses} palpites`,
     gridShareButton: "Compartilhar resultado",
     gridHighContrastShare: "Versão sem cores (alto contraste)",
-    gridHint: "Escolha uma casa e depois um grupo que atenda às duas regras.",
+    gridHint: "Escolha uma casa e um grupo para ela.",
     gridGuessRight: (groupName) => `Certa: ${groupName}.`,
     gridGuessWrong: (groupName) => `Errada: ${groupName}.`,
     gridReviewTitle: "Respostas e fontes",
@@ -464,6 +466,8 @@ const catalogs: Record<Locale, Messages> = {
     gridReviewEmpty: "Vazia",
     gridSourcesSummary: (count) => (count === 1 ? "1 fonte" : `${count} fontes`),
     gridSourceLocator: "Local na fonte:",
+    gridLocatorExtract: (start, end) => `caracteres ${start} a ${end} do resumo`,
+    gridLocatorClaim: (property) => `declaração ${property} e sua referência`,
     gridReviewCellHeader: (row, col) => `Linha ${row + 1}, coluna ${col + 1}`,
     gridAcceptedAnswers: "Respostas aceitas:",
     gridRestart: "Jogar novamente",
@@ -780,7 +784,7 @@ const catalogs: Record<Locale, Messages> = {
     gridGameOverSummary: (correct, guesses) => `${correct} of 9 squares correct in ${guesses} guesses`,
     gridShareButton: "Share result",
     gridHighContrastShare: "No-color version (high contrast)",
-    gridHint: "Pick a square, then a group that fits both rules.",
+    gridHint: "Pick a square, then a group for it.",
     gridGuessRight: (groupName) => `Correct: ${groupName}.`,
     gridGuessWrong: (groupName) => `Wrong: ${groupName}.`,
     gridReviewTitle: "Answers and sources",
@@ -789,6 +793,8 @@ const catalogs: Record<Locale, Messages> = {
     gridReviewEmpty: "Empty",
     gridSourcesSummary: (count) => (count === 1 ? "1 source" : `${count} sources`),
     gridSourceLocator: "Location in source:",
+    gridLocatorExtract: (start, end) => `extract characters ${start}–${end}`,
+    gridLocatorClaim: (property) => `statement ${property} and its reference`,
     gridReviewCellHeader: (row, col) => `Row ${row + 1}, column ${col + 1}`,
     gridAcceptedAnswers: "Accepted answers:",
     gridRestart: "Play again",

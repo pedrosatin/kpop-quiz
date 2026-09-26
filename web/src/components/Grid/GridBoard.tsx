@@ -8,7 +8,7 @@ export interface GridBoardProps {
   grid: IntersectionGrid;
   cellStates: Record<string, GridCellState>;
   selectedCell: CellCoordinates | null;
-  onSelectCell: (row: number, col: number) => void;
+  onSelectCell: (row: number, col: number, event: MouseEvent) => void;
   disabled: boolean;
   boardRef?: Ref<HTMLDivElement>;
   locale: Locale;
@@ -107,7 +107,7 @@ export function GridBoard({
                       cellState={cellState}
                       isSelected={isSelected}
                       disabled={disabled}
-                      onSelect={() => onSelectCell(rowIdx, colIdx)}
+                      onSelect={(event) => onSelectCell(rowIdx, colIdx, event)}
                       locale={locale}
                       messages={messages}
                     />

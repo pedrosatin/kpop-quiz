@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { CandidateEntity, IntersectionGrid, Locale } from "../../lib/quiz-types";
 import { GridArtifactError, loadIntersectionGrid } from "../../data/grid-loader";
 import {
@@ -6,6 +6,7 @@ import {
   type CellCoordinates,
   type GridCellState,
   type GridGameStatus,
+  type GridStoredCell,
   type GridStoredState,
 } from "./types";
 
@@ -15,17 +16,38 @@ export function gridStorageKey(grid: IntersectionGrid): string {
   return `kpop-grid-${grid.grid_id}`;
 }
 
-function countSolved(cells: Record<string, GridCellState>): number {
+function countSolved(cells: Record<string, GridStoredCell>): number {
   return Object.values(cells).filter((c) => c.solved).length;
 }
 
+function candidateName(grid: IntersectionGrid, id: string, locale: Locale): string | undefined {
+  const candidate = grid.candidate_pool.find((c) => c.id === id);
+  return candidate ? candidate.names[locale] || candidate.canonical_name : undefined;
+}
+
+/** Adds the names of the saved QIDs in the page's language. */
+export function nameCells(
+  cells: Record<string, GridStoredCell>,
+  grid: IntersectionGrid | null,
+  locale: Locale,
+): Record<string, GridCellState> {
+  const named: Record<string, GridCellState> = {};
+  for (const [key, cell] of Object.entries(cells)) {
+    const state: GridCellState = { ...cell };
+    if (grid && cell.entityId) state.entityName = candidateName(grid, cell.entityId, locale) ?? cell.entityId;
+    if (grid && cell.lastAttemptId) state.lastAttempt = candidateName(grid, cell.lastAttemptId, locale) ?? cell.lastAttemptId;
+    named[key] = state;
+  }
+  return named;
+}
+
 /**
- * Reads a saved game of this grid. A save that names a group the cell does
- * not accept, uses a group twice or counts more guesses than allowed is
- * dropped, so a stale or edited save never shows a board the player did
- * not reach. Names are read again from the pool in the page's language.
+ * Reads a saved game of this grid (format in GridStoredState). A save that
+ * names a group the cell does not accept, a group outside the pool, uses a
+ * group twice or counts more guesses than allowed is dropped, so a stale or
+ * edited save never shows a board the player did not reach.
  */
-export function loadSavedGrid(grid: IntersectionGrid, locale: Locale): GridStoredState | null {
+export function loadSavedGrid(grid: IntersectionGrid): GridStoredState | null {
   let saved: unknown;
   try {
     const raw = localStorage.getItem(gridStorageKey(grid));
@@ -39,24 +61,24 @@ export function loadSavedGrid(grid: IntersectionGrid, locale: Locale): GridStore
   if (!Number.isInteger(guessesUsed) || (guessesUsed as number) < 0 || (guessesUsed as number) > MAX_GUESSES) return null;
   if (typeof cells !== "object" || cells === null) return null;
 
+  const pool = new Set(grid.candidate_pool.map((c) => c.id));
   const restored = createEmptyCells();
   const used = new Set<string>();
   let touched = 0;
   for (const cell of grid.cells) {
     const key = cellKey(cell.row_index, cell.col_index);
-    const state = (cells as Record<string, unknown>)[key] as Partial<GridCellState> | undefined;
+    const state = (cells as Record<string, unknown>)[key] as Partial<GridStoredCell> | undefined;
     if (typeof state !== "object" || state === null) return null;
     if (state.solved === true) {
       const id = state.entityId;
-      if (typeof id !== "string" || !cell.valid_entity_ids.includes(id) || used.has(id)) return null;
-      const candidate = grid.candidate_pool.find((c) => c.id === id);
-      if (!candidate) return null;
+      if (typeof id !== "string" || !pool.has(id) || !cell.valid_entity_ids.includes(id) || used.has(id)) return null;
       used.add(id);
-      restored[key] = { solved: true, failed: false, entityId: id, entityName: candidate.names[locale] || candidate.canonical_name };
+      restored[key] = { solved: true, failed: false, entityId: id };
       touched++;
     } else if (state.failed === true) {
-      if (state.lastAttempt !== undefined && typeof state.lastAttempt !== "string") return null;
-      restored[key] = { solved: false, failed: true, ...(state.lastAttempt ? { lastAttempt: state.lastAttempt } : {}) };
+      const id = state.lastAttemptId;
+      if (id !== undefined && (typeof id !== "string" || !pool.has(id))) return null;
+      restored[key] = { solved: false, failed: true, ...(id ? { lastAttemptId: id } : {}) };
       touched++;
     }
   }
@@ -65,12 +87,12 @@ export function loadSavedGrid(grid: IntersectionGrid, locale: Locale): GridStore
   return { guessesUsed: guessesUsed as number, cells: restored };
 }
 
-function isFinished(cells: Record<string, GridCellState>, guessesUsed: number): boolean {
+function isFinished(cells: Record<string, GridStoredCell>, guessesUsed: number): boolean {
   return countSolved(cells) === 9 || guessesUsed >= MAX_GUESSES;
 }
 
-function createEmptyCells(): Record<string, GridCellState> {
-  const cells: Record<string, GridCellState> = {};
+function createEmptyCells(): Record<string, GridStoredCell> {
+  const cells: Record<string, GridStoredCell> = {};
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) {
       cells[cellKey(r, c)] = { solved: false, failed: false };
@@ -85,7 +107,8 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   const [errorKind, setErrorKind] = useState<"missing" | "invalid" | undefined>();
   const [selectedCell, setSelectedCell] = useState<CellCoordinates | null>(null);
   const [guessesUsed, setGuessesUsed] = useState<number>(0);
-  const [cells, setCells] = useState<Record<string, GridCellState>>(createEmptyCells);
+  // QIDs only; `cells` below adds the names in the page's language.
+  const [storedCells, setCells] = useState<Record<string, GridStoredCell>>(createEmptyCells);
   const [usedEntityIds, setUsedEntityIds] = useState<Set<string>>(new Set());
   const [uniquenessError, setUniquenessError] = useState<string | null>(null);
 
@@ -94,7 +117,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     setErrorKind(undefined);
     try {
       const data = await loadIntersectionGrid(locale, baseUrl);
-      const saved = loadSavedGrid(data, locale);
+      const saved = loadSavedGrid(data);
       const restoredCells = saved?.cells ?? createEmptyCells();
       const restoredGuesses = saved?.guessesUsed ?? 0;
       setCells(restoredCells);
@@ -118,22 +141,25 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     loadData();
   }, [loadData]);
 
-  // Save after every guess, so a reload keeps the board and the result.
+  const cells = useMemo(() => nameCells(storedCells, grid, locale), [storedCells, grid, locale]);
+
+  // Save after every guess, so a reload keeps the board and the result. An
+  // untouched board is not saved: loading a grid writes nothing.
   useEffect(() => {
-    if (!grid || status === "loading" || status === "error") return;
+    if (!grid || status === "loading" || status === "error" || guessesUsed === 0) return;
     try {
-      const state: GridStoredState = { guessesUsed, cells };
+      const state: GridStoredState = { guessesUsed, cells: storedCells };
       localStorage.setItem(gridStorageKey(grid), JSON.stringify(state));
     } catch {}
-  }, [grid, status, guessesUsed, cells]);
+  }, [grid, status, guessesUsed, storedCells]);
 
   const selectCell = useCallback((row: number, col: number) => {
     const key = cellKey(row, col);
-    if (cells[key]?.solved) return;
+    if (storedCells[key]?.solved) return;
     setSelectedCell({ row, col });
     setUniquenessError(null);
     setStatus("cell_selected");
-  }, [cells]);
+  }, [storedCells]);
 
   const closePicker = useCallback(() => {
     setSelectedCell(null);
@@ -157,25 +183,16 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     const newGuesses = guessesUsed + 1;
     const key = cellKey(selectedCell.row, selectedCell.col);
 
-    const updatedCells = { ...cells };
+    const updatedCells = { ...storedCells };
     const newUsed = new Set(usedEntityIds);
 
     const displayName = candidate.names[locale] || candidate.canonical_name;
 
     if (isCorrect) {
-      updatedCells[key] = {
-        solved: true,
-        failed: false,
-        entityId: candidate.id,
-        entityName: displayName,
-      };
+      updatedCells[key] = { solved: true, failed: false, entityId: candidate.id };
       newUsed.add(candidate.id);
     } else {
-      updatedCells[key] = {
-        solved: false,
-        failed: true,
-        lastAttempt: displayName,
-      };
+      updatedCells[key] = { solved: false, failed: true, lastAttemptId: candidate.id };
     }
 
     const finished = isFinished(updatedCells, newGuesses);
@@ -196,7 +213,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
       cells: updatedCells,
       finished,
     };
-  }, [selectedCell, grid, usedEntityIds, locale, guessesUsed, cells]);
+  }, [selectedCell, grid, usedEntityIds, locale, guessesUsed, storedCells]);
 
   const restartGame = useCallback(() => {
     if (grid) {

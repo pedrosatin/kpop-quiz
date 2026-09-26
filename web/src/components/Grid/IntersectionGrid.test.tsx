@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CELL_GUARD_MS, IntersectionGrid, nextCellAfterGuess } from "./IntersectionGrid";
 import { RESULT_GUARD_MS } from "./GridResults";
 import { getMessages } from "../../i18n/catalog";
+import type { Locale } from "../../lib/quiz-types";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 import validGridJson from "../../tests/fixtures/grid.daily.json";
 import { cellKey, type GridCellState } from "./types";
@@ -34,10 +35,15 @@ function status(): HTMLElement {
   return document.querySelector<HTMLElement>(".game-actions-message")!;
 }
 
+/** A click from a pointer; Enter and Space give detail 0. */
+function tap(element: Element) {
+  fireEvent.click(element, { detail: 1 });
+}
+
 /** Opens a cell and picks a group, as a player would with time between taps. */
 function pick(row: number, col: number, name: string) {
   clock += CELL_GUARD_MS + 1;
-  fireEvent.click(cellButton(row, col));
+  tap(cellButton(row, col));
   fireEvent.click(within(screen.getByRole("dialog")).getByText(name));
 }
 
@@ -155,7 +161,7 @@ describe("IntersectionGrid orchestrator component", () => {
     cellBtn.focus();
     fireEvent.click(cellBtn);
 
-    expect(screen.getByRole("searchbox")).toHaveFocus();
+    expect(screen.getByRole("combobox")).toHaveFocus();
 
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
 
@@ -225,17 +231,37 @@ describe("IntersectionGrid orchestrator component", () => {
   it("ignores a tap on the board right after a guess closes the picker", async () => {
     await renderReady();
 
-    fireEvent.click(cellButton(0, 0));
+    tap(cellButton(0, 0));
     fireEvent.click(within(screen.getByRole("dialog")).getByText("TWICE"));
 
     // The second tap of a double tap lands on the cell under the list.
     clock += CELL_GUARD_MS - 1;
-    fireEvent.click(cellButton(1, 1));
+    tap(cellButton(1, 1));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     clock += 2;
-    fireEvent.click(cellButton(1, 1));
+    tap(cellButton(1, 1));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("opens the focused cell from the keyboard right after a guess", async () => {
+    await renderReady();
+
+    tap(cellButton(0, 0));
+    fireEvent.click(within(screen.getByRole("dialog")).getByText("SHINee"));
+    await waitFor(() => expect(cellButton(0, 0)).toHaveFocus());
+
+    // Enter on a button fires a click with detail 0, inside the guard time.
+    fireEvent.click(cellButton(0, 0), { detail: 0 });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("does not open a cell on a held Enter", async () => {
+    await renderReady();
+
+    const held = new KeyboardEvent("keydown", { key: "Enter", repeat: true, bubbles: true, cancelable: true });
+    cellButton(1, 1).dispatchEvent(held);
+    expect(held.defaultPrevented).toBe(true);
   });
 
   it("enforces uniqueness: forbids using already chosen group in another cell", async () => {
@@ -268,7 +294,8 @@ describe("IntersectionGrid orchestrator component", () => {
     });
 
     const title = screen.getByRole("heading", { name: "Fim da partida" });
-    expect(title).toHaveAccessibleDescription("0 de 9 casas certas com 9 palpites");
+    // The verdict of the last guess opens the summary.
+    expect(title).toHaveAccessibleDescription("Errada: SHINee. 0 de 9 casas certas com 9 palpites");
     await waitFor(() => expect(title).toHaveFocus());
     // The result sits in the action bar, and the kicker of the intro is not repeated.
     expect(title.closest(".game-actions")).not.toBeNull();
@@ -288,7 +315,7 @@ describe("IntersectionGrid orchestrator component", () => {
     for (const [row, col, name] of WIN_PATH) pick(row, col, name);
 
     await waitFor(() => expect(screen.getByRole("heading", { name: "Fim da partida" })).toHaveFocus());
-    expect(screen.getByText("9 de 9 casas certas com 9 palpites")).toBeInTheDocument();
+    expect(screen.getByText("Certa: BLACKPINK. 9 de 9 casas certas com 9 palpites")).toBeInTheDocument();
     expect(loadPlayerStats().games.grid).toMatchObject({ played: 1, won: 1 });
   });
 
@@ -303,13 +330,51 @@ describe("IntersectionGrid orchestrator component", () => {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
     expect(saved.guessesUsed).toBe(2);
     expect(saved.cells["0,0"]).toMatchObject({ solved: true, entityId: "Q21461452" });
-    expect(saved.cells["1,1"]).toMatchObject({ solved: false, failed: true, lastAttempt: "EXO" });
+    expect(saved.cells["1,1"]).toEqual({ solved: false, failed: true, lastAttemptId: "Q494217" });
+    expect(saved.cells["0,0"]).not.toHaveProperty("entityName");
+  });
+
+  it("does not save an untouched board", async () => {
+    await renderReady();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+    pick(0, 0, "SHINee");
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).guessesUsed).toBe(1);
+  });
+
+  it("names the wrong group in the page's language after the language changes", async () => {
+    const grid = structuredClone(validGridJson);
+    const shinee = grid.candidate_pool.find((c) => c.id === "Q243884")!;
+    shinee.names = { "pt-BR": "SHINee (pt)", en: "SHINee (en)" };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(grid)))));
+
+    const view = render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
+    await screen.findByRole("grid");
+    pick(0, 0, "SHINee (pt)");
+    expect(within(screen.getByRole("grid")).getByText("SHINee (pt)")).toBeInTheDocument();
+
+    const en: Locale = "en";
+    view.rerender(<IntersectionGrid locale={en} messages={getMessages(en)} />);
+    await waitFor(() => expect(within(screen.getByRole("grid")).getByText("SHINee (en)")).toBeInTheDocument());
+    expect(cellButton(0, 0)).toHaveAccessibleName(/Wrong: you tried SHINee \(en\)/);
+    expect(screen.queryByText("SHINee (pt)")).not.toBeInTheDocument();
+  });
+
+  it("drops a save whose wrong group is not in the pool", async () => {
+    const cells = emptyCells();
+    cells["1,1"] = { solved: false, failed: true, lastAttemptId: "Q999999999" };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 1, cells }));
+
+    await renderReady();
+
+    expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
+    expect(cellButton(1, 1)).toHaveAccessibleName(/Vazia/);
   });
 
   it("restores a game in progress without moving focus", async () => {
     const cells = emptyCells();
-    cells["0,0"] = { solved: true, failed: false, entityId: "Q21461452", entityName: "TWICE" };
-    cells["1,1"] = { solved: false, failed: true, lastAttempt: "EXO" };
+    cells["0,0"] = { solved: true, failed: false, entityId: "Q21461452" };
+    cells["1,1"] = { solved: false, failed: true, lastAttemptId: "Q494217" };
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 3, cells }));
 
     await renderReady();
@@ -325,9 +390,9 @@ describe("IntersectionGrid orchestrator component", () => {
   it("restores a finished game without stealing focus or counting it again", async () => {
     const cells = emptyCells();
     for (const [row, col] of WIN_PATH.slice(0, 4)) {
-      cells[cellKey(row, col)] = { solved: false, failed: true, lastAttempt: "SHINee" };
+      cells[cellKey(row, col)] = { solved: false, failed: true, lastAttemptId: "Q243884" };
     }
-    cells["0,0"] = { solved: true, failed: false, entityId: "Q21461452", entityName: "TWICE" };
+    cells["0,0"] = { solved: true, failed: false, entityId: "Q21461452" };
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 9, cells }));
     markGameMatchRecorded("grid", MATCH_ID);
     const before = JSON.stringify(loadPlayerStats());
@@ -345,7 +410,7 @@ describe("IntersectionGrid orchestrator component", () => {
   it("drops a save that names a group the cell does not accept", async () => {
     const cells = emptyCells();
     // BLACKPINK is not a JYP group of the 2010s.
-    cells["0,0"] = { solved: true, failed: false, entityId: "Q25056705", entityName: "BLACKPINK" };
+    cells["0,0"] = { solved: true, failed: false, entityId: "Q25056705" };
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 1, cells }));
 
     await renderReady();
@@ -364,8 +429,25 @@ describe("IntersectionGrid orchestrator component", () => {
 
     expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
     await waitFor(() => expect(cellButton(0, 0)).toHaveFocus());
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
-    expect(saved.guessesUsed).toBe(0);
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it("counts a restored finished game that was not counted yet, once", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(validGridJson)))));
+    const cells = emptyCells();
+    cells["0,0"] = { solved: true, failed: false, entityId: "Q21461452" };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 9, cells }));
+
+    const first = render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    await waitFor(() => expect(loadPlayerStats().games.grid.played).toBe(1));
+    expect(loadPlayerStats().games.grid.won).toBe(0);
+    first.unmount();
+
+    render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(loadPlayerStats().games.grid.played).toBe(1);
   });
 });
 

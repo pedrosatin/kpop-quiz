@@ -10,7 +10,7 @@ export interface GridCellProps {
   cellState: GridCellState;
   isSelected: boolean;
   disabled: boolean;
-  onSelect: () => void;
+  onSelect: (event: MouseEvent) => void;
   locale: Locale;
   messages: Messages;
 }
@@ -55,8 +55,8 @@ export function GridCell({
     <button
       type="button"
       class={cellClasses}
-      onClick={() => {
-        if (!inactive) onSelect();
+      onClick={(event) => {
+        if (!inactive) onSelect(event);
       }}
       // A held Enter that picked a group must not open the next cell.
       onKeyDown={(event) => {

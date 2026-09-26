@@ -197,7 +197,7 @@ describe("EntityPicker component", () => {
     );
 
     const dialog = screen.getByRole("dialog");
-    const search = screen.getByRole("searchbox");
+    const search = screen.getByRole("combobox");
     const close = screen.getByLabelText("Fechar");
     expect(search).toHaveFocus();
 
@@ -225,7 +225,10 @@ describe("EntityPicker component", () => {
       />
     );
 
-    const search = screen.getByRole("searchbox");
+    const search = screen.getByRole("combobox", { name: ptMessages.gridPickerSearchLabel });
+    expect(search).toHaveAttribute("aria-expanded", "true");
+    expect(search).toHaveAttribute("aria-autocomplete", "list");
+    expect(search).toHaveAttribute("aria-controls", screen.getByRole("listbox").id);
     expect(search).toHaveAttribute("aria-activedescendant", "candidate-opt-Q21461452");
     fireEvent.keyDown(search, { key: "ArrowDown" });
     expect(search).toHaveAttribute("aria-activedescendant", "candidate-opt-Q25056705");
@@ -246,7 +249,7 @@ describe("EntityPicker component", () => {
     );
 
     fireEvent.keyDown(screen.getByLabelText("Fechar"), { key: "Enter" });
-    fireEvent.keyDown(screen.getByRole("searchbox"), { key: "Enter", repeat: true });
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter", repeat: true });
     expect(onSelect).not.toHaveBeenCalled();
   });
 

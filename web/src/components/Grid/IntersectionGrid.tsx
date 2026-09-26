@@ -85,6 +85,9 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
   // Only a game finished in this visit moves focus to the result; a game
   // restored from storage leaves focus where the page put it.
   const playedHere = useRef(false);
+  // The verdict of the guess that ended the game, shown before the result
+  // summary. A restored game has none.
+  const [finalVerdict, setFinalVerdict] = useState<string | null>(null);
   const resultTitle = useRef<HTMLHeadingElement>(null);
   useFocusOnChange(resultTitle, isComplete && playedHere.current);
 
@@ -96,9 +99,11 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
   }, [focusCell, isComplete]);
 
   // The second tap of a double tap on a group lands on the board once the
-  // picker closes; it must not open the cell under it.
-  const openCell = useCallback((row: number, col: number) => {
-    if (performance.now() - lastGuessAt.current < CELL_GUARD_MS) return;
+  // picker closes; it must not open the cell under it. A click from Enter or
+  // Space has detail 0 and goes through; a held key is stopped by the cell.
+  const openCell = useCallback((row: number, col: number, event?: MouseEvent) => {
+    const fromKeyboard = event?.detail === 0;
+    if (!fromKeyboard && performance.now() - lastGuessAt.current < CELL_GUARD_MS) return;
     selectCell(row, col);
   }, [selectCell]);
 
@@ -114,14 +119,17 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
     playedHere.current = true;
     const n = ++announcements.current;
     setFeedback({ kind: result.success ? "right" : "wrong", name: result.name, n });
-    if (!result.finished) {
+    if (result.finished) {
+      setFinalVerdict(result.success ? messages.gridGuessRight(result.name) : messages.gridGuessWrong(result.name));
+    } else {
       const target = nextCellAfterGuess(result.cells, result.row, result.col);
       if (target) setFocusCell({ ...target, n });
     }
-  }, [makeGuess]);
+  }, [makeGuess, messages]);
 
   const restart = useCallback(() => {
     setFeedback(null);
+    setFinalVerdict(null);
     restartGame();
     setFocusCell({ row: 0, col: 0, n: ++announcements.current });
   }, [restartGame]);
@@ -222,6 +230,7 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
             grid={grid}
             cellStates={cells}
             guessesUsed={guessesUsed}
+            verdict={finalVerdict}
             onRestart={restart}
             onCopied={() => setFeedback({ kind: "copied", n: ++announcements.current })}
             onShareFailed={() => setFeedback({ kind: "shareFailed", n: ++announcements.current })}

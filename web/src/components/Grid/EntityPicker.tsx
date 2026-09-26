@@ -185,6 +185,9 @@ export function EntityPicker({
             onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
             placeholder={messages.gridPickerSearchPlaceholder}
             autocomplete="off"
+            // The list stays open under the field while the picker is open.
+            role="combobox"
+            aria-expanded="true"
             aria-autocomplete="list"
             aria-controls={listboxId}
             aria-activedescendant={activeOptionId}

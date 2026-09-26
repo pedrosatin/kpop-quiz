@@ -9,6 +9,8 @@ export interface GridResultsProps {
   grid: IntersectionGrid;
   cellStates: Record<string, GridCellState>;
   guessesUsed: number;
+  /** Verdict of the guess that ended the game in this visit, if any. */
+  verdict?: string | null;
   onRestart: () => void;
   onCopied?: () => void;
   onShareFailed?: () => void;
@@ -49,6 +51,7 @@ export function GridResults({
   grid,
   cellStates,
   guessesUsed,
+  verdict,
   onRestart,
   onCopied,
   onShareFailed,
@@ -140,6 +143,7 @@ export function GridResults({
           {messages.gridGameOverTitle}
         </h2>
         <p id={summaryId} class="grid-result-summary">
+          {verdict ? `${verdict} ` : ""}
           {messages.gridGameOverSummary(correctCount, guessesUsed)}
         </p>
       </div>
@@ -156,7 +160,8 @@ export function GridResults({
           class="btn btn-secondary"
           aria-expanded={sourceOpen}
           aria-controls={sourceId}
-          onClick={() => setSourceOpen((open) => !open)}
+          onKeyDown={ignoreRepeat}
+          onClick={guarded(() => setSourceOpen((open) => !open))}
         >
           {sourceOpen ? messages.hideSource : messages.showSource}
         </button>

@@ -62,6 +62,22 @@ export function cellSources(
   return list;
 }
 
+/**
+ * A place in a source as a reader would say it. The raw locator stays in
+ * the title: `…#extract[140:148]` is a span of the page summary, and
+ * `claims/P264/…/references/…` a Wikidata statement with its reference.
+ * Anything else shows what follows `#`, or the locator itself.
+ */
+export function readableLocator(locator: string, messages: Messages): string {
+  const hash = locator.lastIndexOf("#");
+  const place = hash >= 0 ? locator.slice(hash + 1) : locator;
+  const extract = /^extract\[(\d+):(\d+)\]$/.exec(place);
+  if (extract) return messages.gridLocatorExtract(Number(extract[1]), Number(extract[2]));
+  const claim = /^claims\/(P\d+)(?:\/|$)/.exec(place);
+  if (claim) return messages.gridLocatorClaim(claim[1]!);
+  return place || locator;
+}
+
 export function GridReview({ grid, cellStates, locale, messages }: GridReviewProps) {
   const candidateMap = new Map(grid.candidate_pool.map((c) => [c.id, c]));
 
@@ -138,7 +154,13 @@ export function GridReview({ grid, cellStates, locale, messages }: GridReviewPro
                                 {messages.openRevision(line.project)}
                               </a>
                               <span class="grid-source-locator">
-                                {messages.gridSourceLocator} {line.locators.join(", ")}
+                                {messages.gridSourceLocator}{" "}
+                                {line.locators.map((locator, i) => (
+                                  <span key={locator} title={locator}>
+                                    {i > 0 && ", "}
+                                    {readableLocator(locator, messages)}
+                                  </span>
+                                ))}
                               </span>
                             </li>
                           ))}

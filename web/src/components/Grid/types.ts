@@ -11,15 +11,32 @@ export interface CellCoordinates {
 export interface GridCellState {
   solved: boolean;
   entityId?: string;
+  /** Name of entityId in the page's language, read from the pool. */
   entityName?: string;
   failed: boolean;
+  /** QID of the last wrong group tried in this cell. */
+  lastAttemptId?: string;
+  /** Name of lastAttemptId in the page's language, read from the pool. */
   lastAttempt?: string;
 }
 
-/** What localStorage keeps of one grid, under `kpop-grid-<grid_id>`. */
+/** One cell as saved: QIDs only, so names follow the page's language. */
+export interface GridStoredCell {
+  solved: boolean;
+  failed: boolean;
+  entityId?: string;
+  lastAttemptId?: string;
+}
+
+/**
+ * What localStorage keeps of one grid, under `kpop-grid-<grid_id>`:
+ * `{ guessesUsed: 0..9, cells: { "row,col": GridStoredCell } }` with all
+ * nine cells. A solved cell has `entityId`; a failed one may have
+ * `lastAttemptId`. Both are candidate pool QIDs.
+ */
 export interface GridStoredState {
   guessesUsed: number;
-  cells: Record<string, GridCellState>;
+  cells: Record<string, GridStoredCell>;
 }
 
 export interface GridGameState {

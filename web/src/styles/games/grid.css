@@ -180,6 +180,16 @@
   text-decoration: line-through;
 }
 
+/* A long name must not grow its row; the cell label keeps the full name. */
+.cell-solved-name strong,
+.cell-attempt-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
 .cell-empty-prompt {
   color: var(--color-text-muted);
   font-size: 1.5rem;
@@ -285,12 +295,37 @@
 }
 
 /*
-  At the end the bar holds the result, about 220px tall on a phone, and
-  would cover the last row. The category tags go and the rows drop to the
-  touch target, so all nine cells stay above the bar at 390x844.
+  At the end the bar holds the result, about 245px tall on a phone and up
+  to 175px on a desktop when the verdict of the last guess takes a second
+  line, and would cover the last row. The icon moves beside the name, names
+  keep two lines and the rows get shorter, so all nine cells stay above the
+  bar at 390x844 and 1440x900. On phones a right cell drops its check mark
+  to keep the name's width; a wrong one still has the cross and the
+  strike-through, so the states differ by more than color.
 */
+.grid-game:has(.grid-result) :is(.cell-solved-name, .cell-failed-status) {
+  flex-direction: row;
+  gap: 0.2rem;
+}
+
+.grid-game:has(.grid-result) :is(.cell-solved-name strong, .cell-attempt-text) {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+@media (min-width: 30rem) {
+  .grid-game:has(.grid-result) .grid-cell-wrapper {
+    height: 3.5rem;
+  }
+
+  .grid-game:has(.grid-result) .grid-cell-btn {
+    min-height: 3.5rem;
+  }
+}
+
 @media (max-width: 30rem) {
-  .grid-game:has(.grid-result) .criterion-category {
+  .grid-game:has(.grid-result) .criterion-category,
+  .grid-game:has(.grid-result) .cell-solved-name .cell-icon {
     display: none;
   }
 
