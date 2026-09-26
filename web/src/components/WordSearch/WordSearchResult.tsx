@@ -10,21 +10,31 @@ interface SourceLine {
   project: "Wikidata" | "Wikipedia";
   revision: number;
   url: string;
+  locator: string;
 }
 
-/** One line per cited revision of a word: a page often backs it at several places. */
+/**
+ * One line per cited place: the same revision at two locators gives two
+ * lines, so no location is dropped. Mirrors groupEvidence in the quiz.
+ */
 export function wordSources(puzzle: WordSearchPuzzle, wordId: string): SourceLine[] {
   const word = puzzle.words.find((w) => w.id === wordId);
   if (!word) return [];
   const lines = new Map<string, SourceLine>();
   for (const evidence of word.evidence) {
-    const key = `${evidence.source_url}\u0000${evidence.revision_id}`;
+    const key = `${evidence.source_url}\u0000${evidence.revision_id}\u0000${evidence.locator}`;
     if (lines.has(key)) continue;
     let project: SourceLine["project"] = "Wikipedia";
     try {
       if (new URL(evidence.source_url).hostname === "www.wikidata.org") project = "Wikidata";
     } catch {}
-    lines.set(key, { key, project, revision: evidence.revision_id, url: evidence.source_url });
+    lines.set(key, {
+      key,
+      project,
+      revision: evidence.revision_id,
+      url: evidence.source_url,
+      locator: evidence.locator,
+    });
   }
   return [...lines.values()];
 }
@@ -58,6 +68,7 @@ export function WordSearchResult({
   const [sourceOpen, setSourceOpen] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleId = useId();
+  const summaryId = useId();
   const sourceId = useId();
   const shareTextId = useId();
   const shareFailedId = useId();
@@ -114,11 +125,12 @@ export function WordSearchResult({
           id={titleId}
           {...(titleRef ? { ref: titleRef } : {})}
           tabIndex={-1}
+          aria-describedby={summaryId}
           class="game-actions-title word-search-result-title"
         >
           {t.congratulations}
         </h2>
-        <p class="word-search-result-summary">{t.resultSummary(total, formatTime(elapsedSeconds))}</p>
+        <p id={summaryId} class="word-search-result-summary">{t.resultSummary(total, formatTime(elapsedSeconds))}</p>
       </div>
 
       <div class="word-search-result-buttons">
@@ -154,27 +166,38 @@ export function WordSearchResult({
       )}
 
       <div ref={source} id={sourceId} class="word-search-source" hidden={!sourceOpen}>
-        {puzzle.words.map((word) => (
-          <div key={word.id} class="word-search-source-word">
-            <h3 class="word-search-source-title">{word.labels[locale] || word.canonical_name}</h3>
-            <ul>
-              <li>
-                {t.evidenceWikidataId}{" "}
-                <a href={`https://www.wikidata.org/wiki/${word.id}`} target="_blank" rel="noreferrer">
-                  {word.id}
-                </a>
-              </li>
-              {wordSources(puzzle, word.id).map((line) => (
-                <li key={line.key}>
-                  {`${line.project}, ${messages.revision} ${line.revision}.`}{" "}
-                  <a href={line.url} target="_blank" rel="noreferrer">
-                    {messages.openRevision(line.project)}
+        {puzzle.words.map((word) => {
+          const clue = word.clue?.[locale] || word.clue?.en;
+          return (
+            <div key={word.id} class="word-search-source-word">
+              <h3 class="word-search-source-title">{word.labels[locale] || word.canonical_name}</h3>
+              {clue && (
+                <p class="word-search-source-clue">
+                  <strong>{t.evidenceClue}</strong> {clue}
+                </p>
+              )}
+              <ul>
+                <li>
+                  {t.evidenceWikidataId}{" "}
+                  <a href={`https://www.wikidata.org/wiki/${word.id}`} target="_blank" rel="noreferrer">
+                    {word.id}
                   </a>
                 </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+                {wordSources(puzzle, word.id).map((line) => (
+                  <li key={line.key}>
+                    {`${line.project}, ${messages.revision} ${line.revision}.`}{" "}
+                    <a href={line.url} target="_blank" rel="noreferrer">
+                      {messages.openRevision(line.project)}
+                    </a>
+                    <span class="word-search-source-locator">
+                      {t.evidenceLocator} {line.locator}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

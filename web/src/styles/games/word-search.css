@@ -10,55 +10,71 @@
 .word-search {
   --game-actions-inset: var(--space-4);
   /*
-    Height budget: the grid shrinks so it and the whole bar fit the viewport.
-    Measured at 390x844, 768x1024 and 1440x900, worst of both locales:
+    Height budget: the grid shrinks so it, the words and the whole bar fit
+    the viewport. Measured on a touch screen (44px small buttons) at 390x844,
+    768x1024 and 1440x900, worst of both locales:
       --ws-above    page top to the grid: site header, game nav, GameIntro
                     with its "How to play" line, card padding and, while the
                     theme sits above the grid, the theme title
-      --ws-actions  the bar (two-line message or progress, padding) and the
-                    margin above it
-    To remeasure, load the game scrolled to the top and read the grid's
-    getBoundingClientRect().top for --ws-above, and the bar's height plus
-    its margin-top for --ws-actions; keep the largest of each. Cells stop at
+      --ws-actions  the bar (two-line message or progress, padding); beside
+                    the grid also the margin above it
+      --ws-list     on one column, the words under the grid and the gap
+                    above them; 0 beside the grid
+    On one column the sticky bar covers its own top margin, so the margin
+    stays out of the budget and the page scrolls by those few pixels only.
+    To remeasure, load the game scrolled to the top and read
+    getBoundingClientRect() of the grid (top), the bar (height) and the word
+    list (height plus its gap); keep the largest of each. Cells stop at
     --ws-cell-min; below that the page scrolls and the sticky bar stays.
+
+    Between 30rem and 52rem, measured at 768x1024: grid top 401px, bar 78px,
+    two rows of chips beside the toggle 62px + 8px.
   */
-  --ws-above: 25rem;
-  --ws-actions: 5.75rem;
+  --ws-above: 25.25rem;
+  --ws-actions: 4.875rem;
+  --ws-list: 4.375rem;
   --ws-cell-min: 1.75rem;
-  --ws-grid-max-h: calc(100dvh - var(--consent-banner-height, 0px) - var(--ws-above) - var(--ws-actions));
+  --ws-grid-max-h: calc(
+    100dvh - var(--consent-banner-height, 0px) - var(--ws-above) - var(--ws-actions) - var(--ws-list)
+  );
 }
 
-/* Measured values: grid top 389px at 390x844 and 393px at 768x1024, bar
-   70px + 16px at 390 and 78px + 16px from 768 up. */
 @media (min-width: 48rem) {
   .word-search {
     --game-actions-inset: var(--space-6);
-    --ws-actions: 6.25rem;
   }
 }
 
-/* Next to the grid the theme leaves the top of the card, and the grid rises:
-   grid top 358px at 1440x900. */
+/* From 52rem the theme and the words sit beside the grid: the words add no
+   height and the grid rises. Grid top 358px at 1440x900, bar 78px + 16px. */
 @media (min-width: 52rem) {
   .word-search {
     --ws-above: 22.5rem;
+    --ws-actions: 6.25rem;
+    --ws-list: 0rem;
   }
 }
 
 /*
-  On phones the result takes two rows of the bar, taller than the progress.
-  The grid gives up height so the solved board stays above the bar; the
-  budget uses the result bar instead, measured the same way. Wider screens
-  keep the result on one row, no taller than the progress.
+  Phones, measured at 390x844: grid top 397px, bar 70px, then one row of
+  chips scrolling beside the 44px toggle, 8px under the grid (52px). The
+  result bar is 94px and the row loses the toggle (28px chips, 36px), so the
+  grid gives up about 2px per cell (26px to 24px) to keep every chip above
+  the bar; --ws-cell-min drops to let it.
 */
-@media (max-width: 30rem) {
-  /* Result bar 94px + 16px at 390x844. */
-  .word-search:has(.word-search-result) {
-    --ws-actions: 7rem;
-  }
-}
-
 @media (max-width: 29.99rem) {
+  .word-search {
+    --ws-above: 24.875rem;
+    --ws-actions: 4.375rem;
+    --ws-list: 3.25rem;
+    --ws-cell-min: 1.5rem;
+  }
+
+  .word-search:has(.word-search-result) {
+    --ws-actions: 5.875rem;
+    --ws-list: 2.25rem;
+  }
+
   .word-search.game-card {
     --game-actions-inset: var(--space-3);
     padding-inline: var(--space-3);
@@ -132,8 +148,8 @@
   columns to rows. --grid-cols and --grid-rows are set inline by
   WordSearchGrid.tsx.
 
-  On phones the width decides, not the height: at 390px, 12 columns share
-  334px and each cell gets 26px. Cells of --control-height would need 530px,
+  On phones the grid gets at most 334px of width; with the words and the
+  bar under it, cells get 25px at 390x844 (24px beside the result bar). Cells of --control-height would need 530px,
   and letters cannot be 8px apart without breaking up the words, so the grid
   is an exception to the touch-target rule. Two taps (first and last letter)
   work as well as a drag, and the bar spells out the letters selected.
@@ -229,27 +245,39 @@
 
 /* Word chips */
 
-/* One column: the label and the chips share the rows right under the grid,
-   and the toggle follows them. Beside the grid: label, chips, toggle. */
+/*
+  One column: the chips wrap beside the toggle, under the grid. On phones
+  they form a single row that scrolls sideways, so the whole list stays
+  between the grid and the bar; an end that hides chips fades out, and the
+  row takes focus (WordSearchList.tsx) so arrow keys scroll it. The label is
+  left to screen readers. Beside the grid: label, wrapping chips, toggle.
+*/
 .word-search-list-section {
   grid-area: list;
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
   min-width: 0;
+  margin-top: calc(var(--space-2) - var(--space-3));
 }
 
 .word-search-list-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   margin: 0;
-  color: var(--color-text-muted);
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
   font-family: var(--font-body);
-  font-size: 0.875rem;
 }
 
 .word-search-words {
+  /* Holds the hidden "found" texts, which are absolutely positioned, inside
+     the scrolling row; otherwise they widen the page on phones. */
+  position: relative;
   display: flex;
-  flex: 1 1 12rem;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   gap: var(--space-2);
   min-width: 0;
@@ -259,7 +287,52 @@
 }
 
 .toggle-mode-btn {
-  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 29.99rem) {
+  .word-search-words {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    border-radius: var(--radius-control);
+  }
+
+  .word-search-words::-webkit-scrollbar {
+    display: none;
+  }
+
+  .word-search-words > li {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+
+  .word-search-words.has-more-end {
+    mask-image: linear-gradient(to right, var(--color-text) calc(100% - 2rem), transparent);
+  }
+
+  .word-search-words.has-more-start {
+    mask-image: linear-gradient(to left, var(--color-text) calc(100% - 2rem), transparent);
+  }
+
+  .word-search-words.has-more-start.has-more-end {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      var(--color-text) 2rem,
+      var(--color-text) calc(100% - 2rem),
+      transparent
+    );
+  }
+
+  .word-search-words:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    mask-image: none;
+  }
 }
 
 @media (min-width: 52rem) {
@@ -268,15 +341,18 @@
     align-content: start;
     justify-items: start;
     gap: var(--space-3);
+    margin-top: 0;
   }
 
   .word-search-list-heading {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
     color: var(--color-text);
     font-size: 1rem;
-  }
-
-  .toggle-mode-btn {
-    margin-left: 0;
   }
 }
 
@@ -504,6 +580,16 @@
 
 .word-search-source li {
   overflow-wrap: anywhere;
+}
+
+.word-search-source-clue {
+  margin: 0 0 var(--space-1);
+}
+
+.word-search-source-locator {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
 }
 
 /* Forced colors: backgrounds are dropped, so mark state with system colors. */

@@ -5,8 +5,7 @@ Também em inglês: https://kpopquiz.online/en/word-search/
 
 Encontre os nomes do tema escondidos na grade, em qualquer direção.
 
-Grade temática · Palavras auditadas. Localize nomes temáticos escondidos
-em 8 direções na grade alfabética.
+Grade temática · Palavras auditadas.
 
 ## Proveniência e licença
 

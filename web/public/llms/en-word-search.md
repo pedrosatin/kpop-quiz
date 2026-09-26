@@ -5,8 +5,7 @@ Also in Portuguese: https://kpopquiz.online/pt-br/caca-palavras/
 
 Find the theme's names hidden in the grid, in any direction.
 
-Thematic grid · Audited words. Find thematic names hidden in 8
-directions across the letter grid.
+Thematic grid · Audited words.
 
 ## Provenance and license
 

@@ -4,6 +4,7 @@ import { useWordSearchGame } from "./useWordSearchGame";
 import { getLinearPath, formatTime, generateWordSearchShareSummary } from "./utils";
 import validPuzzle from "../../tests/fixtures/word-search.daily.json";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
+import { getMessages } from "../../i18n/catalog";
 
 describe("Word Search utilities", () => {
   it("computes horizontal linear paths", () => {
@@ -287,6 +288,26 @@ describe("useWordSearchGame hook", () => {
     expect(result.current.lastCheck).toMatchObject({ kind: "repeat", wordId: target.id });
     expect(result.current.lastCheck!.n).toBeGreaterThan(missN);
     expect(result.current.foundWordIds).toEqual([target.id]);
+  });
+
+  // Names have at least 3 letters, so two letters never match; they still
+  // get a verdict, so a short drag does not look ignored.
+  it("reports a two-letter selection as a miss", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const target = puzzle.words.find((w) => w.word === "SHINDONG")!;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+    const dRow = Math.sign(target.end_row - target.start_row);
+    const dCol = Math.sign(target.end_col - target.start_col);
+
+    act(() => {
+      result.current.handleCellPointerDown(target.start_row, target.start_col);
+      result.current.handleCellPointerUp(target.start_row + dRow, target.start_col + dCol);
+    });
+
+    const letters = "SH";
+    expect(result.current.lastCheck).toMatchObject({ kind: "miss", letters });
+    expect(result.current.foundWordIds).toEqual([]);
+    expect(getMessages("pt-BR").wordSearch.missFeedback(letters)).toBe("SH não é um dos nomes.");
   });
 
   it("completes game when all words are found", () => {

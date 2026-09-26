@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/word-search.daily.json";
 import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
 import { WordSearchGame } from "./WordSearchGame";
+import { wordSources } from "./WordSearchResult";
 import { getMessages } from "../../i18n/catalog";
 import { generateWordSearchShareSummary } from "./utils";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
@@ -414,6 +415,77 @@ describe("WordSearch end of puzzle", () => {
     fireEvent.click(toggle);
     expect(panel).not.toBeVisible();
   });
+
+  it("shows each word's clue and every location in the source behind Ver fonte", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    findAll();
+    fireEvent.click(screen.getByRole("button", { name: pt.showSource }));
+    const panel = document.querySelector<HTMLElement>(".word-search-source")!;
+
+    for (const word of puzzle.words) {
+      const title = within(panel).getByRole("heading", { level: 3, name: word.labels["pt-BR"] });
+      const block = title.closest<HTMLElement>(".word-search-source-word")!;
+      expect(block.querySelector(".word-search-source-clue")).toHaveTextContent(
+        `${tPt.evidenceClue} ${word.clue!["pt-BR"]}`,
+      );
+      // The clue comes before the source lines.
+      const clue = block.querySelector(".word-search-source-clue")!;
+      expect(clue.compareDocumentPosition(block.querySelector("ul")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      for (const evidence of word.evidence) {
+        expect(block).toHaveTextContent(`${tPt.evidenceLocator} ${evidence.locator}`);
+      }
+    }
+  });
+
+  it("labels the clue and the location in English", () => {
+    render(<WordSearchGame locale="en" puzzle={puzzle} />);
+    const en = getMessages("en");
+    for (const w of puzzle.words) {
+      fireEvent.pointerDown(screen.getByLabelText(new RegExp(`^Row ${w.start_row + 1}, column ${w.start_col + 1},`)));
+      fireEvent.pointerUp(screen.getByLabelText(new RegExp(`^Row ${w.end_row + 1}, column ${w.end_col + 1},`)));
+    }
+    fireEvent.click(screen.getByRole("button", { name: en.showSource }));
+    const panel = document.querySelector<HTMLElement>(".word-search-source")!;
+    const word = puzzle.words[0]!;
+    expect(panel).toHaveTextContent(`Clue: ${word.clue!.en}`);
+    expect(panel).toHaveTextContent(`Location in source: ${word.evidence[0]!.locator}`);
+  });
+
+  it("describes the result title with the summary", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    findAll();
+    const title = screen.getByRole("heading", { level: 2, name: tPt.congratulations });
+    const summary = document.getElementById(title.getAttribute("aria-describedby")!)!;
+    expect(summary).toHaveClass("word-search-result-summary");
+    expect(title).toHaveAccessibleDescription(summary.textContent!);
+  });
+});
+
+describe("wordSources", () => {
+  const base = puzzle.words[0]!.evidence[0]!;
+  const withEvidence = (evidence: WordSearchWord["evidence"]): WordSearchPuzzle => ({
+    ...puzzle,
+    words: [{ ...puzzle.words[0]!, evidence }],
+  });
+
+  it("keeps one line per revision and location, dropping exact repeats", () => {
+    const other = { ...base, locator: `${base.locator}-other`, fact_base_id: "other" };
+    const lines = wordSources(withEvidence([base, { ...base, fact_base_id: "copy" }, other]), puzzle.words[0]!.id);
+    expect(lines.map((line) => line.locator)).toEqual([base.locator, other.locator]);
+    expect(lines.every((line) => line.revision === base.revision_id && line.url === base.source_url)).toBe(true);
+    expect(lines[0]!.project).toBe("Wikipedia");
+  });
+
+  it("names Wikidata revisions as Wikidata", () => {
+    const wikidata = {
+      ...base,
+      source_url: "https://www.wikidata.org/w/index.php?title=Q1&oldid=5",
+      revision_id: 5,
+      locator: "wikidata:Q1:P527",
+    };
+    const [line] = wordSources(withEvidence([wikidata]), puzzle.words[0]!.id);
+    expect(line).toMatchObject({ project: "Wikidata", revision: 5, locator: "wikidata:Q1:P527" });
+  });
 });
 
 describe("WordSearch share", () => {
@@ -537,5 +609,44 @@ describe("WordSearch share", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("WordSearch chip row", () => {
+  const props = ["scrollWidth", "clientWidth"] as const;
+  const saved = props.map((key) => Object.getOwnPropertyDescriptor(HTMLElement.prototype, key));
+
+  afterEach(() => {
+    props.forEach((key, i) => {
+      if (saved[i]) Object.defineProperty(HTMLElement.prototype, key, saved[i]!);
+      else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[key];
+    });
+    localStorage.clear();
+  });
+
+  function list(): HTMLElement {
+    return document.querySelector<HTMLElement>(".word-search-words")!;
+  }
+
+  it("stays out of the tab order when every chip fits", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    expect(list()).not.toHaveAttribute("tabindex");
+    expect(list()).not.toHaveClass("has-more-end");
+  });
+
+  it("takes focus and marks the hidden ends when the chips scroll", () => {
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", { configurable: true, get: () => 500 });
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 200 });
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+
+    expect(list()).toHaveAttribute("tabindex", "0");
+    expect(list()).toHaveAccessibleName(tPt.wordsHeading);
+    expect(list()).toHaveClass("has-more-end");
+    expect(list()).not.toHaveClass("has-more-start");
+
+    list().scrollLeft = 300;
+    fireEvent.scroll(list());
+    expect(list()).toHaveClass("has-more-start");
+    expect(list()).not.toHaveClass("has-more-end");
   });
 });

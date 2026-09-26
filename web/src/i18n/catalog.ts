@@ -65,6 +65,8 @@ export interface WordSearchMessages {
   congratulations: string;
   resultSummary: (total: number, time: string) => string;
   evidenceWikidataId: string;
+  evidenceClue: string;
+  evidenceLocator: string;
   loading: string;
   loadError: string;
   artifactMissing: string;
@@ -351,7 +353,7 @@ const catalogs: Record<Locale, Messages> = {
       "Os nomes do tema estão escondidos na grade em linha reta: na horizontal, na vertical ou na diagonal, inclusive de trás para frente.",
       "Selecione a primeira e a última letra de um nome, ou arraste de uma ponta à outra.",
       "No teclado, mova com as setas e marque o início e o fim com Enter ou espaço.",
-      "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\". No fim, \"Ver fonte\" mostra de onde vem cada nome.",
+      "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\". No fim, \"Ver fonte\" lista a revisão da Wikipédia ou do Wikidata que confirma cada nome.",
     ],
     mapHowToPlay: [
       "Leia a data da turnê e escolha o país destacado no mapa ou o nome dele na lista.",
@@ -544,7 +546,7 @@ const catalogs: Record<Locale, Messages> = {
       lettersCount: (count) => (count === 1 ? "1 letra" : `${count} letras`),
       selectionLabel: "Palavra:",
       selectionHint: "Selecione a primeira e a última letra de um nome.",
-      anchorHint: (letter) => `Primeira letra: ${letter}. Selecione a última letra do nome.`,
+      anchorHint: (letter) => `Início: ${letter}.`,
       foundState: "encontrada",
       progress: (found, total) => `${found} de ${total}`,
       progressAnnouncement: (found, total) => `${found} de ${total} palavras.`,
@@ -554,6 +556,8 @@ const catalogs: Record<Locale, Messages> = {
       congratulations: "Parabéns!",
       resultSummary: (total, time) => `${total} palavras em ${time}.`,
       evidenceWikidataId: "ID no Wikidata:",
+      evidenceClue: "Pista:",
+      evidenceLocator: "Local na fonte:",
       loading: "Carregando o caça-palavras de hoje...",
       loadError: "Não foi possível carregar o jogo.",
       artifactMissing: "O caça-palavras de hoje ainda não foi publicado.",
@@ -670,7 +674,7 @@ const catalogs: Record<Locale, Messages> = {
       "The theme's names are hidden in straight lines: across, down or diagonal, and they can run backwards.",
       "Select the first and last letter of a name, or drag from one end to the other.",
       "With a keyboard, move with the arrow keys and mark the start and end with Enter or Space.",
-      "The list shows how many letters each name has. If you get stuck, use \"Show words\". At the end, \"Show source\" shows where each name comes from.",
+      "The list shows how many letters each name has. If you get stuck, use \"Show words\". At the end, \"Show source\" lists the Wikipedia or Wikidata revision behind each name.",
     ],
     mapHowToPlay: [
       "Read the tour date and pick the highlighted country on the map or its name in the list.",
@@ -862,7 +866,7 @@ const catalogs: Record<Locale, Messages> = {
       lettersCount: (count) => (count === 1 ? "1 letter" : `${count} letters`),
       selectionLabel: "Word:",
       selectionHint: "Select the first and last letter of a name.",
-      anchorHint: (letter) => `First letter: ${letter}. Now select the last letter of the name.`,
+      anchorHint: (letter) => `Start: ${letter}.`,
       foundState: "found",
       progress: (found, total) => `${found} of ${total}`,
       progressAnnouncement: (found, total) => `${found} of ${total} words.`,
@@ -872,6 +876,8 @@ const catalogs: Record<Locale, Messages> = {
       congratulations: "Well done!",
       resultSummary: (total, time) => `${total} words in ${time}.`,
       evidenceWikidataId: "Wikidata ID:",
+      evidenceClue: "Clue:",
+      evidenceLocator: "Location in source:",
       loading: "Loading today's word search...",
       loadError: "The game could not be loaded.",
       artifactMissing: "Today's word search has not been published yet.",
