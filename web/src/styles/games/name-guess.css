@@ -30,10 +30,11 @@
     in both locales at both sizes, scrolled to the top, and read the board's
     getBoundingClientRect().top for --ng-above and the keyboard bar's height
     plus its margin-top for --ng-actions; keep the largest of each.
-    Board top: 343px at 390x844 on a touch screen and at 1440x900, where the
-    Portuguese intro takes two lines.
+    Board top: 343px at 390x844 on a touch screen and at 1440x900 with a
+    fine pointer, where the Portuguese intro sentence wraps to two lines;
+    --intro-coarse-extra covers touch screens wider than a phone.
   */
-  --ng-above: 21.75rem;
+  --ng-above: calc(21.75rem + var(--intro-coarse-extra));
   --ng-actions: 11.5rem;
   --ng-board-max-h: calc(100dvh - var(--consent-banner-height, 0px) - var(--ng-above) - var(--ng-actions));
 }

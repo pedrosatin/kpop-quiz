@@ -292,7 +292,9 @@ textarea {
   one line where it fits, and one sentence. "How to play" sits at the right
   of the kicker row; its steps open under the sentence, full width, and the
   button does not move. The kicker row is as tall as the button so the title
-  never runs under it.
+  never runs under it. The details element comes right after the kicker in
+  the DOM, so Tab reaches the button before the title; flex order moves the
+  steps under the sentence.
 */
 
 .page-shell {
@@ -302,16 +304,29 @@ textarea {
 }
 
 .intro {
-  /* Room for "How to play" (.btn-sm) beside the kicker. */
-  --intro-help-width: 8.5rem;
+  /*
+    Room for "How to play" (.btn-sm) beside the kicker, built from the
+    button's parts: inline padding, borders, the gap to the arrow, and the
+    longest label ("How to play", about 6.5em) with its arrow at the
+    button's 0.8125rem type. It grows with the root font size and zoom. A
+    browser minimum font size enlarges the label but not rem or em lengths,
+    so the kicker text may then run under the button on phones.
+  */
+  --intro-help-width: calc(2 * var(--space-3) + var(--space-2) + 4px + 6.75 * 0.8125rem);
   --intro-help-height: 2.25rem;
   position: relative;
+  display: flex;
+  flex-direction: column;
   max-width: var(--game-max);
   margin: 0 auto var(--space-3);
 }
 
 .intro--wide {
   max-width: var(--game-max-wide);
+}
+
+.intro > .how-to-play {
+  order: 1;
 }
 
 .intro--with-help .kicker {
@@ -352,8 +367,7 @@ textarea {
 .how-to-play summary {
   position: absolute;
   top: 0;
-  right: 0;
-  max-width: var(--intro-help-width);
+  inset-inline-end: 0;
   white-space: nowrap;
   list-style: none;
 }

@@ -1,6 +1,11 @@
+// @vitest-environment node
+// The Astro container renders .astro files only in the node environment.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { experimental_AstroContainer as AstroContainer } from "astro/container";
+import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
+import GameIntro from "../components/GameIntro.astro";
 
 const SRC = join(import.meta.dirname, "..");
 const read = (path: string) => readFileSync(join(SRC, path), "utf-8");
@@ -36,16 +41,49 @@ describe("GameIntro page shell", () => {
     expect(page.match(/<GameIntro\b/g)).toHaveLength(1);
     expect(page).not.toMatch(/<h1\b/);
     const intro = page.slice(page.indexOf("<GameIntro"), page.indexOf("/>", page.indexOf("<GameIntro")));
-    expect(/^\s*wide\s*$/m.test(intro)).toBe(wide);
+    expect(/\bwide(\s|=\{true\}|\/?>)/.test(intro)).toBe(wide);
   });
 
-  it("labels the intro with its only h1 and keeps How to play a native disclosure", () => {
-    const component = read("components/GameIntro.astro");
-    expect(component.match(/<h1\b/g)).toHaveLength(1);
-    expect(component).toContain('<h1 id="page-title">');
-    expect(component).toContain('aria-labelledby="page-title"');
-    expect(component).toMatch(/<details class="how-to-play">\s*<summary/);
-    expect(component).toContain('"intro--wide": wide');
+  it.each([false, true])("renders wide=%s with its only h1 naming the section and How to play before it", async (wide) => {
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(GameIntro, {
+      props: {
+        kicker: "Daily game",
+        title: "Title",
+        intro: "One sentence.",
+        howToPlayTitle: "How to play",
+        howToPlaySteps: ["First", "Second"],
+        wide,
+      },
+    });
+    const doc = new JSDOM(html).window.document;
+    const section = doc.querySelector("section.intro")!;
+    expect(section.classList.contains("intro--wide")).toBe(wide);
+    expect(section.classList.contains("intro--with-help")).toBe(true);
+    expect(section.getAttribute("aria-labelledby")).toBe("page-title");
+    const headings = doc.querySelectorAll("h1");
+    expect(headings).toHaveLength(1);
+    expect(headings[0]!.id).toBe("page-title");
+    // DOM order: kicker, the disclosure, then the title and the sentence.
+    expect([...section.children].map((node) => node.className || node.tagName)).toEqual([
+      "kicker",
+      "how-to-play",
+      "H1",
+      "intro-text",
+    ]);
+    const details = section.querySelector("details.how-to-play")!;
+    expect(details.firstElementChild?.tagName).toBe("SUMMARY");
+    expect(details.querySelectorAll("li")).toHaveLength(2);
+  });
+
+  it("leaves How to play out when there are no steps", async () => {
+    const container = await AstroContainer.create();
+    const html = await container.renderToString(GameIntro, {
+      props: { kicker: "Daily game", title: "Title", intro: "One sentence." },
+    });
+    const doc = new JSDOM(html).window.document;
+    expect(doc.querySelector("details")).toBeNull();
+    expect(doc.querySelector("section.intro")!.classList.contains("intro--with-help")).toBe(false);
   });
 
   it("gives the intro the width of the card under it, left-aligned", () => {
