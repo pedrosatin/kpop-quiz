@@ -65,7 +65,7 @@ A distribuição de frequências das letras de preenchimento utiliza pesos propo
 
 Para preservar o objetivo educativo do projeto, cada palavra associada ao quebra-cabeça inclui metadados factuais auditados:
 1. Identificador Wikidata invariante (`id`, padrão QID).
-2. Nome canônico da entidade e rótulos para `pt-BR` e `en`. Para pessoas e grupos, os dois rótulos recebem o mesmo nome, o que gerou a palavra da grade. Esse nome é o canônico quando ele cabe na grade; senão, é o primeiro rótulo ou alias que caiba. Rótulos de gravadoras usados em temas e pistas continuam localizados.
+2. Nome canônico da entidade e rótulos para `pt-BR` e `en`. Para pessoas e grupos, os dois rótulos recebem o mesmo nome, o que gerou a palavra da grade. Esse nome é o canônico quando seu comprimento normalizado tem entre 3 letras e a dimensão máxima da grade; se o nome canônico ultrapassar a grade, o gerador usa o primeiro rótulo ou alias que caiba nesse intervalo. Entidades cujo nome canônico normaliza para menos de 3 letras (como "I.N", "RM" ou "V") são descartadas da seleção de palavras do caça-palavras para evitar colisões acidentais na grade, conforme a regra de comprimento mínimo. Rótulos de gravadoras usados em temas e pistas continuam localizados.
 3. Pista opcional bilíngue (`clue`), que diferencia a palavra das demais do tema. A regra está na seção seguinte.
 4. Lista de evidências auditadas (`evidence`), com `fact_base_id`, `locator`, `revision_id`, `source_key` e URL HTTPS para auditoria externa no Wikidata ou na Wikipédia. A lista reúne a evidência do fato que coloca a palavra no tema e, quando há pista, a evidência do fato citado na pista.
 

@@ -40,6 +40,10 @@ const QID_REGEX = /^Q[1-9][0-9]*$/;
 const WORD_REGEX = /^[A-Z]{3,16}$/;
 const SINGLE_LETTER_REGEX = /^[A-Z]$/;
 
+export function normalizeWord(name: string): string {
+  return name.normalize("NFKD").toUpperCase().replace(/[^A-Z]/g, "");
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -95,6 +99,7 @@ function isValidWordEntry(
   if (typeof word !== "string" || !WORD_REGEX.test(word)) return false;
   if (typeof canonical_name !== "string" || canonical_name.trim().length === 0) return false;
   if (!isBilingualText(labels)) return false;
+  if (normalizeWord(labels["pt-BR"]) !== word || normalizeWord(labels.en) !== word) return false;
   if (clue !== undefined && !isBilingualText(clue)) return false;
   if (!Array.isArray(evidence) || evidence.length < 1 || !evidence.every(isEvidence)) return false;
 

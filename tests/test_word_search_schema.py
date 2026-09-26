@@ -364,6 +364,18 @@ class TestWordSearchSchemaValidation(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_word_search_puzzle(puzzle)
 
+    def test_reject_word_label_mismatch_with_word(self):
+        puzzle = sample_word_search_puzzle()
+        # Word is TWICE, but label normalizes to something different
+        puzzle["words"][0]["labels"]["en"] = "I.N"
+        with self.assertRaisesRegex(ValueError, "does not match word"):
+            validate_word_search_puzzle(puzzle)
+
+        puzzle = sample_word_search_puzzle()
+        puzzle["words"][0]["labels"]["pt-BR"] = "I.N"
+        with self.assertRaisesRegex(ValueError, "does not match word"):
+            validate_word_search_puzzle(puzzle)
+
     def test_reject_invalid_evidence(self):
         puzzle = sample_word_search_puzzle()
         puzzle["words"][0]["evidence"] = []  # empty evidence
