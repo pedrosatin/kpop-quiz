@@ -1,23 +1,26 @@
-/* Map quiz: the map spans the page width, with the country list below it. */
-.map-pilot-game,
-.map-pilot-results {
+/*
+  Map quiz: question, map and action bar. The map is the main way to answer;
+  the same countries are a second way that stays on screen without scrolling.
+  From 60rem the list sits beside the map, in two columns of 44px buttons,
+  next to the question. Below 60rem a list under the map fell below the fold
+  (first country at y=765 under a bar at 774 on 390x844; 845 on 1440x900
+  before the list moved beside the map), so narrow screens get a select with
+  an Answer button in the bar instead, where Next appears after the answer.
+*/
+.map-pilot-game {
+  --game-actions-inset: clamp(1rem, 3vw, 2rem);
   margin: 0 0 3rem;
-  padding: clamp(1rem, 3vw, 2rem);
+  padding: var(--game-actions-inset);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
 }
-.map-pilot-game {
-  --game-actions-inset: clamp(1rem, 3vw, 2rem);
-  padding: var(--game-actions-inset);
-}
 .map-pilot-question-header { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem 1rem; }
-.map-pilot-kicker { margin: 0; color: var(--color-action); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; }
 .map-pilot-progress { grid-column: 2; grid-row: 1; margin: 0; color: var(--color-text-muted); font-weight: 700; white-space: nowrap; }
 .map-pilot-question-header h2 { grid-column: 1; grid-row: 1; max-width: 56rem; margin: 0; font-size: clamp(1.2rem, 2.4vw, 1.6rem); line-height: 1.25; }
-.map-pilot-layout { display: grid; gap: 1rem; margin-top: 1rem; }
-.map-pilot-map-wrap { min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface-muted); }
+.map-pilot-map-wrap { min-width: 0; margin-top: 1rem; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface-muted); }
+.map-pilot-game.is-complete .map-pilot-map-wrap { margin-top: 0; }
 /* The map shrinks with the viewport so the action bar stays on screen. */
 .map-pilot-world-map { display: block; width: 100%; height: auto; max-height: var(--play-max-h); margin-inline: auto; }
 .map-pilot-feature { fill: color-mix(in srgb, var(--color-border) 27%, var(--color-surface)); stroke: var(--color-surface); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
@@ -26,31 +29,99 @@
 .map-pilot-feature.is-playable:focus { fill: var(--color-action); outline: none; }
 .map-pilot-feature.is-selected { fill: var(--color-action); }
 .map-pilot-feature.is-answer { fill: var(--color-success-text); }
-.map-pilot-attribution { margin: 0; padding: 0.45rem 0.7rem; color: var(--color-text-muted); font-size: 0.75rem; }
-.map-pilot-answers h3 { margin: 0 0 0.65rem; font-size: 1rem; }
-.map-pilot-country-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.map-pilot-country { min-height: var(--control-height); padding: 0.45rem 0.7rem; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; cursor: pointer; }
+.map-pilot-attribution { margin: 0; padding: 0.3rem 0.7rem; color: var(--color-text-muted); font-size: 0.75rem; }
+
+/* Country list, only beside the map on wide screens. */
+.map-pilot-answers { display: none; }
+.map-pilot-country-list { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.map-pilot-country { min-height: var(--control-height); padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.9375rem; line-height: 1.15; cursor: pointer; }
 .map-pilot-country:hover:not(:disabled) { border-color: var(--color-action); background: var(--color-surface-muted); }
 .map-pilot-country.is-selected { border-color: var(--color-action); background: var(--color-action); color: var(--color-action-text); }
 .map-pilot-country.is-answer { border-color: var(--color-success-text); box-shadow: inset 0 0 0 1px var(--color-success-text); }
 .map-pilot-country:disabled { cursor: default; opacity: 0.82; }
+
+/* Select and Answer, only in the bar on narrow screens. */
+.map-pilot-pick { display: flex; flex: 1 1 18rem; gap: var(--space-2); }
+.map-pilot-select { flex: 1 1 auto; min-width: 0; min-height: var(--control-height); padding: 0 var(--space-3); border: 2px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); }
+.map-pilot-pick .btn { flex: 0 0 auto; }
+
 .map-pilot-evidence { display: flex; flex-wrap: wrap; gap: 0.2rem 0.75rem; font-size: 0.75rem; }
 .map-pilot-evidence span { color: var(--color-text-muted); }
-.map-pilot-score { font-size: 1.5rem; font-weight: 800; }
 .map-pilot-country:focus-visible,
 .map-pilot-evidence a:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+@media (min-width: 60rem) {
+  /*
+    Question over the map on the left; progress over the list on the right.
+    At 1440x900 the list (7 rows of 44px) ends about where the map does, so
+    the map keeps 85% of the width it had alone (646 of 760px).
+  */
+  .map-pilot-game:not(.is-complete) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    /* The flexible row takes what the list needs past the question, so the map starts right under it. */
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas:
+      "question progress"
+      "question list"
+      "map list"
+      "bar bar";
+    column-gap: var(--space-5);
+  }
+  .map-pilot-game:not(.is-complete) .map-pilot-question-header { display: contents; }
+  .map-pilot-progress { grid-area: progress; justify-self: end; }
+  .map-pilot-question-header h2 { grid-area: question; align-self: start; }
+  .map-pilot-game:not(.is-complete) .map-pilot-map-wrap { grid-area: map; align-self: start; }
+  .map-pilot-answers { display: block; grid-area: list; margin-top: var(--space-2); }
+  .map-pilot-game > .game-actions { grid-area: bar; }
+  .map-pilot-pick { display: none; }
+}
+
+/* Result: title and summary, then Share, Play another round and the sources. */
+.map-pilot-actions:has(.map-pilot-result) { flex-wrap: wrap; }
+.map-pilot-result { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-5); }
+.map-pilot-verdict { display: flex; flex: 1 1 14rem; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-2); min-width: 0; }
+.map-pilot-result-title { margin: 0; font-family: var(--font-body); font-size: 1.125rem; }
+.map-pilot-result-summary { margin: 0; }
+.map-pilot-result-buttons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+/* Only after share and copy both fail: the text to copy by hand. */
+.map-pilot-share-fallback { display: grid; flex: 1 1 100%; gap: var(--space-2); color: var(--color-text); font-size: 0.875rem; text-align: left; }
+.map-pilot-share-fallback p { margin: 0; }
+.map-pilot-share-fallback .share-preview { max-width: none; }
+/*
+  The dates and sources open inside the bar, like the other games: the list
+  scrolls inside it, and the bar stops being sticky while it is open so it
+  does not cover the map; opening it scrolls it into view.
+*/
+.map-pilot-source { flex: 1 1 100%; max-height: min(40dvh, 18rem); overflow-y: auto; scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3)); color: var(--color-text); font-size: 0.875rem; text-align: left; }
+.map-pilot-source[hidden] { display: none; }
+.map-pilot-actions:has(.map-pilot-source:not([hidden])) { position: static; }
+.map-pilot-review { margin: 0; padding-top: 0; border-top: 0; }
+.map-pilot-review .review-section-title { margin-bottom: var(--space-2); font-size: 1rem; }
+.map-pilot-review .review-item { padding: var(--space-3); }
+.map-pilot-review .review-item-title { margin-bottom: var(--space-1); }
+.map-pilot-review-note { margin: 0 0 var(--space-2); color: var(--color-text-muted); }
+.map-pilot-review-sources { margin: var(--space-1) 0 0; padding-left: var(--space-5); }
+.map-pilot-review-sources li { overflow-wrap: anywhere; }
+.map-pilot-source-locator { display: block; color: var(--color-text-muted); font-size: 0.8125rem; }
+
+@media (max-width: 30rem) {
+  .map-pilot-result-buttons { display: grid; flex: 1 1 100%; grid-template-columns: 1fr 1fr; }
+  .map-pilot-result-buttons > .btn-primary { grid-column: 1 / -1; }
+  .map-pilot-result-buttons > .btn { padding-inline: var(--space-2); }
+}
 @media (max-width: 420px) {
   .map-pilot-game { --game-actions-inset: 0.8rem; }
-  .map-pilot-results { padding: 0.8rem; }
-  /* The intro already carries the schedule notice; keep the bar off the map. */
+  /* How to play and the result's sources carry the schedule notice; keep the bar off the map. */
   .map-pilot-evidence span { display: none; }
   .map-pilot-question-header { grid-template-columns: 1fr; }
   .map-pilot-progress { grid-column: 1; }
   .map-pilot-question-header h2 { grid-row: 2; }
-  .map-pilot-country { padding: 0.35rem 0.6rem; }
 }
 @media (forced-colors: active) {
   .map-pilot-feature.is-playable { fill: Canvas; stroke: LinkText; stroke-width: 1.5; }
   .map-pilot-feature.is-playable:focus { outline: 2px solid Highlight; }
-  .map-pilot-country { border: 2px solid ButtonText; }
+  .map-pilot-feature.is-answer { fill: Highlight; }
+  .map-pilot-country,
+  .map-pilot-select { border: 2px solid ButtonText; }
 }

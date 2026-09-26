@@ -4,11 +4,13 @@
 
 As rotas `/pt-br/mapa/` e `/en/map/` fazem até 10 perguntas por rodada sobre as datas da DEADLINE WORLD TOUR de BLACKPINK. Cada pergunta mostra uma data e pede o país em que a agenda oficial listou o show. O jogador responde clicando no mapa ou na lista de países. Depois da resposta, o jogo mostra o link da [agenda oficial da YG](https://artist.ygfamily.com/ARTISTS/BLACKPINK/concert/2025TOUR/index2.html), o link do evento no MusicBrainz e a data da última conferência.
 
-A pergunta descreve o que a agenda publicou. Uma data listada não prova que o show aconteceu, e o jogo exibe esse aviso junto da resposta.
+A pergunta descreve o que a agenda publicou. Uma data listada não prova que o show aconteceu. O jogo mostra esse aviso junto da resposta em telas largas, no "Como jogar" e no painel "Ver fonte" do resultado.
 
 O navegador sorteia a rodada depois de carregar a página, a partir da data local. O HTML estático mostra só um aviso de carregamento, então a página gerada no build e a primeira renderização no navegador são iguais.
 
-As rotas aparecem no menu de jogos como "Mapa" e "Map", estão no sitemap e têm resumo em `web/public/llms/`. O mapa ocupa a largura da página, até 80rem, com a lista de países abaixo dele. O recorte vai de 84°N a 60°S, porque a Antártida e o Ártico não têm datas da turnê.
+As rotas aparecem no menu de jogos como "Mapa" e "Map", estão no sitemap e têm resumo em `web/public/llms/`. O jogo usa a largura comum das páginas (64rem). A partir de 60rem, a lista dos 14 países fica ao lado do mapa, em duas colunas de botões de 44px; em telas menores, os mesmos países ficam num seletor na barra de ação, com o botão "Responder". O recorte do mapa vai de 84°N a 60°S, porque a Antártida e o Ártico não têm datas da turnê.
+
+O progresso da rodada fica no `localStorage` do navegador, na chave `kpop-map-<data da rodada>`, com os MBIDs dos eventos da rodada, o país escolhido em cada data e a data na tela. Recarregar a página retoma a pergunta ou o resultado. Um registro de outra rodada, com país fora da lista ou com contagens impossíveis é descartado. No fim, a barra mostra o placar ("7 de 10 certas."), "Compartilhar resultado", "Jogar outra rodada" e "Ver fonte", que lista cada data com o país correto, a resposta do jogador, o link da agenda com o local na fonte, o evento no MusicBrainz, a revisão do Wikidata usada para o país e a data de conferência.
 
 ## Fontes
 
@@ -54,5 +56,7 @@ Na primeira execução, o QID associado ao Rogers Stadium no MusicBrainz apontav
 - `scripts/build_map_pilot_map.py` gera o mapa SVG a partir do GeoJSON Natural Earth, com QID e ISO em cada feição.
 - `web/src/data/map-pilot.ts` valida o conjunto no build e sorteia as datas da rodada.
 - `web/src/components/MapPilot/MapPilotGame.tsx` é o jogo em PT e EN.
+- `web/src/components/MapPilot/MapPilotResult.tsx` mostra o resultado na barra, o compartilhamento e o painel de fontes.
+- `web/src/components/MapPilot/map-pilot-save.ts` define, lê e valida o progresso salvo.
 
 Os testes em `tests/test_map_pilot_refresh.py` usam uma amostra real de três eventos do MusicBrainz e uma agenda sintética com o layout da página da YG. Eles cobrem o leitor da agenda, o intervalo e as novas tentativas do cliente, a leitura do `P17` e as regras de exclusão. Os testes em `web/src` cobrem o formato do conjunto, o sorteio diário, o fluxo da rodada e a renderização do jogo.
