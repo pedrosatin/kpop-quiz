@@ -1,6 +1,10 @@
-import { useState } from "preact/hooks";
+import type { RefObject } from "preact";
+import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { Locale, NameGuessPuzzle } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus, NameGuessTranslations } from "./types";
+
+/** How long the result buttons ignore activation after they replace the keyboard. */
+export const RESULT_GUARD_MS = 300;
 
 interface NameGuessResultsProps {
   puzzle: NameGuessPuzzle;
@@ -11,8 +15,14 @@ interface NameGuessResultsProps {
   highContrast: boolean;
   t: NameGuessTranslations;
   onReset: () => void;
+  titleRef?: RefObject<HTMLHeadingElement> | undefined;
 }
 
+/**
+ * End of game, shown in the action bar in place of the keyboard. The bar
+ * keeps the verdict, the answer and the buttons; the clues and the source
+ * open below them on request, so the final board stays in view.
+ */
 export function NameGuessResults({
   puzzle,
   guesses,
@@ -22,11 +32,28 @@ export function NameGuessResults({
   highContrast,
   t,
   onReset,
+  titleRef,
 }: NameGuessResultsProps) {
   const [copied, setCopied] = useState(false);
+  const [hintsOpen, setHintsOpen] = useState(false);
+  const titleId = useId();
+  const hintsId = useId();
+  const shownAt = useRef(0);
   const won = status === "won";
   const target = puzzle.target;
   const targetDisplayName = target.labels[locale] || target.canonical_name;
+
+  // The buttons appear where the keyboard was, so a second tap or a held key
+  // meant for the last guess must not share or restart the game.
+  useLayoutEffect(() => {
+    shownAt.current = performance.now();
+  }, []);
+  const guarded = (action: () => void) => () => {
+    if (performance.now() - shownAt.current >= RESULT_GUARD_MS) action();
+  };
+  const ignoreRepeat = (event: KeyboardEvent) => {
+    if (event.repeat) event.preventDefault();
+  };
 
   function generateShareText(): string {
     const scoreText = won ? `${guesses.length}/${puzzle.max_attempts}` : `X/${puzzle.max_attempts}`;
@@ -67,29 +94,53 @@ export function NameGuessResults({
   const hasStats = Boolean(target.clues?.debut_year || agencyName || target.clues?.members_count);
 
   return (
-    <div
-      role="region"
-      aria-label={t.resultsAria}
-      class="result name-guess-result"
-    >
-      <h2 class={`result-title ${won ? "is-won" : "is-lost"}`}>
-        {won ? t.wonTitle : t.lostTitle}
-      </h2>
-
-      <div>
-        <p class="result-summary">
-          {t.targetWas}
-        </p>
-        <p class="name-guess-target-name">
-          {targetDisplayName}
+    <section aria-labelledby={titleId} class="name-guess-result">
+      <div class="name-guess-verdict">
+        <h2
+          id={titleId}
+          {...(titleRef ? { ref: titleRef } : {})}
+          tabIndex={-1}
+          class={`game-actions-title name-guess-result-title ${won ? "is-won" : "is-lost"}`}
+        >
+          {won ? t.wonTitle : t.lostTitle}
+        </h2>
+        <p class="name-guess-answer">
+          {t.targetWas} <strong class="name-guess-target-name">{targetDisplayName}</strong>
         </p>
       </div>
 
-      {target.clues && (
-        <div class="callout name-guess-hints">
-          <h3 class="name-guess-hints-title">
+      <div class="name-guess-result-buttons">
+        <button
+          type="button"
+          onKeyDown={ignoreRepeat}
+          onClick={guarded(handleCopy)}
+          class="btn btn-primary"
+        >
+          {copied ? t.copied : t.copyResults}
+        </button>
+        <button
+          type="button"
+          onKeyDown={ignoreRepeat}
+          onClick={guarded(onReset)}
+          class="btn btn-secondary"
+        >
+          {t.playAgain}
+        </button>
+        {target.clues && (
+          <button
+            type="button"
+            class="btn btn-secondary"
+            aria-expanded={hintsOpen}
+            aria-controls={hintsId}
+            onClick={() => setHintsOpen((open) => !open)}
+          >
             {t.hints}
-          </h3>
+          </button>
+        )}
+      </div>
+
+      {target.clues && (
+        <div id={hintsId} class="callout name-guess-hints" hidden={!hintsOpen}>
           {descriptionText && (
             <p class="name-guess-hints-desc">
               {descriptionText}
@@ -127,23 +178,6 @@ export function NameGuessResults({
           )}
         </div>
       )}
-
-      <div class="btn-row">
-        <button
-          type="button"
-          onClick={handleCopy}
-          class="btn btn-primary"
-        >
-          {copied ? t.copied : t.copyResults}
-        </button>
-        <button
-          type="button"
-          onClick={onReset}
-          class="btn btn-secondary"
-        >
-          {t.playAgain}
-        </button>
-      </div>
-    </div>
+    </section>
   );
 }

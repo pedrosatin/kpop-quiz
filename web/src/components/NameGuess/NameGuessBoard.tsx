@@ -43,7 +43,7 @@ export function NameGuessBoard({
       role="region"
       aria-label={t.boardAria}
       class="name-guess-board"
-      style={`--word-length: ${wordLength}`}
+      style={`--word-length: ${wordLength}; --ng-rows: ${maxAttempts}`}
     >
       {rows}
     </div>

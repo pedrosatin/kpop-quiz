@@ -1,6 +1,8 @@
 /*
   Name guess: letter board, on-screen keyboard and the end-of-game clues.
-  The card, HUD, buttons, alert and result layout come from components.css.
+  The card, HUD, buttons, action bar and result stats come from components.css.
+  The keyboard lives in the sticky .game-actions bar and the result replaces
+  it there at the end, so the board above never moves.
 
   Letter feedback reads the --ng-* variables below. High contrast is a single
   switch, data-contrast="high" on the game card, that swaps them for the
@@ -15,6 +17,22 @@
   --ng-miss: var(--color-miss);
   --ng-miss-text: var(--color-miss-text);
   --ng-gap: 0.375rem;
+  --game-actions-inset: var(--space-4);
+  /*
+    Height budget: the board shrinks so the whole keyboard fits the viewport
+    under it. Measured at 390x844 and 1440x900, worst of both locales:
+      --ng-above    page top to the board (header, nav, intro, card top, HUD)
+      --ng-actions  the keyboard bar and the gap above it
+  */
+  --ng-above: 27rem;
+  --ng-actions: 11.5rem;
+  --ng-board-max-h: calc(100dvh - var(--consent-banner-height, 0px) - var(--ng-above) - var(--ng-actions));
+}
+
+@media (min-width: 48rem) {
+  .name-guess {
+    --game-actions-inset: var(--space-6);
+  }
 }
 
 .name-guess[data-contrast="high"] {
@@ -27,21 +45,28 @@
 /* Narrow phones need the card's inline padding for the keyboard. */
 @media (max-width: 30rem) {
   .name-guess {
+    --game-actions-inset: var(--space-2);
     padding-inline: var(--space-2);
   }
 }
 
-/* HUD */
+/* HUD: date and counter on one line, the same from the first guess to the result. */
 
-.name-guess-hud-info {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 0;
+.name-guess-hud {
+  flex-wrap: nowrap;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
 }
 
-.name-guess-hud-info .hud-label {
+.name-guess-hud .hud-label {
   display: block;
+  min-width: 0;
   font-size: 0.8125rem;
+}
+
+.name-guess-hud .hud-value {
+  flex: none;
+  font-size: 0.875rem;
 }
 
 .name-guess-date {
@@ -55,24 +80,17 @@
   container-type: inline-size;
 }
 
-/* The alert floats over the top of the board and disappears on its own. */
-.name-guess-error-region {
-  position: absolute;
-  inset: 0 0 auto;
-  z-index: 2;
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.name-guess-toast {
-  max-width: 100%;
-  box-shadow: var(--shadow-overlay);
-  animation: shake 0.3s ease-in-out;
-}
-
+/*
+  A tile is the smallest of 3.5rem, the width share and the height share of
+  --ng-board-max-h. The height share stops at 1.75rem, so letters stay
+  legible on short screens; there the page scrolls and the keyboard stays.
+*/
 .name-guess-board {
-  --ng-tile: min(3.5rem, (100cqi - (var(--word-length, 5) - 1) * var(--ng-gap)) / var(--word-length, 5));
+  --ng-tile: min(
+    3.5rem,
+    (100cqi - (var(--word-length, 5) - 1) * var(--ng-gap)) / var(--word-length, 5),
+    max(1.75rem, (var(--ng-board-max-h) - (var(--ng-rows, 6) - 1) * var(--ng-gap)) / var(--ng-rows, 6))
+  );
   display: grid;
   justify-content: center;
   gap: var(--ng-gap);
@@ -117,44 +135,93 @@
 
 /* Feedback colors, shared by tiles and keys */
 
-.name-guess-cell.is-correct,
-.keyboard-key.key-correct {
+.name-guess-cell.is-correct {
   background: var(--ng-hit);
   border-color: var(--ng-hit);
   color: var(--ng-hit-text);
 }
 
-.name-guess-cell.is-present,
-.keyboard-key.key-present {
+.name-guess-cell.is-present {
   background: var(--ng-near);
   border-color: var(--ng-near);
   color: var(--ng-near-text);
 }
 
-.name-guess-cell.is-absent,
-.keyboard-key.key-absent {
+.name-guess-cell.is-absent {
   background: var(--ng-miss);
   border-color: var(--ng-miss);
   color: var(--ng-miss-text);
+}
+
+.keyboard-key.key-correct {
+  --key-edge: var(--ng-hit);
+  background-color: var(--ng-hit);
+  color: var(--ng-hit-text);
+}
+
+.keyboard-key.key-present {
+  --key-edge: var(--ng-near);
+  background-color: var(--ng-near);
+  color: var(--ng-near-text);
+}
+
+.keyboard-key.key-absent {
+  --key-edge: var(--ng-miss);
+  background-color: var(--ng-miss);
+  color: var(--ng-miss-text);
+}
+
+/* Action bar: keyboard while playing, result at the end */
+
+.name-guess-actions {
+  display: block;
+}
+
+@media (max-width: 30rem) {
+  /* Ten keys need every pixel of a 358px card. */
+  .name-guess-actions {
+    padding-inline: var(--space-1);
+  }
+}
+
+/* A rejected guess floats just above the keyboard and clears on its own. */
+.name-guess-message {
+  position: absolute;
+  inset-inline: var(--space-2);
+  bottom: calc(100% + var(--space-2));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.name-guess-toast {
+  max-width: 100%;
+  box-shadow: var(--shadow-overlay);
+  animation: shake 0.3s ease-in-out;
 }
 
 /* Keyboard */
 
 .virtual-keyboard {
   display: grid;
-  gap: var(--space-1);
   max-width: 32rem;
-  margin: var(--space-5) auto 0;
+  margin: 0 auto;
   user-select: none;
 }
 
 .keyboard-row {
   display: flex;
   justify-content: center;
-  gap: var(--space-1);
 }
 
+/*
+  Keys touch each other: the 2px transparent border is part of each key's
+  hit area and draws the gap between faces, so a tap between two faces goes
+  to the nearer key instead of falling in a dead gap. The face is the
+  padding box, outlined by an inset shadow.
+*/
 .keyboard-key {
+  --key-edge: var(--color-border);
   flex: 1 1 0;
   min-width: 0;
   height: 3rem;
@@ -162,15 +229,17 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
+  border: 2px solid transparent;
+  border-radius: calc(var(--radius-control) + 2px);
   background: var(--color-surface-muted);
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px var(--key-edge);
   color: var(--color-text);
   font-family: var(--font-body);
   font-size: 0.9375rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform 0.05s ease;
+  transition: background-color var(--transition-fast), box-shadow var(--transition-fast), transform 0.05s ease;
 }
 
 /* Action keys size to their label; the letter keys share what is left. */
@@ -192,7 +261,7 @@
 
 @media (hover: hover) {
   .keyboard-key:hover:not(:disabled) {
-    border-color: var(--color-text);
+    --key-edge: var(--color-text);
   }
 }
 
@@ -209,34 +278,86 @@
   opacity: 0.5;
 }
 
-/* Results */
+/* Results, in the action bar */
 
 .name-guess-result {
-  margin-top: var(--space-5);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+}
+
+.name-guess-verdict {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.name-guess-result-title {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+}
+
+.name-guess-result-title.is-won {
+  color: var(--color-success-text);
+}
+
+.name-guess-result-title.is-lost {
+  color: var(--color-error-text);
+}
+
+.name-guess-answer {
+  margin: var(--space-1) 0 0;
 }
 
 .name-guess-target-name {
-  margin: var(--space-1) 0 0;
   font-family: var(--font-title);
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: 1.25rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
+.name-guess-result-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 30rem) {
+  .name-guess-actions:has(.name-guess-result) {
+    padding-inline: var(--space-3);
+  }
+
+  .name-guess-verdict {
+    text-align: center;
+  }
+
+  .name-guess-result-buttons {
+    display: grid;
+    flex: 1 1 100%;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .name-guess-result-buttons > .btn-primary {
+    grid-column: 1 / -1;
+  }
+
+  .name-guess-result-buttons > .btn {
+    padding-inline: var(--space-2);
+  }
+}
+
 .name-guess-hints {
+  flex: 1 1 100%;
   display: grid;
   gap: var(--space-3);
   text-align: left;
 }
 
-.name-guess-hints-title {
-  margin: 0;
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.name-guess-hints[hidden] {
+  display: none;
 }
 
 .name-guess-hints-desc {
@@ -259,6 +380,14 @@
 .name-guess-evidence {
   margin: 0;
   font-size: 0.875rem;
+}
+
+/* Display preference below the card */
+
+.name-guess-options {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
 }
 
 /* Animations (base.css turns them off for prefers-reduced-motion) */
@@ -300,5 +429,10 @@
   .name-guess-cell.is-absent,
   .keyboard-key.key-absent {
     border: 1px dotted ButtonBorder;
+  }
+
+  /* Forced colors drop the shadow that outlines each key face. */
+  .keyboard-key {
+    border-color: ButtonBorder;
   }
 }
