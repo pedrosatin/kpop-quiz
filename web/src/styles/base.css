@@ -284,43 +284,77 @@ textarea {
 }
 
 /*
-  Page layout: a short intro above the game, both centered. Every game page
-  shares this width; each game card sets its own max-width inside it.
+  Page layout: a short intro above the game. Every game page shares this
+  width; each game card sets its own max-width inside it, and the intro takes
+  the same width (.intro--wide for 64rem cards) so both share a left edge.
+
+  The intro reads left to right in three short rows: the kicker, the title on
+  one line where it fits, and one sentence. "How to play" sits at the right
+  of the kicker row; its steps open under the sentence, full width, and the
+  button does not move. The kicker row is as tall as the button so the title
+  never runs under it.
 */
 
 .page-shell {
   width: min(100% - 2rem, var(--game-max-wide));
   margin: 0 auto;
-  padding: var(--space-5) 0 var(--space-8);
+  padding: var(--space-3) 0 var(--space-8);
 }
 
 .intro {
-  margin: 0 auto var(--space-5);
-  text-align: center;
+  /* Room for "How to play" (.btn-sm) beside the kicker. */
+  --intro-help-width: 8.5rem;
+  --intro-help-height: 2.25rem;
+  position: relative;
+  max-width: var(--game-max);
+  margin: 0 auto var(--space-3);
+}
+
+.intro--wide {
+  max-width: var(--game-max-wide);
+}
+
+.intro--with-help .kicker {
+  display: flex;
+  align-items: center;
+  min-height: var(--intro-help-height);
+  padding-inline-end: calc(var(--intro-help-width) + var(--space-2));
 }
 
 .intro h1 {
-  margin: var(--space-1) 0 var(--space-2);
-  font-size: clamp(2rem, 6vw, 3rem);
-  line-height: 1.05;
-  letter-spacing: -0.035em;
+  margin: 0 0 var(--space-1);
+  font-size: clamp(1.375rem, 3vw, 2rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
   text-wrap: balance;
 }
 
 .intro-text {
-  max-width: 36rem;
-  margin: 0 auto;
+  margin: 0;
   color: var(--color-text-muted);
-  font-size: 1.0625rem;
+  font-size: 0.9375rem;
+  line-height: 1.45;
   text-wrap: pretty;
 }
 
-.how-to-play {
-  max-width: 32rem;
-  margin: var(--space-3) auto 0;
+@media (pointer: coarse) {
+  .intro {
+    --intro-help-height: var(--control-height);
+  }
+}
+
+@media (min-width: 48rem) {
+  .intro-text {
+    font-size: 1rem;
+  }
 }
 
 .how-to-play summary {
+  position: absolute;
+  top: 0;
+  right: 0;
+  max-width: var(--intro-help-width);
+  white-space: nowrap;
   list-style: none;
 }
 

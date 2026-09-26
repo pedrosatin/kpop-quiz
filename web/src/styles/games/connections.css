@@ -23,8 +23,9 @@
     its margin-top for --cx-actions; keep the largest of each. Rows stop at
     --control-height, the touch target; below that the page scrolls and the
     sticky bar stays.
+    Board top: 327px at 390x844 on a touch screen, 326px at 1440x900.
   */
-  --cx-above: 25.5rem;
+  --cx-above: 20.5rem;
   --cx-actions: 8.75rem;
   --cx-row: clamp(
     var(--control-height),
