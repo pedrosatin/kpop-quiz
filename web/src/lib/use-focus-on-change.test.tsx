@@ -6,6 +6,7 @@ import { useFocusOnChange } from "./use-focus-on-change";
 function Harness({ initialActive = false }: { initialActive?: boolean }) {
   const [active, setActive] = useState(initialActive);
   const [step, setStep] = useState(0);
+  const [, setRenders] = useState(0);
   const target = useRef<HTMLButtonElement>(null);
   useFocusOnChange(target, active, step);
   return (
@@ -13,6 +14,7 @@ function Harness({ initialActive = false }: { initialActive?: boolean }) {
       <button type="button" onClick={() => setActive(true)}>answer</button>
       <button type="button" onClick={() => setActive(false)}>reset</button>
       <button type="button" onClick={() => setStep((value) => value + 1)}>step</button>
+      <button type="button" onClick={() => setRenders((value) => value + 1)}>bump</button>
       <button type="button" ref={target}>next</button>
     </>
   );
@@ -48,10 +50,23 @@ describe("useFocusOnChange", () => {
     expect(document.activeElement).toBe(getByText("reset"));
   });
 
+  it("leaves focus alone on a re-render with the same active and step", () => {
+    const { getByText } = render(<Harness initialActive />);
+    expect(document.activeElement).toBe(getByText("next"));
+    getByText("answer").focus();
+    // Neither click changes active or step, but "bump" forces a re-render.
+    fireEvent.click(getByText("answer"));
+    fireEvent.click(getByText("bump"));
+    expect(document.activeElement).toBe(getByText("answer"));
+  });
+
   it("focuses without scrolling", () => {
     const focus = vi.spyOn(HTMLElement.prototype, "focus");
-    render(<Harness initialActive />);
-    expect(focus).toHaveBeenCalledWith({ preventScroll: true });
-    focus.mockRestore();
+    try {
+      render(<Harness initialActive />);
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+    } finally {
+      focus.mockRestore();
+    }
   });
 });

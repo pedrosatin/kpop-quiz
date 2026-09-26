@@ -12,7 +12,7 @@ import { useEffect } from "preact/hooks";
 export function useFocusOnChange<T extends HTMLElement>(
   ref: RefObject<T>,
   active: boolean,
-  step?: unknown,
+  step?: string | number | undefined,
 ): void {
   useEffect(() => {
     if (active) ref.current?.focus({ preventScroll: true });

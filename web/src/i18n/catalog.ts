@@ -353,9 +353,9 @@ const catalogs: Record<Locale, Messages> = {
       "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\".",
     ],
     mapHowToPlay: [
-      "Leia a data da turnê e toque no país destacado no mapa ou no nome dele na lista.",
+      "Leia a data da turnê e escolha o país destacado no mapa ou o nome dele na lista.",
       "No teclado, use Tab para chegar a um país e Enter para escolher.",
-      "Depois da resposta, a barra no rodapé mostra o país correto e o link da agenda oficial. Aperte Enter ou \"Próxima data\" para seguir.",
+      "Depois da resposta, a barra na parte de baixo da tela mostra o país correto e os links da agenda oficial e do MusicBrainz. Aperte Enter ou \"Próxima data\" para seguir. Na última pergunta, o botão vira \"Ver resultado\".",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
@@ -673,9 +673,9 @@ const catalogs: Record<Locale, Messages> = {
       "The list shows how many letters each name has. If you get stuck, use \"Show words\".",
     ],
     mapHowToPlay: [
-      "Read the tour date and tap the highlighted country on the map or its name in the list.",
+      "Read the tour date and pick the highlighted country on the map or its name in the list.",
       "With a keyboard, press Tab to reach a country and Enter to choose it.",
-      "After you answer, the bar at the bottom shows the correct country and a link to the official schedule. Press Enter or \"Next date\" to continue.",
+      "After you answer, the bar at the bottom of the screen shows the correct country and links to the official schedule and MusicBrainz. Press Enter or \"Next date\" to continue. On the last question, the button reads \"See result\".",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",

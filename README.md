@@ -74,13 +74,13 @@ Styles live in `web/src/styles/`. `global.css` only imports the other files, in 
 
 | File | Contents |
 | --- | --- |
-| `tokens.css` | Colors, spacing, radii, shadows, fonts and sizes, including `--play-max-h`, the tallest a board may grow before it pushes the action bar off screen. Each color is declared once with `light-dark()`, and the theme selector sets `color-scheme` through `data-theme`. |
+| `tokens.css` | Colors, spacing, radii, shadows, fonts and sizes, including `--play-max-h`, the tallest a board may grow so the question, the board and the answered action bar fit one viewport. It subtracts the consent banner, the chrome above the board and the bar's height after an answer, with separate values for phones. Each color is declared once with `light-dark()`, and the theme selector sets `color-scheme` through `data-theme`. |
 | `base.css` | Fonts, reset, header, game navigation, page layout (one `.page-shell` width for every game; each game card sets its own max-width), footer, privacy page and consent banner. |
-| `components.css` | Shared building blocks: buttons, game card, the sticky action bar (`.game-actions`), HUD, choices, alerts, badges, modal, loading state, results, share box and review list. |
+| `components.css` | Shared building blocks: buttons, game card, the sticky action bar (`.game-actions`, whose live region is `.game-actions-message` with `role="status"`, mounted with the instructions before the first answer, so the button and links are not announced), HUD, choices, alerts, badges, modal, loading state, results, share box and review list. |
 | `stats.css` | Player statistics modal. |
 | `games/*.css` | Only what is unique to each game, such as its board, tiles or keyboard. |
 
-New UI should reuse the building blocks in `components.css` before adding game-specific rules. Shared Preact hooks live in `web/src/lib/`: `useFocusOnChange` moves focus to the action a player unlocks, without scrolling. `light-dark()` needs Chrome 123, Safari 17.5 or Firefox 120 or newer. `tokens.test.ts` reads `tokens.css` and checks WCAG AA contrast for every text and background pair in both themes.
+New UI should reuse the building blocks in `components.css` before adding game-specific rules. Shared Preact hooks live in `web/src/lib/`: `useFocusOnChange` moves focus to the action a player unlocks, or to the result title when a round ends, without scrolling. `light-dark()` needs Chrome 123, Safari 17.5 or Firefox 120 or newer. `tokens.test.ts` reads `tokens.css` and checks WCAG AA contrast for every text and background pair in both themes.
 
 `web_publish` generates ten-question sessions in Portuguese and English for the assisted, standard, and expert modes. The files land in `web/public/data`. Each filename includes its SHA-256, and the publisher swaps `manifest-v2.json` only after validating and writing all six sessions. `manifest.json` and the v1 sessions stay published during the transition. The deploy workflow verifies the v2 artifacts before the build.
 

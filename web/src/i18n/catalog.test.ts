@@ -45,6 +45,7 @@ const HOW_TO_PLAY_KEYS = [
   "connectionsHowToPlay",
   "nameGuessHowToPlay",
   "wordSearchHowToPlay",
+  "mapHowToPlay",
 ] as const;
 
 describe("how to play catalog", () => {

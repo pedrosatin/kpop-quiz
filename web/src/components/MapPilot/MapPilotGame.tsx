@@ -65,7 +65,7 @@ const COPY: Record<Locale, Copy> = {
     evidence: "Agenda oficial",
     musicBrainz: "MusicBrainz",
     scheduleNote: "A data aparece na agenda. Isso não confirma que o show aconteceu.",
-    checkedAt: (date) => `Agenda conferida em ${date}.`,
+    checkedAt: (date) => `Conferida em ${date}.`,
     mapCredit: "Dados cartográficos: Natural Earth, domínio público.",
     roundProgress: (current, total) => `Pergunta ${current} de ${total}`,
   },
@@ -89,7 +89,7 @@ const COPY: Record<Locale, Copy> = {
     evidence: "Official schedule",
     musicBrainz: "MusicBrainz",
     scheduleNote: "The date appears in the schedule. This does not confirm the show took place.",
-    checkedAt: (date) => `Schedule checked on ${date}.`,
+    checkedAt: (date) => `Checked on ${date}.`,
     mapCredit: "Map data: Natural Earth, public domain.",
     roundProgress: (current, total) => `Question ${current} of ${total}`,
   },
@@ -100,6 +100,17 @@ function formatDate(value: string, locale: Locale): string {
   return new Intl.DateTimeFormat(locale === "pt-BR" ? "pt-BR" : "en-GB", {
     day: "numeric",
     month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+// Short form for the evidence line, so it fits one line on desktop.
+function formatShortDate(value: string, locale: Locale): string {
+  const date = new Date(`${value}T00:00:00Z`);
+  return new Intl.DateTimeFormat(locale === "pt-BR" ? "pt-BR" : "en-GB", {
+    day: "numeric",
+    month: "short",
     year: "numeric",
     timeZone: "UTC",
   }).format(date);
@@ -122,6 +133,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
   const [score, setScore] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const nextButton = useRef<HTMLButtonElement>(null);
+  const resultTitle = useRef<HTMLHeadingElement>(null);
   const current = round[questionIndex] as MapPilotEvent | undefined;
   const countryByFeature = new Map(mapPilotCountries.map((country) => [country.map_feature_id, country]));
   const answerCountry = current ? countryByFeature.get(current.map_feature_id) : undefined;
@@ -135,6 +147,8 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
   // The next button appears in the sticky action bar, already in view, so
   // focusing it lets Enter advance without moving the page.
   useFocusOnChange(nextButton, answerState !== null, questionIndex);
+  // The results replace the board, so focus their title to start reading there.
+  useFocusOnChange(resultTitle, isComplete);
 
   function chooseCountry(featureId: string) {
     if (!current || selectedFeature !== null || !countryByFeature.has(featureId)) return;
@@ -170,7 +184,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
     return (
       <section class="map-pilot-results" aria-labelledby="map-result-title">
         <p class="map-pilot-kicker">{copy.pilot}</p>
-        <h2 id="map-result-title">{copy.complete}</h2>
+        <h2 id="map-result-title" ref={resultTitle} tabIndex={-1}>{copy.complete}</h2>
         <p class="map-pilot-score">{copy.score(score, round.length)}</p>
         <button class="btn btn-primary" type="button" onClick={restart}>{copy.restart}</button>
       </section>
@@ -239,10 +253,11 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
         </div>
       </div>
 
-      <div class={`game-actions ${answerState ? `is-${answerState}` : ""}`} role="status" aria-live="polite">
-        {answerState && current && answerCountry ? (
-          <>
-            <div class="game-actions-message">
+      {/* Only the message is a live region, so the button and links are not announced. */}
+      <div class={`game-actions ${answerState ? `is-${answerState}` : ""}`}>
+        <div class="game-actions-message" role="status" aria-live="polite">
+          {answerState && current && answerCountry ? (
+            <>
               <p class="game-actions-title">{answerState === "correct" ? copy.correct : copy.incorrect}</p>
               <p>
                 {selectedCountry && answerState === "incorrect" && <>{copy.yourAnswer}: <strong>{mapPilotCountryLabel(selectedCountry, locale)}</strong> · </>}
@@ -251,15 +266,17 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
               <p class="map-pilot-evidence">
                 <a href={current.source_url} target="_blank" rel="noreferrer">{copy.evidence}</a>
                 <a href={current.musicbrainz_event_url} target="_blank" rel="noreferrer">{copy.musicBrainz}</a>
-                <span>{copy.checkedAt(formatDate(current.source_checked_at, locale))} {copy.scheduleNote}</span>
+                <span>{copy.checkedAt(formatShortDate(current.source_checked_at, locale))} {copy.scheduleNote}</span>
               </p>
-            </div>
-            <button ref={nextButton} class="btn btn-primary" type="button" onClick={nextQuestion}>
-              {questionIndex + 1 === round.length ? copy.finish : copy.next}
-            </button>
-          </>
-        ) : (
-          <p class="game-actions-hint">{copy.instructions}</p>
+            </>
+          ) : (
+            <p class="game-actions-hint">{copy.instructions}</p>
+          )}
+        </div>
+        {answerState && (
+          <button ref={nextButton} class="btn btn-primary" type="button" onClick={nextQuestion}>
+            {questionIndex + 1 === round.length ? copy.finish : copy.next}
+          </button>
         )}
       </div>
     </section>
