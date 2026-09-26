@@ -20,9 +20,16 @@
   --game-actions-inset: var(--space-4);
   /*
     Height budget: the board shrinks so the whole keyboard fits the viewport
-    under it. Measured at 390x844 and 1440x900, worst of both locales:
-      --ng-above    page top to the board (header, nav, intro, card top, HUD)
-      --ng-actions  the keyboard bar and the gap above it
+    under it. Both values are measured at 390x844 and 1440x900, worst of
+    both locales:
+      --ng-above    page top to the board: site header, game nav, GameIntro
+                    with its "How to play" line, card padding and the HUD
+      --ng-actions  the keyboard bar (three key rows, bar padding) and the
+                    margin above it
+    A change to any of those parts shifts them. To remeasure, load the game
+    in both locales at both sizes, scrolled to the top, and read the board's
+    getBoundingClientRect().top for --ng-above and the keyboard bar's height
+    plus its margin-top for --ng-actions; keep the largest of each.
   */
   --ng-above: 27rem;
   --ng-actions: 11.5rem;
@@ -184,18 +191,20 @@
   }
 }
 
-/* A rejected guess floats just above the keyboard and clears on its own. */
-.name-guess-message {
-  position: absolute;
-  inset-inline: var(--space-2);
-  bottom: calc(100% + var(--space-2));
-  display: flex;
-  justify-content: center;
-  pointer-events: none;
-}
-
+/*
+  A rejected guess shows over the HUD, just above the first row, and clears
+  on its own. It never covers the row being typed, whichever it is, and never
+  moves the board. The bar's hidden live region announces the same text.
+*/
 .name-guess-toast {
+  position: absolute;
+  z-index: 1;
+  bottom: calc(100% + 1px);
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
   max-width: 100%;
+  pointer-events: none;
   box-shadow: var(--shadow-overlay);
   animation: shake 0.3s ease-in-out;
 }
@@ -260,22 +269,17 @@
 }
 
 @media (hover: hover) {
-  .keyboard-key:hover:not(:disabled) {
+  .keyboard-key:hover {
     --key-edge: var(--color-text);
   }
 }
 
-.keyboard-key:active:not(:disabled) {
+.keyboard-key:active {
   transform: scale(0.96);
 }
 
 .keyboard-key:focus-visible {
   z-index: 1;
-}
-
-.keyboard-key:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
 }
 
 /* Results, in the action bar */
@@ -349,11 +353,30 @@
   }
 }
 
+/*
+  The panel opens inside the bar, like the quiz source: long text scrolls
+  inside it. A sticky bar that tall would cover the last rows of the board,
+  so the bar stops being sticky while the panel is open and stays below the
+  final board; opening the panel scrolls it into view.
+*/
 .name-guess-hints {
   flex: 1 1 100%;
   display: grid;
   gap: var(--space-3);
+  max-height: min(40dvh, 18rem);
+  overflow-y: auto;
+  scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3));
   text-align: left;
+}
+
+@media (max-height: 30rem) {
+  .name-guess-hints {
+    max-height: 30dvh;
+  }
+}
+
+.name-guess-actions:has(.name-guess-hints:not([hidden])) {
+  position: static;
 }
 
 .name-guess-hints[hidden] {

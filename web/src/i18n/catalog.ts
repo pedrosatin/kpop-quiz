@@ -24,7 +24,8 @@ export interface NameGuessMessages {
   copyResults: string;
   copied: string;
   highContrast: string;
-  hints: string;
+  showSource: string;
+  hideSource: string;
   debutYear: string;
   agency: string;
   members: string;
@@ -41,7 +42,6 @@ export interface NameGuessMessages {
   presentTile: (pos: number, letter: string) => string;
   absentTile: (pos: number, letter: string) => string;
   keyboardAria: string;
-  resultsAria: string;
 }
 
 export interface WordSearchMessages {
@@ -504,7 +504,8 @@ const catalogs: Record<Locale, Messages> = {
       copyResults: "Compartilhar resultado",
       copied: "Resultado copiado.",
       highContrast: "Cores de alto contraste",
-      hints: "Detalhes",
+      showSource: "Ver fonte",
+      hideSource: "Ocultar fonte",
       debutYear: "Estreia",
       agency: "Agência",
       members: "Integrantes",
@@ -521,7 +522,6 @@ const catalogs: Record<Locale, Messages> = {
       presentTile: (pos, letter) => `Posição ${pos}: letra ${letter}, está em outra posição`,
       absentTile: (pos, letter) => `Posição ${pos}: letra ${letter}, não está no nome`,
       keyboardAria: "Teclado",
-      resultsAria: "Resultado da partida",
     },
     wordSearchTitle: "Caça-palavras",
     wordSearchEyebrow: "1 tema por dia · 8 direções",
@@ -827,7 +827,8 @@ const catalogs: Record<Locale, Messages> = {
       copyResults: "Share result",
       copied: "Result copied.",
       highContrast: "High-contrast colors",
-      hints: "Details",
+      showSource: "Show source",
+      hideSource: "Hide source",
       debutYear: "Debut",
       agency: "Agency",
       members: "Members",
@@ -844,7 +845,6 @@ const catalogs: Record<Locale, Messages> = {
       presentTile: (pos, letter) => `Position ${pos}: letter ${letter}, in another spot`,
       absentTile: (pos, letter) => `Position ${pos}: letter ${letter}, not in the name`,
       keyboardAria: "Keyboard",
-      resultsAria: "Game result",
     },
     wordSearchTitle: "Word search",
     wordSearchEyebrow: "1 theme a day · 8 directions",

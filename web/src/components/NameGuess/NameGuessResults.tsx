@@ -1,5 +1,5 @@
 import type { RefObject } from "preact";
-import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { Locale, NameGuessPuzzle } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus, NameGuessTranslations } from "./types";
 
@@ -20,8 +20,8 @@ interface NameGuessResultsProps {
 
 /**
  * End of game, shown in the action bar in place of the keyboard. The bar
- * keeps the verdict, the answer and the buttons; the clues and the source
- * open below them on request, so the final board stays in view.
+ * keeps the verdict, the answer and the buttons; the description, the stats
+ * and the source open below them on request, so the final board stays in view.
  */
 export function NameGuessResults({
   puzzle,
@@ -35,9 +35,10 @@ export function NameGuessResults({
   titleRef,
 }: NameGuessResultsProps) {
   const [copied, setCopied] = useState(false);
-  const [hintsOpen, setHintsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const titleId = useId();
-  const hintsId = useId();
+  const detailsId = useId();
+  const details = useRef<HTMLDivElement>(null);
   const shownAt = useRef(0);
   const won = status === "won";
   const target = puzzle.target;
@@ -54,6 +55,13 @@ export function NameGuessResults({
   const ignoreRepeat = (event: KeyboardEvent) => {
     if (event.repeat) event.preventDefault();
   };
+
+  // The bar stops being sticky while the panel is open, so the panel can open
+  // below the fold; bring it into view. It is capped in height, so the board
+  // stays on screen.
+  useEffect(() => {
+    if (detailsOpen) details.current?.scrollIntoView?.({ block: "nearest" });
+  }, [detailsOpen]);
 
   function generateShareText(): string {
     const scoreText = won ? `${guesses.length}/${puzzle.max_attempts}` : `X/${puzzle.max_attempts}`;
@@ -83,15 +91,13 @@ export function NameGuessResults({
     }
   }
 
-  const agencyName =
-    typeof target.clues?.agency === "object"
-      ? target.clues.agency[locale]
-      : target.clues?.agency;
-
-  const descriptionText = target.clues?.description?.[locale];
+  const clues = target.clues;
+  const agencyName = typeof clues?.agency === "object" ? clues.agency[locale] : clues?.agency;
+  const descriptionText = clues?.description?.[locale];
   const primaryEvidence = target.evidence[0];
-
-  const hasStats = Boolean(target.clues?.debut_year || agencyName || target.clues?.members_count);
+  const hasStats = Boolean(clues?.debut_year || agencyName || clues?.members_count);
+  // The source link does not depend on the clues, so either one opens the panel.
+  const hasDetails = Boolean(clues || primaryEvidence);
 
   return (
     <section aria-labelledby={titleId} class="name-guess-result">
@@ -126,31 +132,31 @@ export function NameGuessResults({
         >
           {t.playAgain}
         </button>
-        {target.clues && (
+        {hasDetails && (
           <button
             type="button"
             class="btn btn-secondary"
-            aria-expanded={hintsOpen}
-            aria-controls={hintsId}
-            onClick={() => setHintsOpen((open) => !open)}
+            aria-expanded={detailsOpen}
+            aria-controls={detailsId}
+            onClick={() => setDetailsOpen((open) => !open)}
           >
-            {t.hints}
+            {detailsOpen ? t.hideSource : t.showSource}
           </button>
         )}
       </div>
 
-      {target.clues && (
-        <div id={hintsId} class="callout name-guess-hints" hidden={!hintsOpen}>
+      {hasDetails && (
+        <div ref={details} id={detailsId} class="callout name-guess-hints" hidden={!detailsOpen}>
           {descriptionText && (
             <p class="name-guess-hints-desc">
               {descriptionText}
             </p>
           )}
-          {hasStats && (
+          {clues && hasStats && (
             <div class="result-stats">
-              {target.clues.debut_year && (
+              {clues.debut_year && (
                 <div class="result-stat">
-                  <span class="result-stat-label">{t.debutYear}</span> <strong class="result-stat-value">{target.clues.debut_year}</strong>
+                  <span class="result-stat-label">{t.debutYear}</span> <strong class="result-stat-value">{clues.debut_year}</strong>
                 </div>
               )}
               {agencyName && (
@@ -158,9 +164,9 @@ export function NameGuessResults({
                   <span class="result-stat-label">{t.agency}</span> <strong class="result-stat-value name-guess-stat-text">{agencyName}</strong>
                 </div>
               )}
-              {target.clues.members_count && (
+              {clues.members_count && (
                 <div class="result-stat">
-                  <span class="result-stat-label">{t.members}</span> <strong class="result-stat-value">{target.clues.members_count}</strong>
+                  <span class="result-stat-label">{t.members}</span> <strong class="result-stat-value">{clues.members_count}</strong>
                 </div>
               )}
             </div>

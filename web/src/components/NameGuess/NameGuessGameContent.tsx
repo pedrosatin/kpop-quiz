@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { NameGuessPuzzle, Locale } from "../../lib/quiz-types";
 import { NameGuessBoard } from "./NameGuessBoard";
 import { NameGuessResults } from "./NameGuessResults";
@@ -86,6 +86,16 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
   const resultTitle = useRef<HTMLHeadingElement>(null);
   useFocusOnChange(resultTitle, isGameOver && playedHere.current);
 
+  // Play again removes the focused button, so focus moves to the empty board
+  // and a screen reader announces the new game.
+  const board = useRef<HTMLDivElement>(null);
+  const [restarts, setRestarts] = useState(0);
+  const restart = useCallback(() => {
+    resetGame();
+    setRestarts((n) => n + 1);
+  }, [resetGame]);
+  useFocusOnChange(board, restarts > 0, restarts);
+
   const recordedMatchRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -139,15 +149,24 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
             feedbacks={feedbacks}
             currentInput={currentInput}
             t={t}
+            boardRef={board}
           />
+          {/* The visible copy of the error sits over the HUD, above the first row,
+              so it never covers the row being typed. The bar's live region below
+              announces it. */}
+          {errorDisplay && (
+            <p class="alert-error name-guess-toast" aria-hidden="true">
+              {errorDisplay}
+            </p>
+          )}
         </div>
 
         {/* The keyboard is the game's action bar; the result takes its place at the end. */}
         <div class={`game-actions name-guess-actions${actionsState}`}>
-          {/* Mounted from the start so the first rejected guess is announced. The
-              message floats above the bar and never moves the board. */}
-          <div class="game-actions-message name-guess-message" role="status" aria-live="polite">
-            {errorDisplay && <p class="alert-error name-guess-toast">{errorDisplay}</p>}
+          {/* Mounted from the start so the first rejected guess is announced. It is
+              visually hidden; the toast above the board shows the same text. */}
+          <div class="game-actions-message visually-hidden" role="status" aria-live="polite">
+            {errorDisplay && <p>{errorDisplay}</p>}
           </div>
           {isGameOver ? (
             <NameGuessResults
@@ -158,7 +177,7 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
               locale={locale}
               highContrast={highContrast}
               t={t}
-              onReset={resetGame}
+              onReset={restart}
               titleRef={resultTitle}
             />
           ) : (

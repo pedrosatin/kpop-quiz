@@ -185,15 +185,20 @@ describe("NameGuessGame component", () => {
     // Game is won
     expect(screen.getByText(tPt.wonTitle)).toBeInTheDocument();
 
-    // The clues open from the result bar.
-    const details = screen.getByRole("button", { name: tPt.hints });
+    // The description, the stats and the source open from the result bar.
+    const details = screen.getByRole("button", { name: tPt.showSource });
     expect(details).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(details);
     expect(details).toHaveAttribute("aria-expanded", "true");
+    expect(details).toHaveAccessibleName(tPt.hideSource);
     const hints = document.getElementById(details.getAttribute("aria-controls")!);
     expect(hints).toBeVisible();
     expect(within(hints!).getAllByText(/JYP Entertainment/).length).toBeGreaterThanOrEqual(1);
     expect(within(hints!).getAllByText(/2015/).length).toBeGreaterThanOrEqual(1);
+    expect(within(hints!).getByRole("link", { name: tPt.evidenceLink })).toHaveAttribute(
+      "href",
+      puzzle.target.evidence[0]!.source_url,
+    );
 
     // Click copy results
     advanceClock();
@@ -209,6 +214,89 @@ describe("NameGuessGame component", () => {
     const playAgainBtn = screen.getByRole("button", { name: tPt.playAgain });
     fireEvent.click(playAgainBtn);
     expect(screen.queryByText(tPt.wonTitle)).not.toBeInTheDocument();
+  });
+
+  it("shows the source link when the target has no clues", () => {
+    const { clues: _clues, ...target } = puzzle.target;
+    render(<NameGuessGame locale="pt-BR" puzzle={{ ...puzzle, target }} />);
+
+    typeGuess("TWICE");
+
+    const toggle = screen.getByRole("button", { name: tPt.showSource });
+    fireEvent.click(toggle);
+    const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(panel).toBeVisible();
+    expect(within(panel).getByRole("link", { name: tPt.evidenceLink })).toHaveAttribute(
+      "href",
+      puzzle.target.evidence[0]!.source_url,
+    );
+    expect(within(panel).queryByText(tPt.debutYear)).not.toBeInTheDocument();
+  });
+
+  it("hides the toggle when the target has neither clues nor a source", () => {
+    const { clues: _clues, ...target } = puzzle.target;
+    render(<NameGuessGame locale="pt-BR" puzzle={{ ...puzzle, target: { ...target, evidence: [] } }} />);
+
+    typeGuess("TWICE");
+
+    expect(screen.getByRole("heading", { name: tPt.wonTitle })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: tPt.showSource })).not.toBeInTheDocument();
+  });
+
+  it("shows the error over the HUD, outside the action bar, and announces it from the bar", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    typeGuess("T");
+
+    const live = liveMessage();
+    expect(live).toHaveClass("visually-hidden");
+    expect(live).toHaveTextContent(tPt.notEnoughLetters);
+    const toast = screen.getByRole("region", { name: tPt.title }).querySelector(".name-guess-toast");
+    expect(toast).toHaveTextContent(tPt.notEnoughLetters);
+    expect(toast).toHaveAttribute("aria-hidden", "true");
+    expect(toast!.closest(".game-actions")).toBeNull();
+    expect(toast!.closest(".name-guess-play")).not.toBeNull();
+  });
+
+  it("moves focus to the empty board after Play again", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    typeGuess("TWICE");
+    advanceClock();
+    fireEvent.click(screen.getByRole("button", { name: tPt.playAgain }));
+
+    const board = screen.getByRole("region", { name: tPt.boardAria });
+    expect(document.activeElement).toBe(board);
+    expect(board).toHaveAttribute("tabindex", "-1");
+    expect(within(board).getAllByLabelText("Posição 1: vazia").length).toBe(puzzle.max_attempts);
+
+    // Typing works right away from the focused board.
+    fireEvent.keyDown(board, { key: "a" });
+    expect(within(screen.getByRole("group", { name: "Palpite 1" })).getByLabelText("Posição 1: letra A")).toBeInTheDocument();
+  });
+
+  it("does not submit or restart on a physical Enter while the result title or Share has focus", () => {
+    const clipboardSpy = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText: clipboardSpy } });
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    typeGuess("TWICE");
+    advanceClock();
+    const title = screen.getByRole("heading", { name: tPt.wonTitle });
+    expect(document.activeElement).toBe(title);
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    expect(screen.getByRole("heading", { name: tPt.wonTitle })).toBeInTheDocument();
+    expect(screen.getByText(`${tPt.attemptsLeft}: 5/6`)).toBeInTheDocument();
+
+    const share = screen.getByRole("button", { name: tPt.copyResults });
+    share.focus();
+    fireEvent.keyDown(window, { key: "Enter" });
+    fireEvent.keyDown(share, { key: "Enter" });
+
+    expect(screen.getByRole("heading", { name: tPt.wonTitle })).toBeInTheDocument();
+    expect(screen.getByText(`${tPt.attemptsLeft}: 5/6`)).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: tPt.keyboardAria })).not.toBeInTheDocument();
   });
 
   it("replaces the keyboard with the result and focuses the result title", () => {

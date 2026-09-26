@@ -76,7 +76,7 @@ describe("Automated accessibility audits with axe-core for NameGuess", () => {
       fireEvent.click(getByRole("button", { name: char }));
     }
     fireEvent.click(getByRole("button", { name: tPt.enter }));
-    fireEvent.click(getByRole("button", { name: tPt.hints }));
+    fireEvent.click(getByRole("button", { name: tPt.showSource }));
 
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);
@@ -136,7 +136,6 @@ describe("Automated accessibility audits with axe-core for NameGuess", () => {
         onEnter={vi.fn()}
         onBackspace={vi.fn()}
         t={tPt}
-        disabled={false}
       />
     );
     const results = await axe.run(container);
