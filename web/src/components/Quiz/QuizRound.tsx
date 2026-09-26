@@ -21,7 +21,7 @@ export interface QuizRoundProps {
   revealedClues?: string[] | undefined;
   playMode: PlayMode;
   headingRef?: RefObject<HTMLHeadingElement> | undefined;
-  feedbackRef?: RefObject<HTMLDivElement> | undefined;
+  actionRef?: RefObject<HTMLButtonElement> | undefined;
   onSubmit: () => void;
   onAdvance?: () => void | undefined;
   onRevealClue: () => void;
@@ -42,7 +42,7 @@ export function QuizRound({
   revealedClues = [],
   playMode,
   headingRef,
-  feedbackRef,
+  actionRef,
   onSubmit,
   onAdvance = () => {},
   onRevealClue,
@@ -51,7 +51,7 @@ export function QuizRound({
   const totalQuestions = session?.questions?.length ?? 1;
 
   return (
-    <section id="quiz" class="game-card" aria-labelledby="question-heading">
+    <section id="quiz" class="game-card quiz-round" aria-labelledby="question-heading">
       <ProgressHeader
         currentIndex={questionIndex}
         totalQuestions={totalQuestions}
@@ -68,8 +68,6 @@ export function QuizRound({
         onSelectOption={onSelectOption}
         answered={answered}
         correctOptionId={question.answer_option_id}
-        onSubmit={onSubmit}
-        submitLabel={messages.check}
         legendLabel={messages.chooseAnswer}
       >
         <LicensedMedia
@@ -88,19 +86,22 @@ export function QuizRound({
           messages={messages}
         />
       </QuestionCard>
-      {answered && (
-        <AnswerFeedback
-          {...(feedbackRef ? { feedbackRef } : {})}
-          isCorrect={!timedOut && selectedId === question.answer_option_id}
-          timedOut={timedOut}
-          correctOption={question.options.find((opt) => opt.id === question.answer_option_id) ?? null}
-          explanation={question.explanation}
-          evidence={question.evidence}
-          messages={messages}
-          isLastQuestion={questionIndex === totalQuestions - 1}
-          onAdvance={onAdvance}
-        />
-      )}
+      <AnswerFeedback
+        key={question.id}
+        {...(actionRef ? { actionRef } : {})}
+        answered={answered}
+        canSubmit={selectedId !== null}
+        isCorrect={!timedOut && selectedId === question.answer_option_id}
+        timedOut={timedOut}
+        selectedOption={question.options.find((opt) => opt.id === selectedId) ?? null}
+        correctOption={question.options.find((opt) => opt.id === question.answer_option_id) ?? null}
+        explanation={question.explanation}
+        evidence={question.evidence}
+        messages={messages}
+        isLastQuestion={questionIndex === totalQuestions - 1}
+        onSubmit={onSubmit}
+        onAdvance={onAdvance}
+      />
     </section>
   );
 }

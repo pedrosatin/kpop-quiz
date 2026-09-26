@@ -9,8 +9,6 @@ export interface QuestionCardProps {
   onSelectOption: (id: string) => void;
   answered: boolean;
   correctOptionId: string;
-  onSubmit: () => void;
-  submitLabel: string;
   legendLabel: string;
   children?: ComponentChildren;
 }
@@ -23,8 +21,6 @@ export function QuestionCard({
   onSelectOption,
   answered,
   correctOptionId,
-  onSubmit,
-  submitLabel,
   legendLabel,
   children,
 }: QuestionCardProps) {
@@ -61,16 +57,6 @@ export function QuestionCard({
           );
         })}
       </fieldset>
-      {!answered && (
-        <button
-          class="btn btn-primary"
-          type="button"
-          disabled={!selectedOptionId}
-          onClick={onSubmit}
-        >
-          {submitLabel}
-        </button>
-      )}
     </div>
   );
 }

@@ -82,6 +82,8 @@ Styles live in `web/src/styles/`. `global.css` only imports the other files, in 
 
 New UI should reuse the building blocks in `components.css` before adding game-specific rules. Shared Preact hooks live in `web/src/lib/`: `useFocusOnChange` moves focus to the action a player unlocks, or to the result title when a round ends, without scrolling. `light-dark()` needs Chrome 123, Safari 17.5 or Firefox 120 or newer. `tokens.test.ts` reads `tokens.css` and checks WCAG AA contrast for every text and background pair in both themes.
 
+The quiz setup and its questions use the same 42rem card, and Start, Submit and Next sit in `.game-actions`. After an answer the bar shows the verdict with the player's answer and the correct one, cut at two lines on screen while the live region reads the whole text. A "Ver fonte" / "Show source" toggle (labelled "Ocultar fonte" / "Hide source" while open) sits before Next and opens the answers, the explanation and the revision links inside the bar, so Tab moves from the toggle to the links and then to Next. Next ignores clicks for 300 ms after it replaces Submit and ignores a held Enter, so a double click or a long press on Submit does not skip the verdict.
+
 `web_publish` generates ten-question sessions in Portuguese and English for the assisted, standard, and expert modes. The files land in `web/public/data`. Each filename includes its SHA-256, and the publisher swaps `manifest-v2.json` only after validating and writing all six sessions. `manifest.json` and the v1 sessions stay published during the transition. The deploy workflow verifies the v2 artifacts before the build.
 
 ## Privacy, analytics, and indexing

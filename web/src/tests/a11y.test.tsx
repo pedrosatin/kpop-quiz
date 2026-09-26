@@ -161,8 +161,6 @@ describe("Automated accessibility audits with axe-core", () => {
           onSelectOption={vi.fn()}
           answered={false}
           correctOptionId={sampleQuestion.answer_option_id}
-          onSubmit={vi.fn()}
-          submitLabel={ptMessages.check}
           legendLabel={ptMessages.chooseAnswer}
         >
           <LicensedMedia
@@ -205,8 +203,6 @@ describe("Automated accessibility audits with axe-core", () => {
           onSelectOption={vi.fn()}
           answered={false}
           correctOptionId={sampleQuestion.answer_option_id}
-          onSubmit={vi.fn()}
-          submitLabel={ptMessages.check}
           legendLabel={ptMessages.chooseAnswer}
         >
           <LicensedMedia
@@ -234,13 +230,17 @@ describe("Automated accessibility audits with axe-core", () => {
   it("validates correct answer feedback", async () => {
     const { container } = render(
       <AnswerFeedback
+        answered={true}
+        canSubmit={true}
         isCorrect={true}
         timedOut={false}
+        selectedOption={sampleOptions[1] ?? null}
         correctOption={sampleOptions[0] ?? null}
         explanation={sampleQuestion.explanation}
         evidence={sampleQuestion.evidence}
         messages={ptMessages}
         isLastQuestion={false}
+        onSubmit={vi.fn()}
         onAdvance={vi.fn()}
       />
     );
@@ -251,13 +251,17 @@ describe("Automated accessibility audits with axe-core", () => {
   it("validates incorrect answer feedback", async () => {
     const { container } = render(
       <AnswerFeedback
+        answered={true}
+        canSubmit={true}
         isCorrect={false}
         timedOut={false}
+        selectedOption={sampleOptions[1] ?? null}
         correctOption={sampleOptions[0] ?? null}
         explanation={sampleQuestion.explanation}
         evidence={sampleQuestion.evidence}
         messages={ptMessages}
         isLastQuestion={false}
+        onSubmit={vi.fn()}
         onAdvance={vi.fn()}
       />
     );
@@ -268,13 +272,17 @@ describe("Automated accessibility audits with axe-core", () => {
   it("validates timed out answer feedback", async () => {
     const { container } = render(
       <AnswerFeedback
+        answered={true}
+        canSubmit={true}
         isCorrect={false}
         timedOut={true}
+        selectedOption={sampleOptions[1] ?? null}
         correctOption={sampleOptions[0] ?? null}
         explanation={sampleQuestion.explanation}
         evidence={sampleQuestion.evidence}
         messages={ptMessages}
         isLastQuestion={true}
+        onSubmit={vi.fn()}
         onAdvance={vi.fn()}
       />
     );
@@ -342,8 +350,6 @@ describe("Automated accessibility audits with axe-core", () => {
           onSelectOption={vi.fn()}
           answered={false}
           correctOptionId={sampleQuestion.answer_option_id}
-          onSubmit={vi.fn()}
-          submitLabel={ptMessages.check}
           legendLabel={ptMessages.chooseAnswer}
         >
           <LicensedMedia

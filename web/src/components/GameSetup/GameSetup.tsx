@@ -36,7 +36,7 @@ export function GameSetup({
   disabled = false,
 }: GameSetupProps) {
   return (
-    <section id="quiz" class="game-card game-card--wide quiz-setup" aria-labelledby="difficulty-heading">
+    <section id="quiz" class="game-card quiz-setup" aria-labelledby="difficulty-heading">
       <div class="setup-options">
         <p class="kicker">{messages.setupKicker}</p>
         <h2 id="difficulty-heading" class="game-card-title">{messages.setupTitle}</h2>
@@ -55,15 +55,15 @@ export function GameSetup({
           messages={messages}
           disabled={disabled}
         />
-      </div>
-            <div class="setup-actions">
-        <p class="setup-rules">{messages.roundRules}</p>
         <TimerControl
           enabled={timerEnabled}
           onChange={onTimerChange}
           label={messages.enableTimer}
           disabled={disabled}
         />
+      </div>
+      <div class="game-actions setup-actions">
+        <p class="game-actions-message game-actions-hint setup-rules">{messages.roundRules}</p>
         <button
           class="btn btn-primary quiz-start"
           type="button"

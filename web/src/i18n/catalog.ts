@@ -140,6 +140,8 @@ export interface Messages {
   timedOut: string;
   answerWas: string;
   evidence: string;
+  showSource: string;
+  hideSource: string;
   revision: string;
   declaredReference: string;
   openRevision: (project: string) => string;
@@ -147,6 +149,7 @@ export interface Messages {
   resultText: (score: number) => string;
   restart: string;
   chooseAnswer: string;
+  submitHint: string;
   themeLabel: string;
   themeAuto: string;
   themeLight: string;
@@ -388,6 +391,8 @@ const catalogs: Record<Locale, Messages> = {
     timedOut: "Acabou o tempo.",
     answerWas: "Resposta correta",
     evidence: "Fonte da resposta",
+    showSource: "Ver fonte",
+    hideSource: "Ocultar fonte",
     revision: "revisão",
     declaredReference: "Referência citada",
     openRevision: (project) => `Abrir a revisão no ${project}`,
@@ -395,6 +400,7 @@ const catalogs: Record<Locale, Messages> = {
     resultText: (score) => `Você fez ${score} pontos.`,
     restart: "Jogar novamente",
     chooseAnswer: "Escolha uma resposta para continuar.",
+    submitHint: "Escolha uma alternativa e confirme em Responder.",
     themeLabel: "Tema",
     themeAuto: "Tema do sistema",
     themeLight: "Tema claro",
@@ -708,6 +714,8 @@ const catalogs: Record<Locale, Messages> = {
     timedOut: "Time's up.",
     answerWas: "Correct answer",
     evidence: "Answer source",
+    showSource: "Show source",
+    hideSource: "Hide source",
     revision: "revision",
     declaredReference: "Cited reference",
     openRevision: (project) => `Open the revision on ${project}`,
@@ -715,6 +723,7 @@ const catalogs: Record<Locale, Messages> = {
     resultText: (score) => `You scored ${score} points.`,
     restart: "Play again",
     chooseAnswer: "Choose an answer to continue.",
+    submitHint: "Pick an option and confirm with Submit answer.",
     themeLabel: "Theme",
     themeAuto: "System theme",
     themeLight: "Light theme",
