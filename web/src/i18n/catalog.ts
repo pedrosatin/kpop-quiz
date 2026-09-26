@@ -56,27 +56,19 @@ export interface WordSearchMessages {
   selectionLabel: string;
   selectionHint: string;
   anchorHint: (letter: string) => string;
-  shareResult: string;
-  copied: string;
+  foundState: string;
+  progress: (found: number, total: number) => string;
+  progressAnnouncement: (found: number, total: number) => string;
+  foundFeedback: (name: string) => string;
+  repeatFeedback: (name: string) => string;
+  missFeedback: (letters: string) => string;
   congratulations: string;
-  allWordsFound: string;
-  elapsedTime: string;
-  viewEvidence: string;
-  evidenceModalTitle: string;
+  resultSummary: (total: number, time: string) => string;
   evidenceWikidataId: string;
-  evidenceClue: string;
-  evidenceSourcesHeading: string;
-  evidenceSource: string;
-  evidenceLocator: string;
-  evidenceRevision: string;
-  evidenceOpen: string;
-  close: string;
   loading: string;
   loadError: string;
   artifactMissing: string;
   retry: string;
-  wordFoundAnnouncement: (name: string, current: number, total: number) => string;
-  gameCompleteAnnouncement: (total: number, time: string) => string;
   cellAria: (row: number, col: number, letter: string, isSelected: boolean, isFound: boolean) => string;
 }
 
@@ -359,7 +351,7 @@ const catalogs: Record<Locale, Messages> = {
       "Os nomes do tema estão escondidos na grade em linha reta: na horizontal, na vertical ou na diagonal, inclusive de trás para frente.",
       "Selecione a primeira e a última letra de um nome, ou arraste de uma ponta à outra.",
       "No teclado, mova com as setas e marque o início e o fim com Enter ou espaço.",
-      "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\".",
+      "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\". No fim, \"Ver fonte\" mostra de onde vem cada nome.",
     ],
     mapHowToPlay: [
       "Leia a data da turnê e escolha o país destacado no mapa ou o nome dele na lista.",
@@ -537,7 +529,7 @@ const catalogs: Record<Locale, Messages> = {
     },
     wordSearchTitle: "Caça-palavras",
     wordSearchEyebrow: "1 tema por dia · 8 direções",
-    wordSearchIntro: "Encontre os nomes do tema escondidos na grade. Eles podem estar na horizontal, na vertical ou na diagonal, inclusive de trás para frente.",
+    wordSearchIntro: "Encontre os nomes do tema escondidos na grade, em qualquer direção.",
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
     mapTitle: "Quiz de mapa: BLACKPINK",
     mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou. Uma data na agenda não confirma que o show aconteceu.",
@@ -551,31 +543,21 @@ const catalogs: Record<Locale, Messages> = {
       hideWords: "Esconder palavras",
       lettersCount: (count) => (count === 1 ? "1 letra" : `${count} letras`),
       selectionLabel: "Palavra:",
-      selectionHint: "Selecione a primeira e a última letra de um nome, ou arraste de uma ponta à outra.",
-      anchorHint: (letter) => `Primeira letra: ${letter}. Agora selecione a última letra do nome.`,
-      shareResult: "Compartilhar resultado",
-      copied: "Resultado copiado.",
+      selectionHint: "Selecione a primeira e a última letra de um nome.",
+      anchorHint: (letter) => `Primeira letra: ${letter}. Selecione a última letra do nome.`,
+      foundState: "encontrada",
+      progress: (found, total) => `${found} de ${total}`,
+      progressAnnouncement: (found, total) => `${found} de ${total} palavras.`,
+      foundFeedback: (name) => `Achou: ${name}.`,
+      repeatFeedback: (name) => `Você já achou ${name}.`,
+      missFeedback: (letters) => `${letters} não é um dos nomes.`,
       congratulations: "Parabéns!",
-      allWordsFound: "Você encontrou todas as palavras.",
-      elapsedTime: "Tempo total",
-      viewEvidence: "Ver fontes",
-      evidenceModalTitle: "Fontes",
+      resultSummary: (total, time) => `${total} palavras em ${time}.`,
       evidenceWikidataId: "ID no Wikidata:",
-      evidenceClue: "Pista:",
-      evidenceSourcesHeading: "Fontes consultadas",
-      evidenceSource: "Fonte:",
-      evidenceLocator: "Local na fonte:",
-      evidenceRevision: "Revisão:",
-      evidenceOpen: "Abrir a fonte",
-      close: "Fechar",
       loading: "Carregando o caça-palavras de hoje...",
       loadError: "Não foi possível carregar o jogo.",
       artifactMissing: "O caça-palavras de hoje ainda não foi publicado.",
       retry: "Tentar novamente",
-      wordFoundAnnouncement: (name, current, total) =>
-        `Você encontrou ${name}. ${current} de ${total} palavras.`,
-      gameCompleteAnnouncement: (total, time) =>
-        `Parabéns! Você encontrou as ${total} palavras em ${time}.`,
       cellAria: (row, col, letter, isSelected, isFound) => {
         const state = isFound ? ", encontrada" : isSelected ? ", selecionada" : "";
         return `Linha ${row + 1}, coluna ${col + 1}, letra ${letter}${state}`;
@@ -688,7 +670,7 @@ const catalogs: Record<Locale, Messages> = {
       "The theme's names are hidden in straight lines: across, down or diagonal, and they can run backwards.",
       "Select the first and last letter of a name, or drag from one end to the other.",
       "With a keyboard, move with the arrow keys and mark the start and end with Enter or Space.",
-      "The list shows how many letters each name has. If you get stuck, use \"Show words\".",
+      "The list shows how many letters each name has. If you get stuck, use \"Show words\". At the end, \"Show source\" shows where each name comes from.",
     ],
     mapHowToPlay: [
       "Read the tour date and pick the highlighted country on the map or its name in the list.",
@@ -865,7 +847,7 @@ const catalogs: Record<Locale, Messages> = {
     },
     wordSearchTitle: "Word search",
     wordSearchEyebrow: "1 theme a day · 8 directions",
-    wordSearchIntro: "Find the theme's names hidden in the grid. They can run across, down or diagonally, and backwards too.",
+    wordSearchIntro: "Find the theme's names hidden in the grid, in any direction.",
     mapEyebrow: "10 dates per round · DEADLINE tour",
     mapTitle: "Map quiz: BLACKPINK",
     mapIntro: "For each tour date, pick on the map the country the official schedule listed. A date on the schedule does not confirm that the show took place.",
@@ -879,31 +861,21 @@ const catalogs: Record<Locale, Messages> = {
       hideWords: "Hide words",
       lettersCount: (count) => (count === 1 ? "1 letter" : `${count} letters`),
       selectionLabel: "Word:",
-      selectionHint: "Select the first and last letter of a name, or drag from one end to the other.",
+      selectionHint: "Select the first and last letter of a name.",
       anchorHint: (letter) => `First letter: ${letter}. Now select the last letter of the name.`,
-      shareResult: "Share result",
-      copied: "Result copied.",
+      foundState: "found",
+      progress: (found, total) => `${found} of ${total}`,
+      progressAnnouncement: (found, total) => `${found} of ${total} words.`,
+      foundFeedback: (name) => `Found: ${name}.`,
+      repeatFeedback: (name) => `You already found ${name}.`,
+      missFeedback: (letters) => `${letters} is not one of the names.`,
       congratulations: "Well done!",
-      allWordsFound: "You found every word.",
-      elapsedTime: "Total time",
-      viewEvidence: "See sources",
-      evidenceModalTitle: "Sources",
+      resultSummary: (total, time) => `${total} words in ${time}.`,
       evidenceWikidataId: "Wikidata ID:",
-      evidenceClue: "Clue:",
-      evidenceSourcesHeading: "Sources used",
-      evidenceSource: "Source:",
-      evidenceLocator: "Location in source:",
-      evidenceRevision: "Revision:",
-      evidenceOpen: "Open the source",
-      close: "Close",
       loading: "Loading today's word search...",
       loadError: "The game could not be loaded.",
       artifactMissing: "Today's word search has not been published yet.",
       retry: "Try again",
-      wordFoundAnnouncement: (name, current, total) =>
-        `You found ${name}. ${current} of ${total} words.`,
-      gameCompleteAnnouncement: (total, time) =>
-        `Well done! You found all ${total} words in ${time}.`,
       cellAria: (row, col, letter, isSelected, isFound) => {
         const state = isFound ? ", found" : isSelected ? ", selected" : "";
         return `Row ${row + 1}, column ${col + 1}, letter ${letter}${state}`;

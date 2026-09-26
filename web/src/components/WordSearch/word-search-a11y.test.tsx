@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/word-search.daily.json";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import { WordSearchGame } from "./WordSearchGame";
-import { WordSearchEvidenceModal } from "./WordSearchEvidenceModal";
-import { WordSearchResultModal } from "./WordSearchResultModal";
+import { getMessages } from "../../i18n/catalog";
 
 const puzzle = validPuzzleJson as unknown as WordSearchPuzzle;
+const pt = getMessages("pt-BR");
 
 describe("Automated accessibility audits with axe-core for WordSearch", () => {
   beforeEach(() => {
@@ -36,29 +36,24 @@ describe("Automated accessibility audits with axe-core for WordSearch", () => {
     expect(results.violations).toEqual([]);
   });
 
-  it("validates WordSearchEvidenceModal with zero violations", async () => {
-    const { container } = render(
-      <WordSearchEvidenceModal
-        word={puzzle.words[0] ?? null}
-        locale="pt-BR"
-        onClose={vi.fn()}
-      />
-    );
+  it("validates the found-word verdict in the bar with zero violations", async () => {
+    const { container } = render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    const word = puzzle.words[0]!;
+    fireEvent.pointerDown(screen.getByLabelText(new RegExp(`^Linha ${word.start_row + 1}, coluna ${word.start_col + 1},`)));
+    fireEvent.pointerUp(screen.getByLabelText(new RegExp(`^Linha ${word.end_row + 1}, coluna ${word.end_col + 1},`)));
+
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);
   });
 
-  it("validates WordSearchResultModal with zero violations", async () => {
-    const { container } = render(
-      <WordSearchResultModal
-        puzzle={puzzle}
-        locale="pt-BR"
-        foundCount={puzzle.words.length}
-        totalCount={puzzle.words.length}
-        elapsedSeconds={125}
-        onClose={vi.fn()}
-      />
+  it("validates the result and its open sources with zero violations", async () => {
+    localStorage.setItem(
+      `kpop-word-search-${puzzle.puzzle_id}`,
+      JSON.stringify({ foundWordIds: puzzle.words.map((w) => w.id), elapsedSeconds: 125, status: "completed", easyMode: false }),
     );
+    const { container } = render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: pt.showSource }));
+
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);
   });

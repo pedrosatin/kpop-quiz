@@ -84,7 +84,7 @@ describe("useWordSearchGame hook", () => {
 
     expect(result.current.foundWordIds).toContain(target.id);
     expect(result.current.anchorCell).toBeNull();
-    expect(result.current.announcement).toContain("Você encontrou");
+    expect(result.current.lastCheck).toMatchObject({ kind: "found", wordId: target.id });
   });
 
   it("finds a word via reverse coordinates", () => {
@@ -258,6 +258,35 @@ describe("useWordSearchGame hook", () => {
     });
     expect(result.current.easyMode).toBe(true);
     expect(result.current.clueMode).toBe(true);
+  });
+
+  it("reports a miss and a repeat, and clears the verdict when the next selection starts", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const target = puzzle.words.find((w) => w.word === "SHINDONG")!;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    act(() => {
+      result.current.handleCellPointerDown(0, 0);
+      result.current.handleCellPointerUp(0, 2);
+    });
+    const letters = puzzle.grid[0]!.slice(0, 3).join("");
+    expect(result.current.lastCheck).toMatchObject({ kind: "miss", letters });
+    const missN = result.current.lastCheck!.n;
+
+    act(() => {
+      result.current.handleCellPointerDown(target.start_row, target.start_col);
+    });
+    expect(result.current.lastCheck).toBeNull();
+    act(() => {
+      result.current.handleCellPointerUp(target.end_row, target.end_col);
+    });
+    act(() => {
+      result.current.handleCellPointerDown(target.start_row, target.start_col);
+      result.current.handleCellPointerUp(target.end_row, target.end_col);
+    });
+    expect(result.current.lastCheck).toMatchObject({ kind: "repeat", wordId: target.id });
+    expect(result.current.lastCheck!.n).toBeGreaterThan(missN);
+    expect(result.current.foundWordIds).toEqual([target.id]);
   });
 
   it("completes game when all words are found", () => {
