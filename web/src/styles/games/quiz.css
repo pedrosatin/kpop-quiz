@@ -79,7 +79,10 @@
   margin-bottom: 0;
 }
 
-/* Keep keyboard focus from landing behind the sticky bar. */
+/* Keep keyboard focus from landing behind the sticky bar. Its tallest case
+   is a 390px phone: 119px measured, Start (--control-height) plus 75px of
+   padding, two lines of round rules and the row gap, which 5rem covers.
+   At 1440px the bar is one 75px row. */
 .quiz-setup input {
   scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--control-height) + 5rem);
 }
@@ -236,19 +239,32 @@
 
 .quiz-actions .game-actions-message {
   flex-basis: 100%;
-  /* Two lines hold the verdict with both answers, so answering does not
-     grow the card. The hint before an answer sits in the middle. */
+  /* The message always takes two lines, so answering does not grow the bar
+     or move the card. The hint before an answer sits in the middle. */
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-height: calc(2lh + 0.2rem);
 }
 
+/* A long pair of answers is cut at two lines on screen only: the live region
+   still announces the whole text, and the sources panel repeats it. */
+.quiz-verdict {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Toggle, sources panel and Next follow DOM order: the open panel takes its
+   own row between the toggle and Next. */
 .quiz-actions-buttons {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-2);
-  margin-left: auto;
 }
 
 /* Opens inside the bar, so the explanation shows next to Next without a
@@ -258,6 +274,12 @@
   max-height: min(40dvh, 18rem);
   overflow-y: auto;
   font-size: 0.875rem;
+}
+
+@media (max-height: 30rem) {
+  .quiz-source {
+    max-height: 30dvh;
+  }
 }
 
 .quiz-source[hidden] {
@@ -275,10 +297,6 @@
 @media (max-width: 420px) {
   .quiz-actions .game-actions-message {
     font-size: 0.9375rem;
-  }
-
-  .quiz-actions-buttons {
-    width: 100%;
   }
 
   .quiz-actions-buttons .btn-primary {

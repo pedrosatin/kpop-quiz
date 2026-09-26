@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { act, fireEvent, render, screen } from "@testing-library/preact";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { groupEvidence, Quiz } from "./Quiz";
+import { NEXT_GUARD_MS } from "./AnswerFeedback";
 import ptSession from "../../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import enSession from "../../tests/fixtures/session.en.standard.9c44914efa4be2eee52cf11ea63f542c8e913e01b5a58dc63d3627ed003e8c0e.json";
 import assistedSession from "../../tests/fixtures/session.pt-BR.assisted.fa5f191cdb87584a302ac221ddc4c4520c49c5cc9ef79f1242b4219558f7a56e.json";
@@ -48,9 +49,22 @@ async function renderReady(locale: "pt-BR" | "en" = "pt-BR", customPtSession?: a
   return screen.findByRole("heading", { name: session.questions[0]!.prompt });
 }
 
+// Next ignores activation for NEXT_GUARD_MS after it appears. Tests that
+// answer and move on step this clock past the window first.
+let now = 1_000;
+function advanceClock(ms = NEXT_GUARD_MS) {
+  now += ms;
+}
+
+function clickNext(name = "Próxima pergunta") {
+  advanceClock();
+  fireEvent.click(screen.getByRole("button", { name }));
+}
+
 // jsdom has no default action for Enter; a browser clicks the focused button
 // unless a keydown handler cancels it.
 function pressEnter(target: HTMLElement) {
+  advanceClock();
   const notCancelled = fireEvent.keyDown(target, { key: "Enter", code: "Enter" });
   if (notCancelled && target instanceof HTMLButtonElement && document.activeElement === target) {
     fireEvent.click(target);
@@ -58,7 +72,12 @@ function pressEnter(target: HTMLElement) {
 }
 
 describe("Quiz", () => {
+  beforeEach(() => {
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+  });
+
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
     window.localStorage.clear();
@@ -112,7 +131,7 @@ describe("Quiz", () => {
       const answer = current.options.find((option) => option.id === current.answer_option_id)!;
       fireEvent.click(screen.getByRole("radio", { name: answer.label }));
       fireEvent.click(screen.getByRole("button", { name: "Responder" }));
-      fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }));
+      clickNext();
     }
     const question = dailyPtSession.questions[clueIndex]!;
     const clueButton = screen.getByRole("button", { name: `Ver pista (-${question.hint_cost} pontos)` });
@@ -125,7 +144,7 @@ describe("Quiz", () => {
     const answer = question.options.find((option) => option.id === question.answer_option_id)!;
     fireEvent.click(screen.getByRole("radio", { name: answer.label }));
     fireEvent.click(screen.getByRole("button", { name: "Responder" }));
-    fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }));
+    clickNext();
     expect(screen.getByText("Pontos:").parentElement).toHaveTextContent(
       String(clueIndex * 100 + question.base_points - question.hint_cost),
     );
@@ -179,7 +198,7 @@ describe("Quiz", () => {
     const answer = question.options.find((option) => option.id === question.answer_option_id)!;
     fireEvent.click(screen.getByRole("radio", { name: answer.label }));
     fireEvent.click(screen.getByRole("button", { name: "Responder" }));
-    fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }));
+    clickNext();
     expect(screen.getByRole("heading", { name: ptSession.questions[1]!.prompt })).toBeInTheDocument();
     expect(screen.getByText("Pergunta 2 de 10")).toBeInTheDocument();
     expect(screen.getByText("Pontos:").parentElement).toHaveTextContent("100");
@@ -239,7 +258,7 @@ describe("Quiz", () => {
     const submit = screen.getByRole("button", { name: "Responder" });
     fireEvent.click(submit);
     fireEvent.click(submit);
-    fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }));
+    clickNext();
     expect(screen.getByText("Pontos:").parentElement).toHaveTextContent("100");
   });
 
@@ -255,7 +274,7 @@ describe("Quiz", () => {
       await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
     }
     expect(screen.getByText("Acabou o tempo.")).toBeInTheDocument();
-    expect(screen.getByText(/Resposta correta/)).toBeInTheDocument();
+    expect(screen.getAllByRole("status").find((node) => node.closest(".game-actions"))).toHaveTextContent("Resposta correta");
   });
 
   it("freezes the timer after an answer is submitted", async () => {
@@ -298,6 +317,7 @@ describe("Quiz", () => {
       fireEvent.click(screen.getByRole("button", { name: "Responder" }));
       const isLast = index === ptSession.questions.length - 1;
       const nextButton = screen.getByRole("button", { name: isLast ? "Ver resultado" : "Próxima pergunta" });
+      advanceClock();
       fireEvent.click(nextButton);
     }
     const resultHeading = await screen.findByRole("heading", { name: "Fim da partida" });
@@ -348,7 +368,7 @@ describe("Quiz", () => {
     }
 
     expect(screen.getByText("Acabou o tempo.")).toBeInTheDocument();
-    expect(screen.getByText(/Resposta correta/)).toBeInTheDocument();
+    expect(screen.getAllByRole("status").find((node) => node.closest(".game-actions"))).toHaveTextContent("Resposta correta");
     expect(screen.queryByText("Você acertou.")).not.toBeInTheDocument();
   });
 

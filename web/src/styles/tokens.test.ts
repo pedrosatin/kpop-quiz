@@ -52,6 +52,9 @@ const TEXT_PAIRS: Array<[string, string]> = [
   ["color-action-text", "color-action-hover"],
   ["color-link", "color-canvas"],
   ["color-link", "color-surface"],
+  // Source links inside the answered quiz bar
+  ["color-link", "color-success-bg"],
+  ["color-link", "color-error-bg"],
   ["color-success-text", "color-success-bg"],
   ["color-error-text", "color-error-bg"],
   ["color-warning-text", "color-warning-bg"],

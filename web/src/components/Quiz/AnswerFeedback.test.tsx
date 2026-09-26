@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/preact";
-import { describe, expect, it, vi } from "vitest";
-import { AnswerFeedback, type AnswerFeedbackProps } from "./AnswerFeedback";
+import { useState } from "preact/hooks";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AnswerFeedback, NEXT_GUARD_MS, type AnswerFeedbackProps } from "./AnswerFeedback";
 import { getMessages } from "../../i18n/catalog";
 import type { QuizOption } from "../../lib/quiz-types";
 
@@ -39,10 +40,53 @@ function renderBar(props: Partial<AnswerFeedbackProps> = {}) {
   );
 }
 
+// Next ignores activation for NEXT_GUARD_MS after it appears; the tests move
+// this clock instead of waiting.
+let now = 1_000;
+function advanceClock(ms = NEXT_GUARD_MS) {
+  now += ms;
+}
+
+// jsdom has no default action for Enter; a browser clicks the button unless
+// a keydown handler cancels it.
+function pressEnter(target: HTMLElement, repeat = false) {
+  if (fireEvent.keyDown(target, { key: "Enter", code: "Enter", repeat })) fireEvent.click(target);
+}
+
+/** Holds the answered state like QuizRound, so Submit swaps to Next. */
+function StatefulBar({ onAdvance }: { onAdvance: () => void }) {
+  const [answered, setAnswered] = useState(false);
+  return (
+    <AnswerFeedback
+      answered={answered}
+      canSubmit={true}
+      isCorrect={true}
+      timedOut={false}
+      selectedOption={twice}
+      correctOption={twice}
+      explanation="TWICE estreou em 2015."
+      evidence={sampleEvidence}
+      messages={messages}
+      isLastQuestion={false}
+      onSubmit={() => setAnswered(true)}
+      onAdvance={onAdvance}
+    />
+  );
+}
+
 describe("AnswerFeedback", () => {
-  it("shows the hint and Submit before an answer", () => {
+  beforeEach(() => {
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows a hint that differs from the options legend, and Submit, before an answer", () => {
     renderBar({ answered: false, canSubmit: false });
-    expect(screen.getByRole("status")).toHaveTextContent(messages.chooseAnswer);
+    expect(screen.getByRole("status")).toHaveTextContent("Escolha uma alternativa e confirme em Responder.");
+    expect(messages.submitHint).not.toBe(messages.chooseAnswer);
     expect(screen.getByRole("button", { name: "Responder" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Ver fonte" })).not.toBeInTheDocument();
   });
@@ -56,12 +100,40 @@ describe("AnswerFeedback", () => {
     expect(screen.getByText("TWICE estreou em 2015.")).not.toBeVisible();
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(toggle).toHaveTextContent("Ocultar fonte");
     const region = document.getElementById(toggle.getAttribute("aria-controls")!)!;
     expect(region).toBeVisible();
     expect(region).toHaveTextContent("TWICE estreou em 2015.");
     expect(screen.getByRole("link", { name: "Abrir a revisão no Wikidata" })).toHaveAttribute("href", sampleEvidence[0]!.source_url);
+    advanceClock();
     fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }));
     expect(onAdvance).toHaveBeenCalledTimes(1);
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveTextContent("Ver fonte");
+  });
+
+  it("labels the toggle in English", () => {
+    renderBar({ messages: getMessages("en") });
+    const toggle = screen.getByRole("button", { name: "Show source" });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveTextContent("Hide source");
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("puts the source links right after the open toggle in tab order", () => {
+    renderBar();
+    const toggle = screen.getByRole("button", { name: "Ver fonte" });
+    fireEvent.click(toggle);
+    const focusable = [...document.querySelectorAll<HTMLElement>("a[href], button:not([disabled])")];
+    expect(focusable[focusable.indexOf(toggle) + 1]).toBe(screen.getByRole("link", { name: "Abrir a revisão no Wikidata" }));
+  });
+
+  it("repeats both answers in the sources panel, since the bar clamps them", () => {
+    renderBar({ isCorrect: false, selectedOption: itzy });
+    const toggle = screen.getByRole("button", { name: "Ver fonte" });
+    const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(panel).toHaveTextContent("Sua resposta: ITZY · Resposta correta: TWICE");
   });
 
   it("labels the player's answer next to the correct one after a miss", () => {
@@ -79,11 +151,38 @@ describe("AnswerFeedback", () => {
     expect(status.closest(".game-actions")).toContainElement(screen.getByRole("button", { name: "Próxima pergunta" }));
   });
 
-  it("ignores the second click of a double click on Next", () => {
+  it("advances on a single click once the guard window has passed", () => {
     const onAdvance = vi.fn();
     renderBar({ onAdvance });
+    advanceClock();
+    fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }), { detail: 1 });
+    expect(onAdvance).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not skip the verdict when a double click on Submit lands on Next", () => {
+    const onAdvance = vi.fn();
+    render(<StatefulBar onAdvance={onAdvance} />);
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }), { detail: 1 });
+    advanceClock(120);
     fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }), { detail: 2 });
     expect(onAdvance).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("Você acertou.");
+  });
+
+  it("ignores a repeated Enter from a held key on Next", () => {
+    const onAdvance = vi.fn();
+    renderBar({ onAdvance });
+    advanceClock();
+    pressEnter(screen.getByRole("button", { name: "Próxima pergunta" }), true);
+    expect(onAdvance).not.toHaveBeenCalled();
+  });
+
+  it("advances on a fresh Enter on Next after the guard window", () => {
+    const onAdvance = vi.fn();
+    renderBar({ onAdvance });
+    advanceClock();
+    pressEnter(screen.getByRole("button", { name: "Próxima pergunta" }));
+    expect(onAdvance).toHaveBeenCalledTimes(1);
   });
 
   it("shows the correct answer without a player answer on timeout", () => {
