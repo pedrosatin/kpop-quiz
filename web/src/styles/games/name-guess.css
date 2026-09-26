@@ -354,6 +354,33 @@
 }
 
 /*
+  Only after share and copy both fail: the text to copy by hand. The field
+  makes the bar taller than the space under the board, so the bar stops
+  being sticky while it shows; showing it scrolls it into view.
+*/
+.name-guess-share-fallback {
+  flex: 1 1 100%;
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  text-align: left;
+  scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3));
+}
+
+.name-guess-share-fallback p {
+  margin: 0;
+}
+
+.name-guess-share-fallback .share-preview {
+  max-width: none;
+}
+
+.name-guess-actions:has(.name-guess-share-fallback) {
+  position: static;
+}
+
+/*
   The panel opens inside the bar, like the quiz source: long text scrolls
   inside it. A sticky bar that tall would cover the last rows of the board,
   so the bar stops being sticky while the panel is open and stays below the
