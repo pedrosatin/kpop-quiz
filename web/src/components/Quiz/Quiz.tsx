@@ -10,6 +10,7 @@ import { QuizResult } from "./QuizResult";
 import { loadStoredPreferences, saveStoredPlayMode, saveStoredTimerEnabled } from "./storage";
 import { computeAwardedPoints } from "./scoring";
 import { useQuizTimer } from "./useQuizTimer";
+import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getInitialUrlParams, updateUrlParams, type QuizDecadeSelection, type QuizTheme } from "./url-params";
 import type { QuestionResult, QuizMachineState } from "./types";
 import {
@@ -39,7 +40,7 @@ export function Quiz({ locale }: { locale: Locale }) {
   const [history, setHistory] = useState<QuestionResult[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  const feedbackRef = useRef<HTMLDivElement>(null);
+  const nextButtonRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const resultHeadingRef = useRef<HTMLHeadingElement>(null);
   const answerLockedRef = useRef(false);
@@ -114,10 +115,11 @@ export function Quiz({ locale }: { locale: Locale }) {
     return () => { loadRequestRef.current += 1; stopTimer(); };
   }, [locale, playMode, theme, decadeKey]);
 
+  useFocusOnChange(nextButtonRef, state === "question.answered", questionIndex);
+  useFocusOnChange(resultHeadingRef, state === "results");
+
   useEffect(() => {
-    if (state === "question.answered") feedbackRef.current?.focus();
-    else if (state === "results") resultHeadingRef.current?.focus();
-    else if (focusQuestionRef.current && (state === "question.ready" || state === "setup")) {
+    if (focusQuestionRef.current && (state === "question.ready" || state === "setup")) {
       headingRef.current?.focus();
       focusQuestionRef.current = false;
     }
@@ -228,7 +230,7 @@ export function Quiz({ locale }: { locale: Locale }) {
       session={session} question={question} questionIndex={questionIndex} score={score}
       secondsLeft={secondsLeft} timerVisible={timerSeconds !== null} selectedId={selectedId}
       onSelectOption={setSelectedId} answered={state === "question.answered"} timedOut={timedOut}
-      revealedClues={revealedClues} playMode={playMode} headingRef={headingRef} feedbackRef={feedbackRef}
+      revealedClues={revealedClues} playMode={playMode} headingRef={headingRef} actionRef={nextButtonRef}
       onSubmit={submit} onAdvance={advance} onRevealClue={revealClue} messages={messages}
     />
   );

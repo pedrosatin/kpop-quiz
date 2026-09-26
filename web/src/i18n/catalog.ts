@@ -140,6 +140,7 @@ export interface Messages {
   timedOut: string;
   answerWas: string;
   evidence: string;
+  showSource: string;
   revision: string;
   declaredReference: string;
   openRevision: (project: string) => string;
@@ -388,6 +389,7 @@ const catalogs: Record<Locale, Messages> = {
     timedOut: "Acabou o tempo.",
     answerWas: "Resposta correta",
     evidence: "Fonte da resposta",
+    showSource: "Ver fonte",
     revision: "revisão",
     declaredReference: "Referência citada",
     openRevision: (project) => `Abrir a revisão no ${project}`,
@@ -708,6 +710,7 @@ const catalogs: Record<Locale, Messages> = {
     timedOut: "Time's up.",
     answerWas: "Correct answer",
     evidence: "Answer source",
+    showSource: "Show source",
     revision: "revision",
     declaredReference: "Cited reference",
     openRevision: (project) => `Open the revision on ${project}`,
