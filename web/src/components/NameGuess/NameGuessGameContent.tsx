@@ -90,8 +90,13 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
   // and a screen reader announces the new game.
   const board = useRef<HTMLDivElement>(null);
   const [restarts, setRestarts] = useState(0);
+  // The outcome of the last Share press; n changes on every press, so the
+  // same message is announced again.
+  const [shareFeedback, setShareFeedback] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
+  const shares = useRef(0);
   const restart = useCallback(() => {
     resetGame();
+    setShareFeedback(null);
     setRestarts((n) => n + 1);
   }, [resetGame]);
   useFocusOnChange(board, restarts > 0, restarts);
@@ -118,6 +123,14 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
     errorDisplay = t.notEnoughLetters;
   } else if (errorMessage === "notInWordList") {
     errorDisplay = t.notInWordList;
+  }
+
+  let shareMessage = null;
+  if (isGameOver && shareFeedback) {
+    // A new key replaces the paragraph, so a second copy is announced again.
+    shareMessage = (
+      <p key={shareFeedback.n}>{shareFeedback.kind === "copied" ? t.copied : t.shareFailed}</p>
+    );
   }
 
   const actionsState = status === "won" ? " is-correct" : status === "lost" ? " is-incorrect" : "";
@@ -164,9 +177,11 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
         {/* The keyboard is the game's action bar; the result takes its place at the end. */}
         <div class={`game-actions name-guess-actions${actionsState}`}>
           {/* Mounted from the start so the first rejected guess is announced. It is
-              visually hidden; the toast above the board shows the same text. */}
+              visually hidden; the toast above the board shows the same text. At the
+              end it announces the outcome of Share, which the result shows too. */}
           <div class="game-actions-message visually-hidden" role="status" aria-live="polite">
             {errorDisplay && <p>{errorDisplay}</p>}
+            {shareMessage}
           </div>
           {isGameOver ? (
             <NameGuessResults
@@ -178,6 +193,8 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
               highContrast={highContrast}
               t={t}
               onReset={restart}
+              onCopied={() => setShareFeedback({ kind: "copied", n: ++shares.current })}
+              onShareFailed={() => setShareFeedback({ kind: "shareFailed", n: ++shares.current })}
               titleRef={resultTitle}
             />
           ) : (

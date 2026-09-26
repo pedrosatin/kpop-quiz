@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/name-guess.daily.json";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessGame } from "./NameGuessGame";
-import { RESULT_GUARD_MS } from "./NameGuessResults";
+import { RESULT_GUARD_MS, generateShareText } from "./NameGuessResults";
 import { getMessages } from "../../i18n/catalog";
 
 const puzzle = validPuzzleJson as unknown as NameGuessPuzzle;
@@ -522,5 +522,171 @@ describe("NameGuessGame component", () => {
       expect(screen.getByText(tPt.artifactMissing)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: tPt.retry })).toBeInTheDocument();
     });
+  });
+});
+
+describe("NameGuess share", () => {
+  const original = {
+    share: Object.getOwnPropertyDescriptor(navigator, "share"),
+    clipboard: Object.getOwnPropertyDescriptor(navigator, "clipboard"),
+  };
+
+  function setNavigator(key: "share" | "clipboard", value: unknown) {
+    Object.defineProperty(navigator, key, { configurable: true, value });
+  }
+
+  // Wins in one guess, then presses Share past the result guard and lets the
+  // promises settle.
+  async function winAndShare() {
+    const view = render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+    typeGuess("TWICE");
+    advanceClock();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: tPt.copyResults }));
+    });
+    return view;
+  }
+
+  const shareText = () =>
+    generateShareText({
+      puzzle,
+      feedbacks: [Array.from({ length: puzzle.word_length }, () => "correct" as const)],
+      won: true,
+      attempts: 1,
+      highContrast: false,
+    });
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    setNavigator("share", undefined);
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+    for (const key of ["share", "clipboard"] as const) {
+      const descriptor = original[key];
+      if (descriptor) Object.defineProperty(navigator, key, descriptor);
+      else Reflect.deleteProperty(navigator, key);
+    }
+  });
+
+  it("opens the share sheet with the result and does not copy", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    setNavigator("share", share);
+    setNavigator("clipboard", { writeText });
+    const { container } = await winAndShare();
+
+    expect(share).toHaveBeenCalledWith({ text: shareText() });
+    expect(shareText()).toContain("1/6");
+    expect(writeText).not.toHaveBeenCalled();
+    expect(container.querySelector("textarea")).toBeNull();
+    expect(liveMessage()).toBeEmptyDOMElement();
+  });
+
+  it("treats a closed share sheet as no error and does not copy", async () => {
+    const share = vi.fn().mockRejectedValue(Object.assign(new Error("closed"), { name: "AbortError" }));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    setNavigator("share", share);
+    setNavigator("clipboard", { writeText });
+    const { container } = await winAndShare();
+
+    expect(share).toHaveBeenCalledTimes(1);
+    expect(writeText).not.toHaveBeenCalled();
+    expect(container.querySelector("textarea")).toBeNull();
+    expect(liveMessage()).toBeEmptyDOMElement();
+  });
+
+  it("falls back to the clipboard when the share sheet fails", async () => {
+    setNavigator("share", vi.fn().mockRejectedValue(Object.assign(new Error("no"), { name: "NotAllowedError" })));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    setNavigator("clipboard", { writeText });
+    await winAndShare();
+
+    expect(writeText).toHaveBeenCalledWith(shareText());
+    expect(liveMessage()).toHaveTextContent(tPt.copied);
+  });
+
+  it("copies the result and announces it again on a second copy", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    setNavigator("clipboard", { writeText });
+    const { container } = await winAndShare();
+
+    expect(writeText).toHaveBeenCalledWith(shareText());
+    const region = liveMessage();
+    expect(region).toHaveAttribute("aria-live", "polite");
+    expect(region).toHaveTextContent(tPt.copied);
+    expect(screen.getByRole("button", { name: tPt.copied })).toBeInTheDocument();
+    expect(container.querySelector("textarea")).toBeNull();
+
+    const first = region.querySelector("p");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: tPt.copied }));
+    });
+    expect(writeText).toHaveBeenCalledTimes(2);
+    // A new node in the live region, so screen readers read it again.
+    const second = region.querySelector("p");
+    expect(second).toHaveTextContent(tPt.copied);
+    expect(second).not.toBe(first);
+  });
+
+  it("shows the text to copy by hand and says so when the clipboard refuses", async () => {
+    setNavigator("clipboard", { writeText: vi.fn().mockRejectedValue(new Error("denied")) });
+    await winAndShare();
+
+    expect(liveMessage()).toHaveTextContent(tPt.shareFailed);
+    const field = screen.getByRole("textbox", { name: tPt.shareTextLabel });
+    expect(field).toHaveAttribute("readonly");
+    expect((field as HTMLTextAreaElement).value).toBe(shareText());
+    expect(field).toHaveAccessibleDescription(tPt.shareFailed);
+    expect(document.querySelector(".name-guess-share-fallback p")).toHaveTextContent(tPt.shareFailed);
+    expect(screen.getByRole("button", { name: tPt.copyResults })).toBeInTheDocument();
+
+    // Focus or a click selects the whole text.
+    const textarea = field as HTMLTextAreaElement;
+    textarea.setSelectionRange(0, 0);
+    fireEvent.focus(textarea);
+    expect(textarea.selectionStart).toBe(0);
+    expect(textarea.selectionEnd).toBe(textarea.value.length);
+    textarea.setSelectionRange(0, 0);
+    fireEvent.click(textarea);
+    expect(textarea.selectionEnd).toBe(textarea.value.length);
+
+    // Typing in the field does not reach the game.
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    expect(screen.getByRole("heading", { name: tPt.wonTitle })).toBeInTheDocument();
+  });
+
+  it("shows the text to copy by hand when there is no clipboard", async () => {
+    setNavigator("clipboard", undefined);
+    await winAndShare();
+
+    expect(liveMessage()).toHaveTextContent(tPt.shareFailed);
+    expect(screen.getByRole("textbox", { name: tPt.shareTextLabel })).toBeInTheDocument();
+  });
+
+  it("clears the share announcement after Play again", async () => {
+    setNavigator("clipboard", { writeText: vi.fn().mockResolvedValue(undefined) });
+    await winAndShare();
+    expect(liveMessage()).toHaveTextContent(tPt.copied);
+
+    advanceClock();
+    fireEvent.click(screen.getByRole("button", { name: tPt.playAgain }));
+    expect(liveMessage()).toBeEmptyDOMElement();
+  });
+
+  it("stops the Copied timer when the result goes away", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      setNavigator("clipboard", { writeText: vi.fn().mockResolvedValue(undefined) });
+      const { unmount } = await winAndShare();
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

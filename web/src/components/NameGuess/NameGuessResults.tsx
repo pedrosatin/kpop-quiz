@@ -6,6 +6,36 @@ import type { GameStatus, LetterStatus, NameGuessTranslations } from "./types";
 /** How long the result buttons ignore activation after they replace the keyboard. */
 export const RESULT_GUARD_MS = 300;
 
+/** The result as text: header, then one row of squares per guess. */
+export function generateShareText({
+  puzzle,
+  feedbacks,
+  won,
+  attempts,
+  highContrast,
+}: {
+  puzzle: NameGuessPuzzle;
+  feedbacks: LetterStatus[][];
+  won: boolean;
+  attempts: number;
+  highContrast: boolean;
+}): string {
+  const scoreText = won ? `${attempts}/${puzzle.max_attempts}` : `X/${puzzle.max_attempts}`;
+  const lines = [`K-pop Guess ${puzzle.reference_date} ${scoreText}`, ""];
+
+  for (const fb of feedbacks) {
+    const row = fb
+      .map((s) => {
+        if (s === "correct") return highContrast ? "🟦" : "🟩";
+        if (s === "present") return highContrast ? "🟧" : "🟨";
+        return "⬛";
+      })
+      .join("");
+    lines.push(row);
+  }
+  return lines.join("\n");
+}
+
 interface NameGuessResultsProps {
   puzzle: NameGuessPuzzle;
   guesses: string[];
@@ -15,6 +45,10 @@ interface NameGuessResultsProps {
   highContrast: boolean;
   t: NameGuessTranslations;
   onReset: () => void;
+  /** Called after the clipboard took the result, so the bar can announce it. */
+  onCopied?: () => void;
+  /** Called when neither the share sheet nor the clipboard took the result. */
+  onShareFailed?: () => void;
   titleRef?: RefObject<HTMLHeadingElement> | undefined;
 }
 
@@ -32,9 +66,16 @@ export function NameGuessResults({
   highContrast,
   t,
   onReset,
+  onCopied,
+  onShareFailed,
   titleRef,
 }: NameGuessResultsProps) {
   const [copied, setCopied] = useState(false);
+  const [shareFailed, setShareFailed] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shareTextId = useId();
+  const shareFailedId = useId();
+  const fallback = useRef<HTMLDivElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const titleId = useId();
   const detailsId = useId();
@@ -63,32 +104,46 @@ export function NameGuessResults({
     if (detailsOpen) details.current?.scrollIntoView?.({ block: "nearest" });
   }, [detailsOpen]);
 
-  function generateShareText(): string {
-    const scoreText = won ? `${guesses.length}/${puzzle.max_attempts}` : `X/${puzzle.max_attempts}`;
-    const lines = [`K-pop Guess ${puzzle.reference_date} ${scoreText}`, ""];
+  useEffect(() => () => {
+    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
+  }, []);
 
-    for (const fb of feedbacks) {
-      const row = fb
-        .map((s) => {
-          if (s === "correct") return highContrast ? "🟦" : "🟩";
-          if (s === "present") return highContrast ? "🟧" : "🟨";
-          return "⬛";
-        })
-        .join("");
-      lines.push(row);
+  // The field opens below the buttons; bring it into view.
+  useEffect(() => {
+    if (shareFailed) fallback.current?.scrollIntoView?.({ block: "nearest" });
+  }, [shareFailed]);
+
+  const shareText = generateShareText({ puzzle, feedbacks, won, attempts: guesses.length, highContrast });
+
+  // The share sheet first, where there is one; a player who closes it has not
+  // hit an error. Then the clipboard. If neither takes the text, the text
+  // shows in a field the player can select and copy by hand.
+  async function handleShare() {
+    const nav = typeof navigator !== "undefined" ? navigator : undefined;
+    if (typeof nav?.share === "function") {
+      try {
+        await nav.share({ text: shareText });
+        return;
+      } catch (error) {
+        if ((error as { name?: unknown } | null)?.name === "AbortError") return;
+      }
     }
-    return lines.join("\n");
-  }
-
-  async function handleCopy() {
-    const text = generateShareText();
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
+      await nav.clipboard.writeText(shareText);
     } catch {
-      // Fallback if clipboard API is restricted
+      setShareFailed(true);
+      onShareFailed?.();
+      return;
     }
+    setShareFailed(false);
+    setCopied(true);
+    onCopied?.();
+    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
+    copiedTimer.current = setTimeout(() => {
+      copiedTimer.current = null;
+      setCopied(false);
+    }, 3000);
   }
 
   const clues = target.clues;
@@ -119,7 +174,7 @@ export function NameGuessResults({
         <button
           type="button"
           onKeyDown={ignoreRepeat}
-          onClick={guarded(handleCopy)}
+          onClick={guarded(handleShare)}
           class="btn btn-primary"
         >
           {copied ? t.copied : t.copyResults}
@@ -144,6 +199,23 @@ export function NameGuessResults({
           </button>
         )}
       </div>
+
+      {shareFailed && (
+        <div ref={fallback} class="name-guess-share-fallback">
+          <p id={shareFailedId}>{t.shareFailed}</p>
+          <textarea
+            id={shareTextId}
+            class="share-preview"
+            readOnly
+            rows={4}
+            value={shareText}
+            aria-label={t.shareTextLabel}
+            aria-describedby={shareFailedId}
+            onFocus={(event) => (event.currentTarget as HTMLTextAreaElement).select()}
+            onClick={(event) => (event.currentTarget as HTMLTextAreaElement).select()}
+          />
+        </div>
+      )}
 
       {hasDetails && (
         <div ref={details} id={detailsId} class="callout name-guess-hints" hidden={!detailsOpen}>

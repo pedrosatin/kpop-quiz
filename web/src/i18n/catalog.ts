@@ -23,6 +23,9 @@ export interface NameGuessMessages {
   playAgain: string;
   copyResults: string;
   copied: string;
+  /** Shown when neither the share sheet nor the clipboard took the result. */
+  shareFailed: string;
+  shareTextLabel: string;
   highContrast: string;
   showSource: string;
   hideSource: string;
@@ -524,6 +527,8 @@ const catalogs: Record<Locale, Messages> = {
       playAgain: "Jogar novamente",
       copyResults: "Compartilhar resultado",
       copied: "Resultado copiado.",
+      shareFailed: "Não deu para copiar. Selecione o texto abaixo e copie.",
+      shareTextLabel: "Texto do resultado",
       highContrast: "Cores de alto contraste",
       showSource: "Ver fonte",
       hideSource: "Ocultar fonte",
@@ -852,6 +857,8 @@ const catalogs: Record<Locale, Messages> = {
       playAgain: "Play again",
       copyResults: "Share result",
       copied: "Result copied.",
+      shareFailed: "Could not copy. Select the text below and copy it.",
+      shareTextLabel: "Result text",
       highContrast: "High-contrast colors",
       showSource: "Show source",
       hideSource: "Hide source",
