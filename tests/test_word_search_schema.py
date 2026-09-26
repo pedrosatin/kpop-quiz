@@ -371,6 +371,11 @@ class TestWordSearchSchemaValidation(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "does not match word"):
             validate_word_search_puzzle(puzzle)
 
+        puzzle = sample_word_search_puzzle()
+        puzzle["words"][0]["labels"]["pt-BR"] = "I.N"
+        with self.assertRaisesRegex(ValueError, "does not match word"):
+            validate_word_search_puzzle(puzzle)
+
     def test_reject_invalid_evidence(self):
         puzzle = sample_word_search_puzzle()
         puzzle["words"][0]["evidence"] = []  # empty evidence

@@ -92,9 +92,13 @@ describe("published word search puzzle loader and validator", () => {
   });
 
   it("rejects words whose labels do not normalize to the word", () => {
-    const invalid = structuredClone(validPuzzle);
+    const invalidEn = structuredClone(validPuzzle);
     // E.g. word is EUNHYUK, but label is set to "I.N"
-    invalid.words[0]!.labels.en = "I.N";
-    expect(isWordSearchPuzzle(invalid)).toBe(false);
+    invalidEn.words[0]!.labels.en = "I.N";
+    expect(isWordSearchPuzzle(invalidEn)).toBe(false);
+
+    const invalidPt = structuredClone(validPuzzle);
+    invalidPt.words[0]!.labels["pt-BR"] = "I.N";
+    expect(isWordSearchPuzzle(invalidPt)).toBe(false);
   });
 });

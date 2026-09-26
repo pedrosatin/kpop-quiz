@@ -17,10 +17,10 @@ from kpop_scraping.word_search_generator import (
     extract_viable_themes,
     find_word_occurrences,
     generate_word_search_puzzle,
-    normalize_word,
 )
 from kpop_scraping.word_search_schema import (
     extract_word_coordinates,
+    normalize_word,
     validate_word_search_clues,
     validate_word_search_puzzle,
 )
