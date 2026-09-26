@@ -1,6 +1,4 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { act, fireEvent, render, screen } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { groupEvidence, Quiz } from "./Quiz";
@@ -293,10 +291,8 @@ describe("Quiz", () => {
     fireEvent.click(screen.getByRole("button", { name: "Responder" }));
     expect(document.querySelector("#quiz .options")!.className).toBe(gridClass);
     expect([...document.querySelectorAll("#quiz .options .option-key")].map((key) => key.textContent)).toEqual(["A", "B", "C", "D"]);
-    // The grid fills rows left to right (A B / C D): nothing reorders it.
-    const css = readFileSync(join(import.meta.dirname, "../../styles/games/quiz.css"), "utf-8")
-      .replace(/\/\*[\s\S]*?\*\//g, "");
-    expect(css).not.toMatch(/grid-auto-flow:\s*column|(^|[\s;{])order:/m);
+    // The CSS side (no order, reverse or grid placement) is in
+    // src/tests/quiz-layout.test.ts.
   });
 
   it("records one point when submission is triggered twice", async () => {

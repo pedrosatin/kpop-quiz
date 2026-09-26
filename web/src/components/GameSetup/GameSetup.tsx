@@ -35,6 +35,8 @@ export function GameSetup({
   messages,
   disabled = false,
 }: GameSetupProps) {
+  // Without a theme or decade picker the left column would be empty.
+  const hasPoolGroup = Boolean(onSelectTheme || onSelectDecades);
   return (
     <section id="quiz" class="game-card game-card--wide quiz-setup" aria-labelledby="difficulty-heading">
       <div class="setup-options">
@@ -45,17 +47,19 @@ export function GameSetup({
         {/* From 60rem the two groups sit side by side: which questions on the
             left, how to play them on the right. DOM order stays the reading
             and Tab order in both layouts. */}
-        <div class="setup-group">
-          {onSelectTheme && (
-            <GameCollection
-              selectedTheme={theme}
-              onSelectTheme={onSelectTheme}
-              messages={messages}
-              disabled={disabled}
-            />
-          )}
-          {onSelectDecades && <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />}
-        </div>
+        {hasPoolGroup && (
+          <div class="setup-group">
+            {onSelectTheme && (
+              <GameCollection
+                selectedTheme={theme}
+                onSelectTheme={onSelectTheme}
+                messages={messages}
+                disabled={disabled}
+              />
+            )}
+            {onSelectDecades && <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />}
+          </div>
+        )}
         <div class="setup-group">
           <DifficultyPicker
             playMode={playMode}

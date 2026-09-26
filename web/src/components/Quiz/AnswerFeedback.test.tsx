@@ -151,6 +151,20 @@ describe("AnswerFeedback", () => {
     expect(status.closest(".game-actions")).toContainElement(screen.getByRole("button", { name: "Próxima pergunta" }));
   });
 
+  it("keeps the toggle, the panel and Next in DOM order in a wrapper with no role", () => {
+    renderBar({ isCorrect: false, selectedOption: itzy });
+    // From 60rem the wrapper uses display: contents, which drops a role in
+    // some browsers; it must stay a plain div.
+    const next = screen.getByRole("button", { name: "Próxima pergunta" });
+    const wrapper = next.parentElement!;
+    expect(wrapper).toHaveClass("quiz-actions-buttons");
+    expect(wrapper.tagName).toBe("DIV");
+    expect(wrapper).not.toHaveAttribute("role");
+    const toggle = screen.getByRole("button", { name: "Ver fonte" });
+    const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect([...wrapper.children]).toEqual([toggle, panel, next]);
+  });
+
   it("advances on a single click once the guard window has passed", () => {
     const onAdvance = vi.fn();
     renderBar({ onAdvance });

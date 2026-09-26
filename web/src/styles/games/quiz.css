@@ -95,6 +95,11 @@
     grid-column: 1 / -1;
   }
 
+  /* A setup with only the mode and timer group spans the whole row. */
+  .setup-heading + .setup-group:last-child {
+    grid-column: 1 / -1;
+  }
+
   .setup-group > :last-child {
     margin-bottom: 0;
   }
@@ -324,6 +329,36 @@
   overflow-wrap: anywhere;
 }
 
+/* From 60rem the wide card has room for the message and the buttons on one
+   row: hint or verdict on the left, Submit or the toggle and Next on the
+   right. The message keeps its two-line height, so answering does not move
+   the card. The buttons wrapper drops out of the layout (it has no role), so
+   an open panel takes a full-width row below, still between the toggle and
+   Next in DOM order, and Next follows at the right. */
+@media (min-width: 60rem) {
+  .quiz-actions {
+    flex-wrap: wrap;
+    column-gap: var(--space-2);
+  }
+
+  .quiz-actions .game-actions-message {
+    flex: 1 1 0;
+    margin-inline-end: var(--space-4);
+  }
+
+  .quiz-actions-buttons {
+    display: contents;
+  }
+
+  .quiz-actions .btn {
+    flex: 0 0 auto;
+  }
+
+  .quiz-actions .btn-primary {
+    margin-inline-start: auto;
+  }
+}
+
 @media (max-width: 420px) {
   .quiz-actions .game-actions-message {
     font-size: 0.9375rem;
@@ -368,6 +403,8 @@
     grid-area: title;
   }
 
+  /* Keep .score-summary a plain div with no role: some browsers drop the
+     role of an element with display: contents. */
   .quiz-result .score-summary {
     display: contents;
   }
@@ -391,10 +428,10 @@
     align-items: flex-start;
   }
 
+  /* Cards in a row stretch to the same height while their sources are closed. */
   .quiz-result .review-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
   }
 }
 

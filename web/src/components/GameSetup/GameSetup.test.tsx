@@ -154,4 +154,22 @@ describe("GameSetup components", () => {
       messages.start,
     ]);
   });
+
+  it("leaves out the left group when there is no theme or decade picker", () => {
+    const { container } = render(
+      <GameSetup
+        playMode="standard"
+        onSelectMode={vi.fn()}
+        timerEnabled={false}
+        onTimerChange={vi.fn()}
+        onStart={vi.fn()}
+        isReady={true}
+        messages={messages}
+      />
+    );
+    const groups = [...container.querySelectorAll(".setup-options > .setup-group")];
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.querySelector(".difficulty-picker")).not.toBeNull();
+    expect(container.querySelector(".setup-group:empty")).toBeNull();
+  });
 });
