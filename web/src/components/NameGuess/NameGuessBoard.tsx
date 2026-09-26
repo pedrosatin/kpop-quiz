@@ -1,3 +1,4 @@
+import type { RefObject } from "preact";
 import { NameGuessRow } from "./NameGuessRow";
 import type { LetterStatus, NameGuessTranslations } from "./types";
 
@@ -8,6 +9,7 @@ interface NameGuessBoardProps {
   feedbacks: LetterStatus[][];
   currentInput: string;
   t: NameGuessTranslations;
+  boardRef?: RefObject<HTMLDivElement> | undefined;
 }
 
 export function NameGuessBoard({
@@ -17,6 +19,7 @@ export function NameGuessBoard({
   feedbacks,
   currentInput,
   t,
+  boardRef,
 }: NameGuessBoardProps) {
   const rows = [];
 
@@ -39,11 +42,14 @@ export function NameGuessBoard({
   }
 
   return (
+    // tabIndex -1 lets a restart move focus here without adding a tab stop.
     <div
+      {...(boardRef ? { ref: boardRef } : {})}
+      tabIndex={-1}
       role="region"
       aria-label={t.boardAria}
       class="name-guess-board"
-      style={`--word-length: ${wordLength}`}
+      style={`--word-length: ${wordLength}; --ng-rows: ${maxAttempts}`}
     >
       {rows}
     </div>

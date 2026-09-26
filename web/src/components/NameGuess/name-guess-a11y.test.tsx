@@ -63,6 +63,25 @@ describe("Automated accessibility audits with axe-core for NameGuess", () => {
     expect(results.violations).toEqual([]);
   });
 
+  it("validates NameGuessGame with a rejected guess and after the game ends with zero violations", async () => {
+    const { container, getByRole } = render(
+      <NameGuessGame locale="pt-BR" puzzle={puzzle} />
+    );
+
+    fireEvent.click(getByRole("button", { name: "T" }));
+    fireEvent.click(getByRole("button", { name: tPt.enter }));
+    expect((await axe.run(container)).violations).toEqual([]);
+
+    for (const char of ["W", "I", "C", "E"]) {
+      fireEvent.click(getByRole("button", { name: char }));
+    }
+    fireEvent.click(getByRole("button", { name: tPt.enter }));
+    fireEvent.click(getByRole("button", { name: tPt.showSource }));
+
+    const results = await axe.run(container);
+    expect(results.violations).toEqual([]);
+  });
+
   it("validates NameGuessResults in won state with zero violations", async () => {
     const wonFeedbacks: LetterStatus[][] = [
       ["correct", "correct", "correct", "correct", "correct"],
@@ -117,7 +136,6 @@ describe("Automated accessibility audits with axe-core for NameGuess", () => {
         onEnter={vi.fn()}
         onBackspace={vi.fn()}
         t={tPt}
-        disabled={false}
       />
     );
     const results = await axe.run(container);

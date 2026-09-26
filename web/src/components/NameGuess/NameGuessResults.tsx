@@ -1,6 +1,10 @@
-import { useState } from "preact/hooks";
+import type { RefObject } from "preact";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { Locale, NameGuessPuzzle } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus, NameGuessTranslations } from "./types";
+
+/** How long the result buttons ignore activation after they replace the keyboard. */
+export const RESULT_GUARD_MS = 300;
 
 interface NameGuessResultsProps {
   puzzle: NameGuessPuzzle;
@@ -11,8 +15,14 @@ interface NameGuessResultsProps {
   highContrast: boolean;
   t: NameGuessTranslations;
   onReset: () => void;
+  titleRef?: RefObject<HTMLHeadingElement> | undefined;
 }
 
+/**
+ * End of game, shown in the action bar in place of the keyboard. The bar
+ * keeps the verdict, the answer and the buttons; the description, the stats
+ * and the source open below them on request, so the final board stays in view.
+ */
 export function NameGuessResults({
   puzzle,
   guesses,
@@ -22,11 +32,36 @@ export function NameGuessResults({
   highContrast,
   t,
   onReset,
+  titleRef,
 }: NameGuessResultsProps) {
   const [copied, setCopied] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const titleId = useId();
+  const detailsId = useId();
+  const details = useRef<HTMLDivElement>(null);
+  const shownAt = useRef(0);
   const won = status === "won";
   const target = puzzle.target;
   const targetDisplayName = target.labels[locale] || target.canonical_name;
+
+  // The buttons appear where the keyboard was, so a second tap or a held key
+  // meant for the last guess must not share or restart the game.
+  useLayoutEffect(() => {
+    shownAt.current = performance.now();
+  }, []);
+  const guarded = (action: () => void) => () => {
+    if (performance.now() - shownAt.current >= RESULT_GUARD_MS) action();
+  };
+  const ignoreRepeat = (event: KeyboardEvent) => {
+    if (event.repeat) event.preventDefault();
+  };
+
+  // The bar stops being sticky while the panel is open, so the panel can open
+  // below the fold; bring it into view. It is capped in height, so the board
+  // stays on screen.
+  useEffect(() => {
+    if (detailsOpen) details.current?.scrollIntoView?.({ block: "nearest" });
+  }, [detailsOpen]);
 
   function generateShareText(): string {
     const scoreText = won ? `${guesses.length}/${puzzle.max_attempts}` : `X/${puzzle.max_attempts}`;
@@ -56,50 +91,72 @@ export function NameGuessResults({
     }
   }
 
-  const agencyName =
-    typeof target.clues?.agency === "object"
-      ? target.clues.agency[locale]
-      : target.clues?.agency;
-
-  const descriptionText = target.clues?.description?.[locale];
+  const clues = target.clues;
+  const agencyName = typeof clues?.agency === "object" ? clues.agency[locale] : clues?.agency;
+  const descriptionText = clues?.description?.[locale];
   const primaryEvidence = target.evidence[0];
-
-  const hasStats = Boolean(target.clues?.debut_year || agencyName || target.clues?.members_count);
+  const hasStats = Boolean(clues?.debut_year || agencyName || clues?.members_count);
+  // The source link does not depend on the clues, so either one opens the panel.
+  const hasDetails = Boolean(clues || primaryEvidence);
 
   return (
-    <div
-      role="region"
-      aria-label={t.resultsAria}
-      class="result name-guess-result"
-    >
-      <h2 class={`result-title ${won ? "is-won" : "is-lost"}`}>
-        {won ? t.wonTitle : t.lostTitle}
-      </h2>
-
-      <div>
-        <p class="result-summary">
-          {t.targetWas}
-        </p>
-        <p class="name-guess-target-name">
-          {targetDisplayName}
+    <section aria-labelledby={titleId} class="name-guess-result">
+      <div class="name-guess-verdict">
+        <h2
+          id={titleId}
+          {...(titleRef ? { ref: titleRef } : {})}
+          tabIndex={-1}
+          class={`game-actions-title name-guess-result-title ${won ? "is-won" : "is-lost"}`}
+        >
+          {won ? t.wonTitle : t.lostTitle}
+        </h2>
+        <p class="name-guess-answer">
+          {t.targetWas} <strong class="name-guess-target-name">{targetDisplayName}</strong>
         </p>
       </div>
 
-      {target.clues && (
-        <div class="callout name-guess-hints">
-          <h3 class="name-guess-hints-title">
-            {t.hints}
-          </h3>
+      <div class="name-guess-result-buttons">
+        <button
+          type="button"
+          onKeyDown={ignoreRepeat}
+          onClick={guarded(handleCopy)}
+          class="btn btn-primary"
+        >
+          {copied ? t.copied : t.copyResults}
+        </button>
+        <button
+          type="button"
+          onKeyDown={ignoreRepeat}
+          onClick={guarded(onReset)}
+          class="btn btn-secondary"
+        >
+          {t.playAgain}
+        </button>
+        {hasDetails && (
+          <button
+            type="button"
+            class="btn btn-secondary"
+            aria-expanded={detailsOpen}
+            aria-controls={detailsId}
+            onClick={() => setDetailsOpen((open) => !open)}
+          >
+            {detailsOpen ? t.hideSource : t.showSource}
+          </button>
+        )}
+      </div>
+
+      {hasDetails && (
+        <div ref={details} id={detailsId} class="callout name-guess-hints" hidden={!detailsOpen}>
           {descriptionText && (
             <p class="name-guess-hints-desc">
               {descriptionText}
             </p>
           )}
-          {hasStats && (
+          {clues && hasStats && (
             <div class="result-stats">
-              {target.clues.debut_year && (
+              {clues.debut_year && (
                 <div class="result-stat">
-                  <span class="result-stat-label">{t.debutYear}</span> <strong class="result-stat-value">{target.clues.debut_year}</strong>
+                  <span class="result-stat-label">{t.debutYear}</span> <strong class="result-stat-value">{clues.debut_year}</strong>
                 </div>
               )}
               {agencyName && (
@@ -107,9 +164,9 @@ export function NameGuessResults({
                   <span class="result-stat-label">{t.agency}</span> <strong class="result-stat-value name-guess-stat-text">{agencyName}</strong>
                 </div>
               )}
-              {target.clues.members_count && (
+              {clues.members_count && (
                 <div class="result-stat">
-                  <span class="result-stat-label">{t.members}</span> <strong class="result-stat-value">{target.clues.members_count}</strong>
+                  <span class="result-stat-label">{t.members}</span> <strong class="result-stat-value">{clues.members_count}</strong>
                 </div>
               )}
             </div>
@@ -127,23 +184,6 @@ export function NameGuessResults({
           )}
         </div>
       )}
-
-      <div class="btn-row">
-        <button
-          type="button"
-          onClick={handleCopy}
-          class="btn btn-primary"
-        >
-          {copied ? t.copied : t.copyResults}
-        </button>
-        <button
-          type="button"
-          onClick={onReset}
-          class="btn btn-secondary"
-        >
-          {t.playAgain}
-        </button>
-      </div>
-    </div>
+    </section>
   );
 }

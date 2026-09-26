@@ -6,7 +6,6 @@ interface VirtualKeyboardProps {
   onEnter: () => void;
   onBackspace: () => void;
   t: NameGuessTranslations;
-  disabled?: boolean;
 }
 
 const KEYBOARD_ROWS = [
@@ -21,10 +20,8 @@ export function VirtualKeyboard({
   onEnter,
   onBackspace,
   t,
-  disabled = false,
 }: VirtualKeyboardProps) {
   function handleKeyClick(key: string) {
-    if (disabled) return;
     if (key === "ENTER") {
       onEnter();
     } else if (key === "BACKSPACE") {
@@ -54,7 +51,6 @@ export function VirtualKeyboard({
               <button
                 key={key}
                 type="button"
-                disabled={disabled}
                 // A click or tap leaves focus where it was. Otherwise the key keeps focus
                 // and a later physical Enter presses it again instead of submitting.
                 // Tab still focuses the keys for keyboard users.

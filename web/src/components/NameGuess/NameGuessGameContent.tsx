@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { NameGuessPuzzle, Locale } from "../../lib/quiz-types";
 import { NameGuessBoard } from "./NameGuessBoard";
 import { NameGuessResults } from "./NameGuessResults";
@@ -11,6 +11,7 @@ import {
   markGameMatchRecorded,
   recordGameFinish,
 } from "../../lib/player-stats";
+import { useFocusOnChange } from "../../lib/use-focus-on-change";
 
 function isTextEntry(el: HTMLElement): boolean {
   return (
@@ -49,6 +50,14 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
     resetGame,
   } = useNameGuessGame(puzzle);
 
+  // Only a game finished in this visit moves focus to the result; a finished
+  // game restored from storage leaves focus where the page put it.
+  const playedHere = useRef(false);
+  const submit = useCallback(() => {
+    playedHere.current = true;
+    submitGuess();
+  }, [submitGuess]);
+
   // Physical keyboard listener
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -58,7 +67,7 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
       if (e.key === "Enter") {
         // Enter on a focused button already activates that button.
         if (target && isActivatable(target)) return;
-        submitGuess();
+        submit();
       } else if (e.key === "Backspace") {
         removeLetter();
       } else if (/^[a-zA-Z]$/.test(e.key)) {
@@ -68,11 +77,24 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [submitGuess, removeLetter, addLetter]);
+  }, [submit, removeLetter, addLetter]);
 
   const attemptsUsed = guesses.length;
   const attemptsRemaining = puzzle.max_attempts - attemptsUsed;
   const isGameOver = status === "won" || status === "lost";
+
+  const resultTitle = useRef<HTMLHeadingElement>(null);
+  useFocusOnChange(resultTitle, isGameOver && playedHere.current);
+
+  // Play again removes the focused button, so focus moves to the empty board
+  // and a screen reader announces the new game.
+  const board = useRef<HTMLDivElement>(null);
+  const [restarts, setRestarts] = useState(0);
+  const restart = useCallback(() => {
+    resetGame();
+    setRestarts((n) => n + 1);
+  }, [resetGame]);
+  useFocusOnChange(board, restarts > 0, restarts);
 
   const recordedMatchRef = useRef<string | null>(null);
 
@@ -98,26 +120,80 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
     errorDisplay = t.notInWordList;
   }
 
+  const actionsState = status === "won" ? " is-correct" : status === "lost" ? " is-incorrect" : "";
+
   return (
-    <section
-      id="name-guess"
-      aria-label={t.title}
-      class="game-card name-guess"
-      data-contrast={highContrast ? "high" : "normal"}
-    >
-      {/* The page intro already shows the title, so the HUD only carries the date and counters. */}
-      <div class="game-hud">
-        <div class="name-guess-hud-info">
+    <>
+      <section
+        id="name-guess"
+        aria-label={t.title}
+        class="game-card name-guess"
+        data-contrast={highContrast ? "high" : "normal"}
+      >
+        {/* The page intro already shows the title, so the HUD only carries the date and
+            the counter. The counter stays after the last guess, so the HUD keeps its height. */}
+        <div class="game-hud name-guess-hud">
           <p class="hud-item hud-label">
             {t.subtitle} · <span class="name-guess-date">{puzzle.reference_date}</span>
           </p>
-          {!isGameOver && (
-            <p role="status" aria-live="polite" class="hud-item hud-value">
-              {t.attemptsLeft}: {attemptsRemaining}/{puzzle.max_attempts}
+          <p role="status" aria-live="polite" class="hud-item hud-value">
+            {t.attemptsLeft}: {attemptsRemaining}/{puzzle.max_attempts}
+          </p>
+        </div>
+
+        <div class="name-guess-play">
+          <NameGuessBoard
+            wordLength={puzzle.word_length}
+            maxAttempts={puzzle.max_attempts}
+            guesses={guesses}
+            feedbacks={feedbacks}
+            currentInput={currentInput}
+            t={t}
+            boardRef={board}
+          />
+          {/* The visible copy of the error sits over the HUD, above the first row,
+              so it never covers the row being typed. The bar's live region below
+              announces it. */}
+          {errorDisplay && (
+            <p class="alert-error name-guess-toast" aria-hidden="true">
+              {errorDisplay}
             </p>
           )}
         </div>
 
+        {/* The keyboard is the game's action bar; the result takes its place at the end. */}
+        <div class={`game-actions name-guess-actions${actionsState}`}>
+          {/* Mounted from the start so the first rejected guess is announced. It is
+              visually hidden; the toast above the board shows the same text. */}
+          <div class="game-actions-message visually-hidden" role="status" aria-live="polite">
+            {errorDisplay && <p>{errorDisplay}</p>}
+          </div>
+          {isGameOver ? (
+            <NameGuessResults
+              puzzle={puzzle}
+              guesses={guesses}
+              feedbacks={feedbacks}
+              status={status}
+              locale={locale}
+              highContrast={highContrast}
+              t={t}
+              onReset={restart}
+              titleRef={resultTitle}
+            />
+          ) : (
+            <VirtualKeyboard
+              keyStatuses={keyStatuses}
+              onChar={addLetter}
+              onEnter={submit}
+              onBackspace={removeLetter}
+              t={t}
+            />
+          )}
+        </div>
+      </section>
+
+      {/* A display preference, kept out of the card so it takes no height from the board. */}
+      <div class="name-guess-options">
         <button
           type="button"
           onClick={toggleHighContrast}
@@ -127,48 +203,6 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
           {t.highContrast}
         </button>
       </div>
-
-      <div class="name-guess-play">
-        {/* The alert floats over the board, so showing it never moves the tiles. */}
-        <div class="name-guess-error-region">
-          {errorDisplay && (
-            <div role="alert" class="alert-error name-guess-toast">
-              {errorDisplay}
-            </div>
-          )}
-        </div>
-
-        <NameGuessBoard
-          wordLength={puzzle.word_length}
-          maxAttempts={puzzle.max_attempts}
-          guesses={guesses}
-          feedbacks={feedbacks}
-          currentInput={currentInput}
-          t={t}
-        />
-      </div>
-
-      {isGameOver && (
-        <NameGuessResults
-          puzzle={puzzle}
-          guesses={guesses}
-          feedbacks={feedbacks}
-          status={status}
-          locale={locale}
-          highContrast={highContrast}
-          t={t}
-          onReset={resetGame}
-        />
-      )}
-
-      <VirtualKeyboard
-        keyStatuses={keyStatuses}
-        onChar={addLetter}
-        onEnter={submitGuess}
-        onBackspace={removeLetter}
-        t={t}
-        disabled={isGameOver}
-      />
-    </section>
+    </>
   );
 }
