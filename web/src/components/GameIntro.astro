@@ -5,15 +5,20 @@ interface Props {
   intro: string;
   howToPlayTitle?: string;
   howToPlaySteps?: readonly string[];
+  /** Match the 64rem card of games with large boards (map, word search). */
+  wide?: boolean;
 }
 
-const { kicker, title, intro, howToPlayTitle, howToPlaySteps } = Astro.props;
+const { kicker, title, intro, howToPlayTitle, howToPlaySteps, wide = false } = Astro.props;
 const hasHowToPlay = Boolean(howToPlayTitle && howToPlaySteps?.length);
 ---
-<section class="intro" aria-labelledby="page-title">
+<section
+  class:list={["intro", { "intro--wide": wide, "intro--with-help": hasHowToPlay }]}
+  aria-labelledby="page-title"
+>
   <p class="kicker">{kicker}</p>
-  <h1 id="page-title">{title}</h1>
-  <p class="intro-text">{intro}</p>
+  {/* Before the h1 so Tab and reading order follow the kicker row; CSS keeps
+      the button at the right of that row and the steps under the sentence. */}
   {hasHowToPlay && (
     <details class="how-to-play">
       <summary class="btn btn-secondary btn-sm">{howToPlayTitle}</summary>
@@ -22,4 +27,6 @@ const hasHowToPlay = Boolean(howToPlayTitle && howToPlaySteps?.length);
       </ol>
     </details>
   )}
+  <h1 id="page-title">{title}</h1>
+  <p class="intro-text">{intro}</p>
 </section>

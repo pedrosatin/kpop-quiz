@@ -114,16 +114,25 @@
     question) and the bar after an answer, with its feedback and evidence
     line. Measured on the map (one-sentence intro, list beside the map from
     60rem), worst of English and Portuguese:
-      1440x900   above 29rem (462px)     answered bar 6.75rem (100px + 0.5rem gap)
-      390x844    above 31.25rem (498px)  answered bar 11rem (168px + 0.5rem gap)
-    Phones get their own values below. The floor keeps a board on screen on
-    short landscape viewports.
+      1440x900   above 22.25rem (board top measured at 354px)
+                 answered bar 6.75rem (100px + 0.5rem gap)
+      390x844    above 24.625rem (board top measured at 393px)
+                 answered bar 11rem (168px + 0.5rem gap)
+    The desktop values were measured with a fine pointer; phones were
+    measured on a touch screen (44px small buttons) and get their own values
+    below. The floor keeps a board on screen on short landscape viewports.
     Connections (--cx-above in games/connections.css), Name guess
     (--ng-above in games/name-guess.css) and Word search (--ws-above in
     games/word-search.css) keep their own budgets; measure them again when
     the header or GameIntro changes.
+
+    --intro-coarse-extra: on a touch screen wider than a phone the intro's
+    "How to play" button grows from 36px to 44px, and every board with it.
+    Budgets measured with a fine pointer add it; phone budgets, already
+    measured on a touch screen, do not.
   */
-  --play-above: 29rem;
+  --intro-coarse-extra: 0px;
+  --play-above: calc(22.25rem + var(--intro-coarse-extra));
   --play-bar-answered: 6.75rem;
   --play-max-h: max(6rem, calc(100dvh - var(--consent-banner-height, 0px) - var(--play-above) - var(--play-bar-answered)));
 
@@ -131,9 +140,15 @@
   --transition-fast: 150ms ease;
 }
 
+@media (pointer: coarse) and (width > 420px) {
+  :root {
+    --intro-coarse-extra: 0.5rem;
+  }
+}
+
 @media (max-width: 420px) {
   :root {
-    --play-above: 31.25rem;
+    --play-above: 24.625rem;
     --play-bar-answered: 11rem;
   }
 }

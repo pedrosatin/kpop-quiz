@@ -11,8 +11,8 @@
   --game-actions-inset: var(--space-4);
   /*
     Height budget: the grid shrinks so it, the words and the whole bar fit
-    the viewport. Measured on a touch screen (44px small buttons) at 390x844,
-    768x1024 and 1440x900, worst of both locales:
+    the viewport. Measured on a touch screen (44px small buttons) at 390x844
+    and 768x1024, and with a fine pointer at 1440x900, worst of both locales:
       --ws-above    page top to the grid: site header, game nav, GameIntro
                     with its "How to play" line, card padding and, while the
                     theme sits above the grid, the theme title
@@ -27,10 +27,10 @@
     list (height plus its gap); keep the largest of each. Cells stop at
     --ws-cell-min; below that the page scrolls and the sticky bar stays.
 
-    Between 30rem and 52rem, measured at 768x1024: grid top 401px, bar 78px,
-    two rows of chips beside the toggle 62px + 8px.
+    Between 30rem and 52rem, measured at 768x1024 on a touch screen: grid
+    top 313px, bar 78px, two rows of chips beside the toggle 62px + 8px.
   */
-  --ws-above: 25.25rem;
+  --ws-above: 19.75rem;
   --ws-actions: 4.875rem;
   --ws-list: 4.375rem;
   --ws-cell-min: 1.75rem;
@@ -46,17 +46,18 @@
 }
 
 /* From 52rem the theme and the words sit beside the grid: the words add no
-   height and the grid rises. Grid top 358px at 1440x900, bar 78px + 16px. */
+   height and the grid rises. Grid top 277px at 1440x900 with a fine
+   pointer, bar 78px + 16px; --intro-coarse-extra covers touch screens. */
 @media (min-width: 52rem) {
   .word-search {
-    --ws-above: 22.5rem;
+    --ws-above: calc(17.5rem + var(--intro-coarse-extra));
     --ws-actions: 6.25rem;
     --ws-list: 0rem;
   }
 }
 
 /*
-  Phones, measured at 390x844: grid top 397px, bar 70px, then one row of
+  Phones, measured at 390x844: grid top 316px, bar 70px, then one row of
   chips scrolling beside the 44px toggle, 8px under the grid (52px). The
   result bar is 94px and the row loses the toggle (28px chips, 36px), so the
   grid gives up about 2px per cell (26px to 24px) to keep every chip above
@@ -64,7 +65,7 @@
 */
 @media (max-width: 29.99rem) {
   .word-search {
-    --ws-above: 24.875rem;
+    --ws-above: 19.8125rem;
     --ws-actions: 4.375rem;
     --ws-list: 3.25rem;
     --ws-cell-min: 1.5rem;
