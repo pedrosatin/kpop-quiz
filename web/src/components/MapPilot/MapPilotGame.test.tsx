@@ -56,10 +56,27 @@ describe("map pilot game", () => {
     expect(getByRole("status").textContent).toContain("Escolha um país destacado");
     fireEvent.click(getByTestId(`answer-country-${event!.country_iso_3166_1}`));
     const next = getByRole("button", { name: "Próxima data" });
-    expect(next.closest(".map-pilot-action-bar")).toBe(getByRole("status"));
+    const status = getByRole("status");
+    // The live region is the message, not the whole bar with its button.
+    expect(status.classList.contains("game-actions-message")).toBe(true);
+    expect(status.contains(next)).toBe(false);
+    expect(next.closest(".game-actions")).toBe(status.closest(".game-actions"));
     expect(document.activeElement).toBe(next);
     fireEvent.click(next);
     expect(getByRole("status").textContent).toContain("Escolha um país destacado");
+  });
+
+  it("focuses the result title when the round ends", () => {
+    const date = "2026-09-24";
+    const round = selectMapPilotRound(mapPilotEvents, date);
+    const { getByRole, getByTestId } = render(<MapPilotGame locale="pt-BR" seedDate={date} />);
+    for (const [index, event] of round.entries()) {
+      fireEvent.click(getByTestId(`answer-country-${event.country_iso_3166_1}`));
+      fireEvent.click(getByRole("button", { name: index === round.length - 1 ? "Ver resultado" : "Próxima data" }));
+    }
+    const title = getByRole("heading", { name: "Rodada concluída" });
+    expect(title.getAttribute("tabindex")).toBe("-1");
+    expect(document.activeElement).toBe(title);
   });
 
   it("chooses the daily round after mount so the server HTML matches the first client render", async () => {

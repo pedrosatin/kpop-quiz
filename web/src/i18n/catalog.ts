@@ -112,6 +112,7 @@ export interface Messages {
   connectionsHowToPlay: string[];
   nameGuessHowToPlay: string[];
   wordSearchHowToPlay: string[];
+  mapHowToPlay: string[];
   questionCounter: (current: number, total: number) => string;
   score: string;
   points: string;
@@ -350,6 +351,11 @@ const catalogs: Record<Locale, Messages> = {
       "Selecione a primeira e a última letra de um nome, ou arraste de uma ponta à outra.",
       "No teclado, mova com as setas e marque o início e o fim com Enter ou espaço.",
       "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\".",
+    ],
+    mapHowToPlay: [
+      "Leia a data da turnê e escolha o país destacado no mapa ou o nome dele na lista.",
+      "No teclado, use Tab para chegar a um país e Enter para escolher.",
+      "Depois da resposta, a barra na parte de baixo da tela mostra o país correto e os links da agenda oficial e do MusicBrainz. Aperte Enter ou \"Próxima data\" para seguir. Na última pergunta, o botão vira \"Ver resultado\".",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
@@ -665,6 +671,11 @@ const catalogs: Record<Locale, Messages> = {
       "Select the first and last letter of a name, or drag from one end to the other.",
       "With a keyboard, move with the arrow keys and mark the start and end with Enter or Space.",
       "The list shows how many letters each name has. If you get stuck, use \"Show words\".",
+    ],
+    mapHowToPlay: [
+      "Read the tour date and pick the highlighted country on the map or its name in the list.",
+      "With a keyboard, press Tab to reach a country and Enter to choose it.",
+      "After you answer, the bar at the bottom of the screen shows the correct country and links to the official schedule and MusicBrainz. Press Enter or \"Next date\" to continue. On the last question, the button reads \"See result\".",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",

@@ -1,5 +1,4 @@
 /* Map quiz: the map spans the page width, with the country list below it. */
-.page-shell--map-pilot { width: min(100% - 2rem, 80rem); }
 .map-pilot-game,
 .map-pilot-results {
   margin: 0 0 3rem;
@@ -9,6 +8,10 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-card);
 }
+.map-pilot-game {
+  --game-actions-inset: clamp(1rem, 3vw, 2rem);
+  padding: var(--game-actions-inset);
+}
 .map-pilot-question-header { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem 1rem; }
 .map-pilot-kicker { margin: 0; color: var(--color-action); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; }
 .map-pilot-progress { grid-column: 2; grid-row: 1; margin: 0; color: var(--color-text-muted); font-weight: 700; white-space: nowrap; }
@@ -16,7 +19,7 @@
 .map-pilot-layout { display: grid; gap: 1rem; margin-top: 1rem; }
 .map-pilot-map-wrap { min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface-muted); }
 /* The map shrinks with the viewport so the action bar stays on screen. */
-.map-pilot-world-map { display: block; width: 100%; height: auto; max-height: max(12rem, 100dvh - 28rem); margin-inline: auto; }
+.map-pilot-world-map { display: block; width: 100%; height: auto; max-height: var(--play-max-h); margin-inline: auto; }
 .map-pilot-feature { fill: color-mix(in srgb, var(--color-border) 27%, var(--color-surface)); stroke: var(--color-surface); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
 .map-pilot-feature.is-playable { fill: color-mix(in srgb, var(--color-link) 55%, var(--color-surface)); cursor: pointer; }
 .map-pilot-feature.is-playable:hover,
@@ -25,59 +28,29 @@
 .map-pilot-feature.is-answer { fill: var(--color-success-text); }
 .map-pilot-attribution { margin: 0; padding: 0.45rem 0.7rem; color: var(--color-text-muted); font-size: 0.75rem; }
 .map-pilot-answers h3 { margin: 0 0 0.65rem; font-size: 1rem; }
-.map-pilot-country-list { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-.map-pilot-country { min-height: 2.5rem; padding: 0.45rem 0.7rem; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; cursor: pointer; }
+.map-pilot-country-list { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.map-pilot-country { min-height: var(--control-height); padding: 0.45rem 0.7rem; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; cursor: pointer; }
 .map-pilot-country:hover:not(:disabled) { border-color: var(--color-action); background: var(--color-surface-muted); }
 .map-pilot-country.is-selected { border-color: var(--color-action); background: var(--color-action); color: var(--color-action-text); }
 .map-pilot-country.is-answer { border-color: var(--color-success-text); box-shadow: inset 0 0 0 1px var(--color-success-text); }
 .map-pilot-country:disabled { cursor: default; opacity: 0.82; }
-.map-pilot-primary { min-height: 2.75rem; padding: 0.65rem 1rem; border: 2px solid var(--color-action); border-radius: var(--radius-control); background: var(--color-action); color: var(--color-action-text); font: inherit; font-weight: 800; cursor: pointer; }
-.map-pilot-primary:hover { background: var(--color-action-hover); border-color: var(--color-action-hover); }
-.map-pilot-action-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 1.25rem;
-  min-height: calc(var(--control-height) + 1.5rem);
-  margin: 1rem calc(-1 * clamp(1rem, 3vw, 2rem)) calc(-1 * clamp(1rem, 3vw, 2rem));
-  padding: 0.75rem clamp(1rem, 3vw, 2rem);
-  border-top: 1px solid var(--color-border);
-  border-radius: 0 0 var(--radius-card) var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: 0 -0.5rem 1rem -0.75rem color-mix(in srgb, var(--color-text) 30%, transparent);
-}
-.map-pilot-action-bar.is-correct { background: var(--color-success-bg); color: var(--color-success-text); }
-.map-pilot-action-bar.is-incorrect { background: var(--color-error-bg); color: var(--color-error-text); }
-.map-pilot-instructions { margin: 0; color: var(--color-text-muted); }
-.map-pilot-feedback { flex: 1 1 20rem; min-width: 0; }
-.map-pilot-feedback p { margin: 0.1rem 0; }
-.map-pilot-feedback-title { font-weight: 800; }
-.map-pilot-evidence { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.8125rem; }
+.map-pilot-evidence { display: flex; flex-wrap: wrap; gap: 0.2rem 0.75rem; font-size: 0.75rem; }
 .map-pilot-evidence span { color: var(--color-text-muted); }
-.map-pilot-action-bar .map-pilot-primary { flex: 0 0 auto; }
 .map-pilot-score { font-size: 1.5rem; font-weight: 800; }
-.map-pilot-primary:focus-visible,
 .map-pilot-country:focus-visible,
 .map-pilot-evidence a:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 @media (max-width: 420px) {
-  .map-pilot-game,
+  .map-pilot-game { --game-actions-inset: 0.8rem; }
   .map-pilot-results { padding: 0.8rem; }
-  .map-pilot-action-bar { margin: 0.75rem -0.8rem -0.8rem; padding: 0.6rem 0.8rem; }
-  .map-pilot-action-bar .map-pilot-primary { width: 100%; }
   /* The intro already carries the schedule notice; keep the bar off the map. */
   .map-pilot-evidence span { display: none; }
   .map-pilot-question-header { grid-template-columns: 1fr; }
   .map-pilot-progress { grid-column: 1; }
   .map-pilot-question-header h2 { grid-row: 2; }
-  .map-pilot-country { min-height: 2.25rem; padding: 0.35rem 0.6rem; }
+  .map-pilot-country { padding: 0.35rem 0.6rem; }
 }
 @media (forced-colors: active) {
   .map-pilot-feature.is-playable { fill: Canvas; stroke: LinkText; stroke-width: 1.5; }
   .map-pilot-feature.is-playable:focus { outline: 2px solid Highlight; }
-  .map-pilot-country,
-  .map-pilot-primary { border: 2px solid ButtonText; }
+  .map-pilot-country { border: 2px solid ButtonText; }
 }

@@ -107,9 +107,30 @@
   --content-max: 72rem;
   --game-max: 42rem;
   --game-max-wide: 64rem;
+  /*
+    Tallest a board may grow so the question, the board and the answered
+    action bar fit one viewport. --play-max-h subtracts the consent banner,
+    what sits above the board (header, game nav, intro, card padding and
+    question) and the bar after an answer, with its feedback and evidence
+    line. Measured on the map, worst of English and Portuguese:
+      1440x900   above 30.5rem (488px)   answered bar 6.75rem (100px + 0.5rem gap)
+      390x844    above 34.5rem (551px)   answered bar 11rem (168px + 0.5rem gap)
+    Phones get their own values below. The floor keeps a board on screen on
+    short landscape viewports.
+  */
+  --play-above: 30.5rem;
+  --play-bar-answered: 6.75rem;
+  --play-max-h: max(6rem, calc(100dvh - var(--consent-banner-height, 0px) - var(--play-above) - var(--play-bar-answered)));
 
   /* Motion */
   --transition-fast: 150ms ease;
+}
+
+@media (max-width: 420px) {
+  :root {
+    --play-above: 34.5rem;
+    --play-bar-answered: 11rem;
+  }
 }
 
 :root[data-theme="light"] {
