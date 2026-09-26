@@ -6,7 +6,8 @@ import type { ConnectionsTileProps } from "./types";
  * does not fit at the smallest font (see fitTileText).
  */
 export function tileNameParts(name: string): string[] {
-  return name.split(/(?<=[:\-./])(?=\S)/);
+  // No lookbehind: Safari before 16.4 fails to parse it and drops the chunk.
+  return name.replace(/([:\-./])(?=\S)/g, "$1\n").split("\n");
 }
 
 export function ConnectionsTile({

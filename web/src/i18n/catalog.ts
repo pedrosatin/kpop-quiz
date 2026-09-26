@@ -162,6 +162,8 @@ export interface Messages {
   copyResult: string;
   copiedToClipboard: string;
   shareTextLabel: string;
+  /** Shown when neither the share sheet nor the clipboard took the result. */
+  shareFailed: string;
   reviewTitle: string;
   yourAnswer: string;
   correctAnswer: string;
@@ -399,7 +401,8 @@ const catalogs: Record<Locale, Messages> = {
     hideSource: "Ocultar fonte",
     revision: "revisão",
     declaredReference: "Referência citada",
-    openRevision: (project) => `Abrir a revisão no ${project}`,
+    // Wikipédia is feminine, Wikidata masculine.
+    openRevision: (project) => `Abrir a revisão ${project === "Wikipedia" ? "na" : "no"} ${project}`,
     resultTitle: "Fim da partida",
     resultText: (score) => `Você fez ${score} pontos.`,
     restart: "Jogar novamente",
@@ -417,6 +420,7 @@ const catalogs: Record<Locale, Messages> = {
     copyResult: "Copiar resultado",
     copiedToClipboard: "Resultado copiado.",
     shareTextLabel: "Texto do resultado",
+    shareFailed: "Não deu para copiar. Selecione o texto abaixo e copie.",
     reviewTitle: "Suas respostas",
     yourAnswer: "Sua resposta",
     correctAnswer: "Resposta correta",
@@ -493,7 +497,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsHint: "Escolha 4 nomes com algo em comum e envie.",
     connectionsWrong: "Errou. Esses 4 nomes não formam uma categoria.",
     connectionsSolved: (label) => `Categoria encontrada: ${label}.`,
-    connectionsSourceItem: (name, project, revision) => `${name}: ${project}, revisão ${revision}.`,
+    connectionsSourceItem: (name, project, revision) => `${name}, ${project}, revisão ${revision}.`,
     nameGuessTitle: "Adivinhe o nome",
     nameGuessEyebrow: "6 palpites · 1 nome por dia",
     nameGuessIntro: "Descubra o artista ou grupo de K-pop do dia. A cada palpite, as cores mostram quais letras estão certas.",
@@ -744,6 +748,7 @@ const catalogs: Record<Locale, Messages> = {
     copyResult: "Copy result",
     copiedToClipboard: "Result copied.",
     shareTextLabel: "Result text",
+    shareFailed: "Could not copy. Select the text below and copy it.",
     reviewTitle: "Your answers",
     yourAnswer: "Your answer",
     correctAnswer: "Correct answer",

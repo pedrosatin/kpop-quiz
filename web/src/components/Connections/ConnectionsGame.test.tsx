@@ -1,10 +1,11 @@
-import { render, screen, fireEvent, cleanup, within } from "@testing-library/preact";
+import { act, render, screen, fireEvent, cleanup, within } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/connections.daily.json";
 import { getMessages } from "../../i18n/catalog";
 import type { ConnectionsPuzzle } from "../../lib/quiz-types";
 import { ConnectionsGame, SUBMIT_GUARD_MS } from "./ConnectionsGame";
-import { RESULT_GUARD_MS } from "./ConnectionsResults";
+import { RESULT_GUARD_MS, generateShareText } from "./ConnectionsResults";
+import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 
 const puzzle = validPuzzleJson as unknown as ConnectionsPuzzle;
 const pt = getMessages("pt-BR");
@@ -354,6 +355,157 @@ describe("ConnectionsGame component integration", () => {
       expect(within(panel).getByText(category.explanation["pt-BR"])).toBeInTheDocument();
       const link = within(panel).getAllByRole("link").find((a) => a.getAttribute("href") === category.evidence[0]!.source_url);
       expect(link).toBeDefined();
+    }
+  });
+
+  it("does not count a restored game whose finish was already recorded", () => {
+    markGameMatchRecorded("connections", `connections-${puzzle.puzzle_id}`);
+    localStorage.setItem(
+      `kpop-connections-${puzzle.puzzle_id}`,
+      JSON.stringify({
+        solvedCategoryIds: puzzle.categories.map((c) => c.id),
+        mistakesRemaining: 4,
+        guessHistory: puzzle.categories.map((c) => c.item_ids),
+        gameStatus: "won",
+        boardItemIds: [],
+      }),
+    );
+    renderGame();
+    expect(screen.getByRole("heading", { level: 2, name: pt.connectionsGameOverWon })).toBeInTheDocument();
+    expect(loadPlayerStats().games.connections?.played ?? 0).toBe(0);
+  });
+
+  it("counts a game finished in this visit once", () => {
+    renderGame();
+    for (const category of puzzle.categories) guess(category.item_ids);
+    expect(loadPlayerStats().games.connections?.played).toBe(1);
+  });
+});
+
+describe("Connections share", () => {
+  const original = {
+    share: Object.getOwnPropertyDescriptor(navigator, "share"),
+    clipboard: Object.getOwnPropertyDescriptor(navigator, "clipboard"),
+  };
+
+  function setNavigator(key: "share" | "clipboard", value: unknown) {
+    Object.defineProperty(navigator, key, { configurable: true, value });
+  }
+
+  // Wins, then presses Share past the result guard and lets the promises settle.
+  async function winAndShare() {
+    const view = renderGame();
+    for (const category of puzzle.categories) guess(category.item_ids);
+    clock += RESULT_GUARD_MS;
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: pt.connectionsShareButton }));
+    });
+    return view;
+  }
+
+  function liveRegion(container: Element): HTMLElement {
+    return container.querySelector<HTMLElement>(".game-actions-message[aria-live='polite']")!;
+  }
+
+  const shareText = () =>
+    generateShareText({
+      puzzle,
+      guessHistory: puzzle.categories.map((c) => c.item_ids),
+      mistakesRemaining: 4,
+      locale: "pt-BR",
+      monochrome: false,
+    });
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    setNavigator("share", undefined);
+  });
+
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+    vi.restoreAllMocks();
+    for (const key of ["share", "clipboard"] as const) {
+      const descriptor = original[key];
+      if (descriptor) Object.defineProperty(navigator, key, descriptor);
+      else Reflect.deleteProperty(navigator, key);
+    }
+  });
+
+  it("copies the result and announces it again on a second copy", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    setNavigator("clipboard", { writeText });
+    const { container } = await winAndShare();
+
+    expect(writeText).toHaveBeenCalledWith(shareText());
+    const region = liveRegion(container);
+    expect(region).toHaveTextContent(pt.copiedToClipboard);
+    expect(screen.getByRole("button", { name: pt.copiedToClipboard })).toBeInTheDocument();
+    expect(container.querySelector("textarea")).toBeNull();
+
+    const first = region.querySelector("p");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: pt.copiedToClipboard }));
+    });
+    expect(writeText).toHaveBeenCalledTimes(2);
+    // A new node in the live region, so screen readers read it again.
+    const second = region.querySelector("p");
+    expect(second).toHaveTextContent(pt.copiedToClipboard);
+    expect(second).not.toBe(first);
+  });
+
+  it("shows the text to copy by hand and says so when the clipboard refuses", async () => {
+    setNavigator("clipboard", { writeText: vi.fn().mockRejectedValue(new Error("denied")) });
+    const { container } = await winAndShare();
+
+    expect(liveRegion(container)).toHaveTextContent(pt.shareFailed);
+    const field = screen.getByRole("textbox", { name: pt.shareTextLabel });
+    expect(field).toHaveAttribute("readonly");
+    expect((field as HTMLTextAreaElement).value).toBe(shareText());
+    expect(field).toHaveAccessibleDescription(pt.shareFailed);
+    expect(screen.getByRole("button", { name: pt.connectionsShareButton })).toBeInTheDocument();
+  });
+
+  it("shows the text to copy by hand when there is no clipboard", async () => {
+    setNavigator("clipboard", undefined);
+    const { container } = await winAndShare();
+    expect(liveRegion(container)).toHaveTextContent(pt.shareFailed);
+    expect(screen.getByRole("textbox", { name: pt.shareTextLabel })).toBeInTheDocument();
+  });
+
+  it("treats a closed share sheet as no error and does not copy", async () => {
+    const share = vi.fn().mockRejectedValue(Object.assign(new Error("closed"), { name: "AbortError" }));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    setNavigator("share", share);
+    setNavigator("clipboard", { writeText });
+    const { container } = await winAndShare();
+
+    expect(share).toHaveBeenCalledWith({ text: shareText() });
+    expect(writeText).not.toHaveBeenCalled();
+    expect(container.querySelector("textarea")).toBeNull();
+    expect(liveRegion(container)).toBeEmptyDOMElement();
+  });
+
+  it("falls back to the clipboard when the share sheet fails", async () => {
+    setNavigator("share", vi.fn().mockRejectedValue(Object.assign(new Error("no"), { name: "NotAllowedError" })));
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    setNavigator("clipboard", { writeText });
+    const { container } = await winAndShare();
+    expect(writeText).toHaveBeenCalled();
+    expect(liveRegion(container)).toHaveTextContent(pt.copiedToClipboard);
+  });
+
+  it("stops the Copied timer when the result goes away", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      setNavigator("clipboard", { writeText: vi.fn().mockResolvedValue(undefined) });
+      const { unmount } = await winAndShare();
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
     }
   });
 });

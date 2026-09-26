@@ -60,22 +60,41 @@ export function ConnectionsBoard({
   const ownGrid = useRef<HTMLDivElement>(null);
   const grid = gridRef ?? ownGrid;
 
-  // Fit each name to its tile before paint, and again when the tiles resize.
-  const itemKey = boardItems.map((item) => item.id).join(",");
+  // Fit each name to its tile before paint, again when the tiles resize and
+  // once the web font arrives (it swaps in after the fallback was measured).
+  // Sorted ids: Shuffle moves the same tiles, so their fit still holds.
+  const itemKey = boardItems.map((item) => item.id).sort().join(",");
   useLayoutEffect(() => {
     const node = grid.current;
     if (!node) return;
+    let active = true;
     const fitAll = () => {
+      if (!active) return;
       const rootPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       node.querySelectorAll<HTMLElement>(".connections-tile").forEach((tile) => fitTileText(tile, rootPx));
     };
     fitAll();
-    if (typeof ResizeObserver === "undefined") return;
-    // Fitting never changes the tile size (fixed rows and columns), so this
-    // cannot loop.
-    const observer = new ResizeObserver(fitAll);
-    observer.observe(node);
-    return () => observer.disconnect();
+    const fonts = typeof document !== "undefined" ? document.fonts : undefined;
+    if (fonts && fonts.status !== "loaded") fonts.ready.then(fitAll, () => {});
+    let observer: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== "undefined") {
+      // The first callback reports the size fitAll just used; skip it.
+      // Fitting never changes the tile size (fixed rows and columns), so
+      // later callbacks cannot loop.
+      let first = true;
+      observer = new ResizeObserver(() => {
+        if (first) {
+          first = false;
+          return;
+        }
+        fitAll();
+      });
+      observer.observe(node);
+    }
+    return () => {
+      active = false;
+      observer?.disconnect();
+    };
   }, [itemKey, locale]);
 
   return (

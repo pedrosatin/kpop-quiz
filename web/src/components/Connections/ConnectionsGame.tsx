@@ -29,7 +29,9 @@ export const SUBMIT_GUARD_MS = 300;
 
 type Feedback =
   | { kind: "solved"; categoryId: string }
-  | { kind: "wrong" | "oneAway" | "repeat" | "copied" };
+  | { kind: "wrong" | "oneAway" | "repeat" }
+  // n changes on every share, so the same message is announced again.
+  | { kind: "copied" | "shareFailed"; n: number };
 
 export function ConnectionsGameContent({
   puzzle,
@@ -61,6 +63,7 @@ export function ConnectionsGameContent({
   // The verdict of the last guess shows in the action bar until the next
   // tile or Clear. It never sits above the board, so the tiles do not move.
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const shares = useRef(0);
 
   // Only a game finished in this visit moves focus to the result; a game
   // restored from storage leaves focus where the page put it.
@@ -136,7 +139,9 @@ export function ConnectionsGameContent({
 
   let message = null;
   if (isGameOver) {
-    message = feedback?.kind === "copied" ? <p>{messages.copiedToClipboard}</p> : null;
+    // A new key replaces the paragraph, so a second copy is announced again.
+    if (feedback?.kind === "copied") message = <p key={feedback.n}>{messages.copiedToClipboard}</p>;
+    else if (feedback?.kind === "shareFailed") message = <p key={feedback.n}>{messages.shareFailed}</p>;
   } else if (feedback?.kind === "solved") {
     const category = puzzle.categories.find((c) => c.id === feedback.categoryId);
     if (category) {
@@ -204,7 +209,8 @@ export function ConnectionsGameContent({
             guessHistory={guessHistory}
             mistakesRemaining={mistakesRemaining}
             onRestart={restart}
-            onCopied={() => setFeedback({ kind: "copied" })}
+            onCopied={() => setFeedback({ kind: "copied", n: ++shares.current })}
+            onShareFailed={() => setFeedback({ kind: "shareFailed", n: ++shares.current })}
             titleRef={resultTitle}
             locale={locale}
             messages={messages}

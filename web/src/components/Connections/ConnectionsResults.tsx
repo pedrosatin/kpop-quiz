@@ -99,12 +99,17 @@ export function ConnectionsResults({
   mistakesRemaining,
   onRestart,
   onCopied,
+  onShareFailed,
   titleRef,
   locale,
   messages,
 }: ConnectionsResultsProps) {
   const [monochrome, setMonochrome] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [shareFailed, setShareFailed] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shareTextId = useId();
+  const shareFailedId = useId();
   const [sourceOpen, setSourceOpen] = useState(false);
   const titleId = useId();
   const sourceId = useId();
@@ -136,16 +141,41 @@ export function ConnectionsResults({
     ? messages.connectionsResultSummaryWon(mistakesUsed)
     : messages.connectionsResultSummaryLost;
 
-  const handleCopy = async () => {
-    const shareText = generateShareText({ puzzle, guessHistory, mistakesRemaining, locale, monochrome });
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(shareText);
-        setCopied(true);
-        onCopied?.();
-        setTimeout(() => setCopied(false), 3000);
+  useEffect(() => () => {
+    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
+  }, []);
+
+  const shareText = generateShareText({ puzzle, guessHistory, mistakesRemaining, locale, monochrome });
+
+  // The share sheet first, where there is one; a player who closes it has not
+  // hit an error. Then the clipboard. If neither takes the text, the text
+  // shows in a field the player can select and copy by hand.
+  const handleShare = async () => {
+    const nav = typeof navigator !== "undefined" ? navigator : undefined;
+    if (typeof nav?.share === "function") {
+      try {
+        await nav.share({ text: shareText });
+        return;
+      } catch (error) {
+        if ((error as { name?: unknown } | null)?.name === "AbortError") return;
       }
-    } catch {}
+    }
+    try {
+      if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
+      await nav.clipboard.writeText(shareText);
+    } catch {
+      setShareFailed(true);
+      onShareFailed?.();
+      return;
+    }
+    setShareFailed(false);
+    setCopied(true);
+    onCopied?.();
+    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
+    copiedTimer.current = setTimeout(() => {
+      copiedTimer.current = null;
+      setCopied(false);
+    }, 3000);
   };
 
   const categories = [...puzzle.categories].sort((a, b) => a.difficulty_level - b.difficulty_level);
@@ -165,7 +195,7 @@ export function ConnectionsResults({
       </div>
 
       <div class="connections-result-buttons">
-        <button type="button" class="btn btn-primary" onKeyDown={ignoreRepeat} onClick={guarded(handleCopy)}>
+        <button type="button" class="btn btn-primary" onKeyDown={ignoreRepeat} onClick={guarded(handleShare)}>
           {copied ? messages.copiedToClipboard : messages.connectionsShareButton}
         </button>
         <button type="button" class="btn btn-secondary" onKeyDown={ignoreRepeat} onClick={guarded(onRestart)}>
@@ -181,6 +211,23 @@ export function ConnectionsResults({
           {sourceOpen ? messages.hideSource : messages.showSource}
         </button>
       </div>
+
+      {shareFailed && (
+        <div class="connections-share-fallback">
+          <p id={shareFailedId}>{messages.shareFailed}</p>
+          <textarea
+            id={shareTextId}
+            class="share-preview"
+            readOnly
+            rows={4}
+            value={shareText}
+            aria-label={messages.shareTextLabel}
+            aria-describedby={shareFailedId}
+            onFocus={(event) => (event.currentTarget as HTMLTextAreaElement).select()}
+            onClick={(event) => (event.currentTarget as HTMLTextAreaElement).select()}
+          />
+        </div>
+      )}
 
       <label class="share-toggle connections-share-toggle">
         <input

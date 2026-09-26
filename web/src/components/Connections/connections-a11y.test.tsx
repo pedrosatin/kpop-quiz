@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { cleanup, render, fireEvent } from "@testing-library/preact";
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -211,6 +213,24 @@ describe("fitTileText", () => {
     expect(tileNameParts("DAILY:DIRECTION")).toEqual(["DAILY:", "DIRECTION"]);
     expect(tileNameParts("G-Friend")).toEqual(["G-", "Friend"]);
     expect(tileNameParts("Kiss of Life")).toEqual(["Kiss of Life"]);
+    expect(tileNameParts("Mr. Mr.")).toEqual(["Mr. Mr."]);
+    expect(tileNameParts("a/b.c")).toEqual(["a/", "b.", "c"]);
+    expect(tileNameParts("a:-b")).toEqual(["a:", "-", "b"]);
+    expect(tileNameParts("END:")).toEqual(["END:"]);
+  });
+
+  // Safari before 16.4 cannot parse lookbehind; one in a module breaks the
+  // whole chunk, not just the function that uses it.
+  it("keeps lookbehind out of the Connections modules", () => {
+    // vitest runs from web/.
+    const dir = join(process.cwd(), "src/components/Connections");
+    const lookbehind = ["(?" + "<=", "(?" + "<!"];
+    const modules = readdirSync(dir).filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
+    expect(modules).toContain("ConnectionsTile.tsx");
+    for (const file of modules) {
+      const source = readFileSync(join(dir, file), "utf8");
+      for (const token of lookbehind) expect(source.includes(token), `${file} uses ${token}`).toBe(false);
+    }
   });
 
   it("lets a word break inside only below the smallest size", () => {
@@ -218,5 +238,104 @@ describe("fitTileText", () => {
     fitTileText(tile, 16);
     expect(text.style.fontSize).toBe("11px");
     expect(text).toHaveClass("is-broken");
+  });
+});
+
+describe("ConnectionsBoard text fitting", () => {
+  const items = puzzle.items.slice(0, 4);
+  let observers: Array<() => void> = [];
+
+  function renderBoard(boardItems = items) {
+    return (
+      <ConnectionsBoard
+        categories={puzzle.categories}
+        solvedCategoryIds={[]}
+        boardItems={boardItems}
+        allItems={puzzle.items}
+        selectedItemIds={[]}
+        onToggleItem={vi.fn()}
+        locale="pt-BR"
+        messages={ptMessages}
+      />
+    );
+  }
+
+  // jsdom has no layout, so every name "fits" at the largest size; clearing
+  // the size shows whether a later pass ran.
+  function clearSizes(container: Element): HTMLElement[] {
+    const texts = [...container.querySelectorAll<HTMLElement>(".connections-tile-text")];
+    texts.forEach((t) => (t.style.fontSize = ""));
+    return texts;
+  }
+
+  beforeEach(() => {
+    observers = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(cb: () => void) {
+          observers.push(cb);
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(document, "fonts");
+  });
+
+  function stubFonts() {
+    let resolve!: () => void;
+    const ready = new Promise<void>((r) => (resolve = r));
+    Object.defineProperty(document, "fonts", { configurable: true, value: { status: "loading", ready } });
+    return () => {
+      resolve();
+      return ready.then(() => undefined);
+    };
+  }
+
+  it("fits the names again once the web font has loaded", async () => {
+    const fontsLoaded = stubFonts();
+    const { container } = render(renderBoard());
+    const texts = clearSizes(container);
+    await fontsLoaded();
+    texts.forEach((t) => expect(t.style.fontSize).toBe("15px"));
+  });
+
+  it("does not fit after the board is gone", async () => {
+    const fontsLoaded = stubFonts();
+    const { container, unmount } = render(renderBoard());
+    const texts = clearSizes(container);
+    unmount();
+    await fontsLoaded();
+    texts.forEach((t) => expect(t.style.fontSize).toBe(""));
+  });
+
+  it("works without document.fonts", () => {
+    Object.defineProperty(document, "fonts", { configurable: true, value: undefined });
+    const { container } = render(renderBoard());
+    container.querySelectorAll<HTMLElement>(".connections-tile-text").forEach((t) => expect(t.style.fontSize).toBe("15px"));
+  });
+
+  it("skips the resize callback that reports the mounted size, then refits", () => {
+    const { container } = render(renderBoard());
+    const texts = clearSizes(container);
+    observers.at(-1)!();
+    texts.forEach((t) => expect(t.style.fontSize).toBe(""));
+    observers.at(-1)!();
+    texts.forEach((t) => expect(t.style.fontSize).toBe("15px"));
+  });
+
+  it("keeps the fit when Shuffle only reorders the tiles", () => {
+    const { container, rerender } = render(renderBoard());
+    const count = observers.length;
+    const texts = clearSizes(container);
+    rerender(renderBoard([...items].reverse()));
+    expect(observers).toHaveLength(count);
+    texts.forEach((t) => expect(t.style.fontSize).toBe(""));
   });
 });

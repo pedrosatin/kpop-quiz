@@ -78,6 +78,8 @@ export interface ConnectionsResultsProps {
   onRestart: () => void;
   /** Called after the share text reaches the clipboard. */
   onCopied?: () => void;
+  /** Called when neither the share sheet nor the clipboard took the text. */
+  onShareFailed?: () => void;
   titleRef?: RefObject<HTMLHeadingElement> | undefined;
   locale: Locale;
   messages: Messages;

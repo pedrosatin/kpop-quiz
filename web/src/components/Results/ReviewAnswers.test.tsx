@@ -147,7 +147,7 @@ describe("ReviewAnswers", () => {
     expect(screen.getByText("Pergunta 2 de 3")).toBeInTheDocument();
     expect(screen.getAllByText("Não foi dessa vez.")).toHaveLength(2);
     expect(screen.getByText("Red Velvet estreou em agosto de 2014.")).toBeInTheDocument();
-    const wikipediaLink = screen.getByRole("link", { name: "Abrir a revisão no Wikipedia" });
+    const wikipediaLink = screen.getByRole("link", { name: "Abrir a revisão na Wikipedia" });
     expect(wikipediaLink).toHaveAttribute(
       "href",
       "https://pt.wikipedia.org/wiki/Red_Velvet"

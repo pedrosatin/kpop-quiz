@@ -339,6 +339,24 @@
   color: inherit;
 }
 
+/* Only after share and copy both fail: the text to copy by hand. */
+.connections-share-fallback {
+  flex: 1 1 100%;
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.connections-share-fallback p {
+  margin: 0;
+}
+
+.connections-share-fallback .share-preview {
+  max-width: none;
+}
+
 @media (max-width: 30rem) {
   .connections-verdict {
     justify-content: center;

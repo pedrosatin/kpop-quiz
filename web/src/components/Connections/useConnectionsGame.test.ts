@@ -193,6 +193,34 @@ describe("useConnectionsGame state machine", () => {
     expect(result.current.boardItemIds).toEqual([]);
   });
 
+  it("discards a finished save that does not add up", () => {
+    const key = `kpop-connections-${puzzle.puzzle_id}`;
+    const allIds = puzzle.categories.map((c) => c.id);
+    const base = { mistakesRemaining: 2, guessHistory: [] };
+    const broken = [
+      // Finished, but tiles still on the board.
+      { ...base, gameStatus: "won", solvedCategoryIds: allIds, boardItemIds: ["x"] },
+      { ...base, gameStatus: "lost", solvedCategoryIds: allIds, boardItemIds: ["x"] },
+      // Won with fewer than four categories, or the same one four times.
+      { ...base, gameStatus: "won", solvedCategoryIds: allIds.slice(0, 3), boardItemIds: [] },
+      { ...base, gameStatus: "won", solvedCategoryIds: [allIds[0], allIds[0], allIds[0], allIds[0]], boardItemIds: [] },
+      // Unknown status.
+      { ...base, gameStatus: "done", solvedCategoryIds: allIds, boardItemIds: [] },
+    ];
+    for (const saved of broken) {
+      localStorage.setItem(key, JSON.stringify(saved));
+      expect(loadSavedState(key)).toBeNull();
+    }
+    localStorage.setItem(key, JSON.stringify(broken[0]));
+    const { result } = renderHook(() => useConnectionsGame(puzzle));
+    expect(result.current.gameStatus).toBe("in_progress");
+    expect(result.current.boardItemIds).toHaveLength(16);
+
+    const won = { ...base, gameStatus: "won", solvedCategoryIds: allIds, boardItemIds: [] };
+    localStorage.setItem(key, JSON.stringify(won));
+    expect(loadSavedState(key)).toEqual(won);
+  });
+
   it("reports a repeated guess without counting a mistake", () => {
     const { result } = renderHook(() => useConnectionsGame(puzzle));
     const ids = [...puzzle.categories[0]!.item_ids.slice(0, 3), puzzle.categories[1]!.item_ids[0]!];
