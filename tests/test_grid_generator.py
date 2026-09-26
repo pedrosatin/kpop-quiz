@@ -378,12 +378,25 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         )
         self.assertTrue(all(cell["valid_entity_ids"] for cell in grid["cells"]))
         self.assertTrue(all(cell["evidence"] for cell in grid["cells"]))
+        row_cats = {c["category"] for c in grid["row_criteria"]}
+        col_cats = {c["category"] for c in grid["col_criteria"]}
+        self.assertTrue(
+            row_cats.isdisjoint(col_cats),
+            f"Row categories {row_cats} and column categories {col_cats} must be disjoint",
+        )
+        for r in range(3):
+            for c in range(3):
+                self.assertNotEqual(
+                    grid["row_criteria"][r]["category"],
+                    grid["col_criteria"][c]["category"],
+                    f"Cell ({r}, {c}) has identical row and column category",
+                )
 
     def test_mixed_axis_search_does_not_stop_at_old_attempt_limit(self) -> None:
         criteria = [
             {
                 "id": f"criterion_{index:02d}",
-                "category": "formed_on",
+                "category": "formed_on" if index < 25 else "record_label",
                 "label": {"pt-BR": f"Critério {index}", "en": f"Criterion {index}"},
             }
             for index in range(50)
@@ -421,7 +434,7 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         criteria = [
             {
                 "id": f"criterion_{index:02d}",
-                "category": "formed_on",
+                "category": "formed_on" if index < 15 else "record_label",
                 "label": {"pt-BR": f"Critério {index}", "en": f"Criterion {index}"},
             }
             for index in range(29)
