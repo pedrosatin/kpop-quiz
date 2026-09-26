@@ -13,6 +13,7 @@ const FILE_SLUG: Partial<Record<SeoRouteKey, Record<Locale, string>>> = {
   connections: { "pt-BR": "pt-br-conexoes.md", en: "en-connections.md" },
   nameGuess: { "pt-BR": "pt-br-adivinhe.md", en: "en-guess.md" },
   wordSearch: { "pt-BR": "pt-br-caca-palavras.md", en: "en-word-search.md" },
+  mapPilot: { "pt-BR": "pt-br-mapa.md", en: "en-map.md" },
 };
 
 function visibleCopy(locale: Locale, key: SeoRouteKey): { h1: string; intro: string } {
@@ -29,12 +30,7 @@ function visibleCopy(locale: Locale, key: SeoRouteKey): { h1: string; intro: str
     case "wordSearch":
       return { h1: messages.wordSearchTitle, intro: messages.wordSearchIntro };
     case "mapPilot":
-      return {
-        h1: locale === "pt-BR" ? "Quiz de mapa: BLACKPINK" : "Map quiz: BLACKPINK",
-        intro: locale === "pt-BR"
-          ? "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou. Cada data tem link para a agenda e para o registro no MusicBrainz."
-          : "For each tour date, pick on the map the country the official schedule listed. Every date links to the schedule and to its MusicBrainz record.",
-      };
+      return { h1: messages.mapTitle, intro: messages.mapIntro };
   }
 }
 

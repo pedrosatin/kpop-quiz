@@ -8,8 +8,8 @@ import {
 } from "./seo-routes";
 
 describe("SEO route table", () => {
-  it("covers exactly the 10 indexable content routes", () => {
-    expect(SEO_ROUTES).toHaveLength(10);
+  it("covers exactly the 12 indexable content routes", () => {
+    expect(SEO_ROUTES).toHaveLength(12);
   });
 
   it("keeps /data/*, the root alias and query variants out of the sitemap", () => {

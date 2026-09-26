@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import { SEO_ROUTES, seoAbsoluteUrl } from "../lib/seo-routes";
 
 export const GET: APIRoute = () => {
-  // Sitemap always lists the 10 canonical production URLs, in any build.
+  // Sitemap always lists the 12 canonical production URLs, in any build.
   // Staging stays out of the index via robots `Disallow: /` + `noindex`.
   const urls = SEO_ROUTES.map(
     (route) => `  <url><loc>${seoAbsoluteUrl(route.path)}</loc></url>`,

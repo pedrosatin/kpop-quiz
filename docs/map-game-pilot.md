@@ -8,7 +8,7 @@ A pergunta descreve o que a agenda publicou. Uma data listada não prova que o s
 
 O navegador sorteia a rodada depois de carregar a página, a partir da data local. O HTML estático mostra só um aviso de carregamento, então a página gerada no build e a primeira renderização no navegador são iguais.
 
-As rotas têm `noindex`, ficam fora do sitemap e não aparecem no menu de jogos. Quem tiver a URL consegue abrir as páginas.
+As rotas aparecem no menu de jogos como "Mapa" e "Map", estão no sitemap e têm resumo em `web/public/llms/`. O mapa ocupa a largura da página, até 80rem, com a lista de países abaixo dele. O recorte vai de 84°N a 60°S, porque a Antártida e o Ártico não têm datas da turnê.
 
 ## Fontes
 
