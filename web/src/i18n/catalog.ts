@@ -363,9 +363,10 @@ const catalogs: Record<Locale, Messages> = {
       "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\". No fim, \"Ver fonte\" lista a revisão da Wikipédia ou do Wikidata que confirma cada nome.",
     ],
     mapHowToPlay: [
-      "Leia a data da turnê e escolha o país destacado no mapa ou o nome dele na lista.",
+      "Leia a data da turnê e escolha o país destacado no mapa ou o nome dele na lista. Em telas largas, a lista fica ao lado do mapa. Em telas menores, os países ficam num seletor na barra de baixo, com o botão \"Responder\".",
       "No teclado, use Tab para chegar a um país e Enter para escolher.",
       "Depois da resposta, a barra na parte de baixo da tela mostra o país correto e os links da agenda oficial e do MusicBrainz. Aperte Enter ou \"Próxima data\" para seguir. Na última pergunta, o botão vira \"Ver resultado\".",
+      "No fim, \"Ver fonte\" lista as datas da rodada com a sua resposta e as fontes de cada uma. Uma data na agenda não confirma que o show aconteceu.",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
@@ -548,7 +549,7 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchIntro: "Encontre os nomes do tema escondidos na grade, em qualquer direção.",
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
     mapTitle: "Quiz de mapa: BLACKPINK",
-    mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou. Uma data na agenda não confirma que o show aconteceu.",
+    mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou.",
     wordSearch: {
       title: "Caça-palavras",
       gridLabel: "Grade de letras",
@@ -691,9 +692,10 @@ const catalogs: Record<Locale, Messages> = {
       "The list shows how many letters each name has. If you get stuck, use \"Show words\". At the end, \"Show source\" lists the Wikipedia or Wikidata revision behind each name.",
     ],
     mapHowToPlay: [
-      "Read the tour date and pick the highlighted country on the map or its name in the list.",
+      "Read the tour date and pick the highlighted country on the map or its name in the list. On wide screens the list sits beside the map. On smaller screens the countries are in a menu in the bar at the bottom, with the \"Answer\" button.",
       "With a keyboard, press Tab to reach a country and Enter to choose it.",
       "After you answer, the bar at the bottom of the screen shows the correct country and links to the official schedule and MusicBrainz. Press Enter or \"Next date\" to continue. On the last question, the button reads \"See result\".",
+      "At the end, \"Show source\" lists the round's dates with your answer and the sources for each. A date on the schedule does not confirm that the show took place.",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",
@@ -875,7 +877,7 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchIntro: "Find the theme's names hidden in the grid, in any direction.",
     mapEyebrow: "10 dates per round · DEADLINE tour",
     mapTitle: "Map quiz: BLACKPINK",
-    mapIntro: "For each tour date, pick on the map the country the official schedule listed. A date on the schedule does not confirm that the show took place.",
+    mapIntro: "For each tour date, pick on the map the country the official schedule listed.",
     wordSearch: {
       title: "Word search",
       gridLabel: "Letter grid",
