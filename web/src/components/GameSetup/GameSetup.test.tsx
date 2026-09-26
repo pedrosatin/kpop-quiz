@@ -118,4 +118,40 @@ describe("GameSetup components", () => {
     expect(lastMode.compareDocumentPosition(timer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(timer.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it("splits the options into two column groups without changing their order", () => {
+    const { container } = render(
+      <GameSetup
+        playMode="standard"
+        onSelectMode={vi.fn()}
+        onSelectTheme={vi.fn()}
+        availableDecades={[1990, 2000]}
+        decades={[]}
+        onSelectDecades={vi.fn()}
+        timerEnabled={false}
+        onTimerChange={vi.fn()}
+        onStart={vi.fn()}
+        isReady={true}
+        messages={messages}
+      />
+    );
+    expect(container.querySelector("#quiz")).toHaveClass("game-card--wide");
+    const groups = [...container.querySelectorAll(".setup-options > .setup-group")];
+    expect(groups).toHaveLength(2);
+    // Left: which questions (kind of quiz, decades). Right: how to play them.
+    expect(groups[0]!.querySelector(".game-collection")).not.toBeNull();
+    expect(groups[0]!.querySelector(".decade-picker")).not.toBeNull();
+    expect(groups[1]!.querySelector(".difficulty-picker")).not.toBeNull();
+    expect(groups[1]!.querySelector(".timer-choice")).not.toBeNull();
+    // Tab reads the left column, then the right one, then Start.
+    const names = [...container.querySelectorAll("input, button")].map((node) =>
+      node instanceof HTMLInputElement ? `${node.name}:${node.value}` : node.textContent);
+    expect(names).toEqual([
+      "quiz-theme:history", "quiz-theme:daily",
+      "quiz-decade:1990", "quiz-decade:2000",
+      "play-mode:assisted", "play-mode:standard", "play-mode:expert",
+      ":on",
+      messages.start,
+    ]);
+  });
 });
