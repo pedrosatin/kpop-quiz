@@ -12,7 +12,9 @@ from unittest.mock import patch
 
 from kpop_scraping.grid_cli import main as cli_main
 from kpop_scraping.grid_generator import (
+    MEMBER_COUNT_CRITERIA,
     _find_mixed_axis_grid,
+    _is_valid_axis,
     evaluate_group_criteria,
     generate_intersection_grid,
     has_distinct_assignment,
@@ -378,12 +380,25 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         )
         self.assertTrue(all(cell["valid_entity_ids"] for cell in grid["cells"]))
         self.assertTrue(all(cell["evidence"] for cell in grid["cells"]))
+        row_cats = {c["category"] for c in grid["row_criteria"]}
+        col_cats = {c["category"] for c in grid["col_criteria"]}
+        self.assertTrue(
+            row_cats.isdisjoint(col_cats),
+            f"Row categories {row_cats} and column categories {col_cats} must be disjoint",
+        )
+        for r in range(3):
+            for c in range(3):
+                self.assertNotEqual(
+                    grid["row_criteria"][r]["category"],
+                    grid["col_criteria"][c]["category"],
+                    f"Cell ({r}, {c}) has identical row and column category",
+                )
 
     def test_mixed_axis_search_does_not_stop_at_old_attempt_limit(self) -> None:
         criteria = [
             {
                 "id": f"criterion_{index:02d}",
-                "category": "formed_on",
+                "category": "formed_on" if index < 25 else "record_label",
                 "label": {"pt-BR": f"Critério {index}", "en": f"Criterion {index}"},
             }
             for index in range(50)
@@ -421,7 +436,7 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         criteria = [
             {
                 "id": f"criterion_{index:02d}",
-                "category": "formed_on",
+                "category": "formed_on" if index < 15 else "record_label",
                 "label": {"pt-BR": f"Critério {index}", "en": f"Criterion {index}"},
             }
             for index in range(29)
@@ -439,6 +454,59 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
                 criteria, criterion_groups, seed="eight-groups-impossible"
             )
 
+        self.assertIsNone(result)
+
+    def test_is_valid_axis(self) -> None:
+        axis_overlapping_4 = (
+            MEMBER_COUNT_CRITERIA["members_le_4"],
+            MEMBER_COUNT_CRITERIA["members_4"],
+            {"id": "formed_2010s", "category": "formed_on"},
+        )
+        self.assertFalse(_is_valid_axis(axis_overlapping_4))
+
+        axis_overlapping_3 = (
+            MEMBER_COUNT_CRITERIA["members_le_4"],
+            MEMBER_COUNT_CRITERIA["members_3"],
+            {"id": "label_sm", "category": "record_label"},
+        )
+        self.assertFalse(_is_valid_axis(axis_overlapping_3))
+
+        axis_disjoint = (
+            MEMBER_COUNT_CRITERIA["members_3"],
+            MEMBER_COUNT_CRITERIA["members_4"],
+            MEMBER_COUNT_CRITERIA["members_5"],
+        )
+        self.assertTrue(_is_valid_axis(axis_disjoint))
+
+        axis_mixed = (
+            {"id": "label_sm", "category": "record_label"},
+            {"id": "formed_2010s", "category": "formed_on"},
+            MEMBER_COUNT_CRITERIA["members_4"],
+        )
+        self.assertTrue(_is_valid_axis(axis_mixed))
+
+        axis_duplicate = (
+            {"id": "label_sm", "category": "record_label"},
+            {"id": "label_sm", "category": "record_label"},
+            {"id": "formed_2010s", "category": "formed_on"},
+        )
+        self.assertFalse(_is_valid_axis(axis_duplicate))
+
+    def test_mixed_axis_search_rejects_overlapping_member_criteria(self) -> None:
+        criteria = [
+            {"id": "label_a", "category": "record_label", "label": {"pt-BR": "A", "en": "A"}},
+            {"id": "label_b", "category": "record_label", "label": {"pt-BR": "B", "en": "B"}},
+            {"id": "label_c", "category": "record_label", "label": {"pt-BR": "C", "en": "C"}},
+            MEMBER_COUNT_CRITERIA["members_le_4"],
+            MEMBER_COUNT_CRITERIA["members_4"],
+            MEMBER_COUNT_CRITERIA["members_3"],
+        ]
+        all_groups = {f"Q{index}" for index in range(1, 10)}
+        criterion_groups = {criterion["id"]: all_groups for criterion in criteria}
+
+        result = _find_mixed_axis_grid(
+            criteria, criterion_groups, seed="conflict-overlapping-members"
+        )
         self.assertIsNone(result)
 
     def test_insufficient_groups_raises_error(self) -> None:

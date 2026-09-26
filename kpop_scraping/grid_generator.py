@@ -340,9 +340,23 @@ def evaluate_group_criteria(
 
 def _are_member_criteria_disjoint(c1: dict[str, Any], c2: dict[str, Any]) -> bool:
     """Return True if two member count criteria are mutually disjoint."""
-    pred1: Callable[[int], bool] = c1["predicate"]
-    pred2: Callable[[int], bool] = c2["predicate"]
+    pred1: Callable[[int], bool] | None = c1.get("predicate") or MEMBER_COUNT_CRITERIA.get(c1.get("id", ""), {}).get("predicate")
+    pred2: Callable[[int], bool] | None = c2.get("predicate") or MEMBER_COUNT_CRITERIA.get(c2.get("id", ""), {}).get("predicate")
+    if pred1 is None or pred2 is None:
+        return False
     return not any(pred1(n) and pred2(n) for n in range(1, 100))
+
+
+def _is_valid_axis(axis: tuple[dict[str, Any], ...]) -> bool:
+    """Return True if criteria have unique identifiers and member count criteria are mutually disjoint."""
+    if len({c["id"] for c in axis}) != len(axis):
+        return False
+    member_crits = [c for c in axis if c.get("category") == "has_member"]
+    for i in range(len(member_crits)):
+        for j in range(i + 1, len(member_crits)):
+            if not _are_member_criteria_disjoint(member_crits[i], member_crits[j]):
+                return False
+    return True
 
 
 def _build_axes_for_categories(
@@ -356,16 +370,8 @@ def _build_axes_for_categories(
         items = active_by_cat.get(cat, [])
         if len(items) < 3:
             return axes
-        if cat == "has_member":
-            for combo in itertools.combinations(items, 3):
-                if (
-                    _are_member_criteria_disjoint(combo[0], combo[1])
-                    and _are_member_criteria_disjoint(combo[0], combo[2])
-                    and _are_member_criteria_disjoint(combo[1], combo[2])
-                ):
-                    axes.append(combo)
-        else:
-            for combo in itertools.combinations(items, 3):
+        for combo in itertools.combinations(items, 3):
+            if _is_valid_axis(combo):
                 axes.append(combo)
     elif len(cat_spec) == 2:
         cat1, cat2 = cat_spec
@@ -374,10 +380,10 @@ def _build_axes_for_categories(
         if len(items1) < 2 or len(items2) < 1:
             return axes
         for pair1 in itertools.combinations(items1, 2):
-            if cat1 == "has_member" and not _are_member_criteria_disjoint(pair1[0], pair1[1]):
-                continue
             for item2 in items2:
-                axes.append((pair1[0], pair1[1], item2))
+                combo = (pair1[0], pair1[1], item2)
+                if _is_valid_axis(combo):
+                    axes.append(combo)
     return axes
 
 
@@ -392,7 +398,10 @@ def _find_mixed_axis_grid(
 ] | None:
     """Search all mixed criterion axes for a complete, unique 3x3 grid."""
     ordered_criteria = sorted(criteria, key=lambda item: item["id"])
-    row_axes = list(itertools.combinations(ordered_criteria, 3))
+    row_axes = [
+        axis for axis in itertools.combinations(ordered_criteria, 3)
+        if _is_valid_axis(axis)
+    ]
     rng = random.Random(
         hashlib.sha256(f"{seed}|mixed-axis-fallback".encode("utf-8")).digest()
     )
@@ -408,11 +417,11 @@ def _find_mixed_axis_grid(
         return intersection_cache[key]
 
     for row_axis in row_axes:
-        row_ids = {criterion["id"] for criterion in row_axis}
+        row_cats = {criterion["category"] for criterion in row_axis}
         compatible_columns = [
             criterion
             for criterion in ordered_criteria
-            if criterion["id"] not in row_ids
+            if criterion["category"] not in row_cats
             and all(
                 criterion_intersection(row_criterion["id"], criterion["id"])
                 for row_criterion in row_axis
@@ -430,6 +439,8 @@ def _find_mixed_axis_grid(
         rng.shuffle(compatible_columns)
 
         for col_axis in itertools.combinations(compatible_columns, 3):
+            if not _is_valid_axis(col_axis):
+                continue
             cells_valid = {
                 (r, c): criterion_intersection(
                     row_axis[r]["id"], col_axis[c]["id"]
