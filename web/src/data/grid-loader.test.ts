@@ -14,10 +14,30 @@ describe("published intersection grid loader and validator", () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(validGrid)));
     vi.stubGlobal("fetch", fetch);
 
-    const result = await loadIntersectionGrid("pt-BR", "/base");
+    const result = await loadIntersectionGrid("pt-BR", "/base", validGrid.reference_date);
     expect(result.schema_version).toBe("kpop-intersection-grid-v1");
     expect(result.cells).toHaveLength(9);
-    expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json");
+    expect(fetch).toHaveBeenCalledWith(`/base/data/grid.daily.json?d=${validGrid.reference_date}`);
+  });
+
+  it("keeps a reused grid from an earlier day", async () => {
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(null, { status: 404 })
+        : new Response(JSON.stringify(validGrid), { headers: { "content-type": "application/json" } })
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const result = await loadIntersectionGrid("pt-BR", "/", "2099-01-01");
+    expect(result.reference_date).toBe(validGrid.reference_date);
+    expect(fetch).toHaveBeenCalledWith("/data/grid.daily.json?d=2099-01-01");
+  });
+
+  it("treats the host's HTML fallback as a missing artifact", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+      new Response("<!DOCTYPE html><html></html>", { headers: { "content-type": "text/html; charset=utf-8" } })
+    ));
+    await expect(loadIntersectionGrid("pt-BR")).rejects.toEqual(new GridArtifactError("missing"));
   });
 
   it("distinguishes a missing artifact with 404", async () => {

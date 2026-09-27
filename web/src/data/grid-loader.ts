@@ -3,7 +3,7 @@ import {
   type IntersectionGrid,
   type Locale,
 } from "../lib/quiz-types";
-import { preferNextDaily } from "./daily-artifact";
+import { dailyReferenceDate, preferNextDaily } from "./daily-artifact";
 
 export class GridArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -18,10 +18,14 @@ function dataUrl(filename: string, baseUrl: string): string {
 
 export async function loadIntersectionGrid(
   _locale: Locale,
-  baseUrl?: string
+  baseUrl?: string,
+  today: string = dailyReferenceDate()
 ): Promise<IntersectionGrid> {
   const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
-  const targetUrl = dataUrl("grid.daily.json", effectiveBaseUrl);
+  // A day can publish without a grid. After the file is removed, the host
+  // keeps answering the bare URL with the last deployed copy, so the
+  // request carries the reference date to reach the current deployment.
+  const targetUrl = `${dataUrl("grid.daily.json", effectiveBaseUrl)}?d=${today}`;
 
   let response: Response;
   try {
@@ -30,7 +34,12 @@ export async function loadIntersectionGrid(
     throw new GridArtifactError("invalid");
   }
 
-  if (response.status === 404) {
+  // Without a 404 page, the host answers a missing file with the site's
+  // HTML fallback and status 200.
+  if (
+    response.status === 404
+    || (response.ok && response.headers.get("content-type")?.startsWith("text/html"))
+  ) {
     throw new GridArtifactError("missing");
   }
   if (!response.ok) {
@@ -48,5 +57,5 @@ export async function loadIntersectionGrid(
     throw new GridArtifactError("invalid");
   }
 
-  return preferNextDaily(payload, "grid.daily.json", effectiveBaseUrl, isIntersectionGrid);
+  return preferNextDaily(payload, "grid.daily.json", effectiveBaseUrl, isIntersectionGrid, today);
 }
