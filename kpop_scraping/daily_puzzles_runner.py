@@ -23,6 +23,7 @@ from typing import Any
 
 from .connections_generator import generate_connections_puzzle
 from .grid_generator import generate_daily_grid
+from .grid_schema import validate_intersection_grid
 from .name_guess_generator import generate_name_guess_puzzle
 from .quiz_generator import QuizConfig, create_session, generate_dataset
 from .quiz_schema import validate_session, write_json_atomic
@@ -88,14 +89,15 @@ def generate_daily_puzzles(
     session_en = daily_sessions["daily.en.standard"]
 
     # 2. Intersection grid. If the catalog cannot fill a 3x3, leave grid
-    # unset so publish_daily_puzzles can reuse the previous artifact.
+    # unset so publish_daily_puzzles can reuse the previous artifact when
+    # it is still valid or publish the day without a grid.
     grid = None
     grid_error = None
     try:
         grid = generate_daily_grid(connection, reference_date=ref_date)
     except ValueError as exc:
         grid_error = str(exc)
-        sys.stderr.write(f"Daily grid generation failed; keeping previous artifact: {exc}\n")
+        sys.stderr.write(f"Daily grid generation failed; reusing the previous grid only if it validates: {exc}\n")
 
     # 3. Connections puzzle
     connections_seed = f"kpop-connections-daily-{iso_date}"
@@ -145,9 +147,12 @@ def publish_daily_puzzles(
 ) -> dict[str, Any]:
     """Publish generated puzzles to output_dir with atomic writes and schema verification.
 
-    ``previous_grid`` is the grid reused when generation fails; it defaults to
-    the one already in output_dir. With ``prune``, files that the new set does
-    not contain are removed, so a directory holds exactly one day.
+    ``previous_grid`` is the grid reused when generation fails, as long as its
+    content still passes validation; it defaults to the one already in
+    output_dir. When it is missing or invalid, the day publishes without
+    ``grid.daily.json`` and the result records why in ``grid_skipped``.
+    With ``prune``, files that the new set does not contain are removed, so
+    a directory holds exactly one day.
     """
     output_dir = Path(output_dir)
     previous_grid = previous_grid or output_dir / GRID_DAILY_FILENAME
@@ -165,39 +170,40 @@ def publish_daily_puzzles(
             word_search=puzzles["word_search"],
             timeline=puzzles["timeline"],
         )
+        grid_skipped = None
         if puzzles["grid"] is None:
-            if not previous_grid.is_file():
-                detail = puzzles.get("grid_error") or "unknown error"
-                raise ValueError(
-                    "grid generation failed and no previous "
-                    f"{GRID_DAILY_FILENAME} exists: {detail}"
-                )
-            shutil.copyfile(previous_grid, staging_dir / GRID_DAILY_FILENAME)
+            previous_invalid = _invalid_grid_reason(previous_grid)
+            if previous_invalid is None and previous_grid.is_file():
+                shutil.copyfile(previous_grid, staging_dir / GRID_DAILY_FILENAME)
+            else:
+                # No grid to publish; the grid page reports the artifact
+                # as missing for this day.
+                grid_skipped = {
+                    "error": puzzles.get("grid_error") or "unknown error",
+                    "previous_invalid": previous_invalid,
+                }
         write_json_atomic(staging_dir / "session.pt-BR.json", puzzles["session_pt_br"], validate_session)
         write_json_atomic(staging_dir / "session.en.json", puzzles["session_en"], validate_session)
 
-        # 2. Verify all artifacts in staging directory
-        verify_artifacts(staging_dir)
+        # 2. Verify all artifacts in staging directory. The grid is optional
+        # in a published set; when the file is present, verify() validates it.
+        verify_artifacts(staging_dir, require_grid=False)
 
-        published_grid = (
-            puzzles["grid"]
-            if puzzles["grid"] is not None
-            else json.loads((staging_dir / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))
-        )
-        # Set only when the previous day's grid was kept.
-        grid_reused = (
-            None
-            if puzzles["grid"] is not None
-            else {
+        published_grid = puzzles["grid"]
+        grid_reused = None
+        if published_grid is None and grid_skipped is None:
+            published_grid = json.loads((staging_dir / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))
+            # Set only when the previous day's grid was kept.
+            grid_reused = {
                 "reference_date": published_grid.get("reference_date"),
                 "error": puzzles.get("grid_error") or "unknown error",
             }
-        )
         result = {
             "reference_date": puzzles["reference_date"],
             "dataset_version": puzzles["dataset_version"],
-            "grid_id": published_grid["grid_id"],
+            "grid_id": published_grid["grid_id"] if published_grid is not None else None,
             "grid_reused": grid_reused,
+            "grid_skipped": grid_skipped,
             "connections_id": puzzles["connections"]["puzzle_id"],
             "name_guess_id": puzzles["name_guess"]["puzzle_id"],
             "word_search_id": puzzles["word_search"]["puzzle_id"],
@@ -211,10 +217,29 @@ def publish_daily_puzzles(
 
         # 3. Atomically copy/replace each file from staging_dir into output_dir
         _install_files(staging_dir, output_dir, prune=prune)
+        if grid_skipped is not None:
+            # The main directory installs without prune, so a grid left by an
+            # earlier day needs an explicit removal here. The next directory
+            # installs with prune, which already removes stale files.
+            try:
+                (output_dir / GRID_DAILY_FILENAME).unlink()
+            except FileNotFoundError:
+                pass
 
-        # 4. Final verification in output_dir
-        verify_artifacts(output_dir)
+        # 4. Final verification in output_dir; the grid stays optional here too.
+        verify_artifacts(output_dir, require_grid=False)
         return result
+
+
+def _invalid_grid_reason(grid_path: Path) -> str | None:
+    """Return why the grid at grid_path fails validation, or None when valid or absent."""
+    if not grid_path.is_file():
+        return None
+    try:
+        validate_intersection_grid(json.loads(grid_path.read_text(encoding="utf-8")))
+    except (OSError, ValueError) as exc:
+        return str(exc)
+    return None
 
 
 def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> None:
@@ -265,11 +290,22 @@ def _published_result(output_dir: Path, reference_date: str, **flags: bool) -> d
     def read(name: str) -> dict[str, Any]:
         return json.loads((output_dir / name).read_text(encoding="utf-8"))
 
+    # A day may be published without a grid; grid_id is None then.
+    grid_path = output_dir / GRID_DAILY_FILENAME
+    grid = json.loads(grid_path.read_text(encoding="utf-8")) if grid_path.is_file() else None
+    # Kept or promoted bytes carry no generation error, so the skip record
+    # only marks the artifact as absent for that day.
+    grid_skipped = (
+        {"error": None, "previous_invalid": None, "published_without_grid": True}
+        if grid is None
+        else None
+    )
     return {
         "reference_date": reference_date,
         "dataset_version": read(MANIFEST_FILENAME)["dataset_version"],
-        "grid_id": read(GRID_DAILY_FILENAME)["grid_id"],
+        "grid_id": grid["grid_id"] if grid is not None else None,
         "grid_reused": None,
+        "grid_skipped": grid_skipped,
         "connections_id": read(CONNECTIONS_DAILY_FILENAME)["puzzle_id"],
         "name_guess_id": read(NAME_GUESS_DAILY_FILENAME)["puzzle_id"],
         "word_search_id": read(WORD_SEARCH_DAILY_FILENAME)["puzzle_id"],
@@ -288,15 +324,23 @@ def keep_or_promote_day(output_dir: Path, reference_date: str) -> dict[str, Any]
     being generated again from a newer database. Returns None when neither
     directory holds that day.
     """
+    # The grid is optional in a published set; verify() still validates it
+    # when the file is present.
     if _published_day(output_dir) == reference_date:
-        verify_artifacts(output_dir)
+        verify_artifacts(output_dir, require_grid=False)
         return _published_result(output_dir, reference_date, already_published=True)
     next_dir = output_dir / NEXT_DIRNAME
     if _published_day(next_dir) != reference_date:
         return None
-    verify_artifacts(next_dir)
+    verify_artifacts(next_dir, require_grid=False)
     _install_files(next_dir, output_dir)
-    verify_artifacts(output_dir)
+    if not (next_dir / GRID_DAILY_FILENAME).is_file():
+        # An earlier day's grid is removed when the promoted set has none.
+        try:
+            (output_dir / GRID_DAILY_FILENAME).unlink()
+        except FileNotFoundError:
+            pass
+    verify_artifacts(output_dir, require_grid=False)
     return _published_result(output_dir, reference_date, promoted_from_next=True)
 
 
@@ -320,10 +364,11 @@ def run_daily_puzzles(
     output_dir_path = Path(output_dir)
 
     if verify_only:
-        verify_artifacts(output_dir_path)
+        # The grid is optional in a published day; a present grid still validates.
+        verify_artifacts(output_dir_path, require_grid=False)
         next_dir = output_dir_path / NEXT_DIRNAME
         if (next_dir / MANIFEST_FILENAME).is_file():
-            verify_artifacts(next_dir)
+            verify_artifacts(next_dir, require_grid=False)
         return {
             "status": "verified",
             "output_dir": str(output_dir_path),
