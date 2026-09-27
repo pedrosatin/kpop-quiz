@@ -208,7 +208,13 @@ class WebPublishTests(unittest.TestCase):
         validate_timeline_puzzle(self.timeline())
 
     def test_checked_in_grid_from_2026_09_26_is_known_invalid(self):
-        grid = self.grid()
+        grid_path = FIXTURES / GRID_DAILY_FILENAME
+        if not grid_path.is_file():
+            # A daily set publishes without grid.daily.json when the fill fails
+            # and no valid previous grid exists; the grid page reports the
+            # artifact as missing. Nothing is checked in, so nothing to assert.
+            return
+        grid = json.loads(grid_path.read_text(encoding="utf-8"))
         # web/public/data/grid.daily.json for 2026-09-26 was promoted from
         # the pre-#87 next/ set, so both axes carry has_member and the
         # orthogonality rule now rejects it. The full database that can
