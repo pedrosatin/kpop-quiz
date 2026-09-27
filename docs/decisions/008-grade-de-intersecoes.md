@@ -18,7 +18,7 @@ A aplicação funciona como site estático publicado no GitHub Pages, sem infrae
 
 ### Topologia e dimensões
 
-A grade de interseções é composta por uma matriz ortogonal de 3 linhas por 3 colunas, totalizando 9 células jogáveis. As linhas e colunas representam eixos de critérios independentes entre si.
+A grade de interseções é composta por uma matriz ortogonal de 3 linhas por 3 colunas, totalizando 9 células jogáveis. As linhas e colunas representam eixos de critérios independentes entre si. Uma categoria usada em um eixo não pode aparecer no outro. Critérios da mesma categoria nos dois eixos, como "3 integrantes" nas linhas e "5 ou menos integrantes" nas colunas, produzem células de leitura ambígua, e a validação do contrato rejeita a grade na publicação.
 
 ### Categorias de critérios
 

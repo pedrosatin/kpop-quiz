@@ -375,6 +375,35 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
+    def test_axes_sharing_category_fail_validation(self):
+        # The JSON schema cannot express this cross-field rule; only the
+        # domain validator rejects a category present on both axes.
+        fixture = sample_intersection_grid()
+        fixture["col_criteria"][1] = {
+            "id": "col_members_5",
+            "category": "has_member",
+            "label": {
+                "pt-BR": "5 ou menos integrantes",
+                "en": "5 or fewer members",
+            },
+        }
+
+        if self.json_validator is not None:
+            self.json_validator(fixture)  # passes the JSON schema alone
+
+        with self.assertRaises(ValueError) as ctx:
+            validate_intersection_grid(fixture)
+        self.assertIn("must not share categories", str(ctx.exception))
+        self.assertIn("has_member", str(ctx.exception))
+
+    def test_axes_with_disjoint_categories_pass_validation(self):
+        # Generated grids keep distinct category sets per axis.
+        fixture = sample_intersection_grid()
+        row_categories = {crit["category"] for crit in fixture["row_criteria"]}
+        col_categories = {crit["category"] for crit in fixture["col_criteria"]}
+        self.assertFalse(row_categories & col_categories)
+        validate_intersection_grid(fixture)
+
     def test_missing_bilingual_label_fails(self):
         fixture = sample_intersection_grid()
         del fixture["row_criteria"][0]["label"]["en"]
