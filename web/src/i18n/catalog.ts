@@ -206,6 +206,7 @@ export interface Messages {
   gridSourcesSummary: (count: number) => string;
   gridSourceLocator: string;
   gridLocatorExtract: (start: number, end: number) => string;
+  gridLocatorWikitext: (start: number, end: number) => string;
   gridLocatorClaim: (property: string) => string;
   gridReviewCellHeader: (row: number, col: number) => string;
   gridAcceptedAnswers: string;
@@ -471,6 +472,7 @@ const catalogs: Record<Locale, Messages> = {
     gridSourcesSummary: (count) => (count === 1 ? "1 fonte" : `${count} fontes`),
     gridSourceLocator: "Local na fonte:",
     gridLocatorExtract: (start, end) => `caracteres ${start} a ${end} do resumo`,
+    gridLocatorWikitext: (start, end) => `caracteres ${start} a ${end} do código da página`,
     gridLocatorClaim: (property) => `declaração ${property} e sua referência`,
     gridReviewCellHeader: (row, col) => `Linha ${row + 1}, coluna ${col + 1}`,
     gridAcceptedAnswers: "Respostas aceitas:",
@@ -801,6 +803,7 @@ const catalogs: Record<Locale, Messages> = {
     gridSourcesSummary: (count) => (count === 1 ? "1 source" : `${count} sources`),
     gridSourceLocator: "Location in source:",
     gridLocatorExtract: (start, end) => `extract characters ${start}–${end}`,
+    gridLocatorWikitext: (start, end) => `page source characters ${start}–${end}`,
     gridLocatorClaim: (property) => `statement ${property} and its reference`,
     gridReviewCellHeader: (row, col) => `Row ${row + 1}, column ${col + 1}`,
     gridAcceptedAnswers: "Accepted answers:",

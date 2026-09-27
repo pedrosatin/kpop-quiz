@@ -256,12 +256,16 @@ def has_distinct_assignment(cell_options: list[list[str]]) -> bool:
 def evaluate_group_criteria(
     facts: list[Fact],
     candidate_groups: dict[str, Entity],
+    complete_member_groups: set[str] | None = None,
 ) -> tuple[
     dict[str, set[str]],
     dict[tuple[str, str], list[Evidence]],
     dict[str, dict[str, Any]],
 ]:
     """Evaluate facts to determine which criteria each accepted group satisfies.
+
+    With ``complete_member_groups``, member count criteria apply only to those
+    groups, because a count taken from a partial member list is wrong.
 
     Returns:
         group_criteria: mapping of group QID to set of satisfied criterion IDs.
@@ -329,6 +333,8 @@ def evaluate_group_criteria(
         count = len(members)
         if count == 0:
             continue
+        if complete_member_groups is not None and group_qid not in complete_member_groups:
+            continue
         member_ev = [ev for fact in group_member_facts[group_qid] for ev in fact.evidence]
         for member_id, member_def in MEMBER_COUNT_CRITERIA.items():
             if member_def["predicate"](count):
@@ -336,6 +342,32 @@ def evaluate_group_criteria(
                 group_evidence[(group_qid, member_id)].extend(member_ev)
 
     return group_criteria, group_evidence, all_criteria
+
+
+def _groups_with_complete_members(
+    connection: sqlite3.Connection,
+    facts: list[Fact],
+) -> set[str]:
+    """Return groups whose every current has_member statement is a loaded fact.
+
+    Superseded and stale statements are no longer part of the group's current
+    data. Any other statement that did not load (rejected, in conflict or
+    filtered out) leaves the member list incomplete.
+    """
+    statements: dict[str, int] = defaultdict(int)
+    for wikidata_id, in connection.execute(
+        """
+        SELECT e.wikidata_id
+        FROM facts f JOIN entities e ON e.id = f.subject_entity_id
+        WHERE f.predicate = 'has_member' AND f.status NOT IN ('superseded', 'stale')
+        """
+    ):
+        statements[wikidata_id] += 1
+    loaded: dict[str, int] = defaultdict(int)
+    for fact in facts:
+        if fact.predicate == "has_member":
+            loaded[fact.subject.wikidata_id] += 1
+    return {qid for qid, count in loaded.items() if statements.get(qid) == count}
 
 
 def _are_member_criteria_disjoint(c1: dict[str, Any], c2: dict[str, Any]) -> bool:
@@ -483,7 +515,7 @@ def generate_intersection_grid(
         )
 
     group_criteria, group_evidence, all_criteria = evaluate_group_criteria(
-        facts, candidate_groups
+        facts, candidate_groups, _groups_with_complete_members(connection, facts)
     )
 
     # Group entities matching each criterion
@@ -492,11 +524,13 @@ def generate_intersection_grid(
         for crit_id in crits:
             criterion_groups[crit_id].add(group_qid)
 
-    # Filter active criteria that have at least 1 matching group
+    # A criterion on an axis covers three cells, and the nine answers must be
+    # distinct groups, so a criterion with fewer than three groups can never
+    # be placed. Dropping it keeps the axis search small.
     active_criteria = {
         crit_id: crit
         for crit_id, crit in all_criteria.items()
-        if len(criterion_groups[crit_id]) >= 1
+        if len(criterion_groups[crit_id]) >= 3
     }
 
     active_by_cat: dict[str, list[dict[str, Any]]] = defaultdict(list)

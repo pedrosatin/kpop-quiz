@@ -5,10 +5,13 @@ from pathlib import Path
 
 from kpop_scraping.entities import GREGORIAN_CALENDAR, TimeValue, parse_statements
 from kpop_scraping.evidence import (
+    INFOBOX_LABEL_FIELDS,
+    INFOBOX_MEMBER_FIELDS,
     WikipediaPage,
     assess_references,
     formation_date_evidence,
     genre_evidence,
+    infobox_evidence,
     membership_evidence,
     place_evidence,
     record_label_evidence,
@@ -515,6 +518,63 @@ class WikipediaEvidenceTest(unittest.TestCase):
                 "Q9205048$DE0B08D2-6961-4C58-B690-67B61262F24E",
             ],
         )
+
+
+class InfoboxEvidenceTest(unittest.TestCase):
+    WIKITEXT = (
+        "{{Infobox musical artist\n"
+        "| name = Alpha\n"
+        "| label = {{hlist|[[JYP Entertainment|JYP]]|Studio J}}\n"
+        "| current_members = {{flatlist|\n* [[Im Na-yeon|Nayeon]]\n* Momo\n}}\n"
+        "| past_members = Sunmi (2007–2010)<ref>x</ref>\n"
+        "}}\n'''Alpha''' is a group."
+    )
+
+    def page(self, wikitext=WIKITEXT, extract="Alpha is a group."):
+        return WikipediaPage(7, "en", 11, 22, extract, "Alpha", wikitext)
+
+    def test_label_listed_in_the_infobox_is_evidence(self):
+        item = infobox_evidence(self.page(), INFOBOX_LABEL_FIELDS, ["JYP Entertainment"])
+        start = self.WIKITEXT.index("[[JYP Entertainment|JYP]]")
+        end = start + len("[[JYP Entertainment|JYP]]")
+        self.assertEqual(item.locator, f"wikipedia:en:pageid=11:revid=22#wikitext[{start}:{end}]")
+        self.assertEqual(item.snippet, "label = [[JYP Entertainment|JYP]]")
+        self.assertEqual(item.evidence_type, "wikipedia_revision")
+        self.assertEqual(item.source_revision_id, 7)
+        self.assertEqual(item.source_key, "wikipedia:en")
+
+    def test_current_and_past_members_are_evidence(self):
+        nayeon = infobox_evidence(self.page(), INFOBOX_MEMBER_FIELDS, ["Im Nayeon", "Nayeon"])
+        sunmi = infobox_evidence(self.page(), INFOBOX_MEMBER_FIELDS, ["Lee Sunmi", "Sunmi"])
+        self.assertEqual(nayeon.snippet, "current_members = [[Im Na-yeon|Nayeon]]")
+        self.assertEqual(sunmi.snippet, "past_members = Sunmi (2007–2010)<ref>x</ref>")
+
+    def test_name_inside_a_longer_item_is_not_evidence(self):
+        self.assertIsNone(infobox_evidence(self.page(), INFOBOX_LABEL_FIELDS, ["Studio"]))
+        self.assertIsNone(infobox_evidence(self.page(), INFOBOX_LABEL_FIELDS, ["Entertainment"]))
+
+    def test_value_in_another_field_is_not_evidence(self):
+        self.assertIsNone(infobox_evidence(self.page(), INFOBOX_LABEL_FIELDS, ["Momo"]))
+        self.assertIsNone(infobox_evidence(self.page(), INFOBOX_MEMBER_FIELDS, ["Studio J"]))
+
+    def test_page_without_wikitext_has_no_infobox_evidence(self):
+        self.assertIsNone(infobox_evidence(self.page(wikitext=""), INFOBOX_LABEL_FIELDS, ["Studio J"]))
+
+    def test_text_evidence_prefers_the_extract_and_falls_back_to_the_infobox(self):
+        extract = "Alpha is a South Korean girl group signed to Studio J."
+        from_extract = text_evidence("record_label", self.page(extract=extract), ["Alpha"], ["Studio J"])
+        from_infobox = text_evidence("record_label", self.page(), ["Alpha"], ["Studio J"])
+        self.assertIn("#extract[", from_extract.locator)
+        self.assertIn("#wikitext[", from_infobox.locator)
+        member = text_evidence("member_of", self.page(), ["Alpha"], ["Momo"])
+        self.assertEqual(member.snippet, "current_members = Momo")
+
+    def test_infobox_is_not_used_for_formation_or_genre(self):
+        wikitext = "{{Infobox musical artist\n| years_active = 2015–present\n| genre = K-pop\n}}"
+        page = self.page(wikitext=wikitext)
+        time = TimeValue("2015-10-20", 11, GREGORIAN_CALENDAR)
+        self.assertIsNone(text_evidence("formed_on", page, ["Alpha"], [], time))
+        self.assertIsNone(text_evidence("genre", page, ["Alpha"], ["K-pop"]))
 
 
 class SourcePolicyTest(unittest.TestCase):

@@ -64,6 +64,8 @@ wikidata_type_check
 
 `source_revisions` registra uma linha por página e `revid`. A linha contém caminho relativo do snapshot, SHA-256 do JSON canônico descomprimido e data da primeira coleta. `collection_run_revisions` liga a revisão a cada execução que a observou. Duas coletas iguais criam duas execuções e compartilham uma revisão.
 
+`source_revision_wikitext` guarda, para uma revisão de grupo, o caminho e o SHA-256 do snapshot do seu wikitext (`wikipedia-wikitext/<idioma>/<pageid>/<revid>.json.gz`, com `pageid`, `revid`, `contentmodel` e `wikitext`). O snapshot é separado do resumo porque o conteúdo de uma revisão já gravada não pode mudar ([ADR-002](decisions/002-immutable-revision-snapshots.md)). A extração de fatos baixa o wikitext uma vez por revisão; a mesma revisão com outro conteúdo encerra a execução com falha de integridade.
+
 `catalog_entries` mantém uma linha por página e os estados `candidate`, `accepted` ou `rejected`. A decisão aponta para a revisão da Wikipedia analisada e, quando houve consulta remota, para `wikidata_type_checks`. Essa tabela guarda o QID, o `lastrevid` da entidade e os valores de `P31` em JSON ordenado. `catalog_runs` registra versão do classificador, totais e falha. `collection_issues` registra páginas removidas antes da consulta de detalhes.
 
 `fact_runs` registra cada extração de fatos com versão do extrator, limite de grupos, totais por estado, lotes enviados ao Wikidata e erro. `wikidata_entity_snapshots` guarda uma linha por QID, `lastrevid` e perfil de requisição, com caminho e SHA-256 do JSON canônico. `fact_run_snapshots` liga cada snapshot às execuções que o usaram. `fact_issues` registra QIDs ausentes, redirecionados ou repetidos.
@@ -72,7 +74,7 @@ wikidata_type_check
 
 `facts` tem uma linha por ID de afirmação do Wikidata. O valor ocupa `value_wikidata_id` e `value_entity_id` ou `value_time`, `value_precision` e `value_calendar`. `value_raw_json` preserva o valor original, inclusive quando a validação o rejeita. `valid_from` e `valid_to` vêm de `P580` e `P582`, cada um com sua precisão. `status` aceita `accepted`, `rejected`, `conflict` e `superseded`. Estados diferentes de `accepted` exigem `status_reason`. `quality_flags_json` lista marcas como `precision_below_day`, `insufficient_precision_for_age`, `membership_start_unknown`, `end_date_unknown` e `validity_not_evidenced`.
 
-`fact_evidence` liga um fato a uma referência do Wikidata (`wikidata_snapshot_id` e `reference_hash`) ou a uma revisão da Wikipedia (`source_revision_id` e `snippet`). `source_key` identifica o QID de `P248` ou o domínio registrável de `P854`. `locator` indica o local dentro da fonte. O extrator só grava `accepted` quando existe ao menos uma evidência aceita pela política de fontes.
+`fact_evidence` liga um fato a uma referência do Wikidata (`wikidata_snapshot_id` e `reference_hash`) ou a uma revisão da Wikipedia (`source_revision_id` e `snippet`). Na revisão, o `locator` termina em `#extract[início:fim]` para um trecho do resumo ou em `#wikitext[início:fim]` para um item da infobox, em pontos de código Unicode. `source_key` identifica o QID de `P248` ou o domínio registrável de `P854`. `locator` indica o local dentro da fonte. O extrator só grava `accepted` quando existe ao menos uma evidência aceita pela política de fontes.
 
 ### Predicados implementados
 

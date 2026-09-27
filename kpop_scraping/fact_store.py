@@ -123,10 +123,13 @@ class FactStore:
             """
             SELECT sr.id AS source_revision_id, sr.external_revision_id,
                    sr.snapshot_path, sr.content_sha256, sp.language,
-                   sp.external_page_id, sp.title
+                   sp.external_page_id, sp.title,
+                   sw.snapshot_path AS wikitext_path,
+                   sw.content_sha256 AS wikitext_sha256
             FROM catalog_entries ce
             JOIN source_pages sp ON sp.id = ce.source_page_id
             JOIN source_revisions sr ON sr.id = ce.source_revision_id
+            LEFT JOIN source_revision_wikitext sw ON sw.source_revision_id = sr.id
             WHERE ce.state = 'accepted' AND ce.analyzed_wikidata_id = ?
             ORDER BY sp.provider, sp.language, sp.external_page_id
             LIMIT 1
@@ -137,6 +140,12 @@ class FactStore:
             return None
         content = self.repository.snapshots.read(row["snapshot_path"], row["content_sha256"])
         extract = json.loads(content).get("extract")
+        wikitext = ""
+        if row["wikitext_path"] is not None:
+            source = json.loads(
+                self.repository.snapshots.read(row["wikitext_path"], row["wikitext_sha256"])
+            )
+            wikitext = source.get("wikitext") if isinstance(source.get("wikitext"), str) else ""
         return WikipediaPage(
             source_revision_id=int(row["source_revision_id"]),
             language=row["language"],
@@ -144,6 +153,70 @@ class FactStore:
             revision_id=int(row["external_revision_id"]),
             extract=extract if isinstance(extract, str) else "",
             title=row["title"],
+            wikitext=wikitext,
+        )
+
+    def group_revisions_without_wikitext(
+        self,
+        wikidata_ids: Iterable[str],
+        language: str,
+    ) -> list[tuple[int, int, int]]:
+        """Return (source revision, pageid, revid) of group pages still missing wikitext."""
+        wanted = sorted(set(wikidata_ids))
+        if not wanted:
+            return []
+        rows = []
+        for start in range(0, len(wanted), 500):
+            chunk = wanted[start:start + 500]
+            rows.extend(self.connection.execute(
+                f"""
+                SELECT DISTINCT sr.id, sp.external_page_id, sr.external_revision_id
+                FROM catalog_entries ce
+                JOIN source_pages sp ON sp.id = ce.source_page_id
+                JOIN source_revisions sr ON sr.id = ce.source_revision_id
+                LEFT JOIN source_revision_wikitext sw ON sw.source_revision_id = sr.id
+                WHERE ce.state = 'accepted' AND sw.source_revision_id IS NULL
+                  AND sp.provider = 'wikipedia' AND sp.language = ?
+                  AND ce.analyzed_wikidata_id IN ({",".join("?" * len(chunk))})
+                """,
+                (language, *chunk),
+            ).fetchall())
+        return sorted({(int(r[0]), int(r[1]), int(r[2])) for r in rows}, key=lambda r: r[2])
+
+    def save_revision_wikitext(
+        self,
+        source_revision_id: int,
+        language: str,
+        source: Mapping[str, object],
+    ) -> None:
+        """Store the wikitext of a collected revision as an immutable snapshot."""
+        content = canonical_json(dict(source))
+        digest = hashlib.sha256(content).hexdigest()
+        existing = self.connection.execute(
+            "SELECT snapshot_path, content_sha256 FROM source_revision_wikitext WHERE source_revision_id=?",
+            (source_revision_id,),
+        ).fetchone()
+        if existing is not None:
+            if existing["content_sha256"] != digest:
+                raise SnapshotIntegrityError(
+                    f"wikitext of revision {source['revid']} changed content"
+                )
+            self.repository.snapshots.verify(existing["snapshot_path"], digest)
+            return
+        snapshot_path, digest = self.repository.snapshots.write(
+            "wikipedia-wikitext",
+            language,
+            int(source["pageid"]),  # type: ignore[arg-type]
+            int(source["revid"]),  # type: ignore[arg-type]
+            content,
+        )
+        self.connection.execute(
+            """
+            INSERT INTO source_revision_wikitext(
+                source_revision_id, snapshot_path, content_sha256, fetched_at
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (source_revision_id, snapshot_path, digest, utc_now()),
         )
 
     def save_entity_snapshot(

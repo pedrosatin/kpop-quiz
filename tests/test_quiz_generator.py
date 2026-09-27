@@ -517,6 +517,31 @@ class QuizGeneratorTest(unittest.TestCase):
             for question in dataset["questions"]
         ))
 
+    def test_group_name_mentioning_member_is_rejected(self):
+        group_one = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QG1'"
+        ).fetchone()[0]
+        self.connection.execute(
+            "UPDATE entities SET canonical_name='Group Person 1' WHERE id=?",
+            (group_one,),
+        )
+        self.connection.execute(
+            "UPDATE entity_aliases SET name='Group Person 1' WHERE entity_id=?",
+            (group_one,),
+        )
+        self.connection.commit()
+
+        dataset, report = generate_dataset(self.connection)
+
+        self.assertGreaterEqual(
+            report["rejected_by_reason"]["group_label_mentions_member"], 1
+        )
+        for question in dataset["questions"]:
+            if question["type"] == "group_for_member" and "Person 1" in question["prompt"]:
+                self.assertNotIn("QG1", {option["value"] for option in question["options"]})
+            if question["type"] == "member_for_group":
+                self.assertNotIn("Group Person 1", question["prompt"])
+
     def test_short_canonical_group_name_is_not_ignored(self):
         release = Entity("QR", "release", "4L First Album", {}, ())
         group = Entity("QG", "group", "4L", {}, ())

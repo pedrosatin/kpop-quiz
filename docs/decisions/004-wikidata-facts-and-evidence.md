@@ -42,7 +42,7 @@ Datas compatíveis são refinamentos, como `2015` e `2015-10-20`. O sistema mant
 
 `P248` e `P854` identificam a origem citada. O primeiro vira `wikidata:<QID>`; o segundo vira `domain:<domínio registrável>`. A referência só sustenta o fato quando todas as origens identificadas nela constam como `reliable` em `sources-v2`. Origens negadas geram `unreliable_reference_source`. Origens ainda não avaliadas geram `unreviewed_reference_source`. O localizador aponta para `claims/<propriedade>/<ID da afirmação>/references/<hash>` dentro do snapshot da entidade, e `fact_evidence.source_key` guarda a origem aceita. A [política de fontes](../source-policy.md) descreve a amostra e o processo de inclusão.
 
-Sem referência suficiente, o validador procura o valor no resumo da revisão da Wikipedia já coletada para o grupo. Ele não lê infobox nem wikitext. A busca exige nome inteiro e contexto na mesma frase:
+Sem referência suficiente, o validador procura o valor no resumo da revisão da Wikipedia já coletada para o grupo. Desde a [ADR-019](019-evidencia-da-infobox.md), gravadora e integrante também podem ser provados por um item da infobox da mesma revisão; as demais regras abaixo continuam restritas ao resumo. A busca exige nome inteiro e contexto na mesma frase:
 
 - data de formação no formato da precisão declarada, em uma cláusula que liga o grupo a "formed", "founded", "established" ou "created";
 - lugar de formação em cláusula que liga o grupo ao verbo de formação;
@@ -67,7 +67,7 @@ Aumentaria a cobertura. `P143` indica a wiki de origem sem revisão nem trecho, 
 
 ### Parser de infobox
 
-Infoboxes concentram formação, gravadora e integrantes. O parser exigiria novos snapshots de wikitext, regras por template e fixtures de regressão. A fatia usa o resumo já preservado e registra a cobertura menor.
+Infoboxes concentram formação, gravadora e integrantes. O parser exigiria novos snapshots de wikitext, regras por template e fixtures de regressão. A fatia usa o resumo já preservado e registra a cobertura menor. A [ADR-019](019-evidencia-da-infobox.md) adotou o parser depois, para gravadora e integrante.
 
 ### Resolver conflitos pela hierarquia de lugares
 

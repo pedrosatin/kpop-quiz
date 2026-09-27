@@ -31,6 +31,8 @@ class MediaWikiError(RuntimeError):
 
 
 MAX_EXTRACTS_PER_REQUEST = 20
+# The Action API accepts 50 revision IDs per request for regular clients.
+MAX_REVISIONS_PER_REQUEST = 50
 RETRYABLE_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
 MAX_RETRY_AFTER_SECONDS = 120.0
 _ASCII_SECONDS = re.compile(r"[0-9]+")
@@ -267,3 +269,40 @@ class MediaWikiClient:
         except (KeyError, TypeError, ValueError, IndexError) as exc:
             raise MediaWikiError("MediaWiki title response has an unexpected shape") from exc
         return pages
+
+    def get_revision_wikitext(self, revision_ids: Sequence[int]) -> dict[int, dict[str, Any]]:
+        """Return the main-slot wikitext of fixed revisions, keyed by revid.
+
+        Revisions whose content is hidden or deleted are left out, so the
+        caller can tell them apart from revisions with empty text.
+        """
+        if not revision_ids:
+            return {}
+        if len(revision_ids) > MAX_REVISIONS_PER_REQUEST:
+            raise ValueError(
+                f"get_revision_wikitext accepts at most {MAX_REVISIONS_PER_REQUEST} revision IDs"
+            )
+        payload = self._get({
+            "action": "query",
+            "revids": "|".join(str(revision_id) for revision_id in revision_ids),
+            "prop": "revisions",
+            "rvprop": "ids|content",
+            "rvslots": "main",
+        })
+        result: dict[int, dict[str, Any]] = {}
+        try:
+            for page in payload.get("query", {}).get("pages", ()):
+                for revision in page.get("revisions", ()):
+                    main = revision["slots"]["main"]
+                    content = main.get("content")
+                    if not isinstance(content, str) or main.get("texthidden"):
+                        continue
+                    result[int(revision["revid"])] = {
+                        "pageid": int(page["pageid"]),
+                        "revid": int(revision["revid"]),
+                        "contentmodel": main.get("contentmodel", ""),
+                        "wikitext": content,
+                    }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise MediaWikiError("MediaWiki revision response has an unexpected shape") from exc
+        return result

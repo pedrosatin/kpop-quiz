@@ -61,6 +61,28 @@ class MediaWikiClientTest(unittest.TestCase):
         self.assertTrue(missing.is_missing)
         self.assertEqual(missing.canonical_url, "")
 
+    @patch.object(MediaWikiClient, "_get")
+    def test_get_revision_wikitext_maps_revisions_and_skips_hidden_content(self, get):
+        get.return_value = {"query": {"pages": [
+            {"pageid": 1, "revisions": [{"revid": 10, "slots": {"main": {"contentmodel": "wikitext", "content": "{{Infobox}}"}}}]},
+            {"pageid": 2, "revisions": [{"revid": 20, "slots": {"main": {"texthidden": True}}}]},
+        ]}}
+        result = MediaWikiClient().get_revision_wikitext([10, 20])
+        self.assertEqual(result, {10: {"pageid": 1, "revid": 10, "contentmodel": "wikitext", "wikitext": "{{Infobox}}"}})
+        parameters = get.call_args.args[0]
+        self.assertEqual(parameters["revids"], "10|20")
+        self.assertEqual(parameters["rvslots"], "main")
+
+    @patch.object(MediaWikiClient, "_get")
+    def test_get_revision_wikitext_rejects_unexpected_shape(self, get):
+        get.return_value = {"query": {"pages": [{"pageid": 1, "revisions": [{"revid": 10}]}]}}
+        with self.assertRaises(MediaWikiError):
+            MediaWikiClient().get_revision_wikitext([10])
+
+    def test_get_revision_wikitext_rejects_more_than_fifty_revisions(self):
+        with self.assertRaises(ValueError):
+            MediaWikiClient().get_revision_wikitext(list(range(1, 52)))
+
     def test_get_pages_rejects_more_than_twenty_extracts(self):
         with self.assertRaisesRegex(ValueError, "at most 20"):
             MediaWikiClient().get_pages(range(21))

@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 from kpop_scraping.grid_cli import main as cli_main
 from kpop_scraping.grid_generator import (
+    _groups_with_complete_members,
     MEMBER_COUNT_CRITERIA,
     _find_mixed_axis_grid,
     _is_valid_axis,
@@ -315,11 +316,16 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
     def test_deterministic_generation_strict(self) -> None:
         grid_1 = generate_intersection_grid(self.connection, seed="kpop-daily-2026-09-17")
         grid_2 = generate_intersection_grid(self.connection, seed="kpop-daily-2026-09-17")
-        grid_3 = generate_intersection_grid(self.connection, seed="different-seed-456")
+        # One other seed may land on the same grid in a small fixture, so
+        # the seed's effect is checked across several seeds.
+        other_ids = {
+            generate_intersection_grid(self.connection, seed=f"different-seed-{index}")["grid_id"]
+            for index in range(6)
+        }
 
         self.assertEqual(grid_1, grid_2)
         self.assertEqual(grid_1["grid_id"], grid_2["grid_id"])
-        self.assertNotEqual(grid_1["grid_id"], grid_3["grid_id"])
+        self.assertTrue(other_ids - {grid_1["grid_id"]})
 
         with build_grid_test_database(reverse=True) as conn_rev:
             grid_rev = generate_intersection_grid(conn_rev, seed="kpop-daily-2026-09-17")
@@ -455,6 +461,33 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
             )
 
         self.assertIsNone(result)
+
+    def test_member_counts_need_every_member_statement_loaded(self) -> None:
+        # One of Q101's four members is rejected: counting the other three
+        # would place Q101 under "3 members".
+        self.connection.execute(
+            "UPDATE facts SET status='rejected', status_reason='missing_evidence' "
+            "WHERE statement_id=(SELECT MIN(statement_id) FROM facts WHERE statement_id LIKE 'has-101-%')"
+        )
+        entities = _load_entities(self.connection)
+        facts, _rejected = _load_facts(self.connection, entities)
+        complete = _groups_with_complete_members(self.connection, facts)
+        self.assertNotIn("Q101", complete)
+        self.assertIn("Q102", complete)
+
+        candidates = {e.wikidata_id: e for e in entities.values() if e.entity_type == "group"}
+        group_criteria, _evidence, _criteria = evaluate_group_criteria(facts, candidates, complete)
+        self.assertFalse(any(c.startswith("members_") for c in group_criteria["Q101"]))
+        self.assertIn("members_5", group_criteria["Q102"])
+
+        grid = generate_intersection_grid(self.connection, seed="kpop-daily-2026-09-17")
+        for cell in grid["cells"]:
+            criteria = {
+                grid["row_criteria"][cell["row_index"]]["category"],
+                grid["col_criteria"][cell["col_index"]]["category"],
+            }
+            if "has_member" in criteria:
+                self.assertNotIn("Q101", cell["valid_entity_ids"])
 
     def test_is_valid_axis(self) -> None:
         axis_overlapping_4 = (

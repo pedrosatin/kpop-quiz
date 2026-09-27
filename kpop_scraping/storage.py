@@ -649,6 +649,20 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX group_relevance_scores_entity_idx ON group_relevance_scores(entity_id,run_id)",
         ),
     ),
+    (
+        9,
+        "source_revision_wikitext",
+        (
+            """
+            CREATE TABLE source_revision_wikitext (
+                source_revision_id INTEGER PRIMARY KEY REFERENCES source_revisions(id),
+                snapshot_path TEXT NOT NULL UNIQUE,
+                content_sha256 TEXT NOT NULL CHECK(length(content_sha256) = 64),
+                fetched_at TEXT NOT NULL
+            )
+            """,
+        ),
+    ),
 )
 
 
