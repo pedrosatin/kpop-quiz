@@ -5,10 +5,10 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from .quiz_drafts import _membership_contains_date
 from .quiz_models import Draft, Entity, Fact, GENERATOR_VERSION
 from .quiz_templates import render
 from .quiz_utils import digest, hash_payload
+from .release_quiz_drafts import _contains_identity, _group_identities as _entity_identities
 
 
 def _group_relevance_score(
@@ -135,8 +135,6 @@ def render_play_mode_variants(
     """Render reproducible play modes without changing the underlying answer."""
     base = _render_draft(draft, language, reference_date, entities, relevance_by_group)
     clues = _temporal_clues(draft, language, base)
-    raw_date = draft.values.get("date") if draft.question_type == "member_at_date" else None
-    on_date = raw_date if isinstance(raw_date, str) else None
     variants = []
     for play_mode, points in (("assisted", 70), ("standard", 100), ("expert", 130)):
         question = dict(base)
@@ -145,10 +143,14 @@ def render_play_mode_variants(
         question["hint_cost"] = 0 if play_mode == "assisted" else 15
         question["clues_available"] = [] if play_mode == "expert" else clues
         question["clues_shown"] = [clues[0]["id"]] if play_mode == "assisted" and clues else []
-        if play_mode == "assisted":
+        if play_mode == "assisted" and not _prompt_names_an_entity(draft):
+            # Group labels may only help where the prompt names no entity.
+            # On member questions the parenthetical would repeat the asked
+            # group on the answer option and give it away.
             question["options"] = _add_group_labels_to_people(
-                question["options"], language, entities, person_memberships, on_date
+                question["options"], language, entities, person_memberships
             )
+        _assert_options_do_not_echo_prompt(draft, question["options"], entities)
         question["id"] = hash_payload(
             {
                 "language": language,
@@ -165,12 +167,13 @@ def _add_group_labels_to_people(
     language: str,
     entities: dict[str, Entity],
     person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
-    on_date: str | None,
 ) -> list[dict[str, str]]:
-    """Append sourced group names. A dated membership question uses that date."""
+    """Append each person's sourced group names to their option label."""
     labeled_options = []
     for option in options:
-        group_ids = _groups_for_label(person_memberships, option["value"], on_date)
+        group_ids = tuple(
+            group_id for group_id, _pair_facts in person_memberships.get(option["value"], ())
+        )
         if option["value_type"] != "person" or not group_ids:
             labeled_options.append(option)
             continue
@@ -179,19 +182,54 @@ def _add_group_labels_to_people(
     return labeled_options
 
 
-def _groups_for_label(
-    person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
-    person_id: str,
-    on_date: str | None,
-) -> tuple[str, ...]:
-    pairs = person_memberships.get(person_id, ())
-    if on_date is None:
-        return tuple(group_id for group_id, _pair_facts in pairs)
-    return tuple(
-        group_id
-        for group_id, pair_facts in pairs
-        if _membership_contains_date(pair_facts, on_date)
-    )
+# Which draft value each prompt names. The answer must never be derivable
+# from the prompt text plus an option label, so labels may not repeat these.
+_PROMPT_NAMED_ENTITY_KEYS = {
+    "age_on_date": "person_id",
+    "birth_date_or_place": "person_id",
+    "formation_year": "group_id",
+    "group_for_member": "person_id",
+    "group_for_record_label": "record_label_id",
+    "group_for_release": "release_id",
+    "member_at_date": "group_id",
+    "member_for_group": "group_id",
+    "record_label_for_group": "group_id",
+    "release_for_group": "group_id",
+    "release_year": "release_id",
+}
+
+
+def _prompt_named_entity_id(draft: Draft) -> str | None:
+    named_key = _PROMPT_NAMED_ENTITY_KEYS.get(draft.question_type)
+    if named_key is None:
+        return None
+    value = draft.values.get(named_key)
+    return value if isinstance(value, str) else None
+
+
+def _prompt_names_an_entity(draft: Draft) -> bool:
+    return _prompt_named_entity_id(draft) is not None
+
+
+def _assert_options_do_not_echo_prompt(
+    draft: Draft,
+    options: list[dict[str, Any]],
+    entities: dict[str, Entity],
+) -> None:
+    """Reject any option label that repeats the entity named in the prompt."""
+    named_id = _prompt_named_entity_id(draft)
+    if named_id is None:
+        return
+    named = entities.get(named_id)
+    if named is None:
+        return
+    for option in options:
+        for identity, allow_short in _entity_identities(named):
+            if _contains_identity(option["label"], identity, allow_short=allow_short):
+                raise ValueError(
+                    f"option label echoes the prompt subject for {draft.key}: "
+                    f"{option['label']!r} mentions {identity!r}"
+                )
 
 
 def _temporal_clues(

@@ -1,7 +1,9 @@
 import json
+import re
 import sqlite3
 import tempfile
 import unittest
+import unicodedata
 from datetime import date
 from pathlib import Path
 from unittest.mock import patch
@@ -102,15 +104,15 @@ class QuizGeneratorTest(unittest.TestCase):
         self.assertEqual(labels[("pt-BR", "QG1")], labels[("en", "QG1")])
         self.assertEqual(labels[("pt-BR", "QP1")], labels[("en", "QP1")])
 
-    def test_assisted_mode_labels_people_with_their_sourced_groups(self):
+    def test_assisted_mode_labels_people_only_when_prompt_names_no_entity(self):
         dataset, _report = generate_dataset(self.connection)
-        person_questions = [
+        member_questions = [
             question for question in dataset["questions"]
             if question["language"] == "en"
             and question["type"] == "member_for_group"
             and question["group_ids"] == ["QG1"]
         ]
-        self.assertEqual({question["play_mode"] for question in person_questions}, {
+        self.assertEqual({question["play_mode"] for question in member_questions}, {
             "assisted", "standard", "expert"
         })
         labels_by_mode = {
@@ -118,13 +120,26 @@ class QuizGeneratorTest(unittest.TestCase):
                 option["label"] for option in question["options"]
                 if option["value"] == "QP1"
             )
-            for question in person_questions
+            for question in member_questions
         }
-        self.assertEqual(labels_by_mode["assisted"], "Person 1 (Group 1)")
+        # The prompt names the group, so a group label would give the answer away.
+        self.assertEqual(labels_by_mode["assisted"], "Person 1")
         self.assertEqual(labels_by_mode["standard"], "Person 1")
         self.assertEqual(labels_by_mode["expert"], "Person 1")
+        comparison_labels = {
+            option["label"]
+            for question in dataset["questions"]
+            if question["language"] == "en"
+            and question["play_mode"] == "assisted"
+            and question["type"] == "chronological_comparison"
+            for option in question["options"]
+            if option["value_type"] == "person"
+        }
+        # Where the prompt names no entity, the group label still helps.
+        self.assertTrue(comparison_labels)
+        self.assertTrue(all(label.endswith(")") for label in comparison_labels))
 
-    def test_member_at_date_labels_only_groups_active_on_that_date(self):
+    def test_member_at_date_options_carry_no_group_labels(self):
         self._set_membership_interval("1", "2010-01-01", "2012-01-01")
         self._add_membership("QG1", "QP2", "late", "2018-01-01", "2020-01-01")
         for index in range(5, 8):
@@ -142,16 +157,96 @@ class QuizGeneratorTest(unittest.TestCase):
             and question["play_mode"] == "assisted"
             and question["type"] == "member_at_date"
         ]
-        early = next(question for question in dated if "2011" in question["prompt"])
-        late = next(question for question in dated if "2019" in question["prompt"])
-        early_labels = {option["value"]: option["label"] for option in early["options"]}
-        late_labels = {option["value"]: option["label"] for option in late["options"]}
-        self.assertEqual(early_labels["QP1"], "Person 1 (Group 1)")
-        self.assertIn("QP2", early_labels)
-        self.assertNotIn("Group 1", early_labels["QP2"])
-        self.assertEqual(late_labels["QP2"], "Person 2 (Group 1)")
-        self.assertIn("QP1", late_labels)
-        self.assertNotIn("Group 1", late_labels["QP1"])
+        self.assertTrue(dated)
+        for question in dated:
+            for option in question["options"]:
+                self.assertNotIn("(", option["label"])
+                self.assertNotIn("Group", option["label"])
+
+    def test_option_labels_never_echo_the_entity_named_in_the_prompt(self):
+        dataset, _report = generate_dataset(self.connection)
+        echoes = []
+        named_types = set()
+        for question in dataset["questions"]:
+            if question["type"] not in _NAMED_PROMPT_TYPES:
+                continue
+            named = _entity_named_in_prompt(question)
+            self.assertIsNotNone(
+                named, f"no prompt pattern matched: {question['prompt']}"
+            )
+            named_types.add(question["type"])
+            for option in question["options"]:
+                if _label_mentions(option["label"], named):
+                    echoes.append((question["type"], question["prompt"], option["label"]))
+        self.assertEqual(echoes, [])
+        self.assertEqual(named_types, _NAMED_PROMPT_TYPES)
+
+    def test_rendering_rejects_option_labels_that_echo_the_prompt_subject(self):
+        from kpop_scraping.quiz_rendering import _assert_options_do_not_echo_prompt
+        from kpop_scraping.quiz_models import Draft
+
+        group = Entity("QG1", "group", "WJSN", {"pt-BR": "WJSN", "en": "WJSN"})
+        member = Entity("QP1", "person", "Luda", {"pt-BR": "Luda", "en": "Luda"})
+        draft = Draft(
+            ("member_for_group", "QG1", "QP1"),
+            "member_for_group", "members", "medium", ("QG1",),
+            ("QP1", "person"),
+            (("QP1", "person"), ("QP2", "person"), ("QP3", "person"), ("QP4", "person")),
+            {"group_id": "QG1"}, (), ("st-1",),
+        )
+        leaking = [{"label": "Luda (WJSN)"}, {"label": "Person 2"}]
+        with self.assertRaises(ValueError):
+            _assert_options_do_not_echo_prompt(
+                draft, leaking, {"QG1": group, "QP1": member}
+            )
+        clean = [{"label": "Luda"}, {"label": "Person 2"}]
+        _assert_options_do_not_echo_prompt(
+            draft, clean, {"QG1": group, "QP1": member}
+        )
+
+    def test_prompt_named_entity_map_matches_templates(self):
+        from kpop_scraping.quiz_templates import TEMPLATES
+        from kpop_scraping.quiz_rendering import _PROMPT_NAMED_ENTITY_KEYS
+
+        placeholder_keys = {
+            "person": "person_id",
+            "group": "group_id",
+            "release": "release_id",
+            "record_label": "record_label_id",
+        }
+        non_entity_placeholders = {"date", "answer", "comparison", "born_on"}
+        derived = {}
+        for question_type, translations in TEMPLATES.items():
+            prompt_fields = [
+                field for field in translations["en"] if field.endswith("prompt")
+            ]
+            named = set()
+            for language in ("pt-BR", "en"):
+                for field in prompt_fields:
+                    placeholders = set(
+                        re.findall(r"\{(\w+)\}", translations[language][field])
+                    )
+                    unknown = (
+                        placeholders - set(placeholder_keys) - non_entity_placeholders
+                    )
+                    self.assertFalse(
+                        unknown,
+                        f"unclassified placeholders in {question_type}/{language}/{field}: {unknown}",
+                    )
+                    named |= placeholders - non_entity_placeholders
+            if named:
+                self.assertEqual(
+                    len(named), 1,
+                    f"{question_type} names several entities: {sorted(named)}",
+                )
+                derived[question_type] = placeholder_keys[next(iter(named))]
+        # Every type whose prompt names one entity maps to that entity's key.
+        for question_type, named_key in derived.items():
+            self.assertEqual(
+                _PROMPT_NAMED_ENTITY_KEYS.get(question_type), named_key
+            )
+        # Types whose prompt names no entity stay out of the map.
+        self.assertEqual(set(_PROMPT_NAMED_ENTITY_KEYS), set(derived))
 
     def test_mode_neutral_question_keeps_the_person_name(self):
         from kpop_scraping.quiz_schema import mode_neutral_question
@@ -954,6 +1049,95 @@ class QuizGeneratorTest(unittest.TestCase):
                 first_bytes,
                 (output.read_bytes(), report.read_bytes(), session.read_bytes()),
             )
+
+
+def _named_prompt_patterns():
+    """Per-type regexes that capture the entity each prompt names."""
+    prompts = {
+        "age_on_date": (
+            r"How old was (.+) on .+", r"Quantos anos (.+) tinha em .+",
+        ),
+        "birth_date_or_place": (
+            r"When was (.+) born\?", r"Em que data (.+) nasceu\?",
+        ),
+        "formation_year": (
+            r"In which year was (.+) formed\?", r"Em que ano (.+) foi formado\?",
+        ),
+        "group_for_member": (
+            r"Which of these groups has a documented connection to (.+)\?",
+            r"Com qual destes grupos (.+) tem vínculo documentado\?",
+        ),
+        "group_for_record_label": (
+            r"Which of these groups has a documented connection to (.+)\?",
+            r"Qual destes grupos tem vínculo documentado com a gravadora (.+)\?",
+        ),
+        "group_for_release": (
+            r"Which of these groups released (.+)\?", r"Qual destes grupos lançou (.+)\?",
+        ),
+        "member_at_date": (
+            r"Who was a member of (.+) on .+", r"Quem fazia parte de (.+) em .+",
+        ),
+        "member_for_group": (
+            r"Which of these artists has a documented connection to (.+)\?",
+            r"Qual destes artistas tem vínculo documentado com (.+)\?",
+        ),
+        "record_label_for_group": (
+            r"Which of these record labels has a documented connection to (.+)\?",
+            r"Qual destas gravadoras tem vínculo documentado com (.+)\?",
+        ),
+        "release_for_group": (
+            r"Which of these releases is by (.+)\?", r"Qual destes lançamentos é de (.+)\?",
+        ),
+        "release_year": (
+            r"In which year was (.+) released\?", r"Qual o ano de lançamento de (.+)\?",
+        ),
+    }
+    return prompts
+
+
+def _entity_named_in_prompt(question):
+    """Extract the entity name each template places in the prompt."""
+    for pattern in _named_prompt_patterns().get(question["type"], ()):
+        match = re.fullmatch(pattern, question["prompt"])
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+_NAMED_PROMPT_TYPES = frozenset(_named_prompt_patterns())
+
+
+def _label_mentions(label, identity):
+    def tokens(value):
+        normalized = unicodedata.normalize("NFKD", value).casefold()
+        characters = (
+            character if character.isalnum() else " "
+            for character in normalized
+            if not unicodedata.combining(character)
+        )
+        return tuple("".join(characters).split())
+
+    label_tokens, identity_tokens = tokens(label), tokens(identity)
+    if not identity_tokens:
+        return False
+    if len(identity_tokens) == 1 and len(identity_tokens[0]) < 3:
+        return False
+    width = len(identity_tokens)
+    if any(
+        label_tokens[index:index + width] == identity_tokens
+        for index in range(len(label_tokens) - width + 1)
+    ):
+        return True
+    identity_compact = "".join(identity_tokens)
+    for start in range(len(label_tokens)):
+        candidate = ""
+        for token in label_tokens[start:]:
+            candidate += token
+            if candidate == identity_compact:
+                return True
+            if len(candidate) >= len(identity_compact):
+                break
+    return False
 
 
 def build_quiz_database(reverse=False):
