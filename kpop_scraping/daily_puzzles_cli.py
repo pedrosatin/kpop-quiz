@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 from .daily_puzzles_runner import run_daily_puzzles
 
@@ -72,6 +73,29 @@ def report_reused_grid(grid_reused: dict[str, str] | None) -> None:
         print(f"::warning title=Daily grid not updated::{message}")
 
 
+def report_skipped_grid(grid_skipped: dict[str, Any] | None) -> None:
+    """Make a day published without a grid visible in the run summary."""
+    if not grid_skipped:
+        return
+    if grid_skipped.get("published_without_grid"):
+        # A kept or promoted set records the absent artifact only; the
+        # original generation error belongs to the day that first skipped it.
+        message = "The published set for this day carries no grid.daily.json"
+    else:
+        previous = (
+            f"previous grid rejected: {grid_skipped['previous_invalid']}"
+            if grid_skipped.get("previous_invalid")
+            else "no previous grid available"
+        )
+        message = (
+            f"Day published without a grid because generation failed: "
+            f"{grid_skipped['error']} ({previous})"
+        )
+    sys.stderr.write(f"WARNING: {message}\n")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=Daily grid missing::{message}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -99,6 +123,7 @@ def main(argv: list[str] | None = None) -> int:
             regenerate=args.regenerate,
         )
         report_reused_grid(result.get("grid_reused"))
+        report_skipped_grid(result.get("grid_skipped"))
         mode_str = "[dry-run] " if result.get("dry_run") else ""
         action = (
             "promoted from next/"
@@ -112,6 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         if "next" in result:
             report_reused_grid(result["next"].get("grid_reused"))
+            report_skipped_grid(result["next"].get("grid_skipped"))
             print(f"{mode_str}Daily puzzles for {result['next']['reference_date']} published ahead in {result['next']['output_dir']}")
         return 0
     except Exception as exc:

@@ -24,6 +24,7 @@ from kpop_scraping.daily_puzzles_runner import (
     publish_daily_puzzles,
     run_daily_puzzles,
 )
+from kpop_scraping.grid_generator import generate_daily_grid
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
 from kpop_scraping.quiz_schema import validate_session
@@ -527,20 +528,134 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertIsNone(first["grid_reused"])
         self.assertEqual(result["grid_reused"]["reference_date"], "2026-09-18")
         self.assertIn("3x3", result["grid_reused"]["error"])
+        self.assertIsNone(result["grid_skipped"])
         connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
         self.assertEqual(connections["reference_date"], "2026-09-19")
 
-        empty_dir = self.temp_path / "no_previous_grid"
+    def test_grid_generation_failure_with_invalid_previous_publishes_without_grid(self):
+        output_dir = self.temp_path / "invalid_previous_grid"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+
+        # Mirror the 2026-09-27 incident: the stored grid predates the
+        # axis-orthogonality rule, so the has_member criterion is copied
+        # onto the other axis and the current validation rejects it.
+        stale_grid = output_dir / "grid.daily.json"
+        stale_payload = json.loads(stale_grid.read_text(encoding="utf-8"))
+        member_criterion = next(
+            criterion
+            for axis in ("row_criteria", "col_criteria")
+            for criterion in stale_payload[axis]
+            if criterion["category"] == "has_member"
+        )
+        other_axis = (
+            "col_criteria"
+            if member_criterion in stale_payload["row_criteria"]
+            else "row_criteria"
+        )
+        stale_payload[other_axis][0] = dict(member_criterion)
+        stale_grid.write_text(json.dumps(stale_payload), encoding="utf-8")
+
         with patch(
             "kpop_scraping.daily_puzzles_runner.generate_daily_grid",
             side_effect=ValueError("Unable to generate a solvable 3x3 intersection grid"),
         ):
-            with self.assertRaisesRegex(ValueError, "no previous grid.daily.json"):
-                run_daily_puzzles(
-                    database=self.db_path,
-                    output_dir=empty_dir,
-                    reference_date="2026-09-19",
-                )
+            result = run_daily_puzzles(
+                database=self.db_path,
+                output_dir=output_dir,
+                reference_date="2026-09-19",
+            )
+
+        self.assertFalse((output_dir / "grid.daily.json").exists())
+        self.assertIsNone(result["grid_id"])
+        self.assertIsNone(result["grid_reused"])
+        self.assertIn("3x3", result["grid_skipped"]["error"])
+        self.assertIn("must not share categories", result["grid_skipped"]["previous_invalid"])
+        self.assertIn("has_member", result["grid_skipped"]["previous_invalid"])
+        self.assertNotIn("grid.daily.json", result["published_files"])
+        connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        validate_connections_puzzle(connections)
+        self.assertEqual(connections["reference_date"], "2026-09-19")
+        timeline = json.loads((output_dir / "timeline.daily.json").read_text(encoding="utf-8"))
+        validate_timeline_puzzle(timeline)
+        verify_artifacts(output_dir, require_grid=False)
+
+    def test_grid_generation_failure_without_previous_publishes_without_grid(self):
+        # Before the skip policy this raised ValueError and the whole day
+        # went unpublished.
+        output_dir = self.temp_path / "no_previous_grid"
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_daily_grid",
+            side_effect=ValueError("Unable to generate a solvable 3x3 intersection grid"),
+        ):
+            result = run_daily_puzzles(
+                database=self.db_path,
+                output_dir=output_dir,
+                reference_date="2026-09-19",
+            )
+
+        self.assertFalse((output_dir / "grid.daily.json").exists())
+        self.assertIsNone(result["grid_id"])
+        self.assertIsNone(result["grid_reused"])
+        self.assertEqual(
+            result["grid_skipped"]["error"],
+            "Unable to generate a solvable 3x3 intersection grid",
+        )
+        self.assertIsNone(result["grid_skipped"]["previous_invalid"])
+        self.assertNotIn("grid.daily.json", result["published_files"])
+        connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        validate_connections_puzzle(connections)
+        self.assertEqual(connections["reference_date"], "2026-09-19")
+        verify_artifacts(output_dir, require_grid=False)
+
+    def test_gridless_next_day_promotes_and_removes_stale_grid(self):
+        output_dir = self.temp_path / "promote_without_grid"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+
+        # An invalid stored grid leaves both the day and its next/ set
+        # without grid.daily.json.
+        stale_grid = output_dir / "grid.daily.json"
+        stale_payload = json.loads(stale_grid.read_text(encoding="utf-8"))
+        stale_payload["dimensions"]["rows"] = 99
+        stale_grid.write_text(json.dumps(stale_payload), encoding="utf-8")
+
+        real_generate_grid = generate_daily_grid
+
+        def failing_after_2026_09_18(connection, reference_date=None, **kwargs):
+            if reference_date is not None and reference_date > date(2026, 9, 18):
+                raise ValueError("Unable to generate a solvable 3x3 intersection grid")
+            return real_generate_grid(connection, reference_date=reference_date, **kwargs)
+
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_daily_grid",
+            side_effect=failing_after_2026_09_18,
+        ):
+            ahead = run_daily_puzzles(
+                database=self.db_path,
+                output_dir=output_dir,
+                reference_date="2026-09-19",
+                ahead=True,
+            )
+
+        self.assertTrue(ahead["grid_skipped"]["previous_invalid"])
+        self.assertFalse((output_dir / "grid.daily.json").exists())
+        self.assertIsNone(ahead["next"]["grid_skipped"]["previous_invalid"])
+        self.assertFalse((output_dir / "next" / "grid.daily.json").exists())
+
+        # A grid left in the main directory by an earlier day must not
+        # survive the promotion of the gridless set.
+        (output_dir / "grid.daily.json").write_text(json.dumps(stale_payload), encoding="utf-8")
+
+        promoted = run_daily_puzzles(
+            database=self.db_path, output_dir=output_dir, reference_date="2026-09-20"
+        )
+        self.assertTrue(promoted["promoted_from_next"])
+        self.assertIsNone(promoted["grid_id"])
+        self.assertTrue(promoted["grid_skipped"]["published_without_grid"])
+        self.assertFalse((output_dir / "grid.daily.json").exists())
+        connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        validate_connections_puzzle(connections)
+        self.assertEqual(connections["reference_date"], "2026-09-20")
+        verify_artifacts(output_dir, require_grid=False)
 
     def test_ahead_publishes_the_next_day_under_next(self):
         output_dir = self.temp_path / "ahead"
