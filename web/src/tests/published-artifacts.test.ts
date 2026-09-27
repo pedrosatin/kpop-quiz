@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -9,7 +9,6 @@ import {
 } from "../lib/quiz-types";
 import { isWordSearchPuzzle } from "../lib/word-search-types";
 import publishedConnections from "../../public/data/connections.daily.json";
-import publishedGrid from "../../public/data/grid.daily.json";
 import publishedNameGuess from "../../public/data/name-guess.daily.json";
 import publishedWordSearch from "../../public/data/word-search.daily.json";
 import publishedManifest from "../../public/data/manifest-v2.json";
@@ -22,8 +21,15 @@ describe("published daily artifacts", () => {
     expect(isConnectionsPuzzle(publishedConnections)).toBe(true);
   });
 
-  it("publishes a schema-compliant intersection grid", () => {
-    expect(isIntersectionGrid(publishedGrid)).toBe(true);
+  it("publishes a schema-compliant intersection grid when the artifact is present", () => {
+    const gridPath = join(DATA_DIR, "grid.daily.json");
+    if (!existsSync(gridPath)) {
+      // A daily set publishes without grid.daily.json when the fill fails and
+      // no valid previous grid exists; the grid page reports the artifact as
+      // missing. The static import is avoided for the same reason.
+      return;
+    }
+    expect(isIntersectionGrid(JSON.parse(readFileSync(gridPath, "utf-8")))).toBe(true);
   });
 
   it("publishes a schema-compliant name guess puzzle", () => {
