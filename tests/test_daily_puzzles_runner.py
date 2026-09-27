@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import shutil
 import sqlite3
 import string
 import tempfile
@@ -17,6 +18,7 @@ from unittest.mock import patch
 from kpop_scraping import daily_puzzles_cli
 from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.daily_puzzles_runner import (
+    NEXT_DIRNAME,
     generate_daily_puzzles,
     get_reference_date,
     publish_daily_puzzles,
@@ -618,6 +620,24 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertNotIn("promoted_from_next", result)
         connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
         self.assertEqual(connections["reference_date"], "2026-09-21")
+
+    def test_missing_next_directory_generates_and_publishes_the_day(self):
+        # A stale next/ set removed by hand (as done for the pre-#87 grid)
+        # must lead the runner to generate the day from the database.
+        output_dir = self.temp_path / "no_next"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        shutil.rmtree(output_dir / NEXT_DIRNAME)
+
+        # The cron always runs with --ahead, so the second call mirrors it.
+        result = run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-19", ahead=True)
+
+        self.assertNotIn("promoted_from_next", result)
+        self.assertFalse(result.get("already_published", False))
+        connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        self.assertEqual(connections["reference_date"], "2026-09-19")
+        grid = json.loads((output_dir / "grid.daily.json").read_text(encoding="utf-8"))
+        validate_intersection_grid(grid)
+        verify_artifacts(output_dir)
 
     def test_cli_warns_in_github_actions_when_grid_is_kept(self):
         out_dir = self.temp_path / "cli_kept_grid"

@@ -29,6 +29,7 @@ from kpop_scraping.web_publish import (
 from kpop_scraping.quiz_generator import generate_dataset
 from kpop_scraping.quiz_models import InsufficientQuestionsError
 from kpop_scraping.quiz_schema import validate_session
+from tests.test_grid_schema import sample_intersection_grid
 from tests.test_quiz_generator import build_quiz_database
 
 
@@ -45,6 +46,12 @@ class WebPublishTests(unittest.TestCase):
 
     def grid(self):
         return json.loads((FIXTURES / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))
+
+    def valid_grid(self):
+        # The checked-in grid is the pre-#87 artifact for 2026-09-26 (its
+        # axes share has_member), so publish and verify plumbing tests use
+        # the schema sample grid instead of the published bytes.
+        return sample_intersection_grid()
 
     def connections(self):
         return json.loads((FIXTURES / CONNECTIONS_DAILY_FILENAME).read_text(encoding="utf-8"))
@@ -195,11 +202,27 @@ class WebPublishTests(unittest.TestCase):
     def test_checked_in_fixtures_are_valid(self):
         for session in self.sessions().values():
             validate_session(session)
-        validate_intersection_grid(self.grid())
         validate_connections_puzzle(self.connections())
         validate_name_guess_puzzle(self.name_guess())
         validate_word_search_puzzle(self.word_search())
         validate_timeline_puzzle(self.timeline())
+
+    def test_checked_in_grid_from_2026_09_26_is_known_invalid(self):
+        grid = self.grid()
+        # web/public/data/grid.daily.json for 2026-09-26 was promoted from
+        # the pre-#87 next/ set, so both axes carry has_member and the
+        # orthogonality rule now rejects it. The full database that can
+        # regenerate the day exists only in CI, whose next run publishes a
+        # fresh grid; until then the checked-in artifact stays known-invalid.
+        if (
+            grid["reference_date"] == "2026-09-26"
+            and "has_member" in {crit["category"] for crit in grid["row_criteria"]}
+            and "has_member" in {crit["category"] for crit in grid["col_criteria"]}
+        ):
+            with self.assertRaisesRegex(ValueError, "must not share categories"):
+                validate_intersection_grid(grid)
+        else:
+            validate_intersection_grid(grid)
 
     def test_daily_sessions_determinism_same_date_repeats_hashes(self):
         connection = build_quiz_database()
@@ -316,7 +339,7 @@ class WebPublishTests(unittest.TestCase):
     def test_verify_validates_existing_grid_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
-            publish(output, self.sessions(), grid=self.grid())
+            publish(output, self.sessions(), grid=self.valid_grid())
             verify(output)
             verify(output, require_grid=True)
 
@@ -355,7 +378,7 @@ class WebPublishTests(unittest.TestCase):
     def test_publish_with_grid_writes_atomically_and_verifies_with_require_grid(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
-            publish(output, self.sessions(), grid=self.grid())
+            publish(output, self.sessions(), grid=self.valid_grid())
             grid_path = output / GRID_DAILY_FILENAME
             self.assertTrue(grid_path.is_file())
             self.assertEqual(grid_path.read_bytes()[-1:], b"\n")
@@ -376,7 +399,7 @@ class WebPublishTests(unittest.TestCase):
             code_missing = main(["--output-dir", str(output), "--verify", "--require-grid"])
             self.assertEqual(code_missing, 1)
 
-            publish(output, self.sessions(), grid=self.grid())
+            publish(output, self.sessions(), grid=self.valid_grid())
             code_present = main(["--output-dir", str(output), "--verify", "--require-grid"])
             self.assertEqual(code_present, 0)
 
@@ -455,7 +478,7 @@ class WebPublishTests(unittest.TestCase):
             code_present = main(["--output-dir", str(output), "--verify", "--require-connections"])
             self.assertEqual(code_present, 0)
 
-            publish(output, self.sessions(), grid=self.grid(), connections=self.connections())
+            publish(output, self.sessions(), grid=self.valid_grid(), connections=self.connections())
             code_both = main(
                 ["--output-dir", str(output), "--verify", "--require-grid", "--require-connections"]
             )
@@ -533,7 +556,7 @@ class WebPublishTests(unittest.TestCase):
             publish(
                 output,
                 self.sessions(),
-                grid=self.grid(),
+                grid=self.valid_grid(),
                 connections=self.connections(),
                 name_guess=self.name_guess(),
             )
@@ -621,7 +644,7 @@ class WebPublishTests(unittest.TestCase):
             publish(
                 output,
                 self.sessions(),
-                grid=self.grid(),
+                grid=self.valid_grid(),
                 connections=self.connections(),
                 name_guess=self.name_guess(),
                 word_search=self.word_search(),
@@ -713,7 +736,7 @@ class WebPublishTests(unittest.TestCase):
             publish(
                 output,
                 self.sessions(),
-                grid=self.grid(),
+                grid=self.valid_grid(),
                 connections=self.connections(),
                 name_guess=self.name_guess(),
                 word_search=self.word_search(),

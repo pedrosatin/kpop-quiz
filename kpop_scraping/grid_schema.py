@@ -185,6 +185,17 @@ def validate_intersection_grid(payload: dict[str, Any]) -> None:
         _require(crit["id"] not in col_ids, f"duplicate col criterion id: {crit['id']}")
         col_ids.add(crit["id"])
 
+    # Axis orthogonality: each category may feed one axis only. A category on
+    # both axes ("3 members" on rows, "5 or fewer members" on cols) turns the
+    # row/column intersection ambiguous, so the category sets stay disjoint.
+    shared_categories = {crit["category"] for crit in row_criteria} & {
+        crit["category"] for crit in col_criteria
+    }
+    _require(
+        not shared_categories,
+        f"row_criteria and col_criteria must not share categories: {sorted(shared_categories)}",
+    )
+
     # Candidate pool
     candidate_pool = payload["candidate_pool"]
     _require(isinstance(candidate_pool, list), "candidate_pool must be a list")
