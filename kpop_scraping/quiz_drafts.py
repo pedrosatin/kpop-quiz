@@ -8,7 +8,21 @@ from typing import Iterable
 
 from .quiz_models import Draft, Entity, Evidence, Fact
 from .quiz_utils import digest
-from .release_quiz_drafts import build_release_drafts
+from .release_quiz_drafts import (
+    _contains_identity,
+    _group_identities,
+    build_release_drafts,
+)
+
+
+def _group_mentions_person(group: Entity, person: Entity) -> bool:
+    """Return whether the group label or localized name contains the person's identity."""
+    group_names = {group.canonical_name, group.name("pt-BR"), group.name("en")}
+    for identity, allow_short in _group_identities(person):
+        for name in group_names:
+            if _contains_identity(name, identity, allow_short=allow_short):
+                return True
+    return False
 
 
 def _build_drafts(
@@ -128,6 +142,9 @@ def _build_drafts(
         )
 
     for group, person, pair_facts in memberships:
+        if _group_mentions_person(group, person):
+            rejected["group_label_mentions_member"] += 1
+            continue
         group_options = _entity_alternatives_excluding(
             group,
             groups,
@@ -175,6 +192,9 @@ def _build_drafts(
     for fact in has_members:
         person = fact.value_entity
         if person is None:
+            continue
+        if _group_mentions_person(fact.subject, person):
+            rejected["group_label_mentions_member"] += 1
             continue
         alternatives = _entity_alternatives_excluding(
             person,

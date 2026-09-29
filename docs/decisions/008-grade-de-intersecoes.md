@@ -30,6 +30,10 @@ Os critérios associados às linhas e colunas pertencem a três categorias extra
 
 Cada critério declara um identificador textual único, a categoria à qual pertence e rótulos legíveis nos idiomas suportados (`pt-BR` e `en`).
 
+A contagem de integrantes só vale para um grupo quando todas as suas afirmações `has_member` vigentes foram aceitas. Afirmações `superseded` e `stale` não contam; uma afirmação rejeitada ou em conflito deixa a lista incompleta, e o grupo fica sem critério de contagem. Contar só os integrantes aceitos poria, por exemplo, um grupo de sete integrantes sob "3 integrantes".
+
+Um critério só entra na busca quando tem ao menos três grupos. Cada critério de um eixo cobre três células, e as nove respostas precisam ser grupos distintos, então um critério com menos grupos nunca completa uma grade. O corte não muda o conjunto de grades possíveis, só o tamanho da busca: com a evidência da [ADR-019](019-evidencia-da-infobox.md), o catálogo passou a ter mais de cem critérios de gravadora, a maioria com um grupo só.
+
 ### Células e respostas válidas
 
 Cada uma das 9 células é endereçada pelo par de coordenadas `(row_index, col_index)`, em que `row_index` e `col_index` variam de 0 a 2.

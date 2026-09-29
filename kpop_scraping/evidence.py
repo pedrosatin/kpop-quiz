@@ -7,10 +7,11 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from .entities import PRECISION_DAY, PRECISION_MONTH, Statement, TimeValue
+from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
 
-EVIDENCE_RULES_VERSION = "text-evidence-v4"
+EVIDENCE_RULES_VERSION = "text-evidence-v5"
 MIN_NAME_LENGTH = 4
 MAX_SNIPPET_LENGTH = 300
 MONTHS = (
@@ -142,7 +143,11 @@ class ReferenceAssessment:
 
 @dataclass(frozen=True)
 class WikipediaPage:
-    """Revision already collected for a catalog group, with its intro extract."""
+    """Revision already collected for a catalog group, with its intro extract.
+
+    ``wikitext`` is the source of the same revision when it was collected;
+    only the infobox rules read it.
+    """
 
     source_revision_id: int
     language: str
@@ -150,6 +155,7 @@ class WikipediaPage:
     revision_id: int
     extract: str
     title: str = ""
+    wikitext: str = ""
 
 
 def assess_references(statement: Statement) -> ReferenceAssessment:
@@ -577,16 +583,71 @@ def text_evidence(
     if predicate in {"formed_in", "origin_country"}:
         return place_evidence(page, value_names, subject, predicate == "origin_country")
     if predicate == "record_label":
-        return record_label_evidence(page, value_names, subject)
+        return record_label_evidence(page, value_names, subject) or infobox_evidence(
+            page, INFOBOX_LABEL_FIELDS, value_names
+        )
     if predicate == "genre":
         return genre_evidence(page, value_names, subject)
     if predicate in {"has_member", "member_of"}:
-        return membership_evidence(page, value_names, subject)
+        return membership_evidence(page, value_names, subject) or infobox_evidence(
+            page, INFOBOX_MEMBER_FIELDS, value_names
+        )
     if predicate == "performed_by":
         return release_performer_evidence(page, value_names, subject, peer_names)
     if predicate == "released_on":
         return release_date_evidence(page, time, subject) if time else None
     return None
+
+
+INFOBOX_LABEL_FIELDS = ("label",)
+INFOBOX_MEMBER_FIELDS = ("current_members", "members", "past_members")
+
+
+def infobox_evidence(
+    page: WikipediaPage,
+    fields: Sequence[str],
+    names: Iterable[str],
+) -> EvidenceItem | None:
+    """Accept a value that is a whole list item of an infobox field.
+
+    The item must be the value itself, as a link target, a link label or plain
+    text, apart from a trailing parenthetical note. A name that only appears
+    inside a longer item does not count.
+    """
+    if not page.wikitext:
+        return None
+    wanted = {
+        " ".join(name.split()).casefold()
+        for name in names
+        if len(name.strip()) >= 2
+    }
+    if not wanted:
+        return None
+    spans = infobox_fields(page.wikitext)
+    for field in fields:
+        span = spans.get(field)
+        if span is None:
+            continue
+        for item in field_items(page.wikitext, span):
+            if any(" ".join(name.split()).casefold() in wanted for name in item.names):
+                return _infobox_evidence(page, field, item.start, item.end)
+    return None
+
+
+def _infobox_evidence(page: WikipediaPage, field: str, start: int, end: int) -> EvidenceItem:
+    snippet = f"{field} = {page.wikitext[start:end].strip()}"
+    if len(snippet) > MAX_SNIPPET_LENGTH:
+        snippet = snippet[: MAX_SNIPPET_LENGTH - 3].rstrip() + "..."
+    return EvidenceItem(
+        evidence_type="wikipedia_revision",
+        locator=(
+            f"wikipedia:{page.language}:pageid={page.page_id}:revid={page.revision_id}"
+            f"#wikitext[{start}:{end}]"
+        ),
+        source_revision_id=page.source_revision_id,
+        snippet=snippet,
+        source_key=f"wikipedia:{page.language}",
+    )
 
 
 def subject_names_for(page: WikipediaPage, names: Iterable[str]) -> tuple[str, ...]:

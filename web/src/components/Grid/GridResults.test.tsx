@@ -301,6 +301,12 @@ describe("readableLocator", () => {
     expect(readableLocator("page#section-2", ptMessages)).toBe("section-2");
   });
 
+  it("names a span of the page source, where infobox items are cited", () => {
+    const wikitext = "wikipedia:en:pageid=19515908:revid=1375666829#wikitext[812:839]";
+    expect(readableLocator(wikitext, ptMessages)).toBe("caracteres 812 a 839 do código da página");
+    expect(readableLocator(wikitext, getMessages("en"))).toBe("page source characters 812–839");
+  });
+
   it("shows the readable place and keeps the raw locator in the title", () => {
     const grid = {
       ...validGrid,

@@ -95,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
                     repository,
                     WikidataEntityClient(user_agent=args.user_agent),
                     group_limit=args.facts_limit,
+                    wikitext_client=MediaWikiClient(user_agent=args.user_agent),
                 )
                 fact_rows = export_fact_coverage_csv(repository.connection, facts_report)
             release_totals = release_rows = None

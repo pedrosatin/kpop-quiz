@@ -64,7 +64,8 @@ export function cellSources(
 
 /**
  * A place in a source as a reader would say it. The raw locator stays in
- * the title: `…#extract[140:148]` is a span of the page summary, and
+ * the title: `…#extract[140:148]` is a span of the page summary,
+ * `…#wikitext[140:148]` a span of the page source (an infobox item), and
  * `claims/P264/…/references/…` a Wikidata statement with its reference.
  * Anything else shows what follows `#`, or the locator itself.
  */
@@ -73,6 +74,8 @@ export function readableLocator(locator: string, messages: Messages): string {
   const place = hash >= 0 ? locator.slice(hash + 1) : locator;
   const extract = /^extract\[(\d+):(\d+)\]$/.exec(place);
   if (extract) return messages.gridLocatorExtract(Number(extract[1]), Number(extract[2]));
+  const wikitext = /^wikitext\[(\d+):(\d+)\]$/.exec(place);
+  if (wikitext) return messages.gridLocatorWikitext(Number(wikitext[1]), Number(wikitext[2]));
   const claim = /^claims\/(P\d+)(?:\/|$)/.exec(place);
   if (claim) return messages.gridLocatorClaim(claim[1]!);
   return place || locator;

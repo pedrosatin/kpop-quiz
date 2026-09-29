@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from itertools import islice
 
@@ -18,6 +18,7 @@ from .facts import (
     member_ids,
     person_fact_candidates,
 )
+from .mediawiki import MAX_REVISIONS_PER_REQUEST, MediaWikiClient
 from .storage import Repository
 from .validation import ValidationContext, validate_facts
 from .wikidata import (
@@ -74,8 +75,13 @@ def extract_facts(
     client: WikidataEntityClient,
     group_limit: int | None = None,
     batch_size: int = MAX_ENTITIES_PER_REQUEST,
+    wikitext_client: MediaWikiClient | None = None,
 ) -> FactRunTotals:
-    """Extract facts for accepted catalog groups and commit them atomically."""
+    """Extract facts for accepted catalog groups and commit them atomically.
+
+    With ``wikitext_client``, the wikitext of each group revision is collected
+    once so the infobox rules can serve as evidence.
+    """
     if group_limit is not None and group_limit < 1:
         raise ValueError("group_limit must be greater than zero")
     if not 1 <= batch_size <= MAX_ENTITIES_PER_REQUEST:
@@ -83,7 +89,7 @@ def extract_facts(
     store = FactStore(repository)
     run_id = store.start_run(EXTRACTOR_VERSION, group_limit)
     try:
-        totals = _Run(store, client, run_id, batch_size).execute(group_limit)
+        totals = _Run(store, client, run_id, batch_size, wikitext_client).execute(group_limit)
         missing_evidence = store.accepted_facts_without_evidence()
         if missing_evidence:
             raise RuntimeError(f"{missing_evidence} accepted facts have no evidence")
@@ -101,11 +107,13 @@ class _Run:
         client: WikidataEntityClient,
         run_id: int,
         batch_size: int,
+        wikitext_client: MediaWikiClient | None = None,
     ) -> None:
         self.store = store
         self.client = client
         self.run_id = run_id
         self.batch_size = batch_size
+        self.wikitext_client = wikitext_client
         self.state = _RunState()
 
     def execute(self, group_limit: int | None) -> FactRunTotals:
@@ -389,6 +397,7 @@ class _Run:
         for candidate in candidates:
             if candidate.predicate == "member_of" and candidate.value_id:
                 page_keys.setdefault(candidate.value_id, candidate.value_id)
+        self._collect_wikitext(page_keys)
         pages: dict[str, WikipediaPage] = {}
         for catalog_id in sorted(page_keys):
             page = self.store.group_page(catalog_id)
@@ -396,3 +405,17 @@ class _Run:
                 pages[catalog_id] = page
                 pages.setdefault(page_keys[catalog_id], page)
         return pages
+
+    def _collect_wikitext(self, page_keys: Mapping[str, str]) -> None:
+        client = self.wikitext_client
+        if client is None:
+            return
+        missing = self.store.group_revisions_without_wikitext(page_keys, client.language)
+        for start in range(0, len(missing), MAX_REVISIONS_PER_REQUEST):
+            batch = missing[start:start + MAX_REVISIONS_PER_REQUEST]
+            sources = client.get_revision_wikitext([revision_id for _, _, revision_id in batch])
+            for source_revision_id, page_id, revision_id in batch:
+                source = sources.get(revision_id)
+                if source is None or source["pageid"] != page_id:
+                    continue
+                self.store.save_revision_wikitext(source_revision_id, client.language, source)

@@ -1,3 +1,4 @@
+import copy
 import csv
 import json
 import tempfile
@@ -13,6 +14,7 @@ from kpop_scraping.storage import MIGRATIONS, Repository, SnapshotIntegrityError
 from kpop_scraping.wikidata import EntityBatch, EntityDocument
 
 from .wikidata_fixture import (
+    SUNYE,
     NAYEON,
     RED_VELVET,
     SUNMI,
@@ -27,6 +29,39 @@ from .wikidata_fixture import (
 
 def scalar(repository, query, parameters=()):
     return repository.connection.execute(query, parameters).fetchone()[0]
+
+
+WONDER_GIRLS_WIKITEXT = (
+    "{{Infobox musical artist\n"
+    "| name = Wonder Girls\n"
+    "| past_members = {{flatlist|\n* Yeeun\n* [[Sunye]]\n* Sunmi\n}}\n"
+    "}}\nWonder Girls was a group."
+)
+
+
+class FixtureWikitextClient:
+    """Serve the wikitext of fixed revisions and record every batch."""
+
+    language = "en"
+
+    def __init__(self, fixture, wikitext_by_page):
+        self.revisions = {
+            page["revid"]: page["pageid"] for page in fixture["wikipedia_pages"]
+        }
+        self.wikitext_by_page = wikitext_by_page
+        self.calls = []
+
+    def get_revision_wikitext(self, revision_ids):
+        self.calls.append(tuple(revision_ids))
+        return {
+            revision_id: {
+                "pageid": self.revisions[revision_id],
+                "revid": revision_id,
+                "contentmodel": "wikitext",
+                "wikitext": self.wikitext_by_page.get(self.revisions[revision_id], ""),
+            }
+            for revision_id in revision_ids
+        }
 
 
 class FactPipelineTest(unittest.TestCase):
@@ -50,7 +85,7 @@ class FactPipelineTest(unittest.TestCase):
                 )
             }
             version = scalar(repository, "SELECT MAX(version) FROM schema_migrations")
-        self.assertEqual(version, 8)
+        self.assertEqual(version, 9)
         self.assertTrue(
             {
                 "fact_runs",
@@ -62,6 +97,7 @@ class FactPipelineTest(unittest.TestCase):
                 "facts",
                 "fact_evidence",
                 "catalog_entity_links",
+                "source_revision_wikitext",
             }
             <= tables
         )
@@ -508,6 +544,79 @@ class FactPipelineTest(unittest.TestCase):
         expected = ("conflict", "membership_counterpart_unverified")
         self.assertEqual(tuple(first), expected)
         self.assertEqual(tuple(limited), expected)
+
+    def _fixture_without_member_sentence(self):
+        # Sunye's membership is proven only by the extract's member list.
+        fixture = copy.deepcopy(self.fixture)
+        for page in fixture["wikipedia_pages"]:
+            if page["wikidata_id"] == WONDER_GIRLS:
+                page["extract"] = "Wonder Girls was a South Korean girl group."
+                page_id = page["pageid"]
+        return fixture, page_id
+
+    def _sunye_membership(self, repository):
+        return repository.connection.execute(
+            """
+            SELECT f.status, f.status_reason, fe.locator, fe.snippet
+            FROM facts f
+            JOIN entities s ON s.id = f.subject_entity_id
+            JOIN entities v ON v.id = f.value_entity_id
+            LEFT JOIN fact_evidence fe ON fe.fact_id = f.id
+            WHERE f.predicate = 'has_member' AND s.wikidata_id = ? AND v.wikidata_id = ?
+            """,
+            (WONDER_GIRLS, SUNYE),
+        ).fetchone()
+
+    def test_infobox_member_list_is_evidence_when_the_extract_is_silent(self):
+        fixture, page_id = self._fixture_without_member_sentence()
+        with self.repository() as repository:
+            build_catalog(repository, fixture)
+            extract_facts(repository, FixtureWikidataClient(fixture))
+            without = self._sunye_membership(repository)
+        self.assertEqual(tuple(without[:2]), ("rejected", "missing_evidence"))
+
+        wikitext_client = FixtureWikitextClient(fixture, {page_id: WONDER_GIRLS_WIKITEXT})
+        with self.repository() as repository:
+            extract_facts(repository, FixtureWikidataClient(fixture), wikitext_client=wikitext_client)
+            status, reason, locator, snippet = self._sunye_membership(repository)
+            stored = scalar(repository, "SELECT COUNT(*) FROM source_revision_wikitext")
+            path = scalar(repository, "SELECT snapshot_path FROM source_revision_wikitext")
+        self.assertEqual((status, reason), ("accepted", None))
+        start = WONDER_GIRLS_WIKITEXT.index("[[Sunye]]")
+        self.assertTrue(locator.endswith(f"#wikitext[{start}:{start + len('[[Sunye]]')}]"))
+        self.assertEqual(snippet, "past_members = [[Sunye]]")
+        self.assertEqual(stored, 3)
+        self.assertTrue(path.startswith(f"wikipedia-wikitext/en/"))
+        self.assertEqual(len(wikitext_client.calls), 1)
+
+        # A second run reuses the stored wikitext without another request.
+        with self.repository() as repository:
+            extract_facts(repository, FixtureWikidataClient(fixture), wikitext_client=wikitext_client)
+        self.assertEqual(len(wikitext_client.calls), 1)
+
+    def test_changed_wikitext_for_the_same_revision_is_rejected(self):
+        fixture, page_id = self._fixture_without_member_sentence()
+        with self.repository() as repository:
+            build_catalog(repository, fixture)
+            extract_facts(
+                repository,
+                FixtureWikidataClient(fixture),
+                wikitext_client=FixtureWikitextClient(fixture, {page_id: WONDER_GIRLS_WIKITEXT}),
+            )
+            store = FactStore(repository)
+            source_revision_id, revision_id = repository.connection.execute(
+                """
+                SELECT sr.id, sr.external_revision_id FROM source_revisions sr
+                JOIN source_pages sp ON sp.id = sr.source_page_id WHERE sp.external_page_id = ?
+                """,
+                (page_id,),
+            ).fetchone()
+            with self.assertRaises(SnapshotIntegrityError):
+                store.save_revision_wikitext(
+                    source_revision_id,
+                    "en",
+                    {"pageid": page_id, "revid": revision_id, "contentmodel": "wikitext", "wikitext": "changed"},
+                )
 
     def test_failure_rolls_back_facts_and_marks_run(self):
         with self.repository() as repository:
