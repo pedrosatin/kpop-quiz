@@ -14,7 +14,7 @@ from typing import Any, Callable, Iterable
 from .grid_schema import GRID_SCHEMA_VERSION, validate_intersection_grid
 from .quiz_models import DEFAULT_REFERENCE_DATE, Entity, Evidence, Fact
 from .quiz_repository import _dataset_version, _load_entities, _load_facts
-from .quiz_utils import hash_payload
+from .quiz_utils import hash_payload, reference_date_today
 
 QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
 
@@ -634,8 +634,19 @@ def generate_intersection_grid(
             chosen_row, chosen_col, chosen_cells_data = fallback_grid
 
     if chosen_row is None or chosen_col is None:
+        coverage = {
+            category: len({
+                qid
+                for criterion_id, groups in criterion_groups.items()
+                if all_criteria[criterion_id]["category"] == category
+                for qid in groups
+            })
+            for category in ("formed_on", "record_label", "has_member")
+        }
         raise ValueError(
-            f"Unable to generate a solvable 3x3 intersection grid with seed {seed!r}"
+            f"Unable to generate a solvable 3x3 intersection grid with seed {seed!r}; "
+            f"evidence-backed group coverage: {coverage}. "
+            "Refresh sourced facts before retrying; partial member lists cannot supply counts."
         )
 
     # Build conforming JSON structures
@@ -716,7 +727,7 @@ def generate_daily_grid(
 ) -> dict[str, Any]:
     """Generate a deterministic daily 3x3 intersection grid for the given date."""
     if reference_date is None:
-        ref_date = datetime.now(timezone.utc).date()
+        ref_date = date.fromisoformat(reference_date_today())
     elif isinstance(reference_date, str):
         ref_date = date.fromisoformat(reference_date)
     else:

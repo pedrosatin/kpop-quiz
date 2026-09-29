@@ -216,6 +216,7 @@ export interface Messages {
   gridCategoryDebut: string;
   gridCategoryAgency: string;
   gridCategoryMembers: string;
+  gridDailyMissing: string;
   connectionsTitle: string;
   connectionsEyebrow: string;
   connectionsIntro: string;
@@ -482,6 +483,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCategoryDebut: "Estreia",
     gridCategoryAgency: "Agência",
     gridCategoryMembers: "Integrantes",
+    gridDailyMissing: "A grade de hoje não pôde ser gerada ou está temporariamente indisponível.",
     connectionsTitle: "Conexões",
     connectionsEyebrow: "4 categorias · 16 nomes",
     connectionsIntro: "Separe os 16 nomes em 4 categorias de 4. Você pode errar 4 vezes.",
@@ -813,6 +815,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCategoryDebut: "Debut",
     gridCategoryAgency: "Agency",
     gridCategoryMembers: "Members",
+    gridDailyMissing: "Today's grid could not be generated or is temporarily unavailable.",
     connectionsTitle: "Connections",
     connectionsEyebrow: "4 categories · 16 names",
     connectionsIntro: "Sort the 16 names into 4 categories of 4. You can make 4 mistakes.",

@@ -155,16 +155,16 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(within(result as HTMLElement).getByRole("button", { name: ptMessages.showSource })).toBeInTheDocument();
   });
 
-  it("handles fetch error and allows retrying", async () => {
+  it("handles missing grid error with contextualized message and allows retrying", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }))
+      vi.fn().mockResolvedValue(new Response(null, { status: 404 }))
     );
 
     render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
 
     await waitFor(() => {
-      expect(screen.getByText(ptMessages.artifactMissing)).toBeInTheDocument();
+      expect(screen.getByText(ptMessages.gridDailyMissing)).toBeInTheDocument();
     });
 
     const retryBtn = screen.getByRole("button", { name: ptMessages.retry });
@@ -178,6 +178,21 @@ describe("IntersectionGrid orchestrator component", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("grid", { name: "Grade de interseções" })).toBeInTheDocument();
+    });
+  });
+
+  it("shows contextualized missing message in English when grid artifact is missing", async () => {
+    const enMessages = getMessages("en");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 404 }))
+    );
+
+    render(<IntersectionGrid locale="en" messages={enMessages} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(enMessages.gridDailyMissing)).toBeInTheDocument();
+      expect(screen.getByText("Today's grid could not be generated or is temporarily unavailable.")).toBeInTheDocument();
     });
   });
 

@@ -112,6 +112,12 @@ The daily cycle is automated by the unified runner and the `daily-puzzles-cron.y
 
 A new run updates each page by the combination of provider, language, and `pageid`. `collection_runs` records success or failure. `source_pages` holds the latest state, `source_revisions` points to each snapshot and its SHA-256, and `collection_run_revisions` records which revisions each run used. `catalog_entries` holds one decision per page. A new revision, or a change to the metadata the classifier uses, returns the page to the `candidate` state.
 
+To repair a missing grid, refresh the local facts with `python main.py --facts --database data/kpop.db`, then generate only the grid with `python -m kpop_scraping.grid_cli --database data/kpop.db --date YYYY-MM-DD --output web/public/data/grid.daily.json`. This leaves the other daily games in place.
+
+A database collected before infobox evidence was added needs fact extraction again; applying the database migration alone does not add that evidence. If generation still fails, the error reports the number of groups with sourced formation dates, record labels, and complete member lists. Changing the seed cannot repair missing evidence.
+
+The daily grid's default date uses the same Sao Paulo reference date as the publisher.
+
 The facts stage runs with `--facts`, `--facts-limit`, or `--facts-report`. It records entities, aliases, facts, and evidence. The coverage CSV shows, by group and predicate, how many facts were accepted, rejected, replaced, or left in conflict. Without `--facts-report`, the file `facts-coverage.csv` lands beside the database. Re-running the stage updates each fact by its Wikidata statement ID.
 
 `--releases` uses the WDQS only to discover candidates; the query and its response are kept as snapshots with SHA-256. Each QID is then fetched again through `wbgetentities`, and class, artist, date, and genre are confirmed against that direct snapshot. The pipeline queries the `enwiki`, `ptwiki`, and `kowiki` sitelinks, resolves the title through each wiki's API, and records the revision of that entry. `performed_by` and `released_on` only enter the accepted set when an approved Wikidata reference or that revision's text confirms the relationship. Missing pages, lists, disambiguation pages, and pages linked to a different QID are recorded in `release_source_pages`. The default limit is 25 groups per query and 100 candidates per group.

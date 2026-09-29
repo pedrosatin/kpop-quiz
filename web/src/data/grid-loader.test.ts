@@ -45,6 +45,104 @@ describe("published intersection grid loader and validator", () => {
     await expect(loadIntersectionGrid("pt-BR")).rejects.toEqual(new GridArtifactError("missing"));
   });
 
+  it("falls back to data/next/ when root artifact is 404 and next reference date matches today", async () => {
+    const today = validGrid.reference_date;
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(validGrid), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const result = await loadIntersectionGrid("pt-BR", "/base", today);
+    expect(result.schema_version).toBe("kpop-intersection-grid-v1");
+    expect(result.reference_date).toBe(today);
+    expect(fetch).toHaveBeenCalledWith(`/base/data/grid.daily.json?d=${today}`);
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json");
+  });
+
+  it("falls back to data/next/ when root artifact returns HTML fallback", async () => {
+    const today = validGrid.reference_date;
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(validGrid), { headers: { "content-type": "application/json" } })
+        : new Response("<!DOCTYPE html><html></html>", { headers: { "content-type": "text/html; charset=utf-8" } })
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const result = await loadIntersectionGrid("pt-BR", "/base", today);
+    expect(result.reference_date).toBe(today);
+  });
+
+  it("throws missing when both root artifact and next/ return 404", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+      new GridArtifactError("missing")
+    );
+    expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json?d=2026-03-30");
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json");
+  });
+
+  it("does not prematurely serve future grid from next/ when root artifact is 404", async () => {
+    const futureGrid = structuredClone(validGrid);
+    futureGrid.reference_date = "2026-03-31";
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(futureGrid), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+      new GridArtifactError("missing")
+    );
+    expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json?d=2026-03-30");
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json");
+  });
+
+  it("throws missing when root artifact is 404 and next/ has invalid schema", async () => {
+    const invalidGrid = { not: "a valid grid" };
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(invalidGrid), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+      new GridArtifactError("missing")
+    );
+  });
+
+  it("throws missing when root artifact is 404 and next/ has malformed JSON", async () => {
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response("{ malformed", { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+      new GridArtifactError("missing")
+    );
+  });
+
+  it("throws missing when root artifact is 404 and next/ fetch throws a network error", async () => {
+    const fetch = vi.fn(async (url: string) => {
+      if (url.includes("/next/")) {
+        throw new Error("Network offline");
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+      new GridArtifactError("missing")
+    );
+  });
+
   it("rejects non-ok HTTP responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("error", { status: 500 })));
     await expect(loadIntersectionGrid("pt-BR")).rejects.toEqual(new GridArtifactError("invalid"));
