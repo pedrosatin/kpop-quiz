@@ -116,7 +116,7 @@ To repair a missing grid, refresh the local facts with `python main.py --facts -
 
 A database collected before infobox evidence was added needs fact extraction again; applying the database migration alone does not add that evidence. If generation still fails, the error reports the number of groups with sourced formation dates, record labels, and complete member lists. Changing the seed cannot repair missing evidence.
 
-The daily grid's default date uses the same Sao Paulo reference date as the publisher.
+The `generate_daily_grid()` helper defaults to the same Sao Paulo reference date as the publisher.
 
 The facts stage runs with `--facts`, `--facts-limit`, or `--facts-report`. It records entities, aliases, facts, and evidence. The coverage CSV shows, by group and predicate, how many facts were accepted, rejected, replaced, or left in conflict. Without `--facts-report`, the file `facts-coverage.csv` lands beside the database. Re-running the stage updates each fact by its Wikidata statement ID.
 
