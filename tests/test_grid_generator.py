@@ -7,6 +7,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,6 +19,7 @@ from kpop_scraping.grid_generator import (
     _is_valid_axis,
     evaluate_group_criteria,
     generate_intersection_grid,
+    generate_daily_grid,
     has_distinct_assignment,
 )
 from kpop_scraping.grid_schema import validate_intersection_grid
@@ -275,6 +277,21 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         # 4. Violates Hall's condition (fewer than 9 distinct entities available)
         insufficient_entities = [["Q1", "Q2"] for _ in range(9)]
         self.assertFalse(has_distinct_assignment(insufficient_entities))
+
+    def test_daily_grid_defaults_to_the_publishers_reference_date(self) -> None:
+        with patch("kpop_scraping.grid_generator.reference_date_today", return_value="2026-09-29"):
+            grid = generate_daily_grid(self.connection)
+        expected = generate_intersection_grid(
+            self.connection, seed="kpop-grid-daily-2026-09-29", reference_date=date(2026, 9, 29)
+        )
+        self.assertEqual(grid, expected)
+
+    def test_missing_cross_category_coverage_reports_sourced_group_counts(self) -> None:
+        self.connection.execute("UPDATE facts SET status='rejected' WHERE predicate IN ('record_label', 'has_member')")
+        with self.assertRaisesRegex(ValueError, "evidence-backed group coverage") as error:
+            generate_intersection_grid(self.connection, seed="missing-coverage")
+        self.assertIn("'record_label': 0", str(error.exception))
+        self.assertIn("'has_member': 0", str(error.exception))
 
     def test_evaluate_group_criteria_detects_categories_and_evidence(self) -> None:
         entities = _load_entities(self.connection)

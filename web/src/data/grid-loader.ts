@@ -3,7 +3,7 @@ import {
   type IntersectionGrid,
   type Locale,
 } from "../lib/quiz-types";
-import { dailyReferenceDate, preferNextDaily } from "./daily-artifact";
+import { dailyReferenceDate, nextDataUrl, preferNextDaily } from "./daily-artifact";
 
 export class GridArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -40,6 +40,20 @@ export async function loadIntersectionGrid(
     response.status === 404
     || (response.ok && response.headers.get("content-type")?.startsWith("text/html"))
   ) {
+    try {
+      const nextResponse = await fetch(nextDataUrl("grid.daily.json", effectiveBaseUrl));
+      if (
+        nextResponse.ok
+        && !nextResponse.headers.get("content-type")?.startsWith("text/html")
+      ) {
+        const payload: unknown = await nextResponse.json();
+        if (isIntersectionGrid(payload) && payload.reference_date <= today) {
+          return payload;
+        }
+      }
+    } catch {
+      // Fallback failed, keep missing error.
+    }
     throw new GridArtifactError("missing");
   }
   if (!response.ok) {

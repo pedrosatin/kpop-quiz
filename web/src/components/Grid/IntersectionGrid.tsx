@@ -160,7 +160,7 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
   }
 
   if (status === "error" || !grid) {
-    const errorMsg = errorKind === "missing" ? messages.artifactMissing : messages.loadError;
+    const errorMsg = errorKind === "missing" ? messages.gridDailyMissing : messages.loadError;
     return (
       <section id="grid" class="game-card game-card--wide state" aria-live="polite">
         <p>{errorMsg}</p>
