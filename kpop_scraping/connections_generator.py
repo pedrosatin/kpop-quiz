@@ -13,7 +13,12 @@ from typing import Any, Iterable
 
 from .connections_schema import CONNECTIONS_SCHEMA_VERSION, validate_connections_puzzle
 from .quiz_models import Entity, Evidence, Fact
-from .quiz_repository import _dataset_version, _load_entities, _load_facts
+from .quiz_repository import (
+    _dataset_version,
+    _groups_with_complete_members,
+    _load_entities,
+    _load_facts,
+)
 from .quiz_utils import hash_payload
 
 QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
@@ -239,6 +244,7 @@ def count_valid_partitions(
 def evaluate_connections_criteria(
     facts: list[Fact],
     candidate_groups: dict[str, Entity],
+    complete_member_groups: set[str] | None = None,
 ) -> tuple[
     dict[str, set[str]],
     dict[tuple[str, str], list[Evidence]],
@@ -304,6 +310,8 @@ def evaluate_connections_criteria(
 
     for group_qid, members in group_members.items():
         count = len(members)
+        if complete_member_groups is not None and group_qid not in complete_member_groups:
+            continue
         if count in MEMBER_COUNT_CRITERIA:
             member_crit = MEMBER_COUNT_CRITERIA[count]
             crit_id = member_crit["id"]
@@ -423,7 +431,7 @@ def generate_connections_puzzle(
         )
 
     group_criteria, group_evidence, all_criteria = evaluate_connections_criteria(
-        facts, candidate_groups
+        facts, candidate_groups, _groups_with_complete_members(connection, facts)
     )
 
     criterion_groups: dict[str, set[str]] = defaultdict(set)

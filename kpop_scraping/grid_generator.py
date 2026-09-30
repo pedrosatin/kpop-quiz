@@ -13,7 +13,12 @@ from typing import Any, Callable, Iterable
 
 from .grid_schema import GRID_SCHEMA_VERSION, validate_intersection_grid
 from .quiz_models import DEFAULT_REFERENCE_DATE, Entity, Evidence, Fact
-from .quiz_repository import _dataset_version, _load_entities, _load_facts
+from .quiz_repository import (
+    _dataset_version,
+    _groups_with_complete_members,
+    _load_entities,
+    _load_facts,
+)
 from .quiz_utils import hash_payload, reference_date_today
 
 QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
@@ -342,32 +347,6 @@ def evaluate_group_criteria(
                 group_evidence[(group_qid, member_id)].extend(member_ev)
 
     return group_criteria, group_evidence, all_criteria
-
-
-def _groups_with_complete_members(
-    connection: sqlite3.Connection,
-    facts: list[Fact],
-) -> set[str]:
-    """Return groups whose every current has_member statement is a loaded fact.
-
-    Superseded and stale statements are no longer part of the group's current
-    data. Any other statement that did not load (rejected, in conflict or
-    filtered out) leaves the member list incomplete.
-    """
-    statements: dict[str, int] = defaultdict(int)
-    for wikidata_id, in connection.execute(
-        """
-        SELECT e.wikidata_id
-        FROM facts f JOIN entities e ON e.id = f.subject_entity_id
-        WHERE f.predicate = 'has_member' AND f.status NOT IN ('superseded', 'stale')
-        """
-    ):
-        statements[wikidata_id] += 1
-    loaded: dict[str, int] = defaultdict(int)
-    for fact in facts:
-        if fact.predicate == "has_member":
-            loaded[fact.subject.wikidata_id] += 1
-    return {qid for qid, count in loaded.items() if statements.get(qid) == count}
 
 
 def _are_member_criteria_disjoint(c1: dict[str, Any], c2: dict[str, Any]) -> bool:

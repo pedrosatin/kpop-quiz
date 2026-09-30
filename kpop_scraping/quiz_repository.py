@@ -108,6 +108,32 @@ def _load_facts(
     return accepted, rejected
 
 
+def _groups_with_complete_members(
+    connection: sqlite3.Connection,
+    facts: list[Fact],
+) -> set[str]:
+    """Return groups whose every current has_member statement is a loaded fact.
+
+    Superseded and stale statements are no longer part of the group's current
+    data. Any other statement that did not load, whether rejected, conflicting,
+    or filtered out, leaves the member list incomplete.
+    """
+    statements: dict[str, int] = defaultdict(int)
+    for wikidata_id, in connection.execute(
+        """
+        SELECT e.wikidata_id
+        FROM facts f JOIN entities e ON e.id = f.subject_entity_id
+        WHERE f.predicate = 'has_member' AND f.status NOT IN ('superseded', 'stale')
+        """
+    ):
+        statements[wikidata_id] += 1
+    loaded: dict[str, int] = defaultdict(int)
+    for fact in facts:
+        if fact.predicate == "has_member":
+            loaded[fact.subject.wikidata_id] += 1
+    return {qid for qid, count in loaded.items() if statements.get(qid) == count}
+
+
 def _load_evidence(connection: sqlite3.Connection) -> dict[int, tuple[Evidence, ...]]:
     result: dict[int, list[Evidence]] = defaultdict(list)
     rows = connection.execute(
