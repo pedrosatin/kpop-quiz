@@ -703,3 +703,11 @@ export {
   type WordSearchWord,
   type WordSearchPuzzle,
 } from "./word-search-types";
+
+export {
+  isTimelinePuzzle,
+  type TimelineEventType,
+  type TimelineEvidence,
+  type TimelineEvent,
+  type TimelinePuzzle,
+} from "./timeline-types";
