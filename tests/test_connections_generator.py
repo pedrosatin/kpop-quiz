@@ -13,9 +13,15 @@ from unittest.mock import patch
 from kpop_scraping.connections_cli import main as cli_main
 from kpop_scraping.connections_generator import (
     count_valid_partitions,
+    evaluate_connections_criteria,
     generate_connections_puzzle,
 )
 from kpop_scraping.connections_schema import validate_connections_puzzle
+from kpop_scraping.quiz_repository import (
+    _groups_with_complete_members,
+    _load_entities,
+    _load_facts,
+)
 
 
 def build_connections_test_database(reverse: bool = False) -> sqlite3.Connection:
@@ -395,6 +401,83 @@ class ConnectionsGeneratorTest(unittest.TestCase):
             self.assertIn("Insufficient candidate groups", str(ctx.exception))
         finally:
             empty_conn.close()
+
+    def test_member_counts_need_every_member_statement_loaded(self) -> None:
+        """Verify groups with incomplete member statements do not generate member count criteria."""
+        # One of Q101's four members is rejected. Counting the remaining three would
+        # falsely place Q101 under '3 members'.
+        self.conn.execute(
+            "UPDATE facts SET status='rejected', status_reason='missing_evidence' "
+            "WHERE statement_id=(SELECT MIN(statement_id) FROM facts WHERE statement_id LIKE 'has-101-%')"
+        )
+        entities = _load_entities(self.conn)
+        facts, _rejected = _load_facts(self.conn, entities)
+        complete = _groups_with_complete_members(self.conn, facts)
+        self.assertNotIn("Q101", complete)
+        self.assertIn("Q102", complete)
+
+        candidates = {
+            e.wikidata_id: e for e in entities.values() if e.entity_type == "group"
+        }
+        group_criteria, _evidence, _criteria = evaluate_connections_criteria(
+            facts, candidates, complete
+        )
+        self.assertFalse(any(c.startswith("members_") for c in group_criteria["Q101"]))
+        self.assertIn("members_5", group_criteria["Q102"])
+
+        # Puzzle generation with Q101 incomplete
+        puzzle = generate_connections_puzzle(self.conn, seed="connections-test-seed-1")
+        validate_connections_puzzle(puzzle)
+        for cat in puzzle["categories"]:
+            if cat["id"].startswith("members_"):
+                self.assertNotIn("Q101", cat["item_ids"])
+
+    def test_member_counts_conflict_statement_excludes_group(self) -> None:
+        """Verify groups with a conflicting member statement are excluded from member count criteria."""
+        self.conn.execute(
+            "UPDATE facts SET status='conflict', status_reason='competing_claim' "
+            "WHERE statement_id=(SELECT MIN(statement_id) FROM facts WHERE statement_id LIKE 'has-101-%')"
+        )
+        entities = _load_entities(self.conn)
+        facts, _rejected = _load_facts(self.conn, entities)
+        complete = _groups_with_complete_members(self.conn, facts)
+        self.assertNotIn("Q101", complete)
+
+        candidates = {
+            e.wikidata_id: e for e in entities.values() if e.entity_type == "group"
+        }
+        group_criteria, _evidence, _criteria = evaluate_connections_criteria(
+            facts, candidates, complete
+        )
+        self.assertFalse(any(c.startswith("members_") for c in group_criteria["Q101"]))
+
+    def test_member_counts_superseded_or_stale_statements_do_not_invalidate_group(self) -> None:
+        """Verify superseded or stale member statements do not make a group appear incomplete."""
+        # Insert superseded and stale statements representing former members or outdated claims.
+        self.conn.execute(
+            """
+            INSERT INTO facts(
+                statement_id, subject_entity_id, predicate, property_id, rank,
+                value_wikidata_id, status, quality_flags_json
+            ) VALUES
+            ('has-101-superseded', (SELECT id FROM entities WHERE wikidata_id='Q101'),
+             'has_member', 'P527', 'deprecated', 'Q9999', 'superseded', '[]'),
+            ('has-101-stale', (SELECT id FROM entities WHERE wikidata_id='Q101'),
+             'has_member', 'P527', 'normal', 'Q9998', 'stale', '[]')
+            """
+        )
+        entities = _load_entities(self.conn)
+        facts, _rejected = _load_facts(self.conn, entities)
+        complete = _groups_with_complete_members(self.conn, facts)
+        self.assertIn("Q101", complete)
+
+        candidates = {
+            e.wikidata_id: e for e in entities.values() if e.entity_type == "group"
+        }
+        group_criteria, _evidence, _criteria = evaluate_connections_criteria(
+            facts, candidates, complete
+        )
+        self.assertIn("members_4", group_criteria["Q101"])
 
 
 class ConnectionsCliTest(unittest.TestCase):
