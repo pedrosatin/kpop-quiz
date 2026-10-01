@@ -1,0 +1,189 @@
+/*
+  Timeline game: board, cards, reorder actions, drag feedback, and controls.
+*/
+
+.timeline-board-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--game-max);
+  margin-inline: auto;
+}
+
+.timeline-board-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.timeline-card:focus-within {
+  outline: none;
+  border-color: var(--color-focus);
+}
+
+.timeline-card[draggable="true"] {
+  cursor: grab;
+}
+
+.timeline-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.timeline-card.is-dragging {
+  opacity: 0.45;
+  border-style: dashed;
+  border-color: var(--color-action);
+  cursor: grabbing;
+}
+
+.timeline-card.is-drag-over {
+  border-color: var(--color-action);
+  background: var(--color-surface-muted);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 2px var(--color-action), var(--shadow-card);
+}
+
+.timeline-card.is-submitted {
+  cursor: default;
+  border-color: var(--color-border-subtle);
+  background: var(--color-surface);
+}
+
+.timeline-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.timeline-card-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.timeline-card-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-theme-text);
+  background: var(--color-theme);
+  border-radius: var(--radius-pill);
+}
+
+.timeline-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  letter-spacing: -1px;
+  cursor: grab;
+}
+
+.timeline-drag-handle.is-disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.timeline-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.timeline-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0;
+  font-size: 1.125rem;
+  line-height: 1;
+  color: var(--color-text);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.timeline-btn:hover:not(:disabled) {
+  color: var(--color-action-text);
+  background: var(--color-action);
+  border-color: var(--color-action);
+}
+
+.timeline-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.timeline-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.timeline-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.timeline-card-title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-text);
+}
+
+.timeline-card-description {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.timeline-controls {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-2);
+}
+
+.timeline-btn-submit {
+  min-width: 12rem;
+  min-height: var(--control-height);
+  font-family: var(--font-title);
+  font-weight: 700;
+}
