@@ -26,6 +26,8 @@ const GAME_PAGES: Record<string, boolean> = {
   "pages/en/word-search.astro": true,
   "pages/pt-br/mapa.astro": true,
   "pages/en/map.astro": true,
+  "pages/pt-br/linha-do-tempo.astro": true,
+  "pages/en/timeline.astro": true,
 };
 
 function ruleBody(css: string, selector: string): string {

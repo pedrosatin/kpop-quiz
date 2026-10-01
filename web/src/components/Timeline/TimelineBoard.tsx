@@ -25,10 +25,11 @@ export function TimelineBoard({
   }, [events]);
 
   const defaultMsgs = DEFAULT_TIMELINE_MESSAGES[locale] || DEFAULT_TIMELINE_MESSAGES["pt-BR"];
-  const messages: TimelineBoardMessages = {
+  const boardMessages: TimelineBoardMessages = {
     ...defaultMsgs,
     ...customMessages,
   };
+  const messages = boardMessages;
 
   const isSubmitted = gameStatus === "submitted";
 
@@ -132,6 +133,9 @@ export function TimelineBoard({
         {announcement}
       </div>
 
+      <h2 id="timeline-board-heading" class="visually-hidden">
+        {boardMessages.boardAria}
+      </h2>
       <ol class="timeline-board-list" role="list" aria-label={messages.boardAria}>
         {items.map((event, index) => (
           <TimelineCard

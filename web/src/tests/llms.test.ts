@@ -14,6 +14,7 @@ const FILE_SLUG: Partial<Record<SeoRouteKey, Record<Locale, string>>> = {
   nameGuess: { "pt-BR": "pt-br-adivinhe.md", en: "en-guess.md" },
   wordSearch: { "pt-BR": "pt-br-caca-palavras.md", en: "en-word-search.md" },
   mapPilot: { "pt-BR": "pt-br-mapa.md", en: "en-map.md" },
+  timeline: { "pt-BR": "pt-br-linha-do-tempo.md", en: "en-timeline.md" },
 };
 
 function visibleCopy(locale: Locale, key: SeoRouteKey): { h1: string; intro: string } {
@@ -31,6 +32,8 @@ function visibleCopy(locale: Locale, key: SeoRouteKey): { h1: string; intro: str
       return { h1: messages.wordSearchTitle, intro: messages.wordSearchIntro };
     case "mapPilot":
       return { h1: messages.mapTitle, intro: messages.mapIntro };
+    case "timeline":
+      return { h1: messages.timelineTitle, intro: messages.timelineIntro };
   }
 }
 

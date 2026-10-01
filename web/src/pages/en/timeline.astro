@@ -1,0 +1,21 @@
+---
+import { TimelineGame } from "../../components/Timeline/TimelineGame";
+import GameIntro from "../../components/GameIntro.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getMessages } from "../../i18n/catalog";
+
+const messages = getMessages("en");
+---
+<BaseLayout locale="en" route="timeline" canonicalPath="/en/timeline/" alternatePath="/pt-br/linha-do-tempo/">
+  <div class="page-shell">
+    <GameIntro
+      wide
+      kicker={messages.timelineEyebrow}
+      title={messages.timelineTitle}
+      howToPlayTitle={messages.howToPlayTitle}
+      howToPlaySteps={messages.timelineHowToPlay}
+      intro={messages.timelineIntro}
+    />
+    <TimelineGame locale="en" client:load />
+  </div>
+</BaseLayout>

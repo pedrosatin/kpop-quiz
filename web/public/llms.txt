@@ -20,6 +20,9 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
   https://kpopquiz.online/en/word-search/
 - Quiz de mapa / Map quiz (turnê DEADLINE de BLACKPINK):
   https://kpopquiz.online/pt-br/mapa/ · https://kpopquiz.online/en/map/
+- Linha do Tempo / Timeline:
+  https://kpopquiz.online/pt-br/linha-do-tempo/ ·
+  https://kpopquiz.online/en/timeline/
 
 ## Resumos por rota (Markdown)
 
@@ -29,12 +32,14 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 - llms/pt-br-adivinhe.md
 - llms/pt-br-caca-palavras.md
 - llms/pt-br-mapa.md
+- llms/pt-br-linha-do-tempo.md
 - llms/en-quiz.md
 - llms/en-grid.md
 - llms/en-connections.md
 - llms/en-guess.md
 - llms/en-word-search.md
 - llms/en-map.md
+- llms/en-timeline.md
 
 ## Proveniência e licença
 

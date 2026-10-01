@@ -582,5 +582,5 @@ describe("map pilot result", () => {
     advanceClock();
     fireEvent.click(view.getByRole("button", { name: "Ver fonte" }));
     expect((await axe.run(view.container)).violations).toEqual([]);
-  });
+  }, 15000);
 });

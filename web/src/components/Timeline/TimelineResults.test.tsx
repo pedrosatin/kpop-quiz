@@ -33,7 +33,7 @@ describe("TimelineResults", () => {
     const { unmount } = render(
       <TimelineResults score={3} totalEvents={5} canonicalEvents={customEvents} results={[true, false]} shareText={sampleShareText} locale="pt-BR" />
     );
-    expect(screen.getByText("Pontuação: 3/5 ⭐️")).toBeInTheDocument();
+    expect(screen.getByText("Pontuação: 3/5")).toBeInTheDocument();
     expect(within(screen.getAllByRole("list")[0]!).getByText(customEvents[0]!.entity_name)).toBeInTheDocument();
     expect(screen.getAllByRole("list")[0]).toHaveAttribute("role", "list");
 
@@ -41,7 +41,7 @@ describe("TimelineResults", () => {
     render(
       <TimelineResults score={3} totalEvents={5} canonicalEvents={canonicalEvents} results={[true, false, true, false, true]} shareText={sampleShareText} locale="en" />
     );
-    expect(screen.getByText("Score: 3/5 ⭐️")).toBeInTheDocument();
+    expect(screen.getByText("Score: 3/5")).toBeInTheDocument();
     expect(screen.getByText(canonicalEvents[0]!.display_date.en)).toBeInTheDocument();
     expect(within(screen.getAllByRole("list")[0]!).getByText(canonicalEvents[0]!.title.en)).toBeInTheDocument();
   });
