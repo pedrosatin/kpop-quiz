@@ -1,3 +1,4 @@
+import type { RefObject } from "preact";
 import type { Locale, TimelineEvent } from "../../lib/quiz-types";
 
 export type TimelineGameStatus = "in_progress" | "submitted";
@@ -24,7 +25,25 @@ export interface TimelineBoardMessages extends TimelineCardMessages {
   submit: string;
 }
 
-export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineBoardMessages> = {
+export interface TimelineShareMessages {
+  share: string;
+  copiedToClipboard: string;
+  shareFailed: string;
+  shareTextLabel: string;
+}
+
+export interface TimelineResultsMessages extends TimelineShareMessages {
+  scoreBanner: (score: number, totalEvents: number) => string;
+  summaryHeading: string;
+  correctPosition: string;
+  incorrectPosition: string;
+  viewEvidence: string;
+  revision: string;
+}
+
+export interface TimelineMessages extends TimelineBoardMessages, TimelineResultsMessages {}
+
+export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
   "pt-BR": {
     boardAria: "Linha do tempo de eventos",
     moveUp: (title: string) => `Mover "${title}" para cima`,
@@ -34,6 +53,16 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineBoardMessages> = 
     submit: "Verificar ordem",
     positionBadge: (pos: number) => `Posição ${pos}`,
     dragHandle: (title: string) => `Arrastar "${title}" para reordenar`,
+    scoreBanner: (score: number, total: number) => `Pontuação: ${score}/${total} ⭐️`,
+    summaryHeading: "Ordem cronológica correta",
+    correctPosition: "Posição correta",
+    incorrectPosition: "Posição incorreta",
+    viewEvidence: "Ver fontes e evidências",
+    revision: "revisão",
+    share: "Compartilhar",
+    copiedToClipboard: "Copiado para a área de transferência!",
+    shareFailed: "Não deu para copiar. Selecione o texto abaixo e copie.",
+    shareTextLabel: "Texto do resultado para cópia manual",
   },
   en: {
     boardAria: "Event timeline",
@@ -44,6 +73,16 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineBoardMessages> = 
     submit: "Check order",
     positionBadge: (pos: number) => `Position ${pos}`,
     dragHandle: (title: string) => `Drag "${title}" to reorder`,
+    scoreBanner: (score: number, total: number) => `Score: ${score}/${total} ⭐️`,
+    summaryHeading: "Correct chronological order",
+    correctPosition: "Correct position",
+    incorrectPosition: "Incorrect position",
+    viewEvidence: "View sources and evidence",
+    revision: "revision",
+    share: "Share",
+    copiedToClipboard: "Copied to clipboard!",
+    shareFailed: "Could not copy. Select the text below and copy it.",
+    shareTextLabel: "Result text for manual copy",
   },
 };
 
@@ -86,4 +125,29 @@ export interface TimelineControlsProps {
     submit: string;
   } | undefined;
   disabled?: boolean | undefined;
+}
+
+export interface TimelineShareProps {
+  shareText: string;
+  locale?: Locale | undefined;
+  messages?: Partial<TimelineShareMessages> | undefined;
+  onShareSuccess?: (() => void) | undefined;
+  onShareError?: (() => void) | undefined;
+}
+
+export interface TimelineResultsProps {
+  score: number;
+  totalEvents?: number | undefined;
+  results: boolean[];
+  canonicalEvents?: TimelineEvent[] | undefined;
+  events?: TimelineEvent[] | undefined;
+  referenceDate?: string | undefined;
+  shareText: string;
+  locale?: Locale | undefined;
+  onShareSuccess?: (() => void) | undefined;
+  onShareError?: (() => void) | undefined;
+  onCopied?: (() => void) | undefined;
+  onShareFailed?: (() => void) | undefined;
+  messages?: Partial<TimelineResultsMessages> | undefined;
+  titleRef?: RefObject<HTMLHeadingElement> | undefined;
 }
