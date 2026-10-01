@@ -1,5 +1,6 @@
 import type { RefObject } from "preact";
-import type { Locale, TimelineEvent } from "../../lib/quiz-types";
+import type { Messages } from "../../i18n/catalog";
+import type { Locale, TimelineEvent, TimelinePuzzle } from "../../lib/quiz-types";
 
 export type TimelineGameStatus = "in_progress" | "submitted";
 
@@ -53,7 +54,7 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     submit: "Verificar ordem",
     positionBadge: (pos: number) => `Posição ${pos}`,
     dragHandle: (title: string) => `Arrastar "${title}" para reordenar`,
-    scoreBanner: (score: number, total: number) => `Pontuação: ${score}/${total} ⭐️`,
+    scoreBanner: (score: number, total: number) => `Pontuação: ${score}/${total}`,
     summaryHeading: "Ordem cronológica correta",
     correctPosition: "Posição correta",
     incorrectPosition: "Posição incorreta",
@@ -73,7 +74,7 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     submit: "Check order",
     positionBadge: (pos: number) => `Position ${pos}`,
     dragHandle: (title: string) => `Drag "${title}" to reorder`,
-    scoreBanner: (score: number, total: number) => `Score: ${score}/${total} ⭐️`,
+    scoreBanner: (score: number, total: number) => `Score: ${score}/${total}`,
     summaryHeading: "Correct chronological order",
     correctPosition: "Correct position",
     incorrectPosition: "Incorrect position",
@@ -150,4 +151,11 @@ export interface TimelineResultsProps {
   onShareFailed?: (() => void) | undefined;
   messages?: Partial<TimelineResultsMessages> | undefined;
   titleRef?: RefObject<HTMLHeadingElement> | undefined;
+}
+
+export interface TimelineGameProps {
+  locale: Locale;
+  baseUrl?: string | undefined;
+  messages?: Messages | undefined;
+  puzzle?: TimelinePuzzle | undefined;
 }

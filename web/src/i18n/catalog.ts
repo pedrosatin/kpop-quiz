@@ -1,6 +1,6 @@
 import type { Locale, PlayMode } from "../lib/quiz-types";
 
-export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot";
+export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline";
 
 export type SkipLinkKey = SeoRouteKey | "privacy";
 
@@ -110,6 +110,7 @@ export interface Messages {
   nameGuessHowToPlay: string[];
   wordSearchHowToPlay: string[];
   mapHowToPlay: string[];
+  timelineHowToPlay: string[];
   questionCounter: (current: number, total: number) => string;
   score: string;
   points: string;
@@ -255,6 +256,9 @@ export interface Messages {
   mapEyebrow: string;
   mapTitle: string;
   mapIntro: string;
+  timelineTitle: string;
+  timelineEyebrow: string;
+  timelineIntro: string;
   wordSearch: WordSearchMessages;
   gameNavLabel: string;
   gameQuiz: string;
@@ -263,6 +267,7 @@ export interface Messages {
   gameNameGuess: string;
   gameWordSearch: string;
   gameMap: string;
+  gameTimeline: string;
   statsTitle: string;
   statsNavLabel: string;
   statsOpenButton: string;
@@ -302,6 +307,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "Quiz de mapa K-pop: turnê DEADLINE",
         description: "Ache no mapa o país de cada show da turnê DEADLINE de BLACKPINK. São 10 datas por rodada, cada uma com link para a agenda oficial.",
       },
+      timeline: {
+        title: "Linha do Tempo de K-pop: ordene fatos e estreias",
+        description: "Ordene os acontecimentos da história do K-pop do mais antigo para o mais recente. Cada fato aponta para uma fonte citável.",
+      },
     },
     skipLinks: {
       quiz: "Pular para o quiz",
@@ -310,6 +319,7 @@ const catalogs: Record<Locale, Messages> = {
       nameGuess: "Pular para o jogo",
       wordSearch: "Pular para o caça-palavras",
       mapPilot: "Pular para o jogo de mapa",
+      timeline: "Pular para a linha do tempo",
       privacy: "Pular para a política de privacidade",
     },
     eyebrow: "10 perguntas · múltipla escolha",
@@ -372,6 +382,11 @@ const catalogs: Record<Locale, Messages> = {
       "No teclado, use Tab para chegar a um país e Enter para escolher.",
       "Depois da resposta, a barra na parte de baixo da tela mostra o país correto e os links da agenda oficial e do MusicBrainz. Aperte Enter ou \"Próxima data\" para seguir. Na última pergunta, o botão vira \"Ver resultado\".",
       "No fim, \"Ver fonte\" lista as datas da rodada com a sua resposta e as fontes de cada uma. Uma data na agenda não confirma que o show aconteceu.",
+    ],
+    timelineHowToPlay: [
+      "Arraste ou use os botões ↑ e ↓ para organizar os acontecimentos na ordem cronológica correta.",
+      "Clique em 'Verificar ordem' para registrar seu palpite do dia.",
+      "Descubra as datas exatas e acesse as fontes consultadas de cada fato.",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
@@ -559,6 +574,9 @@ const catalogs: Record<Locale, Messages> = {
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
     mapTitle: "Quiz de mapa: BLACKPINK",
     mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou.",
+    timelineTitle: "Linha do Tempo",
+    timelineEyebrow: "Desafio diário",
+    timelineIntro: "Ordene os acontecimentos do K-pop do mais antigo para o mais recente.",
     wordSearch: {
       title: "Caça-palavras",
       gridLabel: "Grade de letras",
@@ -598,6 +616,7 @@ const catalogs: Record<Locale, Messages> = {
     gameNameGuess: "Adivinhe",
     gameWordSearch: "Caça-palavras",
     gameMap: "Mapa",
+    gameTimeline: "Linha do Tempo",
     statsTitle: "Suas estatísticas",
     statsNavLabel: "Estatísticas",
     statsOpenButton: "Ver estatísticas e sequência",
@@ -635,6 +654,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "K-pop Map Quiz: DEADLINE tour",
         description: "Find on the map the country of each show on BLACKPINK's DEADLINE tour. 10 dates per round, each linked to the official schedule.",
       },
+      timeline: {
+        title: "K-pop Timeline: order events and debuts",
+        description: "Order events from K-pop history from earliest to latest. Every fact cites a verifiable source.",
+      },
     },
     skipLinks: {
       quiz: "Skip to the quiz",
@@ -643,6 +666,7 @@ const catalogs: Record<Locale, Messages> = {
       nameGuess: "Skip to the game",
       wordSearch: "Skip to the word search",
       mapPilot: "Skip to the map game",
+      timeline: "Skip to the timeline game",
       privacy: "Skip to the privacy policy",
     },
     eyebrow: "10 questions · multiple choice",
@@ -705,6 +729,11 @@ const catalogs: Record<Locale, Messages> = {
       "With a keyboard, press Tab to reach a country and Enter to choose it.",
       "After you answer, the bar at the bottom of the screen shows the correct country and links to the official schedule and MusicBrainz. Press Enter or \"Next date\" to continue. On the last question, the button reads \"See result\".",
       "At the end, \"Show source\" lists the round's dates with your answer and the sources for each. A date on the schedule does not confirm that the show took place.",
+    ],
+    timelineHowToPlay: [
+      "Drag or use the ↑ and ↓ buttons to arrange events in chronological order.",
+      "Click 'Check order' to submit your single daily attempt.",
+      "Reveal exact dates and inspect sources for each event.",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",
@@ -891,6 +920,9 @@ const catalogs: Record<Locale, Messages> = {
     mapEyebrow: "10 dates per round · DEADLINE tour",
     mapTitle: "Map quiz: BLACKPINK",
     mapIntro: "For each tour date, pick on the map the country the official schedule listed.",
+    timelineTitle: "Timeline",
+    timelineEyebrow: "Daily challenge",
+    timelineIntro: "Order the K-pop events from earliest to latest.",
     wordSearch: {
       title: "Word search",
       gridLabel: "Letter grid",
@@ -930,6 +962,7 @@ const catalogs: Record<Locale, Messages> = {
     gameNameGuess: "Guess",
     gameWordSearch: "Word search",
     gameMap: "Map",
+    gameTimeline: "Timeline",
     statsTitle: "Your stats",
     statsNavLabel: "Stats",
     statsOpenButton: "See stats and streak",
