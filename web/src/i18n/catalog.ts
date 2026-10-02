@@ -633,7 +633,7 @@ const catalogs: Record<Locale, Messages> = {
     statsGuessDistribution: "Palpites por partida",
     statsExport: "Exportar estatísticas",
     statsImport: "Importar estatísticas",
-    statsResetConfirm: "Tem certeza que quer apagar as estatísticas?",
+    statsResetConfirm: "Tem certeza de que quer apagar as estatísticas?",
     statsImportError: "O arquivo não está no formato esperado.",
   },
   en: {

@@ -254,7 +254,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function isValidCounter(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
 function validateStatsBlock(raw: unknown): raw is Record<string, unknown> {
@@ -266,6 +266,9 @@ function validateStatsBlock(raw: unknown): raw is Record<string, unknown> {
   const played = record["played"] as number;
   const won = record["won"] as number;
   if (won > played) return false;
+  const currentStreak = record["currentStreak"] as number;
+  const maxStreak = record["maxStreak"] as number;
+  if (maxStreak < currentStreak) return false;
   if (record["lastPlayedDate"] !== undefined) {
     if (typeof record["lastPlayedDate"] !== "string" || !DATE_PATTERN.test(record["lastPlayedDate"])) return false;
   }
@@ -310,19 +313,19 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
   }
   for (const gameId of ALL_GAME_IDS) {
     const entry = gamesRaw[gameId];
-    if (entry === undefined) continue;
+    if (entry === undefined) {
+      return { success: false, error: "invalid-games" };
+    }
     if (!isPlainObject(entry) || !validateStatsBlock(entry)) {
       return { success: false, error: "invalid-game-stats" };
-    }
-    const lastPlayedDate = (entry as Record<string, unknown>)["lastPlayedDate"];
-    if (lastPlayedDate !== undefined && (typeof lastPlayedDate !== "string" || !DATE_PATTERN.test(lastPlayedDate))) {
-      return { success: false, error: "invalid-date" };
     }
     const distribution = (entry as Record<string, unknown>)["guessDistribution"];
     if (gameId === "name-guess") {
       if (distribution !== undefined && !validateGuessDistribution(distribution)) {
         return { success: false, error: "invalid-distribution" };
       }
+    } else if (distribution !== undefined) {
+      return { success: false, error: "invalid-distribution" };
     }
   }
 
@@ -336,14 +339,8 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
   };
   const games = {} as Record<GameId, GameStats>;
   for (const gameId of ALL_GAME_IDS) {
-    const entry = gamesRaw[gameId];
-    if (!isPlainObject(entry)) {
-      games[gameId] = gameId === "name-guess"
-        ? { played: 0, won: 0, currentStreak: 0, maxStreak: 0, guessDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 } }
-        : { played: 0, won: 0, currentStreak: 0, maxStreak: 0 };
-      continue;
-    }
-    const record = entry as Record<string, unknown>;
+    // Every game id was validated above, so each entry is a plain object here.
+    const record = gamesRaw[gameId] as Record<string, unknown>;
     const game: GameStats = {
       played: record["played"] as number,
       won: record["won"] as number,
@@ -364,9 +361,17 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
     }
     games[gameId] = game;
   }
-  savePlayerStats({ version: 1, overall, games });
+  const imported: PlayerStats = { version: 1, overall, games };
+  savePlayerStats(imported);
+  // savePlayerStats fails silently by design, so confirm the write landed.
+  if (JSON.stringify(loadPlayerStats()) !== JSON.stringify(imported)) {
+    return { success: false, error: "io-error" };
+  }
   return { success: true };
 }
+
+// Note: exportPlayerStatsJson and resetPlayerStats stay best-effort under
+// storage failure, matching this module's fail-silent storage convention.
 
 export function resetPlayerStats(): void {
   savePlayerStats(createInitialPlayerStats());
