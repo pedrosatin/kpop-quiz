@@ -278,6 +278,10 @@ export interface Messages {
   statsCurrentStreak: string;
   statsMaxStreak: string;
   statsGuessDistribution: string;
+  statsExport: string;
+  statsImport: string;
+  statsResetConfirm: string;
+  statsImportError: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -627,6 +631,10 @@ const catalogs: Record<Locale, Messages> = {
     statsCurrentStreak: "Sequência atual",
     statsMaxStreak: "Maior sequência",
     statsGuessDistribution: "Palpites por partida",
+    statsExport: "Exportar estatísticas",
+    statsImport: "Importar estatísticas",
+    statsResetConfirm: "Tem certeza que quer apagar as estatísticas?",
+    statsImportError: "O arquivo não está no formato esperado.",
   },
   en: {
     meta: {
@@ -973,6 +981,10 @@ const catalogs: Record<Locale, Messages> = {
     statsCurrentStreak: "Current streak",
     statsMaxStreak: "Best streak",
     statsGuessDistribution: "Guesses per game",
+    statsExport: "Export stats",
+    statsImport: "Import stats",
+    statsResetConfirm: "Are you sure you want to clear your stats?",
+    statsImportError: "The file is not in the expected format.",
   },
 };
 
