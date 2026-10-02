@@ -6,6 +6,10 @@ import {
   type GameId,
   type PlayerStats,
 } from "../../lib/player-stats";
+import { StatsTabs } from "./StatsTabs";
+import { StatsSummary } from "./StatsSummary";
+import { StatsDistribution } from "./StatsDistribution";
+import { StatsPortability } from "./StatsPortability";
 
 export type StatsTabId = "overall" | GameId;
 
@@ -101,28 +105,7 @@ export function StatsModal({
     return { played, won, winRate, currentStreak, maxStreak };
   }, [activeTab, currentStats]);
 
-  const guessDistribution = useMemo(() => {
-    return currentStats.games["name-guess"]?.guessDistribution || {
-      1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0,
-    };
-  }, [currentStats]);
-
-  const maxGuessCount = useMemo(() => {
-    const values = Object.values(guessDistribution);
-    return Math.max(...values, 1);
-  }, [guessDistribution]);
-
   if (!isOpen) return null;
-
-  const tabs: { id: StatsTabId; label: string }[] = [
-    { id: "overall", label: messages.statsTabOverall },
-    { id: "quiz", label: messages.gameQuiz },
-    { id: "grid", label: messages.gameGrid },
-    { id: "connections", label: messages.gameConnections },
-    { id: "name-guess", label: messages.gameNameGuess },
-    { id: "word-search", label: messages.gameWordSearch },
-    { id: "timeline", label: messages.gameTimeline },
-  ];
 
   return (
     <div
@@ -153,81 +136,21 @@ export function StatsModal({
           </button>
         </header>
 
-        {/* Tab selection */}
-        <div class="stats-tabs-container" role="tablist" aria-label={messages.statsTitle}>
-          {tabs.map((tab) => {
-            const isSelected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                role="tab"
-                id={`stats-tab-${tab.id}`}
-                aria-selected={isSelected}
-                aria-controls={`stats-panel-${tab.id}`}
-                tabIndex={isSelected ? 0 : -1}
-                class={`stats-tab-btn ${isSelected ? "is-active" : ""}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        <StatsTabs activeTab={activeTab} onSelect={setActiveTab} locale={locale} />
 
-        {/* Tab Content Panel */}
         <div
           role="tabpanel"
           id={`stats-panel-${activeTab}`}
           aria-labelledby={`stats-tab-${activeTab}`}
           class="stats-tab-panel"
         >
-          {/* Summary Cards */}
-          <div class="result-stats stats-summary-grid">
-            <div class="result-stat">
-              <span class="result-stat-value">{currentMetrics.played}</span>
-              <span class="result-stat-label">{messages.statsPlayed}</span>
-            </div>
-            <div class="result-stat">
-              <span class="result-stat-value">{currentMetrics.winRate}%</span>
-              <span class="result-stat-label">{messages.statsWinRate}</span>
-            </div>
-            <div class="result-stat">
-              <span class="result-stat-value">{currentMetrics.currentStreak}</span>
-              <span class="result-stat-label">{messages.statsCurrentStreak}</span>
-            </div>
-            <div class="result-stat">
-              <span class="result-stat-value">{currentMetrics.maxStreak}</span>
-              <span class="result-stat-label">{messages.statsMaxStreak}</span>
-            </div>
-          </div>
-
-          {/* Name Guess Distribution (when name-guess tab is active) */}
+          <StatsSummary metrics={currentMetrics} locale={locale} />
           {activeTab === "name-guess" && (
-            <div class="stats-distribution-section" aria-label={messages.statsGuessDistribution}>
-              <h3 class="stats-distribution-title">{messages.statsGuessDistribution}</h3>
-              <div class="stats-distribution-chart" role="img" aria-label={messages.statsGuessDistribution}>
-                {[1, 2, 3, 4, 5, 6].map((attempt) => {
-                  const count = guessDistribution[attempt] || 0;
-                  const pct = Math.max(Math.round((count / maxGuessCount) * 100), 7);
-                  return (
-                    <div key={attempt} class="stats-distribution-row">
-                      <span class="stats-attempt-num">{attempt}</span>
-                      <div class="stats-bar-track">
-                        <div
-                          class={`stats-bar-fill ${count > 0 ? "has-count" : ""}`}
-                          style={{ width: `${pct}%` }}
-                          aria-label={`${attempt}: ${count}`}
-                        >
-                          <span class="stats-bar-count">{count}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <StatsDistribution stats={currentStats} locale={locale} />
           )}
         </div>
+
+        <StatsPortability locale={locale} onStatsChange={setLoadedStats} />
       </div>
     </div>
   );
