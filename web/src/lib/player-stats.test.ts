@@ -75,6 +75,28 @@ describe("player-stats module", () => {
       expect(stats.version).toBe(1);
       expect(stats.overall.played).toBe(0);
     });
+
+    it("fills a missing timeline key on version-1 legacy payloads", () => {
+      const payload = JSON.parse(JSON.stringify(createInitialPlayerStats())) as {
+        games: Partial<Record<string, unknown>>;
+      };
+      delete payload.games.timeline;
+      localStorage.setItem(PLAYER_STATS_STORAGE_KEY, JSON.stringify(payload));
+
+      const stats = loadPlayerStats();
+      expect(stats.games.timeline).toEqual({
+        played: 0,
+        won: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+      });
+      for (const gameId of ALL_GAME_IDS) {
+        expect(stats.games[gameId].played).toBe(0);
+        expect(stats.games[gameId].won).toBe(0);
+        expect(stats.games[gameId].currentStreak).toBe(0);
+        expect(stats.games[gameId].maxStreak).toBe(0);
+      }
+    });
   });
 
   describe("calculateNewStreak pure helper", () => {
