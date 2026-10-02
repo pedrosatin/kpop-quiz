@@ -244,8 +244,154 @@ export function recordGameFinish(
   return stats;
 }
 
+const MATCH_RECORD_KEY_PREFIX = "kpop-match-recorded-";
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+function isValidCounter(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function validateStatsBlock(raw: unknown): raw is Record<string, unknown> {
+  if (!isPlainObject(raw)) return false;
+  const record = raw as Record<string, unknown>;
+  for (const key of ["played", "won", "currentStreak", "maxStreak"]) {
+    if (!isValidCounter(record[key])) return false;
+  }
+  const played = record["played"] as number;
+  const won = record["won"] as number;
+  if (won > played) return false;
+  const currentStreak = record["currentStreak"] as number;
+  const maxStreak = record["maxStreak"] as number;
+  if (maxStreak < currentStreak) return false;
+  if (record["lastPlayedDate"] !== undefined) {
+    if (typeof record["lastPlayedDate"] !== "string" || !DATE_PATTERN.test(record["lastPlayedDate"])) return false;
+  }
+  return true;
+}
+
+function validateGuessDistribution(raw: unknown): raw is Record<string, number> {
+  if (!isPlainObject(raw)) return false;
+  for (const key of Object.keys(raw)) {
+    if (key !== "1" && key !== "2" && key !== "3" && key !== "4" && key !== "5" && key !== "6") return false;
+    if (!isValidCounter((raw as Record<string, unknown>)[key])) return false;
+  }
+  return true;
+}
+
+export interface ImportPlayerStatsResult {
+  success: boolean;
+  error?: string;
+}
+
+export function exportPlayerStatsJson(): string {
+  const stats = loadPlayerStats();
+  return JSON.stringify({ ...stats, exportedAt: new Date().toISOString() }, null, 2);
+}
+
+export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { success: false, error: "invalid-json" };
+  }
+  if (!isPlainObject(parsed)) return { success: false, error: "invalid-shape" };
+  if (parsed["version"] !== 1) return { success: false, error: "invalid-version" };
+  if (!isPlainObject(parsed["overall"]) || !validateStatsBlock(parsed["overall"])) {
+    return { success: false, error: "invalid-overall" };
+  }
+  if (!isPlainObject(parsed["games"])) return { success: false, error: "invalid-games" };
+  const gamesRaw = parsed["games"] as Record<string, unknown>;
+  for (const key of Object.keys(gamesRaw)) {
+    if (!ALL_GAME_IDS.includes(key as GameId)) return { success: false, error: "unknown-game" };
+  }
+  for (const gameId of ALL_GAME_IDS) {
+    const entry = gamesRaw[gameId];
+    if (entry === undefined) {
+      return { success: false, error: "invalid-games" };
+    }
+    if (!isPlainObject(entry) || !validateStatsBlock(entry)) {
+      return { success: false, error: "invalid-game-stats" };
+    }
+    const distribution = (entry as Record<string, unknown>)["guessDistribution"];
+    if (gameId === "name-guess") {
+      if (distribution !== undefined && !validateGuessDistribution(distribution)) {
+        return { success: false, error: "invalid-distribution" };
+      }
+    } else if (distribution !== undefined) {
+      return { success: false, error: "invalid-distribution" };
+    }
+  }
+
+  const overallRaw = parsed["overall"] as Record<string, unknown>;
+  const overall: OverallStats = {
+    played: overallRaw["played"] as number,
+    won: overallRaw["won"] as number,
+    currentStreak: overallRaw["currentStreak"] as number,
+    maxStreak: overallRaw["maxStreak"] as number,
+    ...(typeof overallRaw["lastPlayedDate"] === "string" ? { lastPlayedDate: overallRaw["lastPlayedDate"] } : {}),
+  };
+  const games = {} as Record<GameId, GameStats>;
+  for (const gameId of ALL_GAME_IDS) {
+    // Every game id was validated above, so each entry is a plain object here.
+    const record = gamesRaw[gameId] as Record<string, unknown>;
+    const game: GameStats = {
+      played: record["played"] as number,
+      won: record["won"] as number,
+      currentStreak: record["currentStreak"] as number,
+      maxStreak: record["maxStreak"] as number,
+      ...(typeof record["lastPlayedDate"] === "string" ? { lastPlayedDate: record["lastPlayedDate"] } : {}),
+    };
+    if (gameId === "name-guess") {
+      const dist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+      if (isPlainObject(record["guessDistribution"])) {
+        const distRaw = record["guessDistribution"] as Record<string, unknown>;
+        for (let i = 1; i <= 6; i++) {
+          const value = distRaw[String(i)];
+          if (typeof value === "number") dist[i] = value;
+        }
+      }
+      game.guessDistribution = dist;
+    }
+    games[gameId] = game;
+  }
+  const imported: PlayerStats = { version: 1, overall, games };
+  savePlayerStats(imported);
+  // savePlayerStats fails silently by design, so confirm the write landed.
+  if (JSON.stringify(loadPlayerStats()) !== JSON.stringify(imported)) {
+    return { success: false, error: "io-error" };
+  }
+  return { success: true };
+}
+
+// Note: exportPlayerStatsJson and resetPlayerStats stay best-effort under
+// storage failure, matching this module's fail-silent storage convention.
+
+export function resetPlayerStats(): void {
+  savePlayerStats(createInitialPlayerStats());
+  if (typeof window === "undefined" || typeof localStorage === "undefined") {
+    return;
+  }
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key !== null && key.startsWith(MATCH_RECORD_KEY_PREFIX)) keys.push(key);
+    }
+    for (const key of keys) localStorage.removeItem(key);
+  } catch {
+    // Fail silently when storage is unavailable
+  }
+}
+
 export function getMatchRecordKey(gameId: GameId, matchId: string): string {
-  return `kpop-match-recorded-${gameId}-${matchId}`;
+  return `${MATCH_RECORD_KEY_PREFIX}${gameId}-${matchId}`;
 }
 
 export function isGameMatchRecorded(gameId: GameId, matchId: string): boolean {

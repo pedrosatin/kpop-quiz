@@ -1,15 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ALL_GAME_IDS,
   calculateNewStreak,
   createInitialPlayerStats,
+  exportPlayerStatsJson,
   getDaysDifference,
   getMatchRecordKey,
+  importPlayerStatsJson,
   isGameMatchRecorded,
   loadPlayerStats,
   markGameMatchRecorded,
   PLAYER_STATS_STORAGE_KEY,
   recordGameFinish,
+  resetPlayerStats,
   savePlayerStats,
 } from "./player-stats";
 
@@ -309,6 +312,209 @@ describe("player-stats module", () => {
 
     it("generates predictable key", () => {
       expect(getMatchRecordKey("quiz", "123")).toBe("kpop-match-recorded-quiz-123");
+    });
+  });
+
+  describe("export and import round-trip", () => {
+    it("exports pretty-printed JSON with an export timestamp", () => {
+      recordGameFinish("quiz", true, "2026-09-18");
+      const raw = exportPlayerStatsJson();
+      expect(raw).toContain("\n");
+      const parsed = JSON.parse(raw) as { exportedAt?: unknown };
+      expect(typeof parsed.exportedAt).toBe("string");
+    });
+
+    it("round-trips export then import to equal stats", () => {
+      recordGameFinish("quiz", true, "2026-09-18");
+      recordGameFinish("name-guess", true, "2026-09-18", 3);
+      const before = loadPlayerStats();
+      const result = importPlayerStatsJson(exportPlayerStatsJson());
+      expect(result).toEqual({ success: true });
+      expect(loadPlayerStats()).toEqual(before);
+    });
+
+    it("imports a valid payload", () => {
+      const stats = createInitialPlayerStats();
+      stats.overall.played = 2;
+      stats.overall.won = 1;
+      stats.games.quiz.played = 2;
+      stats.games.quiz.won = 1;
+      stats.games.quiz.lastPlayedDate = "2026-09-18";
+      const result = importPlayerStatsJson(JSON.stringify(stats));
+      expect(result).toEqual({ success: true });
+      expect(loadPlayerStats().games.quiz.won).toBe(1);
+    });
+  });
+
+  describe("import validation", () => {
+    function validPayload(): Record<string, unknown> {
+      return JSON.parse(JSON.stringify(createInitialPlayerStats())) as Record<string, unknown>;
+    }
+
+    it("rejects unparseable JSON", () => {
+      const result = importPlayerStatsJson("not-json{{");
+      expect(result.success).toBe(false);
+      expect(typeof result.error).toBe("string");
+    });
+
+    it("rejects wrong version", () => {
+      const payload = validPayload();
+      payload["version"] = 2;
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result.success).toBe(false);
+      expect(typeof result.error).toBe("string");
+    });
+
+    it("rejects negative played", () => {
+      const payload = validPayload();
+      (payload["overall"] as Record<string, unknown>)["played"] = -1;
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result.success).toBe(false);
+      expect(typeof result.error).toBe("string");
+    });
+
+    it("rejects won greater than played", () => {
+      const payload = validPayload();
+      const overall = payload["overall"] as Record<string, unknown>;
+      overall["played"] = 1;
+      overall["won"] = 2;
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result.success).toBe(false);
+      expect(typeof result.error).toBe("string");
+    });
+
+    it("rejects malformed date", () => {
+      const payload = validPayload();
+      (payload["overall"] as Record<string, unknown>)["lastPlayedDate"] = "18/09/2026";
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result.success).toBe(false);
+      expect(typeof result.error).toBe("string");
+    });
+
+    it("rejects unknown game id", () => {
+      const payload = validPayload();
+      const games = payload["games"] as Record<string, unknown>;
+      games["chess"] = { played: 1, won: 1, currentStreak: 1, maxStreak: 1 };
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result.success).toBe(false);
+      expect(typeof result.error).toBe("string");
+    });
+
+    it("rejects guessDistribution with key 7", () => {
+      const payload = validPayload();
+      const games = payload["games"] as Record<string, unknown>;
+      const nameGuess = games["name-guess"] as Record<string, unknown>;
+      nameGuess["played"] = 1;
+      nameGuess["won"] = 1;
+      nameGuess["guessDistribution"] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 1 };
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result.success).toBe(false);
+      expect(typeof result.error).toBe("string");
+    });
+
+    it("rejects guessDistribution with negative value", () => {
+      const payload = validPayload();
+      const games = payload["games"] as Record<string, unknown>;
+      const nameGuess = games["name-guess"] as Record<string, unknown>;
+      nameGuess["played"] = 1;
+      nameGuess["won"] = 1;
+      nameGuess["guessDistribution"] = { 1: -1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result.success).toBe(false);
+      expect(typeof result.error).toBe("string");
+    });
+
+    it("rejects __proto__ injection without polluting Object.prototype", () => {
+      const before = ({} as Record<string, unknown>)["polluted"];
+      const result = importPlayerStatsJson(
+        '{"version":1,"overall":{"played":0,"won":0,"currentStreak":0,"maxStreak":0},"games":{"__proto__":{"played":1},"quiz":{"played":0,"won":0,"currentStreak":0,"maxStreak":0},"grid":{"played":0,"won":0,"currentStreak":0,"maxStreak":0},"connections":{"played":0,"won":0,"currentStreak":0,"maxStreak":0},"name-guess":{"played":0,"won":0,"currentStreak":0,"maxStreak":0,"guessDistribution":{"1":0,"2":0,"3":0,"4":0,"5":0,"6":0}},"word-search":{"played":0,"won":0,"currentStreak":0,"maxStreak":0},"timeline":{"played":0,"won":0,"currentStreak":0,"maxStreak":0}},"__proto__":{"polluted":true}}'
+      );
+      expect(result.success).toBe(false);
+      expect(({} as Record<string, unknown>)["polluted"]).toBe(before);
+      expect(Object.prototype.hasOwnProperty.call(loadPlayerStats(), "polluted")).toBe(false);
+    });
+
+    it("rejects malformed per-game lastPlayedDate with invalid-game-stats", () => {
+      const payload = validPayload();
+      const games = payload["games"] as Record<string, unknown>;
+      (games["quiz"] as Record<string, unknown>)["lastPlayedDate"] = "18/09/2026";
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result).toEqual({ success: false, error: "invalid-game-stats" });
+    });
+
+    it("rejects fractional counters", () => {
+      const payload = validPayload();
+      (payload["overall"] as Record<string, unknown>)["played"] = 1.5;
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result.success).toBe(false);
+      expect(typeof result.error).toBe("string");
+    });
+
+    it("rejects overall maxStreak below currentStreak with invalid-overall", () => {
+      const payload = validPayload();
+      const overall = payload["overall"] as Record<string, unknown>;
+      overall["currentStreak"] = 3;
+      overall["maxStreak"] = 2;
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result).toEqual({ success: false, error: "invalid-overall" });
+    });
+
+    it("rejects per-game maxStreak below currentStreak with invalid-game-stats", () => {
+      const payload = validPayload();
+      const games = payload["games"] as Record<string, unknown>;
+      const quiz = games["quiz"] as Record<string, unknown>;
+      quiz["currentStreak"] = 3;
+      quiz["maxStreak"] = 2;
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result).toEqual({ success: false, error: "invalid-game-stats" });
+    });
+
+    it("rejects payloads missing a game entry with invalid-games", () => {
+      const payload = validPayload();
+      const games = payload["games"] as Record<string, unknown>;
+      delete games["timeline"];
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result).toEqual({ success: false, error: "invalid-games" });
+    });
+
+    it("rejects guessDistribution on games other than name-guess", () => {
+      const payload = validPayload();
+      const games = payload["games"] as Record<string, unknown>;
+      (games["quiz"] as Record<string, unknown>)["guessDistribution"] = {
+        1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0,
+      };
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result).toEqual({ success: false, error: "invalid-distribution" });
+    });
+
+    it("returns io-error when the import write does not persist", () => {
+      const payload = validPayload();
+      (payload["overall"] as Record<string, unknown>)["played"] = 1;
+      (payload["overall"] as Record<string, unknown>)["won"] = 1;
+      const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+        throw new Error("quota exceeded");
+      });
+      try {
+        const result = importPlayerStatsJson(JSON.stringify(payload));
+        expect(result).toEqual({ success: false, error: "io-error" });
+      } finally {
+        spy.mockRestore();
+      }
+    });
+  });
+
+  describe("resetPlayerStats", () => {
+    it("restores defaults and clears dedup keys", () => {
+      recordGameFinish("quiz", true, "2026-09-18");
+      markGameMatchRecorded("quiz", "daily-2026-09-18");
+      expect(isGameMatchRecorded("quiz", "daily-2026-09-18")).toBe(true);
+
+      resetPlayerStats();
+
+      expect(loadPlayerStats()).toEqual(createInitialPlayerStats());
+      expect(isGameMatchRecorded("quiz", "daily-2026-09-18")).toBe(false);
+      const stats = recordGameFinish("quiz", true, "2026-09-18");
+      expect(stats.games.quiz.played).toBe(1);
     });
   });
 });
