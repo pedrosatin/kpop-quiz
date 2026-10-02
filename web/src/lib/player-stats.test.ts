@@ -194,6 +194,41 @@ describe("player-stats module", () => {
       expect(stats.games["word-search"].won).toBe(1);
     });
 
+    it("registers timeline finishes and computes streaks", () => {
+      expect(ALL_GAME_IDS).toContain("timeline");
+      expect(createInitialPlayerStats().games.timeline).toEqual({
+        played: 0,
+        won: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+      });
+
+      let stats = recordGameFinish("timeline", true, "2026-09-16");
+      expect(stats.games.timeline.played).toBe(1);
+      expect(stats.games.timeline.won).toBe(1);
+      expect(stats.games.timeline.currentStreak).toBe(1);
+      expect(stats.games.timeline.maxStreak).toBe(1);
+      expect(stats.overall.currentStreak).toBe(1);
+
+      stats = recordGameFinish("timeline", true, "2026-09-17");
+      expect(stats.games.timeline.currentStreak).toBe(2);
+      expect(stats.games.timeline.maxStreak).toBe(2);
+      expect(stats.overall.currentStreak).toBe(2);
+    });
+
+    it("resets timeline streak on defeat but preserves max streak", () => {
+      let stats = recordGameFinish("timeline", true, "2026-09-16");
+      expect(stats.games.timeline.currentStreak).toBe(1);
+
+      stats = recordGameFinish("timeline", false, "2026-09-17");
+      expect(stats.games.timeline.played).toBe(2);
+      expect(stats.games.timeline.won).toBe(1);
+      expect(stats.games.timeline.currentStreak).toBe(0);
+      expect(stats.games.timeline.maxStreak).toBe(1);
+      expect(stats.overall.currentStreak).toBe(0);
+      expect(stats.overall.maxStreak).toBe(1);
+    });
+
     it("tracks Name Guess distribution accurately", () => {
       // Won on 3rd attempt
       let stats = recordGameFinish("name-guess", true, "2026-09-15", 3);

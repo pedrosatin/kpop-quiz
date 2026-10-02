@@ -1,5 +1,11 @@
-import { useCallback, useRef } from "preact/hooks";
+import { useCallback, useEffect, useRef } from "preact/hooks";
 import type { Locale, TimelinePuzzle } from "../../lib/quiz-types";
+import {
+  getTodayDateString,
+  isGameMatchRecorded,
+  markGameMatchRecorded,
+  recordGameFinish,
+} from "../../lib/player-stats";
 import { useTimelineGame } from "./useTimelineGame";
 import { TimelineBoard } from "./TimelineBoard";
 import { TimelineResults } from "./TimelineResults";
@@ -70,6 +76,22 @@ export function TimelineGameContent({
     playedHere.current = true;
     submit();
   }, [submit]);
+
+  const recordedMatchRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (gameStatus === "submitted") {
+      const matchId = `timeline-${puzzle.puzzle_id}`;
+      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("timeline", matchId)) {
+        const isWin = score === puzzle.events.length;
+        recordGameFinish("timeline", isWin, puzzle.reference_date || getTodayDateString());
+        markGameMatchRecorded("timeline", matchId);
+        recordedMatchRef.current = matchId;
+      }
+    } else {
+      recordedMatchRef.current = null;
+    }
+  }, [gameStatus, puzzle, score]);
 
   return (
     <section id="timeline" class="timeline-game" aria-labelledby="timeline-board-heading">
