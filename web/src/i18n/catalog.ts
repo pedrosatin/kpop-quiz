@@ -280,8 +280,13 @@ export interface Messages {
   statsGuessDistribution: string;
   statsExport: string;
   statsImport: string;
+  statsReset: string;
+  statsConfirm: string;
+  statsCancel: string;
   statsResetConfirm: string;
   statsImportError: string;
+  statsImportSuccess: string;
+  statsResetSuccess: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -633,8 +638,13 @@ const catalogs: Record<Locale, Messages> = {
     statsGuessDistribution: "Palpites por partida",
     statsExport: "Exportar estatísticas",
     statsImport: "Importar estatísticas",
+    statsReset: "Apagar dados",
+    statsConfirm: "Confirmar",
+    statsCancel: "Cancelar",
     statsResetConfirm: "Tem certeza de que quer apagar as estatísticas?",
     statsImportError: "O arquivo não está no formato esperado.",
+    statsImportSuccess: "Estatísticas importadas.",
+    statsResetSuccess: "Estatísticas apagadas.",
   },
   en: {
     meta: {
@@ -983,8 +993,13 @@ const catalogs: Record<Locale, Messages> = {
     statsGuessDistribution: "Guesses per game",
     statsExport: "Export stats",
     statsImport: "Import stats",
+    statsReset: "Clear data",
+    statsConfirm: "Confirm",
+    statsCancel: "Cancel",
     statsResetConfirm: "Are you sure you want to clear your stats?",
     statsImportError: "The file is not in the expected format.",
+    statsImportSuccess: "Stats imported.",
+    statsResetSuccess: "Stats cleared.",
   },
 };
 

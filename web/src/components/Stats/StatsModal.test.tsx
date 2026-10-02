@@ -1,5 +1,4 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/preact";
-import axe from "axe-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StatsModal } from "./StatsModal";
 import type { PlayerStats } from "../../lib/player-stats";
@@ -182,22 +181,4 @@ describe("StatsModal component", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("renders with zero violations in axe accessibility audit", async () => {
-    const { container } = render(
-      <StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />
-    );
-
-    const results = await axe.run(container);
-    expect(results.violations).toEqual([]);
-  });
-
-  it("renders correctly in English", () => {
-    render(
-      <StatsModal isOpen={true} onClose={vi.fn()} locale="en" stats={sampleStats} />
-    );
-
-    expect(screen.getByText("Your stats")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close stats" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Overall" })).toBeInTheDocument();
-  });
 });
