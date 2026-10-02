@@ -121,6 +121,7 @@ export function StatsModal({
     { id: "connections", label: messages.gameConnections },
     { id: "name-guess", label: messages.gameNameGuess },
     { id: "word-search", label: messages.gameWordSearch },
+    { id: "timeline", label: messages.gameTimeline },
   ];
 
   return (

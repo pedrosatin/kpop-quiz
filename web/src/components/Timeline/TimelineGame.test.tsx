@@ -3,8 +3,10 @@ import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getMessages } from "../../i18n/catalog";
 import type { TimelinePuzzle } from "../../lib/quiz-types";
+import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 import fixture from "../../tests/fixtures/timeline.daily.json";
 import { TimelineGame } from "./TimelineGame";
+import { calculateScore, getCanonicalChronologicalOrder } from "./timeline-utils";
 
 const puzzle = fixture as unknown as TimelinePuzzle;
 const pt = getMessages("pt-BR");
@@ -88,6 +90,70 @@ describe("TimelineGame", () => {
     expect(document.activeElement).toBe(heading);
     expect(screen.getByRole("button", { name: "Compartilhar" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Verificar ordem" })).not.toBeInTheDocument();
+  });
+
+  it("counts a puzzle finished in this visit once", async () => {
+    const { unmount } = render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
+    await screen.findByRole("heading", { name: /Pontuação:/ });
+    expect(loadPlayerStats().games.timeline?.played).toBe(1);
+
+    unmount();
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    await screen.findByRole("heading", { name: /Pontuação:/ });
+    expect(loadPlayerStats().games.timeline?.played).toBe(1);
+  });
+
+  it("does not count a restored puzzle whose finish was already recorded", async () => {
+    markGameMatchRecorded("timeline", `timeline-${puzzle.puzzle_id}`);
+    const canonical = getCanonicalChronologicalOrder(puzzle.events);
+    const evaluated = calculateScore(canonical, canonical);
+    localStorage.setItem(
+      `kpop-timeline-${puzzle.puzzle_id}`,
+      JSON.stringify({
+        puzzleId: puzzle.puzzle_id,
+        referenceDate: puzzle.reference_date,
+        orderedEventIds: canonical.map((event) => event.id),
+        submitted: true,
+        score: evaluated.score,
+        results: evaluated.results,
+      }),
+    );
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+
+    await screen.findByRole("heading", { name: /Pontuação:/ });
+    expect(loadPlayerStats().games.timeline?.played ?? 0).toBe(0);
+  });
+
+  it("records a partial-score submit as played without a win", async () => {
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    const cards = screen.getAllByRole("listitem");
+    const secondTitle = puzzle.events[1]!.title["pt-BR"];
+    const upBtn = within(cards[1]!).getByRole("button", { name: `Mover "${secondTitle}" para cima` });
+    fireEvent.click(upBtn);
+
+    fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
+    await screen.findByRole("heading", { name: /Pontuação:/ });
+
+    expect(loadPlayerStats().games.timeline?.played).toBe(1);
+    expect(loadPlayerStats().games.timeline?.won).toBe(0);
+  });
+
+  it("records a win when submitting the canonical order", async () => {
+    // The fixture may already be chronological, so shuffle first to prove
+    // the sorted puzzle wins on an untouched submit.
+    const shuffled = [...puzzle.events].reverse();
+    const sortedPuzzle = {
+      ...puzzle,
+      events: getCanonicalChronologicalOrder(shuffled),
+    } as TimelinePuzzle;
+    render(<TimelineGame locale="pt-BR" puzzle={sortedPuzzle} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
+    await screen.findByRole("heading", { name: /Pontuação:/ });
+
+    expect(loadPlayerStats().games.timeline?.played).toBe(1);
+    expect(loadPlayerStats().games.timeline?.won).toBe(1);
   });
 
   it("has zero accessibility violations with axe-core in playing and submitted states", async () => {

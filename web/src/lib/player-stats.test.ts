@@ -75,6 +75,28 @@ describe("player-stats module", () => {
       expect(stats.version).toBe(1);
       expect(stats.overall.played).toBe(0);
     });
+
+    it("fills a missing timeline key on version-1 legacy payloads", () => {
+      const payload = JSON.parse(JSON.stringify(createInitialPlayerStats())) as {
+        games: Partial<Record<string, unknown>>;
+      };
+      delete payload.games.timeline;
+      localStorage.setItem(PLAYER_STATS_STORAGE_KEY, JSON.stringify(payload));
+
+      const stats = loadPlayerStats();
+      expect(stats.games.timeline).toEqual({
+        played: 0,
+        won: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+      });
+      for (const gameId of ALL_GAME_IDS) {
+        expect(stats.games[gameId].played).toBe(0);
+        expect(stats.games[gameId].won).toBe(0);
+        expect(stats.games[gameId].currentStreak).toBe(0);
+        expect(stats.games[gameId].maxStreak).toBe(0);
+      }
+    });
   });
 
   describe("calculateNewStreak pure helper", () => {
@@ -192,6 +214,41 @@ describe("player-stats module", () => {
       expect(stats.games["word-search"].maxStreak).toBe(1);
       expect(stats.games["word-search"].played).toBe(2);
       expect(stats.games["word-search"].won).toBe(1);
+    });
+
+    it("registers timeline finishes and computes streaks", () => {
+      expect(ALL_GAME_IDS).toContain("timeline");
+      expect(createInitialPlayerStats().games.timeline).toEqual({
+        played: 0,
+        won: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+      });
+
+      let stats = recordGameFinish("timeline", true, "2026-09-16");
+      expect(stats.games.timeline.played).toBe(1);
+      expect(stats.games.timeline.won).toBe(1);
+      expect(stats.games.timeline.currentStreak).toBe(1);
+      expect(stats.games.timeline.maxStreak).toBe(1);
+      expect(stats.overall.currentStreak).toBe(1);
+
+      stats = recordGameFinish("timeline", true, "2026-09-17");
+      expect(stats.games.timeline.currentStreak).toBe(2);
+      expect(stats.games.timeline.maxStreak).toBe(2);
+      expect(stats.overall.currentStreak).toBe(2);
+    });
+
+    it("resets timeline streak on defeat but preserves max streak", () => {
+      let stats = recordGameFinish("timeline", true, "2026-09-16");
+      expect(stats.games.timeline.currentStreak).toBe(1);
+
+      stats = recordGameFinish("timeline", false, "2026-09-17");
+      expect(stats.games.timeline.played).toBe(2);
+      expect(stats.games.timeline.won).toBe(1);
+      expect(stats.games.timeline.currentStreak).toBe(0);
+      expect(stats.games.timeline.maxStreak).toBe(1);
+      expect(stats.overall.currentStreak).toBe(0);
+      expect(stats.overall.maxStreak).toBe(1);
     });
 
     it("tracks Name Guess distribution accurately", () => {

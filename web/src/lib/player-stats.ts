@@ -1,4 +1,4 @@
-export type GameId = "quiz" | "grid" | "connections" | "name-guess" | "word-search";
+export type GameId = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline";
 
 export interface GameStats {
   played: number;
@@ -24,7 +24,7 @@ export interface PlayerStats {
 }
 
 export const PLAYER_STATS_STORAGE_KEY = "kpop-player-stats-v1";
-export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search"];
+export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline"];
 
 export function getTodayDateString(): string {
   const d = new Date();
@@ -72,6 +72,7 @@ export function createInitialPlayerStats(): PlayerStats {
       connections: createDefaultGameStats(false),
       "name-guess": createDefaultGameStats(true),
       "word-search": createDefaultGameStats(false),
+      timeline: createDefaultGameStats(false),
     },
   };
 }
@@ -152,6 +153,7 @@ export function loadPlayerStats(): PlayerStats {
         connections: normalizeGameStats(parsed.games?.connections, false),
         "name-guess": normalizeGameStats(parsed.games?.["name-guess"], true),
         "word-search": normalizeGameStats(parsed.games?.["word-search"], false),
+        timeline: normalizeGameStats(parsed.games?.timeline, false),
       },
     };
   } catch {

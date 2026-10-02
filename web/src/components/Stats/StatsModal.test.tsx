@@ -50,6 +50,13 @@ const sampleStats: PlayerStats = {
       maxStreak: 1,
       lastPlayedDate: "2026-09-18",
     },
+    timeline: {
+      played: 2,
+      won: 1,
+      currentStreak: 1,
+      maxStreak: 1,
+      lastPlayedDate: "2026-09-18",
+    },
   },
 };
 
@@ -118,6 +125,18 @@ describe("StatsModal component", () => {
     }
     const rows = container.querySelectorAll(".stats-distribution-row");
     expect(rows).toHaveLength(6);
+  });
+
+  it("shows timeline tab and updates metrics on switch", () => {
+    render(
+      <StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />
+    );
+
+    const timelineTab = screen.getByRole("tab", { name: "Linha do Tempo" });
+    fireEvent.click(timelineTab);
+
+    expect(timelineTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("50%")).toBeInTheDocument(); // Timeline win rate (1/2)
   });
 
   it("triggers onClose when close button is clicked", () => {
