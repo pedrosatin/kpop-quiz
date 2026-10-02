@@ -12,10 +12,9 @@ import {
 export interface StatsPortabilityProps {
   locale: Locale;
   onStatsChange: (stats: PlayerStats) => void;
-  announce?: (message: string) => void;
 }
 
-export function StatsPortability({ locale, onStatsChange, announce }: StatsPortabilityProps) {
+export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProps) {
   const messages = getMessages(locale);
   const [statusMessage, setStatusMessage] = useState("");
   const [confirmingReset, setConfirmingReset] = useState(false);
@@ -24,26 +23,32 @@ export function StatsPortability({ locale, onStatsChange, announce }: StatsPorta
 
   const notify = (message: string) => {
     setStatusMessage(message);
-    announce?.(message);
   };
 
   const handleExport = () => {
     const json = exportPlayerStatsJson();
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "kpop-quiz-stats.json";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
+    try {
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "kpop-quiz-stats.json";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   };
 
   const handleFileChange = (e: Event) => {
     const input = e.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
+    const handleReadError = () => {
+      notify(messages.statsImportError);
+      input.value = "";
+    };
     const reader = new FileReader();
     reader.onload = () => {
       const result = importPlayerStatsJson(String(reader.result ?? ""));
@@ -55,6 +60,8 @@ export function StatsPortability({ locale, onStatsChange, announce }: StatsPorta
       }
       input.value = "";
     };
+    reader.onerror = handleReadError;
+    reader.onabort = handleReadError;
     reader.readAsText(file);
   };
 
@@ -89,6 +96,7 @@ export function StatsPortability({ locale, onStatsChange, announce }: StatsPorta
           type="file"
           accept=".json"
           class="visually-hidden"
+          tabindex={-1}
           aria-label={messages.statsImport}
           onChange={handleFileChange}
         />

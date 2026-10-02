@@ -16,14 +16,18 @@ function makeStats(played: number, won: number): PlayerStats {
   return base;
 }
 
-function stubFileReader(content: string) {
+function stubFileReader(content: string, failWith?: "onerror" | "onabort") {
   vi.stubGlobal(
     "FileReader",
     class {
       result: string | null = content;
       onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      onabort: (() => void) | null = null;
       readAsText(_file: unknown) {
-        this.onload?.();
+        if (failWith === "onerror") this.onerror?.();
+        else if (failWith === "onabort") this.onabort?.();
+        else this.onload?.();
       }
     }
   );
@@ -84,23 +88,49 @@ describe("StatsPortability", () => {
     expect(JSON.parse(localStorage.getItem(PLAYER_STATS_STORAGE_KEY) || "{}").overall.played).toBe(10);
   });
 
-  it("shows the catalog import error and announces on invalid file", async () => {
-    const announced: string[] = [];
+  it("shows the catalog import error on invalid file", async () => {
     stubFileReader("not-json{{{");
-    const { container } = render(
-      <StatsPortability locale="pt-BR" onStatsChange={vi.fn()} announce={(m) => announced.push(m)} />
-    );
-
+    const { container } = render(<StatsPortability locale="pt-BR" onStatsChange={vi.fn()} />);
     fireEvent.change(fileInput(container), {
       target: { files: [new File(["x"], "bad.json", { type: "application/json" })] },
     });
-
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "O arquivo não está no formato esperado."
-      )
+      expect(screen.getByRole("status")).toHaveTextContent("O arquivo não está no formato esperado.")
     );
-    expect(announced).toEqual(["O arquivo não está no formato esperado."]);
+  });
+
+  it.each(["onerror", "onabort"] as const)(
+    "read failure (%s) announces the import error and resets the input",
+    async (trigger) => {
+      stubFileReader("x", trigger);
+      const { container } = render(<StatsPortability locale="pt-BR" onStatsChange={vi.fn()} />);
+      fireEvent.change(fileInput(container), {
+        target: { files: [new File(["x"], "s.json", { type: "application/json" })] },
+      });
+      await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("O arquivo não está no formato esperado."));
+      expect(fileInput(container).value).toBe("");
+    }
+  );
+
+  it("keeps the previous metrics and storage on failed import through the full modal", async () => {
+    const before = JSON.stringify(makeStats(10, 8));
+    localStorage.setItem(PLAYER_STATS_STORAGE_KEY, before);
+    stubFileReader("not-json{{{");
+    const { container } = render(<StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" />);
+    expect(screen.getByText("80%")).toBeInTheDocument();
+    fireEvent.change(fileInput(container), {
+      target: { files: [new File(["x"], "bad.json", { type: "application/json" })] },
+    });
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("O arquivo não está no formato esperado."));
+    expect(screen.getByText("80%")).toBeInTheDocument();
+    expect(localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(before);
+  });
+
+  it("shows the import error for an empty file", async () => {
+    stubFileReader("");
+    const { container } = render(<StatsPortability locale="pt-BR" onStatsChange={vi.fn()} />);
+    fireEvent.change(fileInput(container), { target: { files: [new File([], "e.json", { type: "application/json" })] } });
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("O arquivo não está no formato esperado."));
   });
 
   it("asks for inline confirmation and cancels the reset", () => {

@@ -88,6 +88,8 @@ export function StatsModal({
     };
   }, [isOpen, onClose]);
 
+  // The optional stats prop pins the view for tests; the production caller
+  // StatsNavTrigger never passes it, so post-import refresh flows through loadedStats.
   const currentStats = propStats || loadedStats;
 
   const currentMetrics = useMemo(() => {
