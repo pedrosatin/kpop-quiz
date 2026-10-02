@@ -1,4 +1,4 @@
-# Photo pool yield — full-corpus measurement (ticket 01)
+# Photo pool yield: full-corpus measurement (ticket 01)
 
 Date: 2026-10-02. Gate input for `.scratch/photo-game` ticket 01
 (go with pool / kill the slice). "Verified" = observed in code or a live
@@ -22,7 +22,7 @@ Per idol, in order, all sequential with the repo's `MediaWikiClient`
    `media_registry.PERMITTED_LICENSES` (exact match).
 
 Limitations: the 50-file cap truncates big categories (top idols show
-50/50 — their real counts are higher, which only helps the gate);
+50/50: their real counts are higher, which only helps the gate);
 `extmetadata` license strings are taken at face value before human review.
 
 ## 2. Corpus numbers
@@ -35,7 +35,7 @@ Limitations: the 50-file cap truncates big categories (top idols show
   signature/logo/cover/merch/poster): 1092 survivors across 151 idols,
   110 idols with ≥2.
 - `"Public domain"` (lowercase d, as Commons returns it) vs the gate's
-  `"Public Domain"`: 269 BITMAP files fall in this gap — sampled titles are
+  `"Public Domain"`: 269 BITMAP files fall in this gap. Sampled titles are
   almost all wrong-subject (biblical Asa, Greek Athena, MOAB bombs for
   B-Bomb, Victorian Castles) or signatures, so normalizing the case would
   not move the gate. Recorded as a code nit for a dedicated ticket.
@@ -64,15 +64,15 @@ Thumbs via `Special:FilePath/...?width=320`, viewed file by file:
 | 15 | Eric | Esinger.jpg | uncertain (unconfirmed identity) |
 
 Result: 6-7/16 depict the idol (~40%). Category grounding is necessary but
-nowhere near sufficient: same-name places, objects, historical figures, and
+nowhere near sufficient. Same-name places, objects, historical figures, and
 event photos dominate. Per-file human verification at ticket 02 registration
-is mandatory, not optional.
+is mandatory.
 
 ## 4. Gate decision: GO, conditional
 
 - Corpus viability: GO. ~118 candidate idols, ~110 surviving portrait
   pre-filter; at ~40% visual precision the verified pool should land near
-  45-60 idols — enough for a curated-pool game, not for full-catalog daily
+  45-50 idols: enough for a curated-pool game, not for full-catalog daily
   rotation (that design stays dead, as the spec already states).
 - Kill bar for ticket 02: if per-file verification yields fewer than 40
   idols with ≥2 verified portraits, kill the slice instead of shipping a
