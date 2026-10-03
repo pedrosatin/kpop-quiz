@@ -12,6 +12,8 @@
     "pretest:e2e": "npm run build",
     "test:e2e": "playwright test",
     "test:e2e:ci": "playwright test",
+    "test:e2e:staging": "BASE_URL=${STAGING_BASE_URL:-https://pedrosatin.github.io/kpop-quiz/} playwright test",
+    "test:e2e:prod": "BASE_URL=https://kpopquiz.online playwright test",
     "playwright:install": "playwright install chromium",
     "artifacts:verify": "cd .. && python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-connections --require-name-guess --require-word-search --require-timeline",
     "seo:verify": "node scripts/seo-verify.mjs"

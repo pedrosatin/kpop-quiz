@@ -14,6 +14,7 @@ __pycache__
 /web/playwright-report/
 /web/blob-report/
 /web/playwright/.cache/
+/web/.vitest/
 /docs/evidence/map-game-pilot/
 .wrangler/
 

@@ -95,17 +95,23 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     needs: build
+    outputs:
+      deployed: ${{ steps.credentials.outputs.deployed }}
     steps:
       - uses: actions/download-artifact@v8
         with:
           name: web-dist
           path: web/dist
       - name: Check Cloudflare credentials
+        id: credentials
         env:
           HAS_CLOUDFLARE_CREDENTIALS: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
         run: |
           if [ "$HAS_CLOUDFLARE_CREDENTIALS" != "true" ]; then
             echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set. Skipping deploy to Cloudflare Pages. Add both repository secrets to enable deploys."
+            echo "deployed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deployed=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Deploy to Cloudflare Pages
         env:
@@ -116,3 +122,38 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy web/dist --project-name=kpopquiz --branch=master
+
+  # Post-deploy smoke against kpopquiz.online. Fails the workflow on red smoke;
+  # no automatic rollback. Skipped when Cloudflare deploy was skipped (no secrets).
+  smoke-prod:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && needs.deploy.outputs.deployed == 'true'
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    needs: deploy
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright smoke against production
+        env:
+          CI: true
+        run: npm run test:e2e:prod
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-prod
+          path: |
+            web/test-results/
+            web/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore

@@ -81,6 +81,8 @@ jobs:
     permissions:
       pages: write
       id-token: write
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -88,3 +90,39 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  # Post-deploy smoke against the GitHub Pages staging URL (subdirectory base).
+  # Separate job so we can check out sources for Playwright; deploy has no node checkout.
+  smoke-staging:
+    if: github.ref == 'refs/heads/dev'
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright smoke against staging
+        env:
+          CI: true
+          STAGING_BASE_URL: ${{ needs.deploy.outputs.page_url || 'https://pedrosatin.github.io/kpop-quiz/' }}
+        run: npm run test:e2e:staging
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-staging
+          path: |
+            web/test-results/
+            web/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
