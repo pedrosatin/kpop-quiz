@@ -38,7 +38,14 @@ export async function expectBoardDirectReady(
 
   const missing = page.getByTestId("game-missing");
   await expect(board.or(missing)).toBeVisible({ timeout: BOARD_TIMEOUT_MS });
-  if (await board.isVisible()) return;
+
+  // Prefer board with a waiting expect; avoid one-shot isVisible during transitions.
+  try {
+    await expect(board).toBeVisible({ timeout: 2_000 });
+    return;
+  } catch {
+    // Missing-artifact path.
+  }
 
   await expect(missing).toBeVisible();
   await expect(page.getByTestId("game-retry")).toBeVisible();

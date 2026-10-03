@@ -28,6 +28,7 @@ export type SmokeRoute =
  */
 export const SMOKE_ROUTES: readonly SmokeRoute[] = [
   { name: "quiz pt-BR", path: "/pt-br/", kind: "quiz-setup" },
+  // Softens “artifact published” for grid until CI tickets decide env-strictness.
   { name: "grid pt-BR", path: "/pt-br/grid/", kind: "board-direct", optionalArtifact: true },
   { name: "connections pt-BR", path: "/pt-br/conexoes/", kind: "board-direct" },
   { name: "name-guess pt-BR", path: "/pt-br/adivinhe/", kind: "board-direct" },
