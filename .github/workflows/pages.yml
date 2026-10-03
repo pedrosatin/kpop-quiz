@@ -72,7 +72,7 @@ jobs:
       - name: Run Playwright smoke against local dist
         env:
           CI: true
-        run: npx playwright test
+        run: npm run test:e2e:ci
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
