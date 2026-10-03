@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "pretest:e2e": "npm run build",
     "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test",
     "playwright:install": "playwright install chromium",
     "artifacts:verify": "cd .. && python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-connections --require-name-guess --require-word-search --require-timeline",
     "seo:verify": "node scripts/seo-verify.mjs"

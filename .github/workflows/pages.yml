@@ -66,6 +66,22 @@ jobs:
           PUBLIC_GA4_ID: ${{ secrets.PUBLIC_GA4_ID }}
         run: npm run build
       - run: npm run seo:verify -- --env prod
+      # Smoke against the dist/ already built above (do not use npm run test:e2e — pretest rebuilds).
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright smoke against local dist
+        env:
+          CI: true
+        run: npx playwright test
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            web/test-results/
+            web/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         with:
           name: web-dist
