@@ -50,8 +50,11 @@ export class ConnectionsPage {
 
     for (let i = 0; i < 4; i += 1) {
       const clear = board.getByRole("button", { name: "Limpar seleção" });
+      const submit = board.getByRole("button", { name: "Enviar" });
       if (await clear.isEnabled()) {
         await clear.click();
+        // Wrong submits leave the prior group selected; wait until clear settles.
+        await expect(submit).toBeDisabled();
       }
 
       const ids = puzzle.categories.map((cat) => cat.item_ids[i]!);
@@ -66,7 +69,6 @@ export class ConnectionsPage {
         await tile.click();
       }
 
-      const submit = board.getByRole("button", { name: "Enviar" });
       await expect(submit).toBeEnabled();
       await this.page.waitForTimeout(SUBMIT_CLICK_WAIT_MS);
       await submit.click();

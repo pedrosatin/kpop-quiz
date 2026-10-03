@@ -46,7 +46,7 @@ export class NameGuessPage {
 
     const board = this.page.getByTestId("game-board");
     for (let i = 0; i < wrongs.length; i += 1) {
-      const guess = wrongs[i]!;
+      const guess = wrongs[i]!.toUpperCase();
       for (const char of guess) {
         await board.locator(`[data-key="${char}"]`).click();
       }
