@@ -1,12 +1,12 @@
 import type { Ref } from "preact";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { MapPilotCountry, MapPilotEvent } from "../../data/map-pilot";
 import { mapPilotCountryLabel } from "../../data/map-pilot";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
-
-/** How long the result buttons ignore activation after they replace Next. */
-export const RESULT_GUARD_MS = 300;
+import { useGameShareAction } from "../Results/use-game-share-action";
+import { useResultActionGuard } from "../Results/use-result-action-guard";
+export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 interface ResultCopy {
   complete: string;
@@ -135,32 +135,16 @@ export function MapPilotResult({
 }: MapPilotResultProps) {
   const copy = COPY[locale];
   const messages = getMessages(locale);
-  const [copied, setCopied] = useState(false);
-  const [shareFailed, setShareFailed] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleId = useId();
   const summaryId = useId();
   const sourceId = useId();
   const shareFailedId = useId();
   const source = useRef<HTMLDivElement>(null);
-  const shownAt = useRef(0);
-
   // The buttons appear where Next was, so a second tap or a held Enter
   // meant for the last Next must not share or restart the round.
-  useLayoutEffect(() => {
-    shownAt.current = performance.now();
-  }, []);
-  const guarded = (action: () => void) => () => {
-    if (performance.now() - shownAt.current >= RESULT_GUARD_MS) action();
-  };
-  const ignoreRepeat = (event: KeyboardEvent) => {
-    if (event.repeat) event.preventDefault();
-  };
-
-  useEffect(() => () => {
-    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-  }, []);
+  const { guarded, ignoreRepeat } = useResultActionGuard();
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.
@@ -173,37 +157,6 @@ export function MapPilotResult({
   const label = (featureId: string | undefined) => {
     const country = featureId ? countryByFeature.get(featureId) : undefined;
     return country ? mapPilotCountryLabel(country, locale) : messages.noAnswer;
-  };
-
-  // The share sheet first, where there is one; a player who closes it has not
-  // hit an error. Then the clipboard. If neither takes the text, the text
-  // shows in a field the player can select and copy by hand.
-  const handleShare = async () => {
-    const nav = typeof navigator !== "undefined" ? navigator : undefined;
-    if (typeof nav?.share === "function") {
-      try {
-        await nav.share({ text: shareText });
-        return;
-      } catch (error) {
-        if ((error as { name?: unknown } | null)?.name === "AbortError") return;
-      }
-    }
-    try {
-      if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
-      await nav.clipboard.writeText(shareText);
-    } catch {
-      setShareFailed(true);
-      onShareFailed?.();
-      return;
-    }
-    setShareFailed(false);
-    setCopied(true);
-    onCopied?.();
-    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => {
-      copiedTimer.current = null;
-      setCopied(false);
-    }, 3000);
   };
 
   return (
@@ -222,7 +175,7 @@ export function MapPilotResult({
       </div>
 
       <div class="map-pilot-result-buttons">
-        <button type="button" class="btn btn-primary" onKeyDown={ignoreRepeat} onClick={guarded(handleShare)}>
+        <button type="button" class="btn btn-primary" onKeyDown={ignoreRepeat} onClick={guarded(() => { void handleShare(shareText); })}>
           {copied ? messages.copiedToClipboard : messages.share}
         </button>
         <button type="button" class="btn btn-secondary" onKeyDown={ignoreRepeat} onClick={guarded(onRestart)}>

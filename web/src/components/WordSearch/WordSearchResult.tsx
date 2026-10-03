@@ -4,6 +4,7 @@ import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 import { formatTime, generateWordSearchShareSummary } from "./utils";
+import { useGameShareAction } from "../Results/use-game-share-action";
 
 interface SourceLine {
   key: string;
@@ -63,60 +64,23 @@ export function WordSearchResult({
 }: WordSearchResultProps) {
   const messages = getMessages(locale);
   const t = messages.wordSearch;
-  const [copied, setCopied] = useState(false);
-  const [shareFailed, setShareFailed] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleId = useId();
   const summaryId = useId();
   const sourceId = useId();
   const shareTextId = useId();
   const shareFailedId = useId();
   const source = useRef<HTMLDivElement>(null);
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
 
   const total = puzzle.words.length;
   const shareText = generateWordSearchShareSummary(puzzle, total, total, elapsedSeconds);
-
-  useEffect(() => () => {
-    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-  }, []);
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.
   useEffect(() => {
     if (sourceOpen) source.current?.scrollIntoView?.({ block: "nearest" });
   }, [sourceOpen]);
-
-  // The share sheet first, where there is one; a player who closes it has not
-  // hit an error. Then the clipboard. If neither takes the text, the text
-  // shows in a field the player can select and copy by hand.
-  const handleShare = async () => {
-    const nav = typeof navigator !== "undefined" ? navigator : undefined;
-    if (typeof nav?.share === "function") {
-      try {
-        await nav.share({ text: shareText });
-        return;
-      } catch (error) {
-        if ((error as { name?: unknown } | null)?.name === "AbortError") return;
-      }
-    }
-    try {
-      if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
-      await nav.clipboard.writeText(shareText);
-    } catch {
-      setShareFailed(true);
-      onShareFailed?.();
-      return;
-    }
-    setShareFailed(false);
-    setCopied(true);
-    onCopied?.();
-    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => {
-      copiedTimer.current = null;
-      setCopied(false);
-    }, 3000);
-  };
 
   return (
     <section class="word-search-result" aria-labelledby={titleId}>
@@ -134,7 +98,7 @@ export function WordSearchResult({
       </div>
 
       <div class="word-search-result-buttons">
-        <button type="button" class="btn btn-primary" onClick={handleShare}>
+        <button type="button" class="btn btn-primary" onClick={() => { void handleShare(shareText); }}>
           {copied ? messages.copiedToClipboard : messages.share}
         </button>
         <button

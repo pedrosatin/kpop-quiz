@@ -1,10 +1,10 @@
 import type { RefObject } from "preact";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { Locale, NameGuessPuzzle } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus, NameGuessTranslations } from "./types";
-
-/** How long the result buttons ignore activation after they replace the keyboard. */
-export const RESULT_GUARD_MS = 300;
+import { useGameShareAction } from "../Results/use-game-share-action";
+import { useResultActionGuard } from "../Results/use-result-action-guard";
+export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 /** The result as text: header, then one row of squares per guess. */
 export function generateShareText({
@@ -70,9 +70,6 @@ export function NameGuessResults({
   onShareFailed,
   titleRef,
 }: NameGuessResultsProps) {
-  const [copied, setCopied] = useState(false);
-  const [shareFailed, setShareFailed] = useState(false);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shareTextId = useId();
   const shareFailedId = useId();
   const fallback = useRef<HTMLDivElement>(null);
@@ -80,22 +77,13 @@ export function NameGuessResults({
   const titleId = useId();
   const detailsId = useId();
   const details = useRef<HTMLDivElement>(null);
-  const shownAt = useRef(0);
   const won = status === "won";
   const target = puzzle.target;
   const targetDisplayName = target.labels[locale] || target.canonical_name;
-
   // The buttons appear where the keyboard was, so a second tap or a held key
   // meant for the last guess must not share or restart the game.
-  useLayoutEffect(() => {
-    shownAt.current = performance.now();
-  }, []);
-  const guarded = (action: () => void) => () => {
-    if (performance.now() - shownAt.current >= RESULT_GUARD_MS) action();
-  };
-  const ignoreRepeat = (event: KeyboardEvent) => {
-    if (event.repeat) event.preventDefault();
-  };
+  const { guarded, ignoreRepeat } = useResultActionGuard();
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
 
   // The bar stops being sticky while the panel is open, so the panel can open
   // below the fold; bring it into view. It is capped in height, so the board
@@ -104,47 +92,12 @@ export function NameGuessResults({
     if (detailsOpen) details.current?.scrollIntoView?.({ block: "nearest" });
   }, [detailsOpen]);
 
-  useEffect(() => () => {
-    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-  }, []);
-
   // The field opens below the buttons; bring it into view.
   useEffect(() => {
     if (shareFailed) fallback.current?.scrollIntoView?.({ block: "nearest" });
   }, [shareFailed]);
 
   const shareText = generateShareText({ puzzle, feedbacks, won, attempts: guesses.length, highContrast });
-
-  // The share sheet first, where there is one; a player who closes it has not
-  // hit an error. Then the clipboard. If neither takes the text, the text
-  // shows in a field the player can select and copy by hand.
-  async function handleShare() {
-    const nav = typeof navigator !== "undefined" ? navigator : undefined;
-    if (typeof nav?.share === "function") {
-      try {
-        await nav.share({ text: shareText });
-        return;
-      } catch (error) {
-        if ((error as { name?: unknown } | null)?.name === "AbortError") return;
-      }
-    }
-    try {
-      if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
-      await nav.clipboard.writeText(shareText);
-    } catch {
-      setShareFailed(true);
-      onShareFailed?.();
-      return;
-    }
-    setShareFailed(false);
-    setCopied(true);
-    onCopied?.();
-    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => {
-      copiedTimer.current = null;
-      setCopied(false);
-    }, 3000);
-  }
 
   const clues = target.clues;
   const agencyName = typeof clues?.agency === "object" ? clues.agency[locale] : clues?.agency;
@@ -174,7 +127,7 @@ export function NameGuessResults({
         <button
           type="button"
           onKeyDown={ignoreRepeat}
-          onClick={guarded(handleShare)}
+          onClick={guarded(() => { void handleShare(shareText); })}
           class="btn btn-primary"
         >
           {copied ? t.copied : t.copyResults}
