@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import unicodedata
 from datetime import date
 from pathlib import Path
@@ -70,6 +71,9 @@ def validate_hint(hint: str, references: list[str]) -> None:
         raise ValueError("hint must be a single sentence")
     if not references:
         raise ValueError("hint needs at least one consulted lyric reference")
+    for reference in references:
+        if not isinstance(reference, str):
+            raise ValueError("hint references must be strings")
     for reference in references:
         overlaps = three_gram_overlaps(hint, reference)
         if overlaps:
@@ -141,16 +145,23 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.command == "check":
-        references = list(args.reference)
-        for path in args.reference_file:
-            references.append(path.read_text(encoding="utf-8"))
-        validate_hint(args.hint, references)
-        print("hint ok")
-    elif args.command == "review":
-        record = json.loads(args.record.read_text(encoding="utf-8"))
-        validate_hint_review(record)
-        print(f"review ok, approves={review_approves(record)}")
+    try:
+        if args.command == "check":
+            references = list(args.reference)
+            for path in args.reference_file:
+                references.append(path.read_text(encoding="utf-8"))
+            validate_hint(args.hint, references)
+            print("hint ok")
+        elif args.command == "review":
+            record = json.loads(args.record.read_text(encoding="utf-8"))
+            validate_hint_review(record)
+            print(f"review ok, approves={review_approves(record)}")
+    except (ValueError, OSError) as exc:
+        # JSONDecodeError and UnicodeDecodeError are ValueError subclasses;
+        # exit code 2 covers every CLI failure mode (bad invocation from
+        # argparse and rejected content or unreadable inputs from here).
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     return 0
 
 

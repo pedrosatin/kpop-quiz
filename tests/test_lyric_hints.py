@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -83,6 +85,18 @@ class HintValidationTest(unittest.TestCase):
             main(["check", "--hint", "faixa sobre a cidade", "--reference", OTHER]), 0
         )
 
+    def test_cli_check_without_references_fails_cleanly(self):
+        self.assertEqual(main(["check", "--hint", "faixa sobre a cidade"]), 2)
+
+    def test_cli_check_with_copied_span_fails_cleanly(self):
+        self.assertEqual(
+            main(["check", "--hint", "we run forever tonight", "--reference", LYRICS]), 2
+        )
+
+    def test_non_string_reference_rejected(self):
+        with self.assertRaises(ValueError):
+            validate_hint("faixa sobre a cidade", ["ok", 42])
+
 
 class HintReviewTest(unittest.TestCase):
     def test_approving_review_passes(self):
@@ -117,6 +131,25 @@ class HintReviewTest(unittest.TestCase):
             path = Path(tmp) / "review.json"
             path.write_text(json.dumps(make_record()))
             self.assertEqual(main(["review", "--record", str(path)]), 0)
+
+    def test_cli_review_reports_rejection_without_failing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "review.json"
+            path.write_text(json.dumps(make_record(exact_search_hits=3)))
+            with contextlib.redirect_stdout(io.StringIO()) as stdout:
+                self.assertEqual(main(["review", "--record", str(path)]), 0)
+            self.assertIn("approves=False", stdout.getvalue())
+
+    def test_cli_review_with_malformed_json_fails_cleanly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "review.json"
+            path.write_text("{not json")
+            self.assertEqual(main(["review", "--record", str(path)]), 2)
+
+    def test_cli_review_with_missing_record_fails_cleanly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "absent.json"
+            self.assertEqual(main(["review", "--record", str(missing)]), 2)
 
 
 if __name__ == "__main__":
