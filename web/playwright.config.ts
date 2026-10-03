@@ -12,7 +12,34 @@ function isRemoteUrl(url: string): boolean {
   }
 }
 
+/** Host/port for local astro preview; fall back to DEFAULT_BASE_URL if parsing fails. */
+function localPreviewTarget(url: string): { host: string; port: number; url: string } {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "127.0.0.1" && parsed.hostname !== "localhost") {
+      throw new Error("not local");
+    }
+    const port = parsed.port ? Number(parsed.port) : 4321;
+    if (!Number.isFinite(port) || port <= 0) {
+      throw new Error("invalid port");
+    }
+    return {
+      host: parsed.hostname,
+      port,
+      url: `${parsed.protocol}//${parsed.hostname}:${port}`,
+    };
+  } catch {
+    const fallback = new URL(DEFAULT_BASE_URL);
+    return {
+      host: fallback.hostname,
+      port: Number(fallback.port),
+      url: DEFAULT_BASE_URL,
+    };
+  }
+}
+
 const remote = isRemoteUrl(baseURL);
+const localTarget = remote ? null : localPreviewTarget(baseURL);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -22,8 +49,7 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"]],
   use: {
-    baseURL,
-    ...devices["Desktop Chrome"],
+    baseURL: localTarget?.url ?? baseURL,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
@@ -34,14 +60,14 @@ export default defineConfig({
     },
   ],
   // Local runs serve the built dist/; remote BASE_URL (staging/prod) skips webServer.
-  ...(remote
-    ? {}
-    : {
+  ...(localTarget
+    ? {
         webServer: {
-          command: "npx astro preview --host 127.0.0.1 --port 4321",
-          url: baseURL,
-          reuseExistingServer: !process.env.CI,
+          command: `npx astro preview --host ${localTarget.host} --port ${localTarget.port}`,
+          url: localTarget.url,
+          reuseExistingServer: false,
           timeout: 120_000,
         },
-      }),
+      }
+    : {}),
 });
