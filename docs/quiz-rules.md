@@ -38,6 +38,10 @@ Datas devem vir de fatos semelhantes e próximos no tempo. Pessoas devem respeit
 
 Perguntas de grupo para integrante excluem dos distratores todas as pessoas que outro fato aceito associa ao grupo. Na direção integrante para grupo, as alternativas omitem outros grupos aceitos para a mesma pessoa. Perguntas de gravadora para grupo entram no dataset somente quando os fatos aceitos ligam a gravadora a um grupo. A direção inversa exige uma única gravadora aceita para o grupo. Essas regras impedem duas respostas corretas entre as quatro alternativas.
 
+## Hints de paráfrase
+
+Perguntas sobre lançamentos aceitam um hint de uma frase com a ideia geral da faixa, sem citar letra ou tradução. O hint não entra nos fatos graduados. A resposta continua nos fatos `performed_by` ou `released_on` aceitos. O hint tem no máximo 140 caracteres, sem sequência de 3 ou mais palavras da letra, sem hooks, slogans ou nomes próprios inventados na música, e sem números de charts. O review log registra editor, data, fontes consultadas, busca exata com zero acertos, slide de 3-gramas sem sobreposição e segunda leitura. O hint só publica com zero acertos, zero sobreposições e aprovação registrada. Os hints seguem o versionamento do bundle de templates.
+
 ## Rejeição
 
 O sistema rejeita fatos sem fonte, datas incompatíveis, nomes ambíguos, intervalos abertos quando a pergunta exige duração e contagens baseadas em listas sem cobertura declarada. O relatório de rejeição é uma métrica do pipeline.
