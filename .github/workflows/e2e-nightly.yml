@@ -1,0 +1,49 @@
+name: Nightly e2e boot (Firefox + WebKit)
+
+on:
+  schedule:
+    # 06:00 UTC. Schedule runs on the default branch only.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-nightly
+  cancel-in-progress: false
+
+jobs:
+  boot-firefox-webkit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      # Local dist smoke only; analytics secrets unused — empty is fine.
+      - name: Build site
+        run: npm run build
+      # Smoke against the dist/ already built above (do not use npm run test:e2e — pretest rebuilds).
+      - name: Install Playwright Firefox and WebKit
+        run: npx playwright install --with-deps firefox webkit
+      - name: Run boot smoke on Firefox and WebKit
+        env:
+          CI: true
+        run: npm run test:e2e:nightly
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report-nightly
+          path: |
+            web/test-results/
+            web/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore

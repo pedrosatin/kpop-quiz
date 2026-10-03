@@ -53,10 +53,19 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
+  // chromium is the PR/deploy gate; firefox + webkit are selected by the nightly script.
   projects: [
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
     },
   ],
   // Local runs serve the built dist/; remote BASE_URL (staging/prod) skips webServer.
