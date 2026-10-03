@@ -59,7 +59,7 @@ interface SourceLine {
  * often backs the fact at several places of the same revision. The fact id
  * starts with the item's QID, which names the line.
  */
-export function categorySources(
+function categorySources(
   puzzle: ConnectionsPuzzle,
   categoryId: string,
   locale: Locale,

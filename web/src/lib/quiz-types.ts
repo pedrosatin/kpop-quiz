@@ -156,7 +156,7 @@ function isClue(value: unknown, questionFactIds: string[]): value is QuizClue {
   return new Set((value.evidence as Evidence[]).map((item) => item.fact_base_id)).size === (value.fact_base_ids as string[]).length;
 }
 
-export const PERMITTED_LICENSES = new Set([
+const PERMITTED_LICENSES = new Set([
   "CC0",
   "CC0 1.0",
   "CC BY 2.0",

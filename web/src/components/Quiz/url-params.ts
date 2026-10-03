@@ -3,7 +3,6 @@ import { loadStoredPreferences } from "./storage";
 
 export type QuizTheme = "history" | "daily";
 export type QuizDecadeValue = 1990 | 2000 | 2010 | 2020;
-export type QuizDecade = QuizDecadeValue | null;
 export type QuizDecadeSelection = QuizDecadeValue[];
 
 const isQuizDecade = (value: number): value is QuizDecadeValue =>
