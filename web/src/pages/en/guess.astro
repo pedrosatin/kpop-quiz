@@ -7,7 +7,7 @@ import { getMessages } from "../../i18n/catalog";
 const messages = getMessages("en");
 ---
 <BaseLayout locale="en" route="nameGuess" canonicalPath="/en/guess/" alternatePath="/pt-br/adivinhe/">
-  <div class="page-shell">
+  <div class="page-shell" data-testid="game-shell">
     <GameIntro
       wide
       kicker={messages.nameGuessEyebrow}
