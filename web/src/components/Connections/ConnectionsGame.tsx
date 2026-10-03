@@ -33,7 +33,7 @@ type Feedback =
   // n changes on every share, so the same message is announced again.
   | { kind: "copied" | "shareFailed"; n: number };
 
-export function ConnectionsGameContent({
+function ConnectionsGameContent({
   puzzle,
   locale,
   messages,
