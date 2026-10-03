@@ -38,7 +38,7 @@ export function QuizResult({
   const clues = cluesUsedCount ?? history.reduce((acc, h) => acc + h.cluesUsedCount, 0);
 
   return (
-    <section id="quiz" class="game-card game-card--wide result quiz-result" aria-labelledby="result-heading">
+    <section id="quiz" class="game-card game-card--wide result quiz-result" data-testid="game-result" aria-labelledby="result-heading">
       {/* From 60rem the title, text and buttons sit beside the stats, and the
           review below them runs in two columns. */}
       <div class="quiz-result-summary">
