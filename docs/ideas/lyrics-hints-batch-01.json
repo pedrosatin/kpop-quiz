@@ -1,0 +1,108 @@
+{
+  "batch": "lyrics-hints-01",
+  "status": "draft-pending-second-reader",
+  "hints": [
+    {
+      "release_qid": "Q102047766",
+      "release_title": "Black Mamba",
+      "group": "Aespa",
+      "hint_pt": "Uma declaração ousada de confronto contra uma presença sombria que ameaça laços preciosos.",
+      "hint_en": "A bold confrontation with a shadowy presence threatening precious bonds.",
+      "references_checked": [
+        "https://genius.com/Aespa-black-mamba-lyrics",
+        "https://genius.com/Genius-english-translations-aespa-black-mamba-english-translation-lyrics"
+      ],
+      "exact_search_hits": 0,
+      "three_gram_overlaps": [],
+      "second_reader": "pending-human",
+      "editor": "agent-draft",
+      "reviewed_at": "2026-10-03",
+      "approved": false
+    },
+    {
+      "release_qid": "Q106770484",
+      "release_title": "Next Level",
+      "group": "Aespa",
+      "hint_pt": "Um convite confiante para seguir adiante rumo a um desafio maior em outro lugar.",
+      "hint_en": "A confident call to move forward toward a greater challenge somewhere new.",
+      "references_checked": [
+        "https://genius.com/Aespa-next-level-lyrics",
+        "https://genius.com/Genius-english-translations-aespa-next-level-english-translation-lyrics"
+      ],
+      "exact_search_hits": 0,
+      "three_gram_overlaps": [],
+      "second_reader": "pending-human",
+      "editor": "agent-draft",
+      "reviewed_at": "2026-10-03",
+      "approved": false
+    },
+    {
+      "release_qid": "Q112205976",
+      "release_title": "Girls",
+      "group": "Aespa",
+      "hint_pt": "Um grito de guerra vibrante sobre coragem e união diante de uma batalha decisiva.",
+      "hint_en": "A fierce rallying cry about courage and unity before a decisive battle.",
+      "references_checked": [
+        "https://genius.com/Aespa-girls-lyrics",
+        "https://genius.com/Genius-english-translations-aespa-girls-english-translation-lyrics"
+      ],
+      "exact_search_hits": 0,
+      "three_gram_overlaps": [],
+      "second_reader": "pending-human",
+      "editor": "agent-draft",
+      "reviewed_at": "2026-10-03",
+      "approved": false
+    },
+    {
+      "release_qid": "Q123169883",
+      "release_title": "Drama",
+      "group": "Aespa",
+      "hint_pt": "Uma provocação confiante de quem assume o centro do palco sem pedir licença.",
+      "hint_en": "A confident taunt from someone seizing the spotlight without asking permission.",
+      "references_checked": [
+        "https://genius.com/Aespa-drama-lyrics",
+        "https://genius.com/Genius-english-translations-aespa-drama-english-translation-lyrics"
+      ],
+      "exact_search_hits": 0,
+      "three_gram_overlaps": [],
+      "second_reader": "pending-human",
+      "editor": "agent-draft",
+      "reviewed_at": "2026-10-03",
+      "approved": false
+    },
+    {
+      "release_qid": "Q130603279",
+      "release_title": "Whiplash",
+      "group": "Aespa",
+      "hint_pt": "Uma corrida eletrizante sobre atração intensa e velocidade sem freio.",
+      "hint_en": "An electrifying rush about intense attraction and unstoppable speed.",
+      "references_checked": [
+        "https://genius.com/Aespa-whiplash-lyrics",
+        "https://genius.com/Genius-english-translations-aespa-whiplash-english-translation-lyrics"
+      ],
+      "exact_search_hits": 0,
+      "three_gram_overlaps": [],
+      "second_reader": "pending-human",
+      "editor": "agent-draft",
+      "reviewed_at": "2026-10-03",
+      "approved": false
+    },
+    {
+      "release_qid": "Q32544070",
+      "release_title": "Armageddon",
+      "group": "Aespa",
+      "hint_pt": "Um despertar poderoso que anuncia uma nova era nascida do caos.",
+      "hint_en": "A powerful awakening announcing a new era born from chaos.",
+      "references_checked": [
+        "https://genius.com/Aespa-armageddon-lyrics",
+        "https://genius.com/Genius-english-translations-aespa-armageddon-english-translation-lyrics"
+      ],
+      "exact_search_hits": 0,
+      "three_gram_overlaps": [],
+      "second_reader": "pending-human",
+      "editor": "agent-draft",
+      "reviewed_at": "2026-10-03",
+      "approved": false
+    }
+  ]
+}
