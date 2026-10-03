@@ -84,7 +84,7 @@ export function GridResults({
   const shareText = gridShareText(grid, cellStates, guessesUsed, monochrome, messages);
 
   return (
-    <section class="grid-result" aria-labelledby={titleId}>
+    <section class="grid-result" data-testid="game-result" aria-labelledby={titleId}>
       <div class="grid-verdict">
         <h2
           id={titleId}

@@ -39,7 +39,7 @@ export function TimelineResults({
   const revisionLabel = messages?.revision ?? defaultMsgs.revision;
 
   return (
-    <section class="timeline-results" aria-labelledby={titleId}>
+    <section class="timeline-results" data-testid="game-result" aria-labelledby={titleId}>
       <div class="timeline-results-banner">
         <h2
           id={titleId}

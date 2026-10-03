@@ -108,7 +108,7 @@ export function NameGuessResults({
   const hasDetails = Boolean(clues || primaryEvidence);
 
   return (
-    <section aria-labelledby={titleId} class="name-guess-result">
+    <section aria-labelledby={titleId} class="name-guess-result" data-testid="game-result">
       <div class="name-guess-verdict">
         <h2
           id={titleId}
