@@ -83,7 +83,7 @@ export function WordSearchResult({
   }, [sourceOpen]);
 
   return (
-    <section class="word-search-result" aria-labelledby={titleId}>
+    <section class="word-search-result" data-testid="game-result" aria-labelledby={titleId}>
       <div class="word-search-verdict">
         <h2
           id={titleId}

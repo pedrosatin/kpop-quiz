@@ -134,7 +134,7 @@ export function ConnectionsResults({
   const categories = [...puzzle.categories].sort((a, b) => a.difficulty_level - b.difficulty_level);
 
   return (
-    <section class="connections-result" aria-labelledby={titleId}>
+    <section class="connections-result" data-testid="game-result" aria-labelledby={titleId}>
       <div class="connections-verdict">
         <h2
           id={titleId}

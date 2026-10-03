@@ -160,7 +160,7 @@ export function MapPilotResult({
   };
 
   return (
-    <section class="map-pilot-result" aria-labelledby={titleId}>
+    <section class="map-pilot-result" data-testid="game-result" aria-labelledby={titleId}>
       <div class="map-pilot-verdict">
         <h2
           id={titleId}
