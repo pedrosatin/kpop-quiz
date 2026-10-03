@@ -12,6 +12,7 @@
     "pretest:e2e": "npm run build",
     "test:e2e": "playwright test --project=chromium",
     "test:e2e:ci": "playwright test --project=chromium",
+    "test:e2e:boot": "playwright test smoke --project=chromium",
     "test:e2e:playthrough": "playwright test playthrough --project=chromium",
     "test:e2e:nightly": "playwright test smoke --project=firefox --project=webkit",
     "test:e2e:staging": "BASE_URL=${STAGING_BASE_URL:-https://pedrosatin.github.io/kpop-quiz/} playwright test --project=chromium",
