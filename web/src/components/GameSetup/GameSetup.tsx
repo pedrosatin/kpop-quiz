@@ -38,7 +38,7 @@ export function GameSetup({
   // Without a theme or decade picker the left column would be empty.
   const hasPoolGroup = Boolean(onSelectTheme || onSelectDecades);
   return (
-    <section id="quiz" class="game-card game-card--wide quiz-setup" aria-labelledby="difficulty-heading">
+    <section id="quiz" class="game-card game-card--wide quiz-setup" data-testid="game-setup" aria-labelledby="difficulty-heading">
       <div class="setup-options">
         <div class="setup-heading">
           <p class="kicker">{messages.setupKicker}</p>
@@ -80,6 +80,7 @@ export function GameSetup({
         <button
           class="btn btn-primary quiz-start"
           type="button"
+          data-testid="game-start"
           disabled={!isReady || disabled}
           onClick={onStart}
         >
