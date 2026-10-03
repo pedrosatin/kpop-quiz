@@ -1,9 +1,12 @@
 import type { Ref } from "preact";
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useId, useMemo, useRef, useState } from "preact/hooks";
 import type { IntersectionGrid, Locale } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { cellKey, type GridCellState } from "./types";
 import { GridReview } from "./GridReview";
+import { useGameShareAction } from "../Results/use-game-share-action";
+import { useResultActionGuard } from "../Results/use-result-action-guard";
+export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 export interface GridResultsProps {
   grid: IntersectionGrid;
@@ -18,9 +21,6 @@ export interface GridResultsProps {
   locale: Locale;
   messages: Messages;
 }
-
-/** How long the result buttons ignore activation after they replace the counters. */
-export const RESULT_GUARD_MS = 300;
 
 export function gridShareText(
   grid: IntersectionGrid,
@@ -60,32 +60,16 @@ export function GridResults({
   messages,
 }: GridResultsProps) {
   const [monochrome, setMonochrome] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [shareFailed, setShareFailed] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
-  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleId = useId();
   const summaryId = useId();
   const sourceId = useId();
   const shareFailedId = useId();
   const source = useRef<HTMLDivElement>(null);
-  const shownAt = useRef(0);
-
   // The buttons appear where the counters were, right after the last pick,
   // so a second tap or a held Enter must not share or restart the game.
-  useLayoutEffect(() => {
-    shownAt.current = performance.now();
-  }, []);
-  const guarded = (action: () => void) => () => {
-    if (performance.now() - shownAt.current >= RESULT_GUARD_MS) action();
-  };
-  const ignoreRepeat = (event: KeyboardEvent) => {
-    if (event.repeat) event.preventDefault();
-  };
-
-  useEffect(() => () => {
-    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-  }, []);
+  const { guarded, ignoreRepeat } = useResultActionGuard();
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.
@@ -98,37 +82,6 @@ export function GridResults({
     [cellStates],
   );
   const shareText = gridShareText(grid, cellStates, guessesUsed, monochrome, messages);
-
-  // The share sheet first, where there is one; a player who closes it has not
-  // hit an error. Then the clipboard. If neither takes the text, the text
-  // shows in a field the player can select and copy by hand.
-  const handleShare = async () => {
-    const nav = typeof navigator !== "undefined" ? navigator : undefined;
-    if (typeof nav?.share === "function") {
-      try {
-        await nav.share({ text: shareText });
-        return;
-      } catch (error) {
-        if ((error as { name?: unknown } | null)?.name === "AbortError") return;
-      }
-    }
-    try {
-      if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
-      await nav.clipboard.writeText(shareText);
-    } catch {
-      setShareFailed(true);
-      onShareFailed?.();
-      return;
-    }
-    setShareFailed(false);
-    setCopied(true);
-    onCopied?.();
-    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => {
-      copiedTimer.current = null;
-      setCopied(false);
-    }, 3000);
-  };
 
   return (
     <section class="grid-result" aria-labelledby={titleId}>
@@ -149,7 +102,7 @@ export function GridResults({
       </div>
 
       <div class="grid-result-buttons">
-        <button type="button" class="btn btn-primary" onKeyDown={ignoreRepeat} onClick={guarded(handleShare)}>
+        <button type="button" class="btn btn-primary" onKeyDown={ignoreRepeat} onClick={guarded(() => { void handleShare(shareText); })}>
           {copied ? messages.copiedToClipboard : messages.gridShareButton}
         </button>
         <button type="button" class="btn btn-secondary" onKeyDown={ignoreRepeat} onClick={guarded(onRestart)}>

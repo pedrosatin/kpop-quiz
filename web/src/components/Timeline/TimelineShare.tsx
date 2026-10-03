@@ -1,8 +1,9 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { TimelineShareProps } from "./types";
 import { DEFAULT_TIMELINE_MESSAGES } from "./types";
-
-export const RESULT_GUARD_MS = 300;
+import { shareTextToUser } from "../Results/share-text";
+import { useResultActionGuard } from "../Results/use-result-action-guard";
+export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 export function TimelineShare({
   shareText,
@@ -15,19 +16,15 @@ export function TimelineShare({
   const [shareFailed, setShareFailed] = useState(false);
   const [announcementKey, setAnnouncementKey] = useState(0);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shownAt = useRef(0);
   const shareTextId = useId();
   const shareFailedId = useId();
+  const { guarded, ignoreRepeat } = useResultActionGuard();
 
   const defaultMsgs = DEFAULT_TIMELINE_MESSAGES[locale] || DEFAULT_TIMELINE_MESSAGES["pt-BR"];
   const shareLabel = messages?.share ?? defaultMsgs.share;
   const copiedMsg = messages?.copiedToClipboard ?? defaultMsgs.copiedToClipboard;
   const failedMsg = messages?.shareFailed ?? defaultMsgs.shareFailed;
   const previewLabel = messages?.shareTextLabel ?? defaultMsgs.shareTextLabel;
-
-  useLayoutEffect(() => {
-    shownAt.current = performance.now();
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -37,38 +34,14 @@ export function TimelineShare({
     };
   }, []);
 
-  const guarded = (action: () => void) => () => {
-    if (performance.now() - shownAt.current >= RESULT_GUARD_MS) {
-      action();
-    }
-  };
-
-  const ignoreRepeat = (event: KeyboardEvent) => {
-    if (event.repeat) {
-      event.preventDefault();
-    }
-  };
-
   const handleShare = async () => {
-    const nav = typeof navigator !== "undefined" ? navigator : undefined;
-
-    if (typeof nav?.share === "function") {
-      try {
-        await nav.share({ text: shareText });
-        onShareSuccess?.();
-        return;
-      } catch (error) {
-        if ((error as { name?: unknown } | null)?.name === "AbortError") {
-          return;
-        }
-      }
+    const outcome = await shareTextToUser(shareText);
+    if (outcome === "aborted") return;
+    if (outcome === "shared") {
+      onShareSuccess?.();
+      return;
     }
-
-    try {
-      if (typeof nav?.clipboard?.writeText !== "function") {
-        throw new Error("Clipboard API unavailable");
-      }
-      await nav.clipboard.writeText(shareText);
+    if (outcome === "copied") {
       setShareFailed(false);
       setCopied(true);
       setAnnouncementKey((k) => k + 1);
@@ -80,12 +53,12 @@ export function TimelineShare({
         copiedTimer.current = null;
         setCopied(false);
       }, 3000);
-    } catch {
-      setCopied(false);
-      setShareFailed(true);
-      setAnnouncementKey((k) => k + 1);
-      onShareError?.();
+      return;
     }
+    setCopied(false);
+    setShareFailed(true);
+    setAnnouncementKey((k) => k + 1);
+    onShareError?.();
   };
 
   return (
@@ -93,7 +66,7 @@ export function TimelineShare({
       <button
         type="button"
         class="btn btn-primary timeline-share-btn"
-        onClick={guarded(handleShare)}
+        onClick={guarded(() => { void handleShare(); })}
         onKeyDown={ignoreRepeat}
       >
         {shareLabel}
