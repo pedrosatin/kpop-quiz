@@ -69,21 +69,30 @@ npm test
 npm run build
 ASTRO_SITE=https://pedrosatin.github.io ASTRO_BASE=/kpop-quiz npm run build  # staging build under /kpop-quiz/
 npm run playwright:install   # Chromium once per machine
-npm run test:e2e             # builds via pretest, then smokes dist/
-npm run test:e2e:ci          # smoke an existing dist/ (no rebuild)
-npm run test:e2e:staging     # smoke https://pedrosatin.github.io/kpop-quiz/
-npm run test:e2e:prod        # smoke https://kpopquiz.online
+npm run test:e2e             # builds via pretest, then full Chromium suite on dist/
+npm run test:e2e:ci          # full Chromium suite on an existing dist/ (no rebuild)
+npm run test:e2e:boot        # Chromium boot smoke only
+npm run test:e2e:playthrough # Chromium pt-BR playthroughs only
+npm run test:e2e:nightly     # Firefox + WebKit boot smoke
+npm run test:e2e:staging     # full Chromium suite against staging
+npm run test:e2e:prod        # full Chromium suite against https://kpopquiz.online
 ```
 
-### End-to-end smoke
+### End-to-end tests
 
-Playwright runs a Chromium-only boot smoke on the game routes (and privacy): HTTP 200, shell, setup or start CTA, and a visible board. It seeds `kpop-quiz-consent` to `rejected` before each test so the GA4 banner does not block the suite. Full playthroughs are out of scope in v1.
+Playwright's Chromium gate runs boot smoke plus pt-BR playthroughs. The gate covers game routes and privacy in pt-BR and EN.
 
-Locally, `npm run test:e2e` runs `pretest:e2e` first, which builds `dist/`. CI already has a build, so the workflows call `npm run test:e2e:ci` against that artifact. Do not use `test:e2e` in CI, because pretest would rebuild.
+Boot for games checks HTTP 200, the shell, a setup or start CTA, and a visible board (or Grid missing+retry when the daily artifact is absent). Privacy boot checks the shell and privacy content only.
 
-Smoke runs on the built `dist/` before publish, then again on the live URL after deploy. On PRs that touch the web paths, and on the build jobs for `master` and `dev`, smoke runs against the local `dist/` before publish. After a push to `dev` deploys staging on GitHub Pages, `smoke-staging` hits the live staging URL. After a push to `master` deploys production on Cloudflare Pages, `smoke-prod` hits `https://kpopquiz.online`. A red post-prod smoke fails the workflow; that failure is the alert. There is no automatic rollback, so fix or roll back by hand.
+Playthroughs are pt-BR only. They drive each of the seven games to `game-result`. Connections and Name Guess lose or exhaust wrong guesses. Word Search completes from daily JSON coordinates. Quiz and Map take any-answer paths through to the end. Timeline submits the default order. Grid fills when the artifact exists, else uses the missing+retry UI. Both specs seed `kpop-quiz-consent` to `rejected` so the GA4 banner does not block the suite.
 
-Suite decisions are in `.scratch/e2e-playwright-smoke/spec.md`.
+Locally, `npm run test:e2e` runs `pretest:e2e` first, which builds `dist/`. CI already has a build, so the workflows call `npm run test:e2e:ci` against that artifact. Do not use `test:e2e` in CI, because pretest would rebuild. Narrower scripts are `test:e2e:boot` and `test:e2e:playthrough`.
+
+The suite runs on the built `dist/` before publish, then again on the live URL after deploy. On PRs that touch the web paths, and on the build jobs for `master` and `dev`, it runs against the local `dist/` before publish. After a push to `dev` deploys staging on GitHub Pages, `smoke-staging` hits the live staging URL. After a push to `master` deploys production on Cloudflare Pages, `smoke-prod` hits `https://kpopquiz.online`. A red post-prod suite fails the workflow. That is the alert. There is no automatic rollback, so fix or roll back by hand.
+
+A nightly workflow (`.github/workflows/e2e-nightly.yml`) runs at 06:00 UTC on `master` (cron `0 6 * * *`, plus `workflow_dispatch`). It builds `dist/` and runs boot smoke only on Firefox and WebKit via `test:e2e:nightly`. A red nightly is visible in Actions; it does not block PR merges.
+
+Suite decisions are in `.scratch/e2e-playwright-v2/spec.md`. The earlier boot-only contract is in `.scratch/e2e-playwright-smoke/spec.md`.
 
 Styles live in `web/src/styles/`. `global.css` only imports the other files, in this order:
 
