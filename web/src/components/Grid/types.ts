@@ -1,6 +1,3 @@
-import type { IntersectionGrid, Locale } from "../../lib/quiz-types";
-import type { Messages } from "../../i18n/catalog";
-
 export type GridGameStatus = "loading" | "error" | "ready" | "cell_selected" | "complete";
 
 export interface CellCoordinates {
@@ -37,24 +34,6 @@ export interface GridStoredCell {
 export interface GridStoredState {
   guessesUsed: number;
   cells: Record<string, GridStoredCell>;
-}
-
-export interface GridGameState {
-  status: GridGameStatus;
-  grid: IntersectionGrid | null;
-  selectedCell: CellCoordinates | null;
-  guessesUsed: number;
-  maxGuesses: number;
-  cells: Record<string, GridCellState>;
-  usedEntityIds: Set<string>;
-  errorKind?: "missing" | "invalid";
-  uniquenessError?: string | null;
-}
-
-export interface GridComponentProps {
-  locale: Locale;
-  baseUrl?: string;
-  messages?: Messages;
 }
 
 export function cellKey(row: number, col: number): string {

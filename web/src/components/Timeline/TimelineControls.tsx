@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { TimelineControlsProps } from "./types";
 
-export const TIMELINE_SUBMIT_GUARD_MS = 300;
+const TIMELINE_SUBMIT_GUARD_MS = 300;
 
 export function TimelineControls({
   gameStatus = "in_progress",

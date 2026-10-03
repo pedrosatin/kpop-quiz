@@ -65,4 +65,3 @@ export function TimelineGame({
 }
 
 export type { TimelineGameProps };
-export { TimelineGameContent };

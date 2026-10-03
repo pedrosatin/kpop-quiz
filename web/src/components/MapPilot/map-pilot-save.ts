@@ -25,7 +25,7 @@ export function mapPilotStorageKey(roundDate: string): string {
 const ROUND_KEY = /^kpop-map-\d{4}-\d{2}-\d{2}$/;
 
 /** Removes the saves of other days, so old rounds do not pile up in storage. */
-export function pruneMapPilotSaves(roundDate: string): void {
+function pruneMapPilotSaves(roundDate: string): void {
   try {
     const keep = mapPilotStorageKey(roundDate);
     const stale: string[] = [];
