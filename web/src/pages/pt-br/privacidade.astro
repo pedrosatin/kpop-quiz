@@ -14,7 +14,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     description: "Como o K-pop Quiz usa métricas de acesso, cookies e escolhas de consentimento.",
   }}
 >
-  <article id="privacy-notice" class="privacy-notice">
+  <div class="page-shell" data-testid="game-shell">
+  <article id="privacy-notice" class="privacy-notice" data-testid="privacy-content">
     <p class="kicker">K-pop Quiz</p>
     <h1>Privacidade e medição de acesso</h1>
     <p>Atualizada em 24 de setembro de 2026.</p>
@@ -38,4 +39,5 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     <h2>Seus direitos</h2>
     <p>Você pode pedir informações sobre o tratamento de dados, corrigir dados, solicitar eliminação quando aplicável ou revogar o consentimento do GA4. Use o e-mail de contato acima.</p>
   </article>
+  </div>
 </BaseLayout>

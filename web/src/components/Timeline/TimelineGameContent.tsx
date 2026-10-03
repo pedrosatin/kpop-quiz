@@ -94,7 +94,7 @@ export function TimelineGameContent({
   }, [gameStatus, puzzle, score]);
 
   return (
-    <section id="timeline" class="timeline-game" aria-labelledby="timeline-board-heading">
+    <section id="timeline" class="timeline-game" data-testid="game-board" aria-labelledby="timeline-board-heading">
       {gameStatus === "submitted" ? (
         <TimelineResults
           score={score}

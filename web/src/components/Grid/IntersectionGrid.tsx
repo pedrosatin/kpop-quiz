@@ -162,9 +162,9 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
   if (status === "error" || !grid) {
     const errorMsg = errorKind === "missing" ? messages.gridDailyMissing : messages.loadError;
     return (
-      <section id="grid" class="game-card game-card--wide state" aria-live="polite">
+      <section id="grid" class="game-card game-card--wide state" data-testid="game-missing" aria-live="polite">
         <p>{errorMsg}</p>
-        <button class="btn btn-primary" type="button" onClick={reload}>
+        <button class="btn btn-primary" type="button" data-testid="game-retry" onClick={reload}>
           {messages.retry}
         </button>
       </section>
@@ -197,7 +197,7 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
   }
 
   return (
-    <section id="grid" class="game-card game-card--wide grid-game" aria-labelledby="grid-hud-heading">
+    <section id="grid" class="game-card game-card--wide grid-game" data-testid="game-board" aria-labelledby="grid-hud-heading">
       <h2 id="grid-hud-heading" class="visually-hidden">
         {messages.gridTitle}
       </h2>

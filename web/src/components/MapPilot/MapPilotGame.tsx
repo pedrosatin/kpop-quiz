@@ -231,6 +231,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
     <section
       class={`map-pilot-game${isComplete ? " is-complete" : ""}`}
       id="map-game"
+      data-testid="game-board"
       {...(isComplete ? {} : { "aria-labelledby": "map-game-title" })}
     >
       {current && (

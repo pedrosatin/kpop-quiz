@@ -170,7 +170,7 @@ export function ConnectionsGameContent({
   else if (feedback?.kind === "wrong" || feedback?.kind === "oneAway") barState = " is-incorrect";
 
   return (
-    <section id="connections" class="game-card game-card--wide connections-game" aria-labelledby="connections-heading">
+    <section id="connections" class="game-card game-card--wide connections-game" data-testid="game-board" aria-labelledby="connections-heading">
       <h2 id="connections-heading" class="visually-hidden">
         {messages.connectionsTitle}
       </h2>
