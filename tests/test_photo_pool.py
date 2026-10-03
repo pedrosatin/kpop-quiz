@@ -4,12 +4,15 @@ import unittest
 from pathlib import Path
 
 from kpop_scraping.media_registry import PERMITTED_LICENSES
+from kpop_scraping.mediawiki import MediaWikiError
 from kpop_scraping.photo_pool import (
     build_photo_record,
     candidate_asset_name,
     check_revalidation,
+    file_page_title,
     license_deed_url,
     read_pool_registry,
+    revalidate_record,
     select_verified_pool,
     strip_html_markup,
     validate_photo_verdict,
@@ -83,8 +86,13 @@ class PhotoVerdictTest(unittest.TestCase):
 class LicenseDeedTest(unittest.TestCase):
     def test_every_permitted_license_has_deed(self):
         for name in PERMITTED_LICENSES:
-            url = license_deed_url(name if name != "Public domain" else "Public Domain")
-            self.assertTrue(url.startswith("https://"))
+            self.assertTrue(license_deed_url(name).startswith("https://"))
+
+    def test_commons_lowercase_public_domain_alias(self):
+        self.assertEqual(
+            license_deed_url("Public domain"),
+            "https://creativecommons.org/publicdomain/mark/1.0/",
+        )
 
     def test_unknown_license_raises_key_error(self):
         with self.assertRaises(KeyError):
@@ -194,6 +202,105 @@ class PoolRegistryTest(unittest.TestCase):
         self.assertTrue(records[0]["asset_url"].startswith("https://kpopquiz.online/media/photo/"))
 
 
+class BuildGateTest(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        self.candidates_path = self.root / "candidates.json"
+        self.candidates_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "file_title": "File:Jennie Kim 2024.png",
+                        "file_url": "https://upload.wikimedia.org/x.png",
+                        "file_page_url": "https://commons.wikimedia.org/wiki/File:Jennie_Kim_2024.png",
+                        "license_name": "CC BY-SA 4.0",
+                        "creator": "Fan",
+                        "subject_qid": "Q12345",
+                        "width": 800,
+                        "height": 1200,
+                    }
+                ]
+            )
+        )
+
+    def tearDown(self):
+        self.tempdir.cleanup()
+
+    def test_below_floor_verdicts_skipped(self):
+        verdicts_path = self.root / "verdicts.json"
+        verdicts_path.write_text(
+            json.dumps([make_verdict_for("File:Jennie Kim 2024.png", "Q12345", 100)])
+        )
+        registry_path = self.root / "pool.json"
+        self.assertEqual(
+            main(
+                [
+                    "build",
+                    "--candidates",
+                    str(self.candidates_path),
+                    "--verdicts",
+                    str(verdicts_path),
+                    "--registry",
+                    str(registry_path),
+                ]
+            ),
+            0,
+        )
+        self.assertEqual(read_pool_registry(registry_path), [])
+
+    def test_subject_mismatch_fails_fast(self):
+        verdicts_path = self.root / "verdicts.json"
+        verdicts_path.write_text(
+            json.dumps([make_verdict_for("File:Jennie Kim 2024.png", "Q99999", 480)])
+        )
+        registry_path = self.root / "pool.json"
+        with self.assertRaises(SystemExit):
+            main(
+                [
+                    "build",
+                    "--candidates",
+                    str(self.candidates_path),
+                    "--verdicts",
+                    str(verdicts_path),
+                    "--registry",
+                    str(registry_path),
+                ]
+            )
+
+    def test_malformed_candidates_fails_cleanly(self):
+        bad = self.root / "bad.json"
+        bad.write_text(json.dumps({"not": "a list"}))
+        verdicts_path = self.root / "verdicts.json"
+        verdicts_path.write_text(json.dumps([]))
+        self.assertEqual(
+            main(
+                [
+                    "build",
+                    "--candidates",
+                    str(bad),
+                    "--verdicts",
+                    str(verdicts_path),
+                    "--registry",
+                    str(self.root / "pool.json"),
+                ]
+            ),
+            2,
+        )
+
+
+def make_verdict_for(file_title, subject_qid, short_side):
+    return {
+        "file_title": file_title,
+        "subject_qid": subject_qid,
+        "depicts_subject": True,
+        "solo_portrait": True,
+        "min_short_side_px": short_side,
+        "reviewer": "editor",
+        "verified_at": "2026-10-03",
+    }
+
+
 class VerifiedPoolSelectionTest(unittest.TestCase):
     def test_minimum_per_idol_enforced(self):
         verdicts = [
@@ -211,6 +318,65 @@ class VerifiedPoolSelectionTest(unittest.TestCase):
             make_verdict(file_title="File:A3.png", subject_qid="Q1", solo_portrait=False),
         ]
         self.assertEqual(select_verified_pool(verdicts, min_per_idol=2), {})
+
+    def test_below_floor_verdicts_excluded_from_selection(self):
+        verdicts = [
+            make_verdict(
+                file_title="File:A1.png",
+                subject_qid="Q1",
+                min_short_side_px=399,
+            ),
+            make_verdict(
+                file_title="File:A2.png",
+                subject_qid="Q1",
+                min_short_side_px=400,
+            ),
+        ]
+        self.assertEqual(select_verified_pool(verdicts, min_per_idol=1), {"Q1": [verdicts[1]]})
+
+
+class RevalidateRecordTest(unittest.TestCase):
+    def test_queries_exact_file_title_once(self):
+        seen = []
+
+        class StubClient:
+            def _get(self, parameters):
+                seen.append(parameters["titles"])
+                return {
+                    "query": {
+                        "pages": [
+                            {
+                                "imageinfo": [
+                                    {
+                                        "extmetadata": {
+                                            "LicenseShortName": {"value": "CC BY-SA 4.0"}
+                                        },
+                                        "mediatype": "BITMAP",
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+
+        result = revalidate_record(StubClient(), make_record())
+        self.assertEqual(seen, ["File:Jennie Kim 2024.png"])
+        self.assertTrue(result["ok"])
+
+    def test_client_error_recorded_not_raised(self):
+        class FailingClient:
+            def _get(self, _parameters):
+                raise MediaWikiError("boom")
+
+        result = revalidate_record(FailingClient(), make_record())
+        self.assertFalse(result["ok"])
+        self.assertTrue(result["reasons"])
+
+    def test_file_page_title_keeps_extension(self):
+        self.assertEqual(
+            file_page_title("https://commons.wikimedia.org/wiki/File:Jennie_Kim_2024.png"),
+            "File:Jennie Kim 2024.png",
+        )
 
 
 class RevalidationTest(unittest.TestCase):
@@ -233,6 +399,12 @@ class RevalidationTest(unittest.TestCase):
     def test_mediatype_drift_fails(self):
         stored = make_record()
         fresh = {"license_name": "CC BY-SA 4.0", "mediatype": "VIDEO"}
+        result = check_revalidation(stored, fresh)
+        self.assertFalse(result["ok"])
+
+    def test_missing_mediatype_fails_closed(self):
+        stored = make_record()
+        fresh = {"license_name": "CC BY-SA 4.0"}
         result = check_revalidation(stored, fresh)
         self.assertFalse(result["ok"])
 

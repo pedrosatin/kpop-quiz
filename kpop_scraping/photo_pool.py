@@ -14,6 +14,7 @@ import argparse
 import html
 import json
 import re
+import sys
 import urllib.request
 from datetime import date
 from pathlib import Path
@@ -178,7 +179,11 @@ def select_verified_pool(
     grouped: dict[str, list[dict[str, Any]]] = {}
     for verdict in verdicts:
         validate_photo_verdict(verdict)
-        if verdict["depicts_subject"] and verdict["solo_portrait"]:
+        if (
+            verdict["depicts_subject"]
+            and verdict["solo_portrait"]
+            and meets_resolution_floor(verdict)
+        ):
             grouped.setdefault(verdict["subject_qid"], []).append(verdict)
     return {
         qid: items for qid, items in grouped.items() if len(items) >= min_per_idol
@@ -203,8 +208,8 @@ def check_revalidation(
         )
     if (fresh.get("license_name") or "") not in PERMITTED_LICENSES:
         reasons.append(f"current license not permitted: {fresh.get('license_name')!r}")
-    if fresh.get("mediatype") and fresh.get("mediatype") != "BITMAP":
-        reasons.append(f"mediatype changed: {fresh.get('mediatype')!r}")
+    if fresh.get("mediatype") != "BITMAP":
+        reasons.append(f"mediatype is not BITMAP: {fresh.get('mediatype')!r}")
     return {"ok": not reasons, "reasons": reasons}
 
 
@@ -258,21 +263,92 @@ def load_candidates(path: Path) -> dict[str, dict[str, Any]]:
     File: page), license_name, creator, subject_qid, width, height.
     """
     entries = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(entries, list):
+        raise ValueError(f"candidates file must hold a JSON list: {path}")
+    for entry in entries:
+        if not isinstance(entry, dict) or not entry.get("file_title"):
+            raise ValueError(f"candidates entries need file_title: {path}")
     return {entry["file_title"]: entry for entry in entries}
+
+
+def meets_resolution_floor(verdict: dict[str, Any]) -> bool:
+    """Whether a verdict clears the portrait resolution floor."""
+    return verdict.get("min_short_side_px", 0) >= POOL_PORTRAIT_SHORT_SIDE_PX
+
+
+def file_page_title(source_url: str) -> str:
+    """Derive the Commons File: title from a stored file-page URL."""
+    name = Path(source_url).name.replace("_", " ")
+    if name.startswith("File:"):
+        return name
+    return f"File:{name}"
+
+
+def revalidate_record(client: Any, record: dict[str, Any]) -> dict[str, Any]:
+    """Revalidate one registry record against fresh Commons imageinfo."""
+    from .mediawiki import MediaWikiError
+
+    try:
+        payload = client._get(
+            {
+                "action": "query",
+                "titles": file_page_title(record["source_url"]),
+                "prop": "imageinfo",
+                "iiprop": "extmetadata|mediatype",
+            }
+        )
+    except MediaWikiError as exc:
+        return {"ok": False, "reasons": [f"revalidation request failed: {exc}"]}
+    fresh = None
+    for page in ((payload.get("query") or {}).get("pages") or []):
+        infos = page.get("imageinfo") or []
+        if infos and "missing" not in page:
+            meta = infos[0].get("extmetadata") or {}
+            fresh = {
+                "license_name": (meta.get("LicenseShortName") or {}).get("value", ""),
+                "mediatype": infos[0].get("mediatype"),
+            }
+    check = check_revalidation(record, fresh)
+    return {"source_url": record["source_url"], **check}
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    try:
+        return _run(args)
+    except (ValueError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+
+def _run(args: argparse.Namespace) -> int:
     if args.command == "build":
         candidates = load_candidates(args.candidates)
         verdicts = json.loads(args.verdicts.read_text(encoding="utf-8"))
+        if not isinstance(verdicts, list):
+            raise ValueError(f"verdicts file must hold a JSON list: {args.verdicts}")
         for verdict in verdicts:
             validate_photo_verdict(verdict)
-        positive = [
-            v
-            for v in verdicts
-            if v["depicts_subject"] and v["solo_portrait"] and v["file_title"] in candidates
-        ]
+        positive = []
+        skipped_floor = 0
+        for verdict in verdicts:
+            if not (
+                verdict["depicts_subject"]
+                and verdict["solo_portrait"]
+                and verdict["file_title"] in candidates
+            ):
+                continue
+            if not meets_resolution_floor(verdict):
+                skipped_floor += 1
+                continue
+            entry = candidates[verdict["file_title"]]
+            if entry.get("subject_qid") != verdict["subject_qid"]:
+                raise SystemExit(
+                    "verdict/candidate subject mismatch for "
+                    f"{verdict['file_title']}: {entry.get('subject_qid')} != "
+                    f"{verdict['subject_qid']}"
+                )
+            positive.append(verdict)
         per_subject: dict[str, int] = {}
         records = []
         for verdict in positive:
@@ -296,7 +372,10 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
         write_pool_registry(records, args.registry)
-        print(f"pool registry: {len(records)} records -> {args.registry}")
+        print(
+            f"pool registry: {len(records)} records "
+            f"({skipped_floor} below resolution floor) -> {args.registry}"
+        )
     elif args.command == "download":
         records = read_pool_registry(args.registry)
         candidates = load_candidates(args.candidates)
@@ -317,32 +396,7 @@ def main(argv: list[str] | None = None) -> int:
 
         records = read_pool_registry(args.registry)
         client = MediaWikiClient(api_url=args.api_url, user_agent=USER_AGENT)
-        report = []
-        for record in records:
-            title = Path(record["source_url"]).name.replace("_", " ")
-            payload = client._get(
-                {
-                    "action": "query",
-                    "titles": f"File:{title}",
-                    "prop": "imageinfo",
-                    "iiprop": "extmetadata|mediatype",
-                }
-            )
-            fresh = None
-            for page in ((payload.get("query") or {}).get("pages") or []):
-                infos = page.get("imageinfo") or []
-                if infos and "missing" not in page:
-                    meta = infos[0].get("extmetadata") or {}
-                    fresh = {
-                        "license_name": (meta.get("LicenseShortName") or {}).get(
-                            "value", ""
-                        ),
-                        "mediatype": infos[0].get("mediatype"),
-                    }
-            check = check_revalidation(record, fresh)
-            report.append(
-                {"source_url": record["source_url"], **check}
-            )
+        report = [revalidate_record(client, record) for record in records]
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(
             json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
