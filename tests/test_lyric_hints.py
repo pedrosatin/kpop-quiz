@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -134,13 +136,20 @@ class HintReviewTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "review.json"
             path.write_text(json.dumps(make_record(exact_search_hits=3)))
-            self.assertEqual(main(["review", "--record", str(path)]), 0)
+            with contextlib.redirect_stdout(io.StringIO()) as stdout:
+                self.assertEqual(main(["review", "--record", str(path)]), 0)
+            self.assertIn("approves=False", stdout.getvalue())
 
     def test_cli_review_with_malformed_json_fails_cleanly(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "review.json"
             path.write_text("{not json")
             self.assertEqual(main(["review", "--record", str(path)]), 2)
+
+    def test_cli_review_with_missing_record_fails_cleanly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "absent.json"
+            self.assertEqual(main(["review", "--record", str(missing)]), 2)
 
 
 if __name__ == "__main__":

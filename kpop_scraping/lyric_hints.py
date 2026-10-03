@@ -156,7 +156,10 @@ def main(argv: list[str] | None = None) -> int:
             record = json.loads(args.record.read_text(encoding="utf-8"))
             validate_hint_review(record)
             print(f"review ok, approves={review_approves(record)}")
-    except (ValueError, OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+    except (ValueError, OSError) as exc:
+        # JSONDecodeError and UnicodeDecodeError are ValueError subclasses;
+        # exit code 2 covers every CLI failure mode (bad invocation from
+        # argparse and rejected content or unreadable inputs from here).
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return 0
