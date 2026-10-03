@@ -3,7 +3,7 @@
 // zone of the generator's reference date, even before the next run
 // promotes them to data/.
 
-export const DAILY_TIME_ZONE = "America/Sao_Paulo";
+const DAILY_TIME_ZONE = "America/Sao_Paulo";
 
 export function dailyReferenceDate(now: Date = new Date()): string {
   // en-CA formats dates as YYYY-MM-DD.

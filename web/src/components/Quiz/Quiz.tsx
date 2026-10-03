@@ -4,7 +4,7 @@ import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../
 import { loadQuizSessionWithAvailability, QuizArtifactError } from "../../data/session-loader";
 import { GameSetup } from "../GameSetup/GameSetup";
 import { QuizRound } from "./QuizRound";
-import { groupEvidence, type DisplayEvidence } from "./AnswerFeedback";
+import { groupEvidence } from "./AnswerFeedback";
 import { QuizState } from "./QuizState";
 import { QuizResult } from "./QuizResult";
 import { loadStoredPreferences, saveStoredPlayMode, saveStoredTimerEnabled } from "./storage";
@@ -20,7 +20,7 @@ import {
   recordGameFinish,
 } from "../../lib/player-stats";
 
-export { groupEvidence, type DisplayEvidence, type QuestionResult, type QuizMachineState };
+export { groupEvidence };
 
 export function Quiz({ locale }: { locale: Locale }) {
   const messages = getMessages(locale);

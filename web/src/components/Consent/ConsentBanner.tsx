@@ -52,7 +52,7 @@ function disableGoogleAnalytics(ga4Id: string): void {
   }
 }
 
-export function readConsentChoice(): ConsentChoice | null {
+function readConsentChoice(): ConsentChoice | null {
   try {
     const stored = window.localStorage.getItem(CONSENT_STORAGE_KEY);
     return stored === "accepted" || stored === "rejected" ? stored : null;

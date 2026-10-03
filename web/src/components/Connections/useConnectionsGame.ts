@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
 import type { ConnectionsGameStatus, ConnectionsStoredState, GuessResult } from "./types";
 
-export const MAX_MISTAKES = 4;
+const MAX_MISTAKES = 4;
 
 function shuffleArray<T>(array: T[]): T[] {
   const result = [...array];

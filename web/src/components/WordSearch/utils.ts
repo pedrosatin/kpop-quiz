@@ -28,7 +28,7 @@ export function loadStoredProgress(key: string): StoredProgress {
   return { foundWordIds: [], elapsedSeconds: 0, status: "in_progress", easyMode: false, clueMode: false };
 }
 
-export function normalizeWord(name: string): string {
+function normalizeWord(name: string): string {
   return name
     .normalize("NFKD")
     .toUpperCase()

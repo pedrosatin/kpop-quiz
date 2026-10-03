@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer } from "preact/hooks";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus } from "./types";
 
-export function computeFeedback(target: string, guess: string): LetterStatus[] {
+function computeFeedback(target: string, guess: string): LetterStatus[] {
   const n = target.length;
   const result: (LetterStatus | null)[] = new Array(n).fill(null);
   const counts: Record<string, number> = {};

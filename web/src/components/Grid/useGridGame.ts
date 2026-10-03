@@ -10,9 +10,9 @@ import {
   type GridStoredState,
 } from "./types";
 
-export const MAX_GUESSES = 9;
+const MAX_GUESSES = 9;
 
-export function gridStorageKey(grid: IntersectionGrid): string {
+function gridStorageKey(grid: IntersectionGrid): string {
   return `kpop-grid-${grid.grid_id}`;
 }
 
@@ -26,7 +26,7 @@ function candidateName(grid: IntersectionGrid, id: string, locale: Locale): stri
 }
 
 /** Adds the names of the saved QIDs in the page's language. */
-export function nameCells(
+function nameCells(
   cells: Record<string, GridStoredCell>,
   grid: IntersectionGrid | null,
   locale: Locale,
@@ -47,7 +47,7 @@ export function nameCells(
  * group twice or counts more guesses than allowed is dropped, so a stale or
  * edited save never shows a board the player did not reach.
  */
-export function loadSavedGrid(grid: IntersectionGrid): GridStoredState | null {
+function loadSavedGrid(grid: IntersectionGrid): GridStoredState | null {
   let saved: unknown;
   try {
     const raw = localStorage.getItem(gridStorageKey(grid));

@@ -40,7 +40,7 @@ const QID_REGEX = /^Q[1-9][0-9]*$/;
 const WORD_REGEX = /^[A-Z]{3,16}$/;
 const SINGLE_LETTER_REGEX = /^[A-Z]$/;
 
-export function normalizeWord(name: string): string {
+function normalizeWord(name: string): string {
   return name.normalize("NFKD").toUpperCase().replace(/[^A-Z]/g, "");
 }
 
