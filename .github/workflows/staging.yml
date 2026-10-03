@@ -70,10 +70,11 @@ jobs:
           fi
       - name: Verify SEO guards on the staging build
         run: npm run seo:verify -- --env staging
-      # Smoke against the dist/ already built above (do not use npm run test:e2e — pretest rebuilds).
+      # Full Chromium suite (boot smoke + playthrough) against dist/ already built above.
+      # Do not use npm run test:e2e; pretest rebuilds. Prefer test:e2e:ci (no pretest).
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run Playwright smoke against local dist
+      - name: Run Playwright boot and playthrough against local dist
         env:
           CI: true
         run: npm run test:e2e:ci
@@ -107,8 +108,9 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
-  # Post-deploy smoke against the GitHub Pages staging URL (subdirectory base).
-  # Separate job so we can check out sources for Playwright; deploy has no node checkout.
+  # Post-deploy full Chromium suite (boot smoke + playthrough) against the GitHub Pages
+  # staging URL (subdirectory base). Separate job so we can check out sources for Playwright;
+  # deploy has no node checkout.
   smoke-staging:
     if: github.ref == 'refs/heads/dev'
     needs: deploy
@@ -128,7 +130,7 @@ jobs:
       - run: npm ci
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run Playwright smoke against staging
+      - name: Run Playwright boot and playthrough against staging
         env:
           CI: true
           STAGING_BASE_URL: ${{ needs.deploy.outputs.page_url || 'https://pedrosatin.github.io/kpop-quiz/' }}

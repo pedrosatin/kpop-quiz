@@ -66,10 +66,11 @@ jobs:
           PUBLIC_GA4_ID: ${{ secrets.PUBLIC_GA4_ID }}
         run: npm run build
       - run: npm run seo:verify -- --env prod
-      # Smoke against the dist/ already built above (do not use npm run test:e2e — pretest rebuilds).
+      # Full Chromium suite (boot smoke + playthrough) against dist/ already built above.
+      # Do not use npm run test:e2e; pretest rebuilds. Prefer test:e2e:ci (no pretest).
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run Playwright smoke against local dist
+      - name: Run Playwright boot and playthrough against local dist
         env:
           CI: true
         run: npm run test:e2e:ci
@@ -130,8 +131,8 @@ jobs:
             echo "deployed=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # Post-deploy smoke against kpopquiz.online. Fails the workflow on red smoke;
-  # no automatic rollback. Skipped when Cloudflare deploy was skipped (no secrets).
+  # Post-deploy full Chromium suite (boot smoke + playthrough) against kpopquiz.online.
+  # Fails the workflow on red; no automatic rollback. Skipped when Cloudflare deploy was skipped (no secrets).
   smoke-prod:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && needs.deploy.outputs.deployed == 'true'
     permissions:
@@ -151,7 +152,7 @@ jobs:
       - run: npm ci
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run Playwright smoke against production
+      - name: Run Playwright boot and playthrough against production
         env:
           CI: true
         run: npm run test:e2e:prod
