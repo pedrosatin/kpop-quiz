@@ -164,36 +164,46 @@ def _release_year_drafts(
     ambiguous_release_ids: set[str],
     rejected: Counter[str],
 ) -> list[Draft]:
-    eligible: dict[str, tuple[Fact, ...]] = {}
+    by_precision: dict[int, dict[str, tuple[Fact, ...]]] = defaultdict(dict)
     for release_id, dated in dates_by_release.items():
         if release_id in ambiguous_release_ids:
             rejected["release_title_not_unique"] += 1
+            continue
+        precisions = {precision for _value, precision in dated}
+        if len(precisions) != 1:
+            rejected["release_mixed_date_precisions"] += 1
             continue
         years = {value[:4] for value, _precision in dated}
         if len(years) != 1:
             rejected["release_has_multiple_years"] += 1
             continue
-        eligible[release_id] = tuple(chain.from_iterable(dated.values()))
-    years = {facts[0].value_time[:4] for facts in eligible.values() if facts[0].value_time}
+        (precision,) = precisions
+        by_precision[precision][release_id] = tuple(chain.from_iterable(dated.values()))
     result = []
-    for release_id in sorted(eligible):
-        date_group = eligible[release_id]
-        year = (date_group[0].value_time or "")[:4]
-        alternatives = sorted(
-            (candidate for candidate in years if candidate != year),
-            key=lambda candidate: (abs(int(candidate) - int(year)), candidate),
-        )
-        if len(alternatives) < 3:
-            rejected["insufficient_release_year_distractors"] += 1
-            continue
-        result.append(Draft(
-            ("release_year", release_id),
-            "release_year", "discography", "easy",
-            tuple(sorted(performers_by_release.get(release_id, {}))),
-            (year, "time"), tuple((value, "time") for value in (year, *alternatives[:3])),
-            {"release_id": release_id}, _merge_evidence(date_group),
-            _fact_ids(date_group),
-        ))
+    for precision in sorted(by_precision):
+        eligible = by_precision[precision]
+        years = {
+            facts[0].value_time[:4] for facts in eligible.values() if facts[0].value_time
+        }
+        for release_id in sorted(eligible):
+            date_group = eligible[release_id]
+            year = (date_group[0].value_time or "")[:4]
+            alternatives = sorted(
+                (candidate for candidate in years if candidate != year),
+                key=lambda candidate: (abs(int(candidate) - int(year)), candidate),
+            )
+            if len(alternatives) < 3:
+                rejected["insufficient_release_year_distractors"] += 1
+                continue
+            result.append(Draft(
+                ("release_year", release_id),
+                "release_year", "discography", "easy",
+                tuple(sorted(performers_by_release.get(release_id, {}))),
+                (year, "time"),
+                tuple((value, "time") for value in (year, *alternatives[:3])),
+                {"release_id": release_id}, _merge_evidence(date_group),
+                _fact_ids(date_group),
+            ))
     return result
 
 
