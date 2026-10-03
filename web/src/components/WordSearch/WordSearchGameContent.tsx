@@ -126,7 +126,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   }
 
   return (
-    <section class="game-card game-card--wide word-search" id="word-search">
+    <section class="game-card game-card--wide word-search" id="word-search" data-testid="game-board">
       <div class="word-search-layout">
         <WordSearchHeader puzzle={puzzle} locale={locale} />
 

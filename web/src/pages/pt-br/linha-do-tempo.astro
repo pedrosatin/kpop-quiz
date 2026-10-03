@@ -7,7 +7,7 @@ import { getMessages } from "../../i18n/catalog";
 const messages = getMessages("pt-BR");
 ---
 <BaseLayout locale="pt-BR" route="timeline" canonicalPath="/pt-br/linha-do-tempo/" alternatePath="/en/timeline/">
-  <div class="page-shell">
+  <div class="page-shell" data-testid="game-shell">
     <GameIntro
       wide
       kicker={messages.timelineEyebrow}

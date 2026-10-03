@@ -140,6 +140,7 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
       id="name-guess"
       aria-label={t.title}
       class="game-card game-card--wide name-guess"
+      data-testid="game-board"
       data-contrast={highContrast ? "high" : "normal"}
     >
       <div class="game-layout">

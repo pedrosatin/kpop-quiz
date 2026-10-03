@@ -1,19 +1,20 @@
 import { test, expect } from "./fixtures/consent";
-import { expectQuizBoardVisible, expectQuizSetupReady } from "./helpers/boot";
+import { SMOKE_ROUTES } from "./fixtures/routes";
+import { bootRoute } from "./helpers/boot";
 
-const quizHomePath = "/pt-br/";
+test.describe("route smoke", () => {
+  // Boot waits can use up to ~30s for setup/board; keep headroom over that.
+  test.describe.configure({ timeout: 60_000 });
 
-test.describe("quiz smoke", () => {
-  test(`${quizHomePath} boots setup and starts a round`, async ({ page, baseURL }) => {
-    expect(baseURL, "BASE_URL / playwright baseURL must be set").toBeTruthy();
+  for (const route of SMOKE_ROUTES) {
+    test(`${route.path} (${route.kind}) boots`, async ({ page, baseURL }) => {
+      expect(baseURL, "BASE_URL / playwright baseURL must be set").toBeTruthy();
 
-    const response = await page.goto(quizHomePath);
-    expect(response, "navigation must return a response").not.toBeNull();
-    expect(response!.ok(), `expected OK for ${quizHomePath}, got ${response!.status()}`).toBeTruthy();
+      const response = await page.goto(route.path);
+      expect(response, "navigation must return a response").not.toBeNull();
+      expect(response!.ok(), `expected OK for ${route.path}, got ${response!.status()}`).toBeTruthy();
 
-    await expectQuizSetupReady(page);
-
-    await page.getByTestId("game-start").click();
-    await expectQuizBoardVisible(page);
-  });
+      await bootRoute(page, route);
+    });
+  }
 });
