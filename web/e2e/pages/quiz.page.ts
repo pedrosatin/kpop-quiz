@@ -1,10 +1,11 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { NEXT_GUARD_MS } from "../../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectQuizBoardVisible, expectQuizSetupReady } from "../helpers/boot";
 
-/** Matches AnswerFeedback NEXT_GUARD_MS: Next ignores clicks right after Submit. */
-const NEXT_GUARD_MS = 300;
+/** Buffer past AnswerFeedback NEXT_GUARD_MS so early clicks are not swallowed. */
+const NEXT_CLICK_WAIT_MS = NEXT_GUARD_MS + 50;
 
 const QUIZ_PATH = "/pt-br/";
 
@@ -46,7 +47,7 @@ export class QuizPage {
 
     const advance = board.getByRole("button", { name: /Próxima pergunta|Ver resultado/ });
     await expect(advance).toBeVisible();
-    await this.page.waitForTimeout(NEXT_GUARD_MS);
+    await this.page.waitForTimeout(NEXT_CLICK_WAIT_MS);
     await advance.click();
   }
 
