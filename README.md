@@ -68,7 +68,22 @@ npm ci
 npm test
 npm run build
 ASTRO_SITE=https://pedrosatin.github.io ASTRO_BASE=/kpop-quiz npm run build  # staging build under /kpop-quiz/
+npm run playwright:install   # Chromium once per machine
+npm run test:e2e             # builds via pretest, then smokes dist/
+npm run test:e2e:ci          # smoke an existing dist/ (no rebuild)
+npm run test:e2e:staging     # smoke https://pedrosatin.github.io/kpop-quiz/
+npm run test:e2e:prod        # smoke https://kpopquiz.online
 ```
+
+### End-to-end smoke
+
+Playwright runs a Chromium-only boot smoke on the game routes (and privacy): HTTP 200, shell, setup or start CTA, and a visible board. It seeds `kpop-quiz-consent` to `rejected` before each test so the GA4 banner does not block the suite. Full playthroughs are out of scope in v1.
+
+Locally, `npm run test:e2e` runs `pretest:e2e` first, which builds `dist/`. CI already has a build, so the workflows call `npm run test:e2e:ci` against that artifact. Do not use `test:e2e` in CI, because pretest would rebuild.
+
+Smoke runs on the built `dist/` before publish, then again on the live URL after deploy. On PRs that touch the web paths, and on the build jobs for `master` and `dev`, smoke runs against the local `dist/` before publish. After a push to `dev` deploys staging on GitHub Pages, `smoke-staging` hits the live staging URL. After a push to `master` deploys production on Cloudflare Pages, `smoke-prod` hits `https://kpopquiz.online`. A red post-prod smoke fails the workflow; that failure is the alert. There is no automatic rollback, so fix or roll back by hand.
+
+Suite decisions are in `.scratch/e2e-playwright-smoke/spec.md`.
 
 Styles live in `web/src/styles/`. `global.css` only imports the other files, in this order:
 
