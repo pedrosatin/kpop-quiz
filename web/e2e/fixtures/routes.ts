@@ -21,20 +21,104 @@ export type SmokeRoute =
       kind: "privacy";
     };
 
+type LocaleLabel = "pt-BR" | "en";
+
+type SmokePairDef =
+  | {
+      id: string;
+      kind: "quiz-setup";
+      ptPath: string;
+      enPath: string;
+    }
+  | {
+      id: string;
+      kind: "board-direct";
+      ptPath: string;
+      enPath: string;
+      optionalArtifact?: boolean;
+    }
+  | {
+      id: string;
+      kind: "privacy";
+      ptPath: string;
+      enPath: string;
+    };
+
+/** Locale-paired boot matrix; expand once into SMOKE_ROUTES. */
+const SMOKE_PAIRS: readonly SmokePairDef[] = [
+  { id: "quiz", kind: "quiz-setup", ptPath: "/pt-br/", enPath: "/en/" },
+  {
+    id: "grid",
+    kind: "board-direct",
+    ptPath: "/pt-br/grid/",
+    enPath: "/en/grid/",
+    // Softens “artifact published” for grid until CI tickets decide env-strictness.
+    optionalArtifact: true,
+  },
+  {
+    id: "connections",
+    kind: "board-direct",
+    ptPath: "/pt-br/conexoes/",
+    enPath: "/en/connections/",
+  },
+  {
+    id: "name-guess",
+    kind: "board-direct",
+    ptPath: "/pt-br/adivinhe/",
+    enPath: "/en/guess/",
+  },
+  {
+    id: "word-search",
+    kind: "board-direct",
+    ptPath: "/pt-br/caca-palavras/",
+    enPath: "/en/word-search/",
+  },
+  {
+    id: "map",
+    kind: "board-direct",
+    ptPath: "/pt-br/mapa/",
+    enPath: "/en/map/",
+  },
+  {
+    id: "timeline",
+    kind: "board-direct",
+    ptPath: "/pt-br/linha-do-tempo/",
+    enPath: "/en/timeline/",
+  },
+  {
+    id: "privacy",
+    kind: "privacy",
+    ptPath: "/pt-br/privacidade/",
+    enPath: "/en/privacy/",
+  },
+] as const;
+
+function smokeRoute(
+  def: SmokePairDef,
+  locale: LocaleLabel,
+  path: string,
+): SmokeRoute {
+  const name = `${def.id} ${locale}`;
+  if (def.kind === "board-direct") {
+    return def.optionalArtifact
+      ? { name, path, kind: "board-direct", optionalArtifact: true }
+      : { name, path, kind: "board-direct" };
+  }
+  return { name, path, kind: def.kind };
+}
+
+function expandPairs(pairs: readonly SmokePairDef[]): SmokeRoute[] {
+  const routes: SmokeRoute[] = [];
+  for (const def of pairs) {
+    routes.push(smokeRoute(def, "pt-BR", def.ptPath));
+    routes.push(smokeRoute(def, "en", def.enPath));
+  }
+  return routes;
+}
+
 /**
- * Local smoke matrix: all pt-BR game routes + privacy, and /en/ quiz sanity.
+ * Local smoke matrix: every game + privacy in pt-BR and en.
  * quiz-setup clicks game-start; board-direct asserts shell + board
  * (or missing+retry when optionalArtifact).
  */
-export const SMOKE_ROUTES: readonly SmokeRoute[] = [
-  { name: "quiz pt-BR", path: "/pt-br/", kind: "quiz-setup" },
-  // Softens “artifact published” for grid until CI tickets decide env-strictness.
-  { name: "grid pt-BR", path: "/pt-br/grid/", kind: "board-direct", optionalArtifact: true },
-  { name: "connections pt-BR", path: "/pt-br/conexoes/", kind: "board-direct" },
-  { name: "name-guess pt-BR", path: "/pt-br/adivinhe/", kind: "board-direct" },
-  { name: "word-search pt-BR", path: "/pt-br/caca-palavras/", kind: "board-direct" },
-  { name: "map pt-BR", path: "/pt-br/mapa/", kind: "board-direct" },
-  { name: "timeline pt-BR", path: "/pt-br/linha-do-tempo/", kind: "board-direct" },
-  { name: "privacy pt-BR", path: "/pt-br/privacidade/", kind: "privacy" },
-  { name: "quiz en", path: "/en/", kind: "quiz-setup" },
-] as const;
+export const SMOKE_ROUTES: readonly SmokeRoute[] = expandPairs(SMOKE_PAIRS);
