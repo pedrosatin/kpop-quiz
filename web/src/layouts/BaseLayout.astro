@@ -175,19 +175,22 @@ const games = [
     <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
     <link rel="preload" href={`${base}/fonts/noto-sans/NotoSans[wdth,wght].woff2`} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={`${base}/fonts/space-grotesk/SpaceGrotesk[wght].woff2`} as="font" type="font/woff2" crossorigin />
-    <script
-      type="application/ld+json"
-      set:html={JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        name: "K-pop Quiz",
-        url: canonicalUrl,
-        applicationCategory: "GameApplication",
-        operatingSystem: "All",
-        inLanguage: ["pt-BR", "en"],
-        description: meta.description,
-      })}
-    />
+    {!Astro.url.pathname.includes('/privacidade') && !Astro.url.pathname.includes('/privacy') && (
+      <script
+        type="application/ld+json"
+        is:inline
+        set:html={JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          name: "K-pop Quiz",
+          url: "https://kpopquiz.online",
+          applicationCategory: "GameApplication",
+          operatingSystem: "All",
+          inLanguage: ["pt-BR", "en"],
+          description: meta.description,
+        }).replace(/</g, '\\u003c')}
+      />
+    )}
     <title>{meta.title} | K-pop Quiz</title>
     <script is:inline>
       (function () {

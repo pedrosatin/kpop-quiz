@@ -80,6 +80,14 @@ export interface WordSearchMessages {
 export interface Messages {
   meta: Record<SeoRouteKey, SeoMeta>;
   skipLinks: Record<SkipLinkKey, string>;
+  overview: {
+    title: string;
+    intro: string;
+    modesTitle: string;
+    modesBody: string;
+    recordsTitle: string;
+    recordsBody: string;
+  };
   eyebrow: string;
   title: string;
   intro: string;
@@ -330,6 +338,17 @@ const catalogs: Record<Locale, Messages> = {
       mapPilot: "Pular para o jogo de mapa",
       timeline: "Pular para a linha do tempo",
       privacy: "Pular para a política de privacidade",
+    },
+    overview: {
+      title: "Sobre o K-pop Quiz",
+      intro:
+        "O K-pop Quiz reúne desafios diários sobre música pop coreana. A base cobre grupos, solistas e lançamentos de diferentes gerações. As perguntas e pistas apontam para registros abertos do Wikidata e da Wikipedia.",
+      modesTitle: "Sete modalidades diárias",
+      modesBody:
+        "Os jogos incluem o Quiz de múltipla escolha, a Grade de Interseções, o agrupamento em Conexões, a adivinhação de nomes, o Caça-palavras, o Mapa de origens e a Linha do Tempo.",
+      recordsTitle: "Fatos e fontes verificados",
+      recordsBody:
+        "Cada resposta identifica a agência, os integrantes, as datas de estreia e os links de referência. O site não exibe anúncios e não exige cadastro. O progresso e as estatísticas diárias ficam salvos no armazenamento local do navegador.",
     },
     eyebrow: "10 perguntas · múltipla escolha",
     title: "Você conhece a história do K-pop?",
@@ -686,6 +705,17 @@ const catalogs: Record<Locale, Messages> = {
       mapPilot: "Skip to the map game",
       timeline: "Skip to the timeline game",
       privacy: "Skip to the privacy policy",
+    },
+    overview: {
+      title: "About K-pop Quiz",
+      intro:
+        "K-pop Quiz is a daily puzzle site focused on Korean popular music. The question bank covers idol groups, soloists, and releases across multiple generations. Answers link directly to open records on Wikidata and Wikipedia.",
+      modesTitle: "Seven daily game modes",
+      modesBody:
+        "Games include the multiple-choice Quiz, Intersection Grid, Connections, Name Guess, Word Search, Map, and Timeline.",
+      recordsTitle: "Verified sources and privacy",
+      recordsBody:
+        "Questions identify agencies, member lineups, debut dates, and reference sources. The site contains no ads and requires no account. Streaks and game statistics are stored locally in your browser.",
     },
     eyebrow: "10 questions · multiple choice",
     title: "How well do you know K-pop history?",

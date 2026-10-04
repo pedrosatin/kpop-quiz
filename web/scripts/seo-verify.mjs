@@ -148,6 +148,10 @@ function main() {
     );
     check(root.includes('id="page-title"'), "dist/index.html must render the quiz landing content");
     check(
+      root.includes('application/ld+json'),
+      "dist/index.html must contain application/ld+json",
+    );
+    check(
       noindexRe.test(root) === (env === "staging"),
       `dist/index.html must ${env === "staging" ? "be" : "not be"} noindex in ${env}`,
     );
@@ -161,6 +165,8 @@ function main() {
     check(headers.includes("/data/*"), "dist/_headers must cover /data/*");
     check(headers.includes("X-Robots-Tag"), "dist/_headers must set X-Robots-Tag");
     check(headers.includes("noindex"), "dist/_headers must set noindex for /data/*");
+    check(headers.includes("Strict-Transport-Security"), "dist/_headers must set Strict-Transport-Security");
+    check(headers.includes("X-Frame-Options"), "dist/_headers must set X-Frame-Options");
   }
 
   // LLM surface ships in every build.

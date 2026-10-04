@@ -1,65 +1,25 @@
 ---
 import type { Locale } from "../lib/quiz-types";
+import { getMessages } from "../i18n/catalog";
 
 interface Props {
   locale: Locale;
 }
 
 const { locale } = Astro.props;
-const isPt = locale === "pt-BR";
+const messages = getMessages(locale);
 ---
 <section class="platform-overview" aria-labelledby="overview-title">
-  {isPt ? (
-    <>
-      <h2 id="overview-title">Sobre a plataforma K-pop Quiz</h2>
-      <p>
-        O K-pop Quiz reúne desafios diários para fãs, estudantes e entusiastas da música pop coreana.
-        Nossa base de dados catalogada cobre diferentes gerações, grupos, solistas e marcos históricos,
-        com todas as respostas e pistas acompanhadas de referências verificadas no Wikidata e na Wikipedia.
-      </p>
-      <div class="platform-modes-grid">
-        <article class="platform-mode-item">
-          <h3>7 Modalidades Diárias</h3>
-          <p>
-            Alterne entre o Quiz clássico de múltipla escolha, a Grade de Interseções temáticas, o agrupamento
-            em Conexões, a adivinhação diária de nomes, o Caça-palavras dinâmico, o Mapa de locais e origens
-            e a Linha do Tempo cronológica.
-          </p>
-        </article>
-        <article class="platform-mode-item">
-          <h3>Fatos e Fontes Verificados</h3>
-          <p>
-            Cada pergunta identifica a agência, integrantes, datas de estreia e fontes abertas consultadas.
-            O jogo funciona sem anúncios invasivos, respeita sua privacidade e guarda seus recordes de forma
-            100% local no seu navegador.
-          </p>
-        </article>
-      </div>
-    </>
-  ) : (
-    <>
-      <h2 id="overview-title">About the K-pop Quiz Platform</h2>
-      <p>
-        K-pop Quiz features educational daily puzzles for fans, listeners, and students of Korean popular music.
-        Our curated knowledge base spans multiple generations, idol groups, soloists, and industry milestones,
-        with every answer and clue cross-referenced against open records on Wikidata and Wikipedia.
-      </p>
-      <div class="platform-modes-grid">
-        <article class="platform-mode-item">
-          <h3>7 Daily Game Modes</h3>
-          <p>
-            Explore the classic multiple-choice Quiz, the categorical Intersection Grid, thematic Connections grouping,
-            the daily Name Guess puzzle, interactive Word Search, the biographical Map explorer, and the chronological Timeline.
-          </p>
-        </article>
-        <article class="platform-mode-item">
-          <h3>Verified Factual Records</h3>
-          <p>
-            Every question highlights agencies, member lineups, debut milestones, and open source records.
-            The site runs without invasive tracking, honors your privacy preferences, and saves your daily streaks locally on your device.
-          </p>
-        </article>
-      </div>
-    </>
-  )}
+  <h2 id="overview-title">{messages.overview.title}</h2>
+  <p>{messages.overview.intro}</p>
+  <div class="platform-modes-grid">
+    <div class="platform-mode-item">
+      <h3>{messages.overview.modesTitle}</h3>
+      <p>{messages.overview.modesBody}</p>
+    </div>
+    <div class="platform-mode-item">
+      <h3>{messages.overview.recordsTitle}</h3>
+      <p>{messages.overview.recordsBody}</p>
+    </div>
+  </div>
 </section>
