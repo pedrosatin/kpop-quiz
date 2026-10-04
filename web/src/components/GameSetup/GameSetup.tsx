@@ -20,6 +20,8 @@ export interface GameSetupProps {
   isReady: boolean;
   messages: Messages;
   disabled?: boolean;
+  /** The session is still loading; the setup is shown with Start disabled. */
+  busy?: boolean;
 }
 
 export function GameSetup({
@@ -34,11 +36,12 @@ export function GameSetup({
   isReady,
   messages,
   disabled = false,
+  busy = false,
 }: GameSetupProps) {
   // Without a theme or decade picker the left column would be empty.
   const hasPoolGroup = Boolean(onSelectTheme || onSelectDecades);
   return (
-    <section id="quiz" class="game-card game-card--wide quiz-setup" data-testid="game-setup" aria-labelledby="difficulty-heading">
+    <section id="quiz" class="game-card game-card--wide quiz-setup" data-testid="game-setup" aria-labelledby="difficulty-heading" aria-busy={busy}>
       <div class="setup-options">
         <div class="setup-heading">
           <p class="kicker">{messages.setupKicker}</p>

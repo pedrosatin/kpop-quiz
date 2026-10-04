@@ -5,9 +5,10 @@ Arquivo de fonte variável autohospedado para os títulos e elementos de destaqu
 | Propriedade | Valor |
 | :--- | :--- |
 | Família tipográfica | Space Grotesk variável |
-| Arquivo | `SpaceGrotesk[wght].woff2` |
+| Arquivo | `SpaceGrotesk-latin-wght.woff2` |
 | Formato | WOFF2 |
 | Eixo variável | `wght` de 300 a 700 |
+| Recorte | Latin, Latin-1, Latin Extended-A, pontuação geral e os símbolos usados na interface |
 | Repositório de origem | [floriankarsten/space-grotesk](https://github.com/floriankarsten/space-grotesk) |
 | Autoria | Florian Karsten, Květoslav Bartoš |
 | Licença | SIL Open Font License 1.1, descrita nos arquivos `OFL.txt` e `AUTHORS.txt` |

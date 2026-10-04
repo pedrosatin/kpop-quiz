@@ -163,16 +163,16 @@ describe("Local Font Assets and CSS Declarations", () => {
 
   it("verifies presence of Space Grotesk WOFF2 and license files", () => {
     const spaceGroteskDir = path.join(fontsDir, "space-grotesk");
-    expect(fs.existsSync(path.join(spaceGroteskDir, "SpaceGrotesk[wght].woff2"))).toBe(true);
-    expect(fs.statSync(path.join(spaceGroteskDir, "SpaceGrotesk[wght].woff2")).size).toBeGreaterThan(1000);
+    expect(fs.existsSync(path.join(spaceGroteskDir, "SpaceGrotesk-latin-wght.woff2"))).toBe(true);
+    expect(fs.statSync(path.join(spaceGroteskDir, "SpaceGrotesk-latin-wght.woff2")).size).toBeGreaterThan(1000);
     expect(fs.existsSync(path.join(spaceGroteskDir, "OFL.txt"))).toBe(true);
     expect(fs.existsSync(path.join(spaceGroteskDir, "AUTHORS.txt"))).toBe(true);
   });
 
   it("verifies presence of Noto Sans WOFF2 and license files", () => {
     const notoSansDir = path.join(fontsDir, "noto-sans");
-    expect(fs.existsSync(path.join(notoSansDir, "NotoSans[wdth,wght].woff2"))).toBe(true);
-    expect(fs.statSync(path.join(notoSansDir, "NotoSans[wdth,wght].woff2")).size).toBeGreaterThan(1000);
+    expect(fs.existsSync(path.join(notoSansDir, "NotoSans-latin-wght.woff2"))).toBe(true);
+    expect(fs.statSync(path.join(notoSansDir, "NotoSans-latin-wght.woff2")).size).toBeGreaterThan(1000);
     expect(fs.existsSync(path.join(notoSansDir, "OFL.txt"))).toBe(true);
     expect(fs.existsSync(path.join(notoSansDir, "AUTHORS.txt"))).toBe(true);
   });
@@ -199,6 +199,26 @@ describe("Theme Switching and Layout Integration", () => {
     expect(layout).toContain("#FFF8F0");
     expect(layout).toContain("#17121C");
     expect(layout).toContain('meta[name="theme-color"]');
+  });
+
+  it("preloads exactly the font URLs declared in @font-face", () => {
+    // A preload whose URL differs from the CSS src (e.g. "[" vs "%5B") is not
+    // reused, so the browser downloads the font twice and delays LCP.
+    const layout = fs.readFileSync(layoutPath, "utf-8");
+    const baseCss = fs.readFileSync(path.resolve(__dirname, "base.css"), "utf-8");
+    const cssUrls = [...baseCss.matchAll(/url\("([^"]+\.woff2)"\)/g)].map((m) => m[1]);
+    const preloadUrls = [...layout.matchAll(/href=\{`\$\{base\}([^`]+\.woff2)`\}/g)].map((m) => m[1]);
+    expect(cssUrls.length).toBeGreaterThan(0);
+    expect(preloadUrls.sort()).toEqual(cssUrls.sort());
+    for (const url of cssUrls) {
+      expect(url).toMatch(/^[\w/.-]+$/);
+    }
+  });
+
+  it("keeps self-hosted fonts within the mobile byte budget", () => {
+    for (const file of ["noto-sans/NotoSans-latin-wght.woff2", "space-grotesk/SpaceGrotesk-latin-wght.woff2"]) {
+      expect(fs.statSync(path.join(fontsDir, file)).size).toBeLessThan(100 * 1024);
+    }
   });
 
   it("formats font README files as markdown tables without unslop patterns", () => {
