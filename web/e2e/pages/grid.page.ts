@@ -40,10 +40,15 @@ export class GridPage {
       for (let col = 0; col < 3; col += 1) {
         const cell = board.locator(`.grid-cell-btn[data-row="${row}"][data-col="${col}"]`);
         await expect(cell).toBeVisible();
-        await cell.click();
 
+        // After a guess the cells ignore taps for CELL_GUARD_MS, so a click
+        // that lands inside that window opens nothing. Click again until the
+        // picker opens.
         const listbox = this.page.getByRole("listbox");
-        await expect(listbox).toBeVisible();
+        await expect(async () => {
+          await cell.click();
+          await expect(listbox).toBeVisible({ timeout: 500 });
+        }).toPass({ timeout: 5_000 });
         const options = listbox.getByRole("option");
         const count = await options.count();
         let picked = false;
