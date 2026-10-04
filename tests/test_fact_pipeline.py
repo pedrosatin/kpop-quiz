@@ -1,8 +1,13 @@
 import copy
 import csv
+import gzip
+import hashlib
+import io
 import json
+import shutil
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,7 +15,13 @@ from kpop_scraping.cli import main
 from kpop_scraping.fact_pipeline import EXTRACTOR_VERSION, extract_facts
 from kpop_scraping.fact_store import FactRunTotals, FactStore
 from kpop_scraping.reports import export_fact_coverage_csv
-from kpop_scraping.storage import MIGRATIONS, Repository, SnapshotIntegrityError, apply_migrations
+from kpop_scraping.storage import (
+    MIGRATIONS,
+    Repository,
+    SnapshotIntegrityError,
+    apply_migrations,
+    canonical_json,
+)
 from kpop_scraping.wikidata import EntityBatch, EntityDocument
 
 from .wikidata_fixture import (
@@ -152,6 +163,52 @@ class FactPipelineTest(unittest.TestCase):
         )
         snapshot_files = list((self.root / "raw" / "wikidata").rglob("*.json.gz"))
         self.assertEqual(len(snapshot_files), counts["snapshots"])
+
+    def test_orphan_entity_snapshot_is_quarantined_and_replaced(self):
+        # Restore the database from a copy taken before extraction, so the
+        # entity snapshots on disk are no longer referenced. One of them holds
+        # the same Wikidata revision with a different ``modified`` timestamp.
+        # Extracting again must quarantine that file and write the new one.
+        database = self.root / "test.db"
+        cached = self.root / "test.db.cached"
+        with self.repository() as repository:
+            build_catalog(repository, self.fixture)
+        shutil.copyfile(database, cached)
+        with self.repository() as repository:
+            extract_facts(repository, FixtureWikidataClient(self.fixture))
+        shutil.copyfile(cached, database)
+
+        snapshot = next(
+            (self.root / "raw" / "wikidata" / "subject-v1" / TWICE).glob("*.json.gz")
+        )
+        payload = json.loads(gzip.decompress(snapshot.read_bytes()))
+        payload["modified"] = "2000-01-01T00:00:00Z"
+        orphan_bytes = gzip.compress(canonical_json(payload), mtime=0)
+        snapshot.write_bytes(orphan_bytes)
+
+        with self.repository() as repository, redirect_stderr(io.StringIO()):
+            totals = extract_facts(repository, FixtureWikidataClient(self.fixture))
+            row = repository.connection.execute(
+                """
+                SELECT snapshot_path, content_sha256 FROM wikidata_entity_snapshots
+                WHERE wikidata_id=? AND request_profile='subject-v1'
+                """,
+                (TWICE,),
+            ).fetchone()
+            repository.snapshots.verify(row["snapshot_path"], row["content_sha256"])
+
+        self.assertGreater(totals.accepted, 0)
+        self.assertEqual(self.root / "raw" / row["snapshot_path"], snapshot)
+        quarantine = (
+            self.root
+            / "raw"
+            / ".orphans"
+            / "wikidata"
+            / "subject-v1"
+            / TWICE
+            / f"{snapshot.name}.{hashlib.sha256(orphan_bytes).hexdigest()}.orphan"
+        )
+        self.assertEqual(quarantine.read_bytes(), orphan_bytes)
 
     def test_accepted_facts_point_to_reference_or_revision(self):
         with self.repository() as repository:

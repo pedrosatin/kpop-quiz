@@ -9,7 +9,9 @@ import json
 import os
 import re
 import sqlite3
+import sys
 import tempfile
+import zlib
 from collections.abc import Iterable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
@@ -735,7 +737,15 @@ def apply_migrations(
 
 
 class SnapshotStore:
-    """Write and verify immutable gzip-compressed JSON snapshots."""
+    """Write and verify gzip-compressed JSON snapshots.
+
+    A snapshot that a database references is immutable: reading it checks the
+    SHA-256 stored with the reference. A write that finds a file with different
+    content at an unreferenced path moves that file to ``ORPHAN_DIR`` and then
+    writes the new snapshot.
+    """
+
+    ORPHAN_DIR = ".orphans"
 
     _SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9._-]+$")
     _ENTITY_ID = re.compile(r"^Q[1-9][0-9]*$")
@@ -812,16 +822,21 @@ class SnapshotStore:
         target = self.raw_dir / relative_path
         digest = hashlib.sha256(content).hexdigest()
 
-        # Callers write only snapshots the database does not reference yet, so
-        # a differing file here is an orphan left by a run that failed after
-        # writing it (or by a database restored from an older copy). Same
-        # revision, different volatile metadata such as ``touched``: replace it.
+        # Callers write only snapshots their own database does not reference
+        # yet. A file with different content at this path is therefore an
+        # orphan for that database, usually left by a run that failed after
+        # writing it and whose database was then restored from an older copy.
+        # A later fetch of the same revision differs from it in volatile
+        # metadata such as ``touched``, so the hash check alone would reject
+        # every retry. Another database that shares this raw_dir may still
+        # reference the old bytes, so the file moves to the quarantine instead
+        # of being overwritten; that database can recover it from there.
         if target.exists():
             try:
                 self.verify(relative_path.as_posix(), digest)
                 return relative_path.as_posix(), digest
             except SnapshotIntegrityError:
-                pass
+                self._quarantine(relative_path, digest)
 
         target.parent.mkdir(parents=True, exist_ok=True)
         compressed = gzip.compress(content, mtime=0)
@@ -844,6 +859,31 @@ class SnapshotStore:
                 temporary_path.unlink()
         return relative_path.as_posix(), digest
 
+    def _quarantine(self, relative_path: Path, expected_digest: str) -> Path:
+        """Move a mismatching file under ``ORPHAN_DIR``, named by its own hash.
+
+        The ``.orphan`` suffix keeps quarantined files out of ``*.json.gz``
+        searches over raw_dir.
+        """
+        target = self.raw_dir / relative_path
+        existing_digest = hashlib.sha256(target.read_bytes()).hexdigest()
+        quarantine = (
+            self.raw_dir
+            / self.ORPHAN_DIR
+            / relative_path.parent
+            / f"{relative_path.name}.{existing_digest}.orphan"
+        )
+        quarantine.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(target, quarantine)
+        self._sync_directory(quarantine.parent)
+        self._sync_directory(target.parent)
+        sys.stderr.write(
+            f"WARNING: snapshot {relative_path.as_posix()} differs from the new "
+            f"content (SHA-256 {expected_digest}); moved the existing file to "
+            f"{quarantine}\n"
+        )
+        return quarantine
+
     @staticmethod
     def _sync_directory(directory: Path) -> None:
         if os.name != "posix":
@@ -861,7 +901,7 @@ class SnapshotStore:
         path = self.raw_dir / relative_path
         try:
             content = gzip.decompress(path.read_bytes())
-        except (OSError, EOFError) as exc:
+        except (OSError, EOFError, zlib.error) as exc:
             raise SnapshotIntegrityError(f"cannot read snapshot {relative_path}") from exc
         actual_digest = hashlib.sha256(content).hexdigest()
         if actual_digest != expected_digest:
