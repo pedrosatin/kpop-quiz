@@ -1,9 +1,12 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { CELL_GUARD_MS } from "../../src/components/Grid/next-cell-after-guess";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
 
 const GRID_PATH = "/pt-br/grid/";
+/** Buffer past CELL_GUARD_MS so the next cell click is not swallowed. */
+const CELL_CLICK_WAIT_MS = CELL_GUARD_MS + 50;
 
 export class GridPage {
   constructor(
@@ -41,14 +44,9 @@ export class GridPage {
         const cell = board.locator(`.grid-cell-btn[data-row="${row}"][data-col="${col}"]`);
         await expect(cell).toBeVisible();
 
-        // After a guess the cells ignore taps for CELL_GUARD_MS, so a click
-        // that lands inside that window opens nothing. Click again until the
-        // picker opens.
         const listbox = this.page.getByRole("listbox");
-        await expect(async () => {
-          await cell.click();
-          await expect(listbox).toBeVisible({ timeout: 500 });
-        }).toPass({ timeout: 5_000 });
+        await cell.click();
+        await expect(listbox).toBeVisible();
         const options = listbox.getByRole("option");
         const count = await options.count();
         let picked = false;
@@ -59,6 +57,10 @@ export class GridPage {
           if (!name || usedNames.has(name)) continue;
           usedNames.add(name);
           await option.click();
+          // Cells ignore pointer clicks for CELL_GUARD_MS after a guess, so
+          // wait it out before clicking the next cell.
+          await expect(listbox).toBeHidden();
+          await this.page.waitForTimeout(CELL_CLICK_WAIT_MS);
           picked = true;
           break;
         }
