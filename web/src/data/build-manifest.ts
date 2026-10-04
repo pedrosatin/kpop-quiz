@@ -4,8 +4,8 @@ import type { QuizDecadeValue } from "../components/Quiz/url-params";
 import { availableDecadesFromManifest } from "./session-loader";
 
 /**
- * Build-time only: reads the published manifest so the server-rendered quiz
- * setup already lists the decade picker. The client still validates the
+ * Build-time only: reads the published manifest so the server-rendered setup
+ * includes the decade picker. The client still validates the
  * manifest it fetches; a missing or invalid file here only hides the picker
  * until that fetch completes.
  */

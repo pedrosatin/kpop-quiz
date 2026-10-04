@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { act, fireEvent, render, screen } from "@testing-library/preact";
+import { hydrate, render as preactRender } from "preact";
+import { renderToString } from "preact-render-to-string";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { groupEvidence, Quiz } from "./Quiz";
 import { NEXT_GUARD_MS } from "./AnswerFeedback";
@@ -257,14 +259,33 @@ describe("Quiz", () => {
     await vi.waitFor(() => expect(title).toHaveFocus());
   });
 
-  it("shows the setup while the session loads, so the card does not change size", async () => {
+  it("shows the busy setup with the decade picker while the session loads", async () => {
     mockSessionFetch();
     render(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />);
     expect(screen.getByRole("heading", { name: "Monte sua partida" })).toBeInTheDocument();
     expect(screen.getByTestId("game-start")).toBeDisabled();
     expect(document.querySelector(".decade-picker")).not.toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent(/Carregando/);
     await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
     expect(screen.getByTestId("game-setup")).toHaveAttribute("aria-busy", "false");
+    expect(screen.queryByText(/Carregando/)).toBeNull();
+  });
+
+  it("highlights only the stored difficulty after hydrating the server-rendered setup", async () => {
+    // The server has no localStorage, so its HTML marks the default mode as selected.
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />);
+    document.body.appendChild(container);
+    window.localStorage.setItem("kpop-quiz-play-mode", "expert");
+    mockSessionFetch();
+    await act(() => { hydrate(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />, container); });
+    await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("[data-testid=game-start]")).toBeEnabled());
+    const selected = container.querySelectorAll(".difficulty-picker .choice.selected");
+    expect(selected).toHaveLength(1);
+    const checked = selected[0]!.querySelector<HTMLInputElement>("input:checked");
+    expect(checked?.value).toBe("expert");
+    act(() => preactRender(null, container));
+    container.remove();
   });
 
   it("keeps the quiz in the same wide card from loading to the result", async () => {

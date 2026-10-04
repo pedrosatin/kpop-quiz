@@ -43,6 +43,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const [score, setScore] = useState(0);
   const [history, setHistory] = useState<QuestionResult[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
 
   const nextButtonRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -113,6 +114,8 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
         }
       });
   };
+
+  useEffect(() => setHydrated(true), []);
 
   useEffect(() => {
     load();
@@ -203,9 +206,14 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   // While the session loads, the setup is already on screen with Start
   // disabled: the server renders it, so the card keeps its final height and
   // the content below does not shift when the data arrives.
+  // The server has no localStorage or URL, so its HTML marks the default mode,
+  // theme and timer as selected. hydrate() reuses that DOM without patching
+  // class attributes, so the default card would stay highlighted next to the
+  // stored choice. Changing the key after the first effect remounts the setup
+  // with client state; the layout is identical, so nothing shifts.
   if (state === "loading" || state === "setup") {
     return (
-      <GameSetup busy={state === "loading"}
+      <GameSetup key={hydrated ? "client" : "ssr"} busy={state === "loading"} busyLabel={messages.loading}
         playMode={playMode} theme={theme} decades={decades} availableDecades={availableDecades} timerEnabled={timerEnabled} messages={messages}
         onSelectTheme={(t) => { setTheme(t); setDecades([]); updateUrlParams(playMode, t, []); }}
         onSelectDecades={(selected) => { setDecades(selected); setTheme("history"); updateUrlParams(playMode, "history", selected); }}

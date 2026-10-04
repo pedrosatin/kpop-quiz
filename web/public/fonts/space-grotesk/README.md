@@ -8,7 +8,8 @@ Arquivo de fonte variável autohospedado para os títulos e elementos de destaqu
 | Arquivo | `SpaceGrotesk-latin-wght.woff2` |
 | Formato | WOFF2 |
 | Eixo variável | `wght` de 300 a 700 |
-| Recorte | Latin, Latin-1, Latin Extended-A, pontuação geral e os símbolos usados na interface |
+| Recorte | Latin, Latin-1, Latin Extended-A, pontuação geral, setas e sinais matemáticos |
+| Geração | Subconjunto gerado por `web/scripts/subset-fonts.sh` a partir de `SpaceGrotesk[wght]` |
 | Repositório de origem | [floriankarsten/space-grotesk](https://github.com/floriankarsten/space-grotesk) |
 | Autoria | Florian Karsten, Květoslav Bartoš |
 | Licença | SIL Open Font License 1.1, descrita nos arquivos `OFL.txt` e `AUTHORS.txt` |

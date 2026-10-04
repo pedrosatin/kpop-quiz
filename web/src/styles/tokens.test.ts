@@ -215,7 +215,7 @@ describe("Theme Switching and Layout Integration", () => {
     }
   });
 
-  it("keeps self-hosted fonts within the mobile byte budget", () => {
+  it("keeps each self-hosted font under 100 KB", () => {
     for (const file of ["noto-sans/NotoSans-latin-wght.woff2", "space-grotesk/SpaceGrotesk-latin-wght.woff2"]) {
       expect(fs.statSync(path.join(fontsDir, file)).size).toBeLessThan(100 * 1024);
     }
