@@ -63,6 +63,11 @@ function availableDecades(manifest: Manifest): QuizDecadeValue[] {
         Boolean(manifest.sessions[`decade.${decade}.${locale}.${mode}`]))));
 }
 
+/** Decades offered by a manifest; an invalid manifest offers none. */
+export function availableDecadesFromManifest(value: unknown): QuizDecadeValue[] {
+  return isManifest(value) ? availableDecades(value) : [];
+}
+
 const DECADES = [1990, 2000, 2010, 2020] as const;
 
 async function readSession(entry: ManifestEntry, manifest: Manifest, locale: Locale, playMode: PlayMode, decade: QuizDecadeValue | null, baseUrl: string, dir = ""): Promise<QuizSession> {

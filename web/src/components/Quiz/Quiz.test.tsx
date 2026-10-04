@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { act, fireEvent, render, screen } from "@testing-library/preact";
+import { hydrate, render as preactRender } from "preact";
+import { renderToString } from "preact-render-to-string";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { groupEvidence, Quiz } from "./Quiz";
 import { NEXT_GUARD_MS } from "./AnswerFeedback";
@@ -39,12 +41,19 @@ function mockSessionFetch(customPtSession?: any) {
   }));
 }
 
+// The setup renders while the session loads; Start enables once it is ready.
+async function waitForSetupReady(title = "Monte sua partida") {
+  await screen.findByRole("heading", { name: title });
+  await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
+}
+
 async function renderReady(locale: "pt-BR" | "en" = "pt-BR", customPtSession?: any) {
   mockSessionFetch(customPtSession);
   render(<Quiz locale={locale} />);
-  expect(screen.getByText(/Carregando|Loading/)).toBeInTheDocument();
+  expect(screen.getByTestId("game-setup")).toHaveAttribute("aria-busy", "true");
+  expect(screen.getByTestId("game-start")).toBeDisabled();
   const session = customPtSession ? customPtSession : (locale === "pt-BR" ? ptSession : enSession);
-  await screen.findByRole("heading", { name: locale === "pt-BR" ? "Monte sua partida" : "Set up your game" });
+  await waitForSetupReady(locale === "pt-BR" ? "Monte sua partida" : "Set up your game");
   fireEvent.click(screen.getByRole("button", { name: locale === "pt-BR" ? "Começar partida" : "Start game" }));
   return screen.findByRole("heading", { name: session.questions[0]!.prompt });
 }
@@ -153,7 +162,7 @@ describe("Quiz", () => {
   it("chooses a mode before starting and keeps expert free of clues", async () => {
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
-    await screen.findByRole("heading", { name: "Monte sua partida" });
+    await waitForSetupReady();
     fireEvent.click(screen.getByRole("radio", { name: /Especialista/ }));
     const start = await screen.findByRole("button", { name: "Começar partida" });
     await vi.waitFor(() => expect(start).toBeEnabled());
@@ -175,7 +184,7 @@ describe("Quiz", () => {
     vi.stubGlobal("fetch", fetch);
     const view = render(<Quiz locale="pt-BR" />);
     view.rerender(<Quiz locale="en" />);
-    await screen.findByRole("heading", { name: "Set up your game" });
+    await waitForSetupReady("Set up your game");
     fireEvent.click(screen.getByRole("button", { name: "Start game" }));
     expect(await screen.findByRole("heading", { name: enSession.questions[0]!.prompt })).toBeInTheDocument();
     releasePtManifest(new Response(JSON.stringify(manifest)));
@@ -250,6 +259,35 @@ describe("Quiz", () => {
     await vi.waitFor(() => expect(title).toHaveFocus());
   });
 
+  it("shows the busy setup with the decade picker while the session loads", async () => {
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />);
+    expect(screen.getByRole("heading", { name: "Monte sua partida" })).toBeInTheDocument();
+    expect(screen.getByTestId("game-start")).toBeDisabled();
+    expect(document.querySelector(".decade-picker")).not.toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent(/Carregando/);
+    await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
+    expect(screen.getByTestId("game-setup")).toHaveAttribute("aria-busy", "false");
+    expect(screen.queryByText(/Carregando/)).toBeNull();
+  });
+
+  it("highlights only the stored difficulty after hydrating the server-rendered setup", async () => {
+    // The server has no localStorage, so its HTML marks the default mode as selected.
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />);
+    document.body.appendChild(container);
+    window.localStorage.setItem("kpop-quiz-play-mode", "expert");
+    mockSessionFetch();
+    await act(() => { hydrate(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />, container); });
+    await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("[data-testid=game-start]")).toBeEnabled());
+    const selected = container.querySelectorAll(".difficulty-picker .choice.selected");
+    expect(selected).toHaveLength(1);
+    const checked = selected[0]!.querySelector<HTMLInputElement>("input:checked");
+    expect(checked?.value).toBe("expert");
+    act(() => preactRender(null, container));
+    container.remove();
+  });
+
   it("keeps the quiz in the same wide card from loading to the result", async () => {
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
@@ -259,7 +297,7 @@ describe("Quiz", () => {
       expect(card()).toHaveClass("game-card--wide");
     };
     expectWide();
-    await screen.findByRole("heading", { name: "Monte sua partida" });
+    await waitForSetupReady();
     expectWide();
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
@@ -311,7 +349,7 @@ describe("Quiz", () => {
     vi.useFakeTimers();
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
-    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: "Monte sua partida" })).toBeInTheDocument());
+    await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
     fireEvent.click(screen.getByRole("checkbox", { name: "Limitar cada pergunta a 20 segundos" }));
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     await vi.waitFor(() => expect(screen.queryByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument());
@@ -325,7 +363,7 @@ describe("Quiz", () => {
   it("freezes the timer after an answer is submitted", async () => {
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
-    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: "Monte sua partida" })).toBeInTheDocument());
+    await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
     fireEvent.click(screen.getByRole("checkbox", { name: "Limitar cada pergunta a 20 segundos" }));
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     await vi.waitFor(() => expect(screen.queryByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument());
@@ -347,7 +385,7 @@ describe("Quiz", () => {
     render(<Quiz locale="pt-BR" />);
     expect(await screen.findByText("Este jogo ainda não está disponível em português.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
-    await screen.findByRole("heading", { name: "Monte sua partida" });
+    await waitForSetupReady();
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     expect(await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledTimes(3);
@@ -382,7 +420,7 @@ describe("Quiz", () => {
     window.localStorage.setItem("kpop-quiz-play-mode", "expert");
     window.localStorage.setItem("kpop-quiz-timer-enabled", "true");
     render(<Quiz locale="pt-BR" />);
-    await screen.findByRole("heading", { name: "Monte sua partida" });
+    await waitForSetupReady();
     const expertRadio = screen.getByRole("radio", { name: /Especialista/ }) as HTMLInputElement;
     const timerCheckbox = screen.getByRole("checkbox", { name: "Limitar cada pergunta a 20 segundos" }) as HTMLInputElement;
     expect(expertRadio.checked).toBe(true);
@@ -399,7 +437,7 @@ describe("Quiz", () => {
     vi.useFakeTimers();
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
-    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: "Monte sua partida" })).toBeInTheDocument());
+    await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
     fireEvent.click(screen.getByRole("checkbox", { name: "Limitar cada pergunta a 20 segundos" }));
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     await vi.waitFor(() => expect(screen.queryByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument());
@@ -421,7 +459,7 @@ describe("Quiz", () => {
     vi.useFakeTimers();
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
-    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: "Monte sua partida" })).toBeInTheDocument());
+    await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
     fireEvent.click(screen.getByRole("checkbox", { name: "Limitar cada pergunta a 20 segundos" }));
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     await vi.waitFor(() => expect(screen.queryByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument());
@@ -449,7 +487,7 @@ describe("Quiz", () => {
     vi.stubGlobal("fetch", fetch);
 
     render(<Quiz locale="pt-BR" />);
-    await screen.findByRole("heading", { name: "Monte sua partida" });
+    await waitForSetupReady();
 
     const fetchedUrls = fetch.mock.calls.map((call) => call[0] as string);
     expect(fetchedUrls.some((url) => url.includes("standard"))).toBe(false);
@@ -461,7 +499,7 @@ describe("Quiz", () => {
     mockSessionFetch();
 
     render(<Quiz locale="pt-BR" />);
-    await screen.findByRole("heading", { name: "Monte sua partida" });
+    await waitForSetupReady();
 
     const expertRadio = screen.getByRole("radio", { name: /Especialista/ });
     const dailyRadio = screen.getByRole("radio", { name: /Quiz do dia/ });
@@ -476,7 +514,7 @@ describe("Quiz", () => {
     mockSessionFetch();
 
     render(<Quiz locale="pt-BR" />);
-    await screen.findByRole("heading", { name: "Monte sua partida" });
+    await waitForSetupReady();
 
     const expertRadio = screen.getByRole("radio", { name: /Especialista/ });
     fireEvent.click(expertRadio);
@@ -501,7 +539,7 @@ describe("Quiz", () => {
 
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
-    await screen.findByRole("heading", { name: "Monte sua partida" });
+    await waitForSetupReady();
 
     const expertRadio = screen.getByRole("radio", { name: /Especialista/ });
     fireEvent.click(expertRadio);

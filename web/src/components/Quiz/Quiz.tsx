@@ -22,14 +22,18 @@ import {
 
 export { groupEvidence };
 
-export function Quiz({ locale }: { locale: Locale }) {
+export function Quiz({ locale, initialAvailableDecades = [] }: {
+  locale: Locale;
+  /** Decades computed from the manifest at build time, so the server-rendered setup matches the loaded one. */
+  initialAvailableDecades?: Exclude<QuizDecadeSelection[number], null>[];
+}) {
   const messages = getMessages(locale);
   const [state, setState] = useState<QuizMachineState>("loading");
   const [session, setSession] = useState<QuizSession | null>(null);
   const [playMode, setPlayMode] = useState<PlayMode>(() => getInitialUrlParams().playMode);
   const [theme, setTheme] = useState<QuizTheme>(() => getInitialUrlParams().theme);
   const [decades, setDecades] = useState<QuizDecadeSelection>(() => getInitialUrlParams().decades);
-  const [availableDecades, setAvailableDecades] = useState<Exclude<QuizDecadeSelection[number], null>[]>([]);
+  const [availableDecades, setAvailableDecades] = useState<Exclude<QuizDecadeSelection[number], null>[]>(initialAvailableDecades);
   const [loadedRequestKey, setLoadedRequestKey] = useState<string | null>(null);
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() => loadStoredPreferences().timerEnabled ?? false);
   const [revealedClues, setRevealedClues] = useState<string[]>([]);
@@ -39,6 +43,7 @@ export function Quiz({ locale }: { locale: Locale }) {
   const [score, setScore] = useState(0);
   const [history, setHistory] = useState<QuestionResult[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [hydrated, setHydrated] = useState(false);
 
   const nextButtonRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -109,6 +114,8 @@ export function Quiz({ locale }: { locale: Locale }) {
         }
       });
   };
+
+  useEffect(() => setHydrated(true), []);
 
   useEffect(() => {
     load();
@@ -195,21 +202,28 @@ export function Quiz({ locale }: { locale: Locale }) {
     if (next) setRevealedClues((val) => [...val, next.id]);
   };
 
-  if (state === "loading") return <QuizState label={messages.loading} busy wide />;
   if (state === "missing" || state === "invalid") return <QuizState label={state === "missing" ? messages.artifactMissing : messages.artifactInvalid} action={messages.retry} onAction={load} wide />;
-  if (state === "empty" || !session || !question) return <QuizState label={messages.empty} wide />;
-  if (state === "setup") {
+  // While the session loads, the setup is already on screen with Start
+  // disabled: the server renders it, so the card keeps its final height and
+  // the content below does not shift when the data arrives.
+  // The server has no localStorage or URL, so its HTML marks the default mode,
+  // theme and timer as selected. hydrate() reuses that DOM without patching
+  // class attributes, so the default card would stay highlighted next to the
+  // stored choice. Changing the key after the first effect remounts the setup
+  // with client state; the layout is identical, so nothing shifts.
+  if (state === "loading" || state === "setup") {
     return (
-      <GameSetup
+      <GameSetup key={hydrated ? "client" : "ssr"} busy={state === "loading"} busyLabel={messages.loading}
         playMode={playMode} theme={theme} decades={decades} availableDecades={availableDecades} timerEnabled={timerEnabled} messages={messages}
         onSelectTheme={(t) => { setTheme(t); setDecades([]); updateUrlParams(playMode, t, []); }}
         onSelectDecades={(selected) => { setDecades(selected); setTheme("history"); updateUrlParams(playMode, "history", selected); }}
         onSelectMode={(mode) => { setPlayMode(mode); saveStoredPlayMode(mode); updateUrlParams(mode, theme, decades); }}
         onTimerChange={(enabled) => { setTimerEnabled(enabled); saveStoredTimerEnabled(enabled); }}
-        onStart={start} isReady={loadedRequestKey === requestKey && session.config.play_mode === playMode}
+        onStart={start} isReady={state === "setup" && loadedRequestKey === requestKey && session?.config.play_mode === playMode}
       />
     );
   }
+  if (state === "empty" || !session || !question) return <QuizState label={messages.empty} wide />;
   if (state === "results") {
     const dailyDate = theme === "daily" && session.config.seed?.startsWith("kpop-daily-")
       ? session.config.seed.replace("kpop-daily-", "")
