@@ -1,9 +1,13 @@
 import gzip
 import hashlib
+import io
+import json
 import os
+import shutil
 import sqlite3
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
@@ -289,6 +293,107 @@ class StorageTest(unittest.TestCase):
 
             self.assertEqual(revisions, 1)
             self.assertEqual(snapshot.read_bytes(), original)
+
+    def test_orphan_snapshot_from_failed_run_is_quarantined_and_replaced(self):
+        # Mirrors the daily job: copy the database before the rebuild, let a
+        # run write and reference a snapshot, then restore the copy. The
+        # restored database does not reference the snapshot, and the file on
+        # disk holds the same revision with an older ``touched``. Collecting
+        # again must move that file to the quarantine and write the new one.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_dir = root / "raw"
+            database = root / "kpop.db"
+            cached = root / "kpop.db.cached"
+            with Repository(database, raw_dir=raw_dir):
+                pass
+            shutil.copyfile(database, cached)
+
+            with Repository(database, raw_dir=raw_dir) as repository:
+                collect_category(SnapshotClient(), repository, "Category:Test")
+            shutil.copyfile(cached, database)
+
+            snapshot = next(raw_dir.rglob("*.json.gz"))
+            payload = json.loads(gzip.decompress(snapshot.read_bytes()))
+            payload["touched"] = "earlier"
+            orphan_bytes = gzip.compress(canonical_json(payload), mtime=0)
+            snapshot.write_bytes(orphan_bytes)
+            orphan_digest = hashlib.sha256(orphan_bytes).hexdigest()
+
+            stderr = io.StringIO()
+            with (
+                Repository(database, raw_dir=raw_dir) as repository,
+                redirect_stderr(stderr),
+            ):
+                collect_category(SnapshotClient(), repository, "Category:Test")
+                rows = repository.connection.execute(
+                    "SELECT snapshot_path, content_sha256 FROM source_revisions"
+                ).fetchall()
+                self.assertEqual(len(rows), 1)
+                repository.snapshots.verify(
+                    rows[0]["snapshot_path"], rows[0]["content_sha256"]
+                )
+
+            quarantine = (
+                raw_dir
+                / ".orphans"
+                / "wikipedia"
+                / "en"
+                / "10"
+                / f"77.json.gz.{orphan_digest}.orphan"
+            )
+            self.assertEqual(quarantine.read_bytes(), orphan_bytes)
+            self.assertEqual(list(raw_dir.rglob("*.json.gz")), [snapshot])
+            self.assertIn("wikipedia/en/10/77.json.gz", stderr.getvalue())
+            self.assertIn(str(quarantine), stderr.getvalue())
+
+    def test_damaged_gzip_body_fails_integrity_check(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_dir = root / "raw"
+            with Repository(root / "test.db", raw_dir=raw_dir) as repository:
+                collect_category(SnapshotClient(), repository, "Category:Test")
+                row = repository.connection.execute(
+                    "SELECT snapshot_path, content_sha256 FROM source_revisions"
+                ).fetchone()
+                snapshot = raw_dir / row["snapshot_path"]
+                original = snapshot.read_bytes()
+                # A valid gzip header followed by bytes that are not deflate
+                # data makes zlib raise its own error instead of OSError.
+                snapshot.write_bytes(original[:10] + b"\xff" * 16)
+
+                with self.assertRaisesRegex(
+                    SnapshotIntegrityError, "cannot read snapshot"
+                ):
+                    repository.snapshots.verify(
+                        row["snapshot_path"], row["content_sha256"]
+                    )
+
+    def test_damaged_gzip_orphan_is_quarantined_and_replaced(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw_dir = Path(directory) / "raw"
+            store = SnapshotStore(raw_dir)
+            content = b'{"pageid":10}'
+            target = raw_dir / "wikipedia" / "en" / "10" / "77.json.gz"
+            target.parent.mkdir(parents=True)
+            damaged = gzip.compress(content, mtime=0)[:10] + b"\xff" * 16
+            target.write_bytes(damaged)
+
+            with redirect_stderr(io.StringIO()):
+                relative_path, digest = store.write(
+                    "wikipedia", "en", 10, 77, content
+                )
+
+            self.assertEqual(store.read(relative_path, digest), content)
+            quarantine = (
+                raw_dir
+                / ".orphans"
+                / "wikipedia"
+                / "en"
+                / "10"
+                / f"77.json.gz.{hashlib.sha256(damaged).hexdigest()}.orphan"
+            )
+            self.assertEqual(quarantine.read_bytes(), damaged)
 
     def test_corrupted_existing_snapshot_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -83,6 +83,13 @@ jobs:
             echo "::error::Rebuild failed and no cached database is available"
             exit 1
           fi
+          # The failed attempts wrote raw snapshots that the restored database
+          # does not reference. Delete them so they do not reach the cache.
+          # cp gave data/kpop.db.cached the time it ran as its mtime, so only
+          # files written after the step started are newer than it.
+          if [ -d data/raw ]; then
+            find data/raw -type f -newer data/kpop.db.cached -delete
+          fi
           mv data/kpop.db.cached data/kpop.db
           echo "::warning title=Database not refreshed::Rebuild failed 3 times; puzzles use the cached database"
 
