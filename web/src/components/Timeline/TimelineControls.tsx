@@ -11,7 +11,9 @@ export function TimelineControls({
   disabled = false,
 }: TimelineControlsProps) {
   const [clicked, setClicked] = useState(false);
-  const lastClickRef = useRef<number>(0);
+  // performance.now() counts from navigation, so a 0 start would drop a first
+  // click made in the page's first 300 ms. The guard only blocks repeats.
+  const lastClickRef = useRef<number>(-Infinity);
 
   useEffect(() => {
     if (gameStatus === "in_progress") {

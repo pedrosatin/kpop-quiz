@@ -217,6 +217,14 @@ describe("TimelineBoard", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts a first submit made right after navigation", () => {
+    vi.spyOn(performance, "now").mockReturnValue(150);
+    const onSubmit = vi.fn();
+    render(<TimelineBoard events={events} locale="pt-BR" onSubmit={onSubmit} />);
+    fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
   it("disables reorder buttons and drag handles when gameStatus is submitted", () => {
     render(<TimelineBoard events={events} locale="pt-BR" gameStatus="submitted" onSubmit={vi.fn()} />);
     screen.getAllByRole("listitem").forEach((card) => {
