@@ -2,37 +2,18 @@ import type { RefObject } from "preact";
 import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { QuizOption, QuizQuestion } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
+import { AnswerFeedbackActions } from "./answer-feedback-actions";
+import {
+  AnswerFeedbackMessage,
+  AnswerSummary,
+  quizBarState,
+} from "./answer-feedback-message";
+import { AnswerFeedbackSource } from "./answer-feedback-source";
+import { groupEvidence } from "./answer-evidence";
 
-export interface DisplayEvidence {
-  source_url: string;
-  revision_id: number;
-  locator: string;
-  project: "Wikidata" | "Wikipedia";
-  declaredReference: string | null;
-}
-
-export function groupEvidence(evidenceItems: QuizQuestion["evidence"]): DisplayEvidence[] {
-  const groups = new Map<string, DisplayEvidence>();
-  for (const evidence of evidenceItems ?? []) {
-    const key = `${evidence.source_url}\u0000${evidence.revision_id}\u0000${evidence.locator}`;
-    if (groups.has(key)) continue;
-    const wikidata = new URL(evidence.source_url).hostname === "www.wikidata.org";
-    groups.set(key, {
-      source_url: evidence.source_url,
-      revision_id: evidence.revision_id,
-      locator: evidence.locator,
-      project: wikidata ? "Wikidata" : "Wikipedia",
-      declaredReference:
-        wikidata && evidence.source_key.startsWith("domain:")
-          ? evidence.source_key.slice("domain:".length)
-          : null,
-    });
-  }
-  return [...groups.values()];
-}
-
-/** How long Next ignores activation after it appears in place of Submit. */
-export const NEXT_GUARD_MS = 300;
+export type { DisplayEvidence } from "./answer-evidence";
+export { groupEvidence } from "./answer-evidence";
+export { NEXT_GUARD_MS } from "./answer-feedback-constants";
 
 export interface AnswerFeedbackProps {
   actionRef?: RefObject<HTMLButtonElement> | undefined;
@@ -86,77 +67,47 @@ export function AnswerFeedback({
   }, [answered]);
 
   const answers = !right && (
-    <>
-      {!timedOut && selectedOption && (
-        <>{messages.yourAnswer}: <strong>{selectedOption.label}</strong> · </>
-      )}
-      {messages.answerWas}: <strong>{correctOption?.label}</strong>
-    </>
+    <AnswerSummary
+      timedOut={timedOut}
+      selectedOption={selectedOption}
+      correctOption={correctOption}
+      messages={messages}
+    />
   );
 
   return (
-    <div class={`game-actions quiz-actions${answered ? (right ? " is-correct" : " is-incorrect") : ""}`}>
+    <div class={`game-actions quiz-actions${quizBarState(answered, right)}`}>
       <div class="game-actions-message" role="status" aria-live="polite">
-        {answered ? (
-          <p class="quiz-verdict">
-            <strong class="game-actions-title">
-              {timedOut ? messages.timedOut : right ? messages.correct : messages.incorrect}
-            </strong>
-            {answers && <>{" "}{answers}</>}
-          </p>
-        ) : (
-          <p class="game-actions-hint">{messages.submitHint}</p>
-        )}
+        <AnswerFeedbackMessage
+          answered={answered}
+          right={right}
+          timedOut={timedOut}
+          answers={answers}
+          messages={messages}
+        />
       </div>
       <div class="quiz-actions-buttons">
         {answered && (
-          <>
-            <button
-              class="btn btn-secondary"
-              type="button"
-              aria-expanded={sourceOpen}
-              aria-controls={sourceId}
-              onClick={() => setSourceOpen((open) => !open)}
-            >
-              {sourceOpen ? messages.hideSource : messages.showSource}
-            </button>
-            <div class="quiz-source" id={sourceId} hidden={!sourceOpen}>
-              {/* The bar clamps the verdict to two lines; the full answers stay here. */}
-              {answers && <p>{answers}</p>}
-              <p>{explanation}</p>
-              {displayedEvidence.map((item) => (
-                <p class="quiz-source-item" key={`${item.source_url}-${item.revision_id}-${item.locator}`}>
-                  {item.project}, {messages.revision} {item.revision_id}.
-                  {item.declaredReference && (
-                    <> {messages.declaredReference}: {item.declaredReference}.</>
-                  )}
-                  {" "}
-                  <a href={item.source_url} target="_blank" rel="noreferrer">
-                    {messages.openRevision(item.project)}
-                  </a>
-                </p>
-              ))}
-            </div>
-          </>
+          <AnswerFeedbackSource
+            sourceOpen={sourceOpen}
+            sourceId={sourceId}
+            answers={answers}
+            explanation={explanation}
+            evidence={displayedEvidence}
+            messages={messages}
+            onToggle={() => setSourceOpen((open) => !open)}
+          />
         )}
-        {answered ? (
-          <button
-            key="next"
-            {...(actionRef ? { ref: actionRef } : {})}
-            class="btn btn-primary"
-            type="button"
-            onKeyDown={(event) => { if (event.repeat) event.preventDefault(); }}
-            onClick={() => {
-              if (performance.now() - nextShownAt.current >= NEXT_GUARD_MS) onAdvance();
-            }}
-          >
-            {isLastQuestion ? messages.finish : messages.next}
-          </button>
-        ) : (
-          <button key="submit" class="btn btn-primary" type="button" disabled={!canSubmit} onClick={onSubmit}>
-            {messages.check}
-          </button>
-        )}
+        <AnswerFeedbackActions
+          answered={answered}
+          canSubmit={canSubmit}
+          isLastQuestion={isLastQuestion}
+          actionRef={actionRef}
+          nextShownAt={nextShownAt}
+          messages={messages}
+          onSubmit={onSubmit}
+          onAdvance={onAdvance}
+        />
       </div>
     </div>
   );
