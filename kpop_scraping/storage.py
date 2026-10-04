@@ -812,9 +812,16 @@ class SnapshotStore:
         target = self.raw_dir / relative_path
         digest = hashlib.sha256(content).hexdigest()
 
+        # Callers write only snapshots the database does not reference yet, so
+        # a differing file here is an orphan left by a run that failed after
+        # writing it (or by a database restored from an older copy). Same
+        # revision, different volatile metadata such as ``touched``: replace it.
         if target.exists():
-            self.verify(relative_path.as_posix(), digest)
-            return relative_path.as_posix(), digest
+            try:
+                self.verify(relative_path.as_posix(), digest)
+                return relative_path.as_posix(), digest
+            except SnapshotIntegrityError:
+                pass
 
         target.parent.mkdir(parents=True, exist_ok=True)
         compressed = gzip.compress(content, mtime=0)

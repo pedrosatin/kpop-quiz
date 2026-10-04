@@ -290,6 +290,27 @@ class StorageTest(unittest.TestCase):
             self.assertEqual(revisions, 1)
             self.assertEqual(snapshot.read_bytes(), original)
 
+    def test_orphan_snapshot_from_failed_run_is_replaced(self):
+        # The daily job restores the previous database when a rebuild fails,
+        # but keeps the raw snapshots that run wrote. The next fetch of the
+        # same revision carries a new ``touched`` and must not be rejected.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_dir = root / "raw"
+            with Repository(root / "orphan.db", raw_dir=raw_dir) as repository:
+                collect_category(SnapshotClient(), repository, "Category:Test")
+            snapshot = next(raw_dir.rglob("*.json.gz"))
+            snapshot.write_bytes(
+                gzip.compress(b'{"pageid":1,"touched":"earlier"}', mtime=0)
+            )
+
+            with Repository(root / "fresh.db", raw_dir=raw_dir) as repository:
+                collect_category(SnapshotClient(), repository, "Category:Test")
+                row = repository.connection.execute(
+                    "SELECT snapshot_path, content_sha256 FROM source_revisions"
+                ).fetchone()
+                repository.snapshots.verify(row["snapshot_path"], row["content_sha256"])
+
     def test_corrupted_existing_snapshot_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
