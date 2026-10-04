@@ -1,0 +1,25 @@
+---
+import type { Locale } from "../lib/quiz-types";
+import { getMessages } from "../i18n/catalog";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const messages = getMessages(locale);
+---
+<section class="platform-overview" aria-labelledby="overview-title">
+  <h2 id="overview-title">{messages.overview.title}</h2>
+  <p>{messages.overview.intro}</p>
+  <div class="platform-modes-grid">
+    <div class="platform-mode-item">
+      <h3>{messages.overview.modesTitle}</h3>
+      <p>{messages.overview.modesBody}</p>
+    </div>
+    <div class="platform-mode-item">
+      <h3>{messages.overview.recordsTitle}</h3>
+      <p>{messages.overview.recordsBody}</p>
+    </div>
+  </div>
+</section>
