@@ -413,6 +413,62 @@ textarea {
   text-transform: uppercase;
 }
 
+/* Platform overview (home intro footer content) */
+
+.platform-overview {
+  margin-top: var(--space-7);
+  padding: var(--space-6) 0 var(--space-2);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.platform-overview h2 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-title);
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.platform-overview > p {
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  max-width: 48rem;
+}
+
+.platform-modes-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+@media (min-width: 48rem) {
+  .platform-modes-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.platform-mode-item {
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+}
+
+.platform-mode-item h3 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-title);
+  font-size: 1rem;
+}
+
+.platform-mode-item p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
 /* Footer */
 
 footer {
