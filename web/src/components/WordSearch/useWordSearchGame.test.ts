@@ -46,10 +46,16 @@ describe("Word Search utilities", () => {
     expect(formatTime(135)).toBe("02:15");
   });
 
-  it("generates compliant share summary", () => {
+  it("generates compliant share summary with the game link", () => {
     const puzzle = validPuzzle as unknown as WordSearchPuzzle;
-    const summary = generateWordSearchShareSummary(puzzle, 5, 5, 135);
-    expect(summary).toBe(`K-pop Word Search 2026-09-18 5/5 (02:15)`);
+    expect(generateWordSearchShareSummary(puzzle, 5, 5, 135, "pt-BR")).toBe(
+      "K-pop Word Search 2026-09-18 5/5 (02:15)\n" +
+        "https://kpopquiz.online/pt-br/caca-palavras/?utm_source=share&utm_medium=social&utm_campaign=word-search",
+    );
+    expect(generateWordSearchShareSummary(puzzle, 5, 5, 135, "en")).toBe(
+      "K-pop Word Search 2026-09-18 5/5 (02:15)\n" +
+        "https://kpopquiz.online/en/word-search/?utm_source=share&utm_medium=social&utm_campaign=word-search",
+    );
   });
 });
 

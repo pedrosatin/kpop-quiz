@@ -5,6 +5,8 @@ import { getMessages } from "../../i18n/catalog";
 
 const ptMessages = getMessages("pt-BR");
 const enMessages = getMessages("en");
+const PT_URL = "https://kpopquiz.online/pt-br/?utm_source=share&utm_medium=social&utm_campaign=quiz";
+const EN_URL = "https://kpopquiz.online/en/?utm_source=share&utm_medium=social&utm_campaign=quiz";
 
 describe("ShareResult helper functions", () => {
   it("formats duration correctly into mm:ss", () => {
@@ -29,9 +31,10 @@ describe("ShareResult helper functions", () => {
       cluesUsedCount: 1,
       elapsedSeconds: 222,
       messages: ptMessages,
+      locale: "pt-BR",
     });
 
-    const expected = "K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42";
+    const expected = `K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`;
     expect(text).toBe(expected);
 
     // Verify absence of entity names, answers, prompts or leakages
@@ -50,9 +53,10 @@ describe("ShareResult helper functions", () => {
       cluesUsedCount: 1,
       elapsedSeconds: 222,
       messages: enMessages,
+      locale: "en",
     });
 
-    const expected = "K-pop Quiz 8/10\n■■■■□ ■■■■□\nStandard · 1 clue · 03:42";
+    const expected = `K-pop Quiz 8/10\n■■■■□ ■■■■□\nStandard · 1 clue · 03:42\n${EN_URL}`;
     expect(text).toBe(expected);
   });
 
@@ -65,6 +69,7 @@ describe("ShareResult helper functions", () => {
       cluesUsedCount: 3,
       elapsedSeconds: 150,
       messages: ptMessages,
+      locale: "pt-BR",
     });
     expect(textPt).toContain("Assistido · 3 pistas · 02:30");
 
@@ -76,6 +81,7 @@ describe("ShareResult helper functions", () => {
       cluesUsedCount: 0,
       elapsedSeconds: 85,
       messages: enMessages,
+      locale: "en",
     });
     expect(textEn).toContain("Expert · 0 clues · 01:25");
   });
@@ -89,9 +95,10 @@ describe("ShareResult helper functions", () => {
       cluesUsedCount: 1,
       elapsedSeconds: 222,
       messages: ptMessages,
+      locale: "pt-BR",
       dailyDate: "2026-09-16",
     });
-    expect(textPt).toBe("K-pop Quiz Diário 2026-09-16 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42");
+    expect(textPt).toBe(`K-pop Quiz Diário 2026-09-16 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`);
 
     const textEn = generateShareText({
       correctCount: 8,
@@ -101,9 +108,10 @@ describe("ShareResult helper functions", () => {
       cluesUsedCount: 1,
       elapsedSeconds: 222,
       messages: enMessages,
+      locale: "en",
       dailyDate: "2026-09-16",
     });
-    expect(textEn).toBe("K-pop Quiz Daily 2026-09-16 8/10\n■■■■□ ■■■■□\nStandard · 1 clue · 03:42");
+    expect(textEn).toBe(`K-pop Quiz Daily 2026-09-16 8/10\n■■■■□ ■■■■□\nStandard · 1 clue · 03:42\n${EN_URL}`);
   });
 });
 
@@ -139,6 +147,7 @@ describe("ShareResult component", () => {
         cluesUsedCount={1}
         elapsedSeconds={222}
         messages={ptMessages}
+        locale="pt-BR"
       />
     );
 
@@ -148,7 +157,9 @@ describe("ShareResult component", () => {
     fireEvent.click(shareBtn);
     expect(shareMock).toHaveBeenCalledTimes(1);
     expect(shareMock).toHaveBeenCalledWith({
+      title: "K-pop Quiz",
       text: "K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42",
+      url: PT_URL,
     });
   });
 
@@ -171,6 +182,7 @@ describe("ShareResult component", () => {
         cluesUsedCount={1}
         elapsedSeconds={222}
         messages={ptMessages}
+        locale="pt-BR"
       />
     );
 
@@ -198,6 +210,7 @@ describe("ShareResult component", () => {
         cluesUsedCount={1}
         elapsedSeconds={222}
         messages={ptMessages}
+        locale="pt-BR"
       />
     );
 
@@ -207,7 +220,7 @@ describe("ShareResult component", () => {
     fireEvent.click(copyBtn);
     expect(writeTextMock).toHaveBeenCalledTimes(1);
     expect(writeTextMock).toHaveBeenCalledWith(
-      "K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42"
+      `K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`
     );
 
     const feedback = await screen.findByRole("status");
@@ -230,6 +243,7 @@ describe("ShareResult component", () => {
         cluesUsedCount={1}
         elapsedSeconds={222}
         messages={ptMessages}
+        locale="pt-BR"
       />
     );
 
@@ -237,7 +251,7 @@ describe("ShareResult component", () => {
     const textarea = screen.getByRole("textbox", { name: "Texto do resultado" }) as HTMLTextAreaElement;
     expect(textarea).toBeInTheDocument();
     expect(textarea.readOnly).toBe(true);
-    expect(textarea.value).toBe("K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42");
+    expect(textarea.value).toBe(`K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`);
   });
 
   it("falls back to textarea when clipboard copy fails", async () => {
@@ -257,6 +271,7 @@ describe("ShareResult component", () => {
         cluesUsedCount={1}
         elapsedSeconds={222}
         messages={ptMessages}
+        locale="pt-BR"
       />
     );
 
@@ -284,6 +299,7 @@ describe("ShareResult component", () => {
         cluesUsedCount={1}
         elapsedSeconds={222}
         messages={ptMessages}
+        locale="pt-BR"
         dailyDate="2026-09-16"
       />
     );
@@ -291,7 +307,9 @@ describe("ShareResult component", () => {
     const shareBtn = screen.getByRole("button", { name: "Compartilhar resultado" });
     fireEvent.click(shareBtn);
     expect(shareMock).toHaveBeenCalledWith({
+      title: "K-pop Quiz",
       text: "K-pop Quiz Diário 2026-09-16 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42",
+      url: PT_URL,
     });
   });
 });

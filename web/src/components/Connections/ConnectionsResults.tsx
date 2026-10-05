@@ -3,6 +3,8 @@ import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
 import type { ConnectionsResultsProps } from "./types";
 import { DIFFICULTY_COLORS } from "./types";
 import { getMessages } from "../../i18n/catalog";
+import { seoShareUrl } from "../../lib/seo-routes";
+import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
@@ -42,7 +44,10 @@ export function generateShareText({
       .join("");
   });
 
-  return `${header}\n${resultLine}\n${attemptsLine}\n\n${rows.join("\n")}`;
+  return withShareUrl(
+    `${header}\n${resultLine}\n${attemptsLine}\n\n${rows.join("\n")}`,
+    seoShareUrl("connections", locale),
+  );
 }
 
 interface SourceLine {

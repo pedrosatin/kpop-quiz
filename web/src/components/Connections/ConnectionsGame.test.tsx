@@ -5,6 +5,7 @@ import { getMessages } from "../../i18n/catalog";
 import type { ConnectionsPuzzle } from "../../lib/quiz-types";
 import { ConnectionsGame, SUBMIT_GUARD_MS } from "./ConnectionsGame";
 import { RESULT_GUARD_MS, generateShareText } from "./ConnectionsResults";
+import { sharePayload } from "../Results/share-text";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 
 const puzzle = validPuzzleJson as unknown as ConnectionsPuzzle;
@@ -501,6 +502,9 @@ describe("Connections share", () => {
     const { container } = await winAndShare();
 
     expect(writeText).toHaveBeenCalledWith(shareText());
+    expect(shareText().endsWith(
+      "\nhttps://kpopquiz.online/pt-br/conexoes/?utm_source=share&utm_medium=social&utm_campaign=connections",
+    )).toBe(true);
     const region = liveRegion(container);
     expect(region).toHaveTextContent(pt.copiedToClipboard);
     expect(screen.getByRole("button", { name: pt.copiedToClipboard })).toBeInTheDocument();
@@ -543,7 +547,7 @@ describe("Connections share", () => {
     setNavigator("clipboard", { writeText });
     const { container } = await winAndShare();
 
-    expect(share).toHaveBeenCalledWith({ text: shareText() });
+    expect(share).toHaveBeenCalledWith(sharePayload(shareText()));
     expect(writeText).not.toHaveBeenCalled();
     expect(container.querySelector("textarea")).toBeNull();
     expect(liveRegion(container)).toBeEmptyDOMElement();

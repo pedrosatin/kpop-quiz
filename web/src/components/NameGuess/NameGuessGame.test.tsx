@@ -4,6 +4,7 @@ import validPuzzleJson from "../../tests/fixtures/name-guess.daily.json";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessGame } from "./NameGuessGame";
 import { RESULT_GUARD_MS, generateShareText } from "./NameGuessResults";
+import { sharePayload } from "../Results/share-text";
 import { getMessages } from "../../i18n/catalog";
 
 const puzzle = validPuzzleJson as unknown as NameGuessPuzzle;
@@ -609,6 +610,7 @@ describe("NameGuess share", () => {
       won: true,
       attempts: 1,
       highContrast: false,
+      locale: "pt-BR",
     });
 
   beforeEach(() => {
@@ -634,7 +636,10 @@ describe("NameGuess share", () => {
     setNavigator("clipboard", { writeText });
     const { container } = await winAndShare();
 
-    expect(share).toHaveBeenCalledWith({ text: shareText() });
+    expect(share).toHaveBeenCalledWith(sharePayload(shareText()));
+    expect(share.mock.calls[0]![0].url).toBe(
+      "https://kpopquiz.online/pt-br/adivinhe/?utm_source=share&utm_medium=social&utm_campaign=guess",
+    );
     expect(shareText()).toContain("1/6");
     expect(writeText).not.toHaveBeenCalled();
     expect(container.querySelector("textarea")).toBeNull();

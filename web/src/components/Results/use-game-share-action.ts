@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { sharePayload } from "./share-text";
 
 const COPIED_FEEDBACK_MS = 3000;
 
@@ -32,7 +33,7 @@ export function useGameShareAction({ onCopied, onShareFailed }: UseGameShareActi
     const nav = typeof navigator !== "undefined" ? navigator : undefined;
     if (typeof nav?.share === "function") {
       try {
-        await nav.share({ text });
+        await nav.share(sharePayload(text));
         return;
       } catch (error) {
         if ((error as { name?: unknown } | null)?.name === "AbortError") return;

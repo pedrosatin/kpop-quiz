@@ -6,6 +6,7 @@ import { WordSearchGame } from "./WordSearchGame";
 import { wordSources } from "./WordSearchResult";
 import { getMessages } from "../../i18n/catalog";
 import { generateWordSearchShareSummary } from "./utils";
+import { sharePayload } from "../Results/share-text";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 
 const puzzle = validPuzzleJson as unknown as WordSearchPuzzle;
@@ -507,7 +508,7 @@ describe("WordSearch share", () => {
     return view;
   }
 
-  const shareText = () => generateWordSearchShareSummary(puzzle, puzzle.words.length, puzzle.words.length, 125);
+  const shareText = () => generateWordSearchShareSummary(puzzle, puzzle.words.length, puzzle.words.length, 125, "pt-BR");
 
   beforeEach(() => {
     localStorage.clear();
@@ -553,7 +554,7 @@ describe("WordSearch share", () => {
     setNavigator("clipboard", { writeText });
     await finishAndShare();
 
-    expect(share).toHaveBeenCalledWith({ text: shareText() });
+    expect(share).toHaveBeenCalledWith(sharePayload(shareText()));
     expect(writeText).not.toHaveBeenCalled();
   });
 

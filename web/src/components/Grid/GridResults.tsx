@@ -4,6 +4,8 @@ import type { IntersectionGrid, Locale } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { cellKey, type GridCellState } from "./types";
 import { GridReview } from "./GridReview";
+import { seoShareUrl } from "../../lib/seo-routes";
+import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
@@ -28,6 +30,7 @@ export function gridShareText(
   guessesUsed: number,
   monochrome: boolean,
   messages: Messages,
+  locale: Locale,
 ): string {
   const lines: string[] = [];
   for (let r = 0; r < 3; r++) {
@@ -39,7 +42,10 @@ export function gridShareText(
     lines.push(row);
   }
   const correct = Object.values(cellStates).filter((c) => c.solved).length;
-  return `${messages.gridShareHeader(grid.reference_date, correct, guessesUsed)}\n${lines.join("\n")}`;
+  return withShareUrl(
+    `${messages.gridShareHeader(grid.reference_date, correct, guessesUsed)}\n${lines.join("\n")}`,
+    seoShareUrl("grid", locale),
+  );
 }
 
 /**
@@ -81,7 +87,7 @@ export function GridResults({
     () => Object.values(cellStates).filter((c) => c.solved).length,
     [cellStates],
   );
-  const shareText = gridShareText(grid, cellStates, guessesUsed, monochrome, messages);
+  const shareText = gridShareText(grid, cellStates, guessesUsed, monochrome, messages, locale);
 
   return (
     <section class="grid-result" data-testid="game-result" aria-labelledby={titleId}>

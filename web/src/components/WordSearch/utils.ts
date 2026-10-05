@@ -1,6 +1,8 @@
 import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
 import type { CellCoord, GameStatus } from "./types";
 import type { Locale } from "../../lib/quiz-types";
+import { seoShareUrl } from "../../lib/seo-routes";
+import { withShareUrl } from "../Results/share-text";
 
 export interface StoredProgress {
   foundWordIds: string[];
@@ -163,8 +165,12 @@ export function generateWordSearchShareSummary(
   puzzle: WordSearchPuzzle,
   foundCount: number,
   totalCount: number,
-  elapsedSeconds: number
+  elapsedSeconds: number,
+  locale: Locale
 ): string {
   const time = formatTime(elapsedSeconds);
-  return `K-pop Word Search ${puzzle.reference_date} ${foundCount}/${totalCount} (${time})`;
+  return withShareUrl(
+    `K-pop Word Search ${puzzle.reference_date} ${foundCount}/${totalCount} (${time})`,
+    seoShareUrl("wordSearch", locale)
+  );
 }

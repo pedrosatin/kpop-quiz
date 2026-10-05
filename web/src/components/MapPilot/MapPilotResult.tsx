@@ -4,6 +4,8 @@ import type { MapPilotCountry, MapPilotEvent } from "../../data/map-pilot";
 import { mapPilotCountryLabel } from "../../data/map-pilot";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
+import { seoShareUrl } from "../../lib/seo-routes";
+import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
@@ -102,7 +104,10 @@ export function mapShareText(
 ): string {
   const marks = round.map((event, i) => (answers[i] === event.map_feature_id ? "🟩" : "⬛")).join("");
   const correct = round.filter((event, i) => answers[i] === event.map_feature_id).length;
-  return `K-pop Map ${roundDate}\n${COPY[locale].shareLine(correct, round.length)}\n${marks}`;
+  return withShareUrl(
+    `K-pop Map ${roundDate}\n${COPY[locale].shareLine(correct, round.length)}\n${marks}`,
+    seoShareUrl("mapPilot", locale),
+  );
 }
 
 export interface MapPilotResultProps {

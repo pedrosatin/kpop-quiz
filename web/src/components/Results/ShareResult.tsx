@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { PlayMode } from "../../lib/quiz-types";
+import type { Locale, PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
+import { seoShareUrl } from "../../lib/seo-routes";
+import { sharePayload, withShareUrl } from "./share-text";
 
 export interface GenerateShareTextParams {
   correctCount: number;
@@ -10,6 +12,7 @@ export interface GenerateShareTextParams {
   cluesUsedCount: number;
   elapsedSeconds: number;
   messages: Messages;
+  locale: Locale;
   dailyDate?: string | null | undefined;
 }
 
@@ -42,6 +45,7 @@ export function generateShareText({
   cluesUsedCount,
   elapsedSeconds,
   messages,
+  locale,
   dailyDate,
 }: GenerateShareTextParams): string {
   const header = dailyDate
@@ -49,7 +53,7 @@ export function generateShareText({
     : `K-pop Quiz ${correctCount}/${totalQuestions}`;
   const squares = formatSquares(results);
   const details = `${messages.difficultyName(playMode)} · ${messages.shareHints(cluesUsedCount)} · ${formatDuration(elapsedSeconds)}`;
-  return `${header}\n${squares}\n${details}`;
+  return withShareUrl(`${header}\n${squares}\n${details}`, seoShareUrl("quiz", locale));
 }
 
 export interface ShareResultProps {
@@ -60,6 +64,7 @@ export interface ShareResultProps {
   cluesUsedCount: number;
   elapsedSeconds: number;
   messages: Messages;
+  locale: Locale;
   dailyDate?: string | null | undefined;
 }
 
@@ -71,6 +76,7 @@ export function ShareResult({
   cluesUsedCount,
   elapsedSeconds,
   messages,
+  locale,
   dailyDate,
 }: ShareResultProps) {
   const [canShare, setCanShare] = useState(false);
@@ -103,13 +109,14 @@ export function ShareResult({
     cluesUsedCount,
     elapsedSeconds,
     messages,
+    locale,
     dailyDate,
   });
 
   const handleAction = async () => {
     if (canShare) {
       try {
-        await navigator.share({ text: shareText });
+        await navigator.share(sharePayload(shareText));
         return;
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {

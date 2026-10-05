@@ -9,7 +9,10 @@ import { RESULT_GUARD_MS, TimelineShare } from "./TimelineShare";
 
 const puzzle = fixture as unknown as TimelinePuzzle;
 const canonicalEvents = getCanonicalChronologicalOrder(puzzle.events);
-const sampleShareText = "K-pop Quiz • Linha do Tempo 2026-09-30\nPontuação: 3/5 ⭐️\n🟩 🟥 🟩 🟥 🟩\nhttps://kpopquiz.online/";
+const sampleUrl = "https://kpopquiz.online/pt-br/linha-do-tempo/?utm_source=share&utm_medium=social&utm_campaign=timeline";
+const sampleShareBody = "K-pop Quiz • Linha do Tempo 2026-09-30\nPontuação: 3/5 ⭐️\n🟩 🟥 🟩 🟥 🟩";
+const sampleShareText = `${sampleShareBody}\n${sampleUrl}`;
+const sampleSharePayload = { title: "K-pop Quiz", text: sampleShareBody, url: sampleUrl };
 
 describe("TimelineResults", () => {
   let clock = 1000;
@@ -75,7 +78,7 @@ describe("TimelineResults", () => {
     render(<TimelineShare shareText={sampleShareText} locale="pt-BR" onShareSuccess={onShareSuccess} />);
     clock += RESULT_GUARD_MS;
     fireEvent.click(screen.getByRole("button", { name: "Compartilhar" }));
-    await waitFor(() => expect(shareMock).toHaveBeenCalledWith({ text: sampleShareText }));
+    await waitFor(() => expect(shareMock).toHaveBeenCalledWith(sampleSharePayload));
     expect(onShareSuccess).toHaveBeenCalledTimes(1);
   });
 
@@ -98,7 +101,7 @@ describe("TimelineResults", () => {
     render(<TimelineShare shareText={sampleShareText} locale="pt-BR" />);
     clock += RESULT_GUARD_MS;
     fireEvent.click(screen.getByRole("button", { name: "Compartilhar" }));
-    await waitFor(() => expect(shareMock).toHaveBeenCalledWith({ text: sampleShareText }));
+    await waitFor(() => expect(shareMock).toHaveBeenCalledWith(sampleSharePayload));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(sampleShareText));
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Copiado para a área de transferência!"));
   });

@@ -74,7 +74,7 @@ export function WordSearchResult({
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
 
   const total = puzzle.words.length;
-  const shareText = generateWordSearchShareSummary(puzzle, total, total, elapsedSeconds);
+  const shareText = generateWordSearchShareSummary(puzzle, total, total, elapsedSeconds, locale);
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.

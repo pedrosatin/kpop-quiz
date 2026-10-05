@@ -1,6 +1,8 @@
 import type { TimelineEvent, TimelinePuzzle } from "../../lib/timeline-types";
 import type { Locale } from "../../lib/quiz-types";
 import type { TimelineStoredState } from "./types";
+import { seoShareUrl } from "../../lib/seo-routes";
+import { withShareUrl } from "../Results/share-text";
 
 /**
  * Sort events chronologically by date string. Break ties by event ID.
@@ -98,7 +100,6 @@ export interface GenerateTimelineShareTextParams {
   totalEvents: number;
   results: boolean[];
   locale: Locale;
-  origin?: string | undefined;
 }
 
 /**
@@ -110,7 +111,6 @@ export function generateTimelineShareText({
   totalEvents,
   results,
   locale,
-  origin,
 }: GenerateTimelineShareTextParams): string {
   const isPt = locale === "pt-BR";
   const title = isPt
@@ -120,9 +120,5 @@ export function generateTimelineShareText({
     ? `Pontuação: ${score}/${totalEvents} ⭐️`
     : `Score: ${score}/${totalEvents} ⭐️`;
   const emojiLine = results.map((r) => (r ? "🟩" : "🟥")).join(" ");
-  const base = (origin || "https://kpopquiz.online").replace(/\/+$/, "");
-  const path = isPt ? "/pt-br/linha-do-tempo/" : "/en/timeline/";
-  const url = `${base}${path}`;
-
-  return `${title}\n${scoreLine}\n${emojiLine}\n${url}`;
+  return withShareUrl(`${title}\n${scoreLine}\n${emojiLine}`, seoShareUrl("timeline", locale));
 }

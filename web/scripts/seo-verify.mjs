@@ -4,6 +4,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const PROD_ORIGIN = "https://kpopquiz.online";
+const OG_WIDTH = 1200;
+const OG_HEIGHT = 630;
 
 const EXPECTED_PATHS = [
   "/pt-br/",
@@ -57,6 +59,39 @@ function check(condition, message) {
 function routeHtmlPaths(dist) {
   return EXPECTED_PATHS.map((routePath) =>
     join(dist, ...routePath.split("/").filter(Boolean), "index.html"),
+  );
+}
+
+function metaContent(html, attr, name) {
+  const tag = html.match(new RegExp(`<meta[^>]*${attr}="${name}"[^>]*>`));
+  return tag?.[0].match(/content="([^"]*)"/)?.[1];
+}
+
+/** Width and height from the IHDR chunk, or null when the file is not a PNG. */
+function pngSize(path) {
+  const bytes = readFileSync(path);
+  if (bytes.subarray(1, 4).toString("latin1") !== "PNG") return null;
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+// Large card: absolute og:image on the production host whose file ships in
+// this build with the declared 1200x630 size, mirrored in twitter:image.
+function checkOgImage(dist, html, label) {
+  const image = metaContent(html, "property", "og:image");
+  if (!check(image?.startsWith(`${PROD_ORIGIN}/og/`), `${label} og:image must be an absolute ${PROD_ORIGIN}/og/ URL, got ${image}`)) {
+    return;
+  }
+  check(metaContent(html, "name", "twitter:card") === "summary_large_image", `${label} twitter:card must be summary_large_image`);
+  check(metaContent(html, "name", "twitter:image") === image, `${label} twitter:image must match og:image`);
+  check(metaContent(html, "property", "og:image:width") === String(OG_WIDTH), `${label} og:image:width must be ${OG_WIDTH}`);
+  check(metaContent(html, "property", "og:image:height") === String(OG_HEIGHT), `${label} og:image:height must be ${OG_HEIGHT}`);
+  check(Boolean(metaContent(html, "property", "og:image:alt")), `${label} missing og:image:alt`);
+  const file = join(dist, ...image.slice(PROD_ORIGIN.length).split("/").filter(Boolean));
+  if (!check(existsSync(file), `${label} og:image ${image} has no file in the build`)) return;
+  const size = pngSize(file);
+  check(
+    size?.width === OG_WIDTH && size?.height === OG_HEIGHT,
+    `${label} og:image ${image} must be a ${OG_WIDTH}x${OG_HEIGHT} PNG, got ${size ? `${size.width}x${size.height}` : "no PNG"}`,
   );
 }
 
@@ -126,11 +161,7 @@ function main() {
     check(html.includes('hreflang="en"'), `${label} missing hreflang en`);
     check(html.includes('hreflang="x-default"'), `${label} missing hreflang x-default`);
     check(html.includes('property="og:title"'), `${label} missing og:title`);
-    check(
-      html.includes(`property="og:image" content="${PROD_ORIGIN}/apple-touch-icon.png"`),
-      `${label} missing absolute og:image`,
-    );
-    check(html.includes('name="twitter:card"'), `${label} missing twitter:card`);
+    checkOgImage(dist, html, label);
     check(
       /<a[^>]*href="[^"]*\/data\//.test(html) === false,
       `${label} links to /data/*`,
@@ -152,6 +183,7 @@ function main() {
       "dist/index.html must canonicalize to /pt-br/",
     );
     check(root.includes('id="page-title"'), "dist/index.html must render the quiz landing content");
+    checkOgImage(dist, root, "dist/index.html");
     check(
       root.includes('application/ld+json'),
       "dist/index.html must contain application/ld+json",
@@ -174,6 +206,7 @@ function main() {
     check(!html.includes("application/ld+json"), "dist/404.html must not contain application/ld+json");
     check(!html.includes('property="og:url"'), "dist/404.html must not declare og:url");
     check(html.includes('data-testid="not-found"'), "dist/404.html must render the not-found content");
+    checkOgImage(dist, html, "dist/404.html");
   }
 
   // Defense in depth: _headers ships X-Robots-Tag for /data/*.
@@ -203,7 +236,7 @@ function main() {
     for (const failure of failures) console.error(`seo:verify FAIL: ${failure}`);
     process.exit(1);
   }
-  console.log(`seo:verify OK (${env}): root alias, 404 page, sitemap ${EXPECTED_PATHS.length} URLs, robots, head tags, _headers, llms.txt`);
+  console.log(`seo:verify OK (${env}): root alias, 404 page, sitemap ${EXPECTED_PATHS.length} URLs, robots, head tags, OG cards, _headers, llms.txt`);
 }
 
 main();
