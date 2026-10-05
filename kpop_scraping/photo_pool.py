@@ -15,6 +15,7 @@ import html
 import json
 import re
 import sys
+import urllib.parse
 import urllib.request
 from datetime import date
 from pathlib import Path
@@ -220,6 +221,9 @@ def download_asset(
     timeout: float = 60,
 ) -> Path:
     """Download one file sequentially with an identifiable User-Agent."""
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Insecure URL scheme for asset download: {parsed.scheme}")
     request = urllib.request.Request(url, headers={"User-Agent": user_agent})
     destination.parent.mkdir(parents=True, exist_ok=True)
     with urllib.request.urlopen(request, timeout=timeout) as response, open(

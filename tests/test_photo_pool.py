@@ -9,6 +9,7 @@ from kpop_scraping.photo_pool import (
     build_photo_record,
     candidate_asset_name,
     check_revalidation,
+    download_asset,
     file_page_title,
     license_deed_url,
     read_pool_registry,
@@ -407,6 +408,13 @@ class RevalidationTest(unittest.TestCase):
         fresh = {"license_name": "CC BY-SA 4.0"}
         result = check_revalidation(stored, fresh)
         self.assertFalse(result["ok"])
+
+    def test_download_asset_rejects_insecure_scheme(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dest = Path(tmpdir) / "output.png"
+            with self.assertRaises(ValueError) as ctx:
+                download_asset("file:///etc/passwd", dest)
+            self.assertIn("Insecure URL scheme", str(ctx.exception))
 
 
 if __name__ == "__main__":
