@@ -17,15 +17,15 @@ const id = (suffix: string) => `game-about-${suffix}`;
 ---
 <div class="game-about" data-testid="game-about">
   <section aria-labelledby={id("play")}>
-    <h2 id={id("play")}>{about.howToPlayHeading}</h2>
+    <h2 id={id("play")}>{copy.howToPlayHeading}</h2>
     {copy.howToPlay.map((paragraph) => <p>{paragraph}</p>)}
   </section>
   <section aria-labelledby={id("data")}>
-    <h2 id={id("data")}>{about.dataSourcesHeading}</h2>
+    <h2 id={id("data")}>{copy.dataSourcesHeading}</h2>
     {copy.dataSources.map((paragraph) => <p>{paragraph}</p>)}
   </section>
   <section aria-labelledby={id("faq")}>
-    <h2 id={id("faq")}>{about.faqHeading}</h2>
+    <h2 id={id("faq")}>{copy.faqHeading}</h2>
     {copy.faq.map((item) => (
       <div class="game-about-faq-item">
         <h3>{item.question}</h3>

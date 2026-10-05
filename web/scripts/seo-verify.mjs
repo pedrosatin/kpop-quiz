@@ -44,10 +44,12 @@ const EXPECTED_LLMS = [
 
 // Game routes carry static text under the island (GameAbout.astro). Google
 // renders the islands too, but this text is in the served HTML either way.
+// The H2s carry the game name, so the check matches the shape, not one
+// fixed string per locale.
 const GAME_ABOUT_PATHS = EXPECTED_PATHS.filter((path) => path !== "/pt-br/" && path !== "/en/");
 const GAME_ABOUT_H2 = {
-  "pt-br": ["Como jogar", "De onde vêm os dados", "Perguntas frequentes"],
-  en: ["How to play", "Where the data comes from", "Frequently asked questions"],
+  "pt-br": [/^Como jogar /, /^De onde vêm os dados /, /^Perguntas sobre /],
+  en: [/^How to play /, /^Where the .+ data comes from$/, / FAQ$/],
 };
 const GAME_ABOUT_MIN_WORDS = 300;
 
@@ -184,9 +186,15 @@ function main() {
     const robots = readFileSync(robotsPath, "utf-8");
     if (env === "prod") {
       check(robots.includes("Allow: /"), "prod robots.txt must Allow: /");
-      // Google needs /data/*.json to render the game islands, and the
-      // X-Robots-Tag: noindex on /data/* is only read when the URL is crawlable.
-      check(!/^Disallow:/m.test(robots), "prod robots.txt must not Disallow anything (including /data/)");
+      // /data/next/ holds the next day's puzzles (published around 12:00 BRT
+      // for the following day), so keep those answers out of crawlers. The
+      // rest of /data/ stays crawlable for the Web Rendering Service, and the
+      // islands fall back to the main artifact when the next/ fetch fails.
+      const disallows = robots.split("\n").filter((line) => line.startsWith("Disallow:"));
+      check(
+        JSON.stringify(disallows) === JSON.stringify(["Disallow: /data/next/"]),
+        `prod robots.txt must Disallow exactly /data/next/, got ${JSON.stringify(disallows)}`,
+      );
       check(
         robots.includes(`Sitemap: ${PROD_ORIGIN}/sitemap.xml`),
         "prod robots.txt must reference the sitemap",
@@ -235,8 +243,8 @@ function main() {
     const h2s = [...about.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/g)].map((m) => textOf(m[1]));
     const expected = GAME_ABOUT_H2[routePath.split("/")[1]];
     check(
-      JSON.stringify(h2s) === JSON.stringify(expected),
-      `${label} game text H2s are ${JSON.stringify(h2s)}, expected ${JSON.stringify(expected)}`,
+      h2s.length === expected.length && h2s.every((h2, i) => expected[i].test(h2)),
+      `${label} game text H2s are ${JSON.stringify(h2s)}, expected one heading matching each of ${JSON.stringify(expected.map((pattern) => String(pattern)))}`,
     );
     const words = countWords(textOf(about));
     check(words >= GAME_ABOUT_MIN_WORDS, `${label} game text has ${words} words, expected at least ${GAME_ABOUT_MIN_WORDS}`);

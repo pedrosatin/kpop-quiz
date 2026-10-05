@@ -52,11 +52,11 @@ describe("GameAbout", () => {
   it.each(PAGES)("$path renders the three H2 sections and the FAQ as H3", async ({ locale, game }) => {
     const dom = await render(locale, game);
     const doc = dom.window.document;
-    const { about } = getMessages(locale);
+    const copy = getMessages(locale).about.games[game];
     const h2s = [...doc.querySelectorAll(".game-about h2")].map((node) => node.textContent?.trim());
-    expect(h2s).toEqual([about.howToPlayHeading, about.dataSourcesHeading, about.faqHeading]);
+    expect(h2s).toEqual([copy.howToPlayHeading, copy.dataSourcesHeading, copy.faqHeading]);
     const h3s = [...doc.querySelectorAll(".game-about h3")].map((node) => node.textContent?.trim());
-    expect(h3s).toEqual(about.games[game].faq.map((item) => item.question));
+    expect(h3s).toEqual(copy.faq.map((item) => item.question));
     for (const section of doc.querySelectorAll(".game-about section")) {
       const labelledBy = section.getAttribute("aria-labelledby");
       expect(labelledBy && doc.getElementById(labelledBy)?.tagName).toBe("H2");

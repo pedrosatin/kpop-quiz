@@ -317,7 +317,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       nameGuess: {
         title: "Wordle de K-pop: adivinhe o artista ou grupo",
-        description: "Wordle de K-pop: descubra o artista ou grupo do dia em 6 palpites. As cores mostram quais letras você acertou.",
+        description: "Um Wordle de K-pop por dia. Descubra o artista ou grupo em 6 palpites, e as cores mostram quais letras você acertou.",
       },
       wordSearch: {
         title: "Caça-palavras de K-pop: ache os nomes",
@@ -490,7 +490,7 @@ const catalogs: Record<Locale, Messages> = {
     mediaCreator: "Foto:",
     mediaSource: "Fonte da imagem",
     mediaUnavailable: "Imagem indisponível",
-    gridTitle: "Grade de interseções do K-pop",
+    gridTitle: "Grade de interseções de K-pop",
     gridEyebrow: "9 casas · 9 palpites",
     gridIntro: "Em cada casa, escolha um grupo que atenda ao critério da linha e ao da coluna.",
     gridGuessesLeft: (count) => (count === 1 ? "1 palpite restante" : `${count} palpites restantes`),
@@ -605,7 +605,7 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchEyebrow: "1 tema por dia · 8 direções",
     wordSearchIntro: "Encontre os nomes do tema escondidos na grade, em qualquer direção.",
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
-    mapTitle: "Quiz de mapa do K-pop: BLACKPINK",
+    mapTitle: "Quiz de mapa de K-pop: BLACKPINK",
     mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou.",
     timelineTitle: "Linha do Tempo do K-pop",
     timelineEyebrow: "Desafio diário",
@@ -686,7 +686,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       nameGuess: {
         title: "K-pop Wordle: guess today's artist or group",
-        description: "K-pop Wordle: find today's artist or group in 6 guesses. Colors show which letters you got right.",
+        description: "A daily K-pop Wordle. Find today's artist or group in 6 guesses, with colors showing which letters you got right.",
       },
       wordSearch: {
         title: "K-pop word search: find the names",

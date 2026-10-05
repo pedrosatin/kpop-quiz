@@ -73,14 +73,13 @@ describe("game page copy", () => {
 
   it.each(GAME_ABOUT_KEYS)("gives %s 300 to 500 words of static text with 3 to 4 FAQ entries", (key) => {
     for (const locale of ["pt-BR", "en"] as const) {
-      const { about } = getMessages(locale);
-      const copy = about.games[key];
+      const copy = getMessages(locale).about.games[key];
       const text = [
-        about.howToPlayHeading,
+        copy.howToPlayHeading,
         ...copy.howToPlay,
-        about.dataSourcesHeading,
+        copy.dataSourcesHeading,
         ...copy.dataSources,
-        about.faqHeading,
+        copy.faqHeading,
         ...copy.faq.flatMap((item) => [item.question, item.answer]),
       ].join(" ");
       const words = wordCount(text);
@@ -95,6 +94,18 @@ describe("game page copy", () => {
     for (const locale of ["pt-BR", "en"] as const) {
       const text = JSON.stringify(getMessages(locale).about);
       expect(text).not.toMatch(/[\u2013\u2014]/);
+    }
+  });
+
+  it.each(GAME_ABOUT_KEYS)("names the game in the %s H2 sections", (key) => {
+    for (const locale of ["pt-BR", "en"] as const) {
+      const copy = getMessages(locale).about.games[key];
+      for (const heading of [copy.howToPlayHeading, copy.dataSourcesHeading, copy.faqHeading]) {
+        expect(heading, `${locale}.${key} heading`).toContain("K-pop");
+      }
+      expect(copy.howToPlayHeading).toMatch(/^(Como jogar |How to play )/);
+      expect(copy.dataSourcesHeading).toMatch(/^(De onde vêm os dados |Where the .+ data comes from$)/);
+      expect(copy.faqHeading).toMatch(/^(Perguntas sobre |.+ FAQ$)/);
     }
   });
 });
