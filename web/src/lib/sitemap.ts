@@ -1,35 +1,23 @@
 import type { SeoRoute } from "./seo-routes";
 import { seoAbsoluteUrl } from "./seo-routes";
 
-function hreflang(route: SeoRoute): string {
-  return route.locale === "pt-BR" ? "pt-BR" : "en";
-}
-
 /**
  * Sitemap XML for the canonical production routes. Every URL carries
- * `<lastmod>` (the build date: deploys follow the daily puzzle generation, so
- * each page's content is as fresh as the build) and `xhtml:link` alternates
- * for its own language and the paired one, matching the `<head>` hreflang.
+ * `xhtml:link` alternates for its own language and the paired one, matching
+ * the `<head>` hreflang.
  */
-export function buildSitemapXml(routes: readonly SeoRoute[], lastmod: Date): string {
-  const day = lastmod.toISOString().slice(0, 10);
+export function buildSitemapXml(routes: readonly SeoRoute[]): string {
   const byPath = new Map(routes.map((route) => [route.path, route]));
   const urls = routes.map((route) => {
     const alternate = byPath.get(route.alternatePath);
     const links = [route, alternate]
       .filter((entry): entry is SeoRoute => entry !== undefined)
-      .sort((a, b) => hreflang(a).localeCompare(hreflang(b)))
+      .sort((a, b) => a.locale.localeCompare(b.locale))
       .map(
         (entry) =>
-          `    <xhtml:link rel="alternate" hreflang="${hreflang(entry)}" href="${seoAbsoluteUrl(entry.path)}"/>`,
+          `    <xhtml:link rel="alternate" hreflang="${entry.locale}" href="${seoAbsoluteUrl(entry.path)}"/>`,
       );
-    return [
-      "  <url>",
-      `    <loc>${seoAbsoluteUrl(route.path)}</loc>`,
-      `    <lastmod>${day}</lastmod>`,
-      ...links,
-      "  </url>",
-    ].join("\n");
+    return ["  <url>", `    <loc>${seoAbsoluteUrl(route.path)}</loc>`, ...links, "  </url>"].join("\n");
   });
   return (
     `<?xml version="1.0" encoding="UTF-8"?>\n` +

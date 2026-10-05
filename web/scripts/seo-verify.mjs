@@ -87,8 +87,6 @@ function main() {
       locs.every((loc) => !loc.includes("/data/")),
       "sitemap must not reference /data/*",
     );
-    const lastmods = [...sitemap.matchAll(/<lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/g)];
-    check(lastmods.length === locs.length, `sitemap has ${lastmods.length} <lastmod> entries, expected ${locs.length}`);
     const alternates = [...sitemap.matchAll(/<xhtml:link rel="alternate" hreflang="(pt-BR|en)"/g)];
     check(
       alternates.length === locs.length * 2,
@@ -172,6 +170,9 @@ function main() {
     const html = readFileSync(notFound, "utf-8");
     check(noindexRe.test(html), "dist/404.html must be noindex");
     check(!html.includes('rel="canonical"'), "dist/404.html must not declare a canonical URL");
+    check(!/<link[^>]*hreflang=/.test(html), "dist/404.html must not declare hreflang alternates");
+    check(!html.includes("application/ld+json"), "dist/404.html must not contain application/ld+json");
+    check(!html.includes('property="og:url"'), "dist/404.html must not declare og:url");
     check(html.includes('data-testid="not-found"'), "dist/404.html must render the not-found content");
   }
 

@@ -2,26 +2,24 @@ import { describe, expect, it } from "vitest";
 import { SEO_ROUTES } from "./seo-routes";
 import { buildSitemapXml } from "./sitemap";
 
-const BUILD_DATE = new Date("2026-10-04T12:00:00Z");
-
 function urlBlocks(xml: string): string[] {
   return [...xml.matchAll(/<url>([\s\S]*?)<\/url>/g)].map((match) => match[1] ?? "");
 }
 
 describe("sitemap", () => {
-  const xml = buildSitemapXml(SEO_ROUTES, BUILD_DATE);
+  const xml = buildSitemapXml(SEO_ROUTES);
 
   it("declares the sitemap and xhtml namespaces", () => {
     expect(xml).toContain('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"');
     expect(xml).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"');
   });
 
-  it("lists the 14 canonical URLs with the build date as lastmod", () => {
+  it("lists the 14 canonical URLs without lastmod", () => {
     const blocks = urlBlocks(xml);
     expect(blocks).toHaveLength(14);
     for (const block of blocks) {
       expect(block).toMatch(/<loc>https:\/\/kpopquiz\.online\/[^<]+<\/loc>/);
-      expect(block).toContain("<lastmod>2026-10-04</lastmod>");
+      expect(block).not.toContain("<lastmod>");
     }
   });
 

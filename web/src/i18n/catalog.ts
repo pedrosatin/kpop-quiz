@@ -706,7 +706,7 @@ const catalogs: Record<Locale, Messages> = {
       mapPilot: "Skip to the map game",
       timeline: "Skip to the timeline game",
       privacy: "Skip to the privacy policy",
-      notFound: "Skip to the content",
+      notFound: "Skip to content",
     },
     overview: {
       title: "About K-pop Quiz",
