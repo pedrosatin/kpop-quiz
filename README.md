@@ -169,11 +169,13 @@ web/             static interface and published sessions
 
 Report bugs and suggest improvements at <https://github.com/pedrosatin/kpop-quiz/issues>.
 
+## Author
+
+Criado por [@pedrosatin](https://github.com/pedrosatin)
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
-
-Criado por [@pedrosatin](https://github.com/pedrosatin)
 
 ## Licensing and provenance
 

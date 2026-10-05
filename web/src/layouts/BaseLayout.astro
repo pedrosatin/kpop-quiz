@@ -296,9 +296,8 @@ const games = [
         ) : (
           <>{messages.attribution}: <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">Wikidata · CC0</a> {messages.and} <a href="https://creativecommons.org/licenses/by-sa/4.0/">Wikipedia · CC BY-SA 4.0</a></>
         )}
-        {" · "}<a href={`${base}${privacyPath}`}>{messages.privacyLink}</a>{enableGa4 && <> · <button class="footer-privacy-preferences" type="button" data-consent-preferences>{messages.consentPreferences}</button></>}
+        {" · "}<a href={`${base}${privacyPath}`}>{messages.privacyLink}</a>{enableGa4 && <> · <button class="footer-privacy-preferences" type="button" data-consent-preferences>{messages.consentPreferences}</button></>}{" · "}Criado por <a href="https://github.com/pedrosatin">@pedrosatin</a>
       </p>
-      <p>Criado por <a href="https://github.com/pedrosatin">@pedrosatin</a></p>
     </footer>
     <script is:inline define:vars={{ consentPreferencesEvent: OPEN_CONSENT_PREFERENCES_EVENT }}>
       document.querySelector("[data-consent-preferences]")?.addEventListener("click", function () {
