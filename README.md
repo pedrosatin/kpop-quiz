@@ -165,9 +165,15 @@ tests/           unit tests and fixtures
 web/             static interface and published sessions
 ```
 
+## Contributing
+
+Report bugs and suggest improvements at <https://github.com/pedrosatin/kpop-quiz/issues>.
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+Criado por [@pedrosatin](https://github.com/pedrosatin)
 
 ## Licensing and provenance
 

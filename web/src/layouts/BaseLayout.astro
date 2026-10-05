@@ -298,6 +298,7 @@ const games = [
         )}
         {" · "}<a href={`${base}${privacyPath}`}>{messages.privacyLink}</a>{enableGa4 && <> · <button class="footer-privacy-preferences" type="button" data-consent-preferences>{messages.consentPreferences}</button></>}
       </p>
+      <p>Criado por <a href="https://github.com/pedrosatin">@pedrosatin</a></p>
     </footer>
     <script is:inline define:vars={{ consentPreferencesEvent: OPEN_CONSENT_PREFERENCES_EVENT }}>
       document.querySelector("[data-consent-preferences]")?.addEventListener("click", function () {
