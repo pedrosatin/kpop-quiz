@@ -263,13 +263,12 @@ describe("useTimelineGame and timeline utils", () => {
       totalEvents: 5,
       results: [true, true, false, true, true],
       locale: "pt-BR",
-      origin: "https://kpopquiz.online/",
     });
     expect(textPt).toBe(
       "K-pop Quiz • Linha do Tempo 2026-09-30\n" +
       "Pontuação: 4/5 ⭐️\n" +
       "🟩 🟩 🟥 🟩 🟩\n" +
-      "https://kpopquiz.online/pt-br/linha-do-tempo/"
+      "https://kpopquiz.online/pt-br/linha-do-tempo/?utm_source=share&utm_medium=social&utm_campaign=timeline"
     );
 
     const textEn = generateTimelineShareText({
@@ -283,7 +282,7 @@ describe("useTimelineGame and timeline utils", () => {
       "K-pop Quiz • Timeline 2026-09-30\n" +
       "Score: 5/5 ⭐️\n" +
       "🟩 🟩 🟩 🟩 🟩\n" +
-      "https://kpopquiz.online/en/timeline/"
+      "https://kpopquiz.online/en/timeline/?utm_source=share&utm_medium=social&utm_campaign=timeline"
     );
   });
 });

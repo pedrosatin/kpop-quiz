@@ -507,7 +507,7 @@ describe("WordSearch share", () => {
     return view;
   }
 
-  const shareText = () => generateWordSearchShareSummary(puzzle, puzzle.words.length, puzzle.words.length, 125);
+  const shareText = () => generateWordSearchShareSummary(puzzle, puzzle.words.length, puzzle.words.length, 125, "pt-BR");
 
   beforeEach(() => {
     localStorage.clear();

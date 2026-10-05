@@ -1,7 +1,14 @@
 export type ShareOutcome = "shared" | "copied" | "aborted" | "failed";
 
+/** The result text with the game link on its own last line. */
+export function withShareUrl(text: string, url: string): string {
+  return `${text}\n${url}`;
+}
+
 /**
- * Share sheet first when the browser has one. AbortError means the player
+ * Share sheet first when the browser has one. It gets the whole text, link
+ * included, and no `url` field: some targets drop `url`, and iOS "Copy" copies
+ * only the URL when there is one. AbortError means the player
  * closed it, not a failure. Clipboard is next; anything else is failed.
  */
 export async function shareTextToUser(text: string): Promise<ShareOutcome> {

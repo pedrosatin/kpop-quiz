@@ -2,23 +2,27 @@ import type { RefObject } from "preact";
 import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { Locale, NameGuessPuzzle } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus, NameGuessTranslations } from "./types";
+import { seoShareUrl } from "../../lib/seo-routes";
+import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
-/** The result as text: header, then one row of squares per guess. */
+/** The result as text: header, one row of squares per guess, then the link. */
 export function generateShareText({
   puzzle,
   feedbacks,
   won,
   attempts,
   highContrast,
+  locale,
 }: {
   puzzle: NameGuessPuzzle;
   feedbacks: LetterStatus[][];
   won: boolean;
   attempts: number;
   highContrast: boolean;
+  locale: Locale;
 }): string {
   const scoreText = won ? `${attempts}/${puzzle.max_attempts}` : `X/${puzzle.max_attempts}`;
   const lines = [`K-pop Guess ${puzzle.reference_date} ${scoreText}`, ""];
@@ -33,7 +37,7 @@ export function generateShareText({
       .join("");
     lines.push(row);
   }
-  return lines.join("\n");
+  return withShareUrl(lines.join("\n"), seoShareUrl("nameGuess", locale));
 }
 
 interface NameGuessResultsProps {
@@ -97,7 +101,7 @@ export function NameGuessResults({
     if (shareFailed) fallback.current?.scrollIntoView?.({ block: "nearest" });
   }, [shareFailed]);
 
-  const shareText = generateShareText({ puzzle, feedbacks, won, attempts: guesses.length, highContrast });
+  const shareText = generateShareText({ puzzle, feedbacks, won, attempts: guesses.length, highContrast, locale });
 
   const clues = target.clues;
   const agencyName = typeof clues?.agency === "object" ? clues.agency[locale] : clues?.agency;

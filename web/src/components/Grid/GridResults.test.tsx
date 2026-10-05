@@ -71,11 +71,15 @@ describe("GridResults component", () => {
 
   it("builds the share text with colored or high-contrast squares", () => {
     const states = sampleCellStates([[0, 0]]);
-    expect(gridShareText(validGrid, states, 1, false, ptMessages)).toBe(
-      "K-pop Grid 2026-09-17\n1/9 acertos (1 palpites)\n🟩🟥🟥\n🟥🟥🟥\n🟥🟥🟥",
+    const url = "https://kpopquiz.online/pt-br/grid/?utm_source=share&utm_medium=social&utm_campaign=grid";
+    expect(gridShareText(validGrid, states, 1, false, ptMessages, "pt-BR")).toBe(
+      `K-pop Grid 2026-09-17\n1/9 acertos (1 palpites)\n🟩🟥🟥\n🟥🟥🟥\n🟥🟥🟥\n${url}`,
     );
-    expect(gridShareText(validGrid, states, 1, true, ptMessages)).toBe(
-      "K-pop Grid 2026-09-17\n1/9 acertos (1 palpites)\n■□□\n□□□\n□□□",
+    expect(gridShareText(validGrid, states, 1, true, ptMessages, "pt-BR")).toBe(
+      `K-pop Grid 2026-09-17\n1/9 acertos (1 palpites)\n■□□\n□□□\n□□□\n${url}`,
+    );
+    expect(gridShareText(validGrid, states, 1, false, getMessages("en"), "en")).toContain(
+      "\nhttps://kpopquiz.online/en/grid/?utm_source=share&utm_medium=social&utm_campaign=grid",
     );
   });
 
@@ -117,7 +121,11 @@ describe("GridResults component", () => {
     fireEvent.click(screen.getByRole("button", { name: "Compartilhar resultado" }));
 
     await waitFor(() => expect(shareMock).toHaveBeenCalledTimes(1));
-    expect(shareMock).toHaveBeenCalledWith({ text: expect.stringContaining("K-pop Grid 2026-09-17") });
+    expect(shareMock).toHaveBeenCalledWith({
+      text: expect.stringMatching(
+        /^K-pop Grid 2026-09-17[\s\S]*\nhttps:\/\/kpopquiz\.online\/pt-br\/grid\/\?utm_source=share&utm_medium=social&utm_campaign=grid$/,
+      ),
+    });
     expect(writeText).not.toHaveBeenCalled();
   });
 

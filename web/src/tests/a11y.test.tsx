@@ -295,6 +295,7 @@ describe("Automated accessibility audits with axe-core", () => {
       <QuizResult
         score={100}
         messages={ptMessages}
+        locale="pt-BR"
         onRestart={vi.fn()}
         totalQuestions={2}
         correctCount={1}
@@ -327,6 +328,7 @@ describe("Automated accessibility audits with axe-core", () => {
           cluesUsedCount={1}
           elapsedSeconds={23}
           messages={ptMessages}
+          locale="pt-BR"
         />
         <ReviewAnswers items={sampleResults} messages={ptMessages} />
       </div>

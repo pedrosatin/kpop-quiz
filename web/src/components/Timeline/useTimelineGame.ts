@@ -11,8 +11,7 @@ import {
 
 export function useTimelineGame(
   puzzle: TimelinePuzzle,
-  locale: Locale,
-  origin?: string
+  locale: Locale
 ) {
   const storageKey = `kpop-timeline-${puzzle.puzzle_id}`;
 
@@ -131,9 +130,8 @@ export function useTimelineGame(
       totalEvents: puzzle.events.length,
       results,
       locale,
-      origin,
     });
-  }, [gameStatus, puzzle.reference_date, score, puzzle.events.length, results, locale, origin]);
+  }, [gameStatus, puzzle.reference_date, score, puzzle.events.length, results, locale]);
 
   return {
     orderedEvents,

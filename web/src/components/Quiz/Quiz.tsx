@@ -230,7 +230,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       : theme === "daily" ? new Date().toISOString().slice(0, 10) : undefined;
     return (
       <QuizResult
-        score={score} totalQuestions={session.questions.length} messages={messages}
+        score={score} totalQuestions={session.questions.length} messages={messages} locale={locale}
         correctCount={history.filter((h) => h.isCorrect).length} elapsedSeconds={elapsedSeconds}
         cluesUsedCount={history.reduce((acc, h) => acc + h.cluesUsedCount, 0)}
         playMode={playMode} history={history} headingRef={resultHeadingRef} onRestart={restart}

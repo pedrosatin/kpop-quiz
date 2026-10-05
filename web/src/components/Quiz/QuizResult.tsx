@@ -1,5 +1,5 @@
 import type { RefObject } from "preact";
-import type { PlayMode } from "../../lib/quiz-types";
+import type { Locale, PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import type { QuestionResult } from "./types";
 import { ScoreSummary } from "../Results/ScoreSummary";
@@ -9,6 +9,7 @@ import { ReviewAnswers } from "../Results/ReviewAnswers";
 export interface QuizResultProps {
   score: number;
   messages: Messages;
+  locale: Locale;
   headingRef?: RefObject<HTMLHeadingElement>;
   onRestart: () => void;
   totalQuestions?: number;
@@ -23,6 +24,7 @@ export interface QuizResultProps {
 export function QuizResult({
   score,
   messages,
+  locale,
   headingRef,
   onRestart,
   totalQuestions,
@@ -63,6 +65,7 @@ export function QuizResult({
             cluesUsedCount={clues}
             elapsedSeconds={elapsedSeconds}
             messages={messages}
+            locale={locale}
             dailyDate={dailyDate}
           />
           <button class="btn btn-primary" type="button" onClick={onRestart}>

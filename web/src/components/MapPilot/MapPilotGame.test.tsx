@@ -432,17 +432,22 @@ describe("map pilot result", () => {
     });
   }
 
-  it("builds a short share text with the round date", () => {
+  const PT_URL = "https://kpopquiz.online/pt-br/mapa/?utm_source=share&utm_medium=social&utm_campaign=map";
+  const EN_URL = "https://kpopquiz.online/en/map/?utm_source=share&utm_medium=social&utm_campaign=map";
+
+  it("builds a short share text with the round date and the game link", () => {
     expect(mapShareText(DATE, round, oneWrong, "pt-BR")).toBe(
-      `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}`,
+      `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
     );
-    expect(mapShareText(DATE, round, rightAnswers, "en")).toBe(`K-pop Map ${DATE}\n10/10 dates right\n${"🟩".repeat(10)}`);
+    expect(mapShareText(DATE, round, rightAnswers, "en")).toBe(
+      `K-pop Map ${DATE}\n10/10 dates right\n${"🟩".repeat(10)}\n${EN_URL}`,
+    );
   });
 
   it("marks wrong dates with a black square, like Adivinhe", () => {
     const allWrong = round.map((event) => wrongFor(event).map_feature_id);
     const text = mapShareText(DATE, round, allWrong, "en");
-    expect(text.endsWith("⬛".repeat(10))).toBe(true);
+    expect(text.split("\n")[2]).toBe("⬛".repeat(10));
     expect(text).not.toContain("🟥");
   });
 
@@ -459,7 +464,9 @@ describe("map pilot result", () => {
     setNavigator("clipboard", { writeText });
     const view = finished();
     await share(view);
-    expect(shareFn).toHaveBeenCalledWith({ text: mapShareText(DATE, round, oneWrong, "pt-BR") });
+    expect(shareFn).toHaveBeenCalledWith({
+      text: `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
+    });
     expect(writeText).not.toHaveBeenCalled();
   });
 
