@@ -87,6 +87,11 @@ function main() {
       locs.every((loc) => !loc.includes("/data/")),
       "sitemap must not reference /data/*",
     );
+    const alternates = [...sitemap.matchAll(/<xhtml:link rel="alternate" hreflang="(pt-BR|en)"/g)];
+    check(
+      alternates.length === locs.length * 2,
+      `sitemap has ${alternates.length} xhtml:link alternates, expected ${locs.length * 2}`,
+    );
   }
 
   // Robots: env-aware content.
@@ -157,6 +162,20 @@ function main() {
     );
   }
 
+  // 404 page: Cloudflare Pages (and GitHub Pages) serve dist/404.html with
+  // HTTP 404 for unknown paths instead of falling back to the home page.
+  const notFound = join(dist, "404.html");
+  check(existsSync(notFound), "dist/404.html missing");
+  if (existsSync(notFound)) {
+    const html = readFileSync(notFound, "utf-8");
+    check(noindexRe.test(html), "dist/404.html must be noindex");
+    check(!html.includes('rel="canonical"'), "dist/404.html must not declare a canonical URL");
+    check(!/<link[^>]*hreflang=/.test(html), "dist/404.html must not declare hreflang alternates");
+    check(!html.includes("application/ld+json"), "dist/404.html must not contain application/ld+json");
+    check(!html.includes('property="og:url"'), "dist/404.html must not declare og:url");
+    check(html.includes('data-testid="not-found"'), "dist/404.html must render the not-found content");
+  }
+
   // Defense in depth: _headers ships X-Robots-Tag for /data/*.
   const headersPath = join(dist, "_headers");
   check(existsSync(headersPath), "dist/_headers missing");
@@ -184,7 +203,7 @@ function main() {
     for (const failure of failures) console.error(`seo:verify FAIL: ${failure}`);
     process.exit(1);
   }
-  console.log(`seo:verify OK (${env}): root alias, sitemap ${EXPECTED_PATHS.length} URLs, robots, head tags, _headers, llms.txt`);
+  console.log(`seo:verify OK (${env}): root alias, 404 page, sitemap ${EXPECTED_PATHS.length} URLs, robots, head tags, _headers, llms.txt`);
 }
 
 main();

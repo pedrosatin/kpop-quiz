@@ -1,0 +1,56 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getMessages } from "../i18n/catalog";
+
+// Served by Cloudflare Pages (and GitHub Pages in staging) with HTTP 404 for
+// any unknown path. No canonical/hreflang and always noindex.
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const pt = getMessages("pt-BR");
+const en = getMessages("en");
+const ptGames = [
+  { label: pt.gameQuiz, path: "/pt-br/" },
+  { label: pt.gameGrid, path: "/pt-br/grid/" },
+  { label: pt.gameConnections, path: "/pt-br/conexoes/" },
+  { label: pt.gameNameGuess, path: "/pt-br/adivinhe/" },
+  { label: pt.gameWordSearch, path: "/pt-br/caca-palavras/" },
+  { label: pt.gameMap, path: "/pt-br/mapa/" },
+  { label: pt.gameTimeline, path: "/pt-br/linha-do-tempo/" },
+];
+const enGames = [
+  { label: en.gameQuiz, path: "/en/" },
+  { label: en.gameGrid, path: "/en/grid/" },
+  { label: en.gameConnections, path: "/en/connections/" },
+  { label: en.gameNameGuess, path: "/en/guess/" },
+  { label: en.gameWordSearch, path: "/en/word-search/" },
+  { label: en.gameMap, path: "/en/map/" },
+  { label: en.gameTimeline, path: "/en/timeline/" },
+];
+---
+
+<BaseLayout
+  locale="pt-BR"
+  route="quiz"
+  indexable={false}
+  showGameNavigation={false}
+  pageMeta={{
+    title: "Página não encontrada",
+    description: "O endereço acessado não existe no K-pop Quiz. Escolha um dos jogos para continuar.",
+  }}
+>
+  <article id="not-found" class="not-found" data-testid="not-found">
+    <p class="kicker">Erro 404</p>
+    <h1>Página não encontrada</h1>
+    <p>O endereço que você abriu não existe ou mudou de lugar. Escolha um jogo:</p>
+    <ul>
+      {ptGames.map((game) => <li><a href={`${base}${game.path}`}>{game.label}</a></li>)}
+    </ul>
+
+    <section lang="en" aria-labelledby="not-found-en">
+      <h2 id="not-found-en">Page not found</h2>
+      <p>This address does not exist or has moved. Pick a game:</p>
+      <ul>
+        {enGames.map((game) => <li><a href={`${base}${game.path}`} hreflang="en">{game.label}</a></li>)}
+      </ul>
+    </section>
+  </article>
+</BaseLayout>

@@ -13,28 +13,40 @@ import { StatsNavTrigger } from "../components/Stats/StatsNavTrigger";
 import { OPEN_CONSENT_PREFERENCES_EVENT } from "../components/Consent/ConsentBanner";
 import { ConsentBanner } from "../components/Consent/ConsentBanner";
 
-interface Props {
+/**
+ * Pass `canonicalPath` and `alternatePath` together on indexable routes.
+ * Omit both on pages without a canonical URL (404). The layout then skips
+ * canonical, hreflang, og:url and JSON-LD.
+ */
+type CanonicalProps =
+  | { canonicalPath: string; alternatePath: string }
+  | { canonicalPath?: undefined; alternatePath?: undefined };
+type Props = CanonicalProps & {
   locale: Locale;
   route: SeoRouteKey;
-  canonicalPath: string;
-  alternatePath: string;
   indexable?: boolean;
   showGameNavigation?: boolean;
   pageMeta?: { title: string; description: string };
-}
+};
 const {
   locale,
   route,
   canonicalPath,
-  alternatePath,
   indexable = true,
   showGameNavigation = true,
   pageMeta,
 } = Astro.props;
 const messages = getMessages(locale);
 const meta = pageMeta ?? messages.meta[route];
-const canonicalUrl = `${SEO_PROD_ORIGIN}${canonicalPath}`;
-const alternateUrl = `${SEO_PROD_ORIGIN}${alternatePath}`;
+const canonicalProps: CanonicalProps = Astro.props;
+const canonical =
+  canonicalProps.canonicalPath === undefined
+    ? undefined
+    : {
+        url: `${SEO_PROD_ORIGIN}${canonicalProps.canonicalPath}`,
+        alternateUrl: `${SEO_PROD_ORIGIN}${canonicalProps.alternatePath}`,
+      };
+const isNotFound = canonical === undefined;
 const defaultUrl = `${SEO_PROD_ORIGIN}${SEO_DEFAULT_PATH}`;
 const ogImageUrl = `${SEO_PROD_ORIGIN}${SEO_OG_IMAGE_PATH}`;
 const ogLocale = seoOgLocale(locale);
@@ -45,8 +57,10 @@ const isNameGuess = Astro.url.pathname.includes("/adivinhe") || Astro.url.pathna
 const isWordSearch = Astro.url.pathname.includes("/caca-palavras") || Astro.url.pathname.includes("/word-search");
 const isMapPilot = Astro.url.pathname.includes("/mapa") || Astro.url.pathname.includes("/map/");
 const isTimeline = Astro.url.pathname.includes("/linha-do-tempo") || Astro.url.pathname.includes("/timeline");
-const isPrivacy = canonicalPath.endsWith("/privacidade/") || canonicalPath.endsWith("/privacy/");
-const skipTarget = isPrivacy
+const isPrivacy = Boolean(canonicalPath?.endsWith("/privacidade/") || canonicalPath?.endsWith("/privacy/"));
+const skipTarget = isNotFound
+  ? "#not-found"
+  : isPrivacy
   ? "#privacy-notice"
   : (isTimeline
   ? "#timeline"
@@ -72,7 +86,9 @@ if (isGrid) {
 } else if (isTimeline) {
   otherPath = locale === "pt-BR" ? `${targetBase}timeline/` : `${targetBase}linha-do-tempo/`;
 }
-const skipLinkKey: SkipLinkKey = isPrivacy
+const skipLinkKey: SkipLinkKey = isNotFound
+  ? "notFound"
+  : isPrivacy
   ? "privacy"
   : (isTimeline
   ? "timeline"
@@ -149,14 +165,18 @@ const games = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={meta.description} />
-    <link rel="canonical" href={canonicalUrl} />
-    <link rel="alternate" hreflang="pt-BR" href={locale === "pt-BR" ? canonicalUrl : alternateUrl} />
-    <link rel="alternate" hreflang="en" href={locale === "en" ? canonicalUrl : alternateUrl} />
-    <link rel="alternate" hreflang="x-default" href={defaultUrl} />
+    {canonical && (
+      <>
+        <link rel="canonical" href={canonical.url} />
+        <link rel="alternate" hreflang="pt-BR" href={locale === "pt-BR" ? canonical.url : canonical.alternateUrl} />
+        <link rel="alternate" hreflang="en" href={locale === "en" ? canonical.url : canonical.alternateUrl} />
+        <link rel="alternate" hreflang="x-default" href={defaultUrl} />
+      </>
+    )}
     <meta property="og:type" content="website" />
     <meta property="og:title" content={meta.title} />
     <meta property="og:description" content={meta.description} />
-    <meta property="og:url" content={canonicalUrl} />
+    {canonical && <meta property="og:url" content={canonical.url} />}
     <meta property="og:locale" content={ogLocale} />
     <meta property="og:locale:alternate" content={ogLocaleAlternate} />
     <meta property="og:image" content={ogImageUrl} />
@@ -175,7 +195,7 @@ const games = [
     <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
     <link rel="preload" href={`${base}/fonts/noto-sans/NotoSans-latin-wght.woff2`} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={`${base}/fonts/space-grotesk/SpaceGrotesk-latin-wght.woff2`} as="font" type="font/woff2" crossorigin />
-    {!Astro.url.pathname.includes('/privacidade') && !Astro.url.pathname.includes('/privacy') && (
+    {!isNotFound && !Astro.url.pathname.includes('/privacidade') && !Astro.url.pathname.includes('/privacy') && (
       <script
         type="application/ld+json"
         is:inline
