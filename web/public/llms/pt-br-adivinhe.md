@@ -1,4 +1,4 @@
-# Adivinhe o nome
+# Adivinhe o nome: Wordle de K-pop
 
 Canonical: https://kpopquiz.online/pt-br/adivinhe/
 Também em inglês: https://kpopquiz.online/en/guess/

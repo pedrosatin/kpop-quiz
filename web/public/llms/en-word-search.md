@@ -1,4 +1,4 @@
-# Word search
+# K-pop Word Search
 
 Canonical: https://kpopquiz.online/en/word-search/
 Also in Portuguese: https://kpopquiz.online/pt-br/caca-palavras/

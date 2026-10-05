@@ -1,4 +1,4 @@
-# Grade de interseções
+# Grade de interseções do K-pop
 
 Canonical: https://kpopquiz.online/pt-br/grid/
 Também em inglês: https://kpopquiz.online/en/grid/

@@ -1,4 +1,4 @@
-# Caça-palavras
+# Caça-palavras de K-pop
 
 Canonical: https://kpopquiz.online/pt-br/caca-palavras/
 Também em inglês: https://kpopquiz.online/en/word-search/

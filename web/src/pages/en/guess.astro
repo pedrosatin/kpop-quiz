@@ -1,5 +1,6 @@
 ---
 import { NameGuessGame } from "../../components/NameGuess/NameGuessGame";
+import GameAbout from "../../components/GameAbout.astro";
 import GameIntro from "../../components/GameIntro.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getMessages } from "../../i18n/catalog";
@@ -17,5 +18,6 @@ const messages = getMessages("en");
       intro={messages.nameGuessIntro}
     />
     <NameGuessGame locale="en" client:load />
+    <GameAbout locale="en" game="nameGuess" />
   </div>
 </BaseLayout>

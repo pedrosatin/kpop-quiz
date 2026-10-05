@@ -130,6 +130,35 @@ jobs:
           else
             echo "deployed=true" >> "$GITHUB_OUTPUT"
           fi
+      # IndexNow (Bing, Yandex and others) after a production deploy. The key is
+      # public by design: web/public/<key>.txt proves ownership of the host.
+      # Daily data deploys (workflow_run) leave the route HTML unchanged, so
+      # only code deploys ping. A failed ping never fails the deploy (ADR 022).
+      - name: Notify IndexNow of the sitemap URLs
+        if: steps.credentials.outputs.skip != 'true' && github.event_name != 'workflow_run'
+        continue-on-error: true
+        run: |
+          key_file=$(find web/dist -maxdepth 1 -regextype posix-extended -regex '.*/[0-9a-f]{32}\.txt' -printf '%f\n' | head -n 1)
+          if [ -z "$key_file" ]; then
+            echo "::warning::IndexNow key file missing from web/dist; skipping the ping."
+            exit 0
+          fi
+          key="${key_file%.txt}"
+          urls=$(grep -o '<loc>[^<]*</loc>' web/dist/sitemap.xml | sed -e 's#<loc>##' -e 's#</loc>##')
+          payload=$(jq -n --arg key "$key" --arg urls "$urls" '{
+            host: "kpopquiz.online",
+            key: $key,
+            keyLocation: "https://kpopquiz.online/\($key).txt",
+            urlList: ($urls | split("\n") | map(select(length > 0)))
+          }')
+          status=$(curl -sS -o indexnow-response.txt -w '%{http_code}' --max-time 30 \
+            -H 'Content-Type: application/json; charset=utf-8' \
+            -X POST https://api.indexnow.org/indexnow --data "$payload" || true)
+          echo "IndexNow answered HTTP ${status:-000} for $(printf '%s\n' "$urls" | grep -c .) URLs"
+          if [ "$status" != "200" ] && [ "$status" != "202" ]; then
+            cat indexnow-response.txt 2>/dev/null || true
+            echo "::warning::IndexNow ping returned HTTP ${status:-000}."
+          fi
 
   # Post-deploy full Chromium suite (boot smoke + playthrough) against kpopquiz.online.
   # Fails the workflow on red; no automatic rollback. Skipped when Cloudflare deploy was skipped (no secrets).

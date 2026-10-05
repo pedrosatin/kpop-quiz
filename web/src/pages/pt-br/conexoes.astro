@@ -1,5 +1,6 @@
 ---
 import { ConnectionsGame } from "../../components/Connections/ConnectionsGame";
+import GameAbout from "../../components/GameAbout.astro";
 import GameIntro from "../../components/GameIntro.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getMessages } from "../../i18n/catalog";
@@ -17,5 +18,6 @@ const messages = getMessages("pt-BR");
       intro={messages.connectionsIntro}
     />
     <ConnectionsGame locale="pt-BR" client:load />
+    <GameAbout locale="pt-BR" game="connections" />
   </div>
 </BaseLayout>
