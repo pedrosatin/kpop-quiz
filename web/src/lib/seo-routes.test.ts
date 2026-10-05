@@ -120,10 +120,10 @@ describe("OG images", () => {
 
   it("describe the card in the page language", () => {
     expect(seoOgImageAlt("connections", "pt-BR", getMessages("pt-BR"))).toBe(
-      "Conexões, jogo diário do K-pop Quiz. kpopquiz.online",
+      "Conexões, jogo diário do K-pop Quiz em kpopquiz.online",
     );
     expect(seoOgImageAlt("timeline", "en", getMessages("en"))).toBe(
-      "Timeline, a daily K-pop Quiz game. kpopquiz.online",
+      "Timeline, a daily K-pop Quiz game at kpopquiz.online",
     );
     expect(seoOgImageAlt("quiz", "en", getMessages("en"))).toBe(
       "K-pop Quiz. Daily K-pop games with sources. kpopquiz.online",

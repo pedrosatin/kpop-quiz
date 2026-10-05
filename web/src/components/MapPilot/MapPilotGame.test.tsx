@@ -465,9 +465,7 @@ describe("map pilot result", () => {
     const view = finished();
     await share(view);
     expect(shareFn).toHaveBeenCalledWith({
-      title: "K-pop Quiz",
-      text: `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}`,
-      url: PT_URL,
+      text: `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
     });
     expect(writeText).not.toHaveBeenCalled();
   });

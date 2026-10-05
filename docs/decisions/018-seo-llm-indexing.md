@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita
+Aceita. A parte da imagem de compartilhamento (`apple-touch-icon.png` como `og:image` e `twitter:card=summary`) foi substituída pela [ADR 021](021-cartoes-og-e-link-no-compartilhamento.md), que adota cartões de 1200x630 por rota.
 
 ## Data
 

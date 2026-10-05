@@ -12,7 +12,7 @@ const canonicalEvents = getCanonicalChronologicalOrder(puzzle.events);
 const sampleUrl = "https://kpopquiz.online/pt-br/linha-do-tempo/?utm_source=share&utm_medium=social&utm_campaign=timeline";
 const sampleShareBody = "K-pop Quiz • Linha do Tempo 2026-09-30\nPontuação: 3/5 ⭐️\n🟩 🟥 🟩 🟥 🟩";
 const sampleShareText = `${sampleShareBody}\n${sampleUrl}`;
-const sampleSharePayload = { title: "K-pop Quiz", text: sampleShareBody, url: sampleUrl };
+const sampleSharePayload = { text: sampleShareText };
 
 describe("TimelineResults", () => {
   let clock = 1000;

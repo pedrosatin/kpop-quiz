@@ -1,4 +1,7 @@
 ---
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import "../styles/global.css";
 import type { Locale } from "../lib/quiz-types";
 import type { SeoRouteKey, SkipLinkKey } from "../i18n/catalog";
@@ -53,7 +56,14 @@ const isNotFound = canonical === undefined;
 const defaultUrl = `${SEO_PROD_ORIGIN}${SEO_DEFAULT_PATH}`;
 // Absolute production URL in every build, like canonical (ADR 018). The
 // quiz key also covers the home, privacy and 404 pages: the generic card.
-const ogImageUrl = `${SEO_PROD_ORIGIN}${seoOgImagePath(route, locale)}`;
+// ?v=<8 hex of the PNG bytes> makes crawlers that cache the card by URL fetch
+// it again when npm run og:generate changes it. The build runs from web/.
+const ogImagePath = seoOgImagePath(route, locale);
+const ogImageVersion = createHash("sha256")
+  .update(readFileSync(join(process.cwd(), "public", ...ogImagePath.split("/").filter(Boolean))))
+  .digest("hex")
+  .slice(0, 8);
+const ogImageUrl = `${SEO_PROD_ORIGIN}${ogImagePath}?v=${ogImageVersion}`;
 const ogImageAlt = seoOgImageAlt(route, locale, messages);
 const ogLocale = seoOgLocale(locale);
 const ogLocaleAlternate = seoOgLocale(locale === "pt-BR" ? "en" : "pt-BR");

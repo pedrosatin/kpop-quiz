@@ -6,7 +6,6 @@ import { WordSearchGame } from "./WordSearchGame";
 import { wordSources } from "./WordSearchResult";
 import { getMessages } from "../../i18n/catalog";
 import { generateWordSearchShareSummary } from "./utils";
-import { sharePayload } from "../Results/share-text";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 
 const puzzle = validPuzzleJson as unknown as WordSearchPuzzle;
@@ -554,7 +553,7 @@ describe("WordSearch share", () => {
     setNavigator("clipboard", { writeText });
     await finishAndShare();
 
-    expect(share).toHaveBeenCalledWith(sharePayload(shareText()));
+    expect(share).toHaveBeenCalledWith({ text: shareText() });
     expect(writeText).not.toHaveBeenCalled();
   });
 

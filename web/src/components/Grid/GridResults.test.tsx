@@ -122,9 +122,9 @@ describe("GridResults component", () => {
 
     await waitFor(() => expect(shareMock).toHaveBeenCalledTimes(1));
     expect(shareMock).toHaveBeenCalledWith({
-      title: "K-pop Quiz",
-      text: expect.stringContaining("K-pop Grid 2026-09-17"),
-      url: "https://kpopquiz.online/pt-br/grid/?utm_source=share&utm_medium=social&utm_campaign=grid",
+      text: expect.stringMatching(
+        /^K-pop Grid 2026-09-17[\s\S]*\nhttps:\/\/kpopquiz\.online\/pt-br\/grid\/\?utm_source=share&utm_medium=social&utm_campaign=grid$/,
+      ),
     });
     expect(writeText).not.toHaveBeenCalled();
   });

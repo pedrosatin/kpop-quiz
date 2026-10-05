@@ -1,5 +1,6 @@
 // CI guard for Trilha B (SEO + LLM indexing). Zero dependencies.
 // Usage: node scripts/seo-verify.mjs [--dir web/dist] [--env prod|staging]
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -86,8 +87,12 @@ function checkOgImage(dist, html, label) {
   check(metaContent(html, "property", "og:image:width") === String(OG_WIDTH), `${label} og:image:width must be ${OG_WIDTH}`);
   check(metaContent(html, "property", "og:image:height") === String(OG_HEIGHT), `${label} og:image:height must be ${OG_HEIGHT}`);
   check(Boolean(metaContent(html, "property", "og:image:alt")), `${label} missing og:image:alt`);
-  const file = join(dist, ...image.slice(PROD_ORIGIN.length).split("/").filter(Boolean));
+  // The query is a cache-buster: ?v=<first 8 hex of the PNG's sha256>.
+  const [imagePath, query = ""] = image.slice(PROD_ORIGIN.length).split("?");
+  const file = join(dist, ...imagePath.split("/").filter(Boolean));
   if (!check(existsSync(file), `${label} og:image ${image} has no file in the build`)) return;
+  const version = createHash("sha256").update(readFileSync(file)).digest("hex").slice(0, 8);
+  check(query === `v=${version}`, `${label} og:image ${image} must end in ?v=${version}`);
   const size = pngSize(file);
   check(
     size?.width === OG_WIDTH && size?.height === OG_HEIGHT,

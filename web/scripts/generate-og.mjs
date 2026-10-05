@@ -4,27 +4,18 @@
 //   npm run og:generate
 // Chromium from the Playwright devDependency renders the card with the
 // self-hosted variable fonts (npm run playwright:install fetches it). Names,
-// paths and the tagline come from the TypeScript modules the site uses; Node
-// strips their types on import.
-import { mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
+// paths and the tagline come from the TypeScript modules the site uses, loaded
+// through Vite like the build does, so extensionless imports and type-only
+// imports inside them keep working.
+import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
-import { getMessages } from "../src/i18n/catalog.ts";
-import {
-  SEO_OG_IMAGE_DIR,
-  SEO_OG_IMAGE_HEIGHT,
-  SEO_OG_IMAGE_WIDTH,
-  SEO_OG_TAGLINE,
-  SEO_PROD_ORIGIN,
-  SEO_ROUTES,
-  seoGameName,
-  seoOgImagePath,
-} from "../src/lib/seo-routes.ts";
+import { createServer } from "vite";
 
 const web = join(dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = join(web, "public");
-const outDir = join(publicDir, ...SEO_OG_IMAGE_DIR.split("/").filter(Boolean));
+const tmpDir = join(web, "node_modules", ".cache", "og-generate");
 
 function fontDataUrl(relativePath) {
   const bytes = readFileSync(join(publicDir, relativePath));
@@ -36,7 +27,7 @@ function escapeHtml(text) {
 }
 
 // Light theme colors from src/styles/tokens.css.
-const STYLE = `
+const style = (width, height) => `
 @font-face {
   font-family: "Space Grotesk";
   src: url(${fontDataUrl("fonts/space-grotesk/SpaceGrotesk-latin-wght.woff2")}) format("woff2");
@@ -48,7 +39,7 @@ const STYLE = `
   font-weight: 100 900;
 }
 * { box-sizing: border-box; margin: 0; }
-html, body { width: ${SEO_OG_IMAGE_WIDTH}px; height: ${SEO_OG_IMAGE_HEIGHT}px; overflow: hidden; }
+html, body { width: ${width}px; height: ${height}px; overflow: hidden; }
 body {
   position: relative;
   display: flex;
@@ -82,8 +73,8 @@ const STRIPE = ["#FDE047", "#86EFAC", "#93C5FD", "#D8B4FE"]
   .map((color) => `<i style="background:${color}"></i>`)
   .join("");
 
-function cardHtml({ lang, title, kicker, tagline, host }) {
-  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><style>${STYLE}</style></head><body>
+function cardHtml({ width, height, lang, title, kicker, tagline, host }) {
+  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><style>${style(width, height)}</style></head><body>
 <div class="brand"><div class="wordmark"><span>K</span>Q</div>${kicker ? `<div class="kicker">${escapeHtml(kicker)}</div>` : ""}</div>
 <h1 class="title">${escapeHtml(title)}</h1>
 <p class="tagline">${escapeHtml(tagline)}</p>
@@ -92,10 +83,41 @@ function cardHtml({ lang, title, kicker, tagline, host }) {
 </body></html>`;
 }
 
+async function loadModules() {
+  const server = await createServer({
+    root: web,
+    logLevel: "error",
+    server: { middlewareMode: true },
+    appType: "custom",
+  });
+  try {
+    const catalog = await server.ssrLoadModule("/src/i18n/catalog.ts");
+    const seo = await server.ssrLoadModule("/src/lib/seo-routes.ts");
+    return { getMessages: catalog.getMessages, seo };
+  } finally {
+    await server.close();
+  }
+}
+
 async function main() {
+  const { getMessages, seo } = await loadModules();
+  const {
+    SEO_OG_IMAGE_DIR,
+    SEO_OG_IMAGE_HEIGHT,
+    SEO_OG_IMAGE_WIDTH,
+    SEO_OG_TAGLINE,
+    SEO_PROD_ORIGIN,
+    SEO_ROUTES,
+    seoGameName,
+    seoOgImagePath,
+  } = seo;
   const host = new URL(SEO_PROD_ORIGIN).host;
-  rmSync(outDir, { recursive: true, force: true });
-  mkdirSync(outDir, { recursive: true });
+  const outDir = join(publicDir, ...SEO_OG_IMAGE_DIR.split("/").filter(Boolean));
+
+  // Render into a scratch directory and swap it in at the end, so a failure
+  // (no Chromium, a broken layout) leaves the committed cards untouched.
+  rmSync(tmpDir, { recursive: true, force: true });
+  mkdirSync(tmpDir, { recursive: true });
 
   const browser = await chromium.launch();
   try {
@@ -108,6 +130,8 @@ async function main() {
       const isSite = route.key === "quiz";
       await page.setContent(
         cardHtml({
+          width: SEO_OG_IMAGE_WIDTH,
+          height: SEO_OG_IMAGE_HEIGHT,
           lang: route.locale,
           title: isSite ? "K-pop Quiz" : seoGameName(route.key, messages),
           kicker: isSite ? null : "K-pop Quiz",
@@ -128,13 +152,18 @@ async function main() {
       });
       const relative = seoOgImagePath(route.key, route.locale);
       await page.screenshot({
-        path: join(publicDir, ...relative.split("/").filter(Boolean)),
+        path: join(tmpDir, relative.split("/").pop()),
         type: "png",
       });
     }
+  } catch (error) {
+    rmSync(tmpDir, { recursive: true, force: true });
+    throw error;
   } finally {
     await browser.close();
   }
+  rmSync(outDir, { recursive: true, force: true });
+  renameSync(tmpDir, outDir);
   console.log(`generate-og: wrote ${readdirSync(outDir).length} images to public${SEO_OG_IMAGE_DIR}`);
 }
 

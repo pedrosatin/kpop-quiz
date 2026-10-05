@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { Locale, PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { seoShareUrl } from "../../lib/seo-routes";
-import { sharePayload, withShareUrl } from "./share-text";
+import { withShareUrl } from "./share-text";
 
 export interface GenerateShareTextParams {
   correctCount: number;
@@ -116,7 +116,7 @@ export function ShareResult({
   const handleAction = async () => {
     if (canShare) {
       try {
-        await navigator.share(sharePayload(shareText));
+        await navigator.share({ text: shareText });
         return;
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {

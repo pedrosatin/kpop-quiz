@@ -98,8 +98,8 @@ export function seoOgImageAlt(key: SeoRouteKey, locale: Locale, messages: Messag
   if (key === "quiz") return `K-pop Quiz. ${SEO_OG_TAGLINE[locale]}. ${host}`;
   const name = seoGameName(key, messages);
   return locale === "pt-BR"
-    ? `${name}, jogo diário do K-pop Quiz. ${host}`
-    : `${name}, a daily K-pop Quiz game. ${host}`;
+    ? `${name}, jogo diário do K-pop Quiz em ${host}`
+    : `${name}, a daily K-pop Quiz game at ${host}`;
 }
 
 /** `utm_campaign` of a game: the last segment of its English path. */

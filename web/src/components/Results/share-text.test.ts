@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sharePayload, shareTextToUser, withShareUrl } from "./share-text";
+import { shareTextToUser, withShareUrl } from "./share-text";
 
 describe("shareTextToUser", () => {
   afterEach(() => {
@@ -44,24 +44,16 @@ describe("shareTextToUser", () => {
     await expect(shareTextToUser("hello")).resolves.toBe("failed");
   });
 
-  it("passes a trailing link as the share sheet url and copies the whole text", async () => {
+  it("sends the whole text, link included and without a url field, to the share sheet and the clipboard", async () => {
     const url = "https://kpopquiz.online/en/grid/?utm_source=share";
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { share });
     await shareTextToUser(withShareUrl("K-pop Grid\n🟩", url));
-    expect(share).toHaveBeenCalledWith({ title: "K-pop Quiz", text: "K-pop Grid\n🟩", url });
+    expect(share).toHaveBeenCalledWith({ text: `K-pop Grid\n🟩\n${url}` });
 
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     await shareTextToUser(withShareUrl("K-pop Grid\n🟩", url));
     expect(writeText).toHaveBeenCalledWith(`K-pop Grid\n🟩\n${url}`);
-  });
-});
-
-describe("sharePayload", () => {
-  it("keeps text without a trailing link as is", () => {
-    expect(sharePayload("hello")).toEqual({ text: "hello" });
-    expect(sharePayload("hello\nworld")).toEqual({ text: "hello\nworld" });
-    expect(sharePayload("https://kpopquiz.online/")).toEqual({ text: "https://kpopquiz.online/" });
   });
 });

@@ -157,9 +157,7 @@ describe("ShareResult component", () => {
     fireEvent.click(shareBtn);
     expect(shareMock).toHaveBeenCalledTimes(1);
     expect(shareMock).toHaveBeenCalledWith({
-      title: "K-pop Quiz",
-      text: "K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42",
-      url: PT_URL,
+      text: `K-pop Quiz 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`,
     });
   });
 
@@ -307,9 +305,7 @@ describe("ShareResult component", () => {
     const shareBtn = screen.getByRole("button", { name: "Compartilhar resultado" });
     fireEvent.click(shareBtn);
     expect(shareMock).toHaveBeenCalledWith({
-      title: "K-pop Quiz",
-      text: "K-pop Quiz Diário 2026-09-16 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42",
-      url: PT_URL,
+      text: `K-pop Quiz Diário 2026-09-16 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`,
     });
   });
 });
