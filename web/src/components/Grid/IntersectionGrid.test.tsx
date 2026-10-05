@@ -82,7 +82,7 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(screen.getByText(ptMessages.loading)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByRole("grid", { name: "Grade de interseções" })).toBeInTheDocument();
+      expect(screen.getByRole("grid", { name: "Grade de interseções de K-pop" })).toBeInTheDocument();
     });
 
     expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe("IntersectionGrid orchestrator component", () => {
     fireEvent.click(retryBtn);
 
     await waitFor(() => {
-      expect(screen.getByRole("grid", { name: "Grade de interseções" })).toBeInTheDocument();
+      expect(screen.getByRole("grid", { name: "Grade de interseções de K-pop" })).toBeInTheDocument();
     });
   });
 

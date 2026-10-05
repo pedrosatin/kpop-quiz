@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita. A parte da imagem de compartilhamento (`apple-touch-icon.png` como `og:image` e `twitter:card=summary`) foi substituída pela [ADR 021](021-cartoes-og-e-link-no-compartilhamento.md), que adota cartões de 1200x630 por rota.
+Aceita. A parte da imagem de compartilhamento (`apple-touch-icon.png` como `og:image` e `twitter:card=summary`) foi substituída pela [ADR 021](021-cartoes-og-e-link-no-compartilhamento.md), que adota cartões de 1200x630 por rota. A [ADR 022](022-renderizacao-e-texto-indexavel.md) removeu o `Disallow: /data/` do `robots.txt` de produção.
 
 ## Data
 

@@ -1,5 +1,6 @@
 ---
 import { TimelineGame } from "../../components/Timeline/TimelineGame";
+import GameAbout from "../../components/GameAbout.astro";
 import GameIntro from "../../components/GameIntro.astro";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getMessages } from "../../i18n/catalog";
@@ -17,5 +18,6 @@ const messages = getMessages("pt-BR");
       intro={messages.timelineIntro}
     />
     <TimelineGame locale="pt-BR" client:load />
+    <GameAbout locale="pt-BR" game="timeline" />
   </div>
 </BaseLayout>

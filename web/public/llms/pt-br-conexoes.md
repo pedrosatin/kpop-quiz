@@ -1,4 +1,4 @@
-# Conexões
+# Conexões de K-pop
 
 Canonical: https://kpopquiz.online/pt-br/conexoes/
 Também em inglês: https://kpopquiz.online/en/connections/

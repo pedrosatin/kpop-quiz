@@ -1,4 +1,4 @@
-# Timeline
+# K-pop Timeline
 
 Canonical: https://kpopquiz.online/en/timeline/
 Also in Portuguese: https://kpopquiz.online/pt-br/linha-do-tempo/

@@ -1,4 +1,5 @@
 import type { Locale, PlayMode } from "../lib/quiz-types";
+import { gameAbout, type GameAboutMessages } from "./game-about";
 
 export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline";
 
@@ -79,6 +80,8 @@ export interface WordSearchMessages {
 
 export interface Messages {
   meta: Record<SeoRouteKey, SeoMeta>;
+  /** Static copy under each game page (How to play, data sources, FAQ). */
+  about: GameAboutMessages;
   skipLinks: Record<SkipLinkKey, string>;
   overview: {
     title: string;
@@ -313,8 +316,8 @@ const catalogs: Record<Locale, Messages> = {
         description: "Separe 16 nomes do K-pop em 4 categorias, como agência, formação ou marcos da carreira.",
       },
       nameGuess: {
-        title: "Adivinhe o nome: artista ou grupo do dia",
-        description: "Descubra o artista ou grupo de K-pop do dia em 6 palpites. As cores mostram quais letras você acertou.",
+        title: "Wordle de K-pop: adivinhe o artista ou grupo",
+        description: "Um Wordle de K-pop por dia. Descubra o artista ou grupo em 6 palpites, e as cores mostram quais letras você acertou.",
       },
       wordSearch: {
         title: "Caça-palavras de K-pop: ache os nomes",
@@ -325,10 +328,11 @@ const catalogs: Record<Locale, Messages> = {
         description: "Ache no mapa o país de cada show da turnê DEADLINE de BLACKPINK. São 10 datas por rodada, cada uma com link para a agenda oficial.",
       },
       timeline: {
-        title: "Linha do Tempo de K-pop: ordene fatos e estreias",
+        title: "Linha do Tempo do K-pop: ordene os fatos",
         description: "Ordene os acontecimentos da história do K-pop do mais antigo para o mais recente. Cada fato aponta para uma fonte citável.",
       },
     },
+    about: gameAbout["pt-BR"],
     skipLinks: {
       quiz: "Pular para o quiz",
       grid: "Pular para a grade",
@@ -486,7 +490,7 @@ const catalogs: Record<Locale, Messages> = {
     mediaCreator: "Foto:",
     mediaSource: "Fonte da imagem",
     mediaUnavailable: "Imagem indisponível",
-    gridTitle: "Grade de interseções",
+    gridTitle: "Grade de interseções de K-pop",
     gridEyebrow: "9 casas · 9 palpites",
     gridIntro: "Em cada casa, escolha um grupo que atenda ao critério da linha e ao da coluna.",
     gridGuessesLeft: (count) => (count === 1 ? "1 palpite restante" : `${count} palpites restantes`),
@@ -528,7 +532,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCategoryAgency: "Agência",
     gridCategoryMembers: "Integrantes",
     gridDailyMissing: "A grade de hoje não pôde ser gerada ou está temporariamente indisponível.",
-    connectionsTitle: "Conexões",
+    connectionsTitle: "Conexões de K-pop",
     connectionsEyebrow: "4 categorias · 16 nomes",
     connectionsIntro: "Separe os 16 nomes em 4 categorias de 4. Você pode errar 4 vezes.",
     connectionsMistakesRemaining: (count) => (count === 1 ? "1 erro restante" : `${count} erros restantes`),
@@ -558,7 +562,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsWrong: "Errou. Esses 4 nomes não formam uma categoria.",
     connectionsSolved: (label) => `Categoria encontrada: ${label}.`,
     connectionsSourceItem: (name, project, revision) => `${name}, ${project}, revisão ${revision}.`,
-    nameGuessTitle: "Adivinhe o nome",
+    nameGuessTitle: "Adivinhe o nome: Wordle de K-pop",
     nameGuessEyebrow: "6 palpites · 1 nome por dia",
     nameGuessIntro: "Descubra o artista ou grupo de K-pop do dia. A cada palpite, as cores mostram quais letras estão certas.",
     nameGuess: {
@@ -597,13 +601,13 @@ const catalogs: Record<Locale, Messages> = {
       absentTile: (pos, letter) => `Posição ${pos}: letra ${letter}, não está no nome`,
       keyboardAria: "Teclado",
     },
-    wordSearchTitle: "Caça-palavras",
+    wordSearchTitle: "Caça-palavras de K-pop",
     wordSearchEyebrow: "1 tema por dia · 8 direções",
     wordSearchIntro: "Encontre os nomes do tema escondidos na grade, em qualquer direção.",
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
-    mapTitle: "Quiz de mapa: BLACKPINK",
+    mapTitle: "Quiz de mapa de K-pop: BLACKPINK",
     mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou.",
-    timelineTitle: "Linha do Tempo",
+    timelineTitle: "Linha do Tempo do K-pop",
     timelineEyebrow: "Desafio diário",
     timelineIntro: "Ordene os acontecimentos do K-pop do mais antigo para o mais recente.",
     wordSearch: {
@@ -681,8 +685,8 @@ const catalogs: Record<Locale, Messages> = {
         description: "Sort 16 K-pop names into 4 categories, such as agency, lineup or career milestones.",
       },
       nameGuess: {
-        title: "Guess the name: today's artist or group",
-        description: "Find today's K-pop artist or group in 6 guesses. Colors show which letters you got right.",
+        title: "K-pop Wordle: guess today's artist or group",
+        description: "A daily K-pop Wordle. Find today's artist or group in 6 guesses, with colors showing which letters you got right.",
       },
       wordSearch: {
         title: "K-pop word search: find the names",
@@ -697,6 +701,7 @@ const catalogs: Record<Locale, Messages> = {
         description: "Order events from K-pop history from earliest to latest. Every fact cites a verifiable source.",
       },
     },
+    about: gameAbout.en,
     skipLinks: {
       quiz: "Skip to the quiz",
       grid: "Skip to the grid",
@@ -853,7 +858,7 @@ const catalogs: Record<Locale, Messages> = {
     mediaCreator: "Photo:",
     mediaSource: "Image source",
     mediaUnavailable: "Image unavailable",
-    gridTitle: "Intersection grid",
+    gridTitle: "K-pop Intersection Grid",
     gridEyebrow: "9 squares · 9 guesses",
     gridIntro: "In each square, pick a group that fits both the row rule and the column rule.",
     gridGuessesLeft: (count) => (count === 1 ? "1 guess left" : `${count} guesses left`),
@@ -895,7 +900,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCategoryAgency: "Agency",
     gridCategoryMembers: "Members",
     gridDailyMissing: "Today's grid could not be generated or is temporarily unavailable.",
-    connectionsTitle: "Connections",
+    connectionsTitle: "K-pop Connections",
     connectionsEyebrow: "4 categories · 16 names",
     connectionsIntro: "Sort the 16 names into 4 categories of 4. You can make 4 mistakes.",
     connectionsMistakesRemaining: (count) => (count === 1 ? "1 mistake left" : `${count} mistakes left`),
@@ -925,7 +930,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsWrong: "Wrong. These 4 names are not a category.",
     connectionsSolved: (label) => `Category found: ${label}.`,
     connectionsSourceItem: (name, project, revision) => `${name}: ${project}, revision ${revision}.`,
-    nameGuessTitle: "Guess the name",
+    nameGuessTitle: "Guess the Name: K-pop Wordle",
     nameGuessEyebrow: "6 guesses · 1 name a day",
     nameGuessIntro: "Find today's K-pop artist or group. After each guess, colors show which letters are right.",
     nameGuess: {
@@ -964,13 +969,13 @@ const catalogs: Record<Locale, Messages> = {
       absentTile: (pos, letter) => `Position ${pos}: letter ${letter}, not in the name`,
       keyboardAria: "Keyboard",
     },
-    wordSearchTitle: "Word search",
+    wordSearchTitle: "K-pop Word Search",
     wordSearchEyebrow: "1 theme a day · 8 directions",
     wordSearchIntro: "Find the theme's names hidden in the grid, in any direction.",
     mapEyebrow: "10 dates per round · DEADLINE tour",
-    mapTitle: "Map quiz: BLACKPINK",
+    mapTitle: "K-pop Map Quiz: BLACKPINK",
     mapIntro: "For each tour date, pick on the map the country the official schedule listed.",
-    timelineTitle: "Timeline",
+    timelineTitle: "K-pop Timeline",
     timelineEyebrow: "Daily challenge",
     timelineIntro: "Order the K-pop events from earliest to latest.",
     wordSearch: {

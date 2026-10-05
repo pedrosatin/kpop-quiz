@@ -1,4 +1,4 @@
-# Intersection grid
+# K-pop Intersection Grid
 
 Canonical: https://kpopquiz.online/en/grid/
 Also in Portuguese: https://kpopquiz.online/pt-br/grid/

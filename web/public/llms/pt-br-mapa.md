@@ -1,4 +1,4 @@
-# Quiz de mapa: BLACKPINK
+# Quiz de mapa de K-pop: BLACKPINK
 
 Canonical: https://kpopquiz.online/pt-br/mapa/
 Também em inglês: https://kpopquiz.online/en/map/

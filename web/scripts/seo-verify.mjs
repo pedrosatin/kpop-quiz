@@ -42,6 +42,51 @@ const EXPECTED_LLMS = [
   "en-timeline.md",
 ];
 
+// Game routes carry static text under the island (GameAbout.astro). Google
+// renders the islands too, but this text is in the served HTML either way.
+// The H2s carry the game name, so the check matches the shape, not one
+// fixed string per locale.
+const GAME_ABOUT_PATHS = EXPECTED_PATHS.filter((path) => path !== "/pt-br/" && path !== "/en/");
+const GAME_ABOUT_H2 = {
+  "pt-br": [/^Como jogar /, /^De onde vêm os dados /, /^Perguntas sobre /],
+  en: [/^How to play /, /^Where the .+ data comes from$/, / FAQ$/],
+};
+const GAME_ABOUT_MIN_WORDS = 300;
+
+function decodeEntities(text) {
+  return text
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function textOf(html) {
+  return decodeEntities(html.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+function countWords(text) {
+  return text.split(" ").filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
+}
+
+// The GameAbout block is the outermost <div class="game-about">; nested divs
+// are balanced by counting open and close tags.
+function gameAboutHtml(html) {
+  const start = html.search(/<div[^>]*class="game-about"/);
+  if (start < 0) return null;
+  const tags = /<\/?div\b[^>]*>/g;
+  tags.lastIndex = start;
+  let depth = 0;
+  for (let match = tags.exec(html); match; match = tags.exec(html)) {
+    depth += match[0].startsWith("</") ? -1 : 1;
+    if (depth === 0) return html.slice(start, tags.lastIndex);
+  }
+  return null;
+}
+
 function parseArgs(argv) {
   const args = { dir: "dist", env: "prod" };
   for (let i = 0; i < argv.length; i += 1) {
@@ -141,7 +186,15 @@ function main() {
     const robots = readFileSync(robotsPath, "utf-8");
     if (env === "prod") {
       check(robots.includes("Allow: /"), "prod robots.txt must Allow: /");
-      check(robots.includes("Disallow: /data/"), "prod robots.txt must Disallow: /data/");
+      // /data/next/ holds the next day's puzzles (published around 12:00 BRT
+      // for the following day), so keep those answers out of crawlers. The
+      // rest of /data/ stays crawlable for the Web Rendering Service, and the
+      // islands fall back to the main artifact when the next/ fetch fails.
+      const disallows = robots.split("\n").filter((line) => line.startsWith("Disallow:"));
+      check(
+        JSON.stringify(disallows) === JSON.stringify(["Disallow: /data/next/"]),
+        `prod robots.txt must Disallow exactly /data/next/, got ${JSON.stringify(disallows)}`,
+      );
       check(
         robots.includes(`Sitemap: ${PROD_ORIGIN}/sitemap.xml`),
         "prod robots.txt must reference the sitemap",
@@ -171,11 +224,40 @@ function main() {
       /<a[^>]*href="[^"]*\/data\//.test(html) === false,
       `${label} links to /data/*`,
     );
+    const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/);
+    check(h1 !== null && textOf(h1[1]).includes("K-pop"), `${label} h1 must mention K-pop`);
     if (env === "prod") {
       check(noindexRe.test(html) === false, `${label} must not be noindex in prod`);
     } else {
       check(noindexRe.test(html), `${label} must be noindex in staging`);
     }
+  }
+
+  // Game routes: static text with the expected H2s and at least 300 words.
+  for (const routePath of GAME_ABOUT_PATHS) {
+    const htmlPath = join(dist, ...routePath.split("/").filter(Boolean), "index.html");
+    if (!existsSync(htmlPath)) continue;
+    const label = htmlPath.replace(dist, "dist");
+    const about = gameAboutHtml(readFileSync(htmlPath, "utf-8"));
+    if (!check(about !== null, `${label} missing the static game text (.game-about)`)) continue;
+    const h2s = [...about.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/g)].map((m) => textOf(m[1]));
+    const expected = GAME_ABOUT_H2[routePath.split("/")[1]];
+    check(
+      h2s.length === expected.length && h2s.every((h2, i) => expected[i].test(h2)),
+      `${label} game text H2s are ${JSON.stringify(h2s)}, expected one heading matching each of ${JSON.stringify(expected.map((pattern) => String(pattern)))}`,
+    );
+    const words = countWords(textOf(about));
+    check(words >= GAME_ABOUT_MIN_WORDS, `${label} game text has ${words} words, expected at least ${GAME_ABOUT_MIN_WORDS}`);
+  }
+
+  // IndexNow: one <32 hex>.txt at the root whose content is the key itself.
+  const indexNowKeys = existsSync(dist)
+    ? readdirSync(dist).filter((name) => /^[0-9a-f]{32}\.txt$/.test(name))
+    : [];
+  check(indexNowKeys.length === 1, `expected one IndexNow key file in dist/, found ${indexNowKeys.length}`);
+  for (const name of indexNowKeys) {
+    const key = readFileSync(join(dist, name), "utf-8").trim();
+    check(`${key}.txt` === name, `dist/${name} must contain its own key`);
   }
 
   // The root renders the Portuguese quiz and canonicalizes to /pt-br/.
@@ -241,7 +323,7 @@ function main() {
     for (const failure of failures) console.error(`seo:verify FAIL: ${failure}`);
     process.exit(1);
   }
-  console.log(`seo:verify OK (${env}): root alias, 404 page, sitemap ${EXPECTED_PATHS.length} URLs, robots, head tags, OG cards, _headers, llms.txt`);
+  console.log(`seo:verify OK (${env}): root alias, 404 page, sitemap ${EXPECTED_PATHS.length} URLs, robots, head tags, OG cards, h1, game text, IndexNow key, _headers, llms.txt`);
 }
 
 main();

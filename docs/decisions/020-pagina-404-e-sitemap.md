@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita
+Aceita. Desde a [ADR 022](022-renderizacao-e-texto-indexavel.md), o `robots.txt` não bloqueia mais `/data/`. A decisão sobre `<lastmod>` continua valendo, porque os JSON seguem fora do sitemap e do índice.
 
 ## Data
 
