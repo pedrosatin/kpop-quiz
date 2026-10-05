@@ -1,16 +1,11 @@
 import type { APIRoute } from "astro";
-import { SEO_ROUTES, seoAbsoluteUrl } from "../lib/seo-routes";
+import { SEO_ROUTES } from "../lib/seo-routes";
+import { buildSitemapXml } from "../lib/sitemap";
 
 export const GET: APIRoute = () => {
   // Sitemap always lists the 14 canonical production URLs, in any build.
   // Staging stays out of the index via robots `Disallow: /` + `noindex`.
-  const urls = SEO_ROUTES.map(
-    (route) => `  <url><loc>${seoAbsoluteUrl(route.path)}</loc></url>`,
-  ).join("\n");
-  const body =
-    `<?xml version="1.0" encoding="UTF-8"?>\n` +
-    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
-  return new Response(body, {
+  return new Response(buildSitemapXml(SEO_ROUTES, new Date()), {
     headers: { "Content-Type": "application/xml; charset=utf-8" },
   });
 };

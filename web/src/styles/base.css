@@ -494,28 +494,33 @@ footer p {
   cursor: pointer;
 }
 
-/* Privacy notice */
+/* Privacy notice and 404 page */
 
-.privacy-notice {
+.privacy-notice,
+.not-found {
   width: min(100% - 2rem, 48rem);
   margin: 0 auto;
   padding: var(--space-7) 0 var(--space-8);
 }
 
-.privacy-notice h1 {
+.privacy-notice h1,
+.not-found h1 {
   margin: var(--space-1) 0 var(--space-3);
   font-size: clamp(2rem, 6vw, 3rem);
   line-height: 1.05;
   letter-spacing: -0.035em;
 }
 
-.privacy-notice h2 {
+.privacy-notice h2,
+.not-found h2 {
   margin: var(--space-6) 0 var(--space-2);
   font-size: 1.375rem;
 }
 
 .privacy-notice p,
-.privacy-notice li {
+.privacy-notice li,
+.not-found p,
+.not-found li {
   color: var(--color-text-muted);
 }
 

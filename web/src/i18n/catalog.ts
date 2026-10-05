@@ -2,7 +2,7 @@ import type { Locale, PlayMode } from "../lib/quiz-types";
 
 export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline";
 
-export type SkipLinkKey = SeoRouteKey | "privacy";
+export type SkipLinkKey = SeoRouteKey | "privacy" | "notFound";
 
 export interface SeoMeta {
   title: string;
@@ -338,6 +338,7 @@ const catalogs: Record<Locale, Messages> = {
       mapPilot: "Pular para o jogo de mapa",
       timeline: "Pular para a linha do tempo",
       privacy: "Pular para a política de privacidade",
+      notFound: "Pular para o conteúdo",
     },
     overview: {
       title: "Sobre o K-pop Quiz",
@@ -705,6 +706,7 @@ const catalogs: Record<Locale, Messages> = {
       mapPilot: "Skip to the map game",
       timeline: "Skip to the timeline game",
       privacy: "Skip to the privacy policy",
+      notFound: "Skip to the content",
     },
     overview: {
       title: "About K-pop Quiz",
