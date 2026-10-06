@@ -182,3 +182,13 @@ MIT, see [LICENSE](LICENSE).
 Only use sources whose license, attribution, and usage limits have been reviewed. Every publishable data point must keep the source and evidence that back the claim. Raw files, SQLite databases, and local CSVs are not tracked in Git.
 
 The optional [group signal report](docs/group-signals.md) records Wikidata channel identifiers and dated follower statements with revision and statement locators. Live YouTube statistics are limited to local inspection and are not used in quiz scoring.
+
+## Daily publication workflow
+
+The `date` input of `daily-puzzles-cron` accepts a real calendar date as `YYYY-MM-DD`, or stays empty to use the current date. The value reaches the job as an environment variable and is passed to the generator as a separate argument. The step fails before generating puzzles if the date is malformed or does not exist.
+
+The app stays static: answers and the next day's set, published ahead of time to tolerate scheduler delays, can be read from the public files. Hiding them until game time would require serving the daily set from a backend with a different availability policy.
+
+## Pinned GitHub Actions
+
+Every Action in the five workflows (`daily-puzzles-cron`, `pages`, `staging`, `e2e-nightly`, `map-pilot-refresh`) is pinned to a full commit SHA, with the exact release tag in a trailing comment (for example `# v7.0.1`). To update one, check out the new release tag, copy the SHA it resolves to (`git ls-remote --tags https://github.com/<owner>/<repo>`) and replace both the SHA and the comment in every workflow that uses it. `.github/dependabot.yml` opens weekly pull requests for these pins.

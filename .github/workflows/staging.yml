@@ -22,13 +22,13 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Run Python verification
@@ -42,7 +42,7 @@ jobs:
         run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-connections --require-name-guess --require-word-search --require-timeline
       - name: Read GitHub Pages settings
         id: pages
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - run: npm ci
       - run: npm test
       - name: Build for the repository subdirectory
@@ -78,7 +78,7 @@ jobs:
         env:
           CI: true
         run: npm run test:e2e:ci
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: playwright-report
@@ -87,7 +87,7 @@ jobs:
             web/playwright-report/
           retention-days: 7
           if-no-files-found: ignore
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: web/dist
 
@@ -106,7 +106,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   # Post-deploy full Chromium suite (boot smoke + playthrough) against the GitHub Pages
   # staging URL (subdirectory base). Separate job so we can check out sources for Playwright;
@@ -121,8 +121,8 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -135,7 +135,7 @@ jobs:
           CI: true
           STAGING_BASE_URL: ${{ needs.deploy.outputs.page_url || 'https://pedrosatin.github.io/kpop-quiz/' }}
         run: npm run test:e2e:staging
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: playwright-report-staging
