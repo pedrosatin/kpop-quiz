@@ -42,7 +42,7 @@ interface SavedGameState {
   highContrast: boolean;
 }
 
-type ErrorCode = "notEnoughLetters" | "notInWordList";
+type ErrorCode = "notEnoughLetters" | "notInWordList" | "alreadyGuessed";
 
 interface GameState {
   guesses: string[];
@@ -57,6 +57,7 @@ type GameAction =
   | { type: "addLetter"; char: string; puzzle: NameGuessPuzzle }
   | { type: "removeLetter" }
   | { type: "submitGuess"; puzzle: NameGuessPuzzle }
+  | { type: "giveUp" }
   | { type: "toggleHighContrast" }
   | { type: "clearError" }
   | { type: "reset" }
@@ -98,6 +99,9 @@ function nameGuessReducer(state: GameState, action: GameAction): GameState {
       if (!puzzle.valid_guesses.includes(guess)) {
         return { ...state, errorMessage: "notInWordList" };
       }
+      if (state.guesses.includes(guess)) {
+        return { ...state, errorMessage: "alreadyGuessed" };
+      }
       const guesses = [...state.guesses, guess];
       const feedbacks = [...state.feedbacks, computeFeedback(puzzle.target.normalized_name, guess)];
       let status: GameStatus = "playing";
@@ -106,8 +110,11 @@ function nameGuessReducer(state: GameState, action: GameAction): GameState {
       } else if (guesses.length >= puzzle.max_attempts) {
         status = "lost";
       }
-      return { ...state, guesses, feedbacks, currentInput: "", status };
+      return { ...state, guesses, feedbacks, currentInput: "", status, errorMessage: null };
     }
+    case "giveUp":
+      if (state.status !== "playing") return state;
+      return { ...state, status: "lost", currentInput: "", errorMessage: null };
     case "toggleHighContrast":
       return { ...state, highContrast: !state.highContrast };
     case "clearError":
@@ -153,9 +160,10 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle) {
     }
   }, [storageKey]);
 
-  // Save state on change
+  // Save state on change. A finished game is saved even with zero guesses,
+  // so a give-up before the first guess survives a reload.
   useEffect(() => {
-    if (guesses.length === 0 && !highContrast) return;
+    if (guesses.length === 0 && !highContrast && status === "playing") return;
     try {
       const payload: SavedGameState = { guesses, feedbacks, status, highContrast };
       localStorage.setItem(storageKey, JSON.stringify(payload));
@@ -179,6 +187,8 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle) {
   const removeLetter = useCallback(() => dispatch({ type: "removeLetter" }), []);
 
   const submitGuess = useCallback(() => dispatch({ type: "submitGuess", puzzle }), [puzzle]);
+
+  const giveUp = useCallback(() => dispatch({ type: "giveUp" }), []);
 
   const toggleHighContrast = useCallback(() => dispatch({ type: "toggleHighContrast" }), []);
 
@@ -224,6 +234,7 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle) {
     addLetter,
     removeLetter,
     submitGuess,
+    giveUp,
     toggleHighContrast,
     resetGame,
   };

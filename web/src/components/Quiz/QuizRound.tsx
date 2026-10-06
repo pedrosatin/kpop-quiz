@@ -24,6 +24,7 @@ export interface QuizRoundProps {
   actionRef?: RefObject<HTMLButtonElement> | undefined;
   onSubmit: () => void;
   onAdvance?: () => void | undefined;
+  onGiveUp?: (() => void) | undefined;
   onRevealClue: () => void;
   messages: Messages;
 }
@@ -45,6 +46,7 @@ export function QuizRound({
   actionRef,
   onSubmit,
   onAdvance = () => {},
+  onGiveUp,
   onRevealClue,
   messages,
 }: QuizRoundProps) {
@@ -101,6 +103,7 @@ export function QuizRound({
         isLastQuestion={questionIndex === totalQuestions - 1}
         onSubmit={onSubmit}
         onAdvance={onAdvance}
+        onGiveUp={onGiveUp}
       />
     </section>
   );

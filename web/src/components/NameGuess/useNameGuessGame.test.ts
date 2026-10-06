@@ -152,6 +152,40 @@ describe("useNameGuessGame hook", () => {
     expect(result.current.highContrast).toBe(false);
   });
 
+  it("rejects a repeated guess without consuming an attempt", () => {
+    const { result } = renderHook(() => useNameGuessGame(puzzle));
+
+    act(() => {
+      ["A", "E", "S", "P", "A"].forEach((l) => result.current.addLetter(l));
+    });
+    act(() => {
+      result.current.submitGuess();
+    });
+    expect(result.current.guesses).toEqual(["AESPA"]);
+
+    act(() => {
+      ["A", "E", "S", "P", "A"].forEach((l) => result.current.addLetter(l));
+    });
+    act(() => {
+      result.current.submitGuess();
+    });
+
+    expect(result.current.errorMessage).toBe("alreadyGuessed");
+    expect(result.current.guesses).toEqual(["AESPA"]);
+    expect(result.current.status).toBe("playing");
+  });
+
+  it("reveals the answer when the player gives up", () => {
+    const { result } = renderHook(() => useNameGuessGame(puzzle));
+
+    act(() => {
+      result.current.giveUp();
+    });
+
+    expect(result.current.status).toBe("lost");
+    expect(result.current.currentInput).toBe("");
+  });
+
   it("resets game when resetGame is invoked", () => {
     const { result } = renderHook(() => useNameGuessGame(puzzle));
 

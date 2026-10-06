@@ -32,6 +32,7 @@ export interface IntersectionGridContentProps {
   selectCell: GridGameApi["selectCell"];
   closePicker: GridGameApi["closePicker"];
   makeGuess: GridGameApi["makeGuess"];
+  giveUp: GridGameApi["giveUp"];
   restartGame: GridGameApi["restartGame"];
 }
 
@@ -49,6 +50,7 @@ export function IntersectionGridContent({
   selectCell,
   closePicker,
   makeGuess,
+  giveUp,
   restartGame,
 }: IntersectionGridContentProps) {
   const solvedCount = useMemo(() => {
@@ -116,6 +118,13 @@ export function IntersectionGridContent({
     }
   }, [makeGuess, messages]);
 
+  const handleGiveUp = useCallback(() => {
+    playedHere.current = true;
+    setFeedback(null);
+    setFinalVerdict(null);
+    giveUp();
+  }, [giveUp]);
+
   const restart = useCallback(() => {
     setFeedback(null);
     setFinalVerdict(null);
@@ -179,7 +188,12 @@ export function IntersectionGridContent({
               messages={messages}
             />
           ) : (
-            <GridProgress guessesLeft={guessesLeft} solvedCount={solvedCount} messages={messages} />
+            <>
+              <GridProgress guessesLeft={guessesLeft} solvedCount={solvedCount} messages={messages} />
+              <button type="button" class="btn btn-secondary btn-sm" onClick={handleGiveUp}>
+                {messages.giveUp}
+              </button>
+            </>
           )}
         </div>
       </div>

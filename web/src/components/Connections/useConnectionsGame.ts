@@ -151,6 +151,16 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
     return { success: false, oneAway };
   }, [puzzle, gameStatus, selectedItemIds, guessHistory, solvedCategoryIds, mistakesRemaining]);
 
+  const giveUp = useCallback(() => {
+    if (!puzzle || gameStatus !== "in_progress") return;
+    setGameStatus("lost");
+    setSolvedCategoryIds(puzzle.categories.map((c) => c.id));
+    setBoardItemIds([]);
+    setSelectedItemIds([]);
+    setProximityFeedback(false);
+    setAlreadyGuessedFeedback(false);
+  }, [puzzle, gameStatus]);
+
   const restartGame = useCallback(() => {
     if (!puzzle) return;
     if (storageKey) {
@@ -169,6 +179,6 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
   return {
     selectedItemIds, solvedCategoryIds, mistakesRemaining, guessHistory,
     gameStatus, boardItemIds, proximityFeedback, alreadyGuessedFeedback,
-    toggleSelectItem, clearSelection, shuffleItems, submitGuess, restartGame,
+    toggleSelectItem, clearSelection, shuffleItems, submitGuess, giveUp, restartGame,
   };
 }

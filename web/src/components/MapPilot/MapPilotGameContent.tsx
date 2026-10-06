@@ -81,9 +81,10 @@ export function MapPilotGameContent({
       : "incorrect";
 
   // Save after every answer and every Next, so a reload resumes the date on
-  // screen or the result. An untouched round is not saved.
+  // screen or the result. An untouched round is not saved, but a finished
+  // one is, even with zero answers after a give-up.
   useEffect(() => {
-    if (round.length === 0 || game.answers.length === 0) return;
+    if (round.length === 0 || (game.answers.length === 0 && !isComplete)) return;
     storeMapPilotSave(game.date, {
       events: round.map((event) => event.event_mbid),
       answers: game.answers,
@@ -131,6 +132,13 @@ export function MapPilotGameContent({
     setNotice(null);
     setGame({ date: game.date, answers: [], index: 0 });
     setRestarts((value) => value + 1);
+  }
+
+  function giveUp() {
+    playedHere.current = true;
+    setListChoice("");
+    setPickPrompt(0);
+    setGame({ ...game, index: round.length });
   }
 
   const roundFeatures = new Set(round.map((event) => event.map_feature_id));
@@ -269,6 +277,11 @@ export function MapPilotGameContent({
             onChooseCountry={chooseCountry}
             onEmptySubmit={() => setPickPrompt((value) => value + 1)}
           />
+        )}
+        {!isComplete && (
+          <button type="button" class="btn btn-secondary btn-sm" onClick={giveUp}>
+            {messages.giveUp}
+          </button>
         )}
       </div>
     </section>

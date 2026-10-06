@@ -6,6 +6,7 @@ const TIMELINE_SUBMIT_GUARD_MS = 300;
 export function TimelineControls({
   gameStatus = "in_progress",
   onSubmit,
+  onGiveUp,
   locale = "pt-BR",
   messages,
   disabled = false,
@@ -43,6 +44,8 @@ export function TimelineControls({
 
   const submitLabel =
     messages?.submit ?? (locale === "en" ? "Check order" : "Verificar ordem");
+  const giveUpLabel =
+    messages?.giveUp ?? (locale === "en" ? "Give up" : "Desistir");
 
   return (
     <div class="timeline-controls game-actions">
@@ -55,6 +58,17 @@ export function TimelineControls({
       >
         {submitLabel}
       </button>
+      {onGiveUp && (
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm"
+          disabled={isDisabled}
+          onClick={onGiveUp}
+          onKeyDown={handleKeyDown}
+        >
+          {giveUpLabel}
+        </button>
+      )}
     </div>
   );
 }

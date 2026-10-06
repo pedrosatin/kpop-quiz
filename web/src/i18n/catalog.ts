@@ -18,6 +18,7 @@ export interface NameGuessMessages {
   backspace: string;
   notEnoughLetters: string;
   notInWordList: string;
+  alreadyGuessed: string;
   wonTitle: string;
   lostTitle: string;
   targetWas: string;
@@ -157,6 +158,7 @@ export interface Messages {
   resultTitle: string;
   resultText: (score: number) => string;
   restart: string;
+  giveUp: string;
   chooseAnswer: string;
   submitHint: string;
   themeLabel: string;
@@ -461,6 +463,7 @@ const catalogs: Record<Locale, Messages> = {
     resultTitle: "Fim da partida",
     resultText: (score) => `Você fez ${score} pontos.`,
     restart: "Jogar novamente",
+    giveUp: "Desistir",
     chooseAnswer: "Escolha uma resposta para continuar.",
     submitHint: "Escolha uma alternativa e confirme em Responder.",
     themeLabel: "Tema",
@@ -573,6 +576,7 @@ const catalogs: Record<Locale, Messages> = {
       backspace: "APAGAR",
       notEnoughLetters: "Preencha todas as letras.",
       notInWordList: "Esse nome não está na lista de palpites aceitos.",
+      alreadyGuessed: "Você já tentou essa palavra.",
       wonTitle: "Você acertou!",
       lostTitle: "Não foi dessa vez",
       targetWas: "A resposta era",
@@ -829,6 +833,7 @@ const catalogs: Record<Locale, Messages> = {
     resultTitle: "Game over",
     resultText: (score) => `You scored ${score} points.`,
     restart: "Play again",
+    giveUp: "Give up",
     chooseAnswer: "Choose an answer to continue.",
     submitHint: "Pick an option and confirm with Submit answer.",
     themeLabel: "Theme",
@@ -941,6 +946,7 @@ const catalogs: Record<Locale, Messages> = {
       backspace: "DEL",
       notEnoughLetters: "Fill in every letter.",
       notInWordList: "That name isn't on the list of accepted guesses.",
+      alreadyGuessed: "You already tried that word.",
       wonTitle: "You got it!",
       lostTitle: "Not this time",
       targetWas: "The answer was",

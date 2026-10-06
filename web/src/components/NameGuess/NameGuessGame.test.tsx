@@ -384,6 +384,40 @@ describe("NameGuessGame component", () => {
     expect(title.closest(".game-actions")).toHaveClass("is-incorrect");
   });
 
+  it("reveals the answer when the player gives up", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+
+    const title = screen.getByRole("heading", { name: tPt.lostTitle });
+    expect(document.activeElement).toBe(title);
+    expect(screen.getByText(tPt.targetWas)).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: tPt.keyboardAria })).not.toBeInTheDocument();
+  });
+
+  it("keeps the revealed answer after giving up before the first guess and reloading", () => {
+    const first = render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByText(tPt.targetWas)).toBeInTheDocument();
+    first.unmount();
+
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+    expect(screen.getByText(tPt.targetWas)).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: tPt.keyboardAria })).not.toBeInTheDocument();
+  });
+
+  it("rejects typing the same word twice", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    typeGuess("AESPA");
+    typeGuess("AESPA");
+
+    // The toast shows it visibly and the live region announces the same text.
+    expect(screen.getAllByText(tPt.alreadyGuessed).length).toBeGreaterThan(0);
+    expect(screen.getByText(`${tPt.attemptsLeft}: 5/6`)).toBeInTheDocument();
+  });
+
   it("keeps the guesses counter in the HUD after the game ends", () => {
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 

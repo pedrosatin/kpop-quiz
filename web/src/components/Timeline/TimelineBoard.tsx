@@ -14,6 +14,7 @@ export function TimelineBoard({
   onMoveDown,
   onReorder,
   onSubmit,
+  onGiveUp,
   messages: customMessages,
 }: TimelineBoardProps) {
   const [items, setItems] = useState<TimelineEvent[]>(events);
@@ -165,6 +166,7 @@ export function TimelineBoard({
         <TimelineControls
           gameStatus={gameStatus}
           onSubmit={onSubmit}
+          onGiveUp={onGiveUp}
           locale={locale}
           messages={messages}
         />

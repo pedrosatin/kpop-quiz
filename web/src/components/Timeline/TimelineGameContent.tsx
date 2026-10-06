@@ -77,19 +77,30 @@ export function TimelineGameContent({
     submit();
   }, [submit]);
 
+  const gaveUpRef = useRef(false);
+
+  const handleGiveUp = useCallback(() => {
+    playedHere.current = true;
+    gaveUpRef.current = true;
+    submit();
+  }, [submit]);
+
   const recordedMatchRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (gameStatus === "submitted") {
       const matchId = `timeline-${puzzle.puzzle_id}`;
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("timeline", matchId)) {
-        const isWin = score === puzzle.events.length;
+        // A give-up reveals the canonical order, so a correct board after
+        // one still counts as played without a win.
+        const isWin = !gaveUpRef.current && score === puzzle.events.length;
         recordGameFinish("timeline", isWin, puzzle.reference_date || getTodayDateString());
         markGameMatchRecorded("timeline", matchId);
         recordedMatchRef.current = matchId;
       }
     } else {
       recordedMatchRef.current = null;
+      gaveUpRef.current = false;
     }
   }, [gameStatus, puzzle, score]);
 
@@ -115,6 +126,7 @@ export function TimelineGameContent({
           onMoveDown={handleMoveDown}
           onReorder={handleReorder}
           onSubmit={handleSubmit}
+          onGiveUp={handleGiveUp}
         />
       )}
     </section>

@@ -234,10 +234,14 @@ describe("GridResults component", () => {
     const items = document.querySelectorAll(".review-item");
     expect(items[0]).toHaveTextContent("Certa");
     expect(items[0]).toHaveTextContent("Sua resposta: TWICE");
+    expect(items[0]).toHaveClass("is-correct");
     expect(items[1]).toHaveTextContent("Errada");
     expect(items[1]).toHaveTextContent("Sua resposta: SHINee");
+    expect(items[1]).toHaveClass("is-wrong");
     expect(items[2]).toHaveTextContent("Vazia");
     expect(items[2]).toHaveTextContent(`Sua resposta: ${ptMessages.noAnswer}`);
+    expect(items[2]).not.toHaveClass("is-correct");
+    expect(items[2]).not.toHaveClass("is-wrong");
   });
 
   it("calls onRestart when restart button is clicked, after the guard", () => {

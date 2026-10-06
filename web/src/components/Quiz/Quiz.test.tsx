@@ -415,6 +415,26 @@ describe("Quiz", () => {
     expect(firstHeading).toHaveFocus();
   });
 
+  it("records every question exactly once when giving up, answered or not", async () => {
+    await renderReady();
+    const total = ptSession.questions.length;
+
+    // Unanswered: give up on the first question.
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    expect(document.querySelectorAll(".review-item")).toHaveLength(total);
+
+    // Answered: answer the first question, then give up from the verdict.
+    fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+    await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
+    const question = ptSession.questions[0]!;
+    fireEvent.click(screen.getByRole("radio", { name: question.options[0]!.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    expect(document.querySelectorAll(".review-item")).toHaveLength(total);
+  });
+
   it("persists play-mode and timer preferences in localStorage", async () => {
     mockSessionFetch();
     window.localStorage.setItem("kpop-quiz-play-mode", "expert");

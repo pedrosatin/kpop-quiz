@@ -245,7 +245,8 @@ describe("WordSearch action bar", () => {
     const region = liveRegion(container);
 
     expect(region).toHaveTextContent(tPt.selectionHint);
-    expect(bar.lastElementChild).toBe(bar.querySelector(".word-search-progress"));
+    expect(bar.querySelector(".word-search-progress")).toBeInTheDocument();
+    expect(bar.lastElementChild).toBe(within(bar as HTMLElement).getByRole("button", { name: "Desistir" }));
     expect(within(bar as HTMLElement).getByTestId("found-counter")).toHaveTextContent(tPt.progress(0, puzzle.words.length));
     expect(region).not.toContainElement(screen.getByTestId("found-counter"));
     expect(region.querySelector("button")).toBeNull();
@@ -353,6 +354,25 @@ describe("WordSearch end of puzzle", () => {
     expect(screen.queryByRole("button", { name: tPt.showWords })).not.toBeInTheDocument();
     // No dialog: the result is part of the page.
     expect(container.querySelector("[role='dialog']")).toBeNull();
+  });
+
+  it("ends with partial finds on give-up and lists every word with its sources", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    const found = puzzle.words[0]!;
+    select(found);
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+
+    expect(screen.getByRole("heading", { level: 2, name: pt.resultTitle })).toBeInTheDocument();
+    expect(screen.queryByTestId("found-counter")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: pt.showSource }));
+    const panel = document.querySelector<HTMLElement>(".word-search-source")!;
+    for (const word of puzzle.words) {
+      expect(within(panel).getByRole("heading", { level: 3, name: word.labels["pt-BR"] })).toBeInTheDocument();
+      const hrefs = within(panel).getAllByRole("link").map((a) => a.getAttribute("href"));
+      expect(hrefs).toContain(`https://www.wikidata.org/wiki/${word.id}`);
+      for (const evidence of word.evidence) expect(hrefs).toContain(evidence.source_url);
+    }
   });
 
   it("restores a finished puzzle without moving focus", () => {

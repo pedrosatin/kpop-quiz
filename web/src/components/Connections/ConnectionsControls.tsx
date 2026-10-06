@@ -5,6 +5,7 @@ export interface ConnectionsControlsProps {
   onShuffle: () => void;
   onClear: () => void;
   onSubmit: () => void;
+  onGiveUp: () => void;
   messages: Messages;
 }
 
@@ -13,6 +14,7 @@ export function ConnectionsControls({
   onShuffle,
   onClear,
   onSubmit,
+  onGiveUp,
   messages,
 }: ConnectionsControlsProps) {
   return (
@@ -38,6 +40,9 @@ export function ConnectionsControls({
         onClick={onSubmit}
       >
         {messages.connectionsSubmit}
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" onClick={onGiveUp}>
+        {messages.giveUp}
       </button>
     </div>
   );

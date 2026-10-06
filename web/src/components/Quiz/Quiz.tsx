@@ -189,6 +189,31 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     setState("question.ready");
   };
 
+  const giveUp = () => {
+    if (!session || state === "results") return;
+    stopTimer();
+    answerLockedRef.current = true;
+    const answered = state === "question.answered";
+    const start = questionIndex;
+    setHistory((prev) => {
+      const extra: QuestionResult[] = [];
+      if (!answered && question) {
+        extra.push({ question, selectedOptionId: null, isCorrect: false, cluesUsedCount: revealedClues.length });
+      }
+      // The current question is already in history when answered (submit
+      // recorded it) or pushed above when not, so the loop always resumes
+      // after it.
+      for (let i = start + 1; i < session.questions.length; i++) {
+        extra.push({ question: session.questions[i]!, selectedOptionId: null, isCorrect: false, cluesUsedCount: 0 });
+      }
+      return [...prev, ...extra];
+    });
+    if (startTimeRef.current) {
+      setElapsedSeconds(Math.max(0, Math.round((Date.now() - startTimeRef.current) / 1000)));
+    }
+    setState("results");
+  };
+
   const restart = () => {
     startTimeRef.current = Date.now();
     recordedMatchRef.current = null;
@@ -245,7 +270,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       secondsLeft={secondsLeft} timerVisible={timerSeconds !== null} selectedId={selectedId}
       onSelectOption={setSelectedId} answered={state === "question.answered"} timedOut={timedOut}
       revealedClues={revealedClues} playMode={playMode} headingRef={headingRef} actionRef={nextButtonRef}
-      onSubmit={submit} onAdvance={advance} onRevealClue={revealClue} messages={messages}
+      onSubmit={submit} onAdvance={advance} onGiveUp={giveUp} onRevealClue={revealClue} messages={messages}
     />
   );
 }

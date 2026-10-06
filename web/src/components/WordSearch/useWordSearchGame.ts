@@ -261,6 +261,11 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     didDragRef.current = false;
   }, []);
 
+  const giveUp = useCallback(() => {
+    cancelSelection();
+    setStatus("completed");
+  }, [cancelSelection]);
+
   return {
     foundWordIds,
     elapsedSeconds,
@@ -280,5 +285,6 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     handleCellPointerUp,
     handleKeyDown,
     cancelSelection,
+    giveUp,
   };
 }

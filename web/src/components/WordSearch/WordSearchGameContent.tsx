@@ -39,11 +39,13 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
     handleCellPointerEnter,
     handleCellPointerUp,
     handleKeyDown,
+    giveUp,
   } = useWordSearchGame(puzzle, locale);
 
   const totalWords = puzzle.words.length;
   const foundCount = foundWordIds.length;
   const completed = status === "completed";
+  const gaveUp = completed && foundCount < totalWords;
 
   // Only a puzzle finished in this visit moves focus to the result; one
   // restored from storage leaves focus where the page put it.
@@ -172,21 +174,28 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
             puzzle={puzzle}
             locale={locale}
             elapsedSeconds={elapsedSeconds}
+            foundCount={foundCount}
+            gaveUp={gaveUp}
             titleRef={resultTitle}
             onCopied={() => setShareNote({ kind: "copied", n: ++shares.current })}
             onShareFailed={() => setShareNote({ kind: "shareFailed", n: ++shares.current })}
           />
         ) : (
-          <dl class="word-search-progress">
-            <div>
-              <dt>{t.wordsFound}</dt>
-              <dd data-testid="found-counter">{t.progress(foundCount, totalWords)}</dd>
-            </div>
-            <div>
-              <dt>{t.timerLabel}</dt>
-              <dd class="timer-display" data-testid="timer-display">{formatTime(elapsedSeconds)}</dd>
-            </div>
-          </dl>
+          <>
+            <dl class="word-search-progress">
+              <div>
+                <dt>{t.wordsFound}</dt>
+                <dd data-testid="found-counter">{t.progress(foundCount, totalWords)}</dd>
+              </div>
+              <div>
+                <dt>{t.timerLabel}</dt>
+                <dd class="timer-display" data-testid="timer-display">{formatTime(elapsedSeconds)}</dd>
+              </div>
+            </dl>
+            <button type="button" class="btn btn-secondary btn-sm" onClick={giveUp}>
+              {messages.giveUp}
+            </button>
+          </>
         )}
       </div>
     </section>
