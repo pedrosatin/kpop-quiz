@@ -34,7 +34,11 @@ concurrency:
 
 jobs:
   build:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -66,6 +70,7 @@ jobs:
           PUBLIC_GA4_ID: ${{ secrets.PUBLIC_GA4_ID }}
         run: npm run build
       - run: npm run seo:verify -- --env prod
+      - run: npm run csp:verify
       # Full Chromium suite (boot smoke + playthrough) against dist/ already built above.
       # Do not use npm run test:e2e; pretest rebuilds. Prefer test:e2e:ci (no pretest).
       - name: Install Playwright Chromium
@@ -120,6 +125,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4.147.0"
           command: pages deploy web/dist --project-name=kpopquiz --branch=master
       # deployed=true only after wrangler succeeds (or false when secrets were missing).
       - name: Record deploy result
