@@ -60,6 +60,18 @@ describe("ConsentBanner", () => {
     expect(screen.queryByRole("button", { name: messages.consentPreferences })).not.toBeInTheDocument();
   });
 
+  it("queues gtag commands as arguments objects, the only shape gtag.js reads", async () => {
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    fireEvent.click(await screen.findByRole("button", { name: messages.consentAccept }));
+    const dataLayer = (window as unknown as { dataLayer: unknown[] }).dataLayer;
+    expect(dataLayer.length).toBeGreaterThan(0);
+    for (const entry of dataLayer) {
+      expect(Array.isArray(entry)).toBe(false);
+      expect(Object.prototype.toString.call(entry)).toBe("[object Arguments]");
+    }
+    expect(Array.from(dataLayer.at(-1) as ArrayLike<unknown>)).toEqual(["config", GA_ID]);
+  });
+
   it("stores rejection and never loads Google Analytics", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     const reject = await screen.findByRole("button", { name: messages.consentReject });
