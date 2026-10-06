@@ -8,3 +8,7 @@ updates:
     directory: /web
     schedule:
       interval: weekly
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
