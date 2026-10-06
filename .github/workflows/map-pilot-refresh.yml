@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: map-pilot-refresh
@@ -15,9 +15,13 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.changes.outputs.changed }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -54,12 +58,52 @@ jobs:
           npm ci
           npx vitest run src/data/map-pilot.test.ts src/components/MapPilot
 
-      - name: Commit and push refreshed dates if changed
+      - name: Detect changes in the refreshed dataset
+        id: changes
         run: |
           if [ -z "$(git status --porcelain data/map-pilot)" ]; then
             echo "No changes in data/map-pilot"
-            exit 0
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Upload refreshed dataset
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: map-pilot-data
+          path: data/map-pilot
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
+  commit:
+    needs: refresh
+    if: needs.refresh.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download refreshed dataset
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: map-pilot-data
+          path: ${{ runner.temp }}/map-pilot-data
+
+      - name: Apply refreshed dataset
+        run: |
+          rm -rf data/map-pilot
+          mkdir -p data
+          cp -a "$RUNNER_TEMP/map-pilot-data" data/map-pilot
+
+      - name: Commit and push refreshed dates
+        run: |
           git config user.name "Pedro Satin"
           git config user.email "33128737+pedrosatin@users.noreply.github.com"
           git add data/map-pilot
