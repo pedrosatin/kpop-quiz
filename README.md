@@ -182,3 +182,9 @@ MIT, see [LICENSE](LICENSE).
 Only use sources whose license, attribution, and usage limits have been reviewed. Every publishable data point must keep the source and evidence that back the claim. Raw files, SQLite databases, and local CSVs are not tracked in Git.
 
 The optional [group signal report](docs/group-signals.md) records Wikidata channel identifiers and dated follower statements with revision and statement locators. Live YouTube statistics are limited to local inspection and are not used in quiz scoring.
+
+### Execução manual da publicação diária
+
+O campo `date` do workflow aceita uma data real no formato `YYYY-MM-DD` ou fica vazio para usar a data atual. A data chega ao processo por variável de ambiente e argumento separado; entradas inválidas interrompem a geração. As Actions de publicação ficam fixadas em commits específicos.
+
+A aplicação continua estática: respostas e o conjunto do próximo dia, publicado antecipadamente para tolerar atrasos do agendamento, podem ser lidos nos arquivos públicos. Esconder esses dados até o horário do jogo exige servir o conjunto diário por um backend, com outra política de disponibilidade.
