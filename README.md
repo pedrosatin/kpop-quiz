@@ -183,8 +183,12 @@ Only use sources whose license, attribution, and usage limits have been reviewed
 
 The optional [group signal report](docs/group-signals.md) records Wikidata channel identifiers and dated follower statements with revision and statement locators. Live YouTube statistics are limited to local inspection and are not used in quiz scoring.
 
-### Execução manual da publicação diária
+## Daily publication workflow
 
-O campo `date` do workflow aceita uma data real no formato `YYYY-MM-DD` ou fica vazio para usar a data atual. A data chega ao processo por variável de ambiente e argumento separado; entradas inválidas interrompem a geração. As Actions de publicação ficam fixadas em commits específicos.
+The `date` input of `daily-puzzles-cron` accepts a real calendar date as `YYYY-MM-DD`, or stays empty to use the current date. The value reaches the job as an environment variable and is passed to the generator as a separate argument. The step fails before generating puzzles if the date is malformed or does not exist.
 
-A aplicação continua estática: respostas e o conjunto do próximo dia, publicado antecipadamente para tolerar atrasos do agendamento, podem ser lidos nos arquivos públicos. Esconder esses dados até o horário do jogo exige servir o conjunto diário por um backend, com outra política de disponibilidade.
+The app stays static: answers and the next day's set, published ahead of time to tolerate scheduler delays, can be read from the public files. Hiding them until game time would require serving the daily set from a backend with a different availability policy.
+
+## Pinned GitHub Actions
+
+Every Action in the five workflows (`daily-puzzles-cron`, `pages`, `staging`, `e2e-nightly`, `map-pilot-refresh`) is pinned to a full commit SHA, with the exact release tag in a trailing comment (for example `# v7.0.1`). To update one, check out the new release tag, copy the SHA it resolves to (`git ls-remote --tags https://github.com/<owner>/<repo>`) and replace both the SHA and the comment in every workflow that uses it. `.github/dependabot.yml` opens weekly pull requests for these pins.

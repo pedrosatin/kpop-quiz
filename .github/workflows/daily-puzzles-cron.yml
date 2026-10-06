@@ -32,18 +32,18 @@ jobs:
       REGENERATE: ${{ inputs.regenerate }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
@@ -54,7 +54,7 @@ jobs:
         run: npm ci
 
       - name: Restore database cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             data/kpop.db
@@ -101,7 +101,16 @@ jobs:
           args=(--database data/kpop.db --output-dir web/public/data --ahead)
           if [ "$REGENERATE" = "true" ]; then args+=(--regenerate); fi
           if [ -n "$REFERENCE_DATE" ]; then
-            python3 -c 'import datetime, os; value=os.environ["REFERENCE_DATE"]; assert len(value)==10 and datetime.date.fromisoformat(value).isoformat()==value, "Invalid reference date"'
+            python3 - <<'PY'
+          import datetime, os
+          value = os.environ["REFERENCE_DATE"]
+          try:
+              valid = len(value) == 10 and datetime.date.fromisoformat(value).isoformat() == value
+          except ValueError:
+              valid = False
+          if not valid:
+              raise SystemExit("Invalid reference date: expected a real date as YYYY-MM-DD")
+          PY
             args+=(--date "$REFERENCE_DATE")
           fi
           python -m kpop_scraping.daily_puzzles_cli "${args[@]}"
