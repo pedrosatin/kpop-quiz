@@ -6,7 +6,8 @@ import { getMessages } from "../../i18n/catalog";
 import type { NameGuessGameProps } from "./types";
 
 export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGuessGameProps) {
-  const t = getMessages(locale).nameGuess;
+  const messages = getMessages(locale);
+  const t = messages.nameGuess;
   const [loadedPuzzle, setLoadedPuzzle] = useState<NameGuessPuzzle | null>(initialPuzzle ?? null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(initialPuzzle ? "ready" : "loading");
   const [errorKind, setErrorKind] = useState<"missing" | "invalid" | undefined>();
@@ -54,5 +55,5 @@ export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGu
     );
   }
 
-  return <NameGuessGameContent puzzle={loadedPuzzle} locale={locale} t={t} />;
+  return <NameGuessGameContent puzzle={loadedPuzzle} locale={locale} t={t} giveUpLabel={messages.giveUp} />;
 }

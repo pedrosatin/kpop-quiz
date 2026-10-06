@@ -18,6 +18,7 @@ export interface NameGuessMessages {
   backspace: string;
   notEnoughLetters: string;
   notInWordList: string;
+  alreadyGuessed: string;
   wonTitle: string;
   lostTitle: string;
   targetWas: string;
@@ -75,7 +76,7 @@ export interface WordSearchMessages {
   loadError: string;
   artifactMissing: string;
   retry: string;
-  cellAria: (row: number, col: number, letter: string, isSelected: boolean, isFound: boolean) => string;
+  cellAria: (row: number, col: number, letter: string, isSelected: boolean, isFound: boolean, isRevealed?: boolean) => string;
 }
 
 export interface Messages {
@@ -157,6 +158,7 @@ export interface Messages {
   resultTitle: string;
   resultText: (score: number) => string;
   restart: string;
+  giveUp: string;
   chooseAnswer: string;
   submitHint: string;
   themeLabel: string;
@@ -194,6 +196,7 @@ export interface Messages {
   gridCorrectCount: (correct: number, total: number) => string;
   gridCellLabel: (row: number, col: number, rowLabel: string, colLabel: string, status: string) => string;
   gridCellEmpty: string;
+  gridCellRevealed: (groupName: string) => string;
   gridCellSolved: (groupName: string) => string;
   gridCellFailed: (lastAttempt?: string) => string;
   gridPickerTitle: string;
@@ -461,6 +464,7 @@ const catalogs: Record<Locale, Messages> = {
     resultTitle: "Fim da partida",
     resultText: (score) => `Você fez ${score} pontos.`,
     restart: "Jogar novamente",
+    giveUp: "Desistir",
     chooseAnswer: "Escolha uma resposta para continuar.",
     submitHint: "Escolha uma alternativa e confirme em Responder.",
     themeLabel: "Tema",
@@ -497,6 +501,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCorrectCount: (correct, total) => `${correct} de ${total} casas certas`,
     gridCellLabel: (row, col, rowLabel, colLabel, status) => `Linha ${row + 1}, ${rowLabel}. Coluna ${col + 1}, ${colLabel}. ${status}`,
     gridCellEmpty: "Vazia. Escolha um grupo",
+    gridCellRevealed: (groupName) => `Revelada: ${groupName}`,
     gridCellSolved: (groupName) => `Certa: ${groupName}`,
     gridCellFailed: (lastAttempt) => (lastAttempt ? `Errada: você tentou ${lastAttempt}` : "Errada"),
     gridPickerTitle: "Escolha um grupo",
@@ -573,6 +578,7 @@ const catalogs: Record<Locale, Messages> = {
       backspace: "APAGAR",
       notEnoughLetters: "Preencha todas as letras.",
       notInWordList: "Esse nome não está na lista de palpites aceitos.",
+      alreadyGuessed: "Você já tentou essa palavra.",
       wonTitle: "Você acertou!",
       lostTitle: "Não foi dessa vez",
       targetWas: "A resposta era",
@@ -637,8 +643,8 @@ const catalogs: Record<Locale, Messages> = {
       loadError: "Não foi possível carregar o jogo.",
       artifactMissing: "O caça-palavras de hoje ainda não foi publicado.",
       retry: "Tentar novamente",
-      cellAria: (row, col, letter, isSelected, isFound) => {
-        const state = isFound ? ", encontrada" : isSelected ? ", selecionada" : "";
+      cellAria: (row, col, letter, isSelected, isFound, isRevealed = false) => {
+        const state = isFound ? ", encontrada" : isRevealed ? ", revelada" : isSelected ? ", selecionada" : "";
         return `Linha ${row + 1}, coluna ${col + 1}, letra ${letter}${state}`;
       },
     },
@@ -829,6 +835,7 @@ const catalogs: Record<Locale, Messages> = {
     resultTitle: "Game over",
     resultText: (score) => `You scored ${score} points.`,
     restart: "Play again",
+    giveUp: "Give up",
     chooseAnswer: "Choose an answer to continue.",
     submitHint: "Pick an option and confirm with Submit answer.",
     themeLabel: "Theme",
@@ -865,6 +872,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCorrectCount: (correct, total) => `${correct} of ${total} squares correct`,
     gridCellLabel: (row, col, rowLabel, colLabel, status) => `Row ${row + 1}, ${rowLabel}. Column ${col + 1}, ${colLabel}. ${status}`,
     gridCellEmpty: "Empty. Pick a group",
+    gridCellRevealed: (groupName) => `Revealed: ${groupName}`,
     gridCellSolved: (groupName) => `Correct: ${groupName}`,
     gridCellFailed: (lastAttempt) => (lastAttempt ? `Wrong: you tried ${lastAttempt}` : "Wrong"),
     gridPickerTitle: "Pick a group",
@@ -941,6 +949,7 @@ const catalogs: Record<Locale, Messages> = {
       backspace: "DEL",
       notEnoughLetters: "Fill in every letter.",
       notInWordList: "That name isn't on the list of accepted guesses.",
+      alreadyGuessed: "You already tried that word.",
       wonTitle: "You got it!",
       lostTitle: "Not this time",
       targetWas: "The answer was",
@@ -1005,8 +1014,8 @@ const catalogs: Record<Locale, Messages> = {
       loadError: "The game could not be loaded.",
       artifactMissing: "Today's word search has not been published yet.",
       retry: "Try again",
-      cellAria: (row, col, letter, isSelected, isFound) => {
-        const state = isFound ? ", found" : isSelected ? ", selected" : "";
+      cellAria: (row, col, letter, isSelected, isFound, isRevealed = false) => {
+        const state = isFound ? ", found" : isRevealed ? ", revealed" : isSelected ? ", selected" : "";
         return `Row ${row + 1}, column ${col + 1}, letter ${letter}${state}`;
       },
     },

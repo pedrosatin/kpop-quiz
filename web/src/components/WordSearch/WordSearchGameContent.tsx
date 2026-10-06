@@ -34,16 +34,19 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
     anchorCell,
     activePath,
     foundCellsMap,
+    revealedCells,
     lastCheck,
     handleCellPointerDown,
     handleCellPointerEnter,
     handleCellPointerUp,
     handleKeyDown,
+    giveUp,
   } = useWordSearchGame(puzzle, locale);
 
   const totalWords = puzzle.words.length;
   const foundCount = foundWordIds.length;
   const completed = status === "completed";
+  const gaveUp = completed && foundCount < totalWords;
 
   // Only a puzzle finished in this visit moves focus to the result; one
   // restored from storage leaves focus where the page put it.
@@ -61,14 +64,14 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
     if (completed && puzzle) {
       const matchId = `word-search-${puzzle.puzzle_id}`;
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("word-search", matchId)) {
-        recordGameFinish("word-search", true, puzzle.reference_date || getTodayDateString());
+        recordGameFinish("word-search", foundWordIds.length >= puzzle.words.length, puzzle.reference_date || getTodayDateString());
         markGameMatchRecorded("word-search", matchId);
         recordedMatchRef.current = matchId;
       }
     } else if (!completed) {
       recordedMatchRef.current = null;
     }
-  }, [completed, puzzle]);
+  }, [completed, puzzle, foundWordIds.length]);
 
   const wordName = (id: string) => {
     const word = puzzle.words.find((w) => w.id === id);
@@ -138,6 +141,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
             anchorCell={anchorCell}
             activePath={activePath}
             foundCellsMap={foundCellsMap}
+            revealedCells={revealedCells}
             onCellPointerDown={handleCellPointerDown}
             onCellPointerEnter={handleCellPointerEnter}
             onCellPointerUp={handleCellPointerUp}
@@ -172,21 +176,28 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
             puzzle={puzzle}
             locale={locale}
             elapsedSeconds={elapsedSeconds}
+            foundCount={foundCount}
+            gaveUp={gaveUp}
             titleRef={resultTitle}
             onCopied={() => setShareNote({ kind: "copied", n: ++shares.current })}
             onShareFailed={() => setShareNote({ kind: "shareFailed", n: ++shares.current })}
           />
         ) : (
-          <dl class="word-search-progress">
-            <div>
-              <dt>{t.wordsFound}</dt>
-              <dd data-testid="found-counter">{t.progress(foundCount, totalWords)}</dd>
-            </div>
-            <div>
-              <dt>{t.timerLabel}</dt>
-              <dd class="timer-display" data-testid="timer-display">{formatTime(elapsedSeconds)}</dd>
-            </div>
-          </dl>
+          <>
+            <dl class="word-search-progress">
+              <div>
+                <dt>{t.wordsFound}</dt>
+                <dd data-testid="found-counter">{t.progress(foundCount, totalWords)}</dd>
+              </div>
+              <div>
+                <dt>{t.timerLabel}</dt>
+                <dd class="timer-display" data-testid="timer-display">{formatTime(elapsedSeconds)}</dd>
+              </div>
+            </dl>
+            <button type="button" class="btn btn-secondary" onClick={giveUp}>
+              {messages.giveUp}
+            </button>
+          </>
         )}
       </div>
     </section>

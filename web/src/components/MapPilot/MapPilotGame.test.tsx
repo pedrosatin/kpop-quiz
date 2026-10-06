@@ -276,6 +276,18 @@ describe("map pilot saved progress", () => {
     expect(stored()).toBeNull();
   });
 
+  it("keeps the result after giving up before the first answer and reloading", () => {
+    const first = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    fireEvent.click(first.getByRole("button", { name: "Desistir" }));
+    expect(first.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
+    expect(stored()).toEqual({ events: eventIds, answers: [], index: round.length });
+    first.unmount();
+
+    const second = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(second.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("saves the events, the answers and the date on screen after each step", () => {
     const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     const wrong = wrongFor(round[0]!);
@@ -530,6 +542,30 @@ describe("map pilot result", () => {
     const question = view.getByRole("heading", { level: 2 });
     expect(question.textContent).toContain("Em qual país");
     expect(document.activeElement).toBe(question);
+  });
+
+  it("completes the round on give-up and reviews every correct country", () => {
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    fireEvent.click(view.getByRole("button", { name: "Desistir" }));
+
+    const title = view.getByRole("heading", { name: "Rodada concluída" });
+    expect(title).toHaveAccessibleDescription("0 de 10 certas.");
+    expect(view.queryByRole("button", { name: "Desistir" })).toBeNull();
+
+    // Give-up opens the per-date answers directly: no extra click needed.
+    expect(view.getByText("Datas da rodada")).toBeInTheDocument();
+    expect(document.querySelectorAll("li.review-item")).toHaveLength(round.length);
+
+    advanceClock();
+    const toggle = view.getByRole("button", { name: "Ocultar fonte" });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    const items = Array.from(panel.querySelectorAll("li.review-item")) as HTMLElement[];
+    expect(items).toHaveLength(round.length);
+    for (const [index, event] of round.entries()) {
+      expect(items[index]).toHaveTextContent(`País correto: ${label(event.country_iso_3166_1)}`);
+      expect(items[index]).toHaveTextContent("Sua resposta: Sem resposta");
+    }
   });
 
   it("lists every date with both answers and its sources behind Ver fonte", () => {

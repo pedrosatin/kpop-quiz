@@ -44,6 +44,8 @@ interface WordSearchResultProps {
   puzzle: WordSearchPuzzle;
   locale: Locale;
   elapsedSeconds: number;
+  foundCount?: number;
+  gaveUp?: boolean;
   titleRef?: Ref<HTMLHeadingElement>;
   onCopied?: () => void;
   onShareFailed?: () => void;
@@ -58,6 +60,8 @@ export function WordSearchResult({
   puzzle,
   locale,
   elapsedSeconds,
+  foundCount,
+  gaveUp = false,
   titleRef,
   onCopied,
   onShareFailed,
@@ -74,7 +78,8 @@ export function WordSearchResult({
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
 
   const total = puzzle.words.length;
-  const shareText = generateWordSearchShareSummary(puzzle, total, total, elapsedSeconds, locale);
+  const found = foundCount ?? total;
+  const shareText = generateWordSearchShareSummary(puzzle, found, total, elapsedSeconds, locale);
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.
@@ -92,9 +97,9 @@ export function WordSearchResult({
           aria-describedby={summaryId}
           class="game-actions-title word-search-result-title"
         >
-          {t.congratulations}
+          {gaveUp ? messages.resultTitle : t.congratulations}
         </h2>
-        <p id={summaryId} class="word-search-result-summary">{t.resultSummary(total, formatTime(elapsedSeconds))}</p>
+        <p id={summaryId} class="word-search-result-summary">{t.resultSummary(found, formatTime(elapsedSeconds))}</p>
       </div>
 
       <div class="word-search-result-buttons">

@@ -219,6 +219,12 @@
   outline-offset: -2px;
 }
 
+/* A word shown by give-up: marked but clearly not found by the player. */
+.word-search-cell.is-revealed:not(.is-found) {
+  outline: 2px dashed var(--color-text-muted);
+  outline-offset: -4px;
+}
+
 .word-search-cell.is-found.color-0 { background: var(--color-found-0); color: var(--color-found-0-text); }
 .word-search-cell.is-found.color-1 { background: var(--color-found-1); color: var(--color-found-1-text); }
 .word-search-cell.is-found.color-2 { background: var(--color-found-2); color: var(--color-found-2-text); }

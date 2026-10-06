@@ -13,6 +13,8 @@ export interface GridCellProps {
   onSelect: (event: MouseEvent) => void;
   locale: Locale;
   messages: Messages;
+  /** First accepted answer to show when the game ended by give-up. */
+  revealedName?: string | undefined;
 }
 
 export function GridCell({
@@ -26,10 +28,14 @@ export function GridCell({
   onSelect,
   locale,
   messages,
+  revealedName,
 }: GridCellProps) {
+  const revealed = !cellState.solved && revealedName !== undefined;
   let statusText = messages.gridCellEmpty;
   if (cellState.solved && cellState.entityName) {
     statusText = messages.gridCellSolved(cellState.entityName);
+  } else if (revealed) {
+    statusText = messages.gridCellRevealed(revealedName);
   } else if (cellState.failed) {
     statusText = messages.gridCellFailed(cellState.lastAttempt);
   }
@@ -41,7 +47,8 @@ export function GridCell({
   const cellClasses = [
     "grid-cell-btn",
     cellState.solved ? "solved" : "",
-    cellState.failed ? "failed" : "",
+    !revealed && cellState.failed ? "failed" : "",
+    revealed ? "revealed" : "",
     isSelected ? "selected" : "",
   ]
     .filter(Boolean)
@@ -74,14 +81,19 @@ export function GridCell({
           <strong>{cellState.entityName}</strong>
         </span>
       )}
-      {!cellState.solved && cellState.failed && (
+      {revealed && (
+        <span class="cell-revealed-name">
+          <strong>{revealedName}</strong>
+        </span>
+      )}
+      {!revealed && !cellState.solved && cellState.failed && (
         <span class="cell-failed-status">
           <span class="cell-icon" aria-hidden="true">✕</span>
           <span class="cell-attempt-text">{cellState.lastAttempt}</span>
         </span>
       )}
       {/* The plus invites a pick, so a finished board does not show it. */}
-      {!cellState.solved && !cellState.failed && !disabled && (
+      {!revealed && !cellState.solved && !cellState.failed && !disabled && (
         <span class="cell-empty-prompt" aria-hidden="true">
           +
         </span>

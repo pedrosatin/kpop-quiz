@@ -57,7 +57,7 @@ function loadSavedGrid(grid: IntersectionGrid): GridStoredState | null {
     return null;
   }
   if (typeof saved !== "object" || saved === null) return null;
-  const { guessesUsed, cells } = saved as Partial<GridStoredState>;
+  const { guessesUsed, cells, gaveUp } = saved as Partial<GridStoredState>;
   if (!Number.isInteger(guessesUsed) || (guessesUsed as number) < 0 || (guessesUsed as number) > MAX_GUESSES) return null;
   if (typeof cells !== "object" || cells === null) return null;
 
@@ -84,7 +84,7 @@ function loadSavedGrid(grid: IntersectionGrid): GridStoredState | null {
   }
   // Every cell with a group took at least one guess.
   if (touched > (guessesUsed as number)) return null;
-  return { guessesUsed: guessesUsed as number, cells: restored };
+  return { guessesUsed: guessesUsed as number, cells: restored, ...(gaveUp === true ? { gaveUp: true as const } : {}) };
 }
 
 function isFinished(cells: Record<string, GridStoredCell>, guessesUsed: number): boolean {
@@ -107,6 +107,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   const [errorKind, setErrorKind] = useState<"missing" | "invalid" | undefined>();
   const [selectedCell, setSelectedCell] = useState<CellCoordinates | null>(null);
   const [guessesUsed, setGuessesUsed] = useState<number>(0);
+  const [gaveUp, setGaveUp] = useState<boolean>(false);
   // QIDs only; `cells` below adds the names in the page's language.
   const [storedCells, setCells] = useState<Record<string, GridStoredCell>>(createEmptyCells);
   const [usedEntityIds, setUsedEntityIds] = useState<Set<string>>(new Set());
@@ -120,13 +121,15 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
       const saved = loadSavedGrid(data);
       const restoredCells = saved?.cells ?? createEmptyCells();
       const restoredGuesses = saved?.guessesUsed ?? 0;
+      const restoredGaveUp = saved?.gaveUp === true;
       setCells(restoredCells);
       setGuessesUsed(restoredGuesses);
+      setGaveUp(restoredGaveUp);
       setUsedEntityIds(new Set(Object.values(restoredCells).flatMap((c) => (c.solved && c.entityId ? [c.entityId] : []))));
       setSelectedCell(null);
       setUniquenessError(null);
       setGrid(data);
-      setStatus(isFinished(restoredCells, restoredGuesses) ? "complete" : "ready");
+      setStatus(isFinished(restoredCells, restoredGuesses) || restoredGaveUp ? "complete" : "ready");
     } catch (err) {
       if (err instanceof GridArtifactError) {
         setErrorKind(err.kind);
@@ -144,14 +147,15 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   const cells = useMemo(() => nameCells(storedCells, grid, locale), [storedCells, grid, locale]);
 
   // Save after every guess, so a reload keeps the board and the result. An
-  // untouched board is not saved: loading a grid writes nothing.
+  // untouched board is not saved: loading a grid writes nothing. A give-up
+  // is saved even with zero guesses, so the result survives a reload.
   useEffect(() => {
-    if (!grid || status === "loading" || status === "error" || guessesUsed === 0) return;
+    if (!grid || status === "loading" || status === "error" || (guessesUsed === 0 && !gaveUp)) return;
     try {
-      const state: GridStoredState = { guessesUsed, cells: storedCells };
+      const state: GridStoredState = { guessesUsed, cells: storedCells, ...(gaveUp ? { gaveUp: true as const } : {}) };
       localStorage.setItem(gridStorageKey(grid), JSON.stringify(state));
     } catch {}
-  }, [grid, status, guessesUsed, storedCells]);
+  }, [grid, status, guessesUsed, gaveUp, storedCells]);
 
   const selectCell = useCallback((row: number, col: number) => {
     const key = cellKey(row, col);
@@ -215,6 +219,14 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     };
   }, [selectedCell, grid, usedEntityIds, locale, guessesUsed, storedCells]);
 
+  const giveUp = useCallback(() => {
+    if (!grid) return;
+    setSelectedCell(null);
+    setUniquenessError(null);
+    setGaveUp(true);
+    setStatus("complete");
+  }, [grid]);
+
   const restartGame = useCallback(() => {
     if (grid) {
       try {
@@ -224,6 +236,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     setCells(createEmptyCells());
     setUsedEntityIds(new Set());
     setGuessesUsed(0);
+    setGaveUp(false);
     setSelectedCell(null);
     setUniquenessError(null);
     setStatus("ready");
@@ -242,6 +255,8 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     selectCell,
     closePicker,
     makeGuess,
+    giveUp,
+    gaveUp,
     restartGame,
     reload: loadData,
   };

@@ -11,6 +11,7 @@ interface WordSearchGridProps {
   anchorCell: CellCoord | null;
   activePath: CellCoord[];
   foundCellsMap: Map<string, number>;
+  revealedCells?: Set<string>;
   onCellPointerDown: (row: number, col: number) => void;
   onCellPointerEnter: (row: number, col: number) => void;
   onCellPointerUp: (row: number, col: number) => void;
@@ -24,6 +25,7 @@ export function WordSearchGrid({
   anchorCell,
   activePath,
   foundCellsMap,
+  revealedCells,
   onCellPointerDown,
   onCellPointerEnter,
   onCellPointerUp,
@@ -83,6 +85,7 @@ export function WordSearchGrid({
             const isSelected = activeCoordSet.has(key);
             const colorIdx = foundCellsMap.get(key);
             const isFound = colorIdx !== undefined;
+            const isRevealed = !isFound && (revealedCells?.has(key) ?? false);
             const isFocused = focusedCell.row === r && focusedCell.col === c;
             const isAnchor = anchorCell?.row === r && anchorCell?.col === c;
 
@@ -90,6 +93,7 @@ export function WordSearchGrid({
               "word-search-cell",
               isSelected ? "is-selected" : "",
               isFound ? "is-found" : "",
+              isRevealed ? "is-revealed" : "",
               isAnchor ? "is-anchor" : "",
               isFound ? `color-${colorIdx}` : "",
             ]
@@ -106,7 +110,7 @@ export function WordSearchGrid({
                 data-col={c}
                 data-found={isFound ? "true" : undefined}
                 tabIndex={isFocused ? 0 : -1}
-                aria-label={t.cellAria(r, c, letter, isSelected, isFound)}
+                aria-label={t.cellAria(r, c, letter, isSelected, isFound, isRevealed)}
                 onPointerDown={(e) => {
                   e.preventDefault();
                   // Touch captures the pointer on the element under the finger,

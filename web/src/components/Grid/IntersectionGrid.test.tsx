@@ -124,11 +124,13 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(board).toHaveClass("grid-board-wrapper");
     expect(board!.contains(screen.getByRole("grid"))).toBe(true);
     expect(panel).toHaveClass("game-actions");
-    // The live message, then the counters, in the DOM as on screen.
+    // The live message, then the counters and the give-up button, in the DOM as on screen.
     expect([...panel!.children].map((child) => child.className.split(" ")[0])).toEqual([
       "game-actions-message",
       "grid-progress",
+      "btn",
     ]);
+    expect(within(panel! as HTMLElement).getByRole("button", { name: "Desistir" })).toBeInTheDocument();
   });
 
   it("keeps one live region, the same node from the first guess to the result", async () => {
@@ -475,6 +477,38 @@ describe("IntersectionGrid orchestrator component", () => {
 
     expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
     expect(within(screen.getByRole("grid")).queryByText("BLACKPINK")).not.toBeInTheDocument();
+  });
+
+  it("reveals the answers when the player gives up", async () => {
+    await renderReady();
+    pick(0, 0, "TWICE");
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+
+    const title = await screen.findByRole("heading", { name: "Fim da partida" });
+    expect(title).toHaveAccessibleDescription("1 de 9 casas certas com 1 palpites");
+    await waitFor(() => expect(title).toHaveFocus());
+    // Give-up opens the answers directly: no extra click needed.
+    expect(screen.getByText(ptMessages.gridReviewTitle)).toBeInTheDocument();
+    expect(screen.getAllByText(/Respostas aceitas:/)).toHaveLength(9);
+    // The board itself names an accepted answer in every unsolved cell.
+    const board = screen.getByRole("grid");
+    expect(within(board).getByText("EXO")).toBeInTheDocument();
+    expect(cellButton(0, 1)).toHaveClass("revealed");
+    expect(cellButton(0, 1)).toHaveAccessibleName(/Revelada: EXO/);
+    expect(cellButton(0, 0)).toHaveAccessibleName(/Certa: TWICE/);
+  });
+
+  it("keeps the result after giving up with zero guesses and reloading", async () => {
+    const view = await renderReady();
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    view.unmount();
+
+    // A Response body reads once, so the remount gets a fresh one.
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(validGridJson)))));
+    render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
+    await screen.findByRole("heading", { name: "Fim da partida" });
   });
 
   it("starts over from Play again, clears the save and focuses the first cell", async () => {

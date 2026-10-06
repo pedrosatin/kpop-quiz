@@ -27,6 +27,8 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
     selectCell,
     closePicker,
     makeGuess,
+    giveUp,
+    gaveUp,
     restartGame,
     reload,
   } = useGridGame(locale, baseUrl);
@@ -67,6 +69,8 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
       selectCell={selectCell}
       closePicker={closePicker}
       makeGuess={makeGuess}
+      giveUp={giveUp}
+      gaveUp={gaveUp}
       restartGame={restartGame}
     />
   );

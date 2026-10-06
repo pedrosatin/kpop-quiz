@@ -117,7 +117,7 @@ export function GridReview({ grid, cellStates, locale, messages }: GridReviewPro
           }
 
           return (
-            <li key={key} class={`review-item ${state.solved ? "is-correct" : "is-wrong"}`}>
+            <li key={key} class={`review-item${state.solved ? " is-correct" : state.failed ? " is-wrong" : ""}`}>
               <div class="review-item-header">
                 <span class={badgeClass}>{badge}</span>
                 <span class="text-muted">{messages.gridReviewCellHeader(row_index, col_index)}</span>

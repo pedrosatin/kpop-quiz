@@ -32,9 +32,10 @@ export interface NameGuessGameContentProps {
   puzzle: NameGuessPuzzle;
   locale: Locale;
   t: NameGuessTranslations;
+  giveUpLabel: string;
 }
 
-export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContentProps) {
+export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGuessGameContentProps) {
   const {
     guesses,
     feedbacks,
@@ -46,6 +47,7 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
     addLetter,
     removeLetter,
     submitGuess,
+    giveUp,
     toggleHighContrast,
     resetGame,
   } = useNameGuessGame(puzzle);
@@ -123,7 +125,14 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
     errorDisplay = t.notEnoughLetters;
   } else if (errorMessage === "notInWordList") {
     errorDisplay = t.notInWordList;
+  } else if (errorMessage === "alreadyGuessed") {
+    errorDisplay = t.alreadyGuessed;
   }
+
+  const handleGiveUp = useCallback(() => {
+    playedHere.current = true;
+    giveUp();
+  }, [giveUp]);
 
   let shareMessage = null;
   if (isGameOver && shareFeedback) {
@@ -214,6 +223,15 @@ export function NameGuessGameContent({ puzzle, locale, t }: NameGuessGameContent
 
           {/* A display preference, after the bar so it takes no height from the board on phones. */}
           <div class="name-guess-options">
+            {!isGameOver && (
+              <button
+                type="button"
+                onClick={handleGiveUp}
+                class="btn btn-secondary btn-sm"
+              >
+                {giveUpLabel}
+              </button>
+            )}
             <button
               type="button"
               onClick={toggleHighContrast}

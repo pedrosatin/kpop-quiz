@@ -24,6 +24,7 @@ export interface TimelineBoardMessages extends TimelineCardMessages {
   boardAria: string;
   itemMoved: (title: string, position: number, total: number) => string;
   submit: string;
+  giveUp: string;
 }
 
 export interface TimelineShareMessages {
@@ -52,6 +53,7 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     itemMoved: (title: string, position: number, total: number) =>
       `${title} movido para a posição ${position} de ${total}`,
     submit: "Verificar ordem",
+    giveUp: "Desistir",
     positionBadge: (pos: number) => `Posição ${pos}`,
     dragHandle: (title: string) => `Arrastar "${title}" para reordenar`,
     scoreBanner: (score: number, total: number) => `Pontuação: ${score}/${total}`,
@@ -72,6 +74,7 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     itemMoved: (title: string, position: number, total: number) =>
       `${title} moved to position ${position} of ${total}`,
     submit: "Check order",
+    giveUp: "Give up",
     positionBadge: (pos: number) => `Position ${pos}`,
     dragHandle: (title: string) => `Drag "${title}" to reorder`,
     scoreBanner: (score: number, total: number) => `Score: ${score}/${total}`,
@@ -115,15 +118,18 @@ export interface TimelineBoardProps {
   onMoveDown?: ((index: number) => void) | undefined;
   onReorder?: ((fromIndex: number, toIndex: number) => void) | undefined;
   onSubmit?: (() => void) | undefined;
+  onGiveUp?: (() => void) | undefined;
   messages?: Partial<TimelineBoardMessages> | undefined;
 }
 
 export interface TimelineControlsProps {
   gameStatus?: TimelineGameStatus | undefined;
   onSubmit: () => void;
+  onGiveUp?: (() => void) | undefined;
   locale?: Locale | undefined;
   messages?: {
     submit: string;
+    giveUp?: string | undefined;
   } | undefined;
   disabled?: boolean | undefined;
 }

@@ -34,6 +34,8 @@ export interface GridStoredCell {
 export interface GridStoredState {
   guessesUsed: number;
   cells: Record<string, GridStoredCell>;
+  /** Set when the player gave up, so a zero-guess give-up survives a reload. */
+  gaveUp?: boolean;
 }
 
 export function cellKey(row: number, col: number): string {
