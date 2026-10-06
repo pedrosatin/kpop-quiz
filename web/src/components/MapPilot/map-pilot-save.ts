@@ -10,7 +10,8 @@ import type { MapPilotEvent } from "../../data/map-pilot";
  * `index` is the date on screen (0-based); it equals the number of dates
  * the player moved past, and `index === events.length` means the result is
  * showing. `answers` has `index` entries, or `index + 1` while the date on
- * screen is answered and Next was not pressed yet.
+ * screen is answered and Next was not pressed yet. A give-up jumps to the
+ * result, so a finished round may hold fewer answers than dates.
  */
 export interface MapPilotSave {
   events: string[];
@@ -64,8 +65,11 @@ export function loadMapPilotSave(
   if (!Array.isArray(answers) || answers.some((id) => typeof id !== "string" || !playableFeatures.has(id))) return null;
   if (!Number.isInteger(index) || (index as number) < 0 || (index as number) > round.length) return null;
   const count = answers.length;
-  if (count !== index && count !== (index as number) + 1) return null;
   if (count > round.length) return null;
+  // A give-up jumps straight to the result, so a finished round may hold
+  // fewer answers than dates.
+  if ((index as number) === round.length) return { events: [...events], answers: [...answers], index: index as number };
+  if (count !== index && count !== (index as number) + 1) return null;
   return { events: [...events], answers: [...answers], index: index as number };
 }
 

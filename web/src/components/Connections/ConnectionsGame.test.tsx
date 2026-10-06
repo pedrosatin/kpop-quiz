@@ -176,12 +176,12 @@ describe("ConnectionsGame component integration", () => {
     expect(twiceBtn).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("keeps Shuffle, Clear and Submit in the action bar, Submit last", () => {
+  it("keeps Shuffle, Clear, Submit and Desistir in the action bar, Submit primary", () => {
     const { container } = renderGame();
     const bar = container.querySelector(".game-actions")!;
     expect(bar).not.toBeNull();
     const buttons = within(bar as HTMLElement).getAllByRole("button");
-    expect(buttons.map((b) => b.textContent)).toEqual(["Embaralhar", "Limpar seleção", "Enviar"]);
+    expect(buttons.map((b) => b.textContent)).toEqual(["Embaralhar", "Limpar seleção", "Enviar", "Desistir"]);
     expect(buttons[2]).toHaveClass("btn-primary");
     // The live region is mounted before the first guess and holds no button.
     const live = bar.querySelector(".game-actions-message")!;
@@ -208,7 +208,7 @@ describe("ConnectionsGame component integration", () => {
     // Nothing is left above the board but the hidden heading.
     expect(card.querySelector(".game-hud")).toBeNull();
     const tabOrder = [...card.querySelectorAll<HTMLButtonElement>("button")].filter((b) => !b.disabled);
-    expect(tabOrder.at(-1)).toHaveTextContent("Embaralhar");
+    expect(tabOrder.at(-1)).toHaveTextContent("Desistir");
     expect(tabOrder.slice(0, 16).every((b) => b.classList.contains("connections-tile"))).toBe(true);
   });
 
@@ -234,6 +234,37 @@ describe("ConnectionsGame component integration", () => {
     expect(result.parentElement).toBe(live.parentElement);
     expect(live.compareDocumentPosition(result) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(result as HTMLElement).getByRole("button", { name: pt.showSource })).toBeInTheDocument();
+  });
+
+  it("reveals every category and the result when the player gives up", () => {
+    renderGame();
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+
+    expect(screen.getByRole("heading", { level: 2, name: pt.connectionsGameOverLost })).toBeInTheDocument();
+    expect(screen.getByText(pt.connectionsResultSummaryLost)).toBeInTheDocument();
+    const banners = [...document.querySelectorAll(".connections-banner-title")];
+    expect(banners).toHaveLength(puzzle.categories.length);
+    for (const category of puzzle.categories) {
+      expect(banners.some((banner) => banner.textContent?.includes(category.label["pt-BR"]))).toBe(true);
+    }
+    fireEvent.click(screen.getByRole("button", { name: pt.showSource }));
+    const panel = document.getElementById(screen.getByRole("button", { name: pt.hideSource }).getAttribute("aria-controls")!)!;
+    for (const category of puzzle.categories) {
+      expect(within(panel).getByRole("heading", { level: 3, name: category.label["pt-BR"] })).toBeInTheDocument();
+    }
+    // No tiles left to play.
+    expect(document.querySelectorAll(".connections-grid .connections-tile")).toHaveLength(0);
+  });
+
+  it("keeps the lost result after giving up and reloading", () => {
+    const view = renderGame();
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("heading", { level: 2, name: pt.connectionsGameOverLost })).toBeInTheDocument();
+    view.unmount();
+
+    renderGame();
+    expect(screen.getByRole("heading", { level: 2, name: pt.connectionsGameOverLost })).toBeInTheDocument();
+    expect(document.querySelectorAll(".connections-grid .connections-tile")).toHaveLength(0);
   });
 
   it("shows a wrong guess in the bar's live region and leaves the board as it was", () => {

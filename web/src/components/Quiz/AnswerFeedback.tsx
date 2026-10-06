@@ -29,6 +29,7 @@ export interface AnswerFeedbackProps {
   isLastQuestion: boolean;
   onSubmit: () => void;
   onAdvance: () => void;
+  onGiveUp?: (() => void) | undefined;
 }
 
 /**
@@ -53,6 +54,7 @@ export function AnswerFeedback({
   isLastQuestion,
   onSubmit,
   onAdvance,
+  onGiveUp,
 }: AnswerFeedbackProps) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const sourceId = useId();
@@ -107,6 +109,7 @@ export function AnswerFeedback({
           messages={messages}
           onSubmit={onSubmit}
           onAdvance={onAdvance}
+          onGiveUp={onGiveUp}
         />
       </div>
     </div>

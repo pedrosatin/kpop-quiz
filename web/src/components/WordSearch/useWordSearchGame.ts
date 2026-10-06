@@ -90,6 +90,22 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     return map;
   }, [puzzle.words, foundWordIds]);
 
+  // Cells of words the player never found, marked after give-up. A natural
+  // finish always finds every word, so a partial board means give-up.
+  const revealedCells = useMemo(() => {
+    if (status !== "completed" || foundWordIds.length >= puzzle.words.length) return new Set<string>();
+    const cells = new Set<string>();
+    for (const word of puzzle.words) {
+      if (foundWordIds.includes(word.id)) continue;
+      const path = getLinearPath(
+        { row: word.start_row, col: word.start_col },
+        { row: word.end_row, col: word.end_col }
+      );
+      path.forEach((c) => cells.add(`${c.row},${c.col}`));
+    }
+    return cells;
+  }, [status, puzzle.words, foundWordIds]);
+
   const checkSelection = useCallback(
     (start: CellCoord, end: CellCoord) => {
       const path = getLinearPath(start, end);
@@ -261,6 +277,13 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     didDragRef.current = false;
   }, []);
 
+  const giveUp = useCallback(() => {
+    cancelSelection();
+    // Revealing the words shows every answer in the list at once.
+    setEasyMode(true);
+    setStatus("completed");
+  }, [cancelSelection]);
+
   return {
     foundWordIds,
     elapsedSeconds,
@@ -280,5 +303,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     handleCellPointerUp,
     handleKeyDown,
     cancelSelection,
+    revealedCells,
+    giveUp,
   };
 }

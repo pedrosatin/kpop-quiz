@@ -116,6 +116,8 @@ export interface MapPilotResultProps {
   answers: readonly string[];
   countryByFeature: ReadonlyMap<string, MapPilotCountry>;
   locale: Locale;
+  /** When the round ended by give-up, the per-date answers open revealed. */
+  gaveUp?: boolean;
   onRestart: () => void;
   onCopied?: () => void;
   onShareFailed?: () => void;
@@ -133,6 +135,7 @@ export function MapPilotResult({
   answers,
   countryByFeature,
   locale,
+  gaveUp = false,
   onRestart,
   onCopied,
   onShareFailed,
@@ -140,7 +143,7 @@ export function MapPilotResult({
 }: MapPilotResultProps) {
   const copy = COPY[locale];
   const messages = getMessages(locale);
-  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(gaveUp);
   const titleId = useId();
   const summaryId = useId();
   const sourceId = useId();

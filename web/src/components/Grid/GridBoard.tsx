@@ -13,6 +13,8 @@ export interface GridBoardProps {
   boardRef?: Ref<HTMLDivElement>;
   locale: Locale;
   messages: Messages;
+  /** Show the first accepted answer in every unsolved cell (give-up). */
+  revealed?: boolean;
 }
 
 function categoryBadge(category: GridCriterionCategory, messages: Messages): string {
@@ -35,7 +37,15 @@ export function GridBoard({
   boardRef,
   locale,
   messages,
+  revealed = false,
 }: GridBoardProps) {
+  const candidateNames = new Map(grid.candidate_pool.map((c) => [c.id, c.names[locale] || c.canonical_name]));
+  const revealedNameFor = (rowIdx: number, colIdx: number): string | undefined => {
+    if (!revealed) return undefined;
+    const cell = grid.cells.find((c) => c.row_index === rowIdx && c.col_index === colIdx);
+    const first = cell?.valid_entity_ids[0];
+    return first ? candidateNames.get(first) : undefined;
+  };
   const handleKeyDown = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null;
     if (!target || !target.hasAttribute("data-row")) return;
@@ -110,6 +120,7 @@ export function GridBoard({
                       onSelect={(event) => onSelectCell(rowIdx, colIdx, event)}
                       locale={locale}
                       messages={messages}
+                      revealedName={revealedNameFor(rowIdx, colIdx)}
                     />
                   </td>
                 );

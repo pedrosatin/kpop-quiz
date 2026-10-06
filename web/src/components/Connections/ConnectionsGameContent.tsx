@@ -41,6 +41,7 @@ export function ConnectionsGameContent({
     clearSelection,
     shuffleItems,
     submitGuess,
+    giveUp,
     restartGame,
   } = useConnectionsGame(puzzle, locale);
 
@@ -92,6 +93,12 @@ export function ConnectionsGameContent({
     setFeedback(next);
     if (next.kind === "solved") setSolvedHere((n) => n + 1);
   }, [submitGuess]);
+
+  const handleGiveUp = useCallback(() => {
+    playedHere.current = true;
+    setFeedback(null);
+    giveUp();
+  }, [giveUp]);
 
   const restart = useCallback(() => {
     setFeedback(null);
@@ -179,6 +186,7 @@ export function ConnectionsGameContent({
               onShuffle={shuffleItems}
               onClear={clear}
               onSubmit={submit}
+              onGiveUp={handleGiveUp}
               messages={messages}
             />
           )}

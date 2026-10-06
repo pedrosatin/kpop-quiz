@@ -16,6 +16,8 @@ export interface GridResultsProps {
   guessesUsed: number;
   /** Verdict of the guess that ended the game in this visit, if any. */
   verdict?: string | null;
+  /** When the game ended by give-up, the answers open revealed. */
+  gaveUp?: boolean;
   onRestart: () => void;
   onCopied?: () => void;
   onShareFailed?: () => void;
@@ -58,6 +60,7 @@ export function GridResults({
   cellStates,
   guessesUsed,
   verdict,
+  gaveUp = false,
   onRestart,
   onCopied,
   onShareFailed,
@@ -66,7 +69,7 @@ export function GridResults({
   messages,
 }: GridResultsProps) {
   const [monochrome, setMonochrome] = useState(false);
-  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(gaveUp);
   const titleId = useId();
   const summaryId = useId();
   const sourceId = useId();

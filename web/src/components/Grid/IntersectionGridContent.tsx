@@ -32,6 +32,8 @@ export interface IntersectionGridContentProps {
   selectCell: GridGameApi["selectCell"];
   closePicker: GridGameApi["closePicker"];
   makeGuess: GridGameApi["makeGuess"];
+  giveUp: GridGameApi["giveUp"];
+  gaveUp: GridGameApi["gaveUp"];
   restartGame: GridGameApi["restartGame"];
 }
 
@@ -49,6 +51,8 @@ export function IntersectionGridContent({
   selectCell,
   closePicker,
   makeGuess,
+  giveUp,
+  gaveUp,
   restartGame,
 }: IntersectionGridContentProps) {
   const solvedCount = useMemo(() => {
@@ -116,6 +120,13 @@ export function IntersectionGridContent({
     }
   }, [makeGuess, messages]);
 
+  const handleGiveUp = useCallback(() => {
+    playedHere.current = true;
+    setFeedback(null);
+    setFinalVerdict(null);
+    giveUp();
+  }, [giveUp]);
+
   const restart = useCallback(() => {
     setFeedback(null);
     setFinalVerdict(null);
@@ -144,6 +155,7 @@ export function IntersectionGridContent({
           boardRef={board}
           locale={locale}
           messages={messages}
+          revealed={gaveUp}
         />
 
         {/* The side panel: the sticky bar under the board on phones, a column
@@ -171,6 +183,7 @@ export function IntersectionGridContent({
               cellStates={cells}
               guessesUsed={guessesUsed}
               verdict={finalVerdict}
+              gaveUp={gaveUp}
               onRestart={restart}
               onCopied={() => setFeedback({ kind: "copied", n: ++announcements.current })}
               onShareFailed={() => setFeedback({ kind: "shareFailed", n: ++announcements.current })}
@@ -179,7 +192,12 @@ export function IntersectionGridContent({
               messages={messages}
             />
           ) : (
-            <GridProgress guessesLeft={guessesLeft} solvedCount={solvedCount} messages={messages} />
+            <>
+              <GridProgress guessesLeft={guessesLeft} solvedCount={solvedCount} messages={messages} />
+              <button type="button" class="btn btn-secondary" onClick={handleGiveUp}>
+                {messages.giveUp}
+              </button>
+            </>
           )}
         </div>
       </div>

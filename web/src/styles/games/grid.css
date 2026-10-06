@@ -162,7 +162,20 @@
   color: var(--color-error-text);
 }
 
+/* An answer shown by give-up: neutral, neither right nor wrong. */
+.grid-cell-btn.revealed {
+  border-style: dashed;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+.cell-revealed-name strong {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .cell-solved-name,
+.cell-revealed-name,
 .cell-failed-status {
   display: flex;
   flex-direction: column;
@@ -182,6 +195,7 @@
 
 /* A long name must not grow its row; the cell label keeps the full name. */
 .cell-solved-name strong,
+.cell-revealed-name strong,
 .cell-attempt-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -305,12 +319,12 @@
   60rem the result sits beside the board and the cells keep their size.
 */
 @media (max-width: 59.99rem) {
-  .grid-game:has(.grid-result) :is(.cell-solved-name, .cell-failed-status) {
+  .grid-game:has(.grid-result) :is(.cell-solved-name, .cell-revealed-name, .cell-failed-status) {
     flex-direction: row;
     gap: 0.2rem;
   }
 
-  .grid-game:has(.grid-result) :is(.cell-solved-name strong, .cell-attempt-text) {
+  .grid-game:has(.grid-result) :is(.cell-solved-name strong, .cell-revealed-name strong, .cell-attempt-text) {
     -webkit-line-clamp: 2;
     line-clamp: 2;
   }

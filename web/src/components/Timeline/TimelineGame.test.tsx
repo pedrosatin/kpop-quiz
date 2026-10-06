@@ -156,6 +156,38 @@ describe("TimelineGame", () => {
     expect(loadPlayerStats().games.timeline?.won).toBe(1);
   });
 
+  it("submits on give-up and reveals the canonical order", async () => {
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+
+    const heading = await screen.findByRole("heading", { name: /Pontuação:/ });
+    expect(heading).toBeInTheDocument();
+    expect(document.activeElement).toBe(heading);
+    expect(screen.queryByRole("button", { name: "Desistir" })).not.toBeInTheDocument();
+
+    const canonical = getCanonicalChronologicalOrder(puzzle.events);
+    const items = [...document.querySelectorAll(".timeline-results-list > li")];
+    expect(items).toHaveLength(canonical.length);
+    for (const [index, event] of canonical.entries()) {
+      expect(items[index]!.textContent).toContain(event.title["pt-BR"]);
+    }
+  });
+
+  it("records a give-up on the canonical order as played without a win", async () => {
+    const shuffled = [...puzzle.events].reverse();
+    const sortedPuzzle = {
+      ...puzzle,
+      events: getCanonicalChronologicalOrder(shuffled),
+    } as TimelinePuzzle;
+    render(<TimelineGame locale="pt-BR" puzzle={sortedPuzzle} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    await screen.findByRole("heading", { name: /Pontuação:/ });
+
+    expect(loadPlayerStats().games.timeline?.played).toBe(1);
+    expect(loadPlayerStats().games.timeline?.won ?? 0).toBe(0);
+  });
+
   it("has zero accessibility violations with axe-core in playing and submitted states", async () => {
     const { container } = render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
     expect((await axe.run(container)).violations).toEqual([]);
