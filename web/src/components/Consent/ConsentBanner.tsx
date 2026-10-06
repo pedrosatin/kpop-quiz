@@ -20,8 +20,11 @@ function loadGoogleAnalytics(ga4Id: string): void {
     w[`ga-disable-${ga4Id}`] = false;
     if (typeof w.gtag === "function") return;
     w.dataLayer = w.dataLayer ?? [];
-    const gtag = (...args: unknown[]) => {
-      (w.dataLayer as unknown[]).push(args);
+    // gtag.js only reads the native `arguments` object from dataLayer and silently
+    // drops plain arrays, so a rest-parameter wrapper never sends a single hit.
+    const gtag = function (..._args: unknown[]) {
+      // oxlint-disable-next-line prefer-rest-params
+      (w.dataLayer as unknown[]).push(arguments);
     };
     w.gtag = gtag;
     const script = document.createElement("script");
