@@ -951,18 +951,26 @@ class Repository:
     ) -> int:
         fetched_at = utc_now()
         saved = 0
+        missing_pages_params = []
+        regular_pages = []
         for page in pages:
             if page.is_missing:
-                self.connection.execute(
-                    """
-                    INSERT INTO collection_issues(
-                        collection_run_id, external_page_id, title, issue_code, detail
-                    ) VALUES (?, ?, ?, 'missing_page', ?)
-                    ON CONFLICT(collection_run_id, external_page_id, issue_code) DO NOTHING
-                    """,
-                    (run_id, page.page_id, page.title, "No source revision was available"),
-                )
-                continue
+                missing_pages_params.append((run_id, page.page_id, page.title, "No source revision was available"))
+            else:
+                regular_pages.append(page)
+
+        if missing_pages_params:
+            self.connection.executemany(
+                """
+                INSERT INTO collection_issues(
+                    collection_run_id, external_page_id, title, issue_code, detail
+                ) VALUES (?, ?, ?, 'missing_page', ?)
+                ON CONFLICT(collection_run_id, external_page_id, issue_code) DO NOTHING
+                """,
+                missing_pages_params,
+            )
+
+        for page in regular_pages:
             if page.revision_id is None:
                 raise ValueError(f"page {page.page_id} has no revision ID")
             payload = page.source_payload or {
