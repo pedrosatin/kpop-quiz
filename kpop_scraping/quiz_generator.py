@@ -25,7 +25,6 @@ from .quiz_schema import (
     validate_dataset,
     validate_report,
 )
-from .quiz_session import create_session
 from .quiz_templates import SUPPORTED_LANGUAGES, TEMPLATE_VERSION
 from .quiz_utils import hash_payload
 from .sources import SOURCE_POLICY_VERSION
