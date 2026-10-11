@@ -202,13 +202,12 @@ def formation_date_evidence(
 ) -> EvidenceItem | None:
     """Accept "<group> ... formed ... in|on <date>" without another year between."""
     date = _date_pattern(value)
+    date_regex = re.compile(rf"(?P<gap>[^.;,]{{0,60}}?)\b(?:in|on)\s+(?P<date>{date})")
     for start, sentence in _subject_sentences(page, subject_names):
         for verb in _FORMATION_VERB.finditer(sentence):
             if not _formation_has_group_subject(sentence, verb.start(), subject_names):
                 continue
-            match = re.compile(
-                rf"(?P<gap>[^.;,]{{0,60}}?)\b(?:in|on)\s+(?P<date>{date})"
-            ).match(sentence, verb.end())
+            match = date_regex.match(sentence, verb.end())
             if (
                 match
                 and not re.search(r"\d{4}", match.group("gap"))
