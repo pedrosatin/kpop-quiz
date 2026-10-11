@@ -305,14 +305,17 @@ def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
     for idx, word_obj in enumerate(words):
         context = f"words[{idx}]"
         _require(isinstance(word_obj, dict), f"{context} must be an object")
-        _require(
-            WORD_ENTRY_REQUIRED_FIELDS.issubset(set(word_obj.keys())),
-            f"{context} is missing required fields: {sorted(WORD_ENTRY_REQUIRED_FIELDS - set(word_obj.keys()))}",
-        )
-        _require(
-            set(word_obj.keys()).issubset(WORD_ENTRY_ALL_FIELDS),
-            f"{context} contains unexpected fields: {sorted(set(word_obj.keys()) - WORD_ENTRY_ALL_FIELDS)}",
-        )
+        word_keys = word_obj.keys()
+        if not WORD_ENTRY_REQUIRED_FIELDS.issubset(word_keys):
+            _require(
+                False,
+                f"{context} is missing required fields: {sorted(WORD_ENTRY_REQUIRED_FIELDS - word_keys)}",
+            )
+        if not word_keys <= WORD_ENTRY_ALL_FIELDS:
+            _require(
+                False,
+                f"{context} contains unexpected fields: {sorted(word_keys - WORD_ENTRY_ALL_FIELDS)}",
+            )
 
         # ID (QID)
         qid = word_obj["id"]
