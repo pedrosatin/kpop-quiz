@@ -951,7 +951,48 @@ class Repository:
     ) -> int:
         fetched_at = utc_now()
         saved = 0
-        for page in pages:
+        pages_list = list(pages)
+        page_ids = [page.page_id for page in pages_list if not page.is_missing]
+        revision_ids = [page.revision_id for page in pages_list if not page.is_missing and page.revision_id is not None]
+
+        previous_pages_dict = {}
+        if page_ids:
+            chunk_size = 900
+            for i in range(0, len(page_ids), chunk_size):
+                chunk = page_ids[i:i + chunk_size]
+                placeholders = ','.join('?' for _ in chunk)
+
+                rows = self.connection.execute(
+                    f"SELECT id, external_page_id, title, wikidata_id, is_redirect, is_disambiguation FROM source_pages WHERE provider=? AND language=? AND external_page_id IN ({placeholders})",
+                    (provider, language, *chunk)
+                ).fetchall()
+                for row in rows:
+                    previous_pages_dict[row["external_page_id"]] = row
+
+        existing_revisions_dict = {}
+        if page_ids and revision_ids:
+            chunk_size = 400
+            for i in range(0, len(page_ids), chunk_size):
+                chunk_page = page_ids[i:i + chunk_size]
+                chunk_rev = revision_ids[i:i + chunk_size]
+                if not chunk_page or not chunk_rev:
+                    continue
+                # For simplicity, just use external_page_id since they map 1-to-1 in our loop mostly,
+                # but revision_id is unique enough along with page_id.
+                placeholders = ','.join('?' for _ in chunk_page)
+                rows = self.connection.execute(
+                    f"""
+                    SELECT sp.external_page_id, sr.external_revision_id, sr.id, sr.snapshot_path, sr.content_sha256
+                    FROM source_revisions sr
+                    JOIN source_pages sp ON sp.id = sr.source_page_id
+                    WHERE sp.provider=? AND sp.language=? AND sp.external_page_id IN ({placeholders})
+                    """,
+                    (provider, language, *chunk_page)
+                ).fetchall()
+                for row in rows:
+                    existing_revisions_dict[(row["external_page_id"], row["external_revision_id"])] = row
+
+        for page in pages_list:
             if page.is_missing:
                 self.connection.execute(
                     """
@@ -975,14 +1016,7 @@ class Repository:
             content = canonical_json(payload)
             digest = hashlib.sha256(content).hexdigest()
 
-            previous_page = self.connection.execute(
-                """
-                SELECT title, wikidata_id, is_redirect, is_disambiguation
-                FROM source_pages
-                WHERE provider=? AND language=? AND external_page_id=?
-                """,
-                (provider, language, page.page_id),
-            ).fetchone()
+            previous_page = previous_pages_dict.get(page.page_id)
             classification_input_changed = previous_page is not None and (
                 previous_page["title"] != page.title
                 or previous_page["wikidata_id"] != page.wikidata_id
@@ -990,16 +1024,7 @@ class Repository:
                 or bool(previous_page["is_disambiguation"]) != page.is_disambiguation
             )
 
-            existing = self.connection.execute(
-                """
-                SELECT sr.id, sr.snapshot_path, sr.content_sha256
-                FROM source_revisions sr
-                JOIN source_pages sp ON sp.id = sr.source_page_id
-                WHERE sp.provider=? AND sp.language=? AND sp.external_page_id=?
-                  AND sr.external_revision_id=?
-                """,
-                (provider, language, page.page_id, page.revision_id),
-            ).fetchone()
+            existing = existing_revisions_dict.get((page.page_id, page.revision_id))
             if existing is not None:
                 if existing["content_sha256"] != digest:
                     stored = self.snapshots.read(
@@ -1021,7 +1046,7 @@ class Repository:
                 else:
                     self.snapshots.verify(existing["snapshot_path"], digest)
 
-            self.connection.execute(
+            cursor = self.connection.execute(
                 """
                 INSERT INTO source_pages(
                     provider, language, external_page_id, title, canonical_url,
@@ -1035,6 +1060,7 @@ class Repository:
                     wikidata_id=excluded.wikidata_id,
                     is_redirect=excluded.is_redirect,
                     is_disambiguation=excluded.is_disambiguation
+                RETURNING id
                 """,
                 (
                     provider,
@@ -1051,13 +1077,9 @@ class Repository:
                     int(page.is_disambiguation),
                 ),
             )
-            source_page_id = self.connection.execute(
-                """
-                SELECT id FROM source_pages
-                WHERE provider=? AND language=? AND external_page_id=?
-                """,
-                (provider, language, page.page_id),
-            ).fetchone()["id"]
+
+            # RETURNING id works for both INSERT and UPDATE in SQLite 3.35+
+            source_page_id = cursor.fetchone()["id"]
 
             if existing is None:
                 snapshot_path, digest = self.snapshots.write(
