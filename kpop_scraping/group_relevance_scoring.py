@@ -100,34 +100,49 @@ def latest_complete_pageviews(connection: sqlite3.Connection) -> tuple[int, dict
     }
     if not accepted:
         return None
-    for run in runs:
-        measurements = connection.execute(
-            """
-            SELECT gp.entity_id, gp.page_title, gp.total_views
+
+    # SQLite limit on variables is 999. Chunking also helps avoid fetching too much
+    # data if we find a complete run early in the list.
+    chunk_size = 100
+    for chunk_start in range(0, len(runs), chunk_size):
+        chunk_runs = runs[chunk_start : chunk_start + chunk_size]
+        run_ids = [run["id"] for run in chunk_runs]
+        placeholders = ",".join("?" for _ in run_ids)
+
+        chunk_measurements = connection.execute(
+            f"""
+            SELECT gp.run_id, gp.entity_id, gp.page_title, gp.total_views
             FROM group_pageviews gp
             JOIN group_pageview_runs gr ON gr.id=gp.run_id
-            WHERE gp.run_id=? AND gp.start_date=gr.start_date
+            WHERE gp.run_id IN ({placeholders}) AND gp.start_date=gr.start_date
               AND gp.end_date=gr.end_date AND gp.days_observed>=1
             """,
-            (run["id"],),
+            run_ids,
         ).fetchall()
-        by_entity = {
-            int(row["entity_id"]): (int(row["total_views"]), _article_key(str(row["page_title"])))
-            for row in measurements
-        }
-        titles_match = all(
-            by_entity[entity_id][1] == accepted[entity_id][1]
-            for entity_id in set(by_entity) & set(accepted)
-        )
-        if (
-            len(measurements) == len(by_entity)
-            and set(by_entity) == set(accepted)
-            and titles_match
-        ):
-            return int(run["id"]), {
-                accepted[entity_id][0]: total_and_title[0]
-                for entity_id, total_and_title in by_entity.items()
+
+        grouped_measurements = {run_id: [] for run_id in run_ids}
+        for row in chunk_measurements:
+            grouped_measurements[row["run_id"]].append(row)
+
+        for run in chunk_runs:
+            measurements = grouped_measurements[run["id"]]
+            by_entity = {
+                int(row["entity_id"]): (int(row["total_views"]), _article_key(str(row["page_title"])))
+                for row in measurements
             }
+            titles_match = all(
+                by_entity[entity_id][1] == accepted[entity_id][1]
+                for entity_id in set(by_entity) & set(accepted)
+            )
+            if (
+                len(measurements) == len(by_entity)
+                and set(by_entity) == set(accepted)
+                and titles_match
+            ):
+                return int(run["id"]), {
+                    accepted[entity_id][0]: total_and_title[0]
+                    for entity_id, total_and_title in by_entity.items()
+                }
     return None
 
 
@@ -228,14 +243,26 @@ def load_latest_relevance_scores(connection: sqlite3.Connection) -> dict[str, in
         if "no such table" in str(exc):
             return {}
         raise
-    for run in runs:
-        rows = connection.execute(
-            """SELECT e.wikidata_id,s.relevance_score
+    chunk_size = 100
+    for chunk_start in range(0, len(runs), chunk_size):
+        chunk_runs = runs[chunk_start : chunk_start + chunk_size]
+        run_ids = [run["id"] for run in chunk_runs]
+        placeholders = ",".join("?" for _ in run_ids)
+
+        chunk_rows = connection.execute(
+            f"""SELECT s.run_id, e.wikidata_id,s.relevance_score
                FROM group_relevance_scores s JOIN entities e ON e.id=s.entity_id
-               WHERE s.run_id=?""",
-            (run["id"],),
+               WHERE s.run_id IN ({placeholders})""",
+            run_ids,
         ).fetchall()
-        scores = {str(row["wikidata_id"]): int(row["relevance_score"]) for row in rows}
-        if accepted and len(rows) == len(scores) and set(scores) == accepted:
-            return scores
+
+        grouped_rows = {run_id: [] for run_id in run_ids}
+        for row in chunk_rows:
+            grouped_rows[row["run_id"]].append(row)
+
+        for run in chunk_runs:
+            rows = grouped_rows[run["id"]]
+            scores = {str(row["wikidata_id"]): int(row["relevance_score"]) for row in rows}
+            if accepted and len(rows) == len(scores) and set(scores) == accepted:
+                return scores
     return {}
