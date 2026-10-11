@@ -510,8 +510,10 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
             "INSERT INTO catalog_entity_links SELECT * FROM catalog_entity_links_v5",
             "CREATE INDEX catalog_entity_links_entity_idx ON catalog_entity_links(entity_id)",
-            "DROP TABLE fact_evidence_v5", "DROP TABLE facts_v5",
-            "DROP TABLE entity_aliases_v5", "DROP TABLE catalog_entity_links_v5",
+            "DROP TABLE fact_evidence_v5",
+            "DROP TABLE facts_v5",
+            "DROP TABLE entity_aliases_v5",
+            "DROP TABLE catalog_entity_links_v5",
             "DROP TABLE entities_v5",
             """
             CREATE TABLE release_discovery_runs (
@@ -706,8 +708,7 @@ def apply_migrations(
     )
     connection.commit()
     applied = {
-        row[0]
-        for row in connection.execute("SELECT version FROM schema_migrations")
+        row[0] for row in connection.execute("SELECT version FROM schema_migrations")
     }
     for version, name, statements in migrations:
         if version in applied:
@@ -716,9 +717,11 @@ def apply_migrations(
         if version == 6 and foreign_keys:
             connection.execute("PRAGMA foreign_keys = OFF")
         try:
-            connection.execute("BEGIN IMMEDIATE")
-            for statement in statements:
-                connection.execute(statement)
+            if statements:
+                script = "BEGIN IMMEDIATE;\n" + ";\n".join(statements)
+                connection.executescript(script)
+            else:
+                connection.execute("BEGIN IMMEDIATE")
             connection.execute(
                 "INSERT INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)",
                 (version, name, utc_now()),
@@ -726,7 +729,9 @@ def apply_migrations(
             if version == 6:
                 violations = connection.execute("PRAGMA foreign_key_check").fetchall()
                 if violations:
-                    raise sqlite3.IntegrityError(f"migration 6 foreign key violations: {violations}")
+                    raise sqlite3.IntegrityError(
+                        f"migration 6 foreign key violations: {violations}"
+                    )
             connection.commit()
         except Exception:
             connection.rollback()
@@ -814,7 +819,10 @@ class SnapshotStore:
             raise ValueError("discovery run ID must be positive")
         digest = hashlib.sha256(content).hexdigest()
         return self._write(
-            Path("wikidata") / "release-discovery-v1" / str(run_id) / f"{digest}.json.gz",
+            Path("wikidata")
+            / "release-discovery-v1"
+            / str(run_id)
+            / f"{digest}.json.gz",
             content,
         )
 
@@ -902,7 +910,9 @@ class SnapshotStore:
         try:
             content = gzip.decompress(path.read_bytes())
         except (OSError, EOFError, zlib.error) as exc:
-            raise SnapshotIntegrityError(f"cannot read snapshot {relative_path}") from exc
+            raise SnapshotIntegrityError(
+                f"cannot read snapshot {relative_path}"
+            ) from exc
         actual_digest = hashlib.sha256(content).hexdigest()
         if actual_digest != expected_digest:
             raise SnapshotIntegrityError(
@@ -960,7 +970,12 @@ class Repository:
                     ) VALUES (?, ?, ?, 'missing_page', ?)
                     ON CONFLICT(collection_run_id, external_page_id, issue_code) DO NOTHING
                     """,
-                    (run_id, page.page_id, page.title, "No source revision was available"),
+                    (
+                        run_id,
+                        page.page_id,
+                        page.title,
+                        "No source revision was available",
+                    ),
                 )
                 continue
             if page.revision_id is None:
@@ -1074,7 +1089,13 @@ class Repository:
                         content_sha256, fetched_at
                     ) VALUES (?, ?, ?, ?, ?)
                     """,
-                    (source_page_id, page.revision_id, snapshot_path, digest, fetched_at),
+                    (
+                        source_page_id,
+                        page.revision_id,
+                        snapshot_path,
+                        digest,
+                        fetched_at,
+                    ),
                 )
                 source_revision_id = int(cursor.lastrowid)
             else:
@@ -1174,9 +1195,7 @@ class Repository:
         revision_id: int,
         instance_of: Sequence[str],
     ) -> int:
-        instance_of_json = json.dumps(
-            sorted(set(instance_of)), separators=(",", ":")
-        )
+        instance_of_json = json.dumps(sorted(set(instance_of)), separators=(",", ":"))
         existing = self.connection.execute(
             """
             SELECT id, instance_of_json FROM wikidata_type_checks
@@ -1273,10 +1292,7 @@ class Repository:
             writer = csv.DictWriter(output, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(
-                {
-                    key: spreadsheet_safe(value)
-                    for key, value in dict(row).items()
-                }
+                {key: spreadsheet_safe(value) for key, value in dict(row).items()}
                 for row in rows
             )
         return len(rows)
@@ -1312,7 +1328,9 @@ class Repository:
             """
         ).fetchall()
 
-    def start_group_pageview_run(self, start_date: str, end_date: str, groups: int) -> int:
+    def start_group_pageview_run(
+        self, start_date: str, end_date: str, groups: int
+    ) -> int:
         cursor = self.connection.execute(
             """INSERT INTO group_pageview_runs(
                 language,access,agent,start_date,end_date,started_at,status,groups_requested
@@ -1323,17 +1341,36 @@ class Repository:
         return int(cursor.lastrowid)
 
     def save_group_pageviews(
-        self, run_id: int, entity_id: int, page_title: str, start_date: str,
-        end_date: str, total_views: int, days_observed: int, source_url: str,
-        response_json: str, response_sha256: str,
+        self,
+        run_id: int,
+        entity_id: int,
+        page_title: str,
+        start_date: str,
+        end_date: str,
+        total_views: int,
+        days_observed: int,
+        source_url: str,
+        response_json: str,
+        response_sha256: str,
     ) -> None:
         self.connection.execute(
             """INSERT INTO group_pageviews(
                 run_id,entity_id,page_title,start_date,end_date,total_views,days_observed,
                 source_url,response_json,response_sha256,fetched_at
             ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (run_id, entity_id, page_title, start_date, end_date, total_views,
-             days_observed, source_url, response_json, response_sha256, utc_now()),
+            (
+                run_id,
+                entity_id,
+                page_title,
+                start_date,
+                end_date,
+                total_views,
+                days_observed,
+                source_url,
+                response_json,
+                response_sha256,
+                utc_now(),
+            ),
         )
         self.connection.commit()
 
