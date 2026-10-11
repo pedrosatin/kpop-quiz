@@ -442,6 +442,7 @@ def release_date_evidence(
 ) -> EvidenceItem | None:
     """Accept an unscoped release date attached to an explicit release verb."""
     date = _release_date_pattern(value, page.language)
+    date_pattern = re.compile(rf"(?P<date>{date})", _I)
     for start, sentence in _release_subject_sentences(page, subject_names):
         if page.language == "ko":
             if _KOREAN_RELEASE_SCOPE.search(sentence):
@@ -471,7 +472,7 @@ def release_date_evidence(
                 _I,
             ):
                 continue
-            match = re.compile(rf"(?P<date>{date})", _I).match(sentence, trigger.end())
+            match = date_pattern.match(sentence, trigger.end())
             if match:
                 suffix = sentence[match.end("date") : match.end("date") + 55]
                 if re.match(
