@@ -119,6 +119,7 @@ def _collect(
         response = client.get_entities(batch, SUBJECT_PROFILE)
         batches += 1
         found = {doc.requested_id: doc for doc in response.documents}
+        update_params = []
         for qid in batch:
             document = found.get(qid)
             if document is None:
@@ -139,9 +140,13 @@ def _collect(
                 entity_id,
                 (entity_id, snapshot_id, document.wikidata_id, extracted, document.payload),
             )
+            update_params.extend(
+                [(document.wikidata_id, entity_id, snapshot_id, row["id"]) for row in candidate_rows[qid]]
+            )
+        if update_params:
             repository.connection.executemany(
                 "UPDATE release_candidates SET resolved_wikidata_id=?,entity_id=?,snapshot_id=? WHERE id=?",
-                [(document.wikidata_id, entity_id, snapshot_id, row["id"]) for row in candidate_rows[qid]],
+                update_params,
             )
     value_roles = {}
     subjects = tuple(subjects_by_entity.values())
