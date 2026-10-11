@@ -211,6 +211,8 @@ function main() {
     check(existsSync(htmlPath), `${htmlPath} missing`);
   }
   const noindexRe = /<meta[^>]*name="robots"[^>]*content="noindex"[^>]*>/;
+  const titles = new Set();
+  const descriptions = new Set();
   for (const htmlPath of htmls.filter((path) => existsSync(path))) {
     const html = readFileSync(htmlPath, "utf-8");
     const label = htmlPath.replace(dist, "dist");
@@ -218,6 +220,39 @@ function main() {
     check(html.includes('hreflang="pt-BR"'), `${label} missing hreflang pt-BR`);
     check(html.includes('hreflang="en"'), `${label} missing hreflang en`);
     check(html.includes('hreflang="x-default"'), `${label} missing hreflang x-default`);
+    const routeIndex = htmls.indexOf(htmlPath);
+    const path = EXPECTED_PATHS[routeIndex];
+    const ptPath = EXPECTED_PATHS[routeIndex % (EXPECTED_PATHS.length / 2)];
+    const title = html.match(/<title>([\s\S]*?)<\/title>/)?.[1];
+    const description = metaContent(html, "name", "description");
+    check(Boolean(title) && !titles.has(title), `${label} must have a unique, nonempty title`);
+    check(Boolean(description) && !descriptions.has(description), `${label} must have a unique, nonempty description`);
+    titles.add(title);
+    descriptions.add(description);
+    check(metaContent(html, "property", "og:site_name") === "K-pop Quiz", `${label} missing the consistent site name`);
+    const schemas = [];
+    for (const match of html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)) {
+      try {
+        schemas.push(JSON.parse(match[1]));
+      } catch {
+        check(false, `${label} has invalid JSON-LD`);
+      }
+    }
+    const apps = schemas.filter((schema) => schema["@type"] === "WebApplication");
+    check(apps.length === 1, `${label} must identify exactly one game application`);
+    const app = apps[0];
+    check(app?.url === `${PROD_ORIGIN}${path}`, `${label} game application URL must match the canonical`);
+    check(app?.["@id"] === `${PROD_ORIGIN}${path}#game`, `${label} game application must have a route-specific identity`);
+    check(app?.inLanguage === (path.startsWith("/pt-br/") ? "pt-BR" : "en"), `${label} game application must use the page language`);
+    check(app?.description === decodeEntities(description ?? ""), `${label} game application description must match page metadata`);
+    check(
+      html.includes(`<link rel="canonical" href="${PROD_ORIGIN}${path}"`),
+      `${label} canonical must match its own route`,
+    );
+    check(
+      html.includes(`<link rel="alternate" hreflang="x-default" href="${PROD_ORIGIN}${ptPath}"`),
+      `${label} x-default must point to the Portuguese version of this route`,
+    );
     check(html.includes('property="og:title"'), `${label} missing og:title`);
     checkOgImage(dist, html, label);
     check(
@@ -225,6 +260,7 @@ function main() {
       `${label} links to /data/*`,
     );
     const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/);
+    check([...html.matchAll(/<h1\b/g)].length === 1, `${label} must have exactly one main heading`);
     check(h1 !== null && textOf(h1[1]).includes("K-pop"), `${label} h1 must mention K-pop`);
     if (env === "prod") {
       check(noindexRe.test(html) === false, `${label} must not be noindex in prod`);
@@ -248,6 +284,16 @@ function main() {
     );
     const words = countWords(textOf(about));
     check(words >= GAME_ABOUT_MIN_WORDS, `${label} game text has ${words} words, expected at least ${GAME_ABOUT_MIN_WORDS}`);
+    const html = readFileSync(htmlPath, "utf-8");
+    const related = html.match(/<section[^>]*aria-labelledby="related-games-title"[^>]*>([\s\S]*?)<\/section>/)?.[1];
+    check(Boolean(related), `${label} missing related games in the static HTML`);
+    const relatedLinks = [...(related ?? "").matchAll(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];
+    check(relatedLinks.length === 2, `${label} must link to two related games`);
+    for (const link of relatedLinks) {
+      const target = EXPECTED_PATHS.find((path) => link[1].endsWith(path));
+      check(target && target !== routePath && target.split("/")[1] === routePath.split("/")[1], `${label} related game ${link[1]} must be another canonical game in the same language`);
+      check(/K-pop|BLACKPINK/.test(textOf(link[2])), `${label} related game link must name its game or group`);
+    }
   }
 
   // IndexNow: one <32 hex>.txt at the root whose content is the key itself.
@@ -275,6 +321,11 @@ function main() {
       root.includes('application/ld+json'),
       "dist/index.html must contain application/ld+json",
     );
+    const website = [...root.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)]
+      .map((match) => {
+        try { return JSON.parse(match[1]); } catch { return null; }
+      }).find((schema) => schema?.["@type"] === "WebSite");
+    check(website?.name === "K-pop Quiz" && website?.url === `${PROD_ORIGIN}/`, "domain root must declare the site name with WebSite structured data");
     check(
       noindexRe.test(root) === (env === "staging"),
       `dist/index.html must ${env === "staging" ? "be" : "not be"} noindex in ${env}`,
