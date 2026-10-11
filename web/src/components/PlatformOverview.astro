@@ -1,6 +1,7 @@
 ---
 import type { Locale } from "../lib/quiz-types";
 import { getMessages } from "../i18n/catalog";
+import { SEO_ROUTES } from "../lib/seo-routes";
 
 interface Props {
   locale: Locale;
@@ -8,14 +9,27 @@ interface Props {
 
 const { locale } = Astro.props;
 const messages = getMessages(locale);
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const games = SEO_ROUTES.filter((route) => route.locale === locale);
 ---
 <section class="platform-overview" aria-labelledby="overview-title">
   <h2 id="overview-title">{messages.overview.title}</h2>
   <p>{messages.overview.intro}</p>
+  <h2 id="overview-games">{messages.overview.modesTitle}</h2>
+  <p>{messages.overview.modesBody}</p>
+  <div class="platform-modes-grid" aria-labelledby="overview-games">
+    {games.map((game) => (
+      <div class="platform-mode-item">
+        <h3><a href={`${base}${game.path}`}>{messages.overview.games[game.key].title}</a></h3>
+        <p>{messages.overview.games[game.key].description}</p>
+      </div>
+    ))}
+  </div>
   <div class="platform-modes-grid">
     <div class="platform-mode-item">
-      <h3>{messages.overview.modesTitle}</h3>
-      <p>{messages.overview.modesBody}</p>
+      <h3>{messages.overview.quizTitle}</h3>
+      <p>{messages.overview.quizBody}</p>
+      <p>{messages.overview.settingsBody}</p>
     </div>
     <div class="platform-mode-item">
       <h3>{messages.overview.recordsTitle}</h3>
