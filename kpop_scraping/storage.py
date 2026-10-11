@@ -941,6 +941,142 @@ class Repository:
         self.connection.commit()
         return int(cursor.lastrowid)
 
+    def _record_missing_page(self, run_id: int, page: Page) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO collection_issues(
+                collection_run_id, external_page_id, title, issue_code, detail
+            ) VALUES (?, ?, ?, 'missing_page', ?)
+            ON CONFLICT(collection_run_id, external_page_id, issue_code) DO NOTHING
+            """,
+            (run_id, page.page_id, page.title, "No source revision was available"),
+        )
+
+    def _has_classification_input_changed(
+        self, provider: str, language: str, page: Page
+    ) -> bool:
+        previous_page = self.connection.execute(
+            """
+            SELECT title, wikidata_id, is_redirect, is_disambiguation
+            FROM source_pages
+            WHERE provider=? AND language=? AND external_page_id=?
+            """,
+            (provider, language, page.page_id),
+        ).fetchone()
+        if previous_page is None:
+            return False
+        return bool(
+            previous_page["title"] != page.title
+            or previous_page["wikidata_id"] != page.wikidata_id
+            or bool(previous_page["is_redirect"]) != page.is_redirect
+            or bool(previous_page["is_disambiguation"]) != page.is_disambiguation
+        )
+
+    def _get_existing_revision(self, provider: str, language: str, page: Page) -> sqlite3.Row | None:
+        return self.connection.execute(
+            """
+            SELECT sr.id, sr.snapshot_path, sr.content_sha256
+            FROM source_revisions sr
+            JOIN source_pages sp ON sp.id = sr.source_page_id
+            WHERE sp.provider=? AND sp.language=? AND sp.external_page_id=?
+              AND sr.external_revision_id=?
+            """,
+            (provider, language, page.page_id, page.revision_id),
+        ).fetchone()
+
+    def _verify_existing_snapshot(self, existing: sqlite3.Row, digest: str, page: Page, payload: dict) -> None:
+        if existing["content_sha256"] != digest:
+            stored = self.snapshots.read(
+                existing["snapshot_path"], existing["content_sha256"]
+            )
+            try:
+                stored_payload = json.loads(stored)
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise SnapshotIntegrityError(
+                    f"revision {page.revision_id} of page {page.page_id} "
+                    "has an invalid snapshot"
+                ) from exc
+            stored_content = _revision_content(stored_payload)
+            fetched_content = _revision_content(payload)
+            if stored_content is None or stored_content != fetched_content:
+                raise SnapshotIntegrityError(
+                    f"revision {page.revision_id} of page {page.page_id} changed content"
+                )
+        else:
+            self.snapshots.verify(existing["snapshot_path"], digest)
+
+    def _upsert_source_page(self, run_id: int, provider: str, language: str, page: Page, fetched_at: str) -> int:
+        self.connection.execute(
+            """
+            INSERT INTO source_pages(
+                provider, language, external_page_id, title, canonical_url,
+                extract, revision_id, fetched_at, last_run_id, wikidata_id,
+                is_redirect, is_disambiguation
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(provider, language, external_page_id) DO UPDATE SET
+                title=excluded.title, canonical_url=excluded.canonical_url,
+                extract=excluded.extract, revision_id=excluded.revision_id,
+                fetched_at=excluded.fetched_at, last_run_id=excluded.last_run_id,
+                wikidata_id=excluded.wikidata_id,
+                is_redirect=excluded.is_redirect,
+                is_disambiguation=excluded.is_disambiguation
+            """,
+            (
+                provider, language, page.page_id, page.title, page.canonical_url,
+                page.extract, page.revision_id, fetched_at, run_id, page.wikidata_id,
+                int(page.is_redirect), int(page.is_disambiguation),
+            ),
+        )
+        return self.connection.execute(
+            "SELECT id FROM source_pages WHERE provider=? AND language=? AND external_page_id=?",
+            (provider, language, page.page_id),
+        ).fetchone()["id"]
+
+    def _write_new_revision(
+        self, provider: str, language: str, page: Page, content: bytes, digest: str, source_page_id: int, fetched_at: str
+    ) -> int:
+        snapshot_path, _ = self.snapshots.write(
+            provider, language, page.page_id, page.revision_id, content
+        )
+        cursor = self.connection.execute(
+            """
+            INSERT INTO source_revisions(
+                source_page_id, external_revision_id, snapshot_path,
+                content_sha256, fetched_at
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (source_page_id, page.revision_id, snapshot_path, digest, fetched_at),
+        )
+        return int(cursor.lastrowid)
+
+    def _upsert_catalog_entry(
+        self, source_page_id: int, source_revision_id: int, page: Page, fetched_at: str, classification_input_changed: bool
+    ) -> None:
+        self.connection.execute(
+            """
+        INSERT INTO catalog_entries(
+            source_page_id, source_revision_id, analyzed_wikidata_id,
+            state, rejection_reason, type_check_id, classifier_version,
+            classified_at
+        ) VALUES (?, ?, ?, 'candidate', NULL, NULL, 'pending', ?)
+        ON CONFLICT(source_page_id) DO UPDATE SET
+            source_revision_id=excluded.source_revision_id,
+            analyzed_wikidata_id=excluded.analyzed_wikidata_id,
+            state='candidate', rejection_reason=NULL, type_check_id=NULL,
+            classifier_version='pending', classified_at=excluded.classified_at
+        WHERE catalog_entries.source_revision_id != excluded.source_revision_id
+           OR catalog_entries.analyzed_wikidata_id IS NOT excluded.analyzed_wikidata_id
+           OR ?
+            """,
+            (
+                source_page_id,
+                source_revision_id,
+                page.wikidata_id,
+                fetched_at,
+                int(classification_input_changed),
+            ),
+        )
+
     def save_pages(
         self,
         run_id: int,
@@ -953,15 +1089,7 @@ class Repository:
         saved = 0
         for page in pages:
             if page.is_missing:
-                self.connection.execute(
-                    """
-                    INSERT INTO collection_issues(
-                        collection_run_id, external_page_id, title, issue_code, detail
-                    ) VALUES (?, ?, ?, 'missing_page', ?)
-                    ON CONFLICT(collection_run_id, external_page_id, issue_code) DO NOTHING
-                    """,
-                    (run_id, page.page_id, page.title, "No source revision was available"),
-                )
+                self._record_missing_page(run_id, page)
                 continue
             if page.revision_id is None:
                 raise ValueError(f"page {page.page_id} has no revision ID")
@@ -975,108 +1103,16 @@ class Repository:
             content = canonical_json(payload)
             digest = hashlib.sha256(content).hexdigest()
 
-            previous_page = self.connection.execute(
-                """
-                SELECT title, wikidata_id, is_redirect, is_disambiguation
-                FROM source_pages
-                WHERE provider=? AND language=? AND external_page_id=?
-                """,
-                (provider, language, page.page_id),
-            ).fetchone()
-            classification_input_changed = previous_page is not None and (
-                previous_page["title"] != page.title
-                or previous_page["wikidata_id"] != page.wikidata_id
-                or bool(previous_page["is_redirect"]) != page.is_redirect
-                or bool(previous_page["is_disambiguation"]) != page.is_disambiguation
-            )
+            classification_input_changed = self._has_classification_input_changed(provider, language, page)
+            existing = self._get_existing_revision(provider, language, page)
 
-            existing = self.connection.execute(
-                """
-                SELECT sr.id, sr.snapshot_path, sr.content_sha256
-                FROM source_revisions sr
-                JOIN source_pages sp ON sp.id = sr.source_page_id
-                WHERE sp.provider=? AND sp.language=? AND sp.external_page_id=?
-                  AND sr.external_revision_id=?
-                """,
-                (provider, language, page.page_id, page.revision_id),
-            ).fetchone()
             if existing is not None:
-                if existing["content_sha256"] != digest:
-                    stored = self.snapshots.read(
-                        existing["snapshot_path"], existing["content_sha256"]
-                    )
-                    try:
-                        stored_payload = json.loads(stored)
-                    except (TypeError, json.JSONDecodeError) as exc:
-                        raise SnapshotIntegrityError(
-                            f"revision {page.revision_id} of page {page.page_id} "
-                            "has an invalid snapshot"
-                        ) from exc
-                    stored_content = _revision_content(stored_payload)
-                    fetched_content = _revision_content(payload)
-                    if stored_content is None or stored_content != fetched_content:
-                        raise SnapshotIntegrityError(
-                            f"revision {page.revision_id} of page {page.page_id} changed content"
-                        )
-                else:
-                    self.snapshots.verify(existing["snapshot_path"], digest)
+                self._verify_existing_snapshot(existing, digest, page, payload)
 
-            self.connection.execute(
-                """
-                INSERT INTO source_pages(
-                    provider, language, external_page_id, title, canonical_url,
-                    extract, revision_id, fetched_at, last_run_id, wikidata_id,
-                    is_redirect, is_disambiguation
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(provider, language, external_page_id) DO UPDATE SET
-                    title=excluded.title, canonical_url=excluded.canonical_url,
-                    extract=excluded.extract, revision_id=excluded.revision_id,
-                    fetched_at=excluded.fetched_at, last_run_id=excluded.last_run_id,
-                    wikidata_id=excluded.wikidata_id,
-                    is_redirect=excluded.is_redirect,
-                    is_disambiguation=excluded.is_disambiguation
-                """,
-                (
-                    provider,
-                    language,
-                    page.page_id,
-                    page.title,
-                    page.canonical_url,
-                    page.extract,
-                    page.revision_id,
-                    fetched_at,
-                    run_id,
-                    page.wikidata_id,
-                    int(page.is_redirect),
-                    int(page.is_disambiguation),
-                ),
-            )
-            source_page_id = self.connection.execute(
-                """
-                SELECT id FROM source_pages
-                WHERE provider=? AND language=? AND external_page_id=?
-                """,
-                (provider, language, page.page_id),
-            ).fetchone()["id"]
+            source_page_id = self._upsert_source_page(run_id, provider, language, page, fetched_at)
 
             if existing is None:
-                snapshot_path, digest = self.snapshots.write(
-                    provider,
-                    language,
-                    page.page_id,
-                    page.revision_id,
-                    content,
-                )
-                cursor = self.connection.execute(
-                    """
-                    INSERT INTO source_revisions(
-                        source_page_id, external_revision_id, snapshot_path,
-                        content_sha256, fetched_at
-                    ) VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (source_page_id, page.revision_id, snapshot_path, digest, fetched_at),
-                )
-                source_revision_id = int(cursor.lastrowid)
+                source_revision_id = self._write_new_revision(provider, language, page, content, digest, source_page_id, fetched_at)
             else:
                 source_revision_id = int(existing["id"])
 
@@ -1089,30 +1125,7 @@ class Repository:
                 (run_id, source_revision_id),
             )
             if create_catalog_entries:
-                self.connection.execute(
-                    """
-                INSERT INTO catalog_entries(
-                    source_page_id, source_revision_id, analyzed_wikidata_id,
-                    state, rejection_reason, type_check_id, classifier_version,
-                    classified_at
-                ) VALUES (?, ?, ?, 'candidate', NULL, NULL, 'pending', ?)
-                ON CONFLICT(source_page_id) DO UPDATE SET
-                    source_revision_id=excluded.source_revision_id,
-                    analyzed_wikidata_id=excluded.analyzed_wikidata_id,
-                    state='candidate', rejection_reason=NULL, type_check_id=NULL,
-                    classifier_version='pending', classified_at=excluded.classified_at
-                WHERE catalog_entries.source_revision_id != excluded.source_revision_id
-                   OR catalog_entries.analyzed_wikidata_id IS NOT excluded.analyzed_wikidata_id
-                   OR ?
-                    """,
-                    (
-                        source_page_id,
-                        source_revision_id,
-                        page.wikidata_id,
-                        fetched_at,
-                        int(classification_input_changed),
-                    ),
-                )
+                self._upsert_catalog_entry(source_page_id, source_revision_id, page, fetched_at, classification_input_changed)
             saved += 1
         return saved
 
