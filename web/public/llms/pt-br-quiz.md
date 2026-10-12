@@ -1,10 +1,9 @@
-# Você conhece a história do K-pop?
+# Quiz de K-pop online grátis em português
 
 Canonical: https://kpopquiz.online/pt-br/
 Também em inglês: https://kpopquiz.online/en/
 
-Perguntas sobre grupos, integrantes e datas. Cada resposta mostra a
-fonte.
+Teste o que você sabe sobre grupos, integrantes e datas. Responda 10 perguntas sem cadastro e confira a fonte de cada resposta.
 
 10 perguntas · múltipla escolha. 10 perguntas de múltipla escolha com
 fontes verificáveis a cada resposta.
