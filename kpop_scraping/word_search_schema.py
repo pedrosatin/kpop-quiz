@@ -27,7 +27,9 @@ WORD_SEARCH_REQUIRED_ROOT_FIELDS = frozenset(
 )
 
 WORD_SEARCH_OPTIONAL_ROOT_FIELDS = frozenset({"theme_description"})
-WORD_SEARCH_ALL_ROOT_FIELDS = WORD_SEARCH_REQUIRED_ROOT_FIELDS | WORD_SEARCH_OPTIONAL_ROOT_FIELDS
+WORD_SEARCH_ALL_ROOT_FIELDS = (
+    WORD_SEARCH_REQUIRED_ROOT_FIELDS | WORD_SEARCH_OPTIONAL_ROOT_FIELDS
+)
 
 DIMENSIONS_FIELDS = frozenset({"rows", "cols"})
 
@@ -104,7 +106,9 @@ def _require_date(value: Any, field_name: str) -> None:
 
 def _require_bilingual_text(value: Any, field_name: str) -> None:
     _require(isinstance(value, dict), f"{field_name} must be an object")
-    _require(set(value.keys()) == BILINGUAL_FIELDS, f"{field_name} fields must be pt-BR and en")
+    _require(
+        value.keys() == BILINGUAL_FIELDS, f"{field_name} fields must be pt-BR and en"
+    )
     for lang in ("pt-BR", "en"):
         _require(
             isinstance(value[lang], str) and len(value[lang]) > 0,
@@ -115,7 +119,7 @@ def _require_bilingual_text(value: Any, field_name: str) -> None:
 def _validate_evidence(evidence: Any, context: str) -> None:
     _require(isinstance(evidence, dict), f"{context} evidence item must be an object")
     _require(
-        set(evidence.keys()) == EVIDENCE_FIELDS,
+        evidence.keys() == EVIDENCE_FIELDS,
         f"{context} evidence item contains unexpected or missing fields",
     )
     _require(
@@ -178,7 +182,9 @@ def extract_word_coordinates(
     step_c = 0 if dc == 0 else (1 if dc > 0 else -1)
     num_steps = max(abs(dr), abs(dc))
 
-    return [(start_row + i * step_r, start_col + i * step_c) for i in range(num_steps + 1)]
+    return [
+        (start_row + i * step_r, start_col + i * step_c) for i in range(num_steps + 1)
+    ]
 
 
 def check_word_in_grid(
@@ -197,12 +203,16 @@ def check_word_in_grid(
 
     for r, c in coords:
         if not (0 <= r < rows):
-            raise ValueError(f"Coordinate ({r}, {c}) row is out of grid bounds [0, {rows})")
+            raise ValueError(
+                f"Coordinate ({r}, {c}) row is out of grid bounds [0, {rows})"
+            )
         if not isinstance(grid[r], list):
             raise ValueError(f"Grid row {r} must be a list")
         cols = len(grid[r])
         if not (0 <= c < cols):
-            raise ValueError(f"Coordinate ({r}, {c}) col is out of grid bounds [0, {cols})")
+            raise ValueError(
+                f"Coordinate ({r}, {c}) col is out of grid bounds [0, {cols})"
+            )
         cell = grid[r][c]
         if not isinstance(cell, str):
             raise ValueError(f"Grid cell at ({r}, {c}) must be a string")
@@ -227,20 +237,20 @@ def generate_word_search_share_summary(
     return summary
 
 
-def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
-    """Validate that payload conforms to kpop-word-search-puzzle-v1 specification.
-
-    Raises ValueError when the payload is invalid.
-    """
+def _validate_root_fields(payload: dict[str, Any]) -> None:
     _require(isinstance(payload, dict), "root payload must be an object")
-    _require(
-        WORD_SEARCH_REQUIRED_ROOT_FIELDS.issubset(set(payload.keys())),
-        f"root payload is missing required fields: {sorted(WORD_SEARCH_REQUIRED_ROOT_FIELDS - set(payload.keys()))}",
-    )
-    _require(
-        set(payload.keys()).issubset(WORD_SEARCH_ALL_ROOT_FIELDS),
-        f"root payload has unexpected fields: {sorted(set(payload.keys()) - WORD_SEARCH_ALL_ROOT_FIELDS)}",
-    )
+    payload_keys = payload.keys()
+    missing_root = WORD_SEARCH_REQUIRED_ROOT_FIELDS - payload_keys
+    if missing_root:
+        _require(
+            False, f"root payload is missing required fields: {sorted(missing_root)}"
+        )
+
+    unexpected_root = payload_keys - WORD_SEARCH_ALL_ROOT_FIELDS
+    if unexpected_root:
+        _require(
+            False, f"root payload has unexpected fields: {sorted(unexpected_root)}"
+        )
     _require(
         payload["schema_version"] == WORD_SEARCH_SCHEMA_VERSION,
         f"schema_version must be {WORD_SEARCH_SCHEMA_VERSION}",
@@ -249,16 +259,18 @@ def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
     _require_hash(payload["dataset_version"], "dataset_version")
     _require_date(payload["reference_date"], "reference_date")
 
-    # Theme
+
+def _validate_theme(payload: dict[str, Any]) -> None:
     _require_bilingual_text(payload["theme"], "theme")
     if "theme_description" in payload:
         _require_bilingual_text(payload["theme_description"], "theme_description")
 
-    # Dimensions
+
+def _validate_dimensions(payload: dict[str, Any]) -> tuple[int, int]:
     dimensions = payload["dimensions"]
     _require(isinstance(dimensions, dict), "dimensions must be an object")
     _require(
-        set(dimensions.keys()) == DIMENSIONS_FIELDS,
+        dimensions.keys() == DIMENSIONS_FIELDS,
         f"dimensions fields must be rows and cols, got {sorted(dimensions.keys())}",
     )
     rows = dimensions["rows"]
@@ -271,9 +283,10 @@ def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
         type(cols) is int and 8 <= cols <= 16,
         "dimensions.cols must be an integer between 8 and 16",
     )
+    return rows, cols
 
-    # Grid
-    grid = payload["grid"]
+
+def _validate_grid(grid: Any, rows: int, cols: int) -> None:
     _require(isinstance(grid, list), "grid must be a 2D array")
     _require(
         len(grid) == rows,
@@ -291,8 +304,107 @@ def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
                 f"grid[{r_idx}][{c_idx}] ('{cell}') must be a single uppercase ASCII character ^[A-Z]$",
             )
 
-    # Words
-    words = payload["words"]
+
+def _validate_word_entry(
+    word_obj: Any,
+    idx: int,
+    rows: int,
+    cols: int,
+    grid: list[list[str]],
+    seen_ids: set[str],
+    seen_words: set[str],
+) -> None:
+    context = f"words[{idx}]"
+    _require(isinstance(word_obj, dict), f"{context} must be an object")
+    word_keys = word_obj.keys()
+    missing = WORD_ENTRY_REQUIRED_FIELDS - word_keys
+    if missing:
+        _require(False, f"{context} is missing required fields: {sorted(missing)}")
+
+    unexpected = word_keys - WORD_ENTRY_ALL_FIELDS
+    if unexpected:
+        _require(
+            False, f"{context} contains unexpected fields: {sorted(unexpected)}"
+        )
+
+    # ID (QID)
+    qid = word_obj["id"]
+    _require_qid(qid, f"{context}.id")
+    _require(qid not in seen_ids, f"duplicate word id {qid} at {context}")
+    seen_ids.add(qid)
+
+    # Word string
+    word_str = word_obj["word"]
+    _require(
+        isinstance(word_str, str) and bool(_WORD_PATTERN.match(word_str)),
+        f"{context}.word ('{word_str}') must be an uppercase string matching ^[A-Z]{{3,16}}$",
+    )
+    _require(word_str not in seen_words, f"duplicate word '{word_str}' at {context}")
+    seen_words.add(word_str)
+
+    # Canonical name and labels
+    _require(
+        isinstance(word_obj["canonical_name"], str) and len(word_obj["canonical_name"]) > 0,
+        f"{context}.canonical_name must be a non-empty string",
+    )
+    _require_bilingual_text(word_obj["labels"], f"{context}.labels")
+    for lang in ("pt-BR", "en"):
+        label = word_obj["labels"][lang]
+        norm_label = normalize_word(label)
+        _require(
+            norm_label == word_str,
+            f"{context}.labels.{lang} ('{label}') normalizes to '{norm_label}', which does not match word '{word_str}'",
+        )
+
+    # Coordinates
+    start_row = word_obj["start_row"]
+    start_col = word_obj["start_col"]
+    end_row = word_obj["end_row"]
+    end_col = word_obj["end_col"]
+
+    for coord_name, coord_val, limit, dim_name in [
+        ("start_row", start_row, rows, "rows"),
+        ("start_col", start_col, cols, "cols"),
+        ("end_row", end_row, rows, "rows"),
+        ("end_col", end_col, cols, "cols"),
+    ]:
+        _require(
+            type(coord_val) is int and 0 <= coord_val < limit,
+            f"{context}.{coord_name} ({coord_val}) must be an integer in range [0, dimensions.{dim_name}) ([0, {limit}))",
+        )
+
+    # Coordinates straight line validation
+    try:
+        coords = extract_word_coordinates(start_row, start_col, end_row, end_col)
+    except ValueError as exc:
+        raise ValueError(f"Invalid word search puzzle schema: {context} coordinates error: {exc}") from exc
+
+    # Length validation
+    _require(
+        len(coords) == len(word_str),
+        f"{context}.word length ({len(word_str)}) does not match coordinate segment length ({len(coords)})",
+    )
+
+    # Letters alignment with grid
+    grid_letters = "".join(grid[r][c] for r, c in coords)
+    _require(
+        grid_letters == word_str,
+        f"{context}.word ('{word_str}') does not match grid letters ('{grid_letters}') along path",
+    )
+
+    # Clue (optional)
+    if "clue" in word_obj:
+        _require_bilingual_text(word_obj["clue"], f"{context}.clue")
+
+    # Evidence
+    evidence = word_obj["evidence"]
+    _require(isinstance(evidence, list), f"{context}.evidence must be an array")
+    _require(len(evidence) >= 1, f"{context}.evidence must contain at least one item")
+    for ev_idx, ev in enumerate(evidence):
+        _validate_evidence(ev, f"{context}.evidence[{ev_idx}]")
+
+
+def _validate_words(words: Any, rows: int, cols: int, grid: list[list[str]]) -> None:
     _require(isinstance(words, list), "words must be an array")
     _require(
         3 <= len(words) <= 20,
@@ -303,92 +415,22 @@ def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
     seen_words: set[str] = set()
 
     for idx, word_obj in enumerate(words):
-        context = f"words[{idx}]"
-        _require(isinstance(word_obj, dict), f"{context} must be an object")
-        _require(
-            WORD_ENTRY_REQUIRED_FIELDS.issubset(set(word_obj.keys())),
-            f"{context} is missing required fields: {sorted(WORD_ENTRY_REQUIRED_FIELDS - set(word_obj.keys()))}",
-        )
-        _require(
-            set(word_obj.keys()).issubset(WORD_ENTRY_ALL_FIELDS),
-            f"{context} contains unexpected fields: {sorted(set(word_obj.keys()) - WORD_ENTRY_ALL_FIELDS)}",
-        )
+        _validate_word_entry(word_obj, idx, rows, cols, grid, seen_ids, seen_words)
 
-        # ID (QID)
-        qid = word_obj["id"]
-        _require_qid(qid, f"{context}.id")
-        _require(qid not in seen_ids, f"duplicate word id {qid} at {context}")
-        seen_ids.add(qid)
 
-        # Word string
-        word_str = word_obj["word"]
-        _require(
-            isinstance(word_str, str) and bool(_WORD_PATTERN.match(word_str)),
-            f"{context}.word ('{word_str}') must be an uppercase string matching ^[A-Z]{{3,16}}$",
-        )
-        _require(word_str not in seen_words, f"duplicate word '{word_str}' at {context}")
-        seen_words.add(word_str)
+def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
+    """Validate that payload conforms to kpop-word-search-puzzle-v1 specification.
 
-        # Canonical name and labels
-        _require(
-            isinstance(word_obj["canonical_name"], str) and len(word_obj["canonical_name"]) > 0,
-            f"{context}.canonical_name must be a non-empty string",
-        )
-        _require_bilingual_text(word_obj["labels"], f"{context}.labels")
-        for lang in ("pt-BR", "en"):
-            label = word_obj["labels"][lang]
-            norm_label = normalize_word(label)
-            _require(
-                norm_label == word_str,
-                f"{context}.labels.{lang} ('{label}') normalizes to '{norm_label}', which does not match word '{word_str}'",
-            )
+    Raises ValueError when the payload is invalid.
+    """
+    _validate_root_fields(payload)
+    _validate_theme(payload)
+    rows, cols = _validate_dimensions(payload)
+    grid = payload.get("grid")
+    _validate_grid(grid, rows, cols)
+    _validate_words(payload.get("words"), rows, cols, grid)
 
-        # Coordinates
-        start_row = word_obj["start_row"]
-        start_col = word_obj["start_col"]
-        end_row = word_obj["end_row"]
-        end_col = word_obj["end_col"]
 
-        for coord_name, coord_val, limit, dim_name in [
-            ("start_row", start_row, rows, "rows"),
-            ("start_col", start_col, cols, "cols"),
-            ("end_row", end_row, rows, "rows"),
-            ("end_col", end_col, cols, "cols"),
-        ]:
-            _require(
-                type(coord_val) is int and 0 <= coord_val < limit,
-                f"{context}.{coord_name} ({coord_val}) must be an integer in range [0, dimensions.{dim_name}) ([0, {limit}))",
-            )
-
-        # Coordinates straight line validation
-        try:
-            coords = extract_word_coordinates(start_row, start_col, end_row, end_col)
-        except ValueError as exc:
-            raise ValueError(f"Invalid word search puzzle schema: {context} coordinates error: {exc}") from exc
-
-        # Length validation
-        _require(
-            len(coords) == len(word_str),
-            f"{context}.word length ({len(word_str)}) does not match coordinate segment length ({len(coords)})",
-        )
-
-        # Letters alignment with grid
-        grid_letters = "".join(grid[r][c] for r, c in coords)
-        _require(
-            grid_letters == word_str,
-            f"{context}.word ('{word_str}') does not match grid letters ('{grid_letters}') along path",
-        )
-
-        # Clue (optional)
-        if "clue" in word_obj:
-            _require_bilingual_text(word_obj["clue"], f"{context}.clue")
-
-        # Evidence
-        evidence = word_obj["evidence"]
-        _require(isinstance(evidence, list), f"{context}.evidence must be an array")
-        _require(len(evidence) >= 1, f"{context}.evidence must contain at least one item")
-        for ev_idx, ev in enumerate(evidence):
-            _validate_evidence(ev, f"{context}.evidence[{ev_idx}]")
 
 
 def _clue_key(text: dict[str, str]) -> tuple[str, str]:
@@ -428,6 +470,8 @@ def validate_word_search_clues(payload: dict[str, Any]) -> None:
     )
 
 
-def write_word_search_puzzle_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
+def write_word_search_puzzle_atomic(
+    target_path: Path, payload: dict[str, Any]
+) -> bytes:
     """Validate and atomically write a word search puzzle JSON file."""
     return write_json_atomic(target_path, payload, validate_word_search_puzzle)

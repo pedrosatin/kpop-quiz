@@ -14,7 +14,6 @@ from .storage import Repository, SnapshotIntegrityError, canonical_json, utc_now
 from .validation import ACCEPTED, CONFLICT, REJECTED, STALE, SUPERSEDED, FactDecision
 from .wikidata import SUBJECT_PROFILE, EntityDocument
 
-
 SUBJECT_ENTITY_TYPES = frozenset({"group", "person", "release", "album"})
 
 
@@ -93,16 +92,14 @@ class FactStore:
         self.connection.commit()
 
     def accepted_groups(self, limit: int | None = None) -> list[CatalogGroup]:
-        rows = self.connection.execute(
-            """
+        rows = self.connection.execute("""
             SELECT ce.analyzed_wikidata_id AS wikidata_id, ce.source_page_id,
                    ce.source_revision_id, sp.title
             FROM catalog_entries ce
             JOIN source_pages sp ON sp.id = ce.source_page_id
             WHERE ce.state = 'accepted' AND ce.analyzed_wikidata_id IS NOT NULL
             ORDER BY sp.provider, sp.language, sp.external_page_id
-            """
-        ).fetchall()
+            """).fetchall()
         groups: dict[str, CatalogGroup] = {}
         for row in rows:
             groups.setdefault(
@@ -138,14 +135,22 @@ class FactStore:
         ).fetchone()
         if row is None:
             return None
-        content = self.repository.snapshots.read(row["snapshot_path"], row["content_sha256"])
+        content = self.repository.snapshots.read(
+            row["snapshot_path"], row["content_sha256"]
+        )
         extract = json.loads(content).get("extract")
         wikitext = ""
         if row["wikitext_path"] is not None:
             source = json.loads(
-                self.repository.snapshots.read(row["wikitext_path"], row["wikitext_sha256"])
+                self.repository.snapshots.read(
+                    row["wikitext_path"], row["wikitext_sha256"]
+                )
             )
-            wikitext = source.get("wikitext") if isinstance(source.get("wikitext"), str) else ""
+            wikitext = (
+                source.get("wikitext")
+                if isinstance(source.get("wikitext"), str)
+                else ""
+            )
         return WikipediaPage(
             source_revision_id=int(row["source_revision_id"]),
             language=row["language"],
@@ -167,9 +172,10 @@ class FactStore:
             return []
         rows = []
         for start in range(0, len(wanted), 500):
-            chunk = wanted[start:start + 500]
-            rows.extend(self.connection.execute(
-                f"""
+            chunk = wanted[start : start + 500]
+            rows.extend(
+                self.connection.execute(
+                    f"""
                 SELECT DISTINCT sr.id, sp.external_page_id, sr.external_revision_id
                 FROM catalog_entries ce
                 JOIN source_pages sp ON sp.id = ce.source_page_id
@@ -179,9 +185,12 @@ class FactStore:
                   AND sp.provider = 'wikipedia' AND sp.language = ?
                   AND ce.analyzed_wikidata_id IN ({",".join("?" * len(chunk))})
                 """,
-                (language, *chunk),
-            ).fetchall())
-        return sorted({(int(r[0]), int(r[1]), int(r[2])) for r in rows}, key=lambda r: r[2])
+                    (language, *chunk),
+                ).fetchall()
+            )
+        return sorted(
+            {(int(r[0]), int(r[1]), int(r[2])) for r in rows}, key=lambda r: r[2]
+        )
 
     def save_revision_wikitext(
         self,
@@ -354,7 +363,9 @@ class FactStore:
                     (stored_type, source_page_id, entity_id),
                 )
         if update_names:
-            self._replace_aliases(entity_id, snapshot_id, extract_aliases(document.payload))
+            self._replace_aliases(
+                entity_id, snapshot_id, extract_aliases(document.payload)
+            )
         return entity_id, stored_type
 
     def link_catalog_entity(
@@ -395,7 +406,9 @@ class FactStore:
         snapshot_id: int,
         aliases: Iterable[Alias],
     ) -> None:
-        self.connection.execute("DELETE FROM entity_aliases WHERE entity_id=?", (entity_id,))
+        self.connection.execute(
+            "DELETE FROM entity_aliases WHERE entity_id=?", (entity_id,)
+        )
         self.connection.executemany(
             """
             INSERT INTO entity_aliases(
@@ -415,7 +428,9 @@ class FactStore:
             ],
         )
 
-    def record_issue(self, run_id: int, wikidata_id: str, code: str, detail: str) -> None:
+    def record_issue(
+        self, run_id: int, wikidata_id: str, code: str, detail: str
+    ) -> None:
         self.connection.execute(
             """
             INSERT INTO fact_issues(fact_run_id, wikidata_id, issue_code, detail)
@@ -438,112 +453,145 @@ class FactStore:
         now = utc_now()
         current: list[str] = []
         for decision in decisions:
-            candidate = decision.candidate
-            statement = candidate.statement
-            current.append(statement.statement_id)
-            time = candidate.time
-            fact_id = self.connection.execute(
-                """
-                INSERT INTO facts(
-                    subject_entity_id, predicate, property_id, statement_id, rank,
-                    value_wikidata_id, value_entity_id, value_time, value_precision,
-                    value_calendar, value_raw_json, valid_from, valid_from_precision,
-                    valid_to, valid_to_precision, qualifiers_json, references_json,
-                    status, status_reason, quality_flags_json, snapshot_id,
-                    fact_run_id, extractor_version, extracted_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(statement_id) DO UPDATE SET
-                    subject_entity_id=excluded.subject_entity_id,
-                    predicate=excluded.predicate,
-                    property_id=excluded.property_id,
-                    rank=excluded.rank,
-                    value_wikidata_id=excluded.value_wikidata_id,
-                    value_entity_id=excluded.value_entity_id,
-                    value_time=excluded.value_time,
-                    value_precision=excluded.value_precision,
-                    value_calendar=excluded.value_calendar,
-                    value_raw_json=excluded.value_raw_json,
-                    valid_from=excluded.valid_from,
-                    valid_from_precision=excluded.valid_from_precision,
-                    valid_to=excluded.valid_to,
-                    valid_to_precision=excluded.valid_to_precision,
-                    qualifiers_json=excluded.qualifiers_json,
-                    references_json=excluded.references_json,
-                    status=excluded.status,
-                    status_reason=excluded.status_reason,
-                    quality_flags_json=excluded.quality_flags_json,
-                    snapshot_id=excluded.snapshot_id,
-                    fact_run_id=excluded.fact_run_id,
-                    extractor_version=excluded.extractor_version,
-                    extracted_at=excluded.extracted_at
-                RETURNING id
-                """,
-                (
-                    subject_entity_id,
-                    candidate.predicate,
-                    statement.property_id,
-                    statement.statement_id,
-                    statement.rank,
-                    candidate.value_id,
-                    entity_ids.get(candidate.value_id) if candidate.value_id else None,
-                    time.value if time else None,
-                    time.precision if time else None,
-                    time.calendar if time else None,
-                    _json(statement.raw_value),
-                    candidate.valid_from.value if candidate.valid_from else None,
-                    candidate.valid_from.precision if candidate.valid_from else None,
-                    candidate.valid_to.value if candidate.valid_to else None,
-                    candidate.valid_to.precision if candidate.valid_to else None,
-                    _json(statement.qualifiers),
-                    _json(
-                        [
-                            {
-                                "hash": reference.hash,
-                                "properties": list(reference.properties),
-                                "sources": {
-                                    key: classify_source(key) for key in reference.source_keys
-                                },
-                            }
-                            for reference in statement.references
-                        ]
-                    ),
-                    decision.status,
-                    decision.reason,
-                    _json(list(decision.flags)),
-                    snapshot_id,
-                    run_id,
-                    extractor_version,
-                    now,
-                ),
-            ).fetchone()["id"]
-            self.connection.execute("DELETE FROM fact_evidence WHERE fact_id=?", (fact_id,))
-            for item in decision.evidence:
-                wikidata = item.evidence_type == "wikidata_reference"
-                self.connection.execute(
-                    """
-                    INSERT INTO fact_evidence(
-                        fact_id, evidence_type, wikidata_snapshot_id, reference_hash,
-                        source_revision_id, source_key, locator, snippet
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(fact_id, evidence_type, locator) DO NOTHING
-                    """,
-                    (
-                        fact_id,
-                        item.evidence_type,
-                        snapshot_id if wikidata else None,
-                        item.reference_hash,
-                        item.source_revision_id,
-                        item.source_key,
-                        item.locator,
-                        item.snippet,
-                    ),
-                )
+            current.append(decision.candidate.statement.statement_id)
+            fact_id = self._upsert_fact(
+                run_id,
+                extractor_version,
+                subject_entity_id,
+                snapshot_id,
+                decision,
+                entity_ids,
+                now,
+            )
+            self._save_fact_evidence(fact_id, snapshot_id, decision)
+
         self._delete_removed_statements(subject_entity_id, current)
         self.connection.execute(
-            "UPDATE entities SET last_fact_run_id=? WHERE id=?", (run_id, subject_entity_id)
+            "UPDATE entities SET last_fact_run_id=? WHERE id=?",
+            (run_id, subject_entity_id),
         )
 
-    def _delete_removed_statements(self, subject_entity_id: int, current: Iterable[str]) -> None:
+    def _upsert_fact(
+        self,
+        run_id: int,
+        extractor_version: str,
+        subject_entity_id: int,
+        snapshot_id: int,
+        decision: FactDecision,
+        entity_ids: Mapping[str, int],
+        now: str,
+    ) -> int:
+        candidate = decision.candidate
+        statement = candidate.statement
+        time = candidate.time
+        return self.connection.execute(
+            """
+            INSERT INTO facts(
+                subject_entity_id, predicate, property_id, statement_id, rank,
+                value_wikidata_id, value_entity_id, value_time, value_precision,
+                value_calendar, value_raw_json, valid_from, valid_from_precision,
+                valid_to, valid_to_precision, qualifiers_json, references_json,
+                status, status_reason, quality_flags_json, snapshot_id,
+                fact_run_id, extractor_version, extracted_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(statement_id) DO UPDATE SET
+                subject_entity_id=excluded.subject_entity_id,
+                predicate=excluded.predicate,
+                property_id=excluded.property_id,
+                rank=excluded.rank,
+                value_wikidata_id=excluded.value_wikidata_id,
+                value_entity_id=excluded.value_entity_id,
+                value_time=excluded.value_time,
+                value_precision=excluded.value_precision,
+                value_calendar=excluded.value_calendar,
+                value_raw_json=excluded.value_raw_json,
+                valid_from=excluded.valid_from,
+                valid_from_precision=excluded.valid_from_precision,
+                valid_to=excluded.valid_to,
+                valid_to_precision=excluded.valid_to_precision,
+                qualifiers_json=excluded.qualifiers_json,
+                references_json=excluded.references_json,
+                status=excluded.status,
+                status_reason=excluded.status_reason,
+                quality_flags_json=excluded.quality_flags_json,
+                snapshot_id=excluded.snapshot_id,
+                fact_run_id=excluded.fact_run_id,
+                extractor_version=excluded.extractor_version,
+                extracted_at=excluded.extracted_at
+            RETURNING id
+            """,
+            (
+                subject_entity_id,
+                candidate.predicate,
+                statement.property_id,
+                statement.statement_id,
+                statement.rank,
+                candidate.value_id,
+                entity_ids.get(candidate.value_id) if candidate.value_id else None,
+                time.value if time else None,
+                time.precision if time else None,
+                time.calendar if time else None,
+                _json(statement.raw_value),
+                candidate.valid_from.value if candidate.valid_from else None,
+                candidate.valid_from.precision if candidate.valid_from else None,
+                candidate.valid_to.value if candidate.valid_to else None,
+                candidate.valid_to.precision if candidate.valid_to else None,
+                _json(statement.qualifiers),
+                _json(
+                    [
+                        {
+                            "hash": reference.hash,
+                            "properties": list(reference.properties),
+                            "sources": {
+                                key: classify_source(key)
+                                for key in reference.source_keys
+                            },
+                        }
+                        for reference in statement.references
+                    ]
+                ),
+                decision.status,
+                decision.reason,
+                _json(list(decision.flags)),
+                snapshot_id,
+                run_id,
+                extractor_version,
+                now,
+            ),
+        ).fetchone()["id"]
+
+    def _save_fact_evidence(
+        self,
+        fact_id: int,
+        snapshot_id: int,
+        decision: FactDecision,
+    ) -> None:
+        self.connection.execute("DELETE FROM fact_evidence WHERE fact_id=?", (fact_id,))
+        for item in decision.evidence:
+            wikidata = item.evidence_type == "wikidata_reference"
+            self.connection.execute(
+                """
+                INSERT INTO fact_evidence(
+                    fact_id, evidence_type, wikidata_snapshot_id, reference_hash,
+                    source_revision_id, source_key, locator, snippet
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(fact_id, evidence_type, locator) DO NOTHING
+                """,
+                (
+                    fact_id,
+                    item.evidence_type,
+                    snapshot_id if wikidata else None,
+                    item.reference_hash,
+                    item.source_revision_id,
+                    item.source_key,
+                    item.locator,
+                    item.snippet,
+                ),
+            )
+
+    def _delete_removed_statements(
+        self, subject_entity_id: int, current: Iterable[str]
+    ) -> None:
         keep = set(current)
         removed = [
             int(row["id"])
@@ -554,7 +602,9 @@ class FactStore:
             if row["statement_id"] not in keep
         ]
         for fact_id in removed:
-            self.connection.execute("DELETE FROM fact_evidence WHERE fact_id=?", (fact_id,))
+            self.connection.execute(
+                "DELETE FROM fact_evidence WHERE fact_id=?", (fact_id,)
+            )
             self.connection.execute("DELETE FROM facts WHERE id=?", (fact_id,))
 
     def mark_stale_facts(self, run_id: int) -> int:

@@ -11,7 +11,7 @@ from kpop_scraping.entities import (
     parse_time,
 )
 
-from .wikidata_fixture import SUNMI, SUNYE, TWICE, WONDER_GIRLS, load_fixture
+from tests.wikidata_fixture import SUNMI, SUNYE, TWICE, WONDER_GIRLS, load_fixture
 
 
 def time_value(time, precision, calendar=GREGORIAN_CALENDAR):

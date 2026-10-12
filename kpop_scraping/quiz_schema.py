@@ -295,6 +295,23 @@ def _validate_question(question: Any) -> None:
         QUESTION_REQUIRED_FIELDS <= question_fields <= QUESTION_FIELDS,
         "question fields",
     )
+
+    _validate_question_metadata(question)
+    fact_base_ids = _validate_question_fact_bases(question)
+    _validate_question_clues(question, fact_base_ids)
+
+    _require(isinstance(question.get("prompt"), str) and question["prompt"], "prompt")
+
+    option_ids = _validate_question_options(question)
+    _require(question.get("answer_option_id") in option_ids, "answer_option_id")
+
+    _require(isinstance(question.get("explanation"), str) and question["explanation"], "explanation")
+    _require_date(question.get("reference_date"), "reference_date")
+
+    _validate_question_evidence(question, fact_base_ids)
+
+
+def _validate_question_metadata(question: dict[str, Any]) -> None:
     media = question.get("media")
     if media is not None:
         _require(isinstance(media, dict), "question.media")
@@ -330,6 +347,9 @@ def _validate_question(question: Any) -> None:
         relevance is None or type(relevance) is int and 0 <= relevance <= 10_000,
         "group_relevance_score",
     )
+
+
+def _validate_question_fact_bases(question: dict[str, Any]) -> list[str]:
     fact_base_ids = question.get("fact_base_ids")
     _require(
         isinstance(fact_base_ids, list)
@@ -338,6 +358,10 @@ def _validate_question(question: Any) -> None:
         and all(isinstance(fact_id, str) and fact_id for fact_id in fact_base_ids),
         "fact_base_ids",
     )
+    return fact_base_ids
+
+
+def _validate_question_clues(question: dict[str, Any], fact_base_ids: list[str]) -> None:
     clues = question.get("clues_available")
     _require(isinstance(clues, list), "clues_available")
     clue_ids: set[str] = set()
@@ -361,7 +385,9 @@ def _validate_question(question: Any) -> None:
         question["play_mode"] != "expert" or not clues,
         "expert mode has no clues",
     )
-    _require(isinstance(question.get("prompt"), str) and question["prompt"], "prompt")
+
+
+def _validate_question_options(question: dict[str, Any]) -> list[str]:
     options = question.get("options")
     _require(isinstance(options, list) and len(options) == 4, "options")
     _require(
@@ -399,9 +425,10 @@ def _validate_question(question: Any) -> None:
         },
         "option value types",
     )
-    _require(question.get("answer_option_id") in option_ids, "answer_option_id")
-    _require(isinstance(question.get("explanation"), str) and question["explanation"], "explanation")
-    _require_date(question.get("reference_date"), "reference_date")
+    return option_ids
+
+
+def _validate_question_evidence(question: dict[str, Any], fact_base_ids: list[str]) -> None:
     evidence = question.get("evidence")
     _require(isinstance(evidence, list) and evidence, "evidence")
     evidenced_fact_ids: set[str] = set()
