@@ -272,4 +272,4 @@ npx playwright test code-pilot crossword-pilot pilot-visual-a11y --project=firef
 PILOT_EVIDENCE_DIR=/tmp/kpop-pilot-screenshots npm run test:e2e:ci -- --grep 'layout and accessible controls|percent text reflow|keyboard completion|feedback, keyboard|unavailable artifact' --retries=0
 ```
 
-Run browser suites sequentially when sharing their default output directory. The local preview uses `--ignore-lock` to stay in the foreground so Playwright can start and stop its server.
+Run browser suites sequentially when sharing their default output directory. The local preview uses `--ignore-lock` to stay in the foreground so Playwright can start and stop its server. The readiness URL preserves the path in `BASE_URL`, including a staging subdirectory.
