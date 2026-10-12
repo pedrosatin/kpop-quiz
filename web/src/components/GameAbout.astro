@@ -2,6 +2,8 @@
 import type { Locale } from "../lib/quiz-types";
 import type { GameAboutKey } from "../i18n/game-about";
 import { getMessages } from "../i18n/catalog";
+import type { SeoRouteKey } from "../i18n/catalog";
+import { SEO_ROUTES } from "../lib/seo-routes";
 
 interface Props {
   locale: Locale;
@@ -11,9 +13,21 @@ interface Props {
 // Static text under the game island. It ships in the HTML, so crawlers and
 // readers get the rules, the sources and the FAQ before any JSON loads.
 const { locale, game } = Astro.props;
-const { about } = getMessages(locale);
+const { about, overview } = getMessages(locale);
 const copy = about.games[game];
 const id = (suffix: string) => `game-about-${suffix}`;
+const relatedGames = {
+  grid: ["connections", "quiz"],
+  connections: ["grid", "nameGuess"],
+  nameGuess: ["wordSearch", "connections"],
+  wordSearch: ["nameGuess", "connections"],
+  mapPilot: ["timeline", "quiz"],
+  timeline: ["mapPilot", "quiz"],
+} as const satisfies Record<GameAboutKey, readonly SeoRouteKey[]>;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const routes = relatedGames[game].map((key) =>
+  SEO_ROUTES.find((route) => route.key === key && route.locale === locale)!
+);
 ---
 <div class="game-about" data-testid="game-about">
   <section aria-labelledby={id("play")}>
@@ -34,3 +48,14 @@ const id = (suffix: string) => `game-about-${suffix}`;
     ))}
   </section>
 </div>
+<section class="platform-overview" aria-labelledby="related-games-title">
+  <h2 id="related-games-title">{locale === "pt-BR" ? "Outros jogos de K-pop para experimentar" : "More K-pop games to try"}</h2>
+  <div class="platform-modes-grid">
+    {routes.map((route) => (
+      <div class="platform-mode-item">
+        <h3><a href={`${base}${route.path}`}>{overview.games[route.key].title}</a></h3>
+        <p>{overview.games[route.key].description}</p>
+      </div>
+    ))}
+  </div>
+</section>
