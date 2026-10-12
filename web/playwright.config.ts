@@ -72,7 +72,8 @@ export default defineConfig({
   ...(localTarget
     ? {
         webServer: {
-          command: `npx astro preview --host ${localTarget.host} --port ${localTarget.port}`,
+          // Keep the server in the foreground so Playwright owns its lifetime.
+          command: `npx astro preview --ignore-lock --host ${localTarget.host} --port ${localTarget.port}`,
           url: localTarget.url,
           reuseExistingServer: false,
           timeout: 120_000,
