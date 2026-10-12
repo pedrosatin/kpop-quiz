@@ -78,9 +78,11 @@ def load_accepted_groups(database: Path, limit: int | None) -> list[dict[str, An
               AND sp.provider='wikipedia' AND sp.language='en'
             ORDER BY e.wikidata_id
         """
+        params = []
         if limit is not None:
-            query += f" LIMIT {int(limit)}"
-        return [dict(row) for row in connection.execute(query)]
+            query += " LIMIT ?"
+            params.append(int(limit))
+        return [dict(row) for row in connection.execute(query, params)]
     finally:
         connection.close()
 
