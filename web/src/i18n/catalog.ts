@@ -89,6 +89,10 @@ export interface Messages {
     intro: string;
     modesTitle: string;
     modesBody: string;
+    games: Record<SeoRouteKey, { title: string; description: string }>;
+    quizTitle: string;
+    quizBody: string;
+    settingsBody: string;
     recordsTitle: string;
     recordsBody: string;
   };
@@ -307,32 +311,32 @@ const catalogs: Record<Locale, Messages> = {
   "pt-BR": {
     meta: {
       quiz: {
-        title: "Quiz de K-pop: grupos, integrantes e datas",
-        description: "10 perguntas de múltipla escolha sobre a história do K-pop. Cada resposta mostra a fonte consultada.",
+        title: "Quiz de K-pop online grátis em português",
+        description: "Jogue um quiz de K-pop online grátis em português: 10 perguntas com fontes, desafio diário e outros jogos. Sem cadastro.",
       },
       grid: {
-        title: "Grade de interseções: quiz 3x3 de K-pop",
-        description: "Ache um grupo de K-pop para cada cruzamento de agência, integrantes e estreia. São 9 casas e 9 palpites.",
+        title: "K-pop Grid: grade de interseções 3x3",
+        description: "Jogue K-pop Grid: preencha 9 casas com grupos que combinem os critérios de cada linha e coluna, como agência, formação e integrantes.",
       },
       connections: {
-        title: "Conexões: separe 16 nomes do K-pop",
-        description: "Separe 16 nomes do K-pop em 4 categorias, como agência, formação ou marcos da carreira.",
+        title: "Conexões de K-pop: descubra os 4 grupos",
+        description: "Jogue Conexões de K-pop e separe 16 nomes em 4 categorias por agência, década de formação ou integrantes. Você pode errar 4 vezes.",
       },
       nameGuess: {
         title: "Wordle de K-pop: adivinhe o artista ou grupo",
         description: "Um Wordle de K-pop por dia. Descubra o artista ou grupo em 6 palpites, e as cores mostram quais letras você acertou.",
       },
       wordSearch: {
-        title: "Caça-palavras de K-pop: ache os nomes",
-        description: "Encontre nomes do K-pop escondidos na grade de letras, em 8 direções. Cada nome tem fonte.",
+        title: "Caça-palavras de K-pop online grátis",
+        description: "Jogue caça-palavras de K-pop online: encontre nomes de grupos e integrantes na horizontal, vertical e diagonal. Confira as fontes de cada nome.",
       },
       mapPilot: {
-        title: "Quiz de mapa K-pop: turnê DEADLINE",
-        description: "Ache no mapa o país de cada show da turnê DEADLINE de BLACKPINK. São 10 datas por rodada, cada uma com link para a agenda oficial.",
+        title: "BLACKPINK: quiz de mapa da turnê DEADLINE",
+        description: "Teste seus conhecimentos sobre a turnê DEADLINE de BLACKPINK. Localize no mapa os países de 10 datas e confira a agenda oficial em cada resposta.",
       },
       timeline: {
-        title: "Linha do Tempo do K-pop: ordene os fatos",
-        description: "Ordene os acontecimentos da história do K-pop do mais antigo para o mais recente. Cada fato aponta para uma fonte citável.",
+        title: "Linha do tempo do K-pop: jogo de datas",
+        description: "Coloque 5 acontecimentos do K-pop em ordem cronológica no desafio diário. Confira as datas de formação dos grupos e nascimento dos artistas.",
       },
     },
     about: gameAbout["pt-BR"],
@@ -348,19 +352,29 @@ const catalogs: Record<Locale, Messages> = {
       notFound: "Pular para o conteúdo",
     },
     overview: {
-      title: "Sobre o K-pop Quiz",
+      title: "Jogos de K-pop para testar seus conhecimentos",
       intro:
-        "O K-pop Quiz reúne desafios diários sobre música pop coreana. A base cobre grupos, solistas e lançamentos de diferentes gerações. As perguntas e pistas apontam para registros abertos do Wikidata e da Wikipedia.",
-      modesTitle: "Sete modalidades diárias",
-      modesBody:
-        "Os jogos incluem o Quiz de múltipla escolha, a Grade de Interseções, o agrupamento em Conexões, a adivinhação de nomes, o Caça-palavras, o Mapa de origens e a Linha do Tempo.",
-      recordsTitle: "Fatos e fontes verificados",
-      recordsBody:
-        "Cada resposta identifica a agência, os integrantes, as datas de estreia e os links de referência. O site não exibe anúncios e não exige cadastro. O progresso e as estatísticas diárias ficam salvos no armazenamento local do navegador.",
+        "Jogue grátis no navegador, em português ou inglês, sem cadastro. Escolha perguntas de múltipla escolha, desafios de palavras, uma grade de grupos ou jogos de datas e lugares.",
+      modesTitle: "Escolha seu jogo de K-pop",
+      modesBody: "Cada jogo tem regras próprias. Veja qual desafio você quer jogar:",
+      games: {
+        quiz: { title: "Quiz de K-pop", description: "Responda 10 perguntas de múltipla escolha sobre grupos, integrantes e datas, com a fonte de cada resposta." },
+        grid: { title: "Grade de interseções de K-pop", description: "Encontre grupos que atendam às regras de cada linha e coluna, como agência, estreia e número de integrantes. São 9 casas e 9 palpites." },
+        connections: { title: "Conexões de K-pop", description: "Separe 16 nomes em 4 categorias de 4. Descubra o que os nomes têm em comum antes de cometer 4 erros." },
+        nameGuess: { title: "Wordle de K-pop", description: "Descubra o artista ou grupo do dia em até 6 palpites. As cores indicam quais letras estão no nome e na posição certa." },
+        wordSearch: { title: "Caça-palavras de K-pop", description: "Procure nomes de K-pop na horizontal, vertical ou diagonal. Se precisar de ajuda, revele a lista de palavras." },
+        mapPilot: { title: "Mapa da turnê BLACKPINK", description: "Encontre os países de 10 datas da turnê DEADLINE no mapa. Confira a agenda oficial nas fontes de cada resposta." },
+        timeline: { title: "Linha do tempo do K-pop", description: "Coloque acontecimentos do K-pop em ordem cronológica. Depois de conferir a ordem, veja as datas e fontes dos fatos." },
+      },
+      quizTitle: "Como funciona o quiz de 10 perguntas",
+      quizBody: "Escolha uma alternativa por pergunta e confirme a resposta. Após responder, confira a explicação e a fonte, mesmo quando errar. Ao terminar, veja sua pontuação e revise as respostas.",
+      settingsBody: "No Quiz geral, você pode filtrar pela década de formação dos grupos. O Quiz do dia oferece as perguntas da rodada diária. Escolha Assistido para receber pistas, Padrão para abrir pistas com custo em pontos ou Especialista para jogar sem pistas. O cronômetro opcional dá 20 segundos por pergunta.",
+      recordsTitle: "Fontes e progresso no navegador",
+      recordsBody: "As perguntas do quiz apontam para revisões da Wikipedia ou do Wikidata, com o local do fato na fonte. O jogo de mapa usa a agenda oficial da turnê BLACKPINK e referências do MusicBrainz. As estatísticas e preferências ficam salvas neste navegador; limpar seus dados locais apaga esses registros.",
     },
     eyebrow: "10 perguntas · múltipla escolha",
-    title: "Você conhece a história do K-pop?",
-    intro: "Perguntas sobre grupos, integrantes e datas. Cada resposta mostra a fonte.",
+    title: "Quiz de K-pop online grátis em português",
+    intro: "Teste o que você sabe sobre grupos, integrantes e datas. Responda 10 perguntas sem cadastro e confira a fonte de cada resposta.",
     languageLabel: "Idioma",
     languageName: "English",
     homeLabel: "K-pop Quiz, página inicial",
@@ -679,32 +693,32 @@ const catalogs: Record<Locale, Messages> = {
   en: {
     meta: {
       quiz: {
-        title: "K-pop Quiz: groups, members and dates",
-        description: "10 multiple-choice questions on K-pop history. Every answer shows the source it came from.",
+        title: "Free online K-pop quiz and daily games",
+        description: "Play a free online K-pop quiz with 10 questions and sources for every answer. Try the daily challenge and other games. No account needed.",
       },
       grid: {
-        title: "Intersection grid: a 3x3 K-pop quiz",
-        description: "Find a K-pop group for each crossing of agency, members and debut. 9 squares, 9 guesses.",
+        title: "K-pop Grid: daily 3x3 group puzzle",
+        description: "Play K-pop Grid: fill 9 squares with groups matching each row and column, such as agency, formation decade and member count. You have 9 guesses.",
       },
       connections: {
-        title: "Connections: sort 16 K-pop names",
-        description: "Sort 16 K-pop names into 4 categories, such as agency, lineup or career milestones.",
+        title: "K-pop Connections: find the 4 groups",
+        description: "Play K-pop Connections: sort 16 names into 4 categories by agency, formation decade or member count. Solve the puzzle before making 4 mistakes.",
       },
       nameGuess: {
         title: "K-pop Wordle: guess today's artist or group",
         description: "A daily K-pop Wordle. Find today's artist or group in 6 guesses, with colors showing which letters you got right.",
       },
       wordSearch: {
-        title: "K-pop word search: find the names",
-        description: "Find K-pop names hidden in the letter grid, in 8 directions. Every name has a source.",
+        title: "K-pop Word Search: free online puzzle",
+        description: "Play a free K-pop word search online. Find groups and members hidden across, down and diagonally, then check the source behind each name.",
       },
       mapPilot: {
-        title: "K-pop Map Quiz: DEADLINE tour",
-        description: "Find on the map the country of each show on BLACKPINK's DEADLINE tour. 10 dates per round, each linked to the official schedule.",
+        title: "BLACKPINK DEADLINE tour map quiz",
+        description: "Test your BLACKPINK DEADLINE tour knowledge. Locate the countries for 10 tour dates on the map and check the official schedule for each answer.",
       },
       timeline: {
-        title: "K-pop Timeline: order events and debuts",
-        description: "Order events from K-pop history from earliest to latest. Every fact cites a verifiable source.",
+        title: "K-pop Timeline: daily history puzzle",
+        description: "Put 5 K-pop events in chronological order in the daily timeline puzzle. Check group formation dates, artist birthdays and sources after playing.",
       },
     },
     about: gameAbout.en,
@@ -720,19 +734,28 @@ const catalogs: Record<Locale, Messages> = {
       notFound: "Skip to content",
     },
     overview: {
-      title: "About K-pop Quiz",
-      intro:
-        "K-pop Quiz is a daily puzzle site focused on Korean popular music. The question bank covers idol groups, soloists, and releases across multiple generations. Answers link directly to open records on Wikidata and Wikipedia.",
-      modesTitle: "Seven daily game modes",
-      modesBody:
-        "Games include the multiple-choice Quiz, Intersection Grid, Connections, Name Guess, Word Search, Map, and Timeline.",
-      recordsTitle: "Verified sources and privacy",
-      recordsBody:
-        "Questions identify agencies, member lineups, debut dates, and reference sources. The site contains no ads and requires no account. Streaks and game statistics are stored locally in your browser.",
+      title: "K-pop games to test your knowledge",
+      intro: "Play free in your browser, in English or Portuguese, with no account needed. Choose multiple-choice questions, word puzzles, a group grid or games about dates and places.",
+      modesTitle: "Choose your K-pop game",
+      modesBody: "Each game has its own rules. Pick the challenge you want to play:",
+      games: {
+        quiz: { title: "K-pop quiz", description: "Answer 10 multiple-choice questions about groups, members and dates, with a source for every answer." },
+        grid: { title: "K-pop Grid", description: "Find groups that match each row and column rule, such as agency, debut and member count. You have 9 squares and 9 guesses." },
+        connections: { title: "K-pop Connections", description: "Sort 16 names into 4 categories of 4. Find what the names have in common before making 4 mistakes." },
+        nameGuess: { title: "K-pop Wordle", description: "Find today's artist or group in up to 6 guesses. Colors show which letters belong in the name and which are in the right position." },
+        wordSearch: { title: "K-pop Word Search", description: "Find K-pop names across, down or diagonally. Reveal the word list if you need help." },
+        mapPilot: { title: "BLACKPINK tour map", description: "Locate the countries for 10 dates on BLACKPINK's DEADLINE tour. Check the official schedule in the sources for each answer." },
+        timeline: { title: "K-pop Timeline", description: "Put K-pop events in chronological order. After checking your order, see the dates and sources behind the facts." },
+      },
+      quizTitle: "How the 10-question quiz works",
+      quizBody: "Pick an option for each question and submit your answer. Then read the explanation and source, even if you got it wrong. At the end, see your score and review your answers.",
+      settingsBody: "In the General quiz, you can filter by the decade the groups formed. The Daily quiz offers the day's round of questions. Choose Assisted for clues, Standard to open clues at a cost in points or Expert to play without clues. The optional timer gives you 20 seconds per question.",
+      recordsTitle: "Sources and browser storage",
+      recordsBody: "Quiz questions link to Wikipedia or Wikidata revisions and identify where the fact appears in the source. The map game uses BLACKPINK's official tour schedule and MusicBrainz references. Statistics and preferences are saved in this browser; clearing local data removes those records.",
     },
     eyebrow: "10 questions · multiple choice",
-    title: "How well do you know K-pop history?",
-    intro: "Questions about groups, members and dates. Every answer shows its source.",
+    title: "Free online K-pop quiz",
+    intro: "Test your knowledge of groups, members and dates. Answer 10 questions with no account needed and check the source for every answer.",
     languageLabel: "Language",
     languageName: "Português",
     homeLabel: "K-pop Quiz, home",
