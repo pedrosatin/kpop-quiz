@@ -218,24 +218,40 @@ def load_latest_relevance_scores(connection: sqlite3.Connection) -> dict[str, in
                 """
             )
         }
-        runs = connection.execute(
-            """SELECT id FROM group_relevance_runs
-               WHERE algorithm_version=?
-               ORDER BY created_at DESC,id DESC""",
-            (ALGORITHM_VERSION,),
-        ).fetchall()
+        cursor = connection.execute(
+            """
+            SELECT r.id, e.wikidata_id, s.relevance_score
+            FROM group_relevance_runs r
+            JOIN group_relevance_scores s ON s.run_id = r.id
+            JOIN entities e ON e.id = s.entity_id
+            WHERE r.algorithm_version=?
+            ORDER BY r.created_at DESC, r.id DESC
+            """,
+            (ALGORITHM_VERSION,)
+        )
     except sqlite3.OperationalError as exc:
         if "no such table" in str(exc):
             return {}
         raise
-    for run in runs:
-        rows = connection.execute(
-            """SELECT e.wikidata_id,s.relevance_score
-               FROM group_relevance_scores s JOIN entities e ON e.id=s.entity_id
-               WHERE s.run_id=?""",
-            (run["id"],),
-        ).fetchall()
-        scores = {str(row["wikidata_id"]): int(row["relevance_score"]) for row in rows}
-        if accepted and len(rows) == len(scores) and set(scores) == accepted:
+
+    current_run_id = None
+    scores = {}
+    rows_count = 0
+
+    for row in cursor:
+        run_id = row["id"]
+        if current_run_id is not None and run_id != current_run_id:
+            if accepted and rows_count == len(scores) and set(scores) == accepted:
+                return scores
+            scores = {}
+            rows_count = 0
+
+        current_run_id = run_id
+        scores[str(row["wikidata_id"])] = int(row["relevance_score"])
+        rows_count += 1
+
+    if current_run_id is not None:
+        if accepted and rows_count == len(scores) and set(scores) == accepted:
             return scores
+
     return {}
