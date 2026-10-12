@@ -8,11 +8,12 @@ import sqlite3
 from datetime import date
 from pathlib import Path
 
+from .quiz_session import create_session
 from .quiz_generator import (
     DEFAULT_REFERENCE_DATE,
     InsufficientQuestionsError,
     QuizConfig,
-    create_session,
+
     generate_dataset,
 )
 from .quiz_schema import (

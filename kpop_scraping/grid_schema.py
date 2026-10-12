@@ -68,12 +68,17 @@ def _require_date(value: Any, field_name: str) -> None:
     try:
         date.fromisoformat(value)
     except ValueError as exc:
-        raise ValueError(f"Invalid grid schema: {field_name} is not a calendar date") from exc
+        raise ValueError(
+            f"Invalid grid schema: {field_name} is not a calendar date"
+        ) from exc
 
 
 def _require_bilingual_text(value: Any, field_name: str) -> None:
     _require(isinstance(value, dict), f"{field_name} must be an object")
-    _require(set(value.keys()) == BILINGUAL_FIELDS, f"{field_name} fields must be pt-BR and en")
+    _require(
+        set(value.keys()) == BILINGUAL_FIELDS,
+        f"{field_name} fields must be pt-BR and en",
+    )
     for lang in ("pt-BR", "en"):
         _require(
             isinstance(value[lang], str) and len(value[lang]) > 0,
@@ -137,77 +142,75 @@ def _validate_candidate(candidate: Any, context: str) -> None:
     )
     _require_qid(candidate["id"], f"{context}.id")
     _require(
-        isinstance(candidate["canonical_name"], str) and len(candidate["canonical_name"]) > 0,
+        isinstance(candidate["canonical_name"], str)
+        and len(candidate["canonical_name"]) > 0,
         f"{context}.canonical_name must be a non-empty string",
     )
     _require_bilingual_text(candidate["names"], f"{context}.names")
 
 
-def validate_intersection_grid(payload: dict[str, Any]) -> None:
-    """Validate that payload conforms to intersection-grid-v1 specification.
-
-    Raises ValueError when the payload is invalid.
-    """
+def _validate_root_fields(payload: dict[str, Any]) -> None:
     _require(isinstance(payload, dict), "root payload must be an object")
     _require(
         set(payload.keys()) == GRID_ROOT_FIELDS,
         f"root payload has missing or extra fields: {sorted(set(payload.keys()) ^ GRID_ROOT_FIELDS)}",
     )
-    _require(payload["schema_version"] == GRID_SCHEMA_VERSION, "schema_version must match")
+    _require(
+        payload["schema_version"] == GRID_SCHEMA_VERSION, "schema_version must match"
+    )
     _require_hash(payload["grid_id"], "grid_id")
     _require_hash(payload["dataset_version"], "dataset_version")
     _require_date(payload["reference_date"], "reference_date")
 
-    # Dimensions
-    dimensions = payload["dimensions"]
+
+def _validate_dimensions(dimensions: Any) -> None:
     _require(isinstance(dimensions, dict), "dimensions must be an object")
-    _require(set(dimensions.keys()) == DIMENSIONS_FIELDS, "dimensions fields must be rows and cols")
-    _require(type(dimensions["rows"]) is int and dimensions["rows"] == 3, "dimensions.rows must be 3")
-    _require(type(dimensions["cols"]) is int and dimensions["cols"] == 3, "dimensions.cols must be 3")
-
-    # Row criteria
-    row_criteria = payload["row_criteria"]
-    _require(isinstance(row_criteria, list), "row_criteria must be a list")
-    _require(len(row_criteria) == 3, "row_criteria must have exactly 3 items")
-    row_ids: set[str] = set()
-    for idx, crit in enumerate(row_criteria):
-        _validate_criterion(crit, f"row_criteria[{idx}]")
-        _require(crit["id"] not in row_ids, f"duplicate row criterion id: {crit['id']}")
-        row_ids.add(crit["id"])
-
-    # Column criteria
-    col_criteria = payload["col_criteria"]
-    _require(isinstance(col_criteria, list), "col_criteria must be a list")
-    _require(len(col_criteria) == 3, "col_criteria must have exactly 3 items")
-    col_ids: set[str] = set()
-    for idx, crit in enumerate(col_criteria):
-        _validate_criterion(crit, f"col_criteria[{idx}]")
-        _require(crit["id"] not in col_ids, f"duplicate col criterion id: {crit['id']}")
-        col_ids.add(crit["id"])
-
-    # Axis orthogonality: each category may feed one axis only. A category on
-    # both axes ("3 members" on rows, "5 or fewer members" on cols) turns the
-    # row/column intersection ambiguous, so the category sets stay disjoint.
-    shared_categories = {crit["category"] for crit in row_criteria} & {
-        crit["category"] for crit in col_criteria
-    }
     _require(
-        not shared_categories,
-        f"row_criteria and col_criteria must not share categories: {sorted(shared_categories)}",
+        set(dimensions.keys()) == DIMENSIONS_FIELDS,
+        "dimensions fields must be rows and cols",
+    )
+    _require(
+        type(dimensions["rows"]) is int and dimensions["rows"] == 3,
+        "dimensions.rows must be 3",
+    )
+    _require(
+        type(dimensions["cols"]) is int and dimensions["cols"] == 3,
+        "dimensions.cols must be 3",
     )
 
-    # Candidate pool
-    candidate_pool = payload["candidate_pool"]
+
+def _validate_axis_criteria(
+    criteria: Any, context: str, singular_name: str
+) -> set[str]:
+    _require(isinstance(criteria, list), f"{context} must be a list")
+    _require(len(criteria) == 3, f"{context} must have exactly 3 items")
+    ids: set[str] = set()
+    categories: set[str] = set()
+    for idx, crit in enumerate(criteria):
+        _validate_criterion(crit, f"{context}[{idx}]")
+        _require(
+            crit["id"] not in ids,
+            f"duplicate {singular_name} id: {crit['id']}",
+        )
+        ids.add(crit["id"])
+        categories.add(crit["category"])
+    return categories
+
+
+def _validate_candidate_pool(candidate_pool: Any) -> set[str]:
     _require(isinstance(candidate_pool, list), "candidate_pool must be a list")
     _require(len(candidate_pool) >= 1, "candidate_pool must not be empty")
     candidate_qids: set[str] = set()
     for idx, cand in enumerate(candidate_pool):
         _validate_candidate(cand, f"candidate_pool[{idx}]")
-        _require(cand["id"] not in candidate_qids, f"duplicate candidate id: {cand['id']}")
+        _require(
+            cand["id"] not in candidate_qids, f"duplicate candidate id: {cand['id']}"
+        )
         candidate_qids.add(cand["id"])
+    return candidate_qids
 
-    # Cells
-    cells = payload["cells"]
+
+def _validate_cells(cells: Any, candidate_qids: set[str]) -> None:
     _require(isinstance(cells, list), "cells must be a list")
     _require(len(cells) == 9, "cells must contain exactly 9 cells")
     seen_coords: set[tuple[int, int]] = set()
@@ -220,15 +223,26 @@ def validate_intersection_grid(payload: dict[str, Any]) -> None:
         )
         r_idx = cell["row_index"]
         c_idx = cell["col_index"]
-        _require(type(r_idx) is int and 0 <= r_idx <= 2, f"cells[{idx}].row_index must be 0, 1, or 2")
-        _require(type(c_idx) is int and 0 <= c_idx <= 2, f"cells[{idx}].col_index must be 0, 1, or 2")
+        _require(
+            type(r_idx) is int and 0 <= r_idx <= 2,
+            f"cells[{idx}].row_index must be 0, 1, or 2",
+        )
+        _require(
+            type(c_idx) is int and 0 <= c_idx <= 2,
+            f"cells[{idx}].col_index must be 0, 1, or 2",
+        )
         coord = (r_idx, c_idx)
         _require(coord not in seen_coords, f"duplicate cell coordinate: {coord}")
         seen_coords.add(coord)
 
         valid_entities = cell["valid_entity_ids"]
-        _require(isinstance(valid_entities, list), f"cells[{idx}].valid_entity_ids must be a list")
-        _require(len(valid_entities) >= 1, f"cells[{idx}].valid_entity_ids must not be empty")
+        _require(
+            isinstance(valid_entities, list),
+            f"cells[{idx}].valid_entity_ids must be a list",
+        )
+        _require(
+            len(valid_entities) >= 1, f"cells[{idx}].valid_entity_ids must not be empty"
+        )
         _require(
             len(valid_entities) == len(set(valid_entities)),
             f"cells[{idx}].valid_entity_ids contains duplicates",
@@ -241,13 +255,45 @@ def validate_intersection_grid(payload: dict[str, Any]) -> None:
             )
 
         evidence_list = cell["evidence"]
-        _require(isinstance(evidence_list, list), f"cells[{idx}].evidence must be a list")
+        _require(
+            isinstance(evidence_list, list), f"cells[{idx}].evidence must be a list"
+        )
         _require(len(evidence_list) >= 1, f"cells[{idx}].evidence must not be empty")
         for ev_idx, ev in enumerate(evidence_list):
             _validate_evidence(ev, f"cells[{idx}].evidence[{ev_idx}]")
 
     expected_coords = {(r, c) for r in range(3) for c in range(3)}
-    _require(seen_coords == expected_coords, "cells must cover all 9 positions (0..2, 0..2)")
+    _require(
+        seen_coords == expected_coords, "cells must cover all 9 positions (0..2, 0..2)"
+    )
+
+
+def validate_intersection_grid(payload: dict[str, Any]) -> None:
+    """Validate that payload conforms to intersection-grid-v1 specification.
+
+    Raises ValueError when the payload is invalid.
+    """
+    _validate_root_fields(payload)
+    _validate_dimensions(payload.get("dimensions"))
+
+    row_categories = _validate_axis_criteria(
+        payload.get("row_criteria"), "row_criteria", "row criterion"
+    )
+    col_categories = _validate_axis_criteria(
+        payload.get("col_criteria"), "col_criteria", "col criterion"
+    )
+
+    # Axis orthogonality: each category may feed one axis only. A category on
+    # both axes ("3 members" on rows, "5 or fewer members" on cols) turns the
+    # row/column intersection ambiguous, so the category sets stay disjoint.
+    shared_categories = row_categories & col_categories
+    _require(
+        not shared_categories,
+        f"row_criteria and col_criteria must not share categories: {sorted(shared_categories)}",
+    )
+
+    candidate_qids = _validate_candidate_pool(payload.get("candidate_pool"))
+    _validate_cells(payload.get("cells"), candidate_qids)
 
 
 def write_intersection_grid_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
