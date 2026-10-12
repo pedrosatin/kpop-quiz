@@ -25,7 +25,8 @@ from .connections_generator import generate_connections_puzzle
 from .grid_generator import generate_daily_grid
 from .grid_schema import validate_intersection_grid
 from .name_guess_generator import generate_name_guess_puzzle
-from .quiz_generator import QuizConfig, create_session, generate_dataset
+from .quiz_generator import QuizConfig, generate_dataset
+from .quiz_session import create_session
 from .quiz_schema import validate_session, write_json_atomic
 from .quiz_utils import reference_date_today
 from .timeline_generator import generate_timeline_puzzle

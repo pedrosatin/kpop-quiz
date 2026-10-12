@@ -24,7 +24,7 @@ from kpop_scraping.storage import (
 )
 from kpop_scraping.wikidata import EntityBatch, EntityDocument
 
-from .wikidata_fixture import (
+from tests.wikidata_fixture import (
     SUNYE,
     NAYEON,
     RED_VELVET,
