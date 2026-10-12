@@ -25,7 +25,9 @@ CONNECTIONS_ROOT_FIELDS = frozenset(
 )
 
 DIMENSIONS_FIELDS = frozenset({"groups", "items_per_group", "total_items"})
-CATEGORY_FIELDS = frozenset({"id", "label", "difficulty_level", "item_ids", "explanation", "evidence"})
+CATEGORY_FIELDS = frozenset(
+    {"id", "label", "difficulty_level", "item_ids", "explanation", "evidence"}
+)
 ITEM_FIELDS = frozenset({"id", "canonical_name", "labels"})
 BILINGUAL_FIELDS = frozenset({"pt-BR", "en"})
 EVIDENCE_FIELDS = frozenset(
@@ -71,7 +73,10 @@ def _require_date(value: Any, field_name: str) -> None:
 
 def _require_bilingual_text(value: Any, field_name: str) -> None:
     _require(isinstance(value, dict), f"{field_name} must be an object")
-    _require(set(value.keys()) == BILINGUAL_FIELDS, f"{field_name} fields must be pt-BR and en")
+    _require(
+        set(value.keys()) == BILINGUAL_FIELDS,
+        f"{field_name} fields must be pt-BR and en",
+    )
     for lang in ("pt-BR", "en"):
         _require(
             isinstance(value[lang], str) and len(value[lang]) > 0,
@@ -110,26 +115,7 @@ def _validate_evidence(evidence: Any, context: str) -> None:
     _require(bool(parts.netloc), f"{context} source_url netloc cannot be empty")
 
 
-def validate_connections_puzzle(payload: dict[str, Any]) -> None:
-    """Validate that payload conforms to connections-puzzle-v1 specification.
-
-    Raises ValueError when the payload is invalid.
-    """
-    _require(isinstance(payload, dict), "root payload must be an object")
-    _require(
-        set(payload.keys()) == CONNECTIONS_ROOT_FIELDS,
-        f"root payload has missing or extra fields: {sorted(set(payload.keys()) ^ CONNECTIONS_ROOT_FIELDS)}",
-    )
-    _require(
-        payload["schema_version"] == CONNECTIONS_SCHEMA_VERSION,
-        f"schema_version must be {CONNECTIONS_SCHEMA_VERSION}",
-    )
-    _require_hash(payload["puzzle_id"], "puzzle_id")
-    _require_hash(payload["dataset_version"], "dataset_version")
-    _require_date(payload["reference_date"], "reference_date")
-
-    # Dimensions
-    dimensions = payload["dimensions"]
+def _validate_dimensions(dimensions: Any) -> None:
     _require(isinstance(dimensions, dict), "dimensions must be an object")
     _require(
         set(dimensions.keys()) == DIMENSIONS_FIELDS,
@@ -140,7 +126,8 @@ def validate_connections_puzzle(payload: dict[str, Any]) -> None:
         "dimensions.groups must be 4",
     )
     _require(
-        type(dimensions["items_per_group"]) is int and dimensions["items_per_group"] == 4,
+        type(dimensions["items_per_group"]) is int
+        and dimensions["items_per_group"] == 4,
         "dimensions.items_per_group must be 4",
     )
     _require(
@@ -148,8 +135,8 @@ def validate_connections_puzzle(payload: dict[str, Any]) -> None:
         "dimensions.total_items must be 16",
     )
 
-    # Categories
-    categories = payload["categories"]
+
+def _validate_categories(categories: Any) -> tuple[list[set[str]], list[str]]:
     _require(isinstance(categories, list), "categories must be a list")
     _require(len(categories) == 4, "categories must contain exactly 4 categories")
 
@@ -168,7 +155,9 @@ def validate_connections_puzzle(payload: dict[str, Any]) -> None:
             isinstance(cat["id"], str) and len(cat["id"]) > 0,
             f"categories[{idx}].id must be a non-empty string",
         )
-        _require(cat["id"] not in seen_category_ids, f"duplicate category id: {cat['id']}")
+        _require(
+            cat["id"] not in seen_category_ids, f"duplicate category id: {cat['id']}"
+        )
         seen_category_ids.add(cat["id"])
 
         _require_bilingual_text(cat["label"], f"categories[{idx}].label")
@@ -182,8 +171,13 @@ def validate_connections_puzzle(payload: dict[str, Any]) -> None:
         difficulty_levels.append(diff)
 
         item_ids = cat["item_ids"]
-        _require(isinstance(item_ids, list), f"categories[{idx}].item_ids must be a list")
-        _require(len(item_ids) == 4, f"categories[{idx}].item_ids must contain exactly 4 items")
+        _require(
+            isinstance(item_ids, list), f"categories[{idx}].item_ids must be a list"
+        )
+        _require(
+            len(item_ids) == 4,
+            f"categories[{idx}].item_ids must contain exactly 4 items",
+        )
         _require(
             len(item_ids) == len(set(item_ids)),
             f"categories[{idx}].item_ids contains duplicate items",
@@ -195,7 +189,9 @@ def validate_connections_puzzle(payload: dict[str, Any]) -> None:
         all_category_item_ids.extend(item_ids)
 
         ev_list = cat["evidence"]
-        _require(isinstance(ev_list, list), f"categories[{idx}].evidence must be a list")
+        _require(
+            isinstance(ev_list, list), f"categories[{idx}].evidence must be a list"
+        )
         _require(len(ev_list) >= 1, f"categories[{idx}].evidence must not be empty")
         for ev_idx, ev in enumerate(ev_list):
             _validate_evidence(ev, f"categories[{idx}].evidence[{ev_idx}]")
@@ -204,9 +200,10 @@ def validate_connections_puzzle(payload: dict[str, Any]) -> None:
         set(difficulty_levels) == {1, 2, 3, 4} and len(difficulty_levels) == 4,
         "categories must have distinct difficulty_levels spanning exactly 1, 2, 3, 4",
     )
+    return category_item_sets, all_category_item_ids
 
-    # Items
-    items = payload["items"]
+
+def _validate_items(items: Any) -> set[str]:
     _require(isinstance(items, list), "items must be a list")
     _require(len(items) == 16, "items must contain exactly 16 items")
 
@@ -225,8 +222,15 @@ def validate_connections_puzzle(payload: dict[str, Any]) -> None:
             f"items[{idx}].canonical_name must be a non-empty string",
         )
         _require_bilingual_text(item["labels"], f"items[{idx}].labels")
+    return seen_item_ids
 
-    # Disjointness and referential integrity (perfect partition)
+
+def _validate_referential_integrity(
+    categories: list[dict[str, Any]],
+    category_item_sets: list[set[str]],
+    all_category_item_ids: list[str],
+    seen_item_ids: set[str],
+) -> None:
     for i in range(len(category_item_sets)):
         for j in range(i + 1, len(category_item_sets)):
             overlap = category_item_sets[i] & category_item_sets[j]
@@ -248,6 +252,40 @@ def validate_connections_puzzle(payload: dict[str, Any]) -> None:
     )
 
 
-def write_connections_puzzle_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
+def validate_connections_puzzle(payload: dict[str, Any]) -> None:
+    """Validate that payload conforms to connections-puzzle-v1 specification.
+
+    Raises ValueError when the payload is invalid.
+    """
+    _require(isinstance(payload, dict), "root payload must be an object")
+    _require(
+        set(payload.keys()) == CONNECTIONS_ROOT_FIELDS,
+        f"root payload has missing or extra fields: {sorted(set(payload.keys()) ^ CONNECTIONS_ROOT_FIELDS)}",
+    )
+    _require(
+        payload["schema_version"] == CONNECTIONS_SCHEMA_VERSION,
+        f"schema_version must be {CONNECTIONS_SCHEMA_VERSION}",
+    )
+    _require_hash(payload["puzzle_id"], "puzzle_id")
+    _require_hash(payload["dataset_version"], "dataset_version")
+    _require_date(payload["reference_date"], "reference_date")
+
+    _validate_dimensions(payload["dimensions"])
+    category_item_sets, all_category_item_ids = _validate_categories(
+        payload["categories"]
+    )
+    seen_item_ids = _validate_items(payload["items"])
+
+    _validate_referential_integrity(
+        payload["categories"],
+        category_item_sets,
+        all_category_item_ids,
+        seen_item_ids,
+    )
+
+
+def write_connections_puzzle_atomic(
+    target_path: Path, payload: dict[str, Any]
+) -> bytes:
     """Validate and atomically write a connections puzzle JSON file."""
     return write_json_atomic(target_path, payload, validate_connections_puzzle)
