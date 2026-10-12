@@ -8,10 +8,11 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
+from kpop_scraping.quiz_session import create_session
 from kpop_scraping.quiz_generator import (
     InsufficientQuestionsError,
     QuizConfig,
-    create_session,
+
     generate_dataset,
 )
 from kpop_scraping.quiz_cli import main as quiz_main
