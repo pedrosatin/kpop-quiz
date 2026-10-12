@@ -2,7 +2,7 @@
 
 Daily K-pop quiz and puzzle games about groups and artists, in Portuguese and English. Play at <https://kpopquiz.online>.
 
-The site has five games: a ten-question quiz with assisted, standard, and expert modes, a grid, connections, name guess, and word search. New puzzles are published every day.
+The site has seven games: a ten-question quiz with assisted, standard, and expert modes, a grid, connections, name guess, word search, timeline, and map. New puzzles are published every day. Two experimental pilots, crossword and group code, use fixed examples and direct routes outside the daily game menu.
 
 Every answer comes from Wikipedia and Wikidata. A Python collector queries both APIs, records the consulted revisions in SQLite, and keeps page and entity responses as compressed JSON. Each accepted fact points to a Wikidata reference or a Wikipedia revision excerpt, and the games only use accepted facts.
 
@@ -192,3 +192,84 @@ The app stays static: answers and the next day's set, published ahead of time to
 ## Pinned GitHub Actions
 
 Every Action in the five workflows (`daily-puzzles-cron`, `pages`, `staging`, `e2e-nightly`, `map-pilot-refresh`) is pinned to a full commit SHA, with the exact release tag in a trailing comment (for example `# v7.0.1`). To update one, check out the new release tag, copy the SHA it resolves to (`git ls-remote --tags https://github.com/<owner>/<repo>`) and replace both the SHA and the comment in every workflow that uses it. `.github/dependabot.yml` opens weekly pull requests for these pins.
+
+## Gate factual do Venn
+
+`python -m kpop_scraping.venn_cli --database data/kpop.db --date 2026-10-12 --output /tmp/venn-report.json --sample-output /tmp/venn-sample.json` mede cobertura sem rede, coleta ou escrita no SQLite, aberto em modo somente leitura. O contrato v1 aceita apenas pessoas com nascimento aceito, data gregoriana completa, precisão de dia, revisão e local de evidência, sem conflito aberto ou datas inconsistentes. Ausência de data/evidência significa `unknown`, nunca `false`. As três categorias são nascimento antes de um ano observado, janeiro–junho e dias 1–15; os bits são respectivamente 1, 2 e 4. Datas completas sustentam também exclusões. Não são usados gravadora ausente ou número incompleto de integrantes.
+
+O relatório contém candidatos, rejeições, classificações `true`/`false`/`null`, contagens das oito regiões e, quando possível, sete QIDs distintos cobrindo masks 1–7. A busca é finita e determinística. Os contratos estão em `schemas/venn-coverage-report-v1.json` e `schemas/venn-coverage-sample-v1.json`. Código de saída **0** indica gate aprovado, **2** indica `insufficient_coverage` e **1** indica entrada inválida ou falha de verificação. Cobertura insuficiente remove uma amostra anterior no caminho solicitado e mantém o jogo dependente suspenso.
+
+`python -m kpop_scraping.venn_cli --database data/kpop.db --verify /tmp/venn-report.json --verify-sample /tmp/venn-sample.json --output /tmp/venn-verified.json` recompõe o relatório e verifica todos os dados, masks, evidências e identidade da amostra contra o banco declarado e a data do relatório. As saídas são substituídas atomicamente por arquivo. Esta etapa comprova elegibilidade apenas, sem jogo ou cadência diária.
+
+## Cruzadinha piloto
+
+A cruzadinha selecionada está em `/pt-br/cruzadinha-piloto/` e
+`/en/crossword-pilot/`, com `noindex` e acesso direto. É uma partida fixa de
+três grupos numa grade conectada de 6×3, sem calendário diário ou estatísticas.
+Use as pistas para selecionar horizontal/vertical, digite por célula (Tab e
+setas), verifique a grade e continue editando até acertar. Encerrar revela os
+nomes canônicos e links para as revisões citadas.
+
+O input transforma letras em maiúsculas, remove acentos, espaços e pontuação,
+e conserva dígitos. Apenas a grafia canônica normalizada ocupa a grade. Aliases
+são verificados para colisões entre as identidades selecionadas. As pistas
+usam fatos `accepted` e evidência de revisão Wikipedia. A seleção confronta
+cada conjunção de fatos com todos os grupos do SQLite, e rejeita uma pista
+que corresponda a mais de uma identidade. A ausência de fatos em outros
+grupos limita essa prova ao snapshot coletado, não a todo o universo K-pop.
+
+```bash
+python -m kpop_scraping.crossword_cli --database data/kpop.db --output web/public/data/crossword-pilot.json --reference-date 2026-10-12
+python -m kpop_scraping.crossword_cli --verify web/public/data/crossword-pilot.json
+```
+
+A CLI abre o SQLite em modo read-only e seleciona apenas o tabuleiro auditado
+BTS / BtoB / SISTAR. Não coleta nem gera novos tabuleiros. O contrato
+`crossword-pilot-v1` declara modo, identidade do piloto, impressão SHA-256 do
+conteúdo selecionado, data de referência, dimensões, entradas, aliases,
+coordenadas, pistas PT/EN, evidências e células. A verificação recalcula essa impressão em JSON canônico compacto e testa as
+invariantes sem consultar o banco. A impressão detecta alterações, sem garantir
+a autenticidade editorial da fonte. `matching_qids` registra o conjunto observado
+pela seleção, e `audited_group_count` informa o tamanho do vocabulário
+comparado. A seleção exclui conflitos abertos e candidatos sem evidência. A saída é
+atômica e não pode apontar para o banco de origem. O validador rejeita
+cruzamentos incompatíveis, grade desconectada,
+células órfãs, colisões de aliases, pistas sem fonte e revisões inconsistentes.
+
+Os arquivos publicados incluem respostas, como os demais jogos estáticos.
+Falhas de conteúdo aparecem com opção de tentar novamente, sem fixture de
+substituição. As fontes Wikipedia mantêm atribuição e CC BY-SA 4.0; o cadastro
+Wikidata usa CC0. Nenhuma fonte externa foi acrescentada.
+
+## Piloto de código de grupos
+
+O piloto de lógica fica em `/pt-br/codigo-piloto/` e `/en/code-pilot/`, com `noindex` e acesso direto. Seis grupos distintos do catálogo aceito servem como símbolos. O jogador descobre uma sequência de quatro sem repetição em dez tentativas, com contagens agregadas de posições exatas e grupos deslocados. A sequência sorteada não afirma uma relação factual entre grupos. O exemplo fixo traz `mode: pilot` e revisões Wikidata da classificação P31.
+
+```bash
+python -m kpop_scraping.code_groups_cli --database data/kpop.db --date 2026-10-12 --seed group-code-pilot --output web/public/data/code-groups.pilot.json
+python -m kpop_scraping.code_groups_cli --verify web/public/data/code-groups.pilot.json
+# Conferir também a origem no catálogo do banco
+python -m kpop_scraping.code_groups_cli --verify web/public/data/code-groups.pilot.json --database data/kpop.db
+```
+
+A geração abre o SQLite somente para leitura e exige seis QIDs aceitos com classificação musical compatível. O mesmo catálogo, data e seed produzem o mesmo artefato. A verificação confere o hash de identidade e rejeita contratos inválidos; carga ausente ou inválida no navegador oferece nova tentativa de carregamento. As fontes de classificação aparecem no resultado. Este piloto não tem publicação diária, persistência de partida, estatísticas ou compartilhamento.
+
+## Cobertura de pares idol/grupo
+
+A [CLI de cobertura de pares](docs/pairs-coverage.md) verifica listas de integrantes de revisões locais e produz um sample com associação única ou `insufficient_coverage`. A prova vale apenas para os campos `current_members` citados. A ausência de um fato isolado continua desconhecida.
+
+## Pilot browser checks
+
+The pilot suite covers both languages, light and dark themes, 320, 390 and 1440 pixel viewports, keyboard play, touch submission, 200% text reflow, cited results, and recovery from missing or invalid artifacts. It checks page overflow, 44 pixel controls and automated WCAG A/AA rules with axe-core. Screenshots support manual inspection but do not replace device or screen-reader testing.
+
+```bash
+cd web
+npm run build
+npm run test:e2e:ci -- --retries=0
+npx playwright install firefox
+npx playwright test code-pilot crossword-pilot pilot-visual-a11y --project=firefox --retries=0
+# Save optional screenshots outside the repository.
+PILOT_EVIDENCE_DIR=/tmp/kpop-pilot-screenshots npm run test:e2e:ci -- --grep 'layout and accessible controls|percent text reflow|keyboard completion|feedback, keyboard|unavailable artifact' --retries=0
+```
+
+Run browser suites sequentially when sharing their default output directory. The local preview uses `--ignore-lock` to stay in the foreground so Playwright can start and stop its server. The readiness URL preserves the path in `BASE_URL`, including a staging subdirectory.

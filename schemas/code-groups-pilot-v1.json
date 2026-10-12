@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Group code pilot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "mode",
+    "puzzle_id",
+    "dataset_version",
+    "reference_date",
+    "seed",
+    "symbols",
+    "secret",
+    "max_attempts"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "code-groups-pilot-v1"
+    },
+    "mode": {
+      "const": "pilot"
+    },
+    "puzzle_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "dataset_version": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reference_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "seed": {
+      "type": "string",
+      "minLength": 1
+    },
+    "max_attempts": {
+      "const": 10
+    },
+    "secret": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^Q[1-9][0-9]*$"
+      }
+    },
+    "symbols": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "qid",
+          "name",
+          "source"
+        ],
+        "properties": {
+          "qid": {
+            "type": "string",
+            "pattern": "^Q[1-9][0-9]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "revision_id",
+              "locator",
+              "url"
+            ],
+            "properties": {
+              "revision_id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "locator": {
+                "const": "claims.P31"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

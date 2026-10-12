@@ -1,0 +1,71 @@
+{
+  "schema_version": "code-groups-pilot-v1",
+  "mode": "pilot",
+  "puzzle_id": "1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe",
+  "dataset_version": "ff810c6782d3150c548ee260430b7600ef7809db93c1c68f139ebdb3f1912357",
+  "reference_date": "2026-10-12",
+  "seed": "group-code-pilot",
+  "symbols": [
+    {
+      "qid": "Q124162611",
+      "name": "Geenius",
+      "source": {
+        "revision_id": 2547947911,
+        "locator": "claims.P31",
+        "url": "https://www.wikidata.org/w/index.php?title=Q124162611&oldid=2547947911"
+      }
+    },
+    {
+      "qid": "Q132861244",
+      "name": "1Verse",
+      "source": {
+        "revision_id": 2528925987,
+        "locator": "claims.P31",
+        "url": "https://www.wikidata.org/w/index.php?title=Q132861244&oldid=2528925987"
+      }
+    },
+    {
+      "qid": "Q96401398",
+      "name": "Redsquare",
+      "source": {
+        "revision_id": 2469251158,
+        "locator": "claims.P31",
+        "url": "https://www.wikidata.org/w/index.php?title=Q96401398&oldid=2469251158"
+      }
+    },
+    {
+      "qid": "Q41949104",
+      "name": "The Boyz (South Korean band)",
+      "source": {
+        "revision_id": 2547903189,
+        "locator": "claims.P31",
+        "url": "https://www.wikidata.org/w/index.php?title=Q41949104&oldid=2547903189"
+      }
+    },
+    {
+      "qid": "Q12621720",
+      "name": "Page (South Korean band)",
+      "source": {
+        "revision_id": 2351265721,
+        "locator": "claims.P31",
+        "url": "https://www.wikidata.org/w/index.php?title=Q12621720&oldid=2351265721"
+      }
+    },
+    {
+      "qid": "Q118314702",
+      "name": "Kiss of Life (group)",
+      "source": {
+        "revision_id": 2547903414,
+        "locator": "claims.P31",
+        "url": "https://www.wikidata.org/w/index.php?title=Q118314702&oldid=2547903414"
+      }
+    }
+  ],
+  "secret": [
+    "Q96401398",
+    "Q124162611",
+    "Q132861244",
+    "Q41949104"
+  ],
+  "max_attempts": 10
+}

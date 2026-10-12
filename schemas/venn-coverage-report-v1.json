@@ -1,0 +1,338 @@
+{
+  "type": "object",
+  "required": [
+    "schema_version",
+    "rules_version",
+    "dataset_version",
+    "reference_date",
+    "status",
+    "category_search",
+    "person_count",
+    "eligible_count",
+    "unknown_count",
+    "rejection_counts",
+    "candidates",
+    "triples",
+    "sample"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "rules_version": {
+      "const": "venn-birth-coverage-v1"
+    },
+    "dataset_version": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reference_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "enum": [
+        "approved",
+        "insufficient_coverage"
+      ]
+    },
+    "category_search": {
+      "type": "string",
+      "minLength": 1
+    },
+    "person_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "eligible_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "unknown_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rejection_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "qid",
+          "name",
+          "birth_date",
+          "state",
+          "reasons",
+          "evidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "qid": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "birth_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "state": {
+            "enum": [
+              "known",
+              "unknown"
+            ]
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "fact_base_id",
+                "source_key",
+                "locator",
+                "revision_id",
+                "source_url"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "fact_base_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "source_key": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "locator": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "revision_id": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "source_url": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "triples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "categories",
+          "region_counts",
+          "classifications",
+          "eligible"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "year",
+                    "label"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "const": "birth_before_year"
+                    },
+                    "year": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "label": {
+                      "type": "object",
+                      "required": [
+                        "pt-BR",
+                        "en"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "pt-BR": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "en": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "enum": [
+                        "birth_first_half",
+                        "birth_first_fifteen_days"
+                      ]
+                    },
+                    "label": {
+                      "type": "object",
+                      "required": [
+                        "pt-BR",
+                        "en"
+                      ],
+                      "additionalProperties": false,
+                      "properties": {
+                        "pt-BR": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "en": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "region_counts": {
+            "type": "object",
+            "required": [
+              "0",
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "0": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "1": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "2": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "3": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "4": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "5": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "6": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "7": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "classifications": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "qid",
+                "mask",
+                "values"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "qid": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mask": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 7
+                },
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                }
+              }
+            }
+          },
+          "eligible": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "sample": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "venn-coverage-sample-v1.json"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Venn factual coverage report v1"
+}

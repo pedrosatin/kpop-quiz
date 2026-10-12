@@ -13,7 +13,7 @@ function isRemoteUrl(url: string): boolean {
 }
 
 /** Host/port for local astro preview; fall back to DEFAULT_BASE_URL if parsing fails. */
-function localPreviewTarget(url: string): { host: string; port: number; url: string } {
+function localPreviewTarget(url: string): { host: string; port: number; url: string; readyUrl: string } {
   try {
     const parsed = new URL(url);
     if (parsed.hostname !== "127.0.0.1" && parsed.hostname !== "localhost") {
@@ -27,6 +27,7 @@ function localPreviewTarget(url: string): { host: string; port: number; url: str
       host: parsed.hostname,
       port,
       url: `${parsed.protocol}//${parsed.hostname}:${port}`,
+      readyUrl: `${parsed.protocol}//${parsed.hostname}:${port}${parsed.pathname}`,
     };
   } catch {
     const fallback = new URL(DEFAULT_BASE_URL);
@@ -34,6 +35,7 @@ function localPreviewTarget(url: string): { host: string; port: number; url: str
       host: fallback.hostname,
       port: Number(fallback.port),
       url: DEFAULT_BASE_URL,
+      readyUrl: DEFAULT_BASE_URL,
     };
   }
 }
@@ -72,8 +74,9 @@ export default defineConfig({
   ...(localTarget
     ? {
         webServer: {
-          command: `npx astro preview --host ${localTarget.host} --port ${localTarget.port}`,
-          url: localTarget.url,
+          // Keep the server in the foreground so Playwright owns its lifetime.
+          command: `npx astro preview --ignore-lock --host ${localTarget.host} --port ${localTarget.port}`,
+          url: localTarget.readyUrl,
           reuseExistingServer: false,
           timeout: 120_000,
         },

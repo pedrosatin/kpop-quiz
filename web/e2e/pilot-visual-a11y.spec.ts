@@ -1,0 +1,131 @@
+import { test, expect, type Page } from "@playwright/test";
+import { readFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+
+const prefix = (process.env.ASTRO_BASE ?? new URL(process.env.BASE_URL ?? "http://127.0.0.1:4321").pathname).replace(/\/$/, "");
+const evidenceDir = process.env.PILOT_EVIDENCE_DIR;
+const axeScript = readFileSync(new URL("../node_modules/axe-core/axe.min.js", import.meta.url), "utf8");
+const crossword = JSON.parse(readFileSync(new URL("../public/data/crossword-pilot.json", import.meta.url), "utf8"));
+const code = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
+const games = [
+  { id: "crossword", pt: "/pt-br/cruzadinha-piloto/", en: "/en/crossword-pilot/", controls: "#crossword input" },
+  { id: "code", pt: "/pt-br/codigo-piloto/", en: "/en/code-pilot/", controls: "#code-groups select" },
+] as const;
+
+async function audit(page: Page) {
+  await page.addScriptTag({ content: axeScript });
+  const violations = await page.evaluate(async () => {
+    const engine = (window as unknown as { axe: { run(root: Document, options: unknown): Promise<{ violations: { id: string; impact: string; nodes: unknown[] }[] }> } }).axe;
+    const result = await engine.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] } });
+    return result.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.length }));
+  });
+  expect(violations).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+}
+
+async function capture(page: Page, name: string) {
+  if (!evidenceDir) return;
+  mkdirSync(evidenceDir, { recursive: true });
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await page.screenshot({ path: join(evidenceDir, `${name}.png`), fullPage: true, animations: "disabled" });
+}
+
+for (const game of games) for (const locale of ["pt", "en"] as const)
+  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 1440, height: 900 }])
+    for (const colorScheme of ["light", "dark"] as const) {
+      test(`${game.id} ${locale} ${viewport.width} ${colorScheme}: layout and accessible controls`, async ({ page }) => {
+        await page.setViewportSize(viewport);
+        await page.emulateMedia({ colorScheme });
+        const errors: string[] = [];
+        page.on("pageerror", e => errors.push(e.message));
+        await page.goto(prefix + game[locale]);
+        await expect(page.locator(game.controls)).toHaveCount(game.id === "code" ? 4 : crossword.cells.length);
+        await page.evaluate(() => document.fonts.ready);
+        await audit(page);
+        const smallTargets = await page.locator(`${game.controls}, .crossword-actions button, #code-groups button, .pilot-instructions summary`).evaluateAll(elements =>
+          elements.filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; }).map(e => e.outerHTML));
+        expect(smallTargets).toEqual([]);
+        if (locale === "pt" && viewport.width === 390) await capture(page, `${game.id}-mobile-${colorScheme}`);
+        if (locale === "pt" && viewport.width === 320 && colorScheme === "light") await capture(page, `${game.id}-small-320`);
+        if (locale === "en" && viewport.width === 1440) await capture(page, `${game.id}-desktop-${colorScheme}`);
+        await page.getByText(locale === "pt" ? "Como jogar" : "How to play", { exact: true }).click();
+        await expect(page.locator("details")).toHaveAttribute("open", "");
+        await audit(page);
+        await page.getByText(locale === "pt" ? "Como jogar" : "How to play", { exact: true }).click();
+        expect(errors).toEqual([]);
+      });
+    }
+
+for (const game of games) test(`${game.id}: 200 percent text reflow and keyboard entry`, async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(prefix + game.en);
+  await expect(page.locator(game.controls)).not.toHaveCount(0);
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await audit(page);
+  if (game.id === "crossword") {
+    const overlaps = await page.evaluate(() => {
+      const actions = document.querySelector(".crossword-actions")!.getBoundingClientRect();
+      return [...document.querySelectorAll(".crossword-cell, .crossword-clues button")].some(element => {
+        const box = element.getBoundingClientRect();
+        return box.left < actions.right && box.right > actions.left && box.top < actions.bottom && box.bottom > actions.top;
+      });
+    });
+    expect(overlaps).toBe(false);
+  }
+  await capture(page, `${game.id}-text-200-percent`);
+  await page.locator(".skip-link").focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(new RegExp(game.id === "code" ? "#code-groups$" : "#crossword$"));
+  await expect(page.locator(game.id === "code" ? "#code-groups" : "#crossword")).toBeFocused();
+});
+
+test("crossword: keyboard completion announces and focuses cited results", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto(prefix + games[0].pt);
+  await expect(page.locator("#crossword input")).toHaveCount(crossword.cells.length);
+  for (const entry of crossword.entries) {
+    const clue = page.getByRole("button", { name: new RegExp(`^${entry.number} ${entry.direction === "across" ? "Horizontal" : "Vertical"}:`) });
+    await clue.focus();
+    await page.keyboard.press("Enter");
+    await page.keyboard.type(entry.answer);
+  }
+  await page.getByRole("button", { name: "Verificar respostas", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("game-result")).toBeFocused();
+  await expect(page.locator(".crossword-actions")).toHaveCSS("position", "static");
+  await audit(page);
+  await capture(page, "crossword-completed-dark");
+});
+
+test("code: feedback, keyboard victory and cited result", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto(prefix + games[1].pt);
+  await expect(page.locator("#code-groups select")).toHaveCount(4);
+  await page.getByRole("button", { name: "Enviar palpite" }).click();
+  await expect(page.getByRole("status")).toContainText("Nenhuma tentativa usada");
+  await audit(page);
+  await capture(page, "code-incomplete-feedback");
+  for (let index = 0; index < 4; index++) await page.locator("#code-groups select").nth(index).selectOption(code.secret[index]);
+  await page.getByRole("button", { name: "Enviar palpite" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("game-result")).toBeFocused();
+  await audit(page);
+  await capture(page, "code-completed-light");
+});
+
+for (const game of games) test(`${game.id}: unavailable artifact keeps keyboard retry and skip target`, async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.route(game.id === "code" ? "**/data/code-groups.pilot.json" : "**/data/crossword-pilot.json", route => route.fulfill({ status: 404, body: "" }));
+  await page.goto(prefix + game.pt);
+  await expect(page.getByRole("alert")).toBeVisible();
+  await audit(page);
+  await page.locator(".skip-link").focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(new RegExp(game.id === "code" ? "#code-groups$" : "#crossword$"));
+  await expect(page.locator(game.id === "code" ? "#code-groups" : "#crossword")).toBeFocused();
+  await capture(page, `${game.id}-missing-artifact`);
+});

@@ -1,0 +1,27 @@
+/* Compact pilot board, cited clues and reachable actions. */
+.crossword { max-width: 48rem; margin: 1rem auto; }
+.pilot-label { color: var(--color-text-muted); font-size: .875rem; margin: 0 0 .5rem; }
+.pilot-instructions { margin: .5rem 0 1rem; }
+.pilot-instructions summary { cursor: pointer; min-height: 44px; display: list-item; padding: .5rem 0; font-weight: 700; }
+.crossword-play { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+.crossword-grid { display: grid; gap: .25rem; margin: .5rem 0; }
+.crossword-cell { position: relative; height: 3rem; border: 2px solid var(--color-border); background: var(--color-surface); }
+.crossword-cell.selected { border-color: var(--color-text); outline: 2px dashed var(--color-text); outline-offset: 1px; }
+.crossword-cell span { position: absolute; top: 0; left: .15rem; font-size: .7rem; pointer-events: none; }
+.crossword-cell input { width: 100%; height: 100%; text-align: center; padding: .6rem .2rem .1rem; font-size: 1.5rem; color: inherit; background: transparent; border: 0; border-radius: 0; }
+.crossword-cell input:focus { outline: 3px solid var(--color-focus); outline-offset: 1px; }
+.crossword-cell input:disabled { opacity: 1; }
+.crossword-clues { padding: 0; margin: 0; list-style: none; }
+.crossword-clues .btn { display: block; text-align: left; width: 100%; margin: .5rem 0; padding: .75rem; min-height: 44px; }
+.crossword-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; padding: .75rem 0; background: var(--color-canvas); }
+.crossword-actions p { flex-basis: 100%; margin: 0; }
+.crossword-result { padding: 1rem; margin-top: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface); }
+.crossword-result li { margin-block: .75rem; }
+.crossword a { overflow-wrap: anywhere; }
+@media (max-width: 40rem) {
+ .crossword-play { grid-template-columns: minmax(0, 1fr); gap: .5rem; }
+ .crossword-grid { justify-content: center; }
+ .crossword-clues .btn { font-size: .875rem; padding: .5rem .75rem; }
+ .crossword-actions { border-top: 1px solid var(--color-border); }
+ .crossword-actions .btn { flex: 1; }
+}

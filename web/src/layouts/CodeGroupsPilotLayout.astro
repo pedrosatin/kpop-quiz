@@ -1,0 +1,28 @@
+---
+import "../styles/global.css";
+import { CodeGroups } from "../components/CodeGroups/CodeGroups";
+type Props = { locale: "pt-BR" | "en" };
+const { locale } = Astro.props;
+const en = locale === "en";
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const other = en ? "/pt-br/codigo-piloto/" : "/en/code-pilot/";
+---
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{en ? "Group code | K-pop Quiz" : "Código de grupos | K-pop Quiz"}</title>
+    <meta name="description" content={en ? "Find four K-pop groups in the right order. You have ten guesses." : "Descubra quatro grupos de K-pop na ordem certa. Você tem dez tentativas."} />
+  </head>
+  <body>
+    <a class="skip-link" href="#code-groups">{en ? "Skip to game" : "Ir para o jogo"}</a>
+    <header class="site-header">
+      <a class="wordmark" href={`${base}/${en ? "en" : "pt-br"}/`}>KQ</a>
+      <a class="language-link" href={`${base}${other}`} hreflang={en ? "pt-BR" : "en"}>{en ? "Português" : "English"}</a>
+    </header>
+    <main><CodeGroups locale={locale} artifactUrl={`${base}/data/code-groups.pilot.json`} client:load /></main>
+    <footer><p>Wikidata · <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">CC0</a></p></footer>
+  </body>
+</html>
