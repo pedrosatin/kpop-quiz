@@ -6,7 +6,6 @@ import hashlib
 import random
 import re
 import sqlite3
-import unicodedata
 from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, Callable, Iterable, NamedTuple
