@@ -375,12 +375,15 @@ def membership_evidence(
                             page, start + match.start("name"), start + match.end("name")
                         )
     exact_group = re.compile(rf"(?:the\s+)?(?:group\s+)?(?:{group})(?![\w'-])", _I)
+    forms_precompiled = [
+        re.compile(
+            rf"(?P<name>{pattern.pattern}),?\s+(?:joined|left|departed(?:\s+from)?)\s+"
+        )
+        for pattern in patterns
+    ]
     for start, end in _sentences(page.extract):
         sentence = page.extract[start:end]
-        for pattern in patterns:
-            form = re.compile(
-                rf"(?P<name>{pattern.pattern}),?\s+(?:joined|left|departed(?:\s+from)?)\s+"
-            )
+        for form in forms_precompiled:
             for match in form.finditer(sentence):
                 target = exact_group.match(sentence, match.end())
                 if (
