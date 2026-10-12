@@ -58,8 +58,8 @@ export function CodeGroups({ locale, artifactUrl }: { locale: "pt-BR" | "en"; ar
     return () => controller.abort();
   }, [artifactUrl, retry]);
   useEffect(() => { if (finished) resultRef.current?.focus(); }, [finished]);
-  if (failed) return <section id="code-groups" tabIndex={-1} class="code-pilot"><h1>{en ? "Group code" : "Código de grupos"}</h1><p role="alert">{en ? "The pilot could not be loaded. Try again." : "Não foi possível carregar o piloto. Tente novamente."}</p><button class="btn btn-primary" onClick={() => setRetry(retry + 1)}>{en ? "Retry" : "Tentar novamente"}</button></section>;
-  if (!puzzle) return <section id="code-groups" tabIndex={-1} class="code-pilot" aria-busy="true"><h1>{en ? "Group code" : "Código de grupos"}</h1><p role="status">{en ? "Loading pilot…" : "Carregando piloto…"}</p></section>;
+  if (failed) return <section id="code-groups" tabIndex={-1} class="code-pilot"><h1>{en ? "Group code" : "Código de grupos"}</h1><p role="alert">{en ? "The game could not be loaded. Try again." : "Não foi possível carregar o jogo. Tente novamente."}</p><button class="btn btn-primary" onClick={() => setRetry(retry + 1)}>{en ? "Retry" : "Tentar novamente"}</button></section>;
+  if (!puzzle) return <section id="code-groups" tabIndex={-1} class="code-pilot" aria-busy="true"><h1>{en ? "Group code" : "Código de grupos"}</h1><p role="status">{en ? "Loading game…" : "Carregando jogo…"}</p></section>;
   const label = (id: string) => puzzle.symbols.find(s => s.qid === id)?.name ?? id;
   function submit(event: Event) {
     event.preventDefault();
@@ -81,11 +81,11 @@ export function CodeGroups({ locale, artifactUrl }: { locale: "pt-BR" | "en"; ar
   }
   return <section id="code-groups" tabIndex={-1} class="code-pilot" aria-labelledby="code-title">
     <h1 id="code-title">{en ? "Group code" : "Código de grupos"}</h1>
-    <p class="code-pilot-label">{en ? "Experimental pilot · fixed sample" : "Piloto experimental · exemplo fixo"}</p>
     <p class="code-intro">{en ? "Find four different groups in the right order." : "Descubra quatro grupos diferentes na ordem certa."}</p>
+    <p class="code-pilot-label">{en ? "The sequence is the same every time you play." : "A sequência é a mesma em todas as partidas."}</p>
     <details class="pilot-instructions"><summary>{en ? "How to play" : "Como jogar"}</summary>
-      <p>{en ? "Choose four different groups among six symbols in ten attempts. Exact counts correct positions; misplaced counts correct groups in other positions. Feedback does not identify positions." : "Escolha quatro grupos diferentes entre seis símbolos em dez tentativas. Exatos conta posições corretas; deslocados conta grupos corretos em outras posições. O retorno não identifica as posições."}</p>
-      <p>{en ? "Groups are symbols in a logic puzzle. Select any position to change its group, using touch or the arrow keys." : "Os grupos são símbolos de um desafio de lógica. Selecione uma posição para trocar o grupo, usando toque ou as setas do teclado."}</p>
+      <p>{en ? "Choose four of the six groups without repeating any. You have ten guesses to find their order. Exact means a group is in the right position. Misplaced means the group belongs in the code but is in the wrong position. The counts do not tell you which positions you got right." : "Escolha quatro dos seis grupos, sem repetir nenhum. Você tem dez tentativas para descobrir a ordem. Exatos são grupos no lugar certo. Deslocados são grupos certos em outro lugar. Os números não indicam quais posições você acertou."}</p>
+      <p>{en ? "Click or tap a position to change its group. On a keyboard, use the arrow keys." : "Clique ou toque na opção de uma posição para trocar o grupo. No teclado, use as setas."}</p>
     </details>
     <p data-testid="code-remaining">{en ? "Attempts remaining" : "Tentativas restantes"}: {10 - history.length}</p>
     <form onSubmit={submit}>
@@ -110,7 +110,7 @@ export function CodeGroups({ locale, artifactUrl }: { locale: "pt-BR" | "en"; ar
       <h2 id="code-result-title">{won ? (en ? "Code solved!" : "Código descoberto!") : (en ? "Attempts exhausted" : "Tentativas esgotadas")}</h2>
       <p>{en ? "Secret sequence" : "Sequência secreta"}: <strong>{puzzle.secret.map(label).join(" / ")}</strong></p>
       <p>{en ? "Attempts used" : "Tentativas usadas"}: {history.length}/10</p>
-      <h3>{en ? "Group classification sources" : "Fontes da classificação dos grupos"}</h3>
+      <h3>{en ? "About the groups" : "Sobre os grupos"}</h3>
       <ul>{puzzle.symbols.map(s => <li key={s.qid}><a href={s.source.url}>{s.name} · Wikidata</a> · {en ? "revision" : "revisão"} {s.source.revision_id}</li>)}</ul>
       <p>Wikidata · CC0</p>
     </section>}

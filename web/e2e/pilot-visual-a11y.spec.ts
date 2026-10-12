@@ -91,7 +91,7 @@ test("crossword: keyboard completion announces and focuses cited results", async
     await page.keyboard.press("Enter");
     await page.keyboard.type(entry.answer);
   }
-  await page.getByRole("button", { name: "Verificar grade", exact: true }).focus();
+  await page.getByRole("button", { name: "Verificar respostas", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("game-result")).toBeFocused();
   await expect(page.locator(".crossword-actions")).toHaveCSS("position", "static");

@@ -13,14 +13,14 @@ for (const locale of ['pt-br', 'en'])
         const board = page.locator('#crossword');
         await expect(board.locator('input')).toHaveCount(puzzle.cells.length);
         await expect(board.getByRole('heading', { name: locale === 'en' ? 'Answers and sources' : 'Respostas e fontes' })).toHaveCount(0);
-        await board.getByRole('button', { name: locale === 'en' ? 'Check board' : 'Verificar grade', exact: true }).click();
+        await board.getByRole('button', { name: locale === 'en' ? 'Check answers' : 'Verificar respostas', exact: true }).click();
         await expect(board.getByRole('status')).toContainText(locale === 'en' ? 'incorrect' : 'incorretas');
         // Select each clue via touch-equivalent click, then type the entire answer with automatic cell advancement.
         for (const e of puzzle.entries) {
             await board.getByRole('button', { name: new RegExp(`^${e.number} ${e.direction === 'across' ? (locale === 'en' ? 'Across' : 'Horizontal') : (locale === 'en' ? 'Down' : 'Vertical')}:`) }).click();
             await page.keyboard.type(e.answer.toLowerCase());
         }
-        await board.getByRole('button', { name: locale === 'en' ? 'Check board' : 'Verificar grade', exact: true }).click();
+        await board.getByRole('button', { name: locale === 'en' ? 'Check answers' : 'Verificar respostas', exact: true }).click();
         await expect(board.getByRole('status')).toHaveText(locale === 'en' ? 'Crossword completed!' : 'Cruzadinha concluída!');
         await expect(board.locator('input:enabled')).toHaveCount(0);
         await expect(board.locator('a[href*="oldid="]')).toHaveCount(5);
@@ -54,7 +54,7 @@ test('missing and invalid crossword offer retry without a fallback', async ({ pa
         await page.getByRole('button', { name: 'Try again' }).click();
     }
     await expect(page.locator('#crossword input')).toHaveCount(puzzle.cells.length);
-    await page.getByRole('button', { name: 'Finish and reveal' }).click();
+    await page.getByRole('button', { name: 'Finish and see answers' }).click();
     await expect(page.getByRole('status')).toContainText('Round ended');
 });
 test('keyboard editing, crossed clues and digits remain playable', async ({ page }) => {
@@ -74,7 +74,7 @@ test('keyboard editing, crossed clues and digits remain playable', async ({ page
     await expect(board.getByRole('textbox', { name: /Row 3, column 1/ })).toHaveValue('0');
     await board.getByRole('button', { name: /^1 Across:/ }).click();
     await page.keyboard.type('xxx');
-    await board.getByRole('button', { name: 'Check board', exact: true }).click();
+    await board.getByRole('button', { name: 'Check answers', exact: true }).click();
     await expect(board.getByRole('status')).toContainText('incorrect');
     const first = board.getByRole('textbox', { name: /Row 1, column 1/ });
     await first.focus();
@@ -84,7 +84,7 @@ test('keyboard editing, crossed clues and digits remain playable', async ({ page
         await board.getByRole('button', { name: new RegExp(`^${e.number} ${e.direction === 'across' ? 'Across' : 'Down'}:`) }).click();
         await page.keyboard.type(e.answer);
     }
-    await board.getByRole('button', { name: 'Check board', exact: true }).click();
+    await board.getByRole('button', { name: 'Check answers', exact: true }).click();
     await expect(board.getByTestId('game-result')).toBeVisible();
     await expect(board.getByRole('status')).toHaveText('Crossword completed!');
 });

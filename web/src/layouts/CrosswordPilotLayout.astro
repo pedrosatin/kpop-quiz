@@ -7,11 +7,11 @@ const pt = locale === 'pt-BR';
 ---
 <!doctype html>
 <html lang={locale}>
-<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width" /><meta name="robots" content="noindex" /><title>{pt ? 'Cruzadinha piloto' : 'Crossword pilot'} | K-pop Quiz</title></head>
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width" /><meta name="robots" content="noindex" /><title>{pt ? 'Cruzadinha' : 'Crossword'} | K-pop Quiz</title></head>
 <body>
 <a class="skip-link" href="#crossword">{pt ? 'Ir para o jogo' : 'Skip to game'}</a>
 <header class="site-header"><a class="wordmark" href={`${base}/${pt?'pt-br':'en'}/`}>KQ</a><a class="language-link" href={`${base}/${pt?'en/crossword-pilot':'pt-br/cruzadinha-piloto'}/`} hreflang={pt?'en':'pt-BR'}>{pt?'English':'Português'}</a></header>
-<main class="page-shell"><h1>{pt?'Cruzadinha piloto':'Crossword pilot'}</h1><slot /></main>
+<main class="page-shell"><h1>{pt?'Cruzadinha':'Crossword'}</h1><slot /></main>
 <footer><p>Wikidata · <a href="https://www.wikidata.org/wiki/Wikidata:Copyright">CC0</a> · Wikipedia · <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a></p></footer>
 </body>
 </html>

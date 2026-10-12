@@ -13,7 +13,7 @@ from .storage import canonical_json
 from .quiz_repository import _has_open_conflict
 SCHEMA = 'crossword-pilot-v1'
 SELECTION = [('Q13580495', 0, 0, 'across', [('has_member', 'J-Hope')]), ('Q491067', 0, 0, 'down', [('formed_on', '2012'), ('record_label', 'Cube Entertainment')]), ('Q223048', 0, 2, 'down', [('formed_on', '2010'), ('record_label', 'Starship Entertainment')])]
-CLUES = [{'pt-BR': 'Grupo que inclui J-Hope.', 'en': 'Group whose members include J-Hope.'}, {'pt-BR': 'Grupo formado em 2012, associado à Cube Entertainment.', 'en': 'Group formed in 2012, associated with Cube Entertainment.'}, {'pt-BR': 'Grupo formado em 2010, associado à Starship Entertainment.', 'en': 'Group formed in 2010, associated with Starship Entertainment.'}]
+CLUES = [{'pt-BR': 'Grupo que inclui J-Hope.', 'en': 'Group whose members include J-Hope.'}, {'pt-BR': 'Grupo formado em 2012. Gravadora: Cube Entertainment.', 'en': 'Group formed in 2012. Record label: Cube Entertainment.'}, {'pt-BR': 'Grupo formado em 2010. Gravadora: Starship Entertainment.', 'en': 'Group formed in 2010. Record label: Starship Entertainment.'}]
 
 def normalize(name: str) -> str:
     return re.sub('[^A-Z0-9]', '', unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode().upper())
