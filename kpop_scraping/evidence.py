@@ -47,6 +47,7 @@ _LABEL_BLOCKERS = re.compile(r"\b(?:trainee\w*|from|former\w*)\b", _I)
 _LABEL_TRIGGER = re.compile(
     r"\bsigned\s+(?:to|with)\s+", _I
 )
+_TOKEN_PATTERN = re.compile(r"[^\s,.;()]+\s+")
 _GROUP_NOUN = r"(?:group|band|duo|trio|quartet|quintet|act|ensemble|unit)"
 _GENRE_COPULA = re.compile(r"\b(?:is|was|are|were)\s+an?\s+", _I)
 _GENRE_LIST = re.compile(r"\bgenres?\s+(?:including|such\s+as|of|like)\s+", _I)
@@ -288,7 +289,7 @@ def record_label_evidence(
                 found = _match_at(sentence, position, patterns)
                 if found:
                     return _text_evidence(page, start + found[0], start + found[1])
-                token = re.compile(r"[^\s,.;()]+\s+").match(sentence, position)
+                token = _TOKEN_PATTERN.match(sentence, position)
                 if token is None:
                     break
                 position = token.end()
@@ -374,12 +375,15 @@ def membership_evidence(
                             page, start + match.start("name"), start + match.end("name")
                         )
     exact_group = re.compile(rf"(?:the\s+)?(?:group\s+)?(?:{group})(?![\w'-])", _I)
+    forms_precompiled = [
+        re.compile(
+            rf"(?P<name>{pattern.pattern}),?\s+(?:joined|left|departed(?:\s+from)?)\s+"
+        )
+        for pattern in patterns
+    ]
     for start, end in _sentences(page.extract):
         sentence = page.extract[start:end]
-        for pattern in patterns:
-            form = re.compile(
-                rf"(?P<name>{pattern.pattern}),?\s+(?:joined|left|departed(?:\s+from)?)\s+"
-            )
+        for form in forms_precompiled:
             for match in form.finditer(sentence):
                 target = exact_group.match(sentence, match.end())
                 if (
