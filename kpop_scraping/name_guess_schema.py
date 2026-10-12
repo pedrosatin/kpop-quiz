@@ -89,7 +89,10 @@ def _require_date(value: Any, field_name: str) -> None:
 
 def _require_bilingual_text(value: Any, field_name: str) -> None:
     _require(isinstance(value, dict), f"{field_name} must be an object")
-    _require(set(value.keys()) == BILINGUAL_FIELDS, f"{field_name} fields must be pt-BR and en")
+    _require(
+        set(value.keys()) == BILINGUAL_FIELDS,
+        f"{field_name} fields must be pt-BR and en",
+    )
     for lang in ("pt-BR", "en"):
         _require(
             isinstance(value[lang], str) and len(value[lang]) > 0,
@@ -202,6 +205,107 @@ def generate_share_summary(
     return "\n".join(lines)
 
 
+def _validate_clues(clues: Any) -> None:
+    _require(isinstance(clues, dict), "target.clues must be an object")
+    _require(
+        set(clues.keys()).issubset(CLUES_ALLOWED_FIELDS),
+        f"target.clues contains unexpected fields: {sorted(set(clues.keys()) - CLUES_ALLOWED_FIELDS)}",
+    )
+    if "debut_year" in clues:
+        debut_year = clues["debut_year"]
+        _require(
+            type(debut_year) is int and 1900 <= debut_year <= 2100,
+            "target.clues.debut_year must be an integer between 1900 and 2100",
+        )
+    if "agency" in clues:
+        agency = clues["agency"]
+        if isinstance(agency, dict):
+            _require_bilingual_text(agency, "target.clues.agency")
+        else:
+            _require(
+                isinstance(agency, str) and len(agency) > 0,
+                "target.clues.agency must be a non-empty string or bilingual object",
+            )
+    if "members_count" in clues:
+        members_count = clues["members_count"]
+        _require(
+            type(members_count) is int and 1 <= members_count <= 50,
+            "target.clues.members_count must be an integer between 1 and 50",
+        )
+    if "description" in clues:
+        _require_bilingual_text(clues["description"], "target.clues.description")
+
+
+def _validate_target_evidence(ev_list: Any) -> None:
+    _require(isinstance(ev_list, list), "target.evidence must be a list")
+    _require(
+        len(ev_list) >= 1, "target.evidence must contain at least one evidence item"
+    )
+    for ev_idx, ev in enumerate(ev_list):
+        _validate_evidence(ev, f"target.evidence[{ev_idx}]")
+
+
+def _validate_target(target: Any, word_length: int) -> str:
+    _require(isinstance(target, dict), "target must be an object")
+    _require(
+        TARGET_REQUIRED_FIELDS.issubset(set(target.keys()))
+        and set(target.keys()).issubset(TARGET_ALL_FIELDS),
+        f"target has missing or unexpected fields: {sorted(set(target.keys()) ^ TARGET_ALL_FIELDS)}",
+    )
+    _require_qid(target["id"], "target.id")
+    _require(
+        isinstance(target["canonical_name"], str) and len(target["canonical_name"]) > 0,
+        "target.canonical_name must be a non-empty string",
+    )
+    normalized_name = target["normalized_name"]
+    _require(
+        isinstance(normalized_name, str)
+        and bool(_NORMALIZED_NAME_PATTERN.match(normalized_name)),
+        "target.normalized_name must be an uppercase string matching ^[A-Z]+$",
+    )
+    _require(
+        len(normalized_name) == word_length,
+        f"target.normalized_name length ({len(normalized_name)}) does not match word_length ({word_length})",
+    )
+    _require_bilingual_text(target["labels"], "target.labels")
+    _require(
+        target["entity_type"] in {"group", "person"},
+        "target.entity_type must be either 'group' or 'person'",
+    )
+
+    if "clues" in target:
+        _validate_clues(target["clues"])
+
+    _validate_target_evidence(target["evidence"])
+
+    return normalized_name
+
+
+def _validate_valid_guesses(
+    valid_guesses: Any, word_length: int, normalized_name: str
+) -> None:
+    _require(isinstance(valid_guesses, list), "valid_guesses must be a list")
+    _require(len(valid_guesses) >= 1, "valid_guesses must contain at least one guess")
+
+    for idx, guess in enumerate(valid_guesses):
+        _require(
+            isinstance(guess, str)
+            and len(guess) == word_length
+            and bool(_NORMALIZED_NAME_PATTERN.match(guess)),
+            f"valid_guesses[{idx}] ('{guess}') must be an uppercase string matching ^[A-Z]{{{word_length}}}$",
+        )
+
+    _require(
+        len(valid_guesses) == len(set(valid_guesses)),
+        "valid_guesses contains duplicate words",
+    )
+
+    _require(
+        normalized_name in valid_guesses,
+        f"target.normalized_name ('{normalized_name}') must be in valid_guesses",
+    )
+
+
 def validate_name_guess_puzzle(payload: dict[str, Any]) -> None:
     """Validate that payload conforms to kpop-name-guess-puzzle-v1 specification.
 
@@ -234,96 +338,8 @@ def validate_name_guess_puzzle(payload: dict[str, Any]) -> None:
         "max_attempts must be an integer between 4 and 8",
     )
 
-    # Target
-    target = payload["target"]
-    _require(isinstance(target, dict), "target must be an object")
-    _require(
-        TARGET_REQUIRED_FIELDS.issubset(set(target.keys()))
-        and set(target.keys()).issubset(TARGET_ALL_FIELDS),
-        f"target has missing or unexpected fields: {sorted(set(target.keys()) ^ TARGET_ALL_FIELDS)}",
-    )
-    _require_qid(target["id"], "target.id")
-    _require(
-        isinstance(target["canonical_name"], str) and len(target["canonical_name"]) > 0,
-        "target.canonical_name must be a non-empty string",
-    )
-    normalized_name = target["normalized_name"]
-    _require(
-        isinstance(normalized_name, str)
-        and bool(_NORMALIZED_NAME_PATTERN.match(normalized_name)),
-        "target.normalized_name must be an uppercase string matching ^[A-Z]+$",
-    )
-    _require(
-        len(normalized_name) == word_length,
-        f"target.normalized_name length ({len(normalized_name)}) does not match word_length ({word_length})",
-    )
-    _require_bilingual_text(target["labels"], "target.labels")
-    _require(
-        target["entity_type"] in {"group", "person"},
-        "target.entity_type must be either 'group' or 'person'",
-    )
-
-    # Clues (optional)
-    if "clues" in target:
-        clues = target["clues"]
-        _require(isinstance(clues, dict), "target.clues must be an object")
-        _require(
-            set(clues.keys()).issubset(CLUES_ALLOWED_FIELDS),
-            f"target.clues contains unexpected fields: {sorted(set(clues.keys()) - CLUES_ALLOWED_FIELDS)}",
-        )
-        if "debut_year" in clues:
-            debut_year = clues["debut_year"]
-            _require(
-                type(debut_year) is int and 1900 <= debut_year <= 2100,
-                "target.clues.debut_year must be an integer between 1900 and 2100",
-            )
-        if "agency" in clues:
-            agency = clues["agency"]
-            if isinstance(agency, dict):
-                _require_bilingual_text(agency, "target.clues.agency")
-            else:
-                _require(
-                    isinstance(agency, str) and len(agency) > 0,
-                    "target.clues.agency must be a non-empty string or bilingual object",
-                )
-        if "members_count" in clues:
-            members_count = clues["members_count"]
-            _require(
-                type(members_count) is int and 1 <= members_count <= 50,
-                "target.clues.members_count must be an integer between 1 and 50",
-            )
-        if "description" in clues:
-            _require_bilingual_text(clues["description"], "target.clues.description")
-
-    # Evidence
-    ev_list = target["evidence"]
-    _require(isinstance(ev_list, list), "target.evidence must be a list")
-    _require(len(ev_list) >= 1, "target.evidence must contain at least one evidence item")
-    for ev_idx, ev in enumerate(ev_list):
-        _validate_evidence(ev, f"target.evidence[{ev_idx}]")
-
-    # Valid guesses
-    valid_guesses = payload["valid_guesses"]
-    _require(isinstance(valid_guesses, list), "valid_guesses must be a list")
-    _require(len(valid_guesses) >= 1, "valid_guesses must contain at least one guess")
-
-    for idx, guess in enumerate(valid_guesses):
-        _require(
-            isinstance(guess, str)
-            and len(guess) == word_length
-            and bool(_NORMALIZED_NAME_PATTERN.match(guess)),
-            f"valid_guesses[{idx}] ('{guess}') must be an uppercase string matching ^[A-Z]{{{word_length}}}$",
-        )
-
-    _require(
-        len(valid_guesses) == len(set(valid_guesses)),
-        "valid_guesses contains duplicate words",
-    )
-
-    _require(
-        normalized_name in valid_guesses,
-        f"target.normalized_name ('{normalized_name}') must be in valid_guesses",
-    )
+    normalized_name = _validate_target(payload["target"], word_length)
+    _validate_valid_guesses(payload["valid_guesses"], word_length, normalized_name)
 
 
 def write_name_guess_puzzle_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
