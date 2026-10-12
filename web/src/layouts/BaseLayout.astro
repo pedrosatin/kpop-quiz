@@ -7,7 +7,6 @@ import type { Locale } from "../lib/quiz-types";
 import type { SeoRouteKey, SkipLinkKey } from "../i18n/catalog";
 import { getMessages } from "../i18n/catalog";
 import {
-  SEO_DEFAULT_PATH,
   SEO_OG_IMAGE_HEIGHT,
   SEO_OG_IMAGE_WIDTH,
   SEO_PROD_ORIGIN,
@@ -53,7 +52,10 @@ const canonical =
         alternateUrl: `${SEO_PROD_ORIGIN}${canonicalProps.alternatePath}`,
       };
 const isNotFound = canonical === undefined;
-const defaultUrl = `${SEO_PROD_ORIGIN}${SEO_DEFAULT_PATH}`;
+// Each language cluster falls back to the Portuguese version of this page.
+const defaultUrl = canonical
+  ? (locale === "pt-BR" ? canonical.url : canonical.alternateUrl)
+  : undefined;
 // Absolute production URL in every build, like canonical (ADR 018). The
 // quiz key also covers the home, privacy and 404 pages: the generic card.
 // ?v=<8 hex of the PNG bytes> makes crawlers that cache the card by URL fetch
@@ -190,6 +192,7 @@ const games = [
       </>
     )}
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="K-pop Quiz" />
     <meta property="og:title" content={meta.title} />
     <meta property="og:description" content={meta.description} />
     {canonical && <meta property="og:url" content={canonical.url} />}
@@ -216,19 +219,34 @@ const games = [
     <link rel="apple-touch-icon" href={`${base}/apple-touch-icon.png`} />
     <link rel="preload" href={`${base}/fonts/noto-sans/NotoSans-latin-wght.woff2`} as="font" type="font/woff2" crossorigin />
     <link rel="preload" href={`${base}/fonts/space-grotesk/SpaceGrotesk-latin-wght.woff2`} as="font" type="font/woff2" crossorigin />
-    {!isNotFound && !Astro.url.pathname.includes('/privacidade') && !Astro.url.pathname.includes('/privacy') && (
+    {canonical && indexable && !isPrivacy && (
       <script
         type="application/ld+json"
         is:inline
         set:html={JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebApplication",
-          name: "K-pop Quiz",
-          url: "https://kpopquiz.online",
+          "@id": `${canonical.url}#game`,
+          name: messages.overview.games[route].title,
+          url: canonical.url,
           applicationCategory: "GameApplication",
           operatingSystem: "All",
-          inLanguage: ["pt-BR", "en"],
+          inLanguage: locale,
           description: meta.description,
+        }).replace(/</g, '\\u003c')}
+      />
+    )}
+    {canonical && indexable && !isPrivacy && route === "quiz" && (
+      <script
+        type="application/ld+json"
+        is:inline
+        set:html={JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "@id": `${SEO_PROD_ORIGIN}/#website`,
+          name: "K-pop Quiz",
+          url: `${SEO_PROD_ORIGIN}/`,
+          inLanguage: ["pt-BR", "en"],
         }).replace(/</g, '\\u003c')}
       />
     )}
