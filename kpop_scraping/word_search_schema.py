@@ -27,7 +27,9 @@ WORD_SEARCH_REQUIRED_ROOT_FIELDS = frozenset(
 )
 
 WORD_SEARCH_OPTIONAL_ROOT_FIELDS = frozenset({"theme_description"})
-WORD_SEARCH_ALL_ROOT_FIELDS = WORD_SEARCH_REQUIRED_ROOT_FIELDS | WORD_SEARCH_OPTIONAL_ROOT_FIELDS
+WORD_SEARCH_ALL_ROOT_FIELDS = (
+    WORD_SEARCH_REQUIRED_ROOT_FIELDS | WORD_SEARCH_OPTIONAL_ROOT_FIELDS
+)
 
 DIMENSIONS_FIELDS = frozenset({"rows", "cols"})
 
@@ -104,7 +106,9 @@ def _require_date(value: Any, field_name: str) -> None:
 
 def _require_bilingual_text(value: Any, field_name: str) -> None:
     _require(isinstance(value, dict), f"{field_name} must be an object")
-    _require(set(value.keys()) == BILINGUAL_FIELDS, f"{field_name} fields must be pt-BR and en")
+    _require(
+        value.keys() == BILINGUAL_FIELDS, f"{field_name} fields must be pt-BR and en"
+    )
     for lang in ("pt-BR", "en"):
         _require(
             isinstance(value[lang], str) and len(value[lang]) > 0,
@@ -115,7 +119,7 @@ def _require_bilingual_text(value: Any, field_name: str) -> None:
 def _validate_evidence(evidence: Any, context: str) -> None:
     _require(isinstance(evidence, dict), f"{context} evidence item must be an object")
     _require(
-        set(evidence.keys()) == EVIDENCE_FIELDS,
+        evidence.keys() == EVIDENCE_FIELDS,
         f"{context} evidence item contains unexpected or missing fields",
     )
     _require(
@@ -178,7 +182,9 @@ def extract_word_coordinates(
     step_c = 0 if dc == 0 else (1 if dc > 0 else -1)
     num_steps = max(abs(dr), abs(dc))
 
-    return [(start_row + i * step_r, start_col + i * step_c) for i in range(num_steps + 1)]
+    return [
+        (start_row + i * step_r, start_col + i * step_c) for i in range(num_steps + 1)
+    ]
 
 
 def check_word_in_grid(
@@ -197,12 +203,16 @@ def check_word_in_grid(
 
     for r, c in coords:
         if not (0 <= r < rows):
-            raise ValueError(f"Coordinate ({r}, {c}) row is out of grid bounds [0, {rows})")
+            raise ValueError(
+                f"Coordinate ({r}, {c}) row is out of grid bounds [0, {rows})"
+            )
         if not isinstance(grid[r], list):
             raise ValueError(f"Grid row {r} must be a list")
         cols = len(grid[r])
         if not (0 <= c < cols):
-            raise ValueError(f"Coordinate ({r}, {c}) col is out of grid bounds [0, {cols})")
+            raise ValueError(
+                f"Coordinate ({r}, {c}) col is out of grid bounds [0, {cols})"
+            )
         cell = grid[r][c]
         if not isinstance(cell, str):
             raise ValueError(f"Grid cell at ({r}, {c}) must be a string")
@@ -229,14 +239,18 @@ def generate_word_search_share_summary(
 
 def _validate_root_fields(payload: dict[str, Any]) -> None:
     _require(isinstance(payload, dict), "root payload must be an object")
-    _require(
-        WORD_SEARCH_REQUIRED_ROOT_FIELDS.issubset(set(payload.keys())),
-        f"root payload is missing required fields: {sorted(WORD_SEARCH_REQUIRED_ROOT_FIELDS - set(payload.keys()))}",
-    )
-    _require(
-        set(payload.keys()).issubset(WORD_SEARCH_ALL_ROOT_FIELDS),
-        f"root payload has unexpected fields: {sorted(set(payload.keys()) - WORD_SEARCH_ALL_ROOT_FIELDS)}",
-    )
+    payload_keys = payload.keys()
+    missing_root = WORD_SEARCH_REQUIRED_ROOT_FIELDS - payload_keys
+    if missing_root:
+        _require(
+            False, f"root payload is missing required fields: {sorted(missing_root)}"
+        )
+
+    unexpected_root = payload_keys - WORD_SEARCH_ALL_ROOT_FIELDS
+    if unexpected_root:
+        _require(
+            False, f"root payload has unexpected fields: {sorted(unexpected_root)}"
+        )
     _require(
         payload["schema_version"] == WORD_SEARCH_SCHEMA_VERSION,
         f"schema_version must be {WORD_SEARCH_SCHEMA_VERSION}",
@@ -256,7 +270,7 @@ def _validate_dimensions(payload: dict[str, Any]) -> tuple[int, int]:
     dimensions = payload["dimensions"]
     _require(isinstance(dimensions, dict), "dimensions must be an object")
     _require(
-        set(dimensions.keys()) == DIMENSIONS_FIELDS,
+        dimensions.keys() == DIMENSIONS_FIELDS,
         f"dimensions fields must be rows and cols, got {sorted(dimensions.keys())}",
     )
     rows = dimensions["rows"]
@@ -302,14 +316,16 @@ def _validate_word_entry(
 ) -> None:
     context = f"words[{idx}]"
     _require(isinstance(word_obj, dict), f"{context} must be an object")
-    _require(
-        WORD_ENTRY_REQUIRED_FIELDS.issubset(set(word_obj.keys())),
-        f"{context} is missing required fields: {sorted(WORD_ENTRY_REQUIRED_FIELDS - set(word_obj.keys()))}",
-    )
-    _require(
-        set(word_obj.keys()).issubset(WORD_ENTRY_ALL_FIELDS),
-        f"{context} contains unexpected fields: {sorted(set(word_obj.keys()) - WORD_ENTRY_ALL_FIELDS)}",
-    )
+    word_keys = word_obj.keys()
+    missing = WORD_ENTRY_REQUIRED_FIELDS - word_keys
+    if missing:
+        _require(False, f"{context} is missing required fields: {sorted(missing)}")
+
+    unexpected = word_keys - WORD_ENTRY_ALL_FIELDS
+    if unexpected:
+        _require(
+            False, f"{context} contains unexpected fields: {sorted(unexpected)}"
+        )
 
     # ID (QID)
     qid = word_obj["id"]
@@ -415,6 +431,8 @@ def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
     _validate_words(payload.get("words"), rows, cols, grid)
 
 
+
+
 def _clue_key(text: dict[str, str]) -> tuple[str, str]:
     return (text["pt-BR"].strip().casefold(), text["en"].strip().casefold())
 
@@ -452,6 +470,8 @@ def validate_word_search_clues(payload: dict[str, Any]) -> None:
     )
 
 
-def write_word_search_puzzle_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
+def write_word_search_puzzle_atomic(
+    target_path: Path, payload: dict[str, Any]
+) -> bytes:
     """Validate and atomically write a word search puzzle JSON file."""
     return write_json_atomic(target_path, payload, validate_word_search_puzzle)
