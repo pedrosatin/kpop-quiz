@@ -28,7 +28,7 @@ from kpop_scraping.sources import (
 )
 from kpop_scraping.validation import ValidationContext, validate_facts
 
-from .wikidata_fixture import (
+from tests.wikidata_fixture import (
     NAYEON,
     RED_VELVET,
     SUNMI,
