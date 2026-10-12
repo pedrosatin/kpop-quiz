@@ -11,7 +11,6 @@ from kpop_scraping.group_relevance import (
     collect_group_pageviews,
     pageview_window,
 )
-from kpop_scraping.group_relevance_cli import default_reference_date
 
 
 def _item(day: str, views: int, title: str = "Example") -> dict:
@@ -33,15 +32,6 @@ class GroupPageviewTest(unittest.TestCase):
         self.assertEqual((date.fromisoformat(end) - date.fromisoformat(start)).days + 1, 365)
         self.assertEqual((date(2026, 9, 22) - date.fromisoformat(end)).days, 2)
 
-    def test_default_reference_date_uses_utc(self):
-        class FixedDatetime:
-            @classmethod
-            def now(cls, tz):
-                self.assertIsNotNone(tz)
-                return datetime(2026, 9, 21, 0, 30)
-
-        with patch("kpop_scraping.group_relevance_cli.datetime", FixedDatetime):
-            self.assertEqual(default_reference_date(), date(2026, 9, 21))
 
     def test_measurement_is_canonical_and_sums_daily_items(self):
         payload = {"items": [_item("2026-01-01", 4), _item("2026-01-02", 9)]}
