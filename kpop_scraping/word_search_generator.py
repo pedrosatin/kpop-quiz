@@ -6,7 +6,6 @@ import hashlib
 import random
 import re
 import sqlite3
-import unicodedata
 from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, Callable, Iterable, NamedTuple
@@ -693,7 +692,10 @@ def fill_empty_cells_and_verify(
             is_palindrome = p.candidate.word == p.candidate.word[::-1]
             if is_palindrome:
                 reverse_expected = (p.end_row, p.end_col, p.start_row, p.start_col)
-                if set(matches) != {expected, reverse_expected} or len(matches) != 2:
+                if len(matches) != 2 or not (
+                    (matches[0] == expected and matches[1] == reverse_expected) or
+                    (matches[0] == reverse_expected and matches[1] == expected)
+                ):
                     spurious = True
                     break
             else:
