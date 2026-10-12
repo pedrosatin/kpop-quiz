@@ -167,6 +167,7 @@ def _collect(
                 entity_ids[key] = entity_id
                 entity_types[key] = stored
                 names[key] = tuple(alias.name for alias in extract_aliases(document.payload))
+    updates = []
     for qid, rows_for_qid in candidate_rows.items():
         subject = next((item for item in subjects if item[0] == entity_ids.get(qid)), None)
         if subject is None:
@@ -174,10 +175,14 @@ def _collect(
         performer_entity_ids = _performer_entity_ids(subject[3], entity_ids)
         for row in rows_for_qid:
             accepted = int(row["group_entity_id"]) in performer_entity_ids
-            repository.connection.execute(
-                "UPDATE release_candidates SET state=?,reason=? WHERE id=?",
-                ("accepted" if accepted else "rejected", None if accepted else "catalog_performer_not_confirmed", row["id"]),
+            updates.append(
+                ("accepted" if accepted else "rejected", None if accepted else "catalog_performer_not_confirmed", row["id"])
             )
+    if updates:
+        repository.connection.executemany(
+            "UPDATE release_candidates SET state=?,reason=? WHERE id=?",
+            updates,
+        )
     label_ids = sorted(qid for qid, role in value_roles.items() if role != "group")
     for offset in range(0, len(label_ids), batch_size):
         batch = label_ids[offset : offset + batch_size]
