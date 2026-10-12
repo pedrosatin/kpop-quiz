@@ -1,10 +1,9 @@
-# How well do you know K-pop history?
+# Free online K-pop quiz
 
 Canonical: https://kpopquiz.online/en/
 Also in Portuguese: https://kpopquiz.online/pt-br/
 
-Questions about groups, members and dates. Every answer shows its
-source.
+Test your knowledge of groups, members and dates. Answer 10 questions with no account needed and check the source for every answer.
 
 10 questions · multiple choice. 10 multiple choice questions with
 verifiable sources for every answer.
