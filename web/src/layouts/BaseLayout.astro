@@ -75,9 +75,10 @@ const canonical =
         alternateUrl: `${SEO_PROD_ORIGIN}${canonicalProps.alternatePath}`,
       };
 const isNotFound = canonical === undefined;
-// Each language cluster falls back to the Portuguese version of this page.
+// x-default points to the English version: the global fallback for
+// visitors outside Portuguese-speaking locales.
 const defaultUrl = canonical
-  ? (locale === "pt-BR" ? canonical.url : canonical.alternateUrl)
+  ? (locale === "en" ? canonical.url : canonical.alternateUrl)
   : undefined;
 // Absolute production URL in every build, like canonical (ADR 018). The
 // quiz key also covers the home, privacy and 404 pages: the generic card.
