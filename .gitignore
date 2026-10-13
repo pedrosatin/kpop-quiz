@@ -22,3 +22,5 @@ __pycache__
 /docs/plans/
 /.metrics/
 raw/
+.scratch/
+/web/graphify-out/

@@ -4,12 +4,27 @@
 
 Construir um conjunto de dados citável e uma aplicação de quizzes de K-pop. A correção e a proveniência dos fatos têm prioridade sobre a quantidade de perguntas.
 
+## Arquitetura e Ponteiros
+
+- **Frontend web**: `web/` — Aplicação Astro estática + Preact islands + Vitest + Playwright.
+- **Backend / Coleta**: `kpop_scraping/` — Pipeline determinístico em Python padrão.
+- **Decisões arquiteturais (ADRs)**: `docs/decisions/` (ADRs 001 a 022 com contratos de minigames e SEO).
+- **Grafo de conhecimento**: `graphify-out/GRAPH_REPORT.md`.
+
 ## Comandos canônicos
 
 ```bash
+# Verificação completa (Python + Web):
+npm run check
+
+# Python:
 python -m unittest discover -v
 python -m compileall -q .
 python main.py --limit 3 --database /tmp/kpop-quiz-smoke.db
+
+# Frontend (web/):
+npm --prefix web test
+npm --prefix web run build
 ```
 
 ## Invariantes

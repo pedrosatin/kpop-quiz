@@ -1,0 +1,13 @@
+{
+  "name": "kpop-quiz",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "python -m unittest discover -v && npm --prefix web test",
+    "test:py": "python -m unittest discover -v",
+    "test:web": "npm --prefix web test",
+    "build": "npm --prefix web run build",
+    "typecheck": "npm --prefix web run typecheck",
+    "check": "python -m compileall -q . && python -m unittest discover -v && npm --prefix web test && npm --prefix web run build"
+  }
+}

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+      - main
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify Python & Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Run Python verification
+        run: |
+          python -m compileall -q .
+          python -m unittest discover -v
+
+      - name: Install Web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Run Web tests
+        working-directory: web
+        run: npm test
+
+      - name: Run Web build
+        working-directory: web
+        run: npm run build
