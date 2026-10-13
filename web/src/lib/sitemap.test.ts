@@ -14,7 +14,7 @@ describe("sitemap", () => {
     expect(xml).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"');
   });
 
-  it("lists the 14 canonical URLs without lastmod", () => {
+  it("lists the 14 canonical URLs without lastmod when no date is given", () => {
     const blocks = urlBlocks(xml);
     expect(blocks).toHaveLength(14);
     for (const block of blocks) {
@@ -23,7 +23,14 @@ describe("sitemap", () => {
     }
   });
 
-  it("links each URL to itself and its paired language", () => {
+  it("adds lastmod to every URL when a date is given", () => {
+    const dated = buildSitemapXml(SEO_ROUTES, "2026-10-12");
+    for (const block of urlBlocks(dated)) {
+      expect(block).toContain("<lastmod>2026-10-12</lastmod>");
+    }
+  });
+
+  it("links each URL to itself, its paired language and x-default", () => {
     const block = urlBlocks(xml).find((entry) =>
       entry.includes("<loc>https://kpopquiz.online/pt-br/caca-palavras/</loc>"),
     );
@@ -34,8 +41,11 @@ describe("sitemap", () => {
     expect(block).toContain(
       '<xhtml:link rel="alternate" hreflang="en" href="https://kpopquiz.online/en/word-search/"/>',
     );
+    expect(block).toContain(
+      '<xhtml:link rel="alternate" hreflang="x-default" href="https://kpopquiz.online/en/word-search/"/>',
+    );
     for (const entry of urlBlocks(xml)) {
-      expect(entry.match(/<xhtml:link /g)).toHaveLength(2);
+      expect(entry.match(/<xhtml:link /g)).toHaveLength(3);
     }
   });
 });

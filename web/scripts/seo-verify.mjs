@@ -177,6 +177,11 @@ function main() {
       alternates.length === locs.length * 2,
       `sitemap has ${alternates.length} xhtml:link alternates, expected ${locs.length * 2}`,
     );
+    const defaults = [...sitemap.matchAll(/<xhtml:link rel="alternate" hreflang="x-default" href="https:\/\/kpopquiz\.online\/en\//g)];
+    check(
+      defaults.length === locs.length,
+      `sitemap has ${defaults.length} x-default alternates, expected ${locs.length}`,
+    );
   }
 
   // Robots: env-aware content.
@@ -222,7 +227,7 @@ function main() {
     check(html.includes('hreflang="x-default"'), `${label} missing hreflang x-default`);
     const routeIndex = htmls.indexOf(htmlPath);
     const path = EXPECTED_PATHS[routeIndex];
-    const ptPath = EXPECTED_PATHS[routeIndex % (EXPECTED_PATHS.length / 2)];
+    const enPath = EXPECTED_PATHS[(routeIndex % (EXPECTED_PATHS.length / 2)) + EXPECTED_PATHS.length / 2];
     const title = html.match(/<title>([\s\S]*?)<\/title>/)?.[1];
     const description = metaContent(html, "name", "description");
     check(Boolean(title) && !titles.has(title), `${label} must have a unique, nonempty title`);
@@ -250,8 +255,8 @@ function main() {
       `${label} canonical must match its own route`,
     );
     check(
-      html.includes(`<link rel="alternate" hreflang="x-default" href="${PROD_ORIGIN}${ptPath}"`),
-      `${label} x-default must point to the Portuguese version of this route`,
+      html.includes(`<link rel="alternate" hreflang="x-default" href="${PROD_ORIGIN}${enPath}"`),
+      `${label} x-default must point to the English version of this route`,
     );
     check(html.includes('property="og:title"'), `${label} missing og:title`);
     checkOgImage(dist, html, label);

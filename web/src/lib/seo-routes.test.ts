@@ -63,8 +63,8 @@ describe("SEO route table", () => {
   });
 
   it("points x-default at the default language route", () => {
-    expect(SEO_DEFAULT_PATH).toBe("/pt-br/");
-    expect(byPathHas("/pt-br/")).toBe(true);
+    expect(SEO_DEFAULT_PATH).toBe("/en/");
+    expect(byPathHas("/en/")).toBe(true);
 
     function byPathHas(path: string): boolean {
       return SEO_ROUTES.some((route) => route.path === path);
