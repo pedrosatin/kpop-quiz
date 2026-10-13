@@ -1,3 +1,4 @@
+import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
 import type { ConnectionsGameStatus, ConnectionsStoredState, GuessResult } from "./types";
@@ -65,6 +66,8 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
   const [proximityFeedback, setProximityFeedback] = useState<boolean>(false);
   const [alreadyGuessedFeedback, setAlreadyGuessedFeedback] = useState<boolean>(false);
 
+  const analytics = useGameAnalytics({ game: "connections", locale: _locale }, gameStatus !== "in_progress", guessHistory.length > 0);
+
   // Sync to localStorage
   useEffect(() => {
     if (!storageKey || !puzzle) return;
@@ -78,6 +81,7 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
 
   const toggleSelectItem = useCallback((id: string) => {
     if (gameStatus !== "in_progress") return;
+    analytics.start();
     setProximityFeedback(false);
     setAlreadyGuessedFeedback(false);
     setSelectedItemIds((prev) => {
@@ -153,6 +157,7 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
 
   const giveUp = useCallback(() => {
     if (!puzzle || gameStatus !== "in_progress") return;
+    analytics.start();
     setGameStatus("lost");
     setSolvedCategoryIds(puzzle.categories.map((c) => c.id));
     setBoardItemIds([]);
@@ -162,6 +167,7 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
   }, [puzzle, gameStatus]);
 
   const restartGame = useCallback(() => {
+    analytics.reset();
     if (!puzzle) return;
     if (storageKey) {
       try { localStorage.removeItem(storageKey); } catch {}

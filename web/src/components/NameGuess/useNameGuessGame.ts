@@ -1,5 +1,6 @@
+import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useEffect, useMemo, useReducer } from "preact/hooks";
-import type { NameGuessPuzzle } from "../../lib/quiz-types";
+import type { NameGuessPuzzle, Locale } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus } from "./types";
 
 function computeFeedback(target: string, guess: string): LetterStatus[] {
@@ -139,11 +140,13 @@ function nameGuessReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-export function useNameGuessGame(puzzle: NameGuessPuzzle) {
+export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-BR") {
   const storageKey = `kpop_guess_state_${puzzle.puzzle_id}`;
 
   const [state, dispatch] = useReducer(nameGuessReducer, INITIAL_STATE);
   const { guesses, feedbacks, currentInput, status, errorMessage, highContrast } = state;
+
+  const analytics = useGameAnalytics({ game: "name-guess", locale }, status !== "playing", guesses.length > 0);
 
   // Restore saved state
   useEffect(() => {
@@ -180,19 +183,26 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle) {
   }, [errorMessage]);
 
   const addLetter = useCallback(
-    (char: string) => dispatch({ type: "addLetter", char, puzzle }),
-    [puzzle]
+    (char: string) => {
+      if (status === "playing" && /^[a-zA-Z]$/.test(char) && currentInput.length < puzzle.word_length) analytics.start();
+      dispatch({ type: "addLetter", char, puzzle });
+    },
+    [puzzle, status, currentInput]
   );
 
   const removeLetter = useCallback(() => dispatch({ type: "removeLetter" }), []);
 
   const submitGuess = useCallback(() => dispatch({ type: "submitGuess", puzzle }), [puzzle]);
 
-  const giveUp = useCallback(() => dispatch({ type: "giveUp" }), []);
+  const giveUp = useCallback(() => {
+    if (status === "playing") analytics.start();
+    dispatch({ type: "giveUp" });
+  }, [status]);
 
   const toggleHighContrast = useCallback(() => dispatch({ type: "toggleHighContrast" }), []);
 
   const resetGame = useCallback(() => {
+    analytics.reset();
     dispatch({ type: "reset" });
     try {
       localStorage.removeItem(storageKey);

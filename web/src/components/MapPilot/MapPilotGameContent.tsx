@@ -1,3 +1,4 @@
+import { useGameAnalytics } from "../../lib/game-analytics";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   mapPilotCountries,
@@ -71,6 +72,7 @@ export function MapPilotGameContent({
   const questionIndex = game.index;
   const answers = game.answers;
   const isComplete = round.length > 0 && questionIndex >= round.length;
+  const analytics = useGameAnalytics({ game: "map", locale }, isComplete, answers.length > 0);
   const current = isComplete ? undefined : (round[questionIndex] as MapPilotEvent | undefined);
   const selectedFeature = answers.length > questionIndex ? answers[questionIndex]! : null;
   const answerCountry = current ? countryByFeature.get(current.map_feature_id) : undefined;
@@ -109,6 +111,7 @@ export function MapPilotGameContent({
 
   function chooseCountry(featureId: string) {
     if (!current || selectedFeature !== null || !playableFeatures.has(featureId)) return;
+    analytics.start();
     playedHere.current = true;
     answeredAt.current = performance.now();
     setGame({ ...game, answers: [...game.answers, featureId] });
@@ -118,6 +121,7 @@ export function MapPilotGameContent({
     // Next takes the place of the answer controls: the second tap of a double
     // tap, or a second Enter, meant for the answer must not skip the verdict.
     if (performance.now() - answeredAt.current < NEXT_GUARD_MS) return;
+    analytics.start();
     playedHere.current = true;
     setListChoice("");
     setPickPrompt(0);
@@ -125,6 +129,7 @@ export function MapPilotGameContent({
   }
 
   function restart() {
+    analytics.reset();
     clearMapPilotSave(game.date);
     playedHere.current = true;
     answeredAt.current = -Infinity;
@@ -137,6 +142,8 @@ export function MapPilotGameContent({
   }
 
   function giveUp() {
+    if (isComplete) return;
+    analytics.start();
     playedHere.current = true;
     setListChoice("");
     setPickPrompt(0);

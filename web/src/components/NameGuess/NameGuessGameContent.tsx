@@ -50,7 +50,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
     giveUp,
     toggleHighContrast,
     resetGame,
-  } = useNameGuessGame(puzzle);
+  } = useNameGuessGame(puzzle, locale);
 
   // Only a game finished in this visit moves focus to the result; a finished
   // game restored from storage leaves focus where the page put it.

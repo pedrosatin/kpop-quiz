@@ -78,7 +78,7 @@ export function GridResults({
   // The buttons appear where the counters were, right after the last pick,
   // so a second tap or a held Enter must not share or restart the game.
   const { guarded, ignoreRepeat } = useResultActionGuard();
-  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "grid", locale } });
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.

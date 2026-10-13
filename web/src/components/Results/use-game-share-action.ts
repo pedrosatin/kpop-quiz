@@ -1,8 +1,10 @@
+import { trackGameEvent, type GameAnalyticsContext } from "../../lib/game-analytics";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 const COPIED_FEEDBACK_MS = 3000;
 
 export interface UseGameShareActionOptions {
+  analytics?: GameAnalyticsContext;
   onCopied?: (() => void) | undefined;
   onShareFailed?: (() => void) | undefined;
 }
@@ -15,7 +17,7 @@ export interface UseGameShareActionOptions {
  * helper) so Testing Library's act still flushes the parent live-region
  * update in the same turn as the existing game tests expect.
  */
-export function useGameShareAction({ onCopied, onShareFailed }: UseGameShareActionOptions = {}) {
+export function useGameShareAction({ onCopied, onShareFailed, analytics }: UseGameShareActionOptions = {}) {
   const [copied, setCopied] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -33,6 +35,7 @@ export function useGameShareAction({ onCopied, onShareFailed }: UseGameShareActi
     if (typeof nav?.share === "function") {
       try {
         await nav.share({ text });
+        if (analytics) trackGameEvent("share", analytics, "native");
         return;
       } catch (error) {
         if ((error as { name?: unknown } | null)?.name === "AbortError") return;
@@ -41,6 +44,7 @@ export function useGameShareAction({ onCopied, onShareFailed }: UseGameShareActi
     try {
       if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
       await nav.clipboard.writeText(text);
+      if (analytics) trackGameEvent("share", analytics, "clipboard");
     } catch {
       setShareFailed(true);
       onShareFailedRef.current?.();

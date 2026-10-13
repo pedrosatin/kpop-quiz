@@ -1,3 +1,4 @@
+import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { CandidateEntity, IntersectionGrid, Locale } from "../../lib/quiz-types";
 import { GridArtifactError, loadIntersectionGrid } from "../../data/grid-loader";
@@ -113,6 +114,8 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   const [usedEntityIds, setUsedEntityIds] = useState<Set<string>>(new Set());
   const [uniquenessError, setUniquenessError] = useState<string | null>(null);
 
+  const analytics = useGameAnalytics({ game: "grid", locale }, status === "complete", guessesUsed > 0);
+
   const loadData = useCallback(async () => {
     setStatus("loading");
     setErrorKind(undefined);
@@ -180,6 +183,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
       return { success: false, reason: "already_used" as const };
     }
 
+    analytics.start();
     const targetCell = grid.cells.find(
       (c) => c.row_index === selectedCell.row && c.col_index === selectedCell.col
     );
@@ -220,14 +224,16 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   }, [selectedCell, grid, usedEntityIds, locale, guessesUsed, storedCells]);
 
   const giveUp = useCallback(() => {
-    if (!grid) return;
+    if (!grid || status === "complete") return;
+    analytics.start();
     setSelectedCell(null);
     setUniquenessError(null);
     setGaveUp(true);
     setStatus("complete");
-  }, [grid]);
+  }, [grid, status]);
 
   const restartGame = useCallback(() => {
+    analytics.reset();
     if (grid) {
       try {
         localStorage.removeItem(gridStorageKey(grid));

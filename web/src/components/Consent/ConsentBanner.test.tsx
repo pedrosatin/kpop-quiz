@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/preact";
+import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/preact";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   CONSENT_BANNER_HEIGHT_VAR,
@@ -6,6 +6,7 @@ import {
   ConsentBanner,
   OPEN_CONSENT_PREFERENCES_EVENT,
 } from "./ConsentBanner";
+import { setGameAnalyticsConsent, useGameAnalytics } from "../../lib/game-analytics";
 import { getMessages } from "../../i18n/catalog";
 
 const GA_ID = "G-TEST123456";
@@ -25,6 +26,7 @@ function openPreferences(): void {
 }
 
 afterEach(() => {
+  setGameAnalyticsConsent("", false);
   window.localStorage.clear();
   for (const s of gaScripts()) {
     s.remove();
@@ -36,6 +38,35 @@ afterEach(() => {
 });
 
 describe("ConsentBanner", () => {
+  it("gates real game lifecycle on acceptance and revocation without replay", async () => {
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    const game = renderHook(({ finished }) => useGameAnalytics({ game: "quiz", locale: "pt-BR" }, finished), {
+      initialProps: { finished: false },
+    });
+    act(() => game.result.current.start());
+    expect(gaScripts()).toHaveLength(0);
+    fireEvent.click(await screen.findByRole("button", { name: messages.consentAccept }));
+    const dataLayer = (window as unknown as { dataLayer: ArrayLike<unknown>[] }).dataLayer;
+    const events = () => dataLayer.map((entry) => Array.from(entry)).filter((entry) => entry[0] === "event");
+    act(() => game.result.current.start());
+    expect(events()).toEqual([]);
+    game.rerender({ finished: true });
+    expect(events().map((entry) => entry[1])).toEqual(["game_complete"]);
+    act(() => game.result.current.reset());
+    game.rerender({ finished: false });
+    act(() => game.result.current.start());
+    openPreferences();
+    fireEvent.click(screen.getByRole("button", { name: messages.consentReject }));
+    game.rerender({ finished: true });
+    openPreferences();
+    fireEvent.click(screen.getByRole("button", { name: messages.consentAccept }));
+    game.rerender({ finished: true });
+    expect(events().map((entry) => entry[1])).toEqual(["game_complete", "game_start"]);
+    expect(Array.from(dataLayer.at(-1)!)).toEqual(["consent", "update", {
+      analytics_storage: "granted", ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied",
+    }]);
+  });
+
   it("shows the banner with accept and reject actions when undecided", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     await waitFor(() => {

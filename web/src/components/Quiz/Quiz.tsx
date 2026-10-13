@@ -1,3 +1,4 @@
+import { useGameAnalytics } from "../../lib/game-analytics";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
 import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../../lib/quiz-types";
@@ -45,6 +46,8 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [hydrated, setHydrated] = useState(false);
 
+  const analytics = useGameAnalytics({ game: "quiz", locale, mode: playMode }, state === "results");
+
   const nextButtonRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const resultHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -79,6 +82,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   });
 
   const resetRound = (count: number, seconds: number, nextState: QuizMachineState) => {
+    analytics.reset();
     gaveUpRef.current = false;
     setQuestionIndex(0);
     setSelectedId(null);
@@ -152,6 +156,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   }, [state, session, history, theme]);
 
   const start = () => {
+    analytics.start();
     saveStoredPlayMode(playMode);
     saveStoredTimerEnabled(timerEnabled);
     updateUrlParams(playMode, theme, decades);
@@ -222,6 +227,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     startTimeRef.current = Date.now();
     recordedMatchRef.current = null;
     resetRound(session?.questions.length ?? 0, timerSeconds ?? 0, "question.ready");
+    analytics.start();
     focusQuestionRef.current = true;
   };
 

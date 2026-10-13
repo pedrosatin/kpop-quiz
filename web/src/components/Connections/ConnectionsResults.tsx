@@ -119,7 +119,7 @@ export function ConnectionsResults({
   // The buttons appear where Submit was, so a second tap or a held Enter
   // meant for the last guess must not share or restart the game.
   const { guarded, ignoreRepeat } = useResultActionGuard();
-  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "connections", locale } });
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.

@@ -1,3 +1,4 @@
+import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { CellCoord, GameStatus, SelectionCheck } from "./types";
@@ -68,6 +69,8 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     } catch {}
   }, [storageKey, foundWordIds, elapsedSeconds, status, easyMode]);
 
+  const analytics = useGameAnalytics({ game: "word-search", locale }, status === "completed", foundWordIds.length > 0);
+
   const activePath = useMemo(() => {
     if (!anchorCell) return [];
     const target = currentHoverCell ?? focusedCell;
@@ -109,7 +112,8 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   const checkSelection = useCallback(
     (start: CellCoord, end: CellCoord) => {
       const path = getLinearPath(start, end);
-      if (path.length < 2) return false;
+      if (path.length < 2 || status !== "in_progress") return false;
+      analytics.start();
 
       const letters = path.map((c) => puzzle.grid[c.row]?.[c.col] ?? "").join("");
       const revLetters = letters.split("").reverse().join("");
@@ -132,7 +136,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
       setLastCheck(again ? { kind: "repeat", wordId: again.id, n } : { kind: "miss", letters, n });
       return false;
     },
-    [puzzle, locale]
+    [puzzle, locale, status]
   );
 
   const handleCellPointerDown = useCallback((row: number, col: number) => {
@@ -278,11 +282,13 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   }, []);
 
   const giveUp = useCallback(() => {
+    if (status !== "in_progress") return;
+    analytics.start();
     cancelSelection();
     // Revealing the words shows every answer in the list at once.
     setEasyMode(true);
     setStatus("completed");
-  }, [cancelSelection]);
+  }, [cancelSelection, status]);
 
   return {
     foundWordIds,
