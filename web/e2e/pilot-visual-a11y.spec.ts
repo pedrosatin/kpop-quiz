@@ -2,6 +2,8 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
+test.use({ bypassCSP: true });
+
 const prefix = (process.env.ASTRO_BASE ?? new URL(process.env.BASE_URL ?? "http://127.0.0.1:4321").pathname).replace(/\/$/, "");
 const evidenceDir = process.env.PILOT_EVIDENCE_DIR;
 const axeScript = readFileSync(new URL("../node_modules/axe-core/axe.min.js", import.meta.url), "utf8");
