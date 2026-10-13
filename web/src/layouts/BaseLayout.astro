@@ -6,6 +6,7 @@ import "../styles/global.css";
 import type { Locale } from "../lib/quiz-types";
 import type { SeoRouteKey, SkipLinkKey } from "../i18n/catalog";
 import { getMessages } from "../i18n/catalog";
+import { gameAbout, type GameAboutKey } from "../i18n/game-about";
 import {
   SEO_OG_IMAGE_HEIGHT,
   SEO_OG_IMAGE_WIDTH,
@@ -42,6 +43,28 @@ const {
   pageMeta,
 } = Astro.props;
 const messages = getMessages(locale);
+const gameAboutKeyMap: Partial<Record<SeoRouteKey, GameAboutKey>> = {
+  grid: "grid",
+  connections: "connections",
+  nameGuess: "nameGuess",
+  wordSearch: "wordSearch",
+  mapPilot: "mapPilot",
+  timeline: "timeline",
+};
+const currentFaqGameKey = gameAboutKeyMap[route];
+const faqCopy = currentFaqGameKey ? gameAbout[locale]?.games[currentFaqGameKey]?.faq : undefined;
+const faqJsonLd = faqCopy && faqCopy.length > 0 ? {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqCopy.map((item) => ({
+    "@type": "Question",
+    name: item.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: item.answer,
+    },
+  })),
+} : undefined;
 const meta = pageMeta ?? messages.meta[route];
 const canonicalProps: CanonicalProps = Astro.props;
 const canonical =
@@ -234,6 +257,13 @@ const games = [
           inLanguage: locale,
           description: meta.description,
         }).replace(/</g, '\\u003c')}
+      />
+    )}
+    {canonical && indexable && !isPrivacy && faqJsonLd && (
+      <script
+        type="application/ld+json"
+        is:inline
+        set:html={JSON.stringify(faqJsonLd).replace(/</g, '\\u003c')}
       />
     )}
     {canonical && indexable && !isPrivacy && route === "quiz" && (
