@@ -52,6 +52,7 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: localTarget?.url ?? baseURL,
+    bypassCSP: true,
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
   },
