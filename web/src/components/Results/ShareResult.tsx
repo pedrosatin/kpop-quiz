@@ -1,3 +1,4 @@
+import { trackGameEvent } from "../../lib/game-analytics";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Locale, PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
@@ -117,6 +118,7 @@ export function ShareResult({
     if (canShare) {
       try {
         await navigator.share({ text: shareText });
+        trackGameEvent("share", { game: "quiz", locale, mode: playMode }, "native");
         return;
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
@@ -127,6 +129,7 @@ export function ShareResult({
     if (canCopy) {
       try {
         await navigator.clipboard.writeText(shareText);
+        trackGameEvent("share", { game: "quiz", locale, mode: playMode }, "clipboard");
         setCopied(true);
         if (copyTimeoutRef.current !== null) {
           clearTimeout(copyTimeoutRef.current);

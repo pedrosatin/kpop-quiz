@@ -87,7 +87,7 @@ export function NameGuessResults({
   // The buttons appear where the keyboard was, so a second tap or a held key
   // meant for the last guess must not share or restart the game.
   const { guarded, ignoreRepeat } = useResultActionGuard();
-  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "name-guess", locale } });
 
   // The bar stops being sticky while the panel is open, so the panel can open
   // below the fold; bring it into view. It is capped in height, so the board

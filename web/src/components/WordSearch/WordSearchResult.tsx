@@ -75,7 +75,7 @@ export function WordSearchResult({
   const shareTextId = useId();
   const shareFailedId = useId();
   const source = useRef<HTMLDivElement>(null);
-  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "word-search", locale } });
 
   const total = puzzle.words.length;
   const found = foundCount ?? total;

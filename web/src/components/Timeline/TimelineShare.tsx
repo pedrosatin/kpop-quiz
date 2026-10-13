@@ -1,3 +1,4 @@
+import { trackGameEvent } from "../../lib/game-analytics";
 import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { TimelineShareProps } from "./types";
 import { DEFAULT_TIMELINE_MESSAGES } from "./types";
@@ -38,10 +39,12 @@ export function TimelineShare({
     const outcome = await shareTextToUser(shareText);
     if (outcome === "aborted") return;
     if (outcome === "shared") {
+      trackGameEvent("share", { game: "timeline", locale }, "native");
       onShareSuccess?.();
       return;
     }
     if (outcome === "copied") {
+      trackGameEvent("share", { game: "timeline", locale }, "clipboard");
       setShareFailed(false);
       setCopied(true);
       setAnnouncementKey((k) => k + 1);

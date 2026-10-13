@@ -1,3 +1,4 @@
+import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useMemo, useState } from "preact/hooks";
 import type { Locale, TimelineEvent, TimelinePuzzle } from "../../lib/quiz-types";
 import type { TimelineGameStatus } from "./types";
@@ -28,6 +29,8 @@ export function useTimelineGame(
   );
   const [score, setScore] = useState<number>(() => initialSaved?.score ?? 0);
   const [results, setResults] = useState<boolean[]>(() => initialSaved?.results ?? []);
+
+  const analytics = useGameAnalytics({ game: "timeline", locale }, gameStatus === "submitted", Boolean(initialSaved));
 
   const eventMap = useMemo(() => {
     const map = new Map<string, TimelineEvent>();
@@ -69,6 +72,7 @@ export function useTimelineGame(
   const moveUp = useCallback(
     (index: number) => {
       if (!canMoveUp(index)) return;
+      analytics.start();
       setOrderedEventIds((prev) => {
         const next = [...prev];
         const current = next[index]!;
@@ -83,6 +87,7 @@ export function useTimelineGame(
   const moveDown = useCallback(
     (index: number) => {
       if (!canMoveDown(index)) return;
+      analytics.start();
       setOrderedEventIds((prev) => {
         const next = [...prev];
         const current = next[index]!;
@@ -101,13 +106,16 @@ export function useTimelineGame(
       const validIds = new Set(puzzle.events.map((e) => e.id));
       if (eventIds.some((id) => !validIds.has(id))) return;
       if (new Set(eventIds).size !== puzzle.events.length) return;
+      if (eventIds.every((id, index) => id === orderedEventIds[index])) return;
+      analytics.start();
       setOrderedEventIds(eventIds);
     },
-    [gameStatus, puzzle.events]
+    [gameStatus, puzzle.events, orderedEventIds]
   );
 
   const submit = useCallback(() => {
     if (gameStatus !== "in_progress") return;
+    analytics.start();
     const evaluation = calculateScore(orderedEvents, canonicalOrder);
     setScore(evaluation.score);
     setResults(evaluation.results);

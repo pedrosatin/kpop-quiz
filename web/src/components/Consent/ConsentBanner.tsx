@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { setGameAnalyticsConsent } from "../../lib/game-analytics";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 
@@ -15,10 +16,19 @@ export interface ConsentBannerProps {
 }
 
 function loadGoogleAnalytics(ga4Id: string): void {
+  setGameAnalyticsConsent(ga4Id, true);
   try {
     const w = window as unknown as Record<string, unknown>;
     w[`ga-disable-${ga4Id}`] = false;
-    if (typeof w.gtag === "function") return;
+    if (typeof w.gtag === "function") {
+      (w.gtag as (...args: unknown[]) => void)("consent", "update", {
+        analytics_storage: "granted",
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+      });
+      return;
+    }
     w.dataLayer = w.dataLayer ?? [];
     // gtag.js only reads the native `arguments` object from dataLayer and silently
     // drops plain arrays, so a rest-parameter wrapper never sends a single hit.
@@ -39,6 +49,7 @@ function loadGoogleAnalytics(ga4Id: string): void {
 }
 
 function disableGoogleAnalytics(ga4Id: string): void {
+  setGameAnalyticsConsent(ga4Id, false);
   try {
     const w = window as unknown as Record<string, unknown>;
     w[`ga-disable-${ga4Id}`] = true;
@@ -75,6 +86,7 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
     window.addEventListener(OPEN_CONSENT_PREFERENCES_EVENT, openPreferences);
 
     const stored = readConsentChoice();
+    setGameAnalyticsConsent(ga4Id, stored === "accepted");
     setChoice(stored);
     setReady(true);
     if (stored === "accepted") {

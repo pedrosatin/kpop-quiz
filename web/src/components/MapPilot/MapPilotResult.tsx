@@ -152,7 +152,7 @@ export function MapPilotResult({
   // The buttons appear where Next was, so a second tap or a held Enter
   // meant for the last Next must not share or restart the round.
   const { guarded, ignoreRepeat } = useResultActionGuard();
-  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed });
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "map", locale } });
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.

@@ -273,3 +273,35 @@ PILOT_EVIDENCE_DIR=/tmp/kpop-pilot-screenshots npm run test:e2e:ci -- --grep 'la
 ```
 
 Run browser suites sequentially when sharing their default output directory. The local preview uses `--ignore-lock` to stay in the foreground so Playwright can start and stop its server. The readiness URL preserves the path in `BASE_URL`, including a staging subdirectory.
+
+### Game measurement with GA4
+
+When production has `PUBLIC_GA4_ID` configured and the visitor accepts analytics,
+quiz, grid, connections, name-guess, word-search, timeline and map emit these events:
+
+- `game_start` records the first game action in a round. This is Start in Quiz,
+  a tile selection in Connections, a valid letter in Guess, a selection of at
+  least two cells in Word Search, reordering or submitting Timeline, an answer
+  in Map, or an attempt in Grid. Giving up also starts an untouched round.
+- `game_complete` records finishing or giving up after an interaction in the
+  current visit, once per round. Opening a saved result emits neither start nor
+  completion.
+- `share` records successful native sharing or clipboard copy. Cancellation,
+  failure and manual text selection do not count. `method` is `native` or
+  `clipboard`, `content_type` is `game_result`, and `item_id` is the fixed game key.
+  See [Google's share event contract](https://developers.google.com/analytics/devguides/collection/ga4/reference/events#share).
+
+All events include `game` with one of the seven keys above and `locale` with
+`pt-BR` or `en`. Quiz also includes `mode`, either `assisted`, `standard` or
+`expert`. Events contain no answers, artist names, shared text, user IDs or
+puzzle IDs. Register `game`, `locale` and `mode` as event-scoped dimensions in
+GA4 to compare games, languages and Quiz modes.
+
+Restored partial games with saved attempts or progress consume the start without
+sending it again. Finishing one during the current visit can emit completion.
+Transient selections and letters are not saved, so reloading after those actions
+cannot identify an earlier start. Play again resets deduplication. Activity before
+consent is never queued or replayed, and revoking consent stops events.
+Measurement requires the production consent banner. An empty measurement ID or
+staging pages without the banner emit no events, even with saved acceptance and
+another `gtag` function present.

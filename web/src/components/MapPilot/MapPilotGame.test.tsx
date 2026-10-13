@@ -11,6 +11,7 @@ import {
   selectMapPilotRound,
   type MapPilotEvent,
 } from "../../data/map-pilot";
+import { setGameAnalyticsConsent } from "../../lib/game-analytics";
 import { PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
 
 const DATE = "2026-09-24";
@@ -79,6 +80,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setGameAnalyticsConsent("", false);
+  vi.unstubAllGlobals();
   cleanup();
   vi.restoreAllMocks();
   localStorage.clear();
@@ -271,6 +274,21 @@ describe("map pilot country list and select", () => {
 });
 
 describe("map pilot saved progress", () => {
+  it("measures completion after resuming the final answered date without another start", () => {
+    const gtag = vi.fn();
+    vi.stubGlobal("gtag", gtag);
+    setGameAnalyticsConsent("G-TEST", true);
+    save({ events: eventIds, answers: rightAnswers, index: round.length - 1 });
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(gtag).not.toHaveBeenCalled();
+    fireEvent.click(view.getByRole("button", { name: "Ver resultado" }));
+    expect(view.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
+    expect(gtag.mock.calls.map((call) => call[1])).toEqual(["game_complete"]);
+    view.unmount();
+    render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(gtag.mock.calls.map((call) => call[1])).toEqual(["game_complete"]);
+  });
+
   it("does not save an untouched round", () => {
     render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     expect(stored()).toBeNull();
