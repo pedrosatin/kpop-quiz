@@ -315,16 +315,16 @@ const catalogs: Record<Locale, Messages> = {
         description: "Jogue um quiz de K-pop online grátis em português: 10 perguntas com fontes, desafio diário e outros jogos. Sem cadastro.",
       },
       grid: {
-        title: "K-pop Grid: grade de interseções 3x3",
-        description: "Jogue K-pop Grid: preencha 9 casas com grupos que combinem os critérios de cada linha e coluna, como agência, formação e integrantes.",
+        title: "K-pop Grid: grade diária 3x3 de K-pop",
+        description: "Jogue o K-pop Grid: complete a grade 3x3 com grupos por agência, década de formação e número de integrantes. 9 palpites por dia.",
       },
       connections: {
-        title: "Conexões de K-pop: descubra os 4 grupos",
-        description: "Jogue Conexões de K-pop e separe 16 nomes em 4 categorias por agência, década de formação ou integrantes. Você pode errar 4 vezes.",
+        title: "Conexões de K-pop: jogo diário de 4 grupos",
+        description: "Jogue Conexões de K-pop: separe 16 grupos em 4 categorias por agência, década de formação ou número de integrantes. Até 4 erros.",
       },
       nameGuess: {
-        title: "Wordle de K-pop: adivinhe o artista ou grupo",
-        description: "Um Wordle de K-pop por dia. Descubra o artista ou grupo em 6 palpites, e as cores mostram quais letras você acertou.",
+        title: "Wordle de K-pop: adivinhe o idol ou grupo",
+        description: "Jogo diário de Wordle de K-pop: adivinhe o idol ou grupo em 6 palpites, com pistas coloridas e fontes de cada artista. Grátis e sem cadastro.",
       },
       wordSearch: {
         title: "Caça-palavras de K-pop online grátis",
@@ -697,16 +697,16 @@ const catalogs: Record<Locale, Messages> = {
         description: "Play a free online K-pop quiz with 10 questions and sources for every answer. Try the daily challenge and other games. No account needed.",
       },
       grid: {
-        title: "K-pop Grid: daily 3x3 group puzzle",
-        description: "Play K-pop Grid: fill 9 squares with groups matching each row and column, such as agency, formation decade and member count. You have 9 guesses.",
+        title: "K-pop Grid: daily 3x3 trivia puzzle",
+        description: "Play K-pop Grid: fill 9 squares with groups matching each row and column by agency, formation decade and member count. 9 guesses daily.",
       },
       connections: {
-        title: "K-pop Connections: find the 4 groups",
-        description: "Play K-pop Connections: sort 16 names into 4 categories by agency, formation decade or member count. Solve the puzzle before making 4 mistakes.",
+        title: "K-pop Connections game: daily 4-group puzzle",
+        description: "Play daily K-pop Connections: sort 16 groups into 4 secret categories by agency, formation decade or member count. 4 mistakes allowed.",
       },
       nameGuess: {
-        title: "K-pop Wordle: guess today's artist or group",
-        description: "A daily K-pop Wordle. Find today's artist or group in 6 guesses, with colors showing which letters you got right.",
+        title: "K-pop Wordle: guess today's idol or group",
+        description: "A daily K-pop Wordle game. Guess the secret idol or group in 6 tries, with colored letter clues and verified sources. Free, no account.",
       },
       wordSearch: {
         title: "K-pop Word Search: free online puzzle",
