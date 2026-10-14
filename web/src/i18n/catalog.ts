@@ -316,11 +316,11 @@ const catalogs: Record<Locale, Messages> = {
       },
       grid: {
         title: "K-pop Grid: grade diária 3x3 de K-pop",
-        description: "Jogue o K-pop Grid: complete a grade 3x3 com grupos e idols que combinem agência, ano de estreia e integrantes. 9 palpites por dia.",
+        description: "Jogue o K-pop Grid: complete a grade 3x3 com grupos por agência, década de formação e número de integrantes. 9 palpites por dia.",
       },
       connections: {
         title: "Conexões de K-pop: jogo diário de 4 grupos",
-        description: "Jogue o Conexões de K-pop diário: separe 16 idols e grupos em 4 categorias por agência, ano ou integrantes. Até 4 erros permitidos.",
+        description: "Jogue Conexões de K-pop: separe 16 grupos em 4 categorias por agência, década de formação ou número de integrantes. Até 4 erros.",
       },
       nameGuess: {
         title: "Wordle de K-pop: adivinhe o idol ou grupo",
@@ -698,11 +698,11 @@ const catalogs: Record<Locale, Messages> = {
       },
       grid: {
         title: "K-pop Grid: daily 3x3 trivia puzzle",
-        description: "Play K-pop Grid: fill 9 squares with idols and groups matching each row and column by agency, debut decade and members. 9 guesses daily.",
+        description: "Play K-pop Grid: fill 9 squares with groups matching each row and column by agency, formation decade and member count. 9 guesses daily.",
       },
       connections: {
         title: "K-pop Connections game: daily 4-group puzzle",
-        description: "Play the daily K-pop Connections game: sort 16 idols and groups into 4 secret categories by agency, decade or members. 4 mistakes allowed.",
+        description: "Play daily K-pop Connections: sort 16 groups into 4 secret categories by agency, formation decade or member count. 4 mistakes allowed.",
       },
       nameGuess: {
         title: "K-pop Wordle: guess today's idol or group",
