@@ -78,12 +78,13 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  commit:
+  publish:
     needs: refresh
     if: needs.refresh.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -102,11 +103,30 @@ jobs:
           mkdir -p data
           cp -a "$RUNNER_TEMP/map-pilot-data" data/map-pilot
 
-      - name: Commit and push refreshed dates
+      # Branch protection on master requires changes to arrive via pull
+      # request. Publish the refreshed dataset on an automation branch, then
+      # open (or reuse) its pull request and merge it, so the deploy
+      # triggered by this workflow's completion still sees the new data.
+      - name: Publish via pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: automation/map-pilot-refresh
         run: |
+          set -euo pipefail
+          DATE=$(date -u +%F)
           git config user.name "Pedro Satin"
           git config user.email "33128737+pedrosatin@users.noreply.github.com"
           git add data/map-pilot
-          git commit -m "Refresh map pilot tour dates for $(date -u +%F)"
-          git pull --rebase origin master
-          git push origin master
+          git commit -m "Refresh map pilot tour dates for ${DATE}"
+          git push --force origin "HEAD:refs/heads/${BRANCH}"
+          pr_number=$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number // empty')
+          if [ -z "${pr_number}" ]; then
+            gh pr create --head "${BRANCH}" --base master \
+              --title "Refresh map pilot tour dates for ${DATE}" \
+              --body "Automated refresh of the map pilot tour dataset."
+            pr_number=$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number')
+          fi
+          gh pr merge "${pr_number}" --squash \
+            --subject "Refresh map pilot tour dates for ${DATE}" \
+            --body "" \
+            --delete-branch
