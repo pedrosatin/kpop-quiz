@@ -10,6 +10,12 @@ on:
       - "schemas/**"
       - "requirements.txt"
       - ".github/workflows/pages.yml"
+    # Generated-data-only PRs come from the publish jobs, which create and
+    # merge their pull request within seconds. Pending pull_request runs then
+    # die with the merge ref and show up as empty failures, so skip them.
+    paths-ignore:
+      - "web/public/data/**"
+      - "data/map-pilot/**"
   push:
     branches: [master]
     paths:
