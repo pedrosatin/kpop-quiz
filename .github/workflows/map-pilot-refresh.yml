@@ -90,6 +90,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          # The live default branch, not github.sha: the generating job can
+          # run for a long time and master may advance in the meantime.
+          ref: master
 
       - name: Download refreshed dataset
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
