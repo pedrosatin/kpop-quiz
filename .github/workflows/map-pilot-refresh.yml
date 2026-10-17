@@ -121,10 +121,10 @@ jobs:
           git push --force origin "HEAD:refs/heads/${BRANCH}"
           pr_number=$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number // empty')
           if [ -z "${pr_number}" ]; then
-            pr_number=$(gh pr create --head "${BRANCH}" --base master \
+            gh pr create --head "${BRANCH}" --base master \
               --title "Refresh map pilot tour dates for ${DATE}" \
-              --body "Automated refresh of the map pilot tour dataset." \
-              --json number --jq '.number')
+              --body "Automated refresh of the map pilot tour dataset."
+            pr_number=$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number')
           fi
           gh pr merge "${pr_number}" --squash \
             --subject "Refresh map pilot tour dates for ${DATE}" \
