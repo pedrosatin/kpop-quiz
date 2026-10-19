@@ -3,16 +3,20 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import web_publish
+from kpop_scraping.code_groups_cli import generate as generate_code_groups_puzzle
+from kpop_scraping.code_groups_cli import validate as validate_code_groups_puzzle
 from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
 from kpop_scraping.timeline_schema import validate_timeline_puzzle
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
 from kpop_scraping.web_publish import (
+    CODE_GROUPS_DAILY_FILENAME,
     CONNECTIONS_DAILY_FILENAME,
     GRID_DAILY_FILENAME,
     NAME_GUESS_DAILY_FILENAME,
@@ -34,6 +38,39 @@ from tests.test_quiz_generator import build_quiz_database
 
 
 FIXTURES = Path(__file__).parents[1] / "web" / "public" / "data"
+
+
+def build_code_groups_puzzle(seed: str = "kpop-code-groups-daily-2026-10-12"):
+    """Generate a valid group code pilot payload from a minimal accepted catalog."""
+    connection = sqlite3.connect(":memory:")
+    try:
+        connection.executescript(
+            """
+            CREATE TABLE source_pages(id INTEGER, wikidata_id TEXT, title TEXT);
+            CREATE TABLE catalog_entries(
+                source_page_id INTEGER, analyzed_wikidata_id TEXT, state TEXT,
+                type_check_id INTEGER
+            );
+            CREATE TABLE wikidata_type_checks(
+                id INTEGER, wikidata_id TEXT, external_revision_id INTEGER,
+                instance_of_json TEXT
+            );
+            """
+        )
+        for i in range(1, 8):
+            connection.execute("INSERT INTO source_pages VALUES (?, ?, ?)", (i, f"Q{i}", f"Group {i}"))
+            connection.execute(
+                "INSERT INTO catalog_entries VALUES (?, ?, ?, ?)", (i, f"Q{i}", "accepted", i)
+            )
+            connection.execute(
+                "INSERT INTO wikidata_type_checks VALUES (?, ?, ?, ?)",
+                (i, f"Q{i}", 100 + i, '["Q215380"]'),
+            )
+        return generate_code_groups_puzzle(
+            connection, seed=seed, reference_date=date(2026, 10, 12)
+        )
+    finally:
+        connection.close()
 
 
 class WebPublishTests(unittest.TestCase):
@@ -64,6 +101,9 @@ class WebPublishTests(unittest.TestCase):
 
     def timeline(self):
         return json.loads((FIXTURES / TIMELINE_DAILY_FILENAME).read_text(encoding="utf-8"))
+
+    def code_groups(self, seed: str = "kpop-code-groups-daily-2026-10-12"):
+        return build_code_groups_puzzle(seed)
 
     def test_publishes_and_verifies_canonical_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -761,3 +801,85 @@ class WebPublishTests(unittest.TestCase):
                 ]
             )
             self.assertEqual(code_all, 0)
+
+    def test_generated_code_groups_payload_is_valid(self):
+        payload = self.code_groups()
+        validate_code_groups_puzzle(payload)
+        self.assertEqual(payload["mode"], "pilot")
+        self.assertEqual(payload["reference_date"], "2026-10-12")
+        # A different seed produces a different identity from the same catalog.
+        self.assertNotEqual(self.code_groups("another-seed")["puzzle_id"], payload["puzzle_id"])
+
+    def test_verify_validates_existing_code_groups_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), code_groups=self.code_groups())
+            verify(output)
+            verify(output, require_code_groups=True)
+
+    def test_verify_detects_corrupted_or_invalid_code_groups_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), code_groups=self.code_groups())
+            (output / CODE_GROUPS_DAILY_FILENAME).write_text("{corrupt json", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "cannot read code-groups artifact"):
+                verify(output)
+
+            # Reordering the secret changes the content identity the pilot
+            # contract hashes, so validation must reject it.
+            (output / CODE_GROUPS_DAILY_FILENAME).write_text(
+                json.dumps({**self.code_groups(), "secret": list(reversed(self.code_groups()["secret"]))}),
+                encoding="utf-8",
+            )
+            with self.assertRaises(ValueError):
+                verify(output)
+
+    def test_verify_require_code_groups_fails_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            with self.assertRaisesRegex(ValueError, "missing required code-groups artifact"):
+                verify(output, require_code_groups=True)
+
+    def test_verify_require_code_groups_false_passes_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            verify(output, require_code_groups=False)
+            verify(output)
+
+    def test_publish_with_code_groups(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), code_groups=self.code_groups())
+            puzzle_path = output / CODE_GROUPS_DAILY_FILENAME
+            self.assertTrue(puzzle_path.is_file())
+            self.assertEqual(puzzle_path.read_bytes()[-1:], b"\n")
+            payload = json.loads(puzzle_path.read_text(encoding="utf-8"))
+            validate_code_groups_puzzle(payload)
+            verify(output, require_code_groups=True)
+
+    def test_publish_with_invalid_code_groups_fails_before_creating_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            invalid_puzzle = {"schema_version": "invalid"}
+            with self.assertRaises(ValueError):
+                publish(output, self.sessions(), code_groups=invalid_puzzle)
+            self.assertFalse((output / CODE_GROUPS_DAILY_FILENAME).exists())
+
+    def test_cli_require_code_groups_without_verify_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            code = main(["--output-dir", str(output), "--require-code-groups"])
+            self.assertEqual(code, 1)
+
+    def test_cli_verify_with_require_code_groups(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            code_missing = main(["--output-dir", str(output), "--verify", "--require-code-groups"])
+            self.assertEqual(code_missing, 1)
+
+            publish(output, self.sessions(), code_groups=self.code_groups())
+            code_present = main(["--output-dir", str(output), "--verify", "--require-code-groups"])
+            self.assertEqual(code_present, 0)
