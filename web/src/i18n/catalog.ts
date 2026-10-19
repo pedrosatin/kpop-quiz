@@ -1,7 +1,7 @@
 import type { Locale, PlayMode } from "../lib/quiz-types";
 import { gameAbout, type GameAboutMessages } from "./game-about";
 
-export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline";
+export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code";
 
 export type SkipLinkKey = SeoRouteKey | "privacy" | "notFound";
 
@@ -277,6 +277,10 @@ export interface Messages {
   timelineTitle: string;
   timelineEyebrow: string;
   timelineIntro: string;
+  codeTitle: string;
+  codeEyebrow: string;
+  codeIntro: string;
+  codeHowToPlay: string[];
   wordSearch: WordSearchMessages;
   gameNavLabel: string;
   gameQuiz: string;
@@ -286,6 +290,29 @@ export interface Messages {
   gameWordSearch: string;
   gameMap: string;
   gameTimeline: string;
+  gameCode: string;
+  codeSequenceNote: string;
+  codeAttemptsLeft: string;
+  codeYourGuess: string;
+  codePosition: string;
+  codeChooseGroup: string;
+  codeSubmit: string;
+  codeChooseAll: string;
+  codeChooseDistinct: string;
+  codeAttemptFeedback: (attempt: number, exact: number, misplaced: number, remaining: number) => string;
+  codeGuessSummary: (exact: number, misplaced: number) => string;
+  codeHistoryHeading: string;
+  codeResultWon: string;
+  codeResultLost: string;
+  codeSecretLabel: string;
+  codeAttemptsUsed: string;
+  codeAboutGroups: string;
+  codeShareButton: string;
+  codeShareWon: (attempts: number) => string;
+  codeShareLost: string;
+  codeShareAttemptsLine: (attempts: number) => string;
+  /** The daily artifact follows a partial publish: the day may ship without it. */
+  codeArtifactMissing: string;
   statsTitle: string;
   statsNavLabel: string;
   statsOpenButton: string;
@@ -338,6 +365,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "Linha do tempo do K-pop: jogo de datas",
         description: "Coloque 5 acontecimentos do K-pop em ordem cronológica no desafio diário. Confira as datas de formação dos grupos e nascimento dos artistas.",
       },
+      code: {
+        title: "Código de grupos de K-pop: jogo de lógica",
+        description: "Descubra a sequência de 4 grupos de K-pop do dia em até 10 tentativas, com contagens de exatos e deslocados e fontes no Wikidata. Grátis.",
+      },
     },
     about: gameAbout["pt-BR"],
     skipLinks: {
@@ -348,6 +379,7 @@ const catalogs: Record<Locale, Messages> = {
       wordSearch: "Pular para o caça-palavras",
       mapPilot: "Pular para o jogo de mapa",
       timeline: "Pular para a linha do tempo",
+      code: "Pular para o jogo de código",
       privacy: "Pular para a política de privacidade",
       notFound: "Pular para o conteúdo",
     },
@@ -365,6 +397,7 @@ const catalogs: Record<Locale, Messages> = {
         wordSearch: { title: "Caça-palavras de K-pop", description: "Procure nomes de K-pop na horizontal, vertical ou diagonal. Se precisar de ajuda, revele a lista de palavras." },
         mapPilot: { title: "Mapa da turnê BLACKPINK", description: "Encontre os países de 10 datas da turnê DEADLINE no mapa. Confira a agenda oficial nas fontes de cada resposta." },
         timeline: { title: "Linha do tempo do K-pop", description: "Coloque acontecimentos do K-pop em ordem cronológica. Depois de conferir a ordem, veja as datas e fontes dos fatos." },
+        code: { title: "Código de grupos de K-pop", description: "Descubra uma sequência de 4 grupos entre 6 símbolos do catálogo em até 10 tentativas, com contagens de posições exatas e deslocadas." },
       },
       quizTitle: "Como funciona o quiz de 10 perguntas",
       quizBody: "Escolha uma alternativa por pergunta e confirme a resposta. Após responder, confira a explicação e a fonte, mesmo quando errar. Ao terminar, veja sua pontuação e revise as respostas.",
@@ -437,6 +470,11 @@ const catalogs: Record<Locale, Messages> = {
       "Arraste ou use os botões ↑ e ↓ para organizar os acontecimentos na ordem cronológica correta.",
       "Clique em 'Verificar ordem' para registrar seu palpite do dia.",
       "Descubra as datas exatas e acesse as fontes consultadas de cada fato.",
+    ],
+    codeHowToPlay: [
+      "O código do dia é uma sequência de 4 grupos distintos, escolhidos entre os 6 símbolos do tabuleiro. Escolha um grupo para cada posição e envie o palpite.",
+      "Você tem 10 tentativas. Depois de cada uma, o jogo mostra quantos grupos estão na posição exata e quantos pertencem ao código, mas estão em outra posição. Os números não indicam quais posições você acertou.",
+      "Clique ou toque na opção de uma posição para trocar o grupo. No teclado, use as setas. O resultado do fim mostra o código e as fontes de cada grupo.",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
@@ -627,6 +665,31 @@ const catalogs: Record<Locale, Messages> = {
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
     mapTitle: "Quiz de mapa de K-pop: BLACKPINK",
     mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou.",
+    codeTitle: "Código de grupos de K-pop",
+    codeEyebrow: "10 tentativas · 4 posições",
+    codeIntro: "Descubra quatro grupos diferentes do catálogo na ordem secreta do dia.",
+    codeSequenceNote: "A sequência é a mesma em todas as partidas do dia.",
+    codeAttemptsLeft: "Tentativas restantes",
+    codeYourGuess: "Seu palpite",
+    codePosition: "Posição",
+    codeChooseGroup: "Escolha um grupo",
+    codeSubmit: "Enviar palpite",
+    codeChooseAll: "Escolha os quatro grupos. Nenhuma tentativa usada.",
+    codeChooseDistinct: "Escolha quatro grupos diferentes. Nenhuma tentativa usada.",
+    codeAttemptFeedback: (attempt, exact, misplaced, remaining) =>
+      `Tentativa ${attempt}: ${exact} exatos, ${misplaced} deslocados. ${remaining} tentativas restantes.`,
+    codeGuessSummary: (exact, misplaced) => `${exact} exatos · ${misplaced} deslocados`,
+    codeHistoryHeading: "Histórico de palpites",
+    codeResultWon: "Código descoberto!",
+    codeResultLost: "Tentativas esgotadas",
+    codeSecretLabel: "Sequência secreta",
+    codeAttemptsUsed: "Tentativas usadas",
+    codeAboutGroups: "Sobre os grupos",
+    codeShareButton: "Compartilhar resultado",
+    codeShareWon: (attempts) => `Código descoberto em ${attempts} tentativas.`,
+    codeShareLost: "Código não descoberto nas 10 tentativas.",
+    codeShareAttemptsLine: (attempts) => `Tentativas: ${attempts}`,
+    codeArtifactMissing: "O código de hoje ainda não foi publicado. Tente mais tarde.",
     timelineTitle: "Linha do Tempo do K-pop",
     timelineEyebrow: "Desafio diário",
     timelineIntro: "Ordene os acontecimentos do K-pop do mais antigo para o mais recente.",
@@ -670,6 +733,7 @@ const catalogs: Record<Locale, Messages> = {
     gameWordSearch: "Caça-palavras",
     gameMap: "Mapa",
     gameTimeline: "Linha do Tempo",
+    gameCode: "Código",
     statsTitle: "Suas estatísticas",
     statsNavLabel: "Estatísticas",
     statsOpenButton: "Ver estatísticas e sequência",
@@ -720,6 +784,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "K-pop Timeline: daily history puzzle",
         description: "Put 5 K-pop events in chronological order in the daily timeline puzzle. Check group formation dates, artist birthdays and sources after playing.",
       },
+      code: {
+        title: "K-pop Group Code: daily logic game",
+        description: "Find today's sequence of 4 K-pop groups in up to 10 guesses, with exact and misplaced counts and sources on Wikidata. Free, no account.",
+      },
     },
     about: gameAbout.en,
     skipLinks: {
@@ -730,6 +798,7 @@ const catalogs: Record<Locale, Messages> = {
       wordSearch: "Skip to the word search",
       mapPilot: "Skip to the map game",
       timeline: "Skip to the timeline game",
+      code: "Skip to the code game",
       privacy: "Skip to the privacy policy",
       notFound: "Skip to content",
     },
@@ -746,6 +815,7 @@ const catalogs: Record<Locale, Messages> = {
         wordSearch: { title: "K-pop Word Search", description: "Find K-pop names across, down or diagonally. Reveal the word list if you need help." },
         mapPilot: { title: "BLACKPINK tour map", description: "Locate the countries for 10 dates on BLACKPINK's DEADLINE tour. Check the official schedule in the sources for each answer." },
         timeline: { title: "K-pop Timeline", description: "Put K-pop events in chronological order. After checking your order, see the dates and sources behind the facts." },
+        code: { title: "K-pop Group Code", description: "Find a sequence of 4 groups among 6 catalog symbols in up to 10 guesses, with exact and misplaced position counts." },
       },
       quizTitle: "How the 10-question quiz works",
       quizBody: "Pick an option for each question and submit your answer. Then read the explanation and source, even if you got it wrong. At the end, see your score and review your answers.",
@@ -818,6 +888,11 @@ const catalogs: Record<Locale, Messages> = {
       "Drag or use the ↑ and ↓ buttons to arrange events in chronological order.",
       "Click 'Check order' to submit your single daily attempt.",
       "Reveal exact dates and inspect sources for each event.",
+    ],
+    codeHowToPlay: [
+      "The daily code is a sequence of 4 distinct groups chosen from the board's 6 symbols. Pick a group for each position and submit your guess.",
+      "You have 10 guesses. After each one, the game shows how many groups are in the exact position and how many belong to the code but sit elsewhere. The counts do not tell you which positions you got right.",
+      "Click or tap a position's option to change its group. With a keyboard, use the arrow keys. The final result reveals the code and the source of each group.",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",
@@ -1007,6 +1082,31 @@ const catalogs: Record<Locale, Messages> = {
     mapEyebrow: "10 dates per round · DEADLINE tour",
     mapTitle: "K-pop Map Quiz: BLACKPINK",
     mapIntro: "For each tour date, pick on the map the country the official schedule listed.",
+    codeTitle: "K-pop Group Code",
+    codeEyebrow: "10 guesses · 4 positions",
+    codeIntro: "Find four different catalog groups in the day's secret order.",
+    codeSequenceNote: "The sequence is the same in every game you play that day.",
+    codeAttemptsLeft: "Guesses left",
+    codeYourGuess: "Your guess",
+    codePosition: "Position",
+    codeChooseGroup: "Choose a group",
+    codeSubmit: "Submit guess",
+    codeChooseAll: "Choose all four groups. No attempt used.",
+    codeChooseDistinct: "Choose four different groups. No attempt used.",
+    codeAttemptFeedback: (attempt, exact, misplaced, remaining) =>
+      `Attempt ${attempt}: ${exact} exact, ${misplaced} misplaced. ${remaining} attempts remaining.`,
+    codeGuessSummary: (exact, misplaced) => `${exact} exact · ${misplaced} misplaced`,
+    codeHistoryHeading: "Guess history",
+    codeResultWon: "Code solved!",
+    codeResultLost: "Attempts exhausted",
+    codeSecretLabel: "Secret sequence",
+    codeAttemptsUsed: "Attempts used",
+    codeAboutGroups: "About the groups",
+    codeShareButton: "Share result",
+    codeShareWon: (attempts) => `Code solved in ${attempts} attempts.`,
+    codeShareLost: "Code not found in 10 attempts.",
+    codeShareAttemptsLine: (attempts) => `Attempts: ${attempts}`,
+    codeArtifactMissing: "Today's code has not been published yet. Try again later.",
     timelineTitle: "K-pop Timeline",
     timelineEyebrow: "Daily challenge",
     timelineIntro: "Order the K-pop events from earliest to latest.",
@@ -1050,6 +1150,7 @@ const catalogs: Record<Locale, Messages> = {
     gameWordSearch: "Word search",
     gameMap: "Map",
     gameTimeline: "Timeline",
+    gameCode: "Code",
     statsTitle: "Your stats",
     statsNavLabel: "Stats",
     statsOpenButton: "See stats and streak",

@@ -17,12 +17,14 @@ const PAGES: Array<{ path: string; locale: "pt-BR" | "en"; game: GameAboutKey }>
   { path: "pages/pt-br/caca-palavras.astro", locale: "pt-BR", game: "wordSearch" },
   { path: "pages/pt-br/mapa.astro", locale: "pt-BR", game: "mapPilot" },
   { path: "pages/pt-br/linha-do-tempo.astro", locale: "pt-BR", game: "timeline" },
+  { path: "pages/pt-br/codigo/index.astro", locale: "pt-BR", game: "code" },
   { path: "pages/en/grid.astro", locale: "en", game: "grid" },
   { path: "pages/en/connections.astro", locale: "en", game: "connections" },
   { path: "pages/en/guess.astro", locale: "en", game: "nameGuess" },
   { path: "pages/en/word-search.astro", locale: "en", game: "wordSearch" },
   { path: "pages/en/map.astro", locale: "en", game: "mapPilot" },
   { path: "pages/en/timeline.astro", locale: "en", game: "timeline" },
+  { path: "pages/en/code/index.astro", locale: "en", game: "code" },
 ];
 
 const SRC = join(import.meta.dirname, "..");

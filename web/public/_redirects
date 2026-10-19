@@ -1,0 +1,6 @@
+# Cloudflare Pages redirects (ADR 023): the pilot routes were promoted to
+# indexable games and must answer 301, since they were never indexed.
+# GitHub Pages (staging) ignores this file; the old staging URLs 404, which
+# stays acceptable because staging is noindex as a whole.
+/pt-br/codigo-piloto/      /pt-br/codigo/      301
+/en/code-pilot/            /en/code/           301

@@ -7,7 +7,7 @@ import PlatformOverview from "../components/PlatformOverview.astro";
 import { SEO_ROUTES } from "../lib/seo-routes";
 
 describe("homepage game discovery", () => {
-  it.each(["pt-BR", "en"] as const)("renders seven crawlable game links in %s", async (locale) => {
+  it.each(["pt-BR", "en"] as const)("renders eight crawlable game links in %s", async (locale) => {
     const container = await AstroContainer.create();
     const html = await container.renderToString(PlatformOverview, { props: { locale } });
     const doc = new JSDOM(html).window.document;

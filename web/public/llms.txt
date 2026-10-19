@@ -23,6 +23,9 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 - Linha do Tempo / Timeline:
   https://kpopquiz.online/pt-br/linha-do-tempo/ ·
   https://kpopquiz.online/en/timeline/
+- Código de Grupos / Group Code:
+  https://kpopquiz.online/pt-br/codigo/ ·
+  https://kpopquiz.online/en/code/
 
 ## Resumos por rota (Markdown)
 
@@ -33,6 +36,7 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 - llms/pt-br-caca-palavras.md
 - llms/pt-br-mapa.md
 - llms/pt-br-linha-do-tempo.md
+- llms/pt-br-codigo.md
 - llms/en-quiz.md
 - llms/en-grid.md
 - llms/en-connections.md
@@ -40,6 +44,7 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 - llms/en-word-search.md
 - llms/en-map.md
 - llms/en-timeline.md
+- llms/en-code.md
 
 ## Proveniência e licença
 
