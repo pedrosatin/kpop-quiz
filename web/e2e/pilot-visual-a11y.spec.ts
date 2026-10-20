@@ -11,8 +11,16 @@ const crossword = JSON.parse(readFileSync(new URL("../public/data/crossword-pilo
 const code = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
 const games = [
   { id: "crossword", pt: "/pt-br/cruzadinha-piloto/", en: "/en/crossword-pilot/", controls: "#crossword input" },
-  { id: "code", pt: "/pt-br/codigo-piloto/", en: "/en/code-pilot/", controls: "#code-groups select" },
+  { id: "code", pt: "/pt-br/codigo/", en: "/en/code/", controls: "#code-groups select" },
 ] as const;
+
+// The code game is a daily game now: its artifact is code-groups.daily.json,
+// which the local build may not hold, so the suite serves the committed pilot
+// artifact (same contract) through route interception.
+async function serveCodeArtifact(page: Page) {
+  await page.route("**/data/code-groups.daily.json", (request) => request.fulfill({ json: code }));
+  await page.route("**/data/next/code-groups.daily.json", (request) => request.fulfill({ status: 404, body: "" }));
+}
 
 async function audit(page: Page) {
   await page.addScriptTag({ content: axeScript });
@@ -41,10 +49,13 @@ for (const game of games) for (const locale of ["pt", "en"] as const)
         await page.emulateMedia({ colorScheme });
         const errors: string[] = [];
         page.on("pageerror", e => errors.push(e.message));
+        if (game.id === "code") await serveCodeArtifact(page);
         await page.goto(prefix + game[locale]);
         await expect(page.locator(game.controls)).toHaveCount(game.id === "code" ? 4 : crossword.cells.length);
         await page.evaluate(() => document.fonts.ready);
         await audit(page);
+        // Shared .how-to-play summary is 36px on fine pointers by design; the
+        // pilot details and the game controls stay at the 44px touch target.
         const smallTargets = await page.locator(`${game.controls}, .crossword-actions button, #code-groups button, .pilot-instructions summary`).evaluateAll(elements =>
           elements.filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; }).map(e => e.outerHTML));
         expect(smallTargets).toEqual([]);
@@ -61,6 +72,7 @@ for (const game of games) for (const locale of ["pt", "en"] as const)
 
 for (const game of games) test(`${game.id}: 200 percent text reflow and keyboard entry`, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  if (game.id === "code") await serveCodeArtifact(page);
   await page.goto(prefix + game.en);
   await expect(page.locator(game.controls)).not.toHaveCount(0);
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
@@ -104,6 +116,7 @@ test("crossword: keyboard completion announces and focuses cited results", async
 test("code: feedback, keyboard victory and cited result", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: "light" });
+  await serveCodeArtifact(page);
   await page.goto(prefix + games[1].pt);
   await expect(page.locator("#code-groups select")).toHaveCount(4);
   await page.getByRole("button", { name: "Enviar palpite" }).click();
@@ -121,9 +134,11 @@ test("code: feedback, keyboard victory and cited result", async ({ page }) => {
 for (const game of games) test(`${game.id}: unavailable artifact keeps keyboard retry and skip target`, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: "light" });
-  await page.route(game.id === "code" ? "**/data/code-groups.pilot.json" : "**/data/crossword-pilot.json", route => route.fulfill({ status: 404, body: "" }));
+  await page.route(game.id === "code" ? "**/data/code-groups.daily.json" : "**/data/crossword-pilot.json", route => route.fulfill({ status: 404, body: "" }));
+  if (game.id === "code") await page.route("**/data/next/code-groups.daily.json", route => route.fulfill({ status: 404, body: "" }));
   await page.goto(prefix + game.pt);
-  await expect(page.getByRole("alert")).toBeVisible();
+  if (game.id === "code") await expect(page.getByTestId("game-missing")).toBeVisible();
+  else await expect(page.getByRole("alert")).toBeVisible();
   await audit(page);
   await page.locator(".skip-link").focus();
   await page.keyboard.press("Enter");

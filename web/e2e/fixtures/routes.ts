@@ -86,6 +86,14 @@ const SMOKE_PAIRS: readonly SmokePairDef[] = [
     enPath: "/en/timeline/",
   },
   {
+    id: "code",
+    kind: "board-direct",
+    ptPath: "/pt-br/codigo/",
+    enPath: "/en/code/",
+    // Partial publish: the day may ship without code-groups.daily.json.
+    optionalArtifact: true,
+  },
+  {
     id: "privacy",
     kind: "privacy",
     ptPath: "/pt-br/privacidade/",

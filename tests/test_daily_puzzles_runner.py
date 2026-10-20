@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import daily_puzzles_cli
+from kpop_scraping.code_groups_cli import validate as validate_code_groups_puzzle
 from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.daily_puzzles_runner import (
     NEXT_DIRNAME,
@@ -39,7 +40,7 @@ def person_wikidata_id(group_num: int, member_index: int) -> str:
 
 
 def build_test_database(db_path: Path) -> sqlite3.Connection:
-    """Create a populated SQLite database that satisfies all 6 games."""
+    """Create a populated SQLite database that satisfies all 7 games."""
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     conn.executescript(
@@ -87,7 +88,21 @@ def build_test_database(db_path: Path) -> sqlite3.Connection:
             id INTEGER PRIMARY KEY,
             provider TEXT,
             language TEXT,
-            external_page_id INTEGER
+            external_page_id INTEGER,
+            wikidata_id TEXT,
+            title TEXT
+        );
+        CREATE TABLE catalog_entries (
+            source_page_id INTEGER,
+            analyzed_wikidata_id TEXT,
+            state TEXT,
+            type_check_id INTEGER
+        );
+        CREATE TABLE wikidata_type_checks (
+            id INTEGER PRIMARY KEY,
+            wikidata_id TEXT,
+            external_revision_id INTEGER,
+            instance_of_json TEXT
         );
         CREATE TABLE source_revisions (
             id INTEGER PRIMARY KEY,
@@ -164,6 +179,21 @@ def build_test_database(db_path: Path) -> sqlite3.Connection:
         conn.execute(
             "INSERT INTO entity_aliases VALUES (?, 'pt', ?, 'label')",
             (cur.lastrowid, cname),
+        )
+
+        # Group code pilot catalog: every group is an accepted entry with a
+        # compatible P31 classification, so the pilot can draw its 6 symbols.
+        conn.execute(
+            "INSERT INTO source_pages(id, wikidata_id, title) VALUES (?, ?, ?)",
+            (num - 100, qid, cname),
+        )
+        conn.execute(
+            "INSERT INTO catalog_entries VALUES (?, ?, 'accepted', ?)",
+            (num - 100, qid, num),
+        )
+        conn.execute(
+            "INSERT INTO wikidata_type_checks VALUES (?, ?, ?, '[\"Q215380\"]')",
+            (num, qid, num),
         )
 
         lbl_qid = group_labels[num]
@@ -359,7 +389,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_reference_date("not-a-date")
 
-    def test_full_generation_all_six_games(self):
+    def test_full_generation_all_seven_games(self):
         output_dir = self.temp_path / "public_data"
         result = run_daily_puzzles(
             database=self.db_path,
@@ -379,6 +409,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             "name-guess.daily.json",
             "word-search.daily.json",
             "timeline.daily.json",
+            "code-groups.daily.json",
             "session.pt-BR.json",
             "session.en.json",
         ]
@@ -386,7 +417,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             file_path = output_dir / fname
             self.assertTrue(file_path.is_file(), f"Expected file {fname} to exist")
 
-        # Schema validation for all 6 games
+        # Schema validation for all 7 games
         grid_payload = json.loads((output_dir / "grid.daily.json").read_text(encoding="utf-8"))
         validate_intersection_grid(grid_payload)
         self.assertEqual(grid_payload["reference_date"], "2026-09-18")
@@ -408,6 +439,15 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertEqual(timeline_payload["reference_date"], "2026-09-18")
         self.assertEqual(result["timeline_id"], timeline_payload["puzzle_id"])
 
+        code_groups_payload = json.loads(
+            (output_dir / "code-groups.daily.json").read_text(encoding="utf-8")
+        )
+        validate_code_groups_puzzle(code_groups_payload)
+        self.assertEqual(code_groups_payload["reference_date"], "2026-09-18")
+        self.assertEqual(result["code_groups_id"], code_groups_payload["puzzle_id"])
+        self.assertIsNone(result["code_groups_skipped"])
+        self.assertIn("code-groups.daily.json", result["published_files"])
+
         pt_session = json.loads((output_dir / "session.pt-BR.json").read_text(encoding="utf-8"))
         validate_session(pt_session)
         self.assertEqual(pt_session["config"]["language"], "pt-BR")
@@ -424,6 +464,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             require_name_guess=True,
             require_word_search=True,
             require_timeline=True,
+            require_code_groups=True,
         )
 
     def test_dry_run_does_not_modify_output_dir(self):
@@ -446,6 +487,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertFalse((output_dir / "name-guess.daily.json").exists())
         self.assertFalse((output_dir / "word-search.daily.json").exists())
         self.assertFalse((output_dir / "timeline.daily.json").exists())
+        self.assertFalse((output_dir / "code-groups.daily.json").exists())
         self.assertFalse((output_dir / "manifest-v2.json").exists())
         # Sentinel file remains intact
         self.assertEqual(sentinel_file.read_text(), "untouched")
@@ -465,6 +507,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertEqual(res_1["name_guess_id"], res_2["name_guess_id"])
         self.assertEqual(res_1["word_search_id"], res_2["word_search_id"])
         self.assertEqual(res_1["timeline_id"], res_2["timeline_id"])
+        self.assertEqual(res_1["code_groups_id"], res_2["code_groups_id"])
 
         # Identical files for same date
         for filename in (
@@ -473,6 +516,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             "name-guess.daily.json",
             "word-search.daily.json",
             "timeline.daily.json",
+            "code-groups.daily.json",
         ):
             content_1 = (out_dir_1 / filename).read_bytes()
             content_2 = (out_dir_2 / filename).read_bytes()
@@ -579,6 +623,72 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         validate_timeline_puzzle(timeline)
         verify_artifacts(output_dir, require_grid=False)
 
+    def test_code_groups_generation_failure_publishes_the_other_games(self):
+        # Partial publish policy: the group code pilot never blocks the
+        # daily batch. The day goes out without code-groups.daily.json and
+        # the result records the absence, while the other six games still
+        # carry the new reference date.
+        output_dir = self.temp_path / "code_groups_failure"
+        first = run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        self.assertTrue(first["code_groups_id"])
+
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_code_groups_puzzle",
+            side_effect=ValueError("insufficient accepted group coverage: 3 / 6"),
+        ):
+            result = run_daily_puzzles(
+                database=self.db_path, output_dir=output_dir, reference_date="2026-09-19"
+            )
+
+        self.assertFalse((output_dir / "code-groups.daily.json").exists())
+        self.assertNotIn("code-groups.daily.json", result["published_files"])
+        self.assertIsNone(result["code_groups_id"])
+        self.assertEqual(
+            result["code_groups_skipped"]["error"],
+            "insufficient accepted group coverage: 3 / 6",
+        )
+        connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        validate_connections_puzzle(connections)
+        self.assertEqual(connections["reference_date"], "2026-09-19")
+        timeline = json.loads((output_dir / "timeline.daily.json").read_text(encoding="utf-8"))
+        validate_timeline_puzzle(timeline)
+        self.assertEqual(timeline["reference_date"], "2026-09-19")
+
+        # A present code-groups file always validates; an absent one only
+        # fails verification when a caller requires the artifact (the
+        # runner passes require_code_groups=False; strict callers opt in).
+        verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
+        with self.assertRaisesRegex(ValueError, "missing required code-groups artifact"):
+            verify_artifacts(output_dir, require_grid=False, require_code_groups=True)
+
+        # A kept day without the artifact records only the absence; the
+        # generation error belongs to the day that first skipped it.
+        kept = run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-19")
+        self.assertTrue(kept["already_published"])
+        self.assertIsNone(kept["code_groups_id"])
+        self.assertEqual(kept["code_groups_skipped"], {"published_without_code_groups": True})
+
+    def test_cli_warns_in_github_actions_when_group_code_is_skipped(self):
+        out_dir = self.temp_path / "cli_skipped_code_groups"
+        self.assertEqual(
+            daily_puzzles_cli.main(["--database", str(self.db_path), "--output-dir", str(out_dir), "--date", "2026-09-18"]),
+            0,
+        )
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_code_groups_puzzle",
+            side_effect=ValueError("insufficient accepted group coverage: 3 / 6"),
+        ), patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), redirect_stdout(stdout), redirect_stderr(stderr):
+            code = daily_puzzles_cli.main(
+                ["--database", str(self.db_path), "--output-dir", str(out_dir), "--date", "2026-09-19"]
+            )
+        self.assertEqual(code, 0)
+        self.assertIn(
+            "::warning title=Daily group code missing::Day published without the group code pilot",
+            stdout.getvalue(),
+        )
+        self.assertIn("WARNING: Day published without the group code pilot because generation failed", stderr.getvalue())
+
     def test_grid_generation_failure_without_previous_publishes_without_grid(self):
         # Before the skip policy this raised ValueError and the whole day
         # went unpublished.
@@ -667,6 +777,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             ("connections.daily.json", output_dir, "2026-09-18"),
             ("connections.daily.json", output_dir / "next", "2026-09-19"),
             ("word-search.daily.json", output_dir / "next", "2026-09-19"),
+            ("code-groups.daily.json", output_dir / "next", "2026-09-19"),
         ):
             payload = json.loads((directory / name).read_text(encoding="utf-8"))
             self.assertEqual(payload["reference_date"], expected)

@@ -50,6 +50,7 @@ const gameAboutKeyMap: Partial<Record<SeoRouteKey, GameAboutKey>> = {
   wordSearch: "wordSearch",
   mapPilot: "mapPilot",
   timeline: "timeline",
+  code: "code",
 };
 const currentFaqGameKey = gameAboutKeyMap[route];
 const faqCopy = currentFaqGameKey ? gameAbout[locale]?.games[currentFaqGameKey]?.faq : undefined;
@@ -99,18 +100,16 @@ const isNameGuess = Astro.url.pathname.includes("/adivinhe") || Astro.url.pathna
 const isWordSearch = Astro.url.pathname.includes("/caca-palavras") || Astro.url.pathname.includes("/word-search");
 const isMapPilot = Astro.url.pathname.includes("/mapa") || Astro.url.pathname.includes("/map/");
 const isTimeline = Astro.url.pathname.includes("/linha-do-tempo") || Astro.url.pathname.includes("/timeline");
+const isCode = Astro.url.pathname.includes("/codigo") || Astro.url.pathname.includes("/code");
 const isPrivacy = Boolean(canonicalPath?.endsWith("/privacidade/") || canonicalPath?.endsWith("/privacy/"));
-const skipTarget = isNotFound
-  ? "#not-found"
-  : isPrivacy
-  ? "#privacy-notice"
-  : (isTimeline
-  ? "#timeline"
-  : (isMapPilot
-  ? "#map-game"
-  : (isWordSearch
-  ? "#word-search"
-  : (isNameGuess ? "#name-guess" : (isConnections ? "#connections" : (isGrid ? "#grid" : "#quiz"))))));
+let skipTarget = "#quiz";
+if (isGrid) skipTarget = "#grid";
+else if (isConnections) skipTarget = "#connections";
+else if (isNameGuess) skipTarget = "#name-guess";
+else if (isWordSearch) skipTarget = "#word-search";
+else if (isMapPilot) skipTarget = "#map-game";
+else if (isTimeline) skipTarget = "#timeline";
+else if (isCode) skipTarget = "#code-groups";
 const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
 let otherPath = isPrivacy
   ? (locale === "pt-BR" ? "/en/privacy/" : "/pt-br/privacidade/")
@@ -127,18 +126,19 @@ if (isGrid) {
   otherPath = locale === "pt-BR" ? `${targetBase}map/` : `${targetBase}mapa/`;
 } else if (isTimeline) {
   otherPath = locale === "pt-BR" ? `${targetBase}timeline/` : `${targetBase}linha-do-tempo/`;
+} else if (isCode) {
+  otherPath = locale === "pt-BR" ? `${targetBase}code/` : `${targetBase}codigo/`;
 }
-const skipLinkKey: SkipLinkKey = isNotFound
-  ? "notFound"
-  : isPrivacy
-  ? "privacy"
-  : (isTimeline
-  ? "timeline"
-  : (isMapPilot
-  ? "mapPilot"
-  : (isWordSearch
-  ? "wordSearch"
-  : (isNameGuess ? "nameGuess" : (isConnections ? "connections" : (isGrid ? "grid" : "quiz"))))));
+let skipLinkKey: SkipLinkKey = "quiz";
+if (isGrid) skipLinkKey = "grid";
+else if (isConnections) skipLinkKey = "connections";
+else if (isNameGuess) skipLinkKey = "nameGuess";
+else if (isWordSearch) skipLinkKey = "wordSearch";
+else if (isMapPilot) skipLinkKey = "mapPilot";
+else if (isTimeline) skipLinkKey = "timeline";
+else if (isCode) skipLinkKey = "code";
+else if (isPrivacy) skipLinkKey = "privacy";
+else if (isNotFound) skipLinkKey = "notFound";
 const skipLinkText = messages.skipLinks[skipLinkKey];
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Only the production build is served from the root; prefixed builds are staging.
@@ -155,7 +155,7 @@ const enableAnalytics = !isStaging && Boolean(cfBeaconToken);
 const ga4Id = import.meta.env.PUBLIC_GA4_ID;
 const enableGa4 = !isStaging && Boolean(ga4Id);
 const privacyPath = locale === "pt-BR" ? "/pt-br/privacidade/" : "/en/privacy/";
-const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot && !isTimeline;
+const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot && !isTimeline && !isCode;
 const games = [
   {
     id: "quiz",
@@ -198,6 +198,12 @@ const games = [
     label: messages.gameTimeline,
     path: locale === "pt-BR" ? "/pt-br/linha-do-tempo/" : "/en/timeline/",
     isActive: isTimeline,
+  },
+  {
+    id: "code",
+    label: messages.gameCode,
+    path: locale === "pt-BR" ? "/pt-br/codigo/" : "/en/code/",
+    isActive: isCode,
   },
 ];
 ---

@@ -236,3 +236,19 @@ Objetivo: deixar a página indexada, bem rankeada no Google e legível por LLMs.
 - registrar a estratégia em ADR: o que é indexável, o que fica fora (artefatos JSON de dados, homologação) e como medir evolução de rank e citações.
 
 Aceite: sitemap válido referenciado no `robots.txt`; Search Console sem erros de cobertura nas rotas principais; páginas de produção sem `noindex`; arquivo para LLMs publicado e documentado.
+
+## Graduação do Código de grupos concluída
+
+Estado: implementada no código ([ADR 023](decisions/023-promocao-de-piloto-a-jogo.md)).
+
+Objetivo: transformar o piloto `noindex` do código de grupos em jogo completo, aplicando o checklist de promoção de piloto a jogo.
+
+- rotas finais `/pt-br/codigo/` e `/en/code/` com `BaseLayout` e `301` das rotas `-piloto` pelo `web/public/_redirects` no Cloudflare Pages;
+- textos no `catalog.ts` e no `game-about.ts`, sem ternários bilíngues inline;
+- menu, sitemap, resumos `llms/`, cartões OG por rota, GameAbout/FAQ e skipLinks;
+- GA4 com consentimento e deduplicação por partida e visita;
+- estatísticas locais na janela de estatísticas, progresso retomável no `localStorage` e compartilhamento sem spoiler;
+- artefato diário `code-groups.daily.json` no runner (publicação parcial, sem bloquear o lote);
+- unit tests do componente em `web/src` e e2e atualizados.
+
+Aceite: unit tests, build, `seo:verify` e `csp:verify` passando; as rotas novas aparecem no menu, no sitemap e nos resumos de LLM; detalhes em [Jogo de código de grupos](code-groups-game.md).

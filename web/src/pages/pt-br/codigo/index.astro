@@ -1,0 +1,23 @@
+---
+import { CodeGroupsGame } from "../../../components/CodeGroups/CodeGroupsGame";
+import GameAbout from "../../../components/GameAbout.astro";
+import GameIntro from "../../../components/GameIntro.astro";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { getMessages } from "../../../i18n/catalog";
+
+const messages = getMessages("pt-BR");
+---
+<BaseLayout locale="pt-BR" route="code" canonicalPath="/pt-br/codigo/" alternatePath="/en/code/">
+  <div class="page-shell" data-testid="game-shell">
+    <GameIntro
+      wide
+      kicker={messages.codeEyebrow}
+      title={messages.codeTitle}
+      howToPlayTitle={messages.howToPlayTitle}
+      howToPlaySteps={messages.codeHowToPlay}
+      intro={messages.codeIntro}
+    />
+    <CodeGroupsGame locale="pt-BR" client:load />
+    <GameAbout locale="pt-BR" game="code" />
+  </div>
+</BaseLayout>

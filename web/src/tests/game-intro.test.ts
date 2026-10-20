@@ -28,6 +28,8 @@ const GAME_PAGES: Record<string, boolean> = {
   "pages/en/map.astro": true,
   "pages/pt-br/linha-do-tempo.astro": true,
   "pages/en/timeline.astro": true,
+  "pages/pt-br/codigo/index.astro": true,
+  "pages/en/code/index.astro": true,
 };
 
 function ruleBody(css: string, selector: string): string {

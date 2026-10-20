@@ -56,6 +56,12 @@ const sampleStats: PlayerStats = {
       maxStreak: 1,
       lastPlayedDate: "2026-09-18",
     },
+    code: {
+      played: 0,
+      won: 0,
+      currentStreak: 0,
+      maxStreak: 0,
+    },
   },
 };
 

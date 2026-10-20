@@ -96,6 +96,24 @@ def report_skipped_grid(grid_skipped: dict[str, Any] | None) -> None:
         print(f"::warning title=Daily grid missing::{message}")
 
 
+def report_skipped_code_groups(code_groups_skipped: dict[str, Any] | None) -> None:
+    """Make a day published without the group code pilot visible in the run summary."""
+    if not code_groups_skipped:
+        return
+    if code_groups_skipped.get("published_without_code_groups"):
+        # A kept or promoted set records the absent artifact only; the
+        # original generation error belongs to the day that first skipped it.
+        message = "The published set for this day carries no code-groups.daily.json"
+    else:
+        message = (
+            "Day published without the group code pilot because generation "
+            f"failed: {code_groups_skipped['error']}"
+        )
+    sys.stderr.write(f"WARNING: {message}\n")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=Daily group code missing::{message}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -124,6 +142,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         report_reused_grid(result.get("grid_reused"))
         report_skipped_grid(result.get("grid_skipped"))
+        report_skipped_code_groups(result.get("code_groups_skipped"))
         mode_str = "[dry-run] " if result.get("dry_run") else ""
         action = (
             "promoted from next/"
@@ -138,6 +157,7 @@ def main(argv: list[str] | None = None) -> int:
         if "next" in result:
             report_reused_grid(result["next"].get("grid_reused"))
             report_skipped_grid(result["next"].get("grid_skipped"))
+            report_skipped_code_groups(result["next"].get("code_groups_skipped"))
             print(f"{mode_str}Daily puzzles for {result['next']['reference_date']} published ahead in {result['next']['output_dir']}")
         return 0
     except Exception as exc:

@@ -1,12 +1,25 @@
 """Unified daily puzzle generation and publishing runner.
 
-Deterministically generates and atomically publishes the 6 daily K-pop puzzle games:
+Deterministically generates and atomically publishes the 7 daily K-pop puzzle games:
 1. Daily bilingual quiz sessions (and session.pt-BR.json, session.en.json)
 2. Intersection grid (grid.daily.json)
 3. Connections puzzle (connections.daily.json)
 4. Name guess puzzle (name-guess.daily.json)
 5. Word search puzzle (word-search.daily.json)
 6. Timeline puzzle (timeline.daily.json)
+7. Group code pilot (code-groups.daily.json)
+
+Failure policy (partial publish): a generation failure of the group code
+pilot never blocks the daily batch. The other six games of the day still
+publish, the day goes out without ``code-groups.daily.json``, and the runner
+result records the absence in ``code_groups_skipped`` (with the generation
+error). This mirrors the grid's no-previous-fallback skip path; unlike the
+grid, the pilot does not reuse a previous day's artifact, because the puzzle
+is date-derived and a stale sequence would contradict the day's identity.
+The runner's verification passes ``require_code_groups=False`` so a day
+without the artifact still verifies, while a present file is always
+validated. Callers that must have the artifact pass the
+``--require-code-groups`` flag of ``kpop_scraping.web_publish``.
 """
 
 from __future__ import annotations
@@ -21,6 +34,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
+from .code_groups_cli import generate as generate_code_groups_puzzle
 from .connections_generator import generate_connections_puzzle
 from .grid_generator import generate_daily_grid
 from .grid_schema import validate_intersection_grid
@@ -31,6 +45,7 @@ from .quiz_schema import validate_session, write_json_atomic
 from .quiz_utils import reference_date_today
 from .timeline_generator import generate_timeline_puzzle
 from .web_publish import (
+    CODE_GROUPS_DAILY_FILENAME,
     CONNECTIONS_DAILY_FILENAME,
     DIFFICULTIES,
     GRID_DAILY_FILENAME,
@@ -67,7 +82,13 @@ def generate_daily_puzzles(
     base_seed: str = "web-launch-v1",
     timer_seconds: int | None = None,
 ) -> dict[str, Any]:
-    """Deterministically generate the 6 daily puzzles for reference_date."""
+    """Deterministically generate the 7 daily puzzles for reference_date.
+
+    The group code pilot is best-effort: when its generation fails, the
+    returned puzzles carry ``code_groups=None`` plus ``code_groups_error``
+    and the day publishes without the artifact (partial publish policy, see
+    the module docstring). The other six games still raise on failure.
+    """
     iso_date = get_reference_date(reference_date)
     ref_date = date.fromisoformat(iso_date)
 
@@ -124,6 +145,23 @@ def generate_daily_puzzles(
         connection, reference_date=ref_date, seed=timeline_seed
     )
 
+    # 7. Group code pilot. Partial publish policy: a failure here only
+    # removes this artifact from the day; the other six games still go out.
+    code_groups = None
+    code_groups_error = None
+    try:
+        code_groups = generate_code_groups_puzzle(
+            connection,
+            seed=f"kpop-code-groups-daily-{iso_date}",
+            reference_date=ref_date,
+        )
+    except ValueError as exc:
+        code_groups_error = str(exc)
+        sys.stderr.write(
+            f"Daily group code generation failed; the day publishes without "
+            f"code-groups.daily.json: {exc}\n"
+        )
+
     return {
         "reference_date": iso_date,
         "dataset_version": dataset["dataset_version"],
@@ -136,6 +174,8 @@ def generate_daily_puzzles(
         "name_guess": name_guess,
         "word_search": word_search,
         "timeline": timeline,
+        "code_groups": code_groups,
+        "code_groups_error": code_groups_error,
     }
 
 
@@ -152,6 +192,10 @@ def publish_daily_puzzles(
     content still passes validation; it defaults to the one already in
     output_dir. When it is missing or invalid, the day publishes without
     ``grid.daily.json`` and the result records why in ``grid_skipped``.
+    The group code pilot follows a plain partial publish policy: when its
+    generation failed (``code_groups`` is None), the day publishes without
+    ``code-groups.daily.json`` and the result records why in
+    ``code_groups_skipped``; no previous artifact is reused.
     With ``prune``, files that the new set does not contain are removed, so
     a directory holds exactly one day.
     """
@@ -170,6 +214,7 @@ def publish_daily_puzzles(
             name_guess=puzzles["name_guess"],
             word_search=puzzles["word_search"],
             timeline=puzzles["timeline"],
+            code_groups=puzzles["code_groups"],
         )
         grid_skipped = None
         if puzzles["grid"] is None:
@@ -186,9 +231,18 @@ def publish_daily_puzzles(
         write_json_atomic(staging_dir / "session.pt-BR.json", puzzles["session_pt_br"], validate_session)
         write_json_atomic(staging_dir / "session.en.json", puzzles["session_en"], validate_session)
 
-        # 2. Verify all artifacts in staging directory. The grid is optional
-        # in a published set; when the file is present, verify() validates it.
-        verify_artifacts(staging_dir, require_grid=False)
+        # Partial publish policy for the group code pilot: the day goes out
+        # without code-groups.daily.json and the result keeps the error.
+        code_groups_skipped = (
+            {"error": puzzles.get("code_groups_error") or "unknown error"}
+            if puzzles["code_groups"] is None
+            else None
+        )
+
+        # 2. Verify all artifacts in staging directory. The grid and the
+        # group code pilot are optional in a published set; when a file is
+        # present, verify() validates it.
+        verify_artifacts(staging_dir, require_grid=False, require_code_groups=False)
 
         published_grid = puzzles["grid"]
         grid_reused = None
@@ -209,6 +263,10 @@ def publish_daily_puzzles(
             "name_guess_id": puzzles["name_guess"]["puzzle_id"],
             "word_search_id": puzzles["word_search"]["puzzle_id"],
             "timeline_id": puzzles["timeline"]["puzzle_id"],
+            "code_groups_id": (
+                puzzles["code_groups"]["puzzle_id"] if puzzles["code_groups"] is not None else None
+            ),
+            "code_groups_skipped": code_groups_skipped,
             "dry_run": dry_run,
             "output_dir": str(output_dir),
             "published_files": [p.name for p in sorted(staging_dir.glob("*.json"))],
@@ -226,9 +284,18 @@ def publish_daily_puzzles(
                 (output_dir / GRID_DAILY_FILENAME).unlink()
             except FileNotFoundError:
                 pass
+        if code_groups_skipped is not None:
+            # Same reasoning as the grid above: the day publishes without
+            # the group code artifact, and a file left by an earlier day
+            # must not survive it.
+            try:
+                (output_dir / CODE_GROUPS_DAILY_FILENAME).unlink()
+            except FileNotFoundError:
+                pass
 
-        # 4. Final verification in output_dir; the grid stays optional here too.
-        verify_artifacts(output_dir, require_grid=False)
+        # 4. Final verification in output_dir; the grid and the group code
+        # artifact stay optional here too.
+        verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
         return result
 
 
@@ -301,6 +368,15 @@ def _published_result(output_dir: Path, reference_date: str, **flags: bool) -> d
         if grid is None
         else None
     )
+    # The group code artifact is optional in a published set; sets published
+    # before the daily integration, and days published under the partial
+    # publish policy, have no file to read.
+    code_groups_path = output_dir / CODE_GROUPS_DAILY_FILENAME
+    code_groups = (
+        json.loads(code_groups_path.read_text(encoding="utf-8"))
+        if code_groups_path.is_file()
+        else None
+    )
     return {
         "reference_date": reference_date,
         "dataset_version": read(MANIFEST_FILENAME)["dataset_version"],
@@ -311,6 +387,10 @@ def _published_result(output_dir: Path, reference_date: str, **flags: bool) -> d
         "name_guess_id": read(NAME_GUESS_DAILY_FILENAME)["puzzle_id"],
         "word_search_id": read(WORD_SEARCH_DAILY_FILENAME)["puzzle_id"],
         "timeline_id": read(TIMELINE_DAILY_FILENAME)["puzzle_id"],
+        "code_groups_id": code_groups["puzzle_id"] if code_groups is not None else None,
+        "code_groups_skipped": (
+            {"published_without_code_groups": True} if code_groups is None else None
+        ),
         "dry_run": False,
         "output_dir": str(output_dir),
         **flags,
@@ -325,15 +405,15 @@ def keep_or_promote_day(output_dir: Path, reference_date: str) -> dict[str, Any]
     being generated again from a newer database. Returns None when neither
     directory holds that day.
     """
-    # The grid is optional in a published set; verify() still validates it
-    # when the file is present.
+    # The grid and the group code artifact are optional in a published set;
+    # verify() still validates either file when it is present.
     if _published_day(output_dir) == reference_date:
-        verify_artifacts(output_dir, require_grid=False)
+        verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
         return _published_result(output_dir, reference_date, already_published=True)
     next_dir = output_dir / NEXT_DIRNAME
     if _published_day(next_dir) != reference_date:
         return None
-    verify_artifacts(next_dir, require_grid=False)
+    verify_artifacts(next_dir, require_grid=False, require_code_groups=False)
     _install_files(next_dir, output_dir)
     if not (next_dir / GRID_DAILY_FILENAME).is_file():
         # An earlier day's grid is removed when the promoted set has none.
@@ -341,7 +421,14 @@ def keep_or_promote_day(output_dir: Path, reference_date: str) -> dict[str, Any]
             (output_dir / GRID_DAILY_FILENAME).unlink()
         except FileNotFoundError:
             pass
-    verify_artifacts(output_dir, require_grid=False)
+    if not (next_dir / CODE_GROUPS_DAILY_FILENAME).is_file():
+        # Same as the grid: a group code artifact left by an earlier day
+        # does not survive the promotion of a set without one.
+        try:
+            (output_dir / CODE_GROUPS_DAILY_FILENAME).unlink()
+        except FileNotFoundError:
+            pass
+    verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
     return _published_result(output_dir, reference_date, promoted_from_next=True)
 
 
@@ -365,11 +452,12 @@ def run_daily_puzzles(
     output_dir_path = Path(output_dir)
 
     if verify_only:
-        # The grid is optional in a published day; a present grid still validates.
-        verify_artifacts(output_dir_path, require_grid=False)
+        # The grid and the group code artifact are optional in a published
+        # day; a present file of either still validates.
+        verify_artifacts(output_dir_path, require_grid=False, require_code_groups=False)
         next_dir = output_dir_path / NEXT_DIRNAME
         if (next_dir / MANIFEST_FILENAME).is_file():
-            verify_artifacts(next_dir, require_grid=False)
+            verify_artifacts(next_dir, require_grid=False, require_code_groups=False)
         return {
             "status": "verified",
             "output_dir": str(output_dir_path),

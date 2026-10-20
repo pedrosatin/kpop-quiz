@@ -9,7 +9,7 @@ import type { Locale } from "../lib/quiz-types";
 // the map refresh workflow. Headings carry the game name, so each route gets
 // its own H2s and most FAQ entries; one generic entry per game stays.
 
-export type GameAboutKey = "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline";
+export type GameAboutKey = "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code";
 
 export interface GameAboutFaq {
   question: string;
@@ -207,6 +207,33 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
           { question: "Em quais idiomas dá para jogar?", answer: ptLanguages("/en/timeline/") },
         ],
       },
+      code: {
+        howToPlayHeading: "Como jogar o Código de grupos de K-pop",
+        dataSourcesHeading: "De onde vêm os dados do Código de grupos de K-pop",
+        faqHeading: "Perguntas sobre o Código de grupos de K-pop",
+        howToPlay: [
+          "O código do dia é uma sequência de 4 grupos distintos, escolhidos entre os 6 símbolos do tabuleiro. Escolha um grupo para cada uma das 4 posições e envie o palpite. Você tem 10 tentativas.",
+          "Depois de cada tentativa, o jogo mostra dois números: quantos grupos estão na posição exata e quantos pertencem ao código, mas estão em outra posição. Os números são agregados e nunca indicam quais posições você acertou, então um palpite com 2 exatos não diz quais duas posições estão certas. No fim, o resultado revela a sequência e lista a classificação de cada grupo no Wikidata, com a revisão consultada.",
+          "Se o código do dia não for publicado, a página avisa e oferece tentar novamente, porque a publicação diária pode sair sem este arquivo sem bloquear os outros jogos.",
+        ],
+        dataSources: [
+          "Os seis símbolos saem do catálogo de grupos aceitos, cada um com uma classificação de tipo musical registrada no Wikidata, apontando para a revisão consultada. O gerador sorteia os símbolos e a sequência secreta com uma semente derivada da data, então o mesmo dia e o mesmo catálogo produzem sempre o mesmo código, e todo mundo joga a mesma sequência.",
+          "A sequência é um desafio de lógica, não um fato: o jogo não afirma nenhuma relação entre os grupos que formam o código. Cada resposta leva ao item do Wikidata que classifica o grupo. A licença do Wikidata é CC0.",
+        ],
+        faq: [
+          {
+            question: "Por que os números não mostram quais posições acertei?",
+            answer:
+              "Porque a informação do jogo é essa mesma: o palpite só devolve quantos grupos estão exatos e quantos estão deslocados. Saber quais posições acertou tornaria o jogo outro; descobrir isso com poucas tentativas é o desafio.",
+          },
+          {
+            question: "Todo mundo recebe o mesmo código?",
+            answer:
+              "Sim. A sequência muda à meia-noite no horário de Brasília e é a mesma para todos os jogadores do dia, então o resultado compartilhado pode ser comparado. Se o arquivo do dia não for gerado, a página avisa e o código fica indisponível até o dia seguinte.",
+          },
+          { question: "Preciso criar uma conta?", answer: PT_ACCOUNT },
+        ],
+      },
     },
   },
   en: {
@@ -368,6 +395,33 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
               "It does. An event known only by its year counts as the whole year. Because each puzzle uses different years, a partial date is never ambiguous next to its neighbor.",
           },
           { question: "Which languages can I play in?", answer: enLanguages("/pt-br/linha-do-tempo/") },
+        ],
+      },
+      code: {
+        howToPlayHeading: "How to play the K-pop Group Code",
+        dataSourcesHeading: "Where the K-pop Group Code data comes from",
+        faqHeading: "K-pop Group Code FAQ",
+        howToPlay: [
+          "The daily code is a sequence of 4 distinct groups chosen from the board's 6 symbols. Pick a group for each of the 4 positions and submit your guess. You get 10 attempts.",
+          "After each attempt, the game shows two numbers: how many groups are in the exact position and how many belong to the code but sit in another one. The numbers are aggregates and never say which positions you got right, so an attempt with 2 exact does not tell you which two. At the end, the result reveals the sequence and lists each group's classification on Wikidata, with the revision consulted.",
+          "If the day's code is not published, the page says so and offers a retry, because the daily publish can go out without this file without blocking the other games.",
+        ],
+        dataSources: [
+          "The six symbols come from the accepted group catalog, each with a music type classification recorded on Wikidata, pointing at the consulted revision. The generator draws the symbols and the secret sequence from a date-derived seed, so the same day and the same catalog always produce the same code, and everyone plays the same sequence.",
+          "The sequence is a logic challenge, not a fact: the game claims no relationship between the groups that form the code. Each answer links to the Wikidata item that classifies the group. Wikidata's license is CC0.",
+        ],
+        faq: [
+          {
+            question: "Why don't the numbers show which positions I got right?",
+            answer:
+              "Because that is all the information the game gives: a guess returns only how many groups are exact and how many are misplaced. Knowing which positions are right would be a different game; finding that out in few attempts is the challenge.",
+          },
+          {
+            question: "Does everyone get the same code?",
+            answer:
+              "Yes. The sequence changes at midnight São Paulo time and is the same for every player that day, so shared results can be compared. If the day's file is not generated, the page says so and the code stays unavailable until the next day.",
+          },
+          { question: "Do I need an account?", answer: EN_ACCOUNT },
         ],
       },
     },

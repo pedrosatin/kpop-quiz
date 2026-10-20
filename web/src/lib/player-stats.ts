@@ -1,4 +1,4 @@
-export type GameId = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline";
+export type GameId = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "code";
 
 export interface GameStats {
   played: number;
@@ -24,7 +24,13 @@ export interface PlayerStats {
 }
 
 export const PLAYER_STATS_STORAGE_KEY = "kpop-player-stats-v1";
-export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline"];
+export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline", "code"];
+/**
+ * Stats added after v1. `importPlayerStatsJson` still accepts an export from
+ * before the game existed, normalizing the missing entries to zeroed stats,
+ * so a stats file keeps importing across graduations.
+ */
+const LATER_GAME_IDS: GameId[] = ["code"];
 
 export function getTodayDateString(): string {
   const d = new Date();
@@ -73,6 +79,7 @@ export function createInitialPlayerStats(): PlayerStats {
       "name-guess": createDefaultGameStats(true),
       "word-search": createDefaultGameStats(false),
       timeline: createDefaultGameStats(false),
+      code: createDefaultGameStats(false),
     },
   };
 }
@@ -154,6 +161,7 @@ export function loadPlayerStats(): PlayerStats {
         "name-guess": normalizeGameStats(parsed.games?.["name-guess"], true),
         "word-search": normalizeGameStats(parsed.games?.["word-search"], false),
         timeline: normalizeGameStats(parsed.games?.timeline, false),
+        code: normalizeGameStats(parsed.games?.code, false),
       },
     };
   } catch {
@@ -312,6 +320,9 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
     if (!ALL_GAME_IDS.includes(key as GameId)) return { success: false, error: "unknown-game" };
   }
   for (const gameId of ALL_GAME_IDS) {
+    // Games added after v1 may be absent from an older export; the import
+    // normalizes them to zeroed stats instead of rejecting the whole file.
+    if (LATER_GAME_IDS.includes(gameId) && gamesRaw[gameId] === undefined) continue;
     const entry = gamesRaw[gameId];
     if (entry === undefined) {
       return { success: false, error: "invalid-games" };
@@ -339,6 +350,10 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
   };
   const games = {} as Record<GameId, GameStats>;
   for (const gameId of ALL_GAME_IDS) {
+    if (LATER_GAME_IDS.includes(gameId) && gamesRaw[gameId] === undefined) {
+      games[gameId] = createDefaultGameStats(false);
+      continue;
+    }
     // Every game id was validated above, so each entry is a plain object here.
     const record = gamesRaw[gameId] as Record<string, unknown>;
     const game: GameStats = {

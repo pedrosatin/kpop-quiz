@@ -23,6 +23,7 @@ const relatedGames = {
   wordSearch: ["nameGuess", "connections"],
   mapPilot: ["timeline", "quiz"],
   timeline: ["mapPilot", "quiz"],
+  code: ["timeline", "connections"],
 } as const satisfies Record<GameAboutKey, readonly SeoRouteKey[]>;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const routes = relatedGames[game].map((key) =>

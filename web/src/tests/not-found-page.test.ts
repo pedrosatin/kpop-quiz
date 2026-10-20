@@ -18,6 +18,7 @@ describe("404 page", () => {
       "/pt-br/caca-palavras/",
       "/pt-br/mapa/",
       "/pt-br/linha-do-tempo/",
+      "/pt-br/codigo/",
       "/en/",
       "/en/grid/",
       "/en/connections/",
@@ -25,6 +26,7 @@ describe("404 page", () => {
       "/en/word-search/",
       "/en/map/",
       "/en/timeline/",
+      "/en/code/",
     ]) {
       expect(source).toContain(`path: "${path}"`);
     }

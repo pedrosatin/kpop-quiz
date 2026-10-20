@@ -10,6 +10,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .code_groups_cli import validate as validate_code_groups_puzzle
 from .connections_schema import validate_connections_puzzle, write_connections_puzzle_atomic
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
@@ -31,6 +32,7 @@ CONNECTIONS_DAILY_FILENAME = "connections.daily.json"
 NAME_GUESS_DAILY_FILENAME = "name-guess.daily.json"
 WORD_SEARCH_DAILY_FILENAME = "word-search.daily.json"
 TIMELINE_DAILY_FILENAME = "timeline.daily.json"
+CODE_GROUPS_DAILY_FILENAME = "code-groups.daily.json"
 LOCALES = ("pt-BR", "en")
 DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
@@ -117,6 +119,15 @@ def _read_timeline(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"cannot read timeline artifact {path}: {exc}") from exc
     validate_timeline_puzzle(payload)
+    return payload
+
+
+def _read_code_groups(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read code-groups artifact {path}: {exc}") from exc
+    validate_code_groups_puzzle(payload)
     return payload
 
 
@@ -277,8 +288,9 @@ def publish(
     name_guess: dict[str, Any] | None = None,
     word_search: dict[str, Any] | None = None,
     timeline: dict[str, Any] | None = None,
+    code_groups: dict[str, Any] | None = None,
 ) -> None:
-    """Publish static quiz sessions, optional daily grid, connections, name-guess, word-search, and timeline puzzles.
+    """Publish static quiz sessions, optional daily grid, connections, name-guess, word-search, timeline, and group code puzzles.
 
     Args:
         output_dir: Target directory where artifacts and manifest are written.
@@ -298,6 +310,10 @@ def publish(
         timeline: Optional timeline puzzle payload (written to timeline.daily.json).
             When provided, validated against timeline puzzle schema before writing.
             When None, timeline artifact is omitted.
+        code_groups: Optional group code pilot payload (written to code-groups.daily.json).
+            When provided, validated against the code groups contract before writing.
+            When None, code_groups artifact is omitted; the daily runner treats
+            this as a partial publish and lets the other games of the day out.
     """
     for session in sessions.values():
         validate_session(session)
@@ -311,6 +327,8 @@ def publish(
         validate_word_search_puzzle(word_search)
     if timeline is not None:
         validate_timeline_puzzle(timeline)
+    if code_groups is not None:
+        validate_code_groups_puzzle(code_groups)
     manifest = build_manifest(sessions)
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
@@ -323,6 +341,12 @@ def publish(
         write_word_search_puzzle_atomic(output_dir / WORD_SEARCH_DAILY_FILENAME, word_search)
     if timeline is not None:
         write_timeline_puzzle_atomic(output_dir / TIMELINE_DAILY_FILENAME, timeline)
+    if code_groups is not None:
+        # write_json_atomic validates again and writes canonical bytes, the
+        # same discipline the other daily artifacts get from their writers.
+        write_json_atomic(
+            output_dir / CODE_GROUPS_DAILY_FILENAME, code_groups, validate_code_groups_puzzle
+        )
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
@@ -336,8 +360,9 @@ def verify(
     require_name_guess: bool = False,
     require_word_search: bool = False,
     require_timeline: bool = False,
+    require_code_groups: bool = False,
 ) -> None:
-    """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, word-search, and timeline.
+    """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, word-search, timeline, and group code.
 
     Args:
         output_dir: Directory containing manifest-v2.json and artifact files.
@@ -366,6 +391,15 @@ def verify(
             exists on disk, it is schema-validated; if absent, verification passes.
             When True: timeline.daily.json is mandatory and must exist and
             satisfy schema validation, raising ValueError if missing or invalid.
+        require_code_groups: Verification policy flag for the group code pilot
+            (code-groups.daily.json).
+            When False (default): backwards-compatible policy. If
+            code-groups.daily.json exists on disk, it is validated against the
+            code groups contract; if absent, verification passes. This keeps
+            sets published before the daily integration, and days published
+            under the partial publish policy (generation failure), verifiable.
+            When True: code-groups.daily.json is mandatory and must exist and
+            satisfy contract validation, raising ValueError if missing or invalid.
     """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
@@ -405,6 +439,11 @@ def verify(
         _read_timeline(timeline_path)
     elif require_timeline:
         raise ValueError(f"missing required timeline artifact: {timeline_path}")
+    code_groups_path = output_dir / CODE_GROUPS_DAILY_FILENAME
+    if code_groups_path.is_file():
+        _read_code_groups(code_groups_path)
+    elif require_code_groups:
+        raise ValueError(f"missing required code-groups artifact: {code_groups_path}")
     session_pt_br_path = output_dir / "session.pt-BR.json"
     if session_pt_br_path.is_file():
         _read_session(session_pt_br_path)
@@ -420,8 +459,14 @@ def verify_artifacts(
     require_name_guess: bool = True,
     require_word_search: bool = True,
     require_timeline: bool = True,
+    require_code_groups: bool = True,
 ) -> None:
-    """Verify published static quiz artifacts and daily puzzle files."""
+    """Verify published static quiz artifacts and daily puzzle files.
+
+    ``require_code_groups`` defaults to True like the other complete daily
+    artifacts, so a caller that accepts the partial publish policy for the
+    group code pilot must pass False explicitly (the daily runner does).
+    """
     verify(
         output_dir,
         require_grid=require_grid,
@@ -429,6 +474,7 @@ def verify_artifacts(
         require_name_guess=require_name_guess,
         require_word_search=require_word_search,
         require_timeline=require_timeline,
+        require_code_groups=require_code_groups,
     )
 
 
@@ -466,6 +512,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Require timeline.daily.json to exist and pass schema validation during --verify",
     )
+    parser.add_argument(
+        "--require-code-groups",
+        action="store_true",
+        help="Require code-groups.daily.json to exist and pass contract validation during --verify",
+    )
     return parser
 
 
@@ -482,6 +533,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--require-word-search can only be used with --verify")
         if args.require_timeline and not args.verify:
             raise ValueError("--require-timeline can only be used with --verify")
+        if args.require_code_groups and not args.verify:
+            raise ValueError("--require-code-groups can only be used with --verify")
         if args.verify:
             # next/ holds the following day's set when the daily run publishes ahead.
             next_dir = args.output_dir / "next"
@@ -495,6 +548,7 @@ def main(argv: list[str] | None = None) -> int:
                     require_name_guess=args.require_name_guess,
                     require_word_search=args.require_word_search,
                     require_timeline=args.require_timeline,
+                    require_code_groups=args.require_code_groups,
                 )
         elif args.database:
             if not args.database.is_file():

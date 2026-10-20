@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { Locale, PlayMode } from "./quiz-types";
 
-export type AnalyticsGame = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "map";
+export type AnalyticsGame = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "map" | "code";
 export interface GameAnalyticsContext {
   game: AnalyticsGame;
   locale: Locale;

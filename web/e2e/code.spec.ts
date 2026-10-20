@@ -2,11 +2,19 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 
+// The pilot artifact stays committed as the fixed example; the specs serve it
+// as the day's artifact through route interception, so the secret is known.
 const artifact = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
 const secret: [string,string,string,string] = artifact.secret;
 const prefix = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
-const route = "/pt-br/codigo-piloto/";
+const route = "/pt-br/codigo/";
+
 async function open(page: Page, baseURL: string | undefined, path = route) {
+  // The daily pipeline may publish without the group code file, so the
+  // browser suite always plays against the known artifact instead of the
+  // committed (absent) daily file.
+  await page.route("**/data/code-groups.daily.json", (request) => request.fulfill({ json: artifact }));
+  await page.route("**/data/next/code-groups.daily.json", (request) => request.fulfill({ status: 404, body: "missing" }));
   await page.goto(joinBaseUrl(baseURL!, prefix + path));
   await expect(page.locator("#code-groups")).toBeVisible();
 }
@@ -25,10 +33,10 @@ async function choose(page: Page, guess: string[], keyboard = false) {
   }
 }
 
-test("pilot rejects input errors, returns aggregate displacement, then wins", async ({ page, baseURL }) => {
+test("rejects input errors, returns aggregate displacement, then wins", async ({ page, baseURL }) => {
   await open(page,baseURL);
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content","noindex, nofollow");
-  await expect(page.locator(".game-nav-bar")).toHaveCount(0);
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+  await expect(page.locator(".game-nav-bar")).toBeVisible();
   const submit = page.getByRole("button",{name:"Enviar palpite"});
   await submit.click();
   await expect(page.getByRole("status")).toContainText("Escolha os quatro grupos");
@@ -66,11 +74,37 @@ test("ten failed guesses reveal the code and lock input", async ({ page, baseURL
   expect(fits).toBe(true);
 });
 
+test("progress resumes after a reload and does not replay stats", async ({ page, baseURL }) => {
+  await open(page,baseURL);
+  // A wrong first guess leaves the round open so reload can restore it.
+  await choose(page,[secret[1],secret[0],secret[2],secret[3]]);
+  await page.getByRole("button",{name:"Enviar palpite"}).click();
+  await expect(page.locator(".code-history li")).toHaveCount(1);
+  await page.reload();
+  await expect(page.locator("#code-groups")).toBeVisible();
+  await expect(page.locator(".code-history li")).toHaveCount(1);
+  await choose(page,secret);
+  await page.getByRole("button",{name:"Enviar palpite"}).click();
+  await expect(page.locator(".game-result")).toContainText("Código descoberto!");
+});
+
+test("a day without the artifact offers working retry", async ({page,baseURL}) => {
+  await page.route("**/data/code-groups.daily.json",(request) => request.fulfill({status:404,body:"missing"}));
+  await page.goto(joinBaseUrl(baseURL!,prefix + route));
+  await expect(page.getByTestId("game-missing")).toContainText("ainda não foi publicado");
+  await page.route("**/data/code-groups.daily.json",(request) => request.fulfill({json:artifact}));
+  await page.getByTestId("game-retry").click();
+  await expect(page.locator("#code-groups")).toBeVisible();
+  await choose(page,secret);
+  await page.getByRole("button",{name:"Enviar palpite"}).click();
+  await expect(page.locator(".game-result")).toContainText("Código descoberto!");
+});
+
 test("English route and keyboard selection complete the same sample", async ({ page, baseURL }) => {
   await open(page,baseURL);
   await page.getByRole("link",{name:"English",exact:true}).click();
-  await expect(page).toHaveURL(/\/en\/code-pilot\/$/);
-  await expect(page.getByRole("heading",{name:"Group code",exact:true})).toBeVisible();
+  await expect(page).toHaveURL(/\/en\/code\/$/);
+  await expect(page.getByRole("heading",{name:"Group code",level:1})).toBeVisible();
   await choose(page,secret,true);
   await page.getByRole("button",{name:"Submit guess"}).focus();
   await page.keyboard.press("Enter");
@@ -78,24 +112,13 @@ test("English route and keyboard selection complete the same sample", async ({ p
   await expect(page.locator(".game-result")).toBeFocused();
 });
 
-for (const invalid of [false,true]) test(`missing/invalid pilot offers working retry (${invalid})`, async ({page,baseURL}) => {
-  let calls = 0;
-  await page.route("**/data/code-groups.pilot.json",async request => {
-    calls++;
-    if(calls===1) await request.fulfill(invalid ? {json:{...artifact,mode:"daily"}} : {status:404,body:"missing"});
-    else await request.fulfill({json:artifact});
-  });
+test("an invalid artifact is rejected even with a valid shape", async ({page,baseURL}) => {
+  await page.route("**/data/code-groups.daily.json",(request) => request.fulfill({json:{...artifact,mode:"daily"}}));
   await page.goto(joinBaseUrl(baseURL!,prefix + route));
-  await expect(page.getByRole("alert")).toContainText("Não foi possível carregar");
-  await page.getByRole("button",{name:"Tentar novamente"}).click();
-  await expect(page.locator("#code-groups")).toBeVisible();
-  await choose(page,secret);
-  await page.getByRole("button",{name:"Enviar palpite"}).click();
-  await expect(page.locator(".game-result")).toContainText("Código descoberto!");
+  await expect(page.getByTestId("game-missing")).toContainText("Não foi possível carregar");
 });
 
-
-test.describe("touch pilot", () => {
+test.describe("touch", () => {
   test.use({ hasTouch: true, viewport: { width: 360, height: 740 } });
   test("touch submission solves the code", async ({page,baseURL}) => {
     await open(page,baseURL);
