@@ -16,11 +16,23 @@ from .release_quiz_drafts import (
 
 
 def _group_mentions_person(group: Entity, person: Entity) -> bool:
-    """Return whether the group label or localized name contains the person's identity."""
+    """Return whether group and person labels share an identity that would leak.
+
+    Wikidata sometimes lists member stage names as group aliases (Rhythm Power
+    → Hangzoo). The render assert then sees the person option as echoing the
+    prompt subject. Reject those pairs at draft time in both directions:
+    group text mentioning the person, and person labels matching a group
+    identity (including aliases).
+    """
     group_names = {group.canonical_name, group.name("pt-BR"), group.name("en")}
+    person_labels = {person.canonical_name, person.name("pt-BR"), person.name("en")}
     for identity, allow_short in _group_identities(person):
         for name in group_names:
             if _contains_identity(name, identity, allow_short=allow_short):
+                return True
+    for identity, allow_short in _group_identities(group):
+        for label in person_labels:
+            if _contains_identity(label, identity, allow_short=allow_short):
                 return True
     return False
 

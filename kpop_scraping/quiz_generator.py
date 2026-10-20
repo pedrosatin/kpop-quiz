@@ -70,15 +70,26 @@ def generate_dataset(
     }
     performers = _performers_by_release(facts)
     questions = []
+    kept_drafts = []
     for draft in drafts:
         decades = _subject_decades(draft, group_decades, person_memberships, performers)
-        for language in selected_languages:
-            for question in render_play_mode_variants(
-                draft, language, reference_date, entities_by_qid,
-                person_memberships, relevance_by_group,
-            ):
-                question["decades"] = decades
-                questions.append(question)
+        try:
+            rendered = []
+            for language in selected_languages:
+                for question in render_play_mode_variants(
+                    draft, language, reference_date, entities_by_qid,
+                    person_memberships, relevance_by_group,
+                ):
+                    question["decades"] = decades
+                    rendered.append(question)
+        except ValueError:
+            # A distractor can still echo a group alias after draft filters;
+            # drop the logical question instead of aborting the daily publish.
+            rejected["option_label_echoes_prompt"] += 1
+            continue
+        kept_drafts.append(draft)
+        questions.extend(rendered)
+    drafts = kept_drafts
     questions.sort(
         key=lambda question: (
             question["logical_id"], question["language"], question["play_mode"]
