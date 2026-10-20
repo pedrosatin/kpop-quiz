@@ -144,9 +144,14 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
     analytics.start();
     const guess = scoreGuess(puzzle, selection);
     setFeedback({ kind: "attempt", attempt: guess });
+    const nextLength = history.length + 1;
+    const willFinish = guess.exact === 4 || nextLength === puzzle.max_attempts;
     setHistory((prev) => [...prev, guess]);
-    setSelection([...EMPTY_SELECTION]);
-  }, [finished, puzzle, selection]);
+    // Keep the last pick between attempts so the same guess can be sent again
+    // (ten identical clicks exhaust the round). Clear only when the round ends,
+    // so a finished save stays loadable (history at the limit with empty slots).
+    if (willFinish) setSelection([...EMPTY_SELECTION]);
+  }, [finished, history.length, puzzle, selection]);
 
   const restart = useCallback(() => {
     analytics.reset();

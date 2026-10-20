@@ -54,7 +54,9 @@ for (const game of games) for (const locale of ["pt", "en"] as const)
         await expect(page.locator(game.controls)).toHaveCount(game.id === "code" ? 4 : crossword.cells.length);
         await page.evaluate(() => document.fonts.ready);
         await audit(page);
-        const smallTargets = await page.locator(`${game.controls}, .crossword-actions button, #code-groups button, .how-to-play summary`).evaluateAll(elements =>
+        // Shared .how-to-play summary is 36px on fine pointers by design; the
+        // pilot details and the game controls stay at the 44px touch target.
+        const smallTargets = await page.locator(`${game.controls}, .crossword-actions button, #code-groups button, .pilot-instructions summary`).evaluateAll(elements =>
           elements.filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; }).map(e => e.outerHTML));
         expect(smallTargets).toEqual([]);
         if (locale === "pt" && viewport.width === 390) await capture(page, `${game.id}-mobile-${colorScheme}`);

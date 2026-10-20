@@ -10,6 +10,10 @@
   margin-block: 0.5rem;
 }
 .code-groups fieldset {
+  /* Browsers default fieldset to min-width: min-content; long option
+     labels would otherwise force horizontal scroll on phones. */
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid currentColor;
   border-radius: 12px;
   padding: 1rem;
@@ -19,6 +23,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
   margin-bottom: 1rem;
+  min-width: 0;
 }
 .code-slots label {
   display: flex;
@@ -29,6 +34,8 @@
 .code-slots select {
   font: inherit;
   min-height: 44px;
+  min-width: 0;
+  max-width: 100%;
   padding: 0.6rem;
   border: 1px solid currentColor;
   border-radius: 8px;

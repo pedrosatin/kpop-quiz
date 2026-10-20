@@ -76,7 +76,8 @@ test("ten failed guesses reveal the code and lock input", async ({ page, baseURL
 
 test("progress resumes after a reload and does not replay stats", async ({ page, baseURL }) => {
   await open(page,baseURL);
-  await choose(page,secret);
+  // A wrong first guess leaves the round open so reload can restore it.
+  await choose(page,[secret[1],secret[0],secret[2],secret[3]]);
   await page.getByRole("button",{name:"Enviar palpite"}).click();
   await expect(page.locator(".code-history li")).toHaveCount(1);
   await page.reload();

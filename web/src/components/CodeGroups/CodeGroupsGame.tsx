@@ -3,6 +3,7 @@ import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 import { CodeGroupsArtifactError, loadCodeGroupsPuzzle, type CodeGroupsPuzzle } from "../../data/code-groups";
 import { CodeGroupsGameContent } from "./CodeGroupsGameContent";
+import "./code-groups.css";
 
 export function CodeGroupsGame({ locale, baseUrl }: { locale: Locale; baseUrl?: string }) {
   const messages = getMessages(locale);
@@ -28,7 +29,7 @@ export function CodeGroupsGame({ locale, baseUrl }: { locale: Locale; baseUrl?: 
 
   if (status === "loading") {
     return (
-      <section id="code-groups" class="game-card game-card--wide state" aria-live="polite" aria-busy="true">
+      <section id="code-groups" tabIndex={-1} class="game-card game-card--wide state" aria-live="polite" aria-busy="true">
         <span class="loader" aria-hidden="true" />
         <p class="text-muted">{messages.loading}</p>
       </section>
@@ -42,6 +43,7 @@ export function CodeGroupsGame({ locale, baseUrl }: { locale: Locale; baseUrl?: 
     return (
       <section
         id="code-groups"
+        tabIndex={-1}
         class="game-card game-card--wide state"
         data-testid="game-missing"
         aria-live="polite"
