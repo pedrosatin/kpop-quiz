@@ -17,6 +17,7 @@ from kpop_scraping.quiz_generator import (
 )
 from kpop_scraping.quiz_cli import main as quiz_main
 from kpop_scraping.quiz_models import Entity
+from kpop_scraping.quiz_drafts import _group_mentions_person
 from kpop_scraping.group_relevance_scoring import ASSISTED_MIN_SCORE, EXPERT_MAX_SCORE
 from kpop_scraping.release_quiz_drafts import _release_ids_mentioning_groups
 from kpop_scraping.quiz_schema import validate_dataset, write_json_atomic
@@ -542,6 +543,36 @@ class QuizGeneratorTest(unittest.TestCase):
                 self.assertNotIn("QG1", {option["value"] for option in question["options"]})
             if question["type"] == "member_for_group":
                 self.assertNotIn("Group Person 1", question["prompt"])
+
+    def test_group_alias_matching_member_label_is_rejected(self):
+        # Rhythm Power lists Hangzoo as a group alias; the member option would
+        # echo the prompt subject at render time and used to abort the day.
+        group = Entity("QG", "group", "Rhythm Power", {"en": "Rhythm Power"}, ("Hangzoo", "Boi B"))
+        person = Entity("QP", "person", "Hangzoo", {"en": "Hangzoo"}, ())
+        other = Entity("QP2", "person", "Other Rapper", {"en": "Other Rapper"}, ())
+        self.assertTrue(_group_mentions_person(group, person))
+        self.assertFalse(_group_mentions_person(group, other))
+
+    def test_group_alias_matching_member_is_rejected_in_dataset(self):
+        group_one = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='QG1'"
+        ).fetchone()[0]
+        self.connection.execute(
+            "INSERT INTO entity_aliases(entity_id, language, name, alias_type) VALUES (?, 'en', 'Person 1', 'alias')",
+            (group_one,),
+        )
+        self.connection.commit()
+
+        dataset, report = generate_dataset(self.connection)
+
+        self.assertGreaterEqual(
+            report["rejected_by_reason"].get("group_label_mentions_member", 0)
+            + report["rejected_by_reason"].get("option_label_echoes_prompt", 0),
+            1,
+        )
+        for question in dataset["questions"]:
+            if question["type"] == "member_for_group" and "Group 1" in question["prompt"]:
+                self.assertNotIn("Person 1", {option["label"] for option in question["options"]})
 
     def test_short_canonical_group_name_is_not_ignored(self):
         release = Entity("QR", "release", "4L First Album", {}, ())
