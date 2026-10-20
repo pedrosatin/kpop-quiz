@@ -3,7 +3,12 @@ export type TimelineEventType =
   | "formation"
   | "member_join"
   | "disbandment"
-  | "birth";
+  | "birth"
+  | "release";
+
+// v2 added the release event type. Published v1 days keep their bytes, so
+// the loader accepts both versions.
+export type TimelineSchemaVersion = "kpop-timeline-puzzle-v1" | "kpop-timeline-puzzle-v2";
 
 export interface BilingualText {
   "pt-BR": string;
@@ -32,7 +37,7 @@ export interface TimelineEvent {
 }
 
 export interface TimelinePuzzle {
-  schema_version: "kpop-timeline-puzzle-v1";
+  schema_version: TimelineSchemaVersion;
   puzzle_id: string;
   dataset_version: string;
   reference_date: string;
@@ -48,13 +53,18 @@ const TIMELINE_DATE_REGEX = /^\d{4}(-\d{2}(-\d{2})?)?$/;
 const TIMELINE_MIN_YEAR = 1980;
 const TIMELINE_MAX_YEAR = 2035;
 
-const TIMELINE_EVENT_TYPES = new Set<TimelineEventType>([
+const TIMELINE_V1_EVENT_TYPES: readonly TimelineEventType[] = [
   "debut",
   "formation",
   "member_join",
   "disbandment",
   "birth",
-]);
+];
+
+const TIMELINE_EVENT_TYPES_BY_VERSION: Record<TimelineSchemaVersion, ReadonlySet<string>> = {
+  "kpop-timeline-puzzle-v1": new Set(TIMELINE_V1_EVENT_TYPES),
+  "kpop-timeline-puzzle-v2": new Set([...TIMELINE_V1_EVENT_TYPES, "release"]),
+};
 
 const BILINGUAL_KEYS = ["pt-BR", "en"] as const;
 
@@ -169,10 +179,10 @@ function isTimelineEvidence(value: unknown): value is TimelineEvidence {
   );
 }
 
-function isTimelineEvent(value: unknown): value is TimelineEvent {
+function isTimelineEvent(value: unknown, eventTypes: ReadonlySet<string>): value is TimelineEvent {
   if (!isRecord(value) || !hasExactKeys(value, EVENT_REQUIRED_KEYS)) return false;
   if (typeof value.id !== "string" || value.id.length === 0) return false;
-  if (typeof value.event_type !== "string" || !TIMELINE_EVENT_TYPES.has(value.event_type as TimelineEventType)) {
+  if (typeof value.event_type !== "string" || !eventTypes.has(value.event_type)) {
     return false;
   }
   if (!isValidTimelineDate(value.date)) return false;
@@ -201,7 +211,13 @@ function isTimelineEvent(value: unknown): value is TimelineEvent {
 export function isTimelinePuzzle(value: unknown): value is TimelinePuzzle {
   if (!isRecord(value) || !hasExactKeys(value, TIMELINE_ROOT_KEYS)) return false;
 
-  if (value.schema_version !== "kpop-timeline-puzzle-v1") return false;
+  if (
+    typeof value.schema_version !== "string"
+    || !Object.hasOwn(TIMELINE_EVENT_TYPES_BY_VERSION, value.schema_version)
+  ) {
+    return false;
+  }
+  const eventTypes = TIMELINE_EVENT_TYPES_BY_VERSION[value.schema_version as TimelineSchemaVersion];
   if (typeof value.puzzle_id !== "string" || !HASH_REGEX.test(value.puzzle_id)) return false;
   if (typeof value.dataset_version !== "string" || !HASH_REGEX.test(value.dataset_version)) return false;
   if (!isValidReferenceDate(value.reference_date)) return false;
@@ -209,7 +225,7 @@ export function isTimelinePuzzle(value: unknown): value is TimelinePuzzle {
   if (!isBilingualText(value.theme_description)) return false;
 
   if (!Array.isArray(value.events) || value.events.length < 4 || value.events.length > 6) return false;
-  if (!value.events.every(isTimelineEvent)) return false;
+  if (!value.events.every((event) => isTimelineEvent(event, eventTypes))) return false;
 
   const seenIds = new Set<string>();
   for (const ev of value.events) {

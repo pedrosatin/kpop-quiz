@@ -363,7 +363,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       timeline: {
         title: "Linha do tempo do K-pop: jogo de datas",
-        description: "Coloque 5 acontecimentos do K-pop em ordem cronológica no desafio diário. Confira as datas de formação dos grupos e nascimento dos artistas.",
+        description: "Coloque 5 acontecimentos do K-pop em ordem cronológica no desafio diário: formação de grupos, nascimento de artistas e lançamentos de discos.",
       },
       code: {
         title: "Código de grupos de K-pop: jogo de lógica",
@@ -782,7 +782,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       timeline: {
         title: "K-pop Timeline: daily history puzzle",
-        description: "Put 5 K-pop events in chronological order in the daily timeline puzzle. Check group formation dates, artist birthdays and sources after playing.",
+        description: "Put 5 K-pop events in chronological order in the daily timeline puzzle. Check formation dates, artist birthdays, release dates and sources after playing.",
       },
       code: {
         title: "K-pop Group Code: daily logic game",
