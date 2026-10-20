@@ -1,4 +1,4 @@
-"""Unit tests for timeline puzzle schema v1 and validation."""
+"""Unit tests for timeline puzzle schemas v1/v2 and validation."""
 
 from __future__ import annotations
 
@@ -14,15 +14,16 @@ except ImportError:
     fastjsonschema = None
 
 from kpop_scraping.timeline_schema import (
+    TIMELINE_LEGACY_SCHEMA_VERSION,
     TIMELINE_SCHEMA_VERSION,
     compute_timeline_puzzle_id,
     validate_timeline_puzzle,
     write_timeline_puzzle_atomic,
 )
 
-SCHEMA_PATH = (
-    Path(__file__).resolve().parent.parent / "schemas" / "timeline-puzzle-v1.json"
-)
+SCHEMAS_DIR = Path(__file__).resolve().parent.parent / "schemas"
+SCHEMA_PATH = SCHEMAS_DIR / "timeline-puzzle-v2.json"
+LEGACY_SCHEMA_PATH = SCHEMAS_DIR / "timeline-puzzle-v1.json"
 
 
 def sample_evidence(fact_id: str = "fb-1", qid: str = "Q21480414") -> dict:
@@ -353,6 +354,89 @@ class TestTimelineSchema(unittest.TestCase):
             event["year"] = year
         with self.assertRaisesRegex(ValueError, "distinct years"):
             validate_timeline_puzzle(payload)
+
+
+def sample_release_event() -> dict:
+    return {
+        "id": "timeline-release-Q130283394",
+        "event_type": "release",
+        "date": "2025-02-03",
+        "year": 2025,
+        "display_date": {"pt-BR": "3 de fevereiro de 2025", "en": "February 3, 2025"},
+        "title": {
+            "pt-BR": "Lançamento de \u201cIVE Empathy\u201d (IVE)",
+            "en": "Release of \u201cIVE Empathy\u201d (IVE)",
+        },
+        "description": {
+            "pt-BR": "Lançamento do álbum \u201cIVE Empathy\u201d, de IVE.",
+            "en": "Release of the album \u201cIVE Empathy\u201d by IVE.",
+        },
+        "entity_id": "Q130283394",
+        "entity_name": "IVE Empathy",
+        "evidence": [sample_evidence("fb-ive-empathy", "Q130283394")],
+    }
+
+
+def _load_json_validator(path: Path):
+    if fastjsonschema is None:
+        return None
+    with open(path, encoding="utf-8") as f:
+        return fastjsonschema.compile(json.load(f))
+
+
+class TestTimelineSchemaVersions(unittest.TestCase):
+    """v2 adds the release event type; published v1 artifacts stay valid."""
+
+    def setUp(self) -> None:
+        self.payload = sample_timeline_puzzle()
+        self.payload["events"][-1] = sample_release_event()
+        self.payload["puzzle_id"] = compute_timeline_puzzle_id(self.payload)
+
+    def test_generator_writes_v2(self) -> None:
+        self.assertEqual(TIMELINE_SCHEMA_VERSION, "kpop-timeline-puzzle-v2")
+        self.assertEqual(TIMELINE_LEGACY_SCHEMA_VERSION, "kpop-timeline-puzzle-v1")
+
+    def test_release_event_passes_v2_validators(self) -> None:
+        validate_timeline_puzzle(self.payload)
+        validator = _load_json_validator(SCHEMA_PATH)
+        if validator is not None:
+            validator(self.payload)
+
+    def test_v1_payload_without_release_still_passes(self) -> None:
+        payload = sample_timeline_puzzle()
+        payload["schema_version"] = TIMELINE_LEGACY_SCHEMA_VERSION
+        payload["puzzle_id"] = compute_timeline_puzzle_id(payload)
+        validate_timeline_puzzle(payload)
+        validator = _load_json_validator(LEGACY_SCHEMA_PATH)
+        if validator is not None:
+            validator(payload)
+
+    def test_v1_payload_rejects_release_event(self) -> None:
+        payload = deepcopy(self.payload)
+        payload["schema_version"] = TIMELINE_LEGACY_SCHEMA_VERSION
+        with self.assertRaisesRegex(ValueError, "event_type must be one of"):
+            validate_timeline_puzzle(payload)
+        validator = _load_json_validator(LEGACY_SCHEMA_PATH)
+        if validator is not None:
+            with self.assertRaises(fastjsonschema.JsonSchemaException):
+                validator(payload)
+
+    def test_v2_schema_only_extends_v1_event_types(self) -> None:
+        def event_types(path: Path) -> list[str]:
+            schema = json.loads(path.read_text(encoding="utf-8"))
+            return schema["$defs"]["timeline_event"]["properties"]["event_type"]["enum"]
+
+        legacy = json.loads(LEGACY_SCHEMA_PATH.read_text(encoding="utf-8"))
+        current = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(event_types(SCHEMA_PATH), [*event_types(LEGACY_SCHEMA_PATH), "release"])
+        self.assertEqual(current["properties"]["schema_version"], {"const": TIMELINE_SCHEMA_VERSION})
+        self.assertEqual(legacy["properties"]["schema_version"], {"const": TIMELINE_LEGACY_SCHEMA_VERSION})
+        for schema in (legacy, current):
+            schema["$defs"]["timeline_event"]["properties"]["event_type"].pop("enum")
+            schema["properties"].pop("schema_version")
+            schema.pop("$id")
+            schema.pop("title")
+        self.assertEqual(legacy, current)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,11 @@ from urllib.parse import urlsplit
 
 from .quiz_schema import write_json_atomic
 
-TIMELINE_SCHEMA_VERSION = "kpop-timeline-puzzle-v1"
+# The generator writes v2. v1 stays readable because a published day keeps
+# its bytes: the cron promotes next/ and keeps already published days, so a
+# v1 artifact can still be verified after the bump.
+TIMELINE_SCHEMA_VERSION = "kpop-timeline-puzzle-v2"
+TIMELINE_LEGACY_SCHEMA_VERSION = "kpop-timeline-puzzle-v1"
 TIMELINE_MIN_YEAR = 1980
 TIMELINE_MAX_YEAR = 2035
 TIMELINE_MIN_EVENT_GAP_DAYS = 30
@@ -45,7 +49,12 @@ EVENT_REQUIRED_FIELDS = frozenset(
     }
 )
 
-EVENT_TYPES = frozenset({"debut", "formation", "member_join", "disbandment", "birth"})
+EVENT_TYPES_V1 = frozenset({"debut", "formation", "member_join", "disbandment", "birth"})
+EVENT_TYPES = EVENT_TYPES_V1 | {"release"}
+EVENT_TYPES_BY_SCHEMA_VERSION = {
+    TIMELINE_LEGACY_SCHEMA_VERSION: EVENT_TYPES_V1,
+    TIMELINE_SCHEMA_VERSION: EVENT_TYPES,
+}
 
 BILINGUAL_FIELDS = frozenset({"pt-BR", "en"})
 EVIDENCE_FIELDS = frozenset(
@@ -174,10 +183,12 @@ def validate_timeline_puzzle(payload: dict[str, Any]) -> None:
         f"root fields must be {sorted(TIMELINE_REQUIRED_ROOT_FIELDS)}, got {sorted(payload.keys())}",
     )
 
+    schema_version = payload["schema_version"]
     _require(
-        payload["schema_version"] == TIMELINE_SCHEMA_VERSION,
-        f"schema_version must be '{TIMELINE_SCHEMA_VERSION}', got '{payload['schema_version']}'",
+        schema_version in EVENT_TYPES_BY_SCHEMA_VERSION,
+        f"schema_version must be one of {sorted(EVENT_TYPES_BY_SCHEMA_VERSION)}, got '{schema_version}'",
     )
+    event_types = EVENT_TYPES_BY_SCHEMA_VERSION[schema_version]
 
     _require_hash(payload["puzzle_id"], "puzzle_id")
     _require_hash(payload["dataset_version"], "dataset_version")
@@ -209,8 +220,9 @@ def validate_timeline_puzzle(payload: dict[str, Any]) -> None:
         seen_ids.add(ev_id)
 
         _require(
-            ev["event_type"] in EVENT_TYPES,
-            f"{context}.event_type must be one of {sorted(EVENT_TYPES)}, got '{ev['event_type']}'",
+            ev["event_type"] in event_types,
+            f"{context}.event_type must be one of {sorted(event_types)} for {schema_version}, "
+            f"got '{ev['event_type']}'",
         )
 
         _require_date(ev["date"], f"{context}.date")
