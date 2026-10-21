@@ -90,6 +90,7 @@ test("progress resumes after a reload and does not replay stats", async ({ page,
 
 test("a day without the artifact offers working retry", async ({page,baseURL}) => {
   await page.route("**/data/code-groups.daily.json",(request) => request.fulfill({status:404,body:"missing"}));
+  await page.route("**/data/next/code-groups.daily.json",(request) => request.fulfill({status:404,body:"missing"}));
   await page.goto(joinBaseUrl(baseURL!,prefix + route));
   await expect(page.getByTestId("game-missing")).toContainText("ainda não foi publicado");
   await page.route("**/data/code-groups.daily.json",(request) => request.fulfill({json:artifact}));
