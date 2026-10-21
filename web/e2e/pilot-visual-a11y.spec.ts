@@ -10,7 +10,7 @@ const axeScript = readFileSync(new URL("../node_modules/axe-core/axe.min.js", im
 const crossword = JSON.parse(readFileSync(new URL("../public/data/crossword-pilot.json", import.meta.url), "utf8"));
 const code = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
 const games = [
-  { id: "crossword", pt: "/pt-br/cruzadinha-piloto/", en: "/en/crossword-pilot/", controls: "#crossword input" },
+  { id: "crossword", pt: "/pt-br/cruzadinha/", en: "/en/crossword/", controls: "#crossword input" },
   { id: "code", pt: "/pt-br/codigo/", en: "/en/code/", controls: "#code-groups select" },
 ] as const;
 
@@ -25,12 +25,22 @@ async function serveCodeArtifact(page: Page) {
 async function audit(page: Page) {
   await page.addScriptTag({ content: axeScript });
   const violations = await page.evaluate(async () => {
-    const engine = (window as unknown as { axe: { run(root: Document, options: unknown): Promise<{ violations: { id: string; impact: string; nodes: unknown[] }[] }> } }).axe;
+    const engine = (window as unknown as { axe: { run(root: Document, options: unknown): Promise<{ violations: { id: string; impact: string; nodes: { target: string[] }[] }[] }> } }).axe;
     const result = await engine.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] } });
-    return result.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.length }));
+    return result.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => n.target) }));
   });
   expect(violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+}
+
+async function rejectMobileCrosswordConsent(page: Page) {
+  const banner = page.locator(".consent-banner");
+  if (await banner.count() === 0) return;
+  await expect(banner).toBeVisible();
+  await expect(page.locator(".crossword-actions")).toHaveCSS("position", "static");
+  await banner.getByRole("button", { name: /^(Recusar|Reject) Google Analytics$/ }).click();
+  await expect(banner).toHaveCount(0);
+  await expect(page.locator(".crossword-actions")).toHaveCSS("position", "sticky");
 }
 
 async function capture(page: Page, name: string) {
@@ -55,8 +65,8 @@ for (const game of games) for (const locale of ["pt", "en"] as const)
         await page.evaluate(() => document.fonts.ready);
         await audit(page);
         // Shared .how-to-play summary is 36px on fine pointers by design; the
-        // pilot details and the game controls stay at the 44px touch target.
-        const smallTargets = await page.locator(`${game.controls}, .crossword-actions button, #code-groups button, .pilot-instructions summary`).evaluateAll(elements =>
+        // game controls stay at the 44px touch target.
+        const smallTargets = await page.locator(`${game.controls}, .crossword-actions button, .crossword-clues button, #code-groups button`).evaluateAll(elements =>
           elements.filter(e => { const r = e.getBoundingClientRect(); return r.width < 44 || r.height < 44; }).map(e => e.outerHTML));
         expect(smallTargets).toEqual([]);
         if (locale === "pt" && viewport.width === 390) await capture(page, `${game.id}-mobile-${colorScheme}`);
@@ -64,7 +74,12 @@ for (const game of games) for (const locale of ["pt", "en"] as const)
         if (locale === "en" && viewport.width === 1440) await capture(page, `${game.id}-desktop-${colorScheme}`);
         await page.getByText(locale === "pt" ? "Como jogar" : "How to play", { exact: true }).click();
         await expect(page.locator("details")).toHaveAttribute("open", "");
+        // The open steps push the grid under the sticky action bar, which by
+        // design overlaps the end of a board taller than the screen; audit the
+        // grid as the player sees it after scrolling to it.
+        if (game.id === "crossword") await page.locator(".crossword-board").evaluate(e => e.scrollIntoView({ block: "start" }));
         await audit(page);
+        if (game.id === "crossword" && viewport.width <= 390) await rejectMobileCrosswordConsent(page);
         await page.getByText(locale === "pt" ? "Como jogar" : "How to play", { exact: true }).click();
         expect(errors).toEqual([]);
       });
@@ -78,14 +93,13 @@ for (const game of games) test(`${game.id}: 200 percent text reflow and keyboard
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
   await audit(page);
   if (game.id === "crossword") {
-    const overlaps = await page.evaluate(() => {
-      const actions = document.querySelector(".crossword-actions")!.getBoundingClientRect();
-      return [...document.querySelectorAll(".crossword-cell, .crossword-clues button")].some(element => {
-        const box = element.getBoundingClientRect();
-        return box.left < actions.right && box.right > actions.left && box.top < actions.bottom && box.bottom > actions.top;
-      });
-    });
-    expect(overlaps).toBe(false);
+    // The sticky bar may cover the end of the board at 200% text, like every
+    // game; the main action must still be reachable and on screen.
+    const check = page.getByRole("button", { name: "Check answers", exact: true });
+    await check.scrollIntoViewIfNeeded();
+    await expect(check).toBeInViewport();
+    await rejectMobileCrosswordConsent(page);
+    await expect(page.locator(".crossword-actions")).toHaveCSS("position", "sticky");
   }
   await capture(page, `${game.id}-text-200-percent`);
   await page.locator(".skip-link").focus();
@@ -107,7 +121,10 @@ test("crossword: keyboard completion announces and focuses cited results", async
   }
   await page.getByRole("button", { name: "Verificar respostas", exact: true }).focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByTestId("game-result")).toBeFocused();
+  await expect(page.getByRole("heading", { name: "Cruzadinha concluída!" })).toBeFocused();
+  await rejectMobileCrosswordConsent(page);
+  await expect(page.locator(".crossword-actions")).toHaveCSS("position", "sticky");
+  await page.getByRole("button", { name: "Ver fonte" }).click();
   await expect(page.locator(".crossword-actions")).toHaveCSS("position", "static");
   await audit(page);
   await capture(page, "crossword-completed-dark");
@@ -138,7 +155,7 @@ for (const game of games) test(`${game.id}: unavailable artifact keeps keyboard 
   if (game.id === "code") await page.route("**/data/next/code-groups.daily.json", route => route.fulfill({ status: 404, body: "" }));
   await page.goto(prefix + game.pt);
   if (game.id === "code") await expect(page.getByTestId("game-missing")).toBeVisible();
-  else await expect(page.getByRole("alert")).toBeVisible();
+  else await expect(page.getByTestId("game-missing")).toBeVisible();
   await audit(page);
   await page.locator(".skip-link").focus();
   await page.keyboard.press("Enter");

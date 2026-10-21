@@ -26,8 +26,8 @@ function pngSize(path: string): { width: number; height: number } {
 }
 
 describe("SEO route table", () => {
-  it("covers exactly the 16 indexable content routes", () => {
-    expect(SEO_ROUTES).toHaveLength(16);
+  it("covers exactly the 18 indexable content routes", () => {
+    expect(SEO_ROUTES).toHaveLength(18);
   });
 
   it("keeps /data/*, the root alias and query variants out of the sitemap", () => {
@@ -97,7 +97,7 @@ describe("share URLs", () => {
       expect(campaigns.get(route.key) ?? campaign).toBe(campaign);
       campaigns.set(route.key, campaign);
     }
-    expect(new Set(campaigns.values()).size).toBe(8);
+    expect(new Set(campaigns.values()).size).toBe(9);
   });
 });
 

@@ -94,6 +94,12 @@ const SMOKE_PAIRS: readonly SmokePairDef[] = [
     optionalArtifact: true,
   },
   {
+    id: "crossword",
+    kind: "board-direct",
+    ptPath: "/pt-br/cruzadinha/",
+    enPath: "/en/crossword/",
+  },
+  {
     id: "privacy",
     kind: "privacy",
     ptPath: "/pt-br/privacidade/",

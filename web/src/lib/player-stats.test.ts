@@ -359,6 +359,21 @@ describe("player-stats module", () => {
         maxStreak: 0,
       });
     });
+
+    it("imports an export from before the crossword game and zeros it", () => {
+      const payload = JSON.parse(JSON.stringify(createInitialPlayerStats())) as {
+        games: Record<string, unknown>;
+      };
+      delete payload.games["crossword"];
+      const result = importPlayerStatsJson(JSON.stringify(payload));
+      expect(result).toEqual({ success: true });
+      expect(loadPlayerStats().games.crossword).toEqual({
+        played: 0,
+        won: 0,
+        currentStreak: 0,
+        maxStreak: 0,
+      });
+    });
   });
 
   describe("import validation", () => {

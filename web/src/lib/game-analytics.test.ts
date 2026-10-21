@@ -118,6 +118,22 @@ describe("real game lifecycle", () => {
   });
 });
 
+describe("restart after a restored save", () => {
+  it("emits game_start again for the next round before its game_complete", () => {
+    const { result, rerender } = renderHook(
+      ({ finished }) => useGameAnalytics(context, finished, true),
+      { initialProps: { finished: true } },
+    );
+    expect(names()).toEqual([]);
+    act(() => result.current.reset());
+    rerender({ finished: false });
+    act(() => result.current.start());
+    expect(names()).toEqual(["game_start"]);
+    rerender({ finished: true });
+    expect(names()).toEqual(["game_start", "game_complete"]);
+  });
+});
+
 describe("successful sharing", () => {
   it("tracks native success and clipboard fallback, excludes cancellation/failure and text", async () => {
     const native = vi.fn().mockResolvedValue(undefined);

@@ -19,6 +19,7 @@ export function StatsTabs({ activeTab, onSelect, locale }: StatsTabsProps) {
     { id: "word-search", label: messages.gameWordSearch },
     { id: "timeline", label: messages.gameTimeline },
     { id: "code", label: messages.gameCode },
+    { id: "crossword", label: messages.gameCrossword },
   ];
 
   return (

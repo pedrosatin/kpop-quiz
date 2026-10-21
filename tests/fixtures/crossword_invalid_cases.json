@@ -1,0 +1,407 @@
+{
+  "description": "Rejection cases shared by the Python validator (tests/test_crossword_schema.py) and the web loader (web/src/data/crossword.test.ts). Each case edits a copy of web/public/data/crossword-pilot.json and, unless rehash is false, recomputes dataset_version, so the content rule fails and not the checksum.",
+  "cases": [
+    {
+      "name": "missing evidence",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "sources"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "incompatible crossing",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            1,
+            "answer"
+          ],
+          "value": "ATOB"
+        },
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            1,
+            "canonical_name"
+          ],
+          "value": "ATOB"
+        }
+      ]
+    },
+    {
+      "name": "alias shared by two groups",
+      "ops": [
+        {
+          "op": "append",
+          "path": [
+            "entries",
+            1,
+            "aliases"
+          ],
+          "value": "BTS"
+        }
+      ]
+    },
+    {
+      "name": "orphan cell",
+      "ops": [
+        {
+          "op": "append",
+          "path": [
+            "cells"
+          ],
+          "value": {
+            "row": 5,
+            "col": 0,
+            "answer": "A"
+          }
+        }
+      ]
+    },
+    {
+      "name": "vocabulary mismatch",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "vocabulary"
+          ],
+          "value": []
+        }
+      ]
+    },
+    {
+      "name": "clue matching two groups",
+      "ops": [
+        {
+          "op": "append",
+          "path": [
+            "entries",
+            0,
+            "matching_qids"
+          ],
+          "value": "Q123"
+        }
+      ]
+    },
+    {
+      "name": "board too large",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "rows"
+          ],
+          "value": 10
+        }
+      ]
+    },
+    {
+      "name": "impossible reference date",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "reference_date"
+          ],
+          "value": "2026-02-31"
+        }
+      ]
+    },
+    {
+      "name": "checksum mismatch",
+      "rehash": false,
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "dataset_version"
+          ],
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ]
+    },
+    {
+      "name": "url revision differs from locator",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "sources",
+            0,
+            "locator"
+          ],
+          "value": "wikipedia:en:pageid=39862325:revid=91376754986#extract[183:189]"
+        }
+      ]
+    },
+    {
+      "name": "empty evidence span",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "sources",
+            0,
+            "locator"
+          ],
+          "value": "wikipedia:en:pageid=39862325:revid=1376754986#wikitext[10:10]"
+        }
+      ]
+    },
+    {
+      "name": "reversed evidence span",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "sources",
+            0,
+            "locator"
+          ],
+          "value": "wikipedia:en:pageid=39862325:revid=1376754986#wikitext[999999:0]"
+        }
+      ]
+    },
+    {
+      "name": "statement of another item",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "sources",
+            0,
+            "statement_id"
+          ],
+          "value": "Q1$00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    },
+    {
+      "name": "blank clue",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "clue",
+            "en"
+          ],
+          "value": "  "
+        }
+      ]
+    },
+    {
+      "name": "wrong numbering",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            2,
+            "number"
+          ],
+          "value": 3
+        }
+      ]
+    },
+    {
+      "name": "unknown direction",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "direction"
+          ],
+          "value": "diagonal"
+        }
+      ]
+    },
+    {
+      "name": "answer not normalized from the name",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "canonical_name"
+          ],
+          "value": "BTX"
+        }
+      ]
+    },
+    {
+      "name": "audited count below the entries",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "audited_group_count"
+          ],
+          "value": 2
+        }
+      ]
+    },
+    {
+      "name": "other puzzle identity",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "puzzle_id"
+          ],
+          "value": "crossword-audited-02"
+        }
+      ]
+    },
+    {
+      "name": "other mode",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "mode"
+          ],
+          "value": "daily"
+        }
+      ]
+    },
+    {
+      "name": "extra root field",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "extra"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "extra source field",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "sources",
+            0,
+            "extra"
+          ],
+          "value": "x"
+        }
+      ]
+    },
+    {
+      "name": "extra cell field",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "cells",
+            0,
+            "extra"
+          ],
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "boolean entry number",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "number"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "fractional entry number",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            2,
+            "number"
+          ],
+          "value": 2.5
+        }
+      ]
+    },
+    {
+      "name": "snippet not a string",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "sources",
+            0,
+            "snippet"
+          ],
+          "value": 5
+        }
+      ]
+    },
+    {
+      "name": "extra entry field",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "extra"
+          ],
+          "value": "x"
+        }
+      ]
+    },
+    {
+      "name": "extra clue language",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "clue",
+            "es"
+          ],
+          "value": "x"
+        }
+      ]
+    }
+  ]
+}

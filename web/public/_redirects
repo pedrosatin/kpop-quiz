@@ -4,3 +4,5 @@
 # stays acceptable because staging is noindex as a whole.
 /pt-br/codigo-piloto/      /pt-br/codigo/      301
 /en/code-pilot/            /en/code/           301
+/pt-br/cruzadinha-piloto/  /pt-br/cruzadinha/  301
+/en/crossword-pilot/       /en/crossword/      301

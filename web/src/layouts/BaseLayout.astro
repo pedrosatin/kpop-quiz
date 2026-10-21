@@ -51,6 +51,7 @@ const gameAboutKeyMap: Partial<Record<SeoRouteKey, GameAboutKey>> = {
   mapPilot: "mapPilot",
   timeline: "timeline",
   code: "code",
+  crossword: "crossword",
 };
 const currentFaqGameKey = gameAboutKeyMap[route];
 const faqCopy = currentFaqGameKey ? gameAbout[locale]?.games[currentFaqGameKey]?.faq : undefined;
@@ -101,6 +102,7 @@ const isWordSearch = Astro.url.pathname.includes("/caca-palavras") || Astro.url.
 const isMapPilot = Astro.url.pathname.includes("/mapa") || Astro.url.pathname.includes("/map/");
 const isTimeline = Astro.url.pathname.includes("/linha-do-tempo") || Astro.url.pathname.includes("/timeline");
 const isCode = Astro.url.pathname.includes("/codigo") || Astro.url.pathname.includes("/code");
+const isCrossword = Astro.url.pathname.includes("/cruzadinha") || Astro.url.pathname.includes("/crossword");
 const isPrivacy = Boolean(canonicalPath?.endsWith("/privacidade/") || canonicalPath?.endsWith("/privacy/"));
 let skipTarget = "#quiz";
 if (isGrid) skipTarget = "#grid";
@@ -110,6 +112,7 @@ else if (isWordSearch) skipTarget = "#word-search";
 else if (isMapPilot) skipTarget = "#map-game";
 else if (isTimeline) skipTarget = "#timeline";
 else if (isCode) skipTarget = "#code-groups";
+else if (isCrossword) skipTarget = "#crossword";
 const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
 let otherPath = isPrivacy
   ? (locale === "pt-BR" ? "/en/privacy/" : "/pt-br/privacidade/")
@@ -128,6 +131,8 @@ if (isGrid) {
   otherPath = locale === "pt-BR" ? `${targetBase}timeline/` : `${targetBase}linha-do-tempo/`;
 } else if (isCode) {
   otherPath = locale === "pt-BR" ? `${targetBase}code/` : `${targetBase}codigo/`;
+} else if (isCrossword) {
+  otherPath = locale === "pt-BR" ? `${targetBase}crossword/` : `${targetBase}cruzadinha/`;
 }
 let skipLinkKey: SkipLinkKey = "quiz";
 if (isGrid) skipLinkKey = "grid";
@@ -137,6 +142,7 @@ else if (isWordSearch) skipLinkKey = "wordSearch";
 else if (isMapPilot) skipLinkKey = "mapPilot";
 else if (isTimeline) skipLinkKey = "timeline";
 else if (isCode) skipLinkKey = "code";
+else if (isCrossword) skipLinkKey = "crossword";
 else if (isPrivacy) skipLinkKey = "privacy";
 else if (isNotFound) skipLinkKey = "notFound";
 const skipLinkText = messages.skipLinks[skipLinkKey];
@@ -155,7 +161,7 @@ const enableAnalytics = !isStaging && Boolean(cfBeaconToken);
 const ga4Id = import.meta.env.PUBLIC_GA4_ID;
 const enableGa4 = !isStaging && Boolean(ga4Id);
 const privacyPath = locale === "pt-BR" ? "/pt-br/privacidade/" : "/en/privacy/";
-const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot && !isTimeline && !isCode;
+const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot && !isTimeline && !isCode && !isCrossword;
 const games = [
   {
     id: "quiz",
@@ -204,6 +210,12 @@ const games = [
     label: messages.gameCode,
     path: locale === "pt-BR" ? "/pt-br/codigo/" : "/en/code/",
     isActive: isCode,
+  },
+  {
+    id: "crossword",
+    label: messages.gameCrossword,
+    path: locale === "pt-BR" ? "/pt-br/cruzadinha/" : "/en/crossword/",
+    isActive: isCrossword,
   },
 ];
 ---

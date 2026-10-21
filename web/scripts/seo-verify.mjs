@@ -17,6 +17,7 @@ const EXPECTED_PATHS = [
   "/pt-br/mapa/",
   "/pt-br/linha-do-tempo/",
   "/pt-br/codigo/",
+  "/pt-br/cruzadinha/",
   "/en/",
   "/en/grid/",
   "/en/connections/",
@@ -25,6 +26,7 @@ const EXPECTED_PATHS = [
   "/en/map/",
   "/en/timeline/",
   "/en/code/",
+  "/en/crossword/",
 ];
 
 const EXPECTED_LLMS = [
@@ -36,6 +38,7 @@ const EXPECTED_LLMS = [
   "pt-br-mapa.md",
   "pt-br-linha-do-tempo.md",
   "pt-br-codigo.md",
+  "pt-br-cruzadinha.md",
   "en-quiz.md",
   "en-grid.md",
   "en-connections.md",
@@ -44,6 +47,7 @@ const EXPECTED_LLMS = [
   "en-map.md",
   "en-timeline.md",
   "en-code.md",
+  "en-crossword.md",
 ];
 
 // Game routes carry static text under the island (GameAbout.astro). Google
@@ -149,11 +153,9 @@ function checkOgImage(dist, html, label) {
   );
 }
 
-function main() {
-  const { dir, env } = parseArgs(process.argv.slice(2));
-  const dist = dir;
-  check(["prod", "staging"].includes(env), `unknown --env "${env}"`);
+const noindexRe = /<meta[^>]*name="robots"[^>]*content="noindex"[^>]*>/;
 
+function checkSitemap(dist) {
   // Sitemap: parseable XML with exactly the 14 canonical prod URLs.
   const sitemapCandidates = existsSync(dist)
     ? readdirSync(dist).filter((name) => /^sitemap.*\.xml$/.test(name))
@@ -187,7 +189,9 @@ function main() {
       `sitemap has ${defaults.length} x-default alternates, expected ${locs.length}`,
     );
   }
+}
 
+function checkRobots(dist, env) {
   // Robots: env-aware content.
   const robotsPath = join(dist, "robots.txt");
   check(existsSync(robotsPath), "dist/robots.txt missing");
@@ -213,13 +217,14 @@ function main() {
       check(!robots.includes("Sitemap:"), "staging robots.txt must not reference a sitemap");
     }
   }
+}
 
+function checkRouteHtml(dist, env) {
   // Route HTML: canonical/hreflang/OG present, noindex policy per env.
   const htmls = routeHtmlPaths(dist);
   for (const htmlPath of htmls) {
     check(existsSync(htmlPath), `${htmlPath} missing`);
   }
-  const noindexRe = /<meta[^>]*name="robots"[^>]*content="noindex"[^>]*>/;
   const titles = new Set();
   const descriptions = new Set();
   for (const htmlPath of htmls.filter((path) => existsSync(path))) {
@@ -277,7 +282,9 @@ function main() {
       check(noindexRe.test(html), `${label} must be noindex in staging`);
     }
   }
+}
 
+function checkGameText(dist) {
   // Game routes: static text with the expected H2s and at least 300 words.
   for (const routePath of GAME_ABOUT_PATHS) {
     const htmlPath = join(dist, ...routePath.split("/").filter(Boolean), "index.html");
@@ -304,7 +311,9 @@ function main() {
       check(/K-pop|BLACKPINK/.test(textOf(link[2])), `${label} related game link must name its game or group`);
     }
   }
+}
 
+function checkIndexNow(dist) {
   // IndexNow: one <32 hex>.txt at the root whose content is the key itself.
   const indexNowKeys = existsSync(dist)
     ? readdirSync(dist).filter((name) => /^[0-9a-f]{32}\.txt$/.test(name))
@@ -314,7 +323,9 @@ function main() {
     const key = readFileSync(join(dist, name), "utf-8").trim();
     check(`${key}.txt` === name, `dist/${name} must contain its own key`);
   }
+}
 
+function checkRoot(dist, env) {
   // The root renders the Portuguese quiz and canonicalizes to /pt-br/.
   const rootIndex = join(dist, "index.html");
   check(existsSync(rootIndex), "dist/index.html missing");
@@ -340,7 +351,9 @@ function main() {
       `dist/index.html must ${env === "staging" ? "be" : "not be"} noindex in ${env}`,
     );
   }
+}
 
+function checkNotFound(dist) {
   // 404 page: Cloudflare Pages (and GitHub Pages) serve dist/404.html with
   // HTTP 404 for unknown paths instead of falling back to the home page.
   const notFound = join(dist, "404.html");
@@ -355,7 +368,9 @@ function main() {
     check(html.includes('data-testid="not-found"'), "dist/404.html must render the not-found content");
     checkOgImage(dist, html, "dist/404.html");
   }
+}
 
+function checkHeaders(dist) {
   // Defense in depth: _headers ships X-Robots-Tag for /data/*.
   const headersPath = join(dist, "_headers");
   check(existsSync(headersPath), "dist/_headers missing");
@@ -367,7 +382,9 @@ function main() {
     check(headers.includes("Strict-Transport-Security"), "dist/_headers must set Strict-Transport-Security");
     check(headers.includes("X-Frame-Options"), "dist/_headers must set X-Frame-Options");
   }
+}
 
+function checkLlms(dist) {
   // LLM surface ships in every build.
   check(existsSync(join(dist, "llms.txt")), "dist/llms.txt missing");
   for (const name of EXPECTED_LLMS) {
@@ -378,6 +395,22 @@ function main() {
       readdirSync(join(dist, "llms")).every((name) => statSync(join(dist, "llms", name)).isFile()),
     "unexpected entries under dist/llms",
   );
+}
+
+function main() {
+  const { dir, env } = parseArgs(process.argv.slice(2));
+  const dist = dir;
+  check(["prod", "staging"].includes(env), `unknown --env "${env}"`);
+
+  checkSitemap(dist);
+  checkRobots(dist, env);
+  checkRouteHtml(dist, env);
+  checkGameText(dist);
+  checkIndexNow(dist);
+  checkRoot(dist, env);
+  checkNotFound(dist);
+  checkHeaders(dist);
+  checkLlms(dist);
 
   if (failures.length > 0) {
     for (const failure of failures) console.error(`seo:verify FAIL: ${failure}`);

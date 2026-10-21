@@ -1,4 +1,4 @@
-export type GameId = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "code";
+export type GameId = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "code" | "crossword";
 
 export interface GameStats {
   played: number;
@@ -24,13 +24,13 @@ export interface PlayerStats {
 }
 
 export const PLAYER_STATS_STORAGE_KEY = "kpop-player-stats-v1";
-export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline", "code"];
+export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline", "code", "crossword"];
 /**
  * Stats added after v1. `importPlayerStatsJson` still accepts an export from
  * before the game existed, normalizing the missing entries to zeroed stats,
  * so a stats file keeps importing across graduations.
  */
-const LATER_GAME_IDS: GameId[] = ["code"];
+const LATER_GAME_IDS: GameId[] = ["code", "crossword"];
 
 export function getTodayDateString(): string {
   const d = new Date();
@@ -80,6 +80,7 @@ export function createInitialPlayerStats(): PlayerStats {
       "word-search": createDefaultGameStats(false),
       timeline: createDefaultGameStats(false),
       code: createDefaultGameStats(false),
+      crossword: createDefaultGameStats(false),
     },
   };
 }
@@ -162,6 +163,7 @@ export function loadPlayerStats(): PlayerStats {
         "word-search": normalizeGameStats(parsed.games?.["word-search"], false),
         timeline: normalizeGameStats(parsed.games?.timeline, false),
         code: normalizeGameStats(parsed.games?.code, false),
+        crossword: normalizeGameStats(parsed.games?.crossword, false),
       },
     };
   } catch {

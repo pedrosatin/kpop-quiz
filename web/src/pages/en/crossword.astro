@@ -1,0 +1,23 @@
+---
+import { CrosswordGame } from "../../components/Crossword/CrosswordGame";
+import GameAbout from "../../components/GameAbout.astro";
+import GameIntro from "../../components/GameIntro.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getMessages } from "../../i18n/catalog";
+
+const messages = getMessages("en");
+---
+<BaseLayout locale="en" route="crossword" canonicalPath="/en/crossword/" alternatePath="/pt-br/cruzadinha/">
+  <div class="page-shell" data-testid="game-shell">
+    <GameIntro
+      wide
+      kicker={messages.crosswordEyebrow}
+      title={messages.crosswordTitle}
+      howToPlayTitle={messages.howToPlayTitle}
+      howToPlaySteps={messages.crosswordHowToPlay}
+      intro={messages.crosswordIntro}
+    />
+    <CrosswordGame locale="en" client:load />
+    <GameAbout locale="en" game="crossword" />
+  </div>
+</BaseLayout>
