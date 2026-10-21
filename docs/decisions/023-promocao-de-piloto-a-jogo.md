@@ -114,7 +114,7 @@ obrigação retroativa.
 
 ## Emendas
 
-### 2026-10-20: cruzadinha graduada com partida fixa
+### Cruzadinha graduada com partida fixa (2026-10-20)
 
 A cruzadinha foi graduada antes do gerador diário. Os critérios 1 a 6 e 8 a
 11 valem como estão. O critério 7 fica como exceção registrada: não há

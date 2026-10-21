@@ -329,6 +329,79 @@
           "value": 1
         }
       ]
+    },
+    {
+      "name": "boolean entry number",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "number"
+          ],
+          "value": true
+        }
+      ]
+    },
+    {
+      "name": "fractional entry number",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            2,
+            "number"
+          ],
+          "value": 2.5
+        }
+      ]
+    },
+    {
+      "name": "snippet not a string",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "sources",
+            0,
+            "snippet"
+          ],
+          "value": 5
+        }
+      ]
+    },
+    {
+      "name": "extra entry field",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "extra"
+          ],
+          "value": "x"
+        }
+      ]
+    },
+    {
+      "name": "extra clue language",
+      "ops": [
+        {
+          "op": "set",
+          "path": [
+            "entries",
+            0,
+            "clue",
+            "es"
+          ],
+          "value": "x"
+        }
+      ]
     }
   ]
 }

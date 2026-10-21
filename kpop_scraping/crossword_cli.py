@@ -33,9 +33,9 @@ def validate(p: dict) -> None:
         raise ValueError('unsupported crossword')
     if set(p) != ROOT_KEYS:
         raise ValueError('unexpected fields')
-    if p.get('puzzle_id') != PUZZLE_ID or not re.fullmatch('[a-f0-9]{64}', p.get('dataset_version', '')):
+    if p.get('puzzle_id') != PUZZLE_ID or not isinstance(p['dataset_version'], str) or not re.fullmatch('[a-f0-9]{64}', p['dataset_version']):
         raise ValueError('missing identity')
-    if not re.fullmatch('\\d{4}-\\d{2}-\\d{2}', p.get('reference_date', '')):
+    if not isinstance(p['reference_date'], str) or not re.fullmatch('\\d{4}-\\d{2}-\\d{2}', p['reference_date']):
         raise ValueError('missing reference date')
     date.fromisoformat(p['reference_date'])
     if p['dataset_version'] != hashlib.sha256(canonical_json({k:v for k,v in p.items() if k != 'dataset_version'})).hexdigest():
@@ -50,21 +50,27 @@ def validate(p: dict) -> None:
         raise ValueError('audited group count')
     if not isinstance(p['cells'], list) or any((not isinstance(c, dict) or set(c) != CELL_KEYS for c in p['cells'])):
         raise ValueError('unexpected fields')
+    if any((type(c['row']) is not int or type(c['col']) is not int or not isinstance(c['answer'], str) for c in p['cells'])):
+        raise ValueError('cell types')
+    if not isinstance(p['vocabulary'], list):
+        raise ValueError('vocabulary mismatch')
     cells, owners, aliases, ids = ({}, {}, {}, set())
     for e in entries:
         if not isinstance(e, dict) or set(e) != ENTRY_KEYS or not isinstance(e['clue'], dict) or set(e['clue']) != {'pt-BR', 'en'}:
             raise ValueError('unexpected fields')
         if not isinstance(e['aliases'], list) or not isinstance(e['sources'], list) or not isinstance(e['matching_qids'], list):
             raise ValueError('unexpected fields')
-        if not re.fullmatch('Q[1-9][0-9]*', e['qid']) or e['qid'] in ids:
+        if not isinstance(e['qid'], str) or not re.fullmatch('Q[1-9][0-9]*', e['qid']) or e['qid'] in ids:
             raise ValueError('identity')
         ids.add(e['qid'])
+        if not isinstance(e['canonical_name'], str) or not isinstance(e['answer'], str) or not all(isinstance(a, str) for a in e['aliases']):
+            raise ValueError('normalization')
         word = normalize(e['canonical_name'])
         if word != e['answer'] or not word:
             raise ValueError('normalization')
         if e['direction'] not in ('across', 'down'):
             raise ValueError('direction')
-        if type(e['row']) is not int or type(e['col']) is not int:
+        if type(e['row']) is not int or type(e['col']) is not int or type(e['number']) is not int:
             raise ValueError('coordinates')
         for name in [e['canonical_name'], *e['aliases']]:
             alias = normalize(name)
@@ -76,11 +82,13 @@ def validate(p: dict) -> None:
         if not e['sources']:
             raise ValueError('missing evidence')
         for source in e['sources']:
-            if not isinstance(source, dict) or set(source) != SOURCE_KEYS or not all((isinstance(source[k], str) and source[k] for k in ('predicate', 'value'))):
+            if not isinstance(source, dict) or set(source) != SOURCE_KEYS or not all((isinstance(source[k], str) and source[k] for k in ('predicate', 'value', 'snippet'))):
+                raise ValueError('invalid evidence')
+            if not isinstance(source['url'], str) or not isinstance(source['locator'], str) or not isinstance(source['statement_id'], str):
                 raise ValueError('invalid evidence')
             url = re.fullmatch(r'https://([a-z]{2,3}(?:-[a-z]+)?).wikipedia.org/w/index.php\?curid=([1-9][0-9]*)&oldid=([1-9][0-9]*)', source['url'])
             locator = re.fullmatch(r'wikipedia:([a-z]{2,3}(?:-[a-z]+)?):pageid=([1-9][0-9]*):revid=([1-9][0-9]*)#(?:extract|wikitext)\[(\d+):(\d+)\]', source['locator'])
-            if not url or not locator or url.groups() != locator.groups()[:3] or int(locator[4]) >= int(locator[5]) or not source['snippet'] or not source['statement_id'].startswith(e['qid']+'$'):
+            if not url or not locator or url.groups() != locator.groups()[:3] or int(locator[4]) >= int(locator[5]) or not source['statement_id'].startswith(e['qid']+'$'):
                 raise ValueError('invalid evidence')
         for i, letter in enumerate(word):
             key = (e['row'] + (i if e['direction'] == 'down' else 0), e['col'] + (i if e['direction'] == 'across' else 0))

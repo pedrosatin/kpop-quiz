@@ -508,7 +508,7 @@ const catalogs: Record<Locale, Messages> = {
     crosswordHowToPlay: [
       "Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. Deixe de fora espaços, pontuação e acentos e mantenha os números.",
       "No teclado, use Tab para trocar de quadrado e as setas para mover pela grade. Uma letra num cruzamento vale para as duas palavras.",
-      "Verifique as respostas quantas vezes quiser. Para parar, encerre a partida e veja as respostas e as fontes de cada pista.",
+      "Verifique as respostas quantas vezes quiser. Para parar, toque em Revelar respostas e veja os nomes e as fontes de cada pista.",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",

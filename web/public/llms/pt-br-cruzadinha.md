@@ -3,11 +3,11 @@
 Canonical: https://kpopquiz.online/pt-br/cruzadinha/
 Também em inglês: https://kpopquiz.online/en/crossword/
 
-Use as pistas para escrever os nomes dos grupos na grade. Cada pista junta
-fatos sobre um grupo, como o ano de formação, a gravadora e um integrante, e
-os nomes se cruzam nas letras em comum. Escreva sem espaços, pontuação ou
-acentos e mantenha os números. Verifique as respostas quantas vezes quiser ou
-encerre a partida para ver as respostas.
+Use as pistas para escrever os nomes dos grupos na grade. Cada pista traz
+um ou dois fatos do grupo, como o ano de formação, a gravadora ou um
+integrante, e os nomes se cruzam nas letras em comum. Escreva sem espaços,
+pontuação ou acentos e mantenha os números. Verifique a grade quantas vezes
+quiser ou revele as respostas.
 
 A cruzadinha é uma partida fixa, revisada à mão: a mesma grade para todos os
 jogadores, sem troca diária. O progresso fica salvo no navegador.

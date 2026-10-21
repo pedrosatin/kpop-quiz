@@ -76,7 +76,7 @@ class CrosswordSchemaTest(unittest.TestCase):
         self.assertGreaterEqual(len(self.cases), 20)
         for case in self.cases:
             with self.subTest(case=case["name"]):
-                with self.assertRaises((ValueError, KeyError, TypeError)):
+                with self.assertRaises(ValueError):
                     crossword_cli.validate(apply_case(self.published, case))
 
     @unittest.skipIf(fastjsonschema is None, "fastjsonschema not installed")

@@ -50,7 +50,10 @@ export function useGameAnalytics(context: GameAnalyticsContext, finished: boolea
   const started = useRef(resumed);
   const playedHere = useRef(false);
   const completed = useRef(false);
-  if (resumed && !playedHere.current) started.current = true;
+  // A restored save marks the game as started, but only until the player
+  // resets: the next round of the same visit starts (and is counted) afresh.
+  const restartedHere = useRef(false);
+  if (resumed && !playedHere.current && !restartedHere.current) started.current = true;
   const contextRef = useRef(context);
   contextRef.current = context;
 
@@ -67,6 +70,7 @@ export function useGameAnalytics(context: GameAnalyticsContext, finished: boolea
     trackGameEvent("game_start", contextRef.current);
   };
   const reset = () => {
+    restartedHere.current = true;
     started.current = false;
     playedHere.current = false;
     completed.current = false;

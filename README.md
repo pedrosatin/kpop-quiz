@@ -2,7 +2,7 @@
 
 Daily K-pop quiz and puzzle games about groups and artists, in Portuguese and English. Play at <https://kpopquiz.online>.
 
-The site has nine games: a ten-question quiz with assisted, standard, and expert modes, a grid, connections, name guess, word search, timeline, a map, a group code logic game, and a crossword. New puzzles are published every day, except for the crossword, which is still a fixed audited puzzle. No pilot remains outside the game menu.
+The site has nine games: a ten-question quiz with assisted, standard, and expert modes, a grid, connections, name guess, word search, timeline, a map, a group code logic game, and a crossword. New puzzles are published every day, except for the crossword, which is still a fixed audited puzzle.
 
 Every answer comes from Wikipedia and Wikidata. A Python collector queries both APIs, records the consulted revisions in SQLite, and keeps page and entity responses as compressed JSON. Each accepted fact points to a Wikidata reference or a Wikipedia revision excerpt, and the games only use accepted facts.
 
@@ -238,9 +238,9 @@ impressão SHA-256 do conteúdo selecionado, data de referência, dimensões,
 entradas, aliases, coordenadas, pistas PT/EN, evidências e células, sem campos
 extras. O schema cobre a estrutura; `validate()` em
 `kpop_scraping/crossword_cli.py` e `validateCrosswordPuzzle()` em
-`web/src/data/crossword.ts` aplicam as mesmas regras de domínio e rejeitam a
-mesma lista de casos (`tests/fixtures/crossword_invalid_cases.json`, rodada
-pelos testes Python e Vitest). A verificação recalcula a impressão em JSON
+`web/src/data/crossword.ts` rejeitam os mesmos casos, lidos de uma fixture compartilhada
+(`tests/fixtures/crossword_invalid_cases.json`, rodada pelos testes Python e
+Vitest). A verificação recalcula a impressão em JSON
 canônico compacto e testa as invariantes sem consultar o banco. A impressão
 detecta alterações, sem garantir a autenticidade editorial da fonte.
 `matching_qids` registra o conjunto observado pela seleção, e
@@ -251,7 +251,7 @@ incompatíveis, grade desconectada, células órfãs, colisões de aliases, pist
 sem fonte e revisões inconsistentes.
 
 Como a partida é fixa, progresso, estatísticas e compartilhamento seguem a
-identidade do tabuleiro, não uma data: o progresso fica no `localStorage` em
+impressão do tabuleiro em vez da data. O progresso fica no `localStorage` em
 `kpop-crossword-<dataset_version>`, a partida concluída conta uma vez nas
 estatísticas (aba "Cruzadinha" / "Crossword", no dia local em que terminou) e
 o texto compartilhado traz o veredito e um quadrado por palavra, sem data nem

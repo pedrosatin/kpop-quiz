@@ -42,14 +42,14 @@ export function crosswordMatchId(puzzle: CrosswordPuzzle): string {
 }
 
 export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCrosswordGame {
-  const initialSave = useRef(loadCrosswordSave(puzzle));
-  const [values, setValues] = useState<Record<string, string>>(() => ({ ...(initialSave.current?.values ?? {}) }));
-  const [status, setStatus] = useState<CrosswordStatus>(initialSave.current?.status ?? "playing");
-  const [checks, setChecks] = useState(initialSave.current?.checks ?? 0);
+  const [initialSave] = useState(() => loadCrosswordSave(puzzle));
+  const [values, setValues] = useState<Record<string, string>>(() => ({ ...(initialSave?.values ?? {}) }));
+  const [status, setStatus] = useState<CrosswordStatus>(initialSave?.status ?? "playing");
+  const [checks, setChecks] = useState(initialSave?.checks ?? 0);
   const [wrongCheck, setWrongCheck] = useState(0);
 
   const finished = status !== "playing";
-  const resumed = initialSave.current !== null;
+  const resumed = initialSave !== null;
   const analytics = useGameAnalytics({ game: "crossword", locale }, finished, resumed);
 
   useEffect(() => {
