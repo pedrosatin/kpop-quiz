@@ -256,6 +256,24 @@ python -m kpop_scraping.code_groups_cli --verify web/public/data/code-groups.pil
 
 A geração abre o SQLite somente para leitura e exige seis QIDs aceitos com classificação musical compatível. O mesmo catálogo, data e seed produzem o mesmo artefato. A verificação confere o hash de identidade e rejeita contratos inválidos; carga ausente ou inválida no navegador oferece nova tentativa de carregamento. As fontes de classificação aparecem no resultado. O runner diário publica também o artefato do dia (`code-groups.daily.json`, seed `kpop-code-groups-daily-{data}`); quando a geração falha, o dia sai sem o arquivo e sem bloquear os outros jogos, com o registro em `code_groups_skipped`, e a página avisa que o código do dia não foi publicado. O progresso da partida fica no `localStorage` (`kpop-code-<data>`), as estatísticas entram na janela de estatísticas e o resultado compartilhado leva ao jogo com `utm_campaign=code`. Detalhes em [Jogo de código de grupos](docs/code-groups-game.md).
 
+## Contrato do Strands
+
+O Strands, oitavo jogo, ainda não tem gerador nem página. Esta fatia publica o contrato `kpop-strands-puzzle-v1` em `schemas/strands-puzzle-v1.json` e o validador `kpop_scraping/strands_schema.py`. O jogador procura palavras ligadas a um tema central bilíngue (`theme`, pt-BR e en) numa grade de letras A–Z. Os temas iniciais previstos são elencos de grupos e décadas.
+
+A grade tem de 9 a 10 linhas e de 9 a 10 colunas, contadas de forma independente; 9×10 e 10×9 também são aceitos. Cada item de `words` traz `cells`, a trilha em ordem de leitura como pares `[linha, coluna]` a partir de zero, com uma célula por letra. O validador exige:
+
+- passos entre os 8 vizinhos de uma célula, sem repetir célula na mesma palavra nem entre palavras;
+- cobertura total: cada célula da grade pertence a exatamente uma palavra;
+- nenhum passo diagonal cruza outro em X dentro do mesmo quadrado 2×2, na mesma palavra ou entre palavras, para que as trilhas desenhadas fiquem legíveis;
+- letras da grade ao longo de `cells` iguais a `word`;
+- de 6 a 9 palavras, contando o spangram;
+- exatamente uma palavra com `is_spangram: true`, cuja trilha toca a primeira e a última linha ou a primeira e a última coluna;
+- `puzzle_id` igual ao SHA-256 do JSON canônico sem o próprio `puzzle_id`.
+
+Palavras do tema exigem `id` (QID), `canonical_name` e `evidence` com revisão e URL https, e as duas legendas de `labels` precisam normalizar para `word`. O spangram pode nomear uma entidade, como o grupo de um tema de elenco, e então leva os mesmos três campos. Também pode ser uma expressão do tema sem afirmação própria, caso de um tema de década; nesse caso os três campos ficam ausentes, e basta que uma das legendas normalize para `word`, porque a grade usa uma grafia só para os dois idiomas. As afirmações publicáveis ficam nas palavras do tema.
+
+A unicidade da solução fica a cargo do gerador da próxima fatia; o validador confere apenas a estrutura. O fixture fictício `tests/fixtures/strands_puzzle_valid.json` mostra uma grade 9×9 com seis integrantes e o grupo como spangram.
+
 ## Cobertura de pares idol/grupo
 
 A [CLI de cobertura de pares](docs/pairs-coverage.md) verifica listas de integrantes de revisões locais e produz um sample com associação única ou `insufficient_coverage`. A prova vale apenas para os campos `current_members` citados. A ausência de um fato isolado continua desconhecida.

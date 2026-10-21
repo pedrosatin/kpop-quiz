@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kpop-quiz.local/schemas/strands-puzzle-v1.json",
+  "title": "K-pop quiz Strands puzzle v1",
+  "description": "Letter grid fully partitioned into word paths. Each path moves between the 8 neighbours of a cell, no cell is reused, every cell belongs to one word and diagonal steps never cross. Exactly one word is the spangram and touches two opposite sides. puzzle_id is the SHA-256 of the canonical JSON without puzzle_id. Path, coverage, crossing, spangram and hash rules are enforced by kpop_scraping/strands_schema.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "puzzle_id",
+    "dataset_version",
+    "reference_date",
+    "theme",
+    "dimensions",
+    "grid",
+    "words"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "kpop-strands-puzzle-v1"
+    },
+    "puzzle_id": {
+      "$ref": "#/$defs/hash"
+    },
+    "dataset_version": {
+      "$ref": "#/$defs/hash"
+    },
+    "reference_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "theme": {
+      "$ref": "#/$defs/bilingual_text"
+    },
+    "theme_description": {
+      "$ref": "#/$defs/bilingual_text"
+    },
+    "dimensions": {
+      "$ref": "#/$defs/dimensions"
+    },
+    "grid": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 10,
+      "items": {
+        "type": "array",
+        "minItems": 9,
+        "maxItems": 10,
+        "items": {
+          "type": "string",
+          "pattern": "^[A-Z]$"
+        }
+      }
+    },
+    "words": {
+      "type": "array",
+      "description": "Six to nine entries, spangram included.",
+      "minItems": 6,
+      "maxItems": 9,
+      "items": {
+        "$ref": "#/$defs/word_entry"
+      }
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "qid": {
+      "type": "string",
+      "pattern": "^Q[1-9][0-9]*$"
+    },
+    "bilingual_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pt-BR",
+        "en"
+      ],
+      "properties": {
+        "pt-BR": {
+          "type": "string",
+          "minLength": 1
+        },
+        "en": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rows",
+        "cols"
+      ],
+      "properties": {
+        "rows": {
+          "type": "integer",
+          "minimum": 9,
+          "maximum": 10
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 9,
+          "maximum": 10
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fact_base_id",
+        "locator",
+        "revision_id",
+        "source_key",
+        "source_url"
+      ],
+      "properties": {
+        "fact_base_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision_id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        }
+      }
+    },
+    "cell": {
+      "type": "array",
+      "description": "[row, col], zero-based.",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9
+      }
+    },
+    "word_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "word",
+        "labels",
+        "is_spangram",
+        "cells"
+      ],
+      "properties": {
+        "word": {
+          "type": "string",
+          "pattern": "^[A-Z]{3,}$",
+          "maxLength": 100
+        },
+        "labels": {
+          "$ref": "#/$defs/bilingual_text",
+          "description": "Theme words: both locales normalize to word. Spangram: at least one locale does."
+        },
+        "is_spangram": {
+          "type": "boolean"
+        },
+        "cells": {
+          "type": "array",
+          "description": "Path in reading order; one cell per letter of word.",
+          "minItems": 3,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/cell"
+          }
+        },
+        "id": {
+          "$ref": "#/$defs/qid"
+        },
+        "canonical_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "description": "id, canonical_name and evidence appear together or not at all.",
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "id"
+                ]
+              },
+              {
+                "required": [
+                  "canonical_name"
+                ]
+              },
+              {
+                "required": [
+                  "evidence"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "required": [
+              "id",
+              "canonical_name",
+              "evidence"
+            ]
+          }
+        },
+        {
+          "description": "Theme words always name a cited entity.",
+          "if": {
+            "properties": {
+              "is_spangram": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "id",
+              "canonical_name",
+              "evidence"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

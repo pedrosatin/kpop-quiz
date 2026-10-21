@@ -1,0 +1,592 @@
+{
+  "schema_version": "kpop-strands-puzzle-v1",
+  "puzzle_id": "5fb55ffb5de1057617aca06021dc97ee6ecfd9975afa98071d37a67d3073fe8c",
+  "dataset_version": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "reference_date": "2026-10-20",
+  "theme": {
+    "pt-BR": "Integrantes do Fake Group (fictício)",
+    "en": "Fake Group members (fictional)"
+  },
+  "theme_description": {
+    "pt-BR": "Fixture fictício de teste: seis integrantes e o grupo como spangram.",
+    "en": "Fictional test fixture: six members and the group as spangram."
+  },
+  "dimensions": {
+    "rows": 9,
+    "cols": 9
+  },
+  "grid": [
+    [
+      "A",
+      "L",
+      "P",
+      "H",
+      "A",
+      "M",
+      "C",
+      "S",
+      "T"
+    ],
+    [
+      "T",
+      "I",
+      "L",
+      "N",
+      "O",
+      "O",
+      "H",
+      "E",
+      "A"
+    ],
+    [
+      "B",
+      "R",
+      "A",
+      "V",
+      "O",
+      "S",
+      "A",
+      "I",
+      "R"
+    ],
+    [
+      "E",
+      "S",
+      "I",
+      "R",
+      "N",
+      "U",
+      "R",
+      "L",
+      "S"
+    ],
+    [
+      "F",
+      "A",
+      "K",
+      "E",
+      "G",
+      "R",
+      "O",
+      "U",
+      "P"
+    ],
+    [
+      "D",
+      "E",
+      "L",
+      "T",
+      "A",
+      "R",
+      "F",
+      "C",
+      "L"
+    ],
+    [
+      "W",
+      "O",
+      "B",
+      "N",
+      "I",
+      "A",
+      "O",
+      "T",
+      "O"
+    ],
+    [
+      "E",
+      "C",
+      "H",
+      "O",
+      "S",
+      "N",
+      "X",
+      "O",
+      "U"
+    ],
+    [
+      "L",
+      "L",
+      "A",
+      "F",
+      "W",
+      "O",
+      "T",
+      "R",
+      "D"
+    ]
+  ],
+  "words": [
+    {
+      "word": "FAKEGROUP",
+      "labels": {
+        "pt-BR": "Fake Group",
+        "en": "Fake Group"
+      },
+      "is_spangram": true,
+      "cells": [
+        [
+          4,
+          0
+        ],
+        [
+          4,
+          1
+        ],
+        [
+          4,
+          2
+        ],
+        [
+          4,
+          3
+        ],
+        [
+          4,
+          4
+        ],
+        [
+          4,
+          5
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          4,
+          7
+        ],
+        [
+          4,
+          8
+        ]
+      ],
+      "id": "Q990000000",
+      "canonical_name": "Fake Group",
+      "evidence": [
+        {
+          "fact_base_id": "fixture-group",
+          "locator": "fixture/group",
+          "revision_id": 1,
+          "source_key": "fixture",
+          "source_url": "https://example.org/strands-fixture"
+        }
+      ]
+    },
+    {
+      "word": "ALPHAMOONLIT",
+      "labels": {
+        "pt-BR": "Alpha Moonlit",
+        "en": "Alpha Moonlit"
+      },
+      "is_spangram": false,
+      "cells": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          4
+        ],
+        [
+          0,
+          5
+        ],
+        [
+          1,
+          5
+        ],
+        [
+          1,
+          4
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "id": "Q990000001",
+      "canonical_name": "Alpha Moonlit",
+      "evidence": [
+        {
+          "fact_base_id": "fixture-member-Q990000001",
+          "locator": "fixture/members/alphamoonlit",
+          "revision_id": 1,
+          "source_key": "fixture",
+          "source_url": "https://example.org/strands-fixture"
+        }
+      ]
+    },
+    {
+      "word": "BRAVOSUNRISE",
+      "labels": {
+        "pt-BR": "Bravo Sunrise",
+        "en": "Bravo Sunrise"
+      },
+      "is_spangram": false,
+      "cells": [
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          3,
+          5
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          3,
+          0
+        ]
+      ],
+      "id": "Q990000002",
+      "canonical_name": "Bravo Sunrise",
+      "evidence": [
+        {
+          "fact_base_id": "fixture-member-Q990000002",
+          "locator": "fixture/members/bravosunrise",
+          "revision_id": 1,
+          "source_key": "fixture",
+          "source_url": "https://example.org/strands-fixture"
+        }
+      ]
+    },
+    {
+      "word": "CHARLIESTARS",
+      "labels": {
+        "pt-BR": "Charlie Stars",
+        "en": "Charlie Stars"
+      },
+      "is_spangram": false,
+      "cells": [
+        [
+          0,
+          6
+        ],
+        [
+          1,
+          6
+        ],
+        [
+          2,
+          6
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          3,
+          7
+        ],
+        [
+          2,
+          7
+        ],
+        [
+          1,
+          7
+        ],
+        [
+          0,
+          7
+        ],
+        [
+          0,
+          8
+        ],
+        [
+          1,
+          8
+        ],
+        [
+          2,
+          8
+        ],
+        [
+          3,
+          8
+        ]
+      ],
+      "id": "Q990000003",
+      "canonical_name": "Charlie Stars",
+      "evidence": [
+        {
+          "fact_base_id": "fixture-member-Q990000003",
+          "locator": "fixture/members/charliestars",
+          "revision_id": 1,
+          "source_key": "fixture",
+          "source_url": "https://example.org/strands-fixture"
+        }
+      ]
+    },
+    {
+      "word": "DELTARAINBOW",
+      "labels": {
+        "pt-BR": "Delta Rainbow",
+        "en": "Delta Rainbow"
+      },
+      "is_spangram": false,
+      "cells": [
+        [
+          5,
+          0
+        ],
+        [
+          5,
+          1
+        ],
+        [
+          5,
+          2
+        ],
+        [
+          5,
+          3
+        ],
+        [
+          5,
+          4
+        ],
+        [
+          5,
+          5
+        ],
+        [
+          6,
+          5
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          2
+        ],
+        [
+          6,
+          1
+        ],
+        [
+          6,
+          0
+        ]
+      ],
+      "id": "Q990000004",
+      "canonical_name": "Delta Rainbow",
+      "evidence": [
+        {
+          "fact_base_id": "fixture-member-Q990000004",
+          "locator": "fixture/members/deltarainbow",
+          "revision_id": 1,
+          "source_key": "fixture",
+          "source_url": "https://example.org/strands-fixture"
+        }
+      ]
+    },
+    {
+      "word": "ECHOSNOWFALL",
+      "labels": {
+        "pt-BR": "Echo Snowfall",
+        "en": "Echo Snowfall"
+      },
+      "is_spangram": false,
+      "cells": [
+        [
+          7,
+          0
+        ],
+        [
+          7,
+          1
+        ],
+        [
+          7,
+          2
+        ],
+        [
+          7,
+          3
+        ],
+        [
+          7,
+          4
+        ],
+        [
+          7,
+          5
+        ],
+        [
+          8,
+          5
+        ],
+        [
+          8,
+          4
+        ],
+        [
+          8,
+          3
+        ],
+        [
+          8,
+          2
+        ],
+        [
+          8,
+          1
+        ],
+        [
+          8,
+          0
+        ]
+      ],
+      "id": "Q990000005",
+      "canonical_name": "Echo Snowfall",
+      "evidence": [
+        {
+          "fact_base_id": "fixture-member-Q990000005",
+          "locator": "fixture/members/echosnowfall",
+          "revision_id": 1,
+          "source_key": "fixture",
+          "source_url": "https://example.org/strands-fixture"
+        }
+      ]
+    },
+    {
+      "word": "FOXTROTCLOUD",
+      "labels": {
+        "pt-BR": "Foxtrot Cloud",
+        "en": "Foxtrot Cloud"
+      },
+      "is_spangram": false,
+      "cells": [
+        [
+          5,
+          6
+        ],
+        [
+          6,
+          6
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          8,
+          6
+        ],
+        [
+          8,
+          7
+        ],
+        [
+          7,
+          7
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          6,
+          8
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          8,
+          8
+        ]
+      ],
+      "id": "Q990000006",
+      "canonical_name": "Foxtrot Cloud",
+      "evidence": [
+        {
+          "fact_base_id": "fixture-member-Q990000006",
+          "locator": "fixture/members/foxtrotcloud",
+          "revision_id": 1,
+          "source_key": "fixture",
+          "source_url": "https://example.org/strands-fixture"
+        }
+      ]
+    }
+  ]
+}
