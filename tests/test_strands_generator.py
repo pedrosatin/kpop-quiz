@@ -20,6 +20,7 @@ from kpop_scraping.strands_generator import (
     DISCARD_SHORT_NAME,
     AmbiguityLimitExceeded,
     StrandsGenerationError,
+    UniquenessBudgetExceeded,
     assess_theme,
     build_strands_themes,
     classify_name,
@@ -129,6 +130,8 @@ class TestThemes(unittest.TestCase):
         self.assertEqual(theme.spangram.word, "STARLIGHTORCHARD")
         self.assertEqual(theme.spangram.entity_id, ROSTER_GROUP[0])
         self.assertTrue(theme.spangram.evidence)
+        self.assertIn("atuais e antigos", theme.theme_description["pt-BR"])
+        self.assertIn("current and former", theme.theme_description["en"])
         self.assertEqual(
             sorted(w.word for w in theme.words),
             sorted(classify_name(name)[0] for _qid, name in ROSTER_MEMBERS),
@@ -191,6 +194,28 @@ class TestUniqueness(unittest.TestCase):
         with self.assertRaises(AmbiguityLimitExceeded):
             find_word_paths(grid, "AAAA", limit=10)
 
+    def test_prefix_node_budget_interrupts_without_completed_paths(self) -> None:
+        # No B exists: a completed-path cap alone cannot bound this search.
+        with self.assertRaisesRegex(UniquenessBudgetExceeded, "not proved.*node budget"):
+            find_word_paths([list("AAAA")] * 4, "AAAAAAAAAB", node_budget=10)
+
+    def test_assignment_budget_is_shared_with_prefix_enumeration(self) -> None:
+        with self.assertRaises(UniquenessBudgetExceeded):
+            enumerate_strands_solutions([list("ABC"), list("DEF")], ["ABC", "DEF"], node_budget=6)
+
+    def test_verification_never_accepts_interrupted_proof(self) -> None:
+        payload = {"grid": [list("ABC"), list("DEF")], "words": [
+            {"word": "ABC", "cells": [[0, 0], [0, 1], [0, 2]]},
+            {"word": "DEF", "cells": [[1, 0], [1, 1], [1, 2]]},
+        ]}
+        with self.assertRaisesRegex(UniquenessBudgetExceeded, "not proved"):
+            verify_strands_uniqueness(payload, node_budget=1)
+
+    def test_deadline_checked_inside_prefix_search(self) -> None:
+        with patch.object(strands_generator.time, "monotonic", side_effect=[0, 0, 2]):
+            with self.assertRaisesRegex(StrandsGenerationError, "time limit"):
+                find_word_paths([list("ABC")], "ABC", deadline=1)
+
     def test_verify_rejects_ambiguous_payload(self) -> None:
         payload = {
             "grid": [list("ABA"), list("BAB")],
@@ -233,6 +258,35 @@ class TestPlacement(unittest.TestCase):
         self.assertTrue(spans_opposite_sides_idx(paths[0], 9, 9))
         self.assertIsNone(find_crossing([[divmod(c, 9) for c in p] for p in paths]))
 
+    def test_deadline_checked_during_placement(self) -> None:
+        with patch.object(strands_generator.time, "monotonic", side_effect=[0, 2]):
+            with self.assertRaisesRegex(StrandsGenerationError, "time limit"):
+                place_strands_paths([3, 3], 2, 3, random.Random(0), deadline=1)
+
+    def test_path_cap_is_recorded_as_unproved_not_ambiguous(self) -> None:
+        stats = strands_generator.PlacementStats()
+        with patch.object(strands_generator, "place_strands_paths", return_value=[[0, 1, 2], [3, 4, 5]]):
+            with patch.object(strands_generator, "count_strands_solutions", side_effect=AmbiguityLimitExceeded("ABC")):
+                result = strands_generator.solve_strands_grid(
+                    ["ABC", "DEF"], 2, 3, random.Random(0), attempts=1, stats=stats,
+                )
+        self.assertIsNone(result)
+        self.assertEqual(stats.ambiguous, 0)
+        self.assertTrue(any("not proved" in event for event in stats.events))
+
+    def test_solver_rejects_proof_returned_after_deadline(self) -> None:
+        clock = [0.0]
+
+        def late_count(*args, **kwargs):
+            clock[0] = 2.0
+            return 1
+
+        with patch.object(strands_generator.time, "monotonic", side_effect=lambda: clock[0]):
+            with patch.object(strands_generator, "place_strands_paths", return_value=[[0, 1, 2], [3, 4, 5]]):
+                with patch.object(strands_generator, "count_strands_solutions", side_effect=late_count):
+                    with self.assertRaisesRegex(StrandsGenerationError, "time limit"):
+                        strands_generator.solve_strands_grid(["ABC", "DEF"], 2, 3, random.Random(0), deadline=1)
+
     def test_lengths_must_match_area(self) -> None:
         with self.assertRaises(ValueError):
             place_strands_paths([9, 9], 9, 9, random.Random(1))
@@ -265,10 +319,12 @@ class TestGenerateStrandsPuzzle(unittest.TestCase):
         self.assertEqual(spangram["word"], "STARLIGHTORCHARD")
         self.assertEqual(len(puzzle["words"]), 8)
 
-    def test_determinism_same_seed_and_date(self) -> None:
+    def test_fixture_artifact_is_deterministic_across_sufficient_budgets(self) -> None:
+        # This fictional in-memory fixture never reads data/kpop.db.
         first = self._generate("strands-determinism")
-        second = self._generate("strands-determinism")
+        second = self._generate("strands-determinism", uniqueness_node_budget=200000)
         self.assertEqual(first, second)
+        self.assertEqual(json.dumps(first, ensure_ascii=False), json.dumps(second, ensure_ascii=False))
 
     def test_seed_variation_changes_grid(self) -> None:
         grids = {json.dumps(self._generate(f"strands-seed-{i}")["grid"]) for i in range(3)}
@@ -290,6 +346,21 @@ class TestGenerateStrandsPuzzle(unittest.TestCase):
     def test_time_limit_fails_explicitly(self) -> None:
         with self.assertRaisesRegex(StrandsGenerationError, "time limit"):
             self._generate("strands-deadline", time_limit_seconds=0)
+
+    def test_uniqueness_budget_fails_explicitly(self) -> None:
+        with self.assertRaisesRegex(UniquenessBudgetExceeded, "node budget"):
+            self._generate("strands-valid", uniqueness_node_budget=1)
+
+    def test_expired_final_verification_cannot_return_artifact(self) -> None:
+        clock = [0.0]
+
+        def finish_after_deadline(*args, **kwargs):
+            clock[0] = 2.0
+
+        with patch.object(strands_generator.time, "monotonic", side_effect=lambda: clock[0]):
+            with patch.object(strands_generator, "verify_strands_uniqueness", side_effect=finish_after_deadline):
+                with self.assertRaisesRegex(StrandsGenerationError, "time limit"):
+                    self._generate("strands-valid", time_limit_seconds=1)
 
     def test_invalid_dimensions(self) -> None:
         with self.assertRaises(ValueError):
@@ -376,7 +447,7 @@ class TestStrandsRealDatabase(unittest.TestCase):
             conn.close()
         validate_strands_puzzle(puzzles[0])
         verify_strands_uniqueness(puzzles[0])
-        self.assertEqual(puzzles[0]["puzzle_id"], puzzles[1]["puzzle_id"])
+        self.assertEqual(puzzles[0], puzzles[1])
 
 
 if __name__ == "__main__":

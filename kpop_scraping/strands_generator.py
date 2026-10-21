@@ -87,6 +87,7 @@ DEFAULT_TIME_LIMIT_SECONDS = 30.0
 # A word with more paths than this in a finished grid is too ambiguous to
 # prove anything about; the grid is rejected.
 MAX_PATHS_PER_WORD = 2000
+DEFAULT_UNIQUENESS_NODE_BUDGET = 100000
 
 Path = list[int]
 
@@ -99,6 +100,27 @@ DISCARD_OVERLAPS_SPANGRAM = "overlaps_spangram"
 
 class StrandsGenerationError(ValueError):
     """Raised when no valid Strands puzzle can be produced within limits."""
+
+
+def _check_deadline(deadline: float | None) -> None:
+    if deadline is not None and time.monotonic() >= deadline:
+        raise StrandsGenerationError("Strands generation exceeded its time limit")
+
+
+class UniquenessBudgetExceeded(StrandsGenerationError):
+    """Enumeration was interrupted; uniqueness has not been proved."""
+
+
+@dataclass
+class _UniquenessBudget:
+    remaining: int
+    deadline: float | None
+
+    def tick(self) -> None:
+        _check_deadline(self.deadline)
+        self.remaining -= 1
+        if self.remaining < 0:
+            raise UniquenessBudgetExceeded("Strands uniqueness not proved: node budget exceeded")
 
 
 @dataclass(frozen=True)
@@ -285,7 +307,14 @@ def _build_theme(theme: ThemeDefinition, facts: Sequence[Fact]) -> StrandsTheme:
         category=theme.category,
         target_id=theme.target_id,
         theme=dict(theme.theme),
-        theme_description=dict(theme.theme_description) if theme.theme_description else None,
+        theme_description=(
+            {
+                "pt-BR": "Integrantes atuais e antigos documentados do grupo.",
+                "en": "Documented current and former group members.",
+            }
+            if theme.category == "has_member"
+            else dict(theme.theme_description) if theme.theme_description else None
+        ),
         spangram=spangram,
         spangram_kind=spangram_kind,
         words=tuple(sorted(kept.values(), key=lambda w: (w.word, w.entity_id or ""))),
@@ -313,9 +342,13 @@ def build_strands_themes(entities: dict[int, Entity], facts: list[Fact]) -> list
     return themes
 
 
-def _subset_sums_possible(lengths: Sequence[int], target: int, min_count: int, max_count: int) -> bool:
+def _subset_sums_possible(
+    lengths: Sequence[int], target: int, min_count: int, max_count: int,
+    deadline: float | None = None,
+) -> bool:
     reachable: set[tuple[int, int]] = {(0, 0)}
     for length in lengths:
+        _check_deadline(deadline)
         reachable |= {
             (count + 1, total + length)
             for count, total in reachable
@@ -324,7 +357,9 @@ def _subset_sums_possible(lengths: Sequence[int], target: int, min_count: int, m
     return any(count >= min_count and total == target for count, total in reachable)
 
 
-def assess_theme(theme: StrandsTheme, rows: int, cols: int) -> ThemeFeasibility:
+def assess_theme(
+    theme: StrandsTheme, rows: int, cols: int, deadline: float | None = None,
+) -> ThemeFeasibility:
     """Check, before any search, whether the theme can fill a grid exactly."""
     area = rows * cols
     letters = sum(len(w.word) for w in theme.words)
@@ -340,7 +375,8 @@ def assess_theme(theme: StrandsTheme, rows: int, cols: int) -> ThemeFeasibility:
         return result
     target = area - len(theme.spangram.word)
     if not _subset_sums_possible(
-        [len(w.word) for w in theme.words], target, STRANDS_MIN_WORDS - 1, STRANDS_MAX_WORDS - 1
+        [len(w.word) for w in theme.words], target, STRANDS_MIN_WORDS - 1, STRANDS_MAX_WORDS - 1,
+        deadline,
     ):
         best = sum(sorted((len(w.word) for w in theme.words), reverse=True)[: STRANDS_MAX_WORDS - 1])
         result.reason = (
@@ -359,6 +395,7 @@ def choose_word_subset(
     min_count: int = STRANDS_MIN_WORDS - 1,
     max_count: int = STRANDS_MAX_WORDS - 1,
     node_budget: int = 20000,
+    deadline: float | None = None,
 ) -> list[StrandsWord] | None:
     """Draw words whose lengths add up to ``target``.
 
@@ -371,6 +408,7 @@ def choose_word_subset(
     nodes = [0]
 
     def search(start: int, total: int) -> bool:
+        _check_deadline(deadline)
         nodes[0] += 1
         if nodes[0] > node_budget:
             return False
@@ -379,6 +417,7 @@ def choose_word_subset(
         if len(chosen) == max_count or total >= target:
             return False
         for idx in range(start, len(pool)):
+            _check_deadline(deadline)
             cand = pool[idx]
             if total + len(cand.word) > target:
                 continue
@@ -450,7 +489,7 @@ def _components(geometry: _Geometry, owner: list[int]) -> list[int]:
     return sizes
 
 
-def _can_split(sizes: list[int], lengths: list[int]) -> bool:
+def _can_split(sizes: list[int], lengths: list[int], deadline: float | None = None) -> bool:
     """Return True when the lengths can be grouped to fill each region exactly."""
     if not sizes:
         return not lengths
@@ -462,6 +501,7 @@ def _can_split(sizes: list[int], lengths: list[int]) -> bool:
     lengths = sorted(lengths, reverse=True)
 
     def fill(region: int, remaining: int, used: int, start: int) -> bool:
+        _check_deadline(deadline)
         if remaining == 0:
             if region + 1 == len(sizes):
                 return used == (1 << len(lengths)) - 1
@@ -500,6 +540,7 @@ def place_strands_paths(
     rng: random.Random,
     node_budget: int = DEFAULT_PLACEMENT_NODE_BUDGET,
     stats: PlacementStats | None = None,
+    deadline: float | None = None,
 ) -> list[Path] | None:
     """Partition the grid into paths with the given lengths.
 
@@ -516,6 +557,7 @@ def place_strands_paths(
     nodes = [0]
 
     def tick() -> None:
+        _check_deadline(deadline)
         nodes[0] += 1
         if nodes[0] > node_budget:
             raise _BudgetExceeded
@@ -588,7 +630,7 @@ def place_strands_paths(
         return False
 
     def regions_ok() -> bool:
-        return _can_split(_components(geometry, owner), remaining_lengths())
+        return _can_split(_components(geometry, owner), remaining_lengths(), deadline)
 
     def place_next() -> bool:
         pending = [i for i in range(len(lengths)) if result[i] is None]
@@ -670,6 +712,7 @@ def place_strands_paths(
     paths = [p for p in result if p is not None]
     if len(paths) != len(lengths):
         return None
+    _check_deadline(deadline)
     return paths
 
 
@@ -683,14 +726,19 @@ class AmbiguityLimitExceeded(Exception):
 
 
 def find_word_paths(
-    grid: Sequence[Sequence[str]], word: str, limit: int = MAX_PATHS_PER_WORD
+    grid: Sequence[Sequence[str]], word: str, limit: int = MAX_PATHS_PER_WORD,
+    *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
+    deadline: float | None = None, _budget: _UniquenessBudget | None = None,
 ) -> list[tuple[int, ...]]:
     """Return every 8-neighbour path without reused cells spelling ``word``.
 
     The search extends a path only while its letters are a prefix of
     ``word``, so its cost follows the number of matching prefixes, not the
-    number of possible paths in the grid.
+    number of possible paths in the grid. Matching prefixes consume the
+    node budget even when no complete word path exists. Exhaustion raises
+    ``UniquenessBudgetExceeded`` without returning partial results.
     """
+    _check_deadline(deadline)
     rows = len(grid)
     cols = len(grid[0]) if rows else 0
     geometry = _Geometry(rows, cols)
@@ -699,7 +747,10 @@ def find_word_paths(
     path: list[int] = []
     on_path = [False] * geometry.size
 
+    budget = _budget if _budget is not None else _UniquenessBudget(node_budget, deadline)
+
     def extend(cell: int) -> None:
+        budget.tick()
         path.append(cell)
         on_path[cell] = True
         if len(path) == len(word):
@@ -717,6 +768,7 @@ def find_word_paths(
     for cell in range(geometry.size):
         if letters[cell] == word[0]:
             extend(cell)
+    _check_deadline(deadline)
     return found
 
 
@@ -725,6 +777,8 @@ def enumerate_strands_solutions(
     words: Sequence[str],
     limit: int = 2,
     path_limit: int = MAX_PATHS_PER_WORD,
+    *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
+    deadline: float | None = None,
 ) -> list[list[tuple[int, ...]]]:
     """Return up to ``limit`` assignments of one disjoint path per word.
 
@@ -732,13 +786,17 @@ def enumerate_strands_solutions(
     word with the fewest paths still compatible with the cells already taken
     and stops as soon as ``limit`` assignments are found.  Raises
     ``AmbiguityLimitExceeded`` when a word has more than ``path_limit`` paths.
+    Prefix expansions, assignment states and compatibility checks share one
+    deterministic node budget. Exhaustion raises ``UniquenessBudgetExceeded``;
+    neither exhaustion nor a deadline returns a partial solution count.
     """
     rows = len(grid)
     cols = len(grid[0]) if rows else 0
     full = (1 << (rows * cols)) - 1
+    budget = _UniquenessBudget(node_budget, deadline)
     options: list[list[tuple[int, tuple[int, ...]]]] = []
     for word in words:
-        paths = find_word_paths(grid, word, path_limit)
+        paths = find_word_paths(grid, word, path_limit, deadline=deadline, _budget=budget)
         options.append([(sum(1 << cell for cell in p), p) for p in paths])
 
     solutions: list[list[tuple[int, ...]]] = []
@@ -746,6 +804,7 @@ def enumerate_strands_solutions(
     total_letters = sum(len(w) for w in words)
 
     def search(used: int, pending: tuple[int, ...]) -> None:
+        budget.tick()
         if len(solutions) >= limit:
             return
         if not pending:
@@ -755,7 +814,11 @@ def enumerate_strands_solutions(
         best: list[tuple[int, tuple[int, ...]]] = []
         reach = 0
         for index in pending:
-            compatible = [item for item in options[index] if not item[0] & used]
+            compatible = []
+            for item in options[index]:
+                budget.tick()
+                if not item[0] & used:
+                    compatible.append(item)
             if not compatible:
                 return
             for mask, _p in compatible:
@@ -773,17 +836,24 @@ def enumerate_strands_solutions(
         chosen.pop(best_index, None)
 
     search(0, tuple(range(len(words))))
+    _check_deadline(deadline)
     return solutions
 
 
 def count_strands_solutions(
-    grid: Sequence[Sequence[str]], words: Sequence[str], limit: int = 2
+    grid: Sequence[Sequence[str]], words: Sequence[str], limit: int = 2,
+    *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET, deadline: float | None = None,
 ) -> int:
     """Count disjoint path assignments for ``words``, stopping at ``limit``."""
-    return len(enumerate_strands_solutions(grid, words, limit=limit))
+    return len(enumerate_strands_solutions(
+        grid, words, limit=limit, node_budget=node_budget, deadline=deadline
+    ))
 
 
-def verify_strands_uniqueness(payload: dict[str, Any]) -> None:
+def verify_strands_uniqueness(
+    payload: dict[str, Any], *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
+    deadline: float | None = None,
+) -> None:
     """Raise ValueError unless the puzzle's word list has exactly one solution.
 
     The single solution must also be the one the payload declares.
@@ -792,7 +862,9 @@ def verify_strands_uniqueness(payload: dict[str, Any]) -> None:
     cols = len(grid[0])
     words = [entry["word"] for entry in payload["words"]]
     try:
-        solutions = enumerate_strands_solutions(grid, words, limit=2)
+        solutions = enumerate_strands_solutions(
+            grid, words, limit=2, node_budget=node_budget, deadline=deadline
+        )
     except AmbiguityLimitExceeded as exc:
         raise ValueError(
             f"Strands uniqueness not proved: word {exc.args[0]} has more than "
@@ -804,6 +876,7 @@ def verify_strands_uniqueness(payload: dict[str, Any]) -> None:
             f"{'at least 2' if len(solutions) > 1 else 0}"
         )
     declared = [tuple(r * cols + c for r, c in entry["cells"]) for entry in payload["words"]]
+    _check_deadline(deadline)
     if solutions[0] != declared:
         raise ValueError("Strands puzzle's only solution differs from the declared cells")
 
@@ -830,15 +903,15 @@ def solve_strands_grid(
     orientations: int = DEFAULT_ORIENTATIONS_PER_LAYOUT,
     deadline: float | None = None,
     stats: PlacementStats | None = None,
+    uniqueness_node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
 ) -> SolvedGrid | None:
     """Lay out ``words`` (spangram first) and return a grid with one solution."""
     stats = stats if stats is not None else PlacementStats()
     lengths = [len(w) for w in words]
     for _ in range(attempts):
-        if deadline is not None and time.monotonic() > deadline:
-            raise StrandsGenerationError("Strands generation exceeded its time limit")
+        _check_deadline(deadline)
         stats.attempts += 1
-        paths = place_strands_paths(lengths, rows, cols, rng, node_budget, stats)
+        paths = place_strands_paths(lengths, rows, cols, rng, node_budget, stats, deadline=deadline)
         if paths is None:
             continue
         stats.layouts += 1
@@ -846,6 +919,7 @@ def solve_strands_grid(
         for idx, length in enumerate(lengths[1:], start=1):
             by_length[length].append(idx)
         for _ in range(orientations):
+            _check_deadline(deadline)
             stats.orientations += 1
             # Words of equal length may swap paths; each word picks a direction.
             assignment: list[Path] = [list(paths[0])] + [[] for _ in lengths[1:]]
@@ -863,12 +937,18 @@ def solve_strands_grid(
                     letters[cell] = letter
             grid = [letters[r * cols:(r + 1) * cols] for r in range(rows)]
             try:
-                count = count_strands_solutions(grid, words, limit=2)
-            except AmbiguityLimitExceeded:
-                count = 2
+                count = count_strands_solutions(
+                    grid, words, limit=2, node_budget=uniqueness_node_budget, deadline=deadline
+                )
+            except AmbiguityLimitExceeded as exc:
+                stats.events.append(f"uniqueness not proved: path limit for {exc.args[0]}")
+                _check_deadline(deadline)
+                continue
+            _check_deadline(deadline)
             if count == 1:
                 return SolvedGrid(grid, assignment, list(words))
             stats.ambiguous += 1
+    _check_deadline(deadline)
     return None
 
 
@@ -948,6 +1028,7 @@ def generate_strands_puzzle(
     attempts: int = DEFAULT_PLACEMENT_ATTEMPTS,
     node_budget: int = DEFAULT_PLACEMENT_NODE_BUDGET,
     stats: PlacementStats | None = None,
+    uniqueness_node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
 ) -> dict[str, Any]:
     """Deterministically generate a Strands puzzle from audited facts.
 
@@ -963,18 +1044,23 @@ def generate_strands_puzzle(
     stats = stats if stats is not None else PlacementStats()
 
     connection.row_factory = sqlite3.Row
+    _check_deadline(deadline)
     entities = _load_entities(connection)
+    _check_deadline(deadline)
     facts, _rejected = _load_facts(connection, entities)
+    _check_deadline(deadline)
     dataset_version = _dataset_version(connection, entities, reference_date)
+    _check_deadline(deadline)
 
     themes = build_strands_themes(entities, facts)
+    _check_deadline(deadline)
     if theme_filter is not None:
         themes = [t for t in themes if _matches_filter(t, theme_filter)]
         if not themes:
             raise StrandsGenerationError(f"No strands theme matches filter: {theme_filter}")
-    feasible = [t for t in themes if assess_theme(t, rows, cols).feasible]
+    feasible = [t for t in themes if assess_theme(t, rows, cols, deadline).feasible]
     if not feasible:
-        reasons = sorted({assess_theme(t, rows, cols).reason or "" for t in themes})
+        reasons = sorted({assess_theme(t, rows, cols, deadline).reason or "" for t in themes})
         raise StrandsGenerationError(
             f"No strands theme can fill a {rows}x{cols} grid exactly "
             f"({len(themes)} themes checked; reasons: {', '.join(reasons) or 'no themes'})"
@@ -988,14 +1074,14 @@ def generate_strands_puzzle(
         assert theme.spangram is not None
         target = area - len(theme.spangram.word)
         for _ in range(subsets_per_theme):
-            chosen = choose_word_subset(theme.words, target, rng, theme.spangram.word)
+            chosen = choose_word_subset(theme.words, target, rng, theme.spangram.word, deadline=deadline)
             if chosen is None:
                 stats.events.append(f"{theme.theme_id}: no word subset")
                 break
             words = [theme.spangram.word, *(w.word for w in chosen)]
             solved = solve_strands_grid(
                 words, rows, cols, rng, attempts=attempts, node_budget=node_budget,
-                deadline=deadline, stats=stats,
+                deadline=deadline, stats=stats, uniqueness_node_budget=uniqueness_node_budget,
             )
             if solved is None:
                 stats.events.append(f"{theme.theme_id}: solver gave up on {words}")
@@ -1004,8 +1090,11 @@ def generate_strands_puzzle(
                 theme, chosen, solved, rows, cols, dataset_version, reference_date
             )
             validate_strands_puzzle(payload)
-            verify_strands_uniqueness(payload)
+            _check_deadline(deadline)
+            verify_strands_uniqueness(payload, node_budget=uniqueness_node_budget, deadline=deadline)
+            _check_deadline(deadline)
             return payload
+    _check_deadline(deadline)
     raise StrandsGenerationError(
         f"Strands solver found no unique {rows}x{cols} grid for "
         f"{len(feasible)} feasible themes within budget"
