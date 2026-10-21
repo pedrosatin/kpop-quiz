@@ -6,7 +6,6 @@ import hashlib
 import random
 import re
 import sqlite3
-import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date
@@ -14,7 +13,7 @@ from typing import Any, Iterable
 
 from .quiz_models import Entity, Evidence, Fact
 from .quiz_repository import _dataset_version, _load_entities, _load_facts
-from .quiz_utils import reference_date_today
+from .quiz_utils import ambiguous_release_ids, reference_date_today
 from .timeline_schema import (
     TIMELINE_MAX_YEAR,
     TIMELINE_MIN_EVENT_GAP_DAYS,
@@ -259,14 +258,6 @@ def _build_birth_candidates(facts: list[Fact]) -> list[CandidateEvent]:
 RELEASE_ENTITY_TYPES = frozenset({"album", "release"})
 
 
-def _release_label_key(label: str) -> str:
-    normalized = unicodedata.normalize("NFKC", label).casefold()
-    return "".join(
-        character for character in normalized
-        if not character.isspace() and not unicodedata.category(character).startswith("P")
-    )
-
-
 def _join_names(names: list[str], conjunction: str) -> str:
     if len(names) == 1:
         return names[0]
@@ -279,8 +270,8 @@ def _build_release_candidates(facts: list[Fact]) -> list[CandidateEvent]:
     A release enters the pool only with a single accepted date. Performers
     come only from accepted ``performed_by`` facts, whose evidence is
     published with the event because the label names them. Releases whose
-    title (and performers) cannot be told apart from another release in the
-    pool are left out, so every card identifies one release.
+    title is shared with another release loaded (dated or not, with or without
+    performers) are left out, so every card identifies one release.
     """
     date_facts: dict[str, list[Fact]] = defaultdict(list)
     performer_facts: dict[str, list[Fact]] = defaultdict(list)
@@ -292,7 +283,7 @@ def _build_release_candidates(facts: list[Fact]) -> list[CandidateEvent]:
         elif fact.predicate == "performed_by" and fact.value_entity is not None:
             performer_facts[fact.subject.wikidata_id].append(fact)
 
-    drafts: list[tuple[CandidateEvent, tuple[str, ...]]] = []
+    drafts: list[CandidateEvent] = []
     for qid in sorted(date_facts):
         if not QID_REGEX.match(qid):
             continue
@@ -349,22 +340,13 @@ def _build_release_candidates(facts: list[Fact]) -> list[CandidateEvent]:
                 item for fact in evidence_facts for item in fact.evidence
             ),
         )
-        drafts.append((candidate, tuple(sorted(performers))))
+        drafts.append(candidate)
 
-    # Two cards with the same title would let the player confuse them; drop
-    # every release whose (title, performers) pair is shared in a language.
-    seen: dict[tuple[str, str, tuple[str, ...]], int] = defaultdict(int)
-    for candidate, performer_ids in drafts:
-        for language in ("pt-BR", "en"):
-            seen[(language, _release_label_key(candidate.title[language]), performer_ids)] += 1
-    return [
-        candidate
-        for candidate, performer_ids in drafts
-        if all(
-            seen[(language, _release_label_key(candidate.title[language]), performer_ids)] == 1
-            for language in ("pt-BR", "en")
-        )
-    ]
+    # Two cards with the same title would let the player confuse them, with or
+    # without artists in the label; drop every release whose title is shared
+    # with any other release loaded, dated or not.
+    ambiguous = ambiguous_release_ids(facts)
+    return [candidate for candidate in drafts if candidate.entity_id not in ambiguous]
 
 
 def _satisfies_min_gap(events: list[CandidateEvent]) -> bool:

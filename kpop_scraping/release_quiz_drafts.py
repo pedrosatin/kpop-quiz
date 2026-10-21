@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from itertools import chain
 
 from .quiz_models import Draft, Entity, Evidence, Fact
-from .quiz_utils import digest
+from .quiz_utils import ambiguous_release_ids as find_ambiguous_release_ids, digest, display_key
 
 
 def build_release_drafts(
@@ -17,7 +17,7 @@ def build_release_drafts(
     rejected: Counter[str] = Counter()
     performer_facts = [fact for fact in facts if fact.predicate == "performed_by"]
     date_facts = [fact for fact in facts if fact.predicate == "released_on"]
-    ambiguous_release_ids = _ambiguous_release_ids(performer_facts + date_facts)
+    ambiguous_release_ids = find_ambiguous_release_ids(performer_facts + date_facts)
     performers_by_release = _entity_facts(performer_facts)
     releases_by_group = _subject_facts(performer_facts)
     dates_by_release = _time_facts(date_facts)
@@ -310,16 +310,8 @@ def _entity_options(
 
 def _labels_are_unique(entities: list[Entity] | tuple[Entity, ...]) -> bool:
     return all(
-        len({_display_key(entity.name(language)) for entity in entities}) == len(entities)
+        len({display_key(entity.name(language)) for entity in entities}) == len(entities)
         for language in ("pt-BR", "en")
-    )
-
-
-def _display_key(label: str) -> str:
-    normalized = unicodedata.normalize("NFKC", label).casefold()
-    return "".join(
-        character for character in normalized
-        if not character.isspace() and not unicodedata.category(character).startswith("P")
     )
 
 
@@ -388,23 +380,6 @@ def _release_ids_mentioning_groups(
             for identity, allow_short in identities
         )
     }
-
-
-def _ambiguous_release_ids(facts: list[Fact]) -> set[str]:
-    releases = {
-        fact.subject.wikidata_id: fact.subject
-        for fact in facts
-        if fact.subject.entity_type in {"release", "album"}
-    }
-    ambiguous: set[str] = set()
-    for language in ("pt-BR", "en"):
-        ids_by_label: dict[str, set[str]] = defaultdict(set)
-        for qid, release in releases.items():
-            ids_by_label[_display_key(release.name(language))].add(qid)
-        ambiguous.update(
-            qid for ids in ids_by_label.values() if len(ids) > 1 for qid in ids
-        )
-    return ambiguous
 
 
 def _fact_ids(facts: tuple[Fact, ...]) -> tuple[str, ...]:

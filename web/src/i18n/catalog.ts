@@ -363,7 +363,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       timeline: {
         title: "Linha do tempo do K-pop: jogo de datas",
-        description: "Coloque 5 acontecimentos do K-pop em ordem cronológica no desafio diário: formação de grupos, nascimento de artistas e lançamentos de discos.",
+        description: "Coloque 5 acontecimentos do K-pop em ordem cronológica no desafio diário: formação de grupos, nascimento de artistas e lançamento de álbuns, EPs e singles.",
       },
       code: {
         title: "Código de grupos de K-pop: jogo de lógica",

@@ -165,7 +165,7 @@ def add_release(
     qid: str,
     name: str,
     released_on: str | list[str],
-    performer_qid: str | None = None,
+    performer_qid: str | list[str] | None = None,
     entity_type: str = "album",
 ) -> None:
     """Insert a release entity with accepted, evidenced released_on/performed_by facts."""
@@ -185,13 +185,13 @@ def add_release(
         (f"stmt-released-{qid}-{index}", "released_on", "P577", None, None, value, precision[len(value)])
         for index, value in enumerate(dates)
     ]
-    if performer_qid is not None:
+    performer_qids = [performer_qid] if isinstance(performer_qid, str) else list(performer_qid or ())
+    for position, performer in enumerate(performer_qids):
         performer_id = conn.execute(
-            "SELECT id FROM entities WHERE wikidata_id = ?", (performer_qid,)
+            "SELECT id FROM entities WHERE wikidata_id = ?", (performer,)
         ).fetchone()[0]
-        rows.append(
-            (f"stmt-performer-{qid}", "performed_by", "P175", performer_qid, performer_id, None, None)
-        )
+        statement_id = f"stmt-performer-{qid}" if position == 0 else f"stmt-performer-{qid}-{position}"
+        rows.append((statement_id, "performed_by", "P175", performer, performer_id, None, None))
     for statement_id, predicate, property_id, value_qid, value_id, value_time, value_precision in rows:
         fact = conn.execute(
             """
@@ -308,11 +308,10 @@ class TimelineReleaseTests(unittest.TestCase):
         self.assertNotIn("Q9100", ids)
         self.assertNotIn("Q9101", ids)
         self.assertNotIn("Q9102", ids)
-        # The performer sets this one apart from the two unattributed copies.
-        self.assertIn("Q9103", ids)
+        self.assertNotIn("Q9103", ids)
         self.assertNotIn("QR_FAKE", ids)
         self.assertNotIn("Q9104", ids)
-        self.assertEqual(ids - {"Q9103"}, {f"Q900{index}" for index in range(len(RELEASE_DATES))})
+        self.assertEqual(ids, {f"Q900{index}" for index in range(len(RELEASE_DATES))})
 
     def test_missing_release_pool_falls_back_to_existing_themes(self):
         reference, _puzzle = self._release_events()
@@ -365,3 +364,104 @@ class TimelineCliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def _candidates(self):
+        conn = self._connect_readonly()
+        try:
+            from kpop_scraping.quiz_repository import _load_entities, _load_facts
+            from kpop_scraping.timeline_generator import _build_release_candidates
+
+            facts, _rejected = _load_facts(conn, _load_entities(conn))
+            return {cand.entity_id: cand for cand in _build_release_candidates(facts)}
+        finally:
+            conn.close()
+
+    def _add_artists(self, conn, names_by_qid):
+        for qid, name in names_by_qid.items():
+            conn.execute(
+                "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, 'group', ?)",
+                (qid, name),
+            )
+
+    def test_title_collision_drops_cards_with_and_without_artist(self):
+        conn = sqlite3.connect(str(self.db_path))
+        try:
+            add_release(conn, "Q9201", "Same Title", "2007-03-03")
+            add_release(conn, "Q9202", "Same Title", "2012-02-02", "Q102")
+            conn.commit()
+        finally:
+            conn.close()
+        ids = self._candidates()
+        self.assertNotIn("Q9201", ids)
+        self.assertNotIn("Q9202", ids)
+
+    def test_title_collision_with_undated_release_drops_the_dated_one(self):
+        conn = sqlite3.connect(str(self.db_path))
+        try:
+            add_release(conn, "Q9211", "Monster", "2008-05-05", "Q102")
+            add_release(conn, "Q9212", "Monster", "2008-05-05")
+            conn.execute(
+                "UPDATE facts SET status = 'rejected' WHERE subject_entity_id = "
+                "(SELECT id FROM entities WHERE wikidata_id = 'Q9212') AND predicate = 'released_on'"
+            )
+            conn.execute(
+                "INSERT INTO facts(statement_id, subject_entity_id, predicate, property_id, rank, "
+                "value_wikidata_id, value_entity_id, status, quality_flags_json) "
+                "SELECT 'stmt-performer-Q9212', e.id, 'performed_by', 'P175', 'normal', 'Q102', p.id, "
+                "'accepted', '[]' FROM entities e, entities p WHERE e.wikidata_id = 'Q9212' AND p.wikidata_id = 'Q102'"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        self.assertNotIn("Q9211", self._candidates())
+
+    def test_same_title_by_homonymous_artists_with_distinct_qids_is_dropped(self):
+        conn = sqlite3.connect(str(self.db_path))
+        try:
+            self._add_artists(conn, {"Q7001": "Twin", "Q7002": "Twin"})
+            add_release(conn, "Q9221", "Echo", "2007-03-03", "Q7001")
+            add_release(conn, "Q9222", "Echo", "2012-02-02", "Q7002")
+            conn.commit()
+        finally:
+            conn.close()
+        ids = self._candidates()
+        self.assertNotIn("Q9221", ids)
+        self.assertNotIn("Q9222", ids)
+
+    def test_non_album_release_description_has_no_album_wording(self):
+        conn = sqlite3.connect(str(self.db_path))
+        try:
+            add_release(conn, "Q9231", "Solo Single", "2009-09-09", "Q102", entity_type="release")
+            add_release(conn, "Q9232", "Plain Single", "2011-11-11", entity_type="release")
+            conn.commit()
+        finally:
+            conn.close()
+        ids = self._candidates()
+        self.assertEqual(ids["Q9231"].description["pt-BR"], "Lançamento de \u201cSolo Single\u201d, de GroupB.")
+        self.assertEqual(ids["Q9231"].description["en"], "Release of \u201cSolo Single\u201d by GroupB.")
+        self.assertEqual(ids["Q9232"].description["pt-BR"], "Lançamento de \u201cPlain Single\u201d.")
+        self.assertEqual(ids["Q9232"].description["en"], "Release of \u201cPlain Single\u201d.")
+
+    def test_three_artists_are_joined_with_a_final_conjunction(self):
+        conn = sqlite3.connect(str(self.db_path))
+        try:
+            self._add_artists(conn, {"Q7011": "A", "Q7012": "B", "Q7013": "C"})
+            add_release(conn, "Q9241", "Trio Song", "2009-09-09", ["Q7011", "Q7012", "Q7013"])
+            conn.commit()
+        finally:
+            conn.close()
+        cand = self._candidates()["Q9241"]
+        self.assertEqual(cand.description["pt-BR"], "Lançamento do álbum \u201cTrio Song\u201d, de A, B e C.")
+        self.assertEqual(cand.description["en"], "Release of the album \u201cTrio Song\u201d by A, B and C.")
+        self.assertEqual(cand.title["pt-BR"], "Lançamento de \u201cTrio Song\u201d (A, B, C)")
+
+    def test_year_only_release_keeps_year_precision(self):
+        conn = sqlite3.connect(str(self.db_path))
+        try:
+            add_release(conn, "Q9251", "Year Only", "2003")
+            conn.commit()
+        finally:
+            conn.close()
+        cand = self._candidates()["Q9251"]
+        self.assertEqual((cand.date, cand.year), ("2003", 2003))
+        self.assertEqual(cand.display_date, {"pt-BR": "2003", "en": "2003"})

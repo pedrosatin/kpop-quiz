@@ -186,7 +186,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "De onde vêm os dados da Linha do Tempo do K-pop",
         faqHeading: "Perguntas sobre a Linha do Tempo do K-pop",
         howToPlay: [
-          "Cada partida traz 5 acontecimentos do K-pop ligados a um tema, como a formação de grupos, o nascimento de artistas ou os lançamentos de discos. As datas ficam escondidas. Arraste os cartões ou use os botões ↑ e ↓ para colocar os acontecimentos do mais antigo ao mais recente. Todos recebem os mesmos 5 acontecimentos no dia.",
+          "Cada partida traz 5 acontecimentos do K-pop ligados a um tema, como a formação de grupos, o nascimento de artistas ou o lançamento de álbuns, EPs e singles. As datas ficam escondidas. Arraste os cartões ou use os botões ↑ e ↓ para colocar os acontecimentos do mais antigo ao mais recente. Todos recebem os mesmos 5 acontecimentos no dia.",
           "Com a ordem pronta, clique em Verificar ordem. Você tem uma tentativa por dia. O resultado marca cada acontecimento como certo ou errado, revela as datas e mostra a pontuação de 0 a 5. O resultado compartilhado mostra a pontuação e quais acontecimentos você acertou, sem revelar as datas nem a ordem certa.",
         ],
         dataSources: [
