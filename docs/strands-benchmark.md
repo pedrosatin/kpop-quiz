@@ -90,7 +90,7 @@ A CLI gerou e verificou (schema e unicidade) os dias 2026-11-01 a 2026-11-12 com
 
 ## Decisão
 
-O operador decidiu concluir o gerador e adiar a estreia até ampliar os temas disponíveis. Essa decisão preserva o contrato, o pipeline e a aplicação web.
+A entrega inclui o gerador, e a estreia fica adiada até ampliar os temas disponíveis. O contrato, o pipeline e a aplicação web permanecem como estavam.
 
 A grade padrão fica em 9×9. É o único tamanho do contrato em que um elenco cabe, fechou todas as listas sintéticas amostradas de 7 a 9 palavras e os dois temas reais nas cinco sementes medidas de cada um. Em 10×10 a década de 2010 não fechou em nenhuma das 5 sementes, porque precisa de 85 letras em 8 palavras e quase só sobram nomes de 9 e 10 letras.
 
