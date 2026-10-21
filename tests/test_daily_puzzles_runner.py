@@ -29,7 +29,7 @@ from kpop_scraping.grid_generator import generate_daily_grid
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
 from kpop_scraping.quiz_schema import validate_session
-from kpop_scraping.timeline_schema import validate_timeline_puzzle
+from kpop_scraping.timeline_schema import compute_timeline_puzzle_id, validate_timeline_puzzle
 from kpop_scraping.web_publish import verify_artifacts
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
 
@@ -812,6 +812,57 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             self.assertEqual((output_dir / name).read_bytes(), content, name)
         next_connections = json.loads((output_dir / "next" / "connections.daily.json").read_text(encoding="utf-8"))
         self.assertEqual(next_connections["reference_date"], "2026-09-20")
+
+    def test_day_drawing_release_theme_publishes_without_release_facts(self):
+        # Imported here: test_timeline_generator imports this module.
+        from tests.test_timeline_generator import (
+            RELEASE_DATES,
+            add_release,
+            first_release_theme_date,
+        )
+
+        with_releases = self.temp_path / "with-releases.db"
+        shutil.copyfile(self.db_path, with_releases)
+        conn = sqlite3.connect(str(with_releases))
+        conn.row_factory = sqlite3.Row
+        try:
+            for index, released_on in enumerate(RELEASE_DATES):
+                add_release(conn, f"Q900{index}", f"Album {index}", released_on, f"Q{101 + index}")
+            conn.commit()
+            reference = first_release_theme_date(conn)
+        finally:
+            conn.close()
+
+        # The fixture's own releases have no valid QID, so the release pool
+        # is empty here and the timeline must fall back to another theme.
+        output_dir = self.temp_path / "release-fallback"
+        result = run_daily_puzzles(
+            database=self.db_path, output_dir=output_dir, reference_date=reference.isoformat()
+        )
+        timeline = json.loads((output_dir / "timeline.daily.json").read_text(encoding="utf-8"))
+        validate_timeline_puzzle(timeline)
+        self.assertEqual(result["timeline_id"], timeline["puzzle_id"])
+        self.assertNotEqual(timeline["theme"]["en"], "Releases")
+
+    def test_promotes_a_v1_timeline_published_before_the_v2_bump(self):
+        output_dir = self.temp_path / "promote-v1"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        next_timeline_path = output_dir / "next" / "timeline.daily.json"
+        legacy = json.loads(next_timeline_path.read_text(encoding="utf-8"))
+        legacy["schema_version"] = "kpop-timeline-puzzle-v1"
+        legacy["puzzle_id"] = compute_timeline_puzzle_id(legacy)
+        next_timeline_path.write_text(json.dumps(legacy), encoding="utf-8")
+
+        result = run_daily_puzzles(
+            database=self.db_path, output_dir=output_dir, reference_date="2026-09-19", ahead=True
+        )
+
+        self.assertTrue(result["promoted_from_next"])
+        promoted = json.loads((output_dir / "timeline.daily.json").read_text(encoding="utf-8"))
+        self.assertEqual(promoted["schema_version"], "kpop-timeline-puzzle-v1")
+        self.assertEqual(result["timeline_id"], legacy["puzzle_id"])
+        fresh = json.loads(next_timeline_path.read_text(encoding="utf-8"))
+        self.assertEqual(fresh["schema_version"], "kpop-timeline-puzzle-v2")
 
     def test_rerun_keeps_the_published_day_unless_regenerated(self):
         output_dir = self.temp_path / "rerun"

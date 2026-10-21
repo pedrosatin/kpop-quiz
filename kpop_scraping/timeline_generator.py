@@ -13,7 +13,7 @@ from typing import Any, Iterable
 
 from .quiz_models import Entity, Evidence, Fact
 from .quiz_repository import _dataset_version, _load_entities, _load_facts
-from .quiz_utils import reference_date_today
+from .quiz_utils import ambiguous_release_ids, reference_date_today
 from .timeline_schema import (
     TIMELINE_MAX_YEAR,
     TIMELINE_MIN_EVENT_GAP_DAYS,
@@ -255,6 +255,100 @@ def _build_birth_candidates(facts: list[Fact]) -> list[CandidateEvent]:
     return candidates
 
 
+RELEASE_ENTITY_TYPES = frozenset({"album", "release"})
+
+
+def _join_names(names: list[str], conjunction: str) -> str:
+    if len(names) == 1:
+        return names[0]
+    return f"{', '.join(names[:-1])} {conjunction} {names[-1]}"
+
+
+def _build_release_candidates(facts: list[Fact]) -> list[CandidateEvent]:
+    """Extract release candidates from accepted, evidenced ``released_on`` facts.
+
+    A release enters the pool only with a single accepted date. Performers
+    come only from accepted ``performed_by`` facts, whose evidence is
+    published with the event because the label names them. Releases whose
+    title is shared with another release loaded (dated or not, with or without
+    performers) are left out, so every card identifies one release.
+    """
+    date_facts: dict[str, list[Fact]] = defaultdict(list)
+    performer_facts: dict[str, list[Fact]] = defaultdict(list)
+    for fact in facts:
+        if fact.subject.entity_type not in RELEASE_ENTITY_TYPES:
+            continue
+        if fact.predicate == "released_on" and fact.value_time:
+            date_facts[fact.subject.wikidata_id].append(fact)
+        elif fact.predicate == "performed_by" and fact.value_entity is not None:
+            performer_facts[fact.subject.wikidata_id].append(fact)
+
+    drafts: list[CandidateEvent] = []
+    for qid in sorted(date_facts):
+        if not QID_REGEX.match(qid):
+            continue
+        dated = date_facts[qid]
+        if len({fact.value_time for fact in dated}) != 1:
+            continue
+        parsed = _parse_event_date(dated[0].value_time)
+        if parsed is None:
+            continue
+        raw_time, year = parsed
+        release = dated[0].subject
+        performers: dict[str, Entity] = {}
+        for fact in performer_facts.get(qid, ()):
+            performers.setdefault(fact.value_entity.wikidata_id, fact.value_entity)
+        performer_names = [performers[key].canonical_name for key in sorted(performers)]
+        names = {language: release.name(language) for language in ("pt-BR", "en")}
+
+        if performer_names:
+            title = {
+                "pt-BR": f"Lançamento de “{names['pt-BR']}” ({', '.join(performer_names)})",
+                "en": f"Release of “{names['en']}” ({', '.join(performer_names)})",
+            }
+            by_pt = f", de {_join_names(performer_names, 'e')}"
+            by_en = f" by {_join_names(performer_names, 'and')}"
+        else:
+            title = {
+                "pt-BR": f"Lançamento de “{names['pt-BR']}”",
+                "en": f"Release of “{names['en']}”",
+            }
+            by_pt = by_en = ""
+        if release.entity_type == "album":
+            description = {
+                "pt-BR": f"Lançamento do álbum “{names['pt-BR']}”{by_pt}.",
+                "en": f"Release of the album “{names['en']}”{by_en}.",
+            }
+        else:
+            description = {
+                "pt-BR": f"Lançamento de “{names['pt-BR']}”{by_pt}.",
+                "en": f"Release of “{names['en']}”{by_en}.",
+            }
+
+        evidence_facts = [*dated, *performer_facts.get(qid, ())]
+        candidate = CandidateEvent(
+            id=f"timeline-release-{qid}",
+            event_type="release",
+            date=raw_time,
+            year=year,
+            display_date=format_display_date(raw_time),
+            title=title,
+            description=description,
+            entity_id=qid,
+            entity_name=release.canonical_name,
+            evidence=_serialize_evidence(
+                item for fact in evidence_facts for item in fact.evidence
+            ),
+        )
+        drafts.append(candidate)
+
+    # Two cards with the same title would let the player confuse them, with or
+    # without artists in the label; drop every release whose title is shared
+    # with any other release loaded, dated or not.
+    ambiguous = ambiguous_release_ids(facts)
+    return [candidate for candidate in drafts if candidate.entity_id not in ambiguous]
+
+
 def _satisfies_min_gap(events: list[CandidateEvent]) -> bool:
     """Check the conservative 30-day gap over precision spans for ordered events."""
     prev_span_max = None
@@ -370,6 +464,7 @@ def generate_timeline_puzzle(
 
     formation_candidates = _build_formation_candidates(facts)
     birth_candidates = _build_birth_candidates(facts)
+    release_candidates = _build_release_candidates(facts)
 
     themes: list[dict[str, Any]] = [
         {
@@ -407,6 +502,18 @@ def generate_timeline_puzzle(
                 "en": "Order the birth dates of these artists chronologically.",
             },
             "pool": birth_candidates,
+        },
+        {
+            "id": "releases",
+            "theme": {
+                "pt-BR": "Lançamentos",
+                "en": "Releases",
+            },
+            "theme_description": {
+                "pt-BR": "Ordene cronologicamente as datas destes lançamentos.",
+                "en": "Order the dates of these releases chronologically.",
+            },
+            "pool": release_candidates,
         },
     ]
 

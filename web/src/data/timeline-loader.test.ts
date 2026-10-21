@@ -2,12 +2,37 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TimelineArtifactError, loadTimelinePuzzle } from "./timeline-loader";
 import { isTimelinePuzzle } from "../lib/quiz-types";
 import validTimeline from "../tests/fixtures/timeline.daily.json";
+import releaseTimeline from "../tests/fixtures/timeline-releases.daily.json";
 
 describe("published timeline puzzle loader and validator", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("validates a compliant timeline puzzle payload", () => {
     expect(isTimelinePuzzle(validTimeline)).toBe(true);
+  });
+
+  it("validates a v2 puzzle with release events", () => {
+    expect(releaseTimeline.schema_version).toBe("kpop-timeline-puzzle-v2");
+    expect(releaseTimeline.events.every((event) => event.event_type === "release")).toBe(true);
+    expect(isTimelinePuzzle(releaseTimeline)).toBe(true);
+  });
+
+  it("keeps accepting v1 puzzles published before the release type", () => {
+    expect(validTimeline.schema_version).toBe("kpop-timeline-puzzle-v1");
+    expect(isTimelinePuzzle(validTimeline)).toBe(true);
+  });
+
+  it("rejects a release event in a v1 puzzle", () => {
+    const invalid = structuredClone(releaseTimeline) as Record<string, unknown>;
+    invalid.schema_version = "kpop-timeline-puzzle-v1";
+    expect(isTimelinePuzzle(invalid)).toBe(false);
+  });
+
+  it("loads a v2 release puzzle", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(releaseTimeline))));
+    const result = await loadTimelinePuzzle("en", "/", releaseTimeline.reference_date);
+    expect(result.schema_version).toBe("kpop-timeline-puzzle-v2");
+    expect(result.theme.en).toBe("Releases");
   });
 
   it("loads a validated puzzle below Astro base path", async () => {
@@ -160,7 +185,7 @@ describe("published timeline puzzle loader and validator", () => {
 
   it("rejects a timeline with invalid schema version", () => {
     const invalid = structuredClone(validTimeline) as Record<string, unknown>;
-    invalid.schema_version = "kpop-timeline-puzzle-v2";
+    invalid.schema_version = "kpop-timeline-puzzle-v3";
     expect(isTimelinePuzzle(invalid)).toBe(false);
   });
 

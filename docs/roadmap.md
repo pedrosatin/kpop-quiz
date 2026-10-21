@@ -189,7 +189,7 @@ Mecânica de caça-palavras temático com especificação na [ADR 011](decisions
 
 ## Linha do tempo ("Quando foi?") concluída
 
-Desafio cronológico em que o jogador ordena cinco eventos do mais antigo ao mais recente, com especificação na [ADR 012](decisions/012-mecanica-linha-do-tempo.md), contrato em `schemas/timeline-puzzle-v1.json`, gerador determinístico com CLI (`timeline_cli.py`), interface web acessível com rotas bilíngues e partidas diárias (`timeline.daily.json`) integradas ao ciclo de publicação e verificação em CI.
+Desafio cronológico em que o jogador ordena cinco eventos do mais antigo ao mais recente, com especificação na [ADR 012](decisions/012-mecanica-linha-do-tempo.md), contrato em `schemas/timeline-puzzle-v2.json`, que acrescenta eventos de lançamento ao v1, gerador determinístico com CLI (`timeline_cli.py`), interface web acessível com rotas bilíngues e partidas diárias (`timeline.daily.json`) integradas ao ciclo de publicação e verificação em CI.
 
 ## Publicação em produção concluída
 

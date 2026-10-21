@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TimelinePuzzle } from "../../lib/timeline-types";
 import fixture from "../../tests/fixtures/timeline.daily.json";
+import releaseFixture from "../../tests/fixtures/timeline-releases.daily.json";
 import { getCanonicalChronologicalOrder } from "./timeline-utils";
 import { TimelineResults } from "./TimelineResults";
 import { RESULT_GUARD_MS, TimelineShare } from "./TimelineShare";
@@ -47,6 +48,29 @@ describe("TimelineResults", () => {
     expect(screen.getByText("Score: 3/5")).toBeInTheDocument();
     expect(screen.getByText(canonicalEvents[0]!.display_date.en)).toBeInTheDocument();
     expect(within(screen.getAllByRole("list")[0]!).getByText(canonicalEvents[0]!.title.en)).toBeInTheDocument();
+  });
+
+  it("reveals release dates with release titles in both locales", () => {
+    const releaseEvents = getCanonicalChronologicalOrder((releaseFixture as unknown as TimelinePuzzle).events);
+    const results = releaseEvents.map(() => true);
+    const { unmount } = render(
+      <TimelineResults score={5} totalEvents={5} canonicalEvents={releaseEvents} results={results} shareText={sampleShareText} locale="pt-BR" />
+    );
+    const ptList = screen.getAllByRole("list")[0]!;
+    releaseEvents.forEach((event) => {
+      expect(within(ptList).getByText(event.title["pt-BR"])).toBeInTheDocument();
+      expect(within(ptList).getByText(event.display_date["pt-BR"])).toBeInTheDocument();
+    });
+
+    unmount();
+    render(
+      <TimelineResults score={5} totalEvents={5} canonicalEvents={releaseEvents} results={results} shareText={sampleShareText} locale="en" />
+    );
+    const enList = screen.getAllByRole("list")[0]!;
+    releaseEvents.forEach((event) => {
+      expect(within(enList).getByText(event.title.en)).toBeInTheDocument();
+      expect(within(enList).getByText(event.display_date.en)).toBeInTheDocument();
+    });
   });
 
   it("renders accuracy indicators per position", () => {

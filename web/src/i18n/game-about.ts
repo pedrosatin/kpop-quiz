@@ -186,11 +186,11 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "De onde vêm os dados da Linha do Tempo do K-pop",
         faqHeading: "Perguntas sobre a Linha do Tempo do K-pop",
         howToPlay: [
-          "Cada partida traz 5 acontecimentos do K-pop ligados a um tema, como a formação de grupos ou o nascimento de artistas. As datas ficam escondidas. Arraste os cartões ou use os botões ↑ e ↓ para colocar os acontecimentos do mais antigo ao mais recente. Todos recebem os mesmos 5 acontecimentos no dia.",
+          "Cada partida traz 5 acontecimentos do K-pop ligados a um tema, como a formação de grupos, o nascimento de artistas ou o lançamento de álbuns, EPs e singles. As datas ficam escondidas. Arraste os cartões ou use os botões ↑ e ↓ para colocar os acontecimentos do mais antigo ao mais recente. Todos recebem os mesmos 5 acontecimentos no dia.",
           "Com a ordem pronta, clique em Verificar ordem. Você tem uma tentativa por dia. O resultado marca cada acontecimento como certo ou errado, revela as datas e mostra a pontuação de 0 a 5. O resultado compartilhado mostra a pontuação e quais acontecimentos você acertou, sem revelar as datas nem a ordem certa.",
         ],
         dataSources: [
-          "Os acontecimentos vêm das datas de formação de grupos e de nascimento de artistas registradas no Wikidata e na Wikipédia, sempre de 1980 em diante. Os 5 acontecimentos de uma partida têm anos diferentes e pelo menos 30 dias de distância entre um e outro, então dois acontecimentos nunca empatam.",
+          "Os acontecimentos vêm das datas de formação de grupos, de nascimento de artistas e de lançamento de álbuns, EPs e singles registradas no Wikidata e na Wikipédia, sempre de 1980 em diante. O cartão de um lançamento só cita o artista quando essa autoria também tem fonte. Os 5 acontecimentos de uma partida têm anos diferentes e pelo menos 30 dias de distância entre um e outro, então dois acontecimentos nunca empatam.",
           "Um programa consulta a Wikipédia e o Wikidata e registra de onde saiu cada data. Os acontecimentos do dia seguinte são escolhidos às 15:00 UTC, meio-dia em Brasília, e o arquivo publicado passa por uma checagem de formato.",
         ],
         faq: [
@@ -376,11 +376,11 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "Where the K-pop Timeline data comes from",
         faqHeading: "K-pop Timeline FAQ",
         howToPlay: [
-          "Each puzzle has 5 K-pop events tied to a theme, such as when groups formed or when artists were born. The dates are hidden. Drag the cards, or use the ↑ and ↓ buttons, to put the events in order from earliest to latest. Everyone gets the same 5 events that day.",
+          "Each puzzle has 5 K-pop events tied to a theme, such as when groups formed, when artists were born or when records came out. The dates are hidden. Drag the cards, or use the ↑ and ↓ buttons, to put the events in order from earliest to latest. Everyone gets the same 5 events that day.",
           "When you're happy with the order, click Check order. You get one attempt a day. The result marks each event right or wrong, reveals the dates and gives you a score out of 5. The shareable result shows your score and which events you got right, without revealing the dates or the right order.",
         ],
         dataSources: [
-          "Events come from group formation dates and artist birth dates recorded on Wikidata and Wikipedia, always from 1980 on. The 5 events in a puzzle fall in different years, with at least 30 days between any two of them, so no two events can tie.",
+          "Events come from group formation dates, artist birth dates and release dates of albums, EPs and singles recorded on Wikidata and Wikipedia, always from 1980 on. A release card names the artist only when that credit also has a source. The 5 events in a puzzle fall in different years, with at least 30 days between any two of them, so no two events can tie.",
           "A program reads the Wikipedia and Wikidata APIs and records where each date came from. The next day's events are picked at 15:00 UTC, noon in São Paulo, and the published file goes through a format check.",
         ],
         faq: [

@@ -3,6 +3,7 @@ import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TimelinePuzzle } from "../../lib/timeline-types";
 import fixture from "../../tests/fixtures/timeline.daily.json";
+import releaseFixture from "../../tests/fixtures/timeline-releases.daily.json";
 import { TimelineBoard } from "./TimelineBoard";
 
 const puzzle = fixture as unknown as TimelinePuzzle;
@@ -44,6 +45,27 @@ describe("TimelineBoard", () => {
     events.forEach((event, i) => {
       expect(within(enItems[i]!).getByText(event.title.en)).toBeInTheDocument();
       expect(within(enItems[i]!).getByText(event.description.en)).toBeInTheDocument();
+    });
+  });
+
+  it("renders release cards with the release and performer labels, without dates", () => {
+    const releaseEvents = (releaseFixture as unknown as TimelinePuzzle).events;
+    const { unmount } = render(<TimelineBoard events={releaseEvents} locale="pt-BR" />);
+    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(items).toHaveLength(5);
+    releaseEvents.forEach((event, i) => {
+      expect(event.event_type).toBe("release");
+      expect(within(items[i]!).getByText(event.title["pt-BR"])).toBeInTheDocument();
+      expect(within(items[i]!).getByText(event.description["pt-BR"])).toBeInTheDocument();
+      expect(within(items[i]!).queryByText(event.display_date["pt-BR"])).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: `Mover "${releaseEvents[1]!.title["pt-BR"]}" para cima` })).toBeInTheDocument();
+
+    unmount();
+    render(<TimelineBoard events={releaseEvents} locale="en" />);
+    const enItems = screen.getAllByRole("listitem");
+    releaseEvents.forEach((event, i) => {
+      expect(within(enItems[i]!).getByText(event.title.en)).toBeInTheDocument();
     });
   });
 

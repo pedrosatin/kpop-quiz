@@ -47,16 +47,29 @@ Para evitar qualquer ambiguidade na ordenação que possa prejudicar o jogador, 
    - `member_join`: Entrada documentada de integrante em um grupo musical.
    - `disbandment`: Encerramento oficial de atividades de um grupo.
    - `birth`: Nascimento de artista relevante para o tema.
+   - `release`: Lançamento de álbum, EP ou single (a partir do contrato v2).
 4. Precisão de data: somente eventos com data documentada no nível de dia ou mês (`YYYY-MM-DD` ou `YYYY-MM`) são elegíveis para compor partidas diárias. Eventos com apenas o ano registrado são tolerados apenas quando todos os eventos da rodada pertencem a anos distintos.
 
-Nesta primeira fase, o gerador produz eventos dos tipos `formation` e `birth`, a partir dos predicados auditados `formed_on` e `born_on`. Os tipos `debut`, `member_join` e `disbandment` permanecem no contrato do esquema para uso futuro, à medida que os predicados correspondentes entrem na base auditada.
+Nesta primeira fase, o gerador produz eventos dos tipos `formation` e `birth`, a partir dos predicados auditados `formed_on` e `born_on`; o adendo de lançamentos abaixo acrescenta `release`. Os tipos `debut`, `member_join` e `disbandment` permanecem no contrato do esquema para uso futuro, à medida que os predicados correspondentes entrem na base auditada.
+
+### Eventos de lançamento (contrato v2)
+
+Adendo de 2026-10-19. Com a coleta de lançamentos (`--releases`), o gerador passa a produzir eventos `release` a partir do predicado auditado `released_on` (P577), no tema "Lançamentos" / "Releases":
+
+1. Um lançamento só entra no tema com um único `released_on` aceito. Se houver datas aceitas diferentes para o mesmo item, ele fica de fora.
+2. O título identifica o lançamento pelo rótulo no idioma da partida. O artista aparece no título e na descrição apenas quando existe `performed_by` (P175) aceito; nesse caso a evidência desse fato acompanha o evento, junto com a da data.
+3. Lançamentos cujo título normalizado (sem pontuação, espaços nem diferença de caixa, em cada idioma) coincide com o de outro lançamento carregado ficam de fora, com ou sem artista no rótulo e com ou sem data aceita no outro item. Assim, "Lançamento de “Monster”" nunca convive com "Monster (BigBang)", e artistas homônimos de QIDs distintos não desfazem a colisão.
+4. Valem as mesmas regras dos outros temas: QID válido, ano entre 1980 e 2035, anos distintos na rodada e intervalo mínimo de 30 dias entre os limites de precisão.
+5. A semente da data escolhe o tema entre os quatro disponíveis. Se o tema sorteado não fecha 5 eventos (por exemplo, num banco sem fatos de lançamento), o gerador tenta os temas seguintes, e o lote diário não falha por falta de lançamentos.
+
+O tipo novo exige o contrato `schemas/timeline-puzzle-v2.json` (`schema_version` `"kpop-timeline-puzzle-v2"`), igual ao v1 exceto pelo valor `release` na enumeração `event_type`. O gerador grava v2. Os validadores em Python e no web continuam aceitando v1. O ciclo diário mantém os bytes de um dia já publicado, inclusive do conjunto adiantado em `next/`. Os dois validadores rejeitam um evento `release` num artefato v1.
 
 ### Contrato de dados e JSON Schema
 
-O artefato diário `timeline.daily.json` é governado pelo esquema formal `schemas/timeline-puzzle-v1.json` (Draft 2020-12) com `additionalProperties: false`.
+O artefato diário `timeline.daily.json` é governado pelo esquema formal `schemas/timeline-puzzle-v1.json` (Draft 2020-12) com `additionalProperties: false`. Desde o adendo de lançamentos, o gerador grava `schemas/timeline-puzzle-v2.json`, descrito acima.
 
 Campos obrigatórios do quebra-cabeça:
-- `schema_version`: string literal `"kpop-timeline-puzzle-v1"`.
+- `schema_version`: string literal `"kpop-timeline-puzzle-v1"` ou `"kpop-timeline-puzzle-v2"` (o gerador grava v2).
 - `puzzle_id`: identificador canônico SHA-256 derivado dos dados normalizados do quebra-cabeça.
 - `reference_date`: data ISO 8601 da partida diária (`YYYY-MM-DD`).
 - `dataset_version`: hash de versão do catálogo de fatos utilizado na geração.
@@ -64,7 +77,7 @@ Campos obrigatórios do quebra-cabeça:
 - `theme_description`: objeto bilíngue com descrições contextuais em `pt-BR` e `en`.
 - `events`: lista contendo de 4 a 6 itens (padrão diário: 5) dispostos em ordem cronológica estrita, cada um com:
   * `id`: identificador invariante do evento ou QID da entidade associada.
-  * `event_type`: enumeração do tipo de evento (`debut`, `formation`, `member_join`, `disbandment`, `birth`).
+  * `event_type`: enumeração do tipo de evento (`debut`, `formation`, `member_join`, `disbandment`, `birth`; o v2 acrescenta `release`).
   * `date`: string de data ISO 8601 (`YYYY-MM-DD`, `YYYY-MM` ou `YYYY`).
   * `year`: número inteiro representando o ano do evento.
   * `display_date`: rótulos formatados para exibição bilíngue pós-resolução (ex.: `20 de outubro de 2015` e `October 20, 2015`).
