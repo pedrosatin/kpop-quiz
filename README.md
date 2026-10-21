@@ -260,7 +260,7 @@ A geração abre o SQLite somente para leitura e exige seis QIDs aceitos com cla
 
 ## Contrato do Strands
 
-O contrato `kpop-strands-puzzle-v1` fica em `schemas/strands-puzzle-v1.json`, com o validador em `kpop_scraping/strands_schema.py`. O Strands ainda não tem gerador nem página. O jogador procura palavras ligadas a um tema central bilíngue, o campo `theme` em pt-BR e en, numa grade de letras de A a Z. Os temas iniciais previstos são elencos de grupos e décadas.
+O contrato `kpop-strands-puzzle-v1` fica em `schemas/strands-puzzle-v1.json`, com o validador em `kpop_scraping/strands_schema.py`. O Strands tem gerador e ainda não tem página. O jogador procura palavras ligadas a um tema central bilíngue, o campo `theme` em pt-BR e en, numa grade de letras de A a Z. Os temas iniciais previstos são elencos de grupos e décadas.
 
 A grade tem de 9 a 10 linhas e de 9 a 10 colunas, contadas de forma independente; 9×10 e 10×9 também são aceitos. Cada item de `words` traz `cells`, a trilha em ordem de leitura como pares `[linha, coluna]` a partir de zero, com uma célula por letra. O validador exige:
 
@@ -279,6 +279,20 @@ Palavras do tema exigem `id` (QID), `canonical_name` e `evidence` com revisão e
 O spangram declara `spangram_kind`, campo que só ele tem. Com `entity`, o spangram nomeia uma entidade, como o grupo de um tema de elenco. Ele leva então `id`, `canonical_name` e `evidence`, e as duas legendas normalizam para `word`. Com `theme`, o spangram é uma expressão do tema sem afirmação própria, como num tema de década. Os três campos de entidade ficam ausentes e basta uma legenda normalizar para `word`, porque a grade usa uma grafia só para os dois idiomas. As afirmações publicáveis ficam nas palavras do tema.
 
 A unicidade da solução cabe ao gerador; o validador confere apenas a estrutura. O fixture fictício `tests/fixtures/strands_puzzle_valid.json` mostra uma grade 9×9 com seis integrantes e o grupo como spangram `entity`.
+
+### Gerador do Strands
+
+```bash
+python -m kpop_scraping.strands_cli --database data/kpop.db --date 2026-11-01 --verify --output /tmp/strands.json
+# Palavras, descartes com motivo e tamanhos de grade que cada tema consegue cobrir
+python -m kpop_scraping.strands_cli --database data/kpop.db --list-themes
+# Benchmark de fechamento e tempo por tamanho de grade
+python -m kpop_scraping.strands_benchmark --database data/kpop.db
+```
+
+O gerador abre o SQLite somente para leitura e monta uma grade 9×9 por padrão (`--rows` e `--cols` aceitam 9 ou 10). A seed padrão é `kpop-strands-daily-<data>`; a mesma base, seed, data e dimensões produzem o mesmo arquivo, porque o esforço de busca é limitado por contagem de nós. Os temas são elencos de integrantes atuais e antigos documentados por evidência de integração, com o nome do grupo como spangram `entity`, e as décadas de formação 1990, 2000 e 2010, com spangram `theme` em grafia pt-BR. Um tema só entra quando as letras de 5 a 8 palavras mais o spangram somam a área exata da grade e o spangram tem letras para ligar dois lados opostos. Nomes com menos de 3 letras ou com letras fora do alfabeto latino são descartados com motivo.
+
+Antes de publicar, `enumerate_strands_solutions` acha todas as trilhas de cada palavra do tema, com poda por prefixo, e a grade só sai quando existe uma única escolha de trilhas disjuntas para essas palavras. A enumeração tem orçamento determinístico de 100000 nós, compartilhado entre prefixos e combinações de trilhas. Exceder esse orçamento interrompe a geração com `StrandsGenerationError`, sem prova de unicidade. O prazo é verificado durante as buscas e antes da saída; leituras SQLite são verificadas antes e depois da chamada. Palavras fora do tema não entram na prova. `--verify` refaz a prova a partir do JSON. Sem tema viável, sem grade única dentro do orçamento ou ao passar de `--time-limit` (30 s), a CLI sai com código 1 e `StrandsGenerationError`. Na base da medição registrada, só a década de 2010 e o elenco de Girls' Generation cobrem uma grade 9×9. O embaralhamento por seed permite repetir temas em dias consecutivos; números e limites em [Benchmark do gerador Strands](docs/strands-benchmark.md).
 
 ## Cobertura de pares idol/grupo
 
