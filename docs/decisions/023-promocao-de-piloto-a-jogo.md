@@ -111,3 +111,28 @@ Faria os dois pilotos obrigatoriamente iguais aos seis jogos diários e
 diferiria do mapa (que ficou sem stats). Decidido: vale como padrão para
 graduações novas a partir de 2026-10-19; o mapa permanece como está, sem
 obrigação retroativa.
+
+## Emendas
+
+### 2026-10-20: cruzadinha graduada com partida fixa
+
+A cruzadinha foi graduada antes do gerador diário. Os critérios 1 a 6 e 8 a
+11 valem como estão. O critério 7 fica como exceção registrada: não há
+artefato diário, runner nem flag `--require-*`; o jogo serve o tabuleiro fixo
+auditado (`crossword-pilot.json`, `crossword-pilot-v1`). A parte do critério
+que não depende da cadência foi cumprida: o schema versionado está em
+`schemas/crossword-pilot-v1.json`, com o validador Python e o web rodando a
+mesma lista de casos de rejeição. A exceção cai quando a fatia do gerador
+diário publicar o artefato do dia pelo runner.
+
+O critério 6 foi escrito para jogos diários, em que a data identifica a
+rodada. Para uma partida fixa:
+
+- a chave de progresso é a impressão do tabuleiro
+  (`kpop-crossword-<dataset_version>`), não a data;
+- a partida conta uma vez por tabuleiro nas estatísticas, com a data local do
+  dia em que terminou, para não quebrar a sequência geral com a data de
+  referência do artefato;
+- o compartilhamento não traz data nem número do dia.
+
+Detalhes em [Cruzadinha](../crossword-game.md).

@@ -2,7 +2,7 @@
 
 Daily K-pop quiz and puzzle games about groups and artists, in Portuguese and English. Play at <https://kpopquiz.online>.
 
-The site has eight games: a ten-question quiz with assisted, standard, and expert modes, a grid, connections, name guess, word search, timeline, a map, and a group code logic game. New puzzles are published every day. One experimental pilot remains, the crossword, with a fixed example and a direct route outside the daily game menu.
+The site has nine games: a ten-question quiz with assisted, standard, and expert modes, a grid, connections, name guess, word search, timeline, a map, a group code logic game, and a crossword. New puzzles are published every day, except for the crossword, which is still a fixed audited puzzle. No pilot remains outside the game menu.
 
 Every answer comes from Wikipedia and Wikidata. A Python collector queries both APIs, records the consulted revisions in SQLite, and keeps page and entity responses as compressed JSON. Each accepted fact points to a Wikidata reference or a Wikipedia revision excerpt, and the games only use accepted facts.
 
@@ -203,14 +203,19 @@ O relatório contém candidatos, rejeições, classificações `true`/`false`/`n
 
 `python -m kpop_scraping.venn_cli --database data/kpop.db --verify /tmp/venn-report.json --verify-sample /tmp/venn-sample.json --output /tmp/venn-verified.json` recompõe o relatório e verifica todos os dados, masks, evidências e identidade da amostra contra o banco declarado e a data do relatório. As saídas são substituídas atomicamente por arquivo. Esta etapa comprova elegibilidade apenas, sem jogo ou cadência diária.
 
-## Cruzadinha piloto
+## Cruzadinha
 
-A cruzadinha selecionada está em `/pt-br/cruzadinha-piloto/` e
-`/en/crossword-pilot/`, com `noindex` e acesso direto. É uma partida fixa de
-três grupos numa grade conectada de 6×3, sem calendário diário ou estatísticas.
-Use as pistas para selecionar horizontal/vertical, digite por célula (Tab e
-setas), verifique a grade e continue editando até acertar. Encerrar revela os
-nomes canônicos e links para as revisões citadas.
+A cruzadinha fica em `/pt-br/cruzadinha/` e `/en/crossword/`, no menu de
+jogos, no sitemap e com cartões OG. É uma partida fixa de três grupos numa
+grade conectada de 6×3, sem calendário diário. Use as pistas para escolher a
+palavra, digite por célula (Tab e setas), verifique a grade quantas vezes
+quiser ou revele as respostas. O resultado mostra o veredito, o
+compartilhamento e o painel "Ver fonte" com os trechos e as revisões citadas.
+
+As rotas antigas `/pt-br/cruzadinha-piloto/` e `/en/crossword-pilot/`
+respondem `301` no Cloudflare Pages pelo `web/public/_redirects`; no GitHub
+Pages de homologação elas dão 404, como no código de grupos
+([ADR 023](docs/decisions/023-promocao-de-piloto-a-jogo.md)).
 
 O input transforma letras em maiúsculas, remove acentos, espaços e pontuação,
 e conserva dígitos. Apenas a grafia canônica normalizada ocupa a grade. Aliases
@@ -226,17 +231,33 @@ python -m kpop_scraping.crossword_cli --verify web/public/data/crossword-pilot.j
 ```
 
 A CLI abre o SQLite em modo read-only e seleciona apenas o tabuleiro auditado
-BTS / BtoB / SISTAR. Não coleta nem gera novos tabuleiros. O contrato
-`crossword-pilot-v1` declara modo, identidade do piloto, impressão SHA-256 do
-conteúdo selecionado, data de referência, dimensões, entradas, aliases,
-coordenadas, pistas PT/EN, evidências e células. A verificação recalcula essa impressão em JSON canônico compacto e testa as
-invariantes sem consultar o banco. A impressão detecta alterações, sem garantir
-a autenticidade editorial da fonte. `matching_qids` registra o conjunto observado
-pela seleção, e `audited_group_count` informa o tamanho do vocabulário
-comparado. A seleção exclui conflitos abertos e candidatos sem evidência. A saída é
-atômica e não pode apontar para o banco de origem. O validador rejeita
-cruzamentos incompatíveis, grade desconectada,
-células órfãs, colisões de aliases, pistas sem fonte e revisões inconsistentes.
+BTS / BtoB / SISTAR. Não coleta nem gera novos tabuleiros; o gerador diário é
+uma fatia separada. O contrato `crossword-pilot-v1`
+(`schemas/crossword-pilot-v1.json`) declara modo, identidade do piloto,
+impressão SHA-256 do conteúdo selecionado, data de referência, dimensões,
+entradas, aliases, coordenadas, pistas PT/EN, evidências e células, sem campos
+extras. O schema cobre a estrutura; `validate()` em
+`kpop_scraping/crossword_cli.py` e `validateCrosswordPuzzle()` em
+`web/src/data/crossword.ts` aplicam as mesmas regras de domínio e rejeitam a
+mesma lista de casos (`tests/fixtures/crossword_invalid_cases.json`, rodada
+pelos testes Python e Vitest). A verificação recalcula a impressão em JSON
+canônico compacto e testa as invariantes sem consultar o banco. A impressão
+detecta alterações, sem garantir a autenticidade editorial da fonte.
+`matching_qids` registra o conjunto observado pela seleção, e
+`audited_group_count` informa o tamanho do vocabulário comparado. A seleção
+exclui conflitos abertos e candidatos sem evidência. A saída é atômica e não
+pode apontar para o banco de origem. O validador rejeita cruzamentos
+incompatíveis, grade desconectada, células órfãs, colisões de aliases, pistas
+sem fonte e revisões inconsistentes.
+
+Como a partida é fixa, progresso, estatísticas e compartilhamento seguem a
+identidade do tabuleiro, não uma data: o progresso fica no `localStorage` em
+`kpop-crossword-<dataset_version>`, a partida concluída conta uma vez nas
+estatísticas (aba "Cruzadinha" / "Crossword", no dia local em que terminou) e
+o texto compartilhado traz o veredito e um quadrado por palavra, sem data nem
+número do dia, com `utm_campaign=crossword`. Resolver com "Verificar
+respostas" conta como vitória; "Revelar respostas" conta como partida sem
+vitória. Detalhes em [Cruzadinha](docs/crossword-game.md).
 
 Os arquivos publicados incluem respostas, como os demais jogos estáticos.
 Falhas de conteúdo aparecem com opção de tentar novamente, sem fixture de
@@ -286,14 +307,14 @@ A [CLI de cobertura de pares](docs/pairs-coverage.md) verifica listas de integra
 
 ## Pilot browser checks
 
-The pilot suite covers the crossword pilot and the group code game in both languages, light and dark themes, 320, 390 and 1440 pixel viewports, keyboard play, touch submission, 200% text reflow, cited results, and recovery from missing or invalid artifacts. It checks page overflow, 44 pixel controls and automated WCAG A/AA rules with axe-core. Screenshots support manual inspection but do not replace device or screen-reader testing.
+The graduated-pilot suite covers the crossword and the group code game in both languages, light and dark themes, 320, 390 and 1440 pixel viewports, keyboard play, touch submission, 200% text reflow, cited results, and recovery from missing or invalid artifacts. It checks page overflow, 44 pixel controls and automated WCAG A/AA rules with axe-core. Screenshots support manual inspection but do not replace device or screen-reader testing.
 
 ```bash
 cd web
 npm run build
 npm run test:e2e:ci -- --retries=0
 npx playwright install firefox
-npx playwright test code crossword-pilot pilot-visual-a11y --project=firefox --retries=0
+npx playwright test code crossword pilot-visual-a11y --project=firefox --retries=0
 # Save optional screenshots outside the repository.
 PILOT_EVIDENCE_DIR=/tmp/kpop-pilot-screenshots npm run test:e2e:ci -- --grep 'layout and accessible controls|percent text reflow|keyboard completion|feedback, keyboard|unavailable artifact' --retries=0
 ```

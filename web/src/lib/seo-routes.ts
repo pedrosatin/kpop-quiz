@@ -28,7 +28,7 @@ function pair(
   ];
 }
 
-// Exactly the 16 indexable content routes. The `/` canonical alias, `/data/*`,
+// Exactly the 18 indexable content routes. The `/` canonical alias, `/data/*`,
 // staging builds and `?mode`/`?theme` variants stay out of the index.
 export const SEO_ROUTES: readonly SeoRoute[] = [
   ...pair("quiz", "/pt-br/", "/en/"),
@@ -39,6 +39,7 @@ export const SEO_ROUTES: readonly SeoRoute[] = [
   ...pair("mapPilot", "/pt-br/mapa/", "/en/map/"),
   ...pair("timeline", "/pt-br/linha-do-tempo/", "/en/timeline/"),
   ...pair("code", "/pt-br/codigo/", "/en/code/"),
+  ...pair("crossword", "/pt-br/cruzadinha/", "/en/crossword/"),
 ];
 
 export function seoAbsoluteUrl(path: string): string {
@@ -87,6 +88,7 @@ const GAME_NAME_FIELD = {
   mapPilot: "gameMap",
   timeline: "gameTimeline",
   code: "gameCode",
+  crossword: "gameCrossword",
 } as const satisfies Record<SeoRouteKey, keyof Messages>;
 
 /** Name of the game as the navigation shows it. */

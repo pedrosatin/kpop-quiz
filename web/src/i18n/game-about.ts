@@ -5,11 +5,12 @@ import type { Locale } from "../lib/quiz-types";
 // here must match the code: the 15:00 UTC cron in daily-puzzles-cron.yml, the
 // Sao Paulo midnight switch in daily-artifact.ts, the generators under
 // kpop_scraping/ (connections_generator.py, name_guess_generator.py,
-// timeline_generator.py, word_search_generator.py, map_pilot_refresh.py) and
+// timeline_generator.py, word_search_generator.py, map_pilot_refresh.py,
+// crossword_cli.py) and
 // the map refresh workflow. Headings carry the game name, so each route gets
 // its own H2s and most FAQ entries; one generic entry per game stays.
 
-export type GameAboutKey = "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code";
+export type GameAboutKey = "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code" | "crossword";
 
 export interface GameAboutFaq {
   question: string;
@@ -234,6 +235,38 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
           { question: "Preciso criar uma conta?", answer: PT_ACCOUNT },
         ],
       },
+      crossword: {
+        howToPlayHeading: "Como jogar a Cruzadinha de K-pop",
+        dataSourcesHeading: "De onde vêm os dados da Cruzadinha de K-pop",
+        faqHeading: "Perguntas sobre a Cruzadinha de K-pop",
+        howToPlay: [
+          "A grade tem nomes de grupos de K-pop que se cruzam nas letras em comum. Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. A cada letra, o jogo passa para o quadrado seguinte da palavra escolhida. No teclado, Tab troca de quadrado e as setas movem pela grade.",
+          "Escreva o nome sem espaços, pontuação ou acentos e mantenha os números: um dígito do nome ocupa um quadrado. Uma letra escrita num cruzamento vale para as duas palavras, então acertar uma palavra ajuda a preencher a outra.",
+          "Use Verificar respostas quantas vezes quiser. Enquanto houver quadrado vazio ou errado, a grade continua aberta para edição; quando todos estão certos, a partida termina como resolvida. Revelar respostas termina a partida na hora e mostra os nomes. No fim, Ver fonte lista cada pista com o trecho citado e o link da revisão da Wikipédia.",
+        ],
+        dataSources: [
+          "As pistas saem de fatos aceitos no banco do projeto, como o ano de formação, a gravadora e os integrantes de cada grupo. Cada fato tem evidência numa revisão da Wikipédia, com o identificador da página, o número da revisão e a posição do trecho citado. Antes de publicar, a seleção compara cada pista com todos os grupos do catálogo coletado e recusa a pista que sirva para mais de um grupo. Essa prova vale para o catálogo coletado, não para todos os grupos de K-pop que existem.",
+          "A cruzadinha é uma partida fixa, revisada à mão: os mesmos grupos e as mesmas pistas para todos os jogadores, sem troca diária. Antes de mostrar a grade, o navegador recalcula a impressão SHA-256 do arquivo e confere cruzamentos, numeração e fontes. Os textos da Wikipédia seguem a licença CC BY-SA 4.0 e os dados do Wikidata são CC0.",
+        ],
+        faq: [
+          {
+            question: "A cruzadinha muda todo dia?",
+            answer:
+              "Ainda não. Por enquanto a cruzadinha é uma partida fixa, revisada à mão, e a grade é a mesma em todas as visitas. O progresso fica salvo neste navegador, e a partida concluída entra uma única vez nas suas estatísticas.",
+          },
+          {
+            question: "Por que a grade aceita só um jeito de escrever o nome?",
+            answer:
+              "A grade usa a grafia principal do grupo no catálogo, em maiúsculas e sem espaços, pontuação ou acentos. Apelidos e outras grafias não entram na grade, mas a seleção confere que nenhum apelido de um grupo coincide com o nome de outro.",
+          },
+          {
+            question: "O que conta como vitória nas estatísticas?",
+            answer:
+              "Resolver a grade com Verificar respostas conta como vitória. Revelar respostas conta como partida jogada, sem vitória. Jogar de novo depois do fim não muda as estatísticas.",
+          },
+          { question: "O jogo é grátis?", answer: PT_FREE },
+        ],
+      },
     },
   },
   en: {
@@ -422,6 +455,38 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
               "Yes. The sequence changes at midnight São Paulo time and is the same for every player that day, so shared results can be compared. If the day's file is not generated, the page says so and the code stays unavailable until the next day.",
           },
           { question: "Do I need an account?", answer: EN_ACCOUNT },
+        ],
+      },
+      crossword: {
+        howToPlayHeading: "How to play the K-pop Crossword",
+        dataSourcesHeading: "Where the K-pop Crossword data comes from",
+        faqHeading: "K-pop Crossword FAQ",
+        howToPlay: [
+          "The grid holds K-pop group names that cross at shared letters. Tap or click a clue to pick its word, then type the group's name. After each letter the game moves to the next square of the chosen word. With a keyboard, Tab switches squares and the arrow keys move around the grid.",
+          "Type the name without spaces, punctuation or accents, and keep any digits: a digit in the name takes one square. A letter typed where two words cross counts for both, so solving one word helps you fill the other.",
+          "Check your answers as often as you like. While any square is empty or wrong, the grid stays open for editing; once every square is right, the round ends as solved. Reveal answers ends the round at once and shows the names. At the end, Show source lists each clue with the quoted passage and a link to the Wikipedia revision.",
+        ],
+        dataSources: [
+          "The clues come from accepted facts in the project database, such as each group's formation year, record label and members. Every fact has evidence in a Wikipedia revision, with the page ID, the revision number and the position of the quoted passage. Before publishing, the selection compares each clue with every group in the collected catalog and rejects a clue that fits more than one group. That check covers the collected catalog, not every K-pop group in existence.",
+          "The crossword is a fixed puzzle, reviewed by hand: the same groups and the same clues for every player, with no daily change. Before showing the grid, the browser recomputes the file's SHA-256 fingerprint and checks crossings, numbering and sources. Wikipedia text is licensed CC BY-SA 4.0 and Wikidata data is CC0.",
+        ],
+        faq: [
+          {
+            question: "Does the crossword change every day?",
+            answer:
+              "Not yet. For now the crossword is a fixed puzzle reviewed by hand, and the grid is the same on every visit. Your progress is saved in this browser, and a finished round counts once in your stats.",
+          },
+          {
+            question: "Why does the grid accept only one spelling?",
+            answer:
+              "The grid uses the group's main spelling in the catalog, in capitals and without spaces, punctuation or accents. Aliases and other spellings stay out of the grid, but the selection checks that no group's alias matches another group's name.",
+          },
+          {
+            question: "What counts as a win in the stats?",
+            answer:
+              "Solving the grid with Check answers counts as a win. Reveal answers counts as a played round without a win. Playing again after the end does not change your stats.",
+          },
+          { question: "Is it free?", answer: EN_FREE },
         ],
       },
     },

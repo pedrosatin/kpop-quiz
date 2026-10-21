@@ -252,3 +252,20 @@ Objetivo: transformar o piloto `noindex` do código de grupos em jogo completo, 
 - unit tests do componente em `web/src` e e2e atualizados.
 
 Aceite: unit tests, build, `seo:verify` e `csp:verify` passando; as rotas novas aparecem no menu, no sitemap e nos resumos de LLM; detalhes em [Jogo de código de grupos](code-groups-game.md).
+
+## Graduação da Cruzadinha concluída (partida fixa)
+
+Estado: implementada no código ([ADR 023](decisions/023-promocao-de-piloto-a-jogo.md), com a emenda da cruzadinha).
+
+Objetivo: tirar a cruzadinha do piloto `noindex` e colocá-la no padrão dos jogos do site, mantendo o tabuleiro fixo auditado até existir o gerador diário.
+
+- rotas finais `/pt-br/cruzadinha/` e `/en/crossword/` com `BaseLayout` e `301` das rotas `-piloto` pelo `web/public/_redirects`;
+- textos no `catalog.ts` e no `game-about.ts`, menu, sitemap, resumos `llms/`, cartões OG, GameAbout/FAQ e skipLinks;
+- GA4 com consentimento e deduplicação por partida e visita;
+- progresso no `localStorage` pela impressão do tabuleiro, estatísticas contadas uma vez por tabuleiro e compartilhamento sem data;
+- schema `schemas/crossword-pilot-v1.json`, com o validador Python e o web rodando a mesma lista de casos de rejeição;
+- unit tests do componente em `web/src` e e2e nas rotas novas.
+
+Fica para a próxima fatia: o gerador diário por data, a publicação no runner e a política de falha.
+
+Aceite: unit tests, build, `seo:verify` e `csp:verify` passando; detalhes em [Cruzadinha](crossword-game.md).

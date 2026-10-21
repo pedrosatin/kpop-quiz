@@ -17,6 +17,7 @@ const EXPECTED_PATHS = [
   "/pt-br/mapa/",
   "/pt-br/linha-do-tempo/",
   "/pt-br/codigo/",
+  "/pt-br/cruzadinha/",
   "/en/",
   "/en/grid/",
   "/en/connections/",
@@ -25,6 +26,7 @@ const EXPECTED_PATHS = [
   "/en/map/",
   "/en/timeline/",
   "/en/code/",
+  "/en/crossword/",
 ];
 
 const EXPECTED_LLMS = [
@@ -36,6 +38,7 @@ const EXPECTED_LLMS = [
   "pt-br-mapa.md",
   "pt-br-linha-do-tempo.md",
   "pt-br-codigo.md",
+  "pt-br-cruzadinha.md",
   "en-quiz.md",
   "en-grid.md",
   "en-connections.md",
@@ -44,6 +47,7 @@ const EXPECTED_LLMS = [
   "en-map.md",
   "en-timeline.md",
   "en-code.md",
+  "en-crossword.md",
 ];
 
 // Game routes carry static text under the island (GameAbout.astro). Google

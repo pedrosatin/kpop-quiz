@@ -26,6 +26,9 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 - Código de Grupos / Group Code:
   https://kpopquiz.online/pt-br/codigo/ ·
   https://kpopquiz.online/en/code/
+- Cruzadinha / Crossword:
+  https://kpopquiz.online/pt-br/cruzadinha/ ·
+  https://kpopquiz.online/en/crossword/
 
 ## Resumos por rota (Markdown)
 
@@ -37,6 +40,7 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 - llms/pt-br-mapa.md
 - llms/pt-br-linha-do-tempo.md
 - llms/pt-br-codigo.md
+- llms/pt-br-cruzadinha.md
 - llms/en-quiz.md
 - llms/en-grid.md
 - llms/en-connections.md
@@ -45,6 +49,7 @@ português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 - llms/en-map.md
 - llms/en-timeline.md
 - llms/en-code.md
+- llms/en-crossword.md
 
 ## Proveniência e licença
 

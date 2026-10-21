@@ -67,7 +67,7 @@ const NAME_GUESS_AREAS = [
   ".name-guess-options",
 ];
 
-const SHEETS = ["components.css", "games/connections.css", "games/grid.css", "games/name-guess.css"];
+const SHEETS = ["components.css", "games/connections.css", "games/grid.css", "games/name-guess.css", "games/crossword.css"];
 const read = (sheet: string) => readFileSync(join(STYLES, sheet), "utf-8");
 
 describe("board and side panel layout", () => {

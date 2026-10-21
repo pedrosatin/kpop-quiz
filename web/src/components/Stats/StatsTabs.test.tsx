@@ -7,11 +7,11 @@ describe("StatsTabs component", () => {
     cleanup();
   });
 
-  it("renders all 8 tabs correctly", () => {
+  it("renders all 9 tabs correctly", () => {
     render(<StatsTabs activeTab="overall" onSelect={vi.fn()} locale="en" />);
 
     const tabs = screen.getAllByRole("tab");
-    expect(tabs).toHaveLength(8);
+    expect(tabs).toHaveLength(9);
 
     const expectedLabels = [
       "Overall",
@@ -22,6 +22,7 @@ describe("StatsTabs component", () => {
       "Word search",
       "Timeline",
       "Code",
+      "Crossword",
     ];
 
     expectedLabels.forEach((label, index) => {

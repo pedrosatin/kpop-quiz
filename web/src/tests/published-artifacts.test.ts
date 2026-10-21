@@ -13,7 +13,9 @@ import {
   verifyCodeGroupsIdentity,
   type CodeGroupsPuzzle,
 } from "../data/code-groups";
+import { validateCrosswordPuzzle } from "../data/crossword";
 import publishedConnections from "../../public/data/connections.daily.json";
+import publishedCrossword from "../../public/data/crossword-pilot.json";
 import publishedCodePilot from "../../public/data/code-groups.pilot.json";
 import publishedNameGuess from "../../public/data/name-guess.daily.json";
 import publishedWordSearch from "../../public/data/word-search.daily.json";
@@ -25,6 +27,10 @@ import publishedManifest from "../../public/data/manifest-v2.json";
 describe("published daily artifacts", () => {
   it("publishes a schema-compliant connections puzzle", () => {
     expect(isConnectionsPuzzle(publishedConnections)).toBe(true);
+  });
+
+  it("publishes the audited crossword board", async () => {
+    await expect(validateCrosswordPuzzle(structuredClone(publishedCrossword))).resolves.toBeTruthy();
   });
 
   it("publishes a schema-compliant group code pilot artifact", () => {

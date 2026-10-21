@@ -62,6 +62,12 @@ const sampleStats: PlayerStats = {
       currentStreak: 0,
       maxStreak: 0,
     },
+    crossword: {
+      played: 0,
+      won: 0,
+      currentStreak: 0,
+      maxStreak: 0,
+    },
   },
 };
 

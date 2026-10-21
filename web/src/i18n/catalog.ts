@@ -1,7 +1,7 @@
 import type { Locale, PlayMode } from "../lib/quiz-types";
 import { gameAbout, type GameAboutMessages } from "./game-about";
 
-export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code";
+export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code" | "crossword";
 
 export type SkipLinkKey = SeoRouteKey | "privacy" | "notFound";
 
@@ -281,6 +281,10 @@ export interface Messages {
   codeEyebrow: string;
   codeIntro: string;
   codeHowToPlay: string[];
+  crosswordTitle: string;
+  crosswordEyebrow: string;
+  crosswordIntro: string;
+  crosswordHowToPlay: string[];
   wordSearch: WordSearchMessages;
   gameNavLabel: string;
   gameQuiz: string;
@@ -291,6 +295,7 @@ export interface Messages {
   gameMap: string;
   gameTimeline: string;
   gameCode: string;
+  gameCrossword: string;
   codeSequenceNote: string;
   codeAttemptsLeft: string;
   codeYourGuess: string;
@@ -313,6 +318,24 @@ export interface Messages {
   codeShareAttemptsLine: (attempts: number) => string;
   /** The daily artifact follows a partial publish: the day may ship without it. */
   codeArtifactMissing: string;
+  crosswordBoardLabel: string;
+  crosswordCluesHeading: string;
+  crosswordAcross: string;
+  crosswordDown: string;
+  /** Clue button text: number, direction, clue and answer length. */
+  crosswordClue: (number: number, direction: string, clue: string, length: number) => string;
+  /** Accessible name of a square: 1-based row and column, then its clues. */
+  crosswordCellLabel: (row: number, col: number, clues: string) => string;
+  crosswordCheck: string;
+  crosswordReveal: string;
+  crosswordHint: string;
+  crosswordWrong: string;
+  crosswordResultWon: string;
+  crosswordResultRevealed: string;
+  crosswordSummaryWon: (checks: number) => string;
+  crosswordSummaryRevealed: (correct: number, total: number) => string;
+  crosswordSourceClue: string;
+  crosswordArtifactMissing: string;
   statsTitle: string;
   statsNavLabel: string;
   statsOpenButton: string;
@@ -369,6 +392,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "Código de grupos de K-pop: jogo de lógica",
         description: "Descubra a sequência de 4 grupos de K-pop do dia em até 10 tentativas, com contagens de exatos e deslocados e fontes no Wikidata. Grátis.",
       },
+      crossword: {
+        title: "Cruzadinha de K-pop: grupos com pistas e fontes",
+        description: "Jogue uma cruzadinha de K-pop: descubra grupos por pistas de formação, gravadora e integrantes. Cada pista cita uma revisão da Wikipédia.",
+      },
     },
     about: gameAbout["pt-BR"],
     skipLinks: {
@@ -380,6 +407,7 @@ const catalogs: Record<Locale, Messages> = {
       mapPilot: "Pular para o jogo de mapa",
       timeline: "Pular para a linha do tempo",
       code: "Pular para o jogo de código",
+      crossword: "Pular para a cruzadinha",
       privacy: "Pular para a política de privacidade",
       notFound: "Pular para o conteúdo",
     },
@@ -398,6 +426,7 @@ const catalogs: Record<Locale, Messages> = {
         mapPilot: { title: "Mapa da turnê BLACKPINK", description: "Encontre os países de 10 datas da turnê DEADLINE no mapa. Confira a agenda oficial nas fontes de cada resposta." },
         timeline: { title: "Linha do tempo do K-pop", description: "Coloque acontecimentos do K-pop em ordem cronológica. Depois de conferir a ordem, veja as datas e fontes dos fatos." },
         code: { title: "Código de grupos de K-pop", description: "Descubra uma sequência de 4 grupos entre 6 símbolos do catálogo em até 10 tentativas, com contagens de posições exatas e deslocadas." },
+        crossword: { title: "Cruzadinha de K-pop", description: "Preencha a grade com nomes de grupos a partir de pistas sobre formação, gravadora e integrantes. Cada pista tem fonte na Wikipédia." },
       },
       quizTitle: "Como funciona o quiz de 10 perguntas",
       quizBody: "Escolha uma alternativa por pergunta e confirme a resposta. Após responder, confira a explicação e a fonte, mesmo quando errar. Ao terminar, veja sua pontuação e revise as respostas.",
@@ -475,6 +504,11 @@ const catalogs: Record<Locale, Messages> = {
       "O código do dia é uma sequência de 4 grupos distintos, escolhidos entre os 6 símbolos do tabuleiro. Escolha um grupo para cada posição e envie o palpite.",
       "Você tem 10 tentativas. Depois de cada uma, o jogo mostra quantos grupos estão na posição exata e quantos pertencem ao código, mas estão em outra posição. Os números não indicam quais posições você acertou.",
       "Clique ou toque na opção de uma posição para trocar o grupo. No teclado, use as setas. O resultado do fim mostra o código e as fontes de cada grupo.",
+    ],
+    crosswordHowToPlay: [
+      "Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. Deixe de fora espaços, pontuação e acentos e mantenha os números.",
+      "No teclado, use Tab para trocar de quadrado e as setas para mover pela grade. Uma letra num cruzamento vale para as duas palavras.",
+      "Verifique as respostas quantas vezes quiser. Para parar, encerre a partida e veja as respostas e as fontes de cada pista.",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
@@ -690,6 +724,26 @@ const catalogs: Record<Locale, Messages> = {
     codeShareLost: "Código não descoberto nas 10 tentativas.",
     codeShareAttemptsLine: (attempts) => `Tentativas: ${attempts}`,
     codeArtifactMissing: "O código de hoje ainda não foi publicado. Tente mais tarde.",
+    crosswordTitle: "Cruzadinha de K-pop",
+    crosswordEyebrow: "Partida fixa · pistas com fonte",
+    crosswordIntro: "Use as pistas para escrever os nomes dos grupos na grade.",
+    crosswordBoardLabel: "Grade da cruzadinha",
+    crosswordCluesHeading: "Pistas",
+    crosswordAcross: "Horizontal",
+    crosswordDown: "Vertical",
+    crosswordClue: (number, direction, clue, length) => `${number} ${direction}: ${clue} (${length})`,
+    crosswordCellLabel: (row, col, clues) => `Linha ${row}, coluna ${col}. ${clues}`,
+    crosswordCheck: "Verificar respostas",
+    crosswordReveal: "Revelar respostas",
+    crosswordHint: "Escolha uma pista e digite o nome.",
+    crosswordWrong: "Algumas respostas estão incompletas ou incorretas. Você pode continuar.",
+    crosswordResultWon: "Cruzadinha concluída!",
+    crosswordResultRevealed: "Respostas reveladas",
+    crosswordSummaryWon: (checks) =>
+      checks === 1 ? "Resolvida na primeira verificação." : `Resolvida em ${checks} verificações.`,
+    crosswordSummaryRevealed: (correct, total) => `${correct} de ${total} palavras certas antes de encerrar.`,
+    crosswordSourceClue: "Pista:",
+    crosswordArtifactMissing: "A cruzadinha não está disponível agora. Tente mais tarde.",
     timelineTitle: "Linha do Tempo do K-pop",
     timelineEyebrow: "Desafio diário",
     timelineIntro: "Ordene os acontecimentos do K-pop do mais antigo para o mais recente.",
@@ -734,6 +788,7 @@ const catalogs: Record<Locale, Messages> = {
     gameMap: "Mapa",
     gameTimeline: "Linha do Tempo",
     gameCode: "Código",
+    gameCrossword: "Cruzadinha",
     statsTitle: "Suas estatísticas",
     statsNavLabel: "Estatísticas",
     statsOpenButton: "Ver estatísticas e sequência",
@@ -788,6 +843,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "K-pop Group Code: daily logic game",
         description: "Find today's sequence of 4 K-pop groups in up to 10 guesses, with exact and misplaced counts and sources on Wikidata. Free, no account.",
       },
+      crossword: {
+        title: "K-pop Crossword: group names from cited clues",
+        description: "Play a K-pop crossword: find groups from clues about formation year, record label and members. Every clue cites a Wikipedia revision.",
+      },
     },
     about: gameAbout.en,
     skipLinks: {
@@ -799,6 +858,7 @@ const catalogs: Record<Locale, Messages> = {
       mapPilot: "Skip to the map game",
       timeline: "Skip to the timeline game",
       code: "Skip to the code game",
+      crossword: "Skip to the crossword",
       privacy: "Skip to the privacy policy",
       notFound: "Skip to content",
     },
@@ -816,6 +876,7 @@ const catalogs: Record<Locale, Messages> = {
         mapPilot: { title: "BLACKPINK tour map", description: "Locate the countries for 10 dates on BLACKPINK's DEADLINE tour. Check the official schedule in the sources for each answer." },
         timeline: { title: "K-pop Timeline", description: "Put K-pop events in chronological order. After checking your order, see the dates and sources behind the facts." },
         code: { title: "K-pop Group Code", description: "Find a sequence of 4 groups among 6 catalog symbols in up to 10 guesses, with exact and misplaced position counts." },
+        crossword: { title: "K-pop Crossword", description: "Fill the grid with group names from clues about formation year, record label and members. Every clue has a Wikipedia source." },
       },
       quizTitle: "How the 10-question quiz works",
       quizBody: "Pick an option for each question and submit your answer. Then read the explanation and source, even if you got it wrong. At the end, see your score and review your answers.",
@@ -893,6 +954,11 @@ const catalogs: Record<Locale, Messages> = {
       "The daily code is a sequence of 4 distinct groups chosen from the board's 6 symbols. Pick a group for each position and submit your guess.",
       "You have 10 guesses. After each one, the game shows how many groups are in the exact position and how many belong to the code but sit elsewhere. The counts do not tell you which positions you got right.",
       "Click or tap a position's option to change its group. With a keyboard, use the arrow keys. The final result reveals the code and the source of each group.",
+    ],
+    crosswordHowToPlay: [
+      "Tap or click a clue to pick its word, then type the group's name. Leave out spaces, punctuation and accents, but keep numbers.",
+      "With a keyboard, use Tab to switch squares and the arrow keys to move around the grid. A letter where two words cross counts for both.",
+      "Check your answers as often as you like. To stop, finish the round and see the answers and the source of each clue.",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",
@@ -1107,6 +1173,25 @@ const catalogs: Record<Locale, Messages> = {
     codeShareLost: "Code not found in 10 attempts.",
     codeShareAttemptsLine: (attempts) => `Attempts: ${attempts}`,
     codeArtifactMissing: "Today's code has not been published yet. Try again later.",
+    crosswordTitle: "K-pop Crossword",
+    crosswordEyebrow: "Fixed puzzle · cited clues",
+    crosswordIntro: "Use the clues to write the group names in the grid.",
+    crosswordBoardLabel: "Crossword grid",
+    crosswordCluesHeading: "Clues",
+    crosswordAcross: "Across",
+    crosswordDown: "Down",
+    crosswordClue: (number, direction, clue, length) => `${number} ${direction}: ${clue} (${length})`,
+    crosswordCellLabel: (row, col, clues) => `Row ${row}, column ${col}. ${clues}`,
+    crosswordCheck: "Check answers",
+    crosswordReveal: "Reveal answers",
+    crosswordHint: "Pick a clue and type the name.",
+    crosswordWrong: "Some answers are incomplete or incorrect. You can keep editing.",
+    crosswordResultWon: "Crossword completed!",
+    crosswordResultRevealed: "Answers revealed",
+    crosswordSummaryWon: (checks) => (checks === 1 ? "Solved on the first check." : `Solved in ${checks} checks.`),
+    crosswordSummaryRevealed: (correct, total) => `${correct} of ${total} words right before finishing.`,
+    crosswordSourceClue: "Clue:",
+    crosswordArtifactMissing: "The crossword is not available right now. Try again later.",
     timelineTitle: "K-pop Timeline",
     timelineEyebrow: "Daily challenge",
     timelineIntro: "Order the K-pop events from earliest to latest.",
@@ -1151,6 +1236,7 @@ const catalogs: Record<Locale, Messages> = {
     gameMap: "Map",
     gameTimeline: "Timeline",
     gameCode: "Code",
+    gameCrossword: "Crossword",
     statsTitle: "Your stats",
     statsNavLabel: "Stats",
     statsOpenButton: "See stats and streak",
