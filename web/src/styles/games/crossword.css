@@ -230,6 +230,10 @@
 }
 
 @media (max-width: 30rem) {
+  body:has(.consent-banner) .crossword-actions {
+    position: static;
+  }
+
   .crossword-controls,
   .crossword-result-buttons {
     flex: 1 1 100%;

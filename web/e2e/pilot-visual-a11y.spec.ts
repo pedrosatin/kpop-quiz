@@ -25,12 +25,22 @@ async function serveCodeArtifact(page: Page) {
 async function audit(page: Page) {
   await page.addScriptTag({ content: axeScript });
   const violations = await page.evaluate(async () => {
-    const engine = (window as unknown as { axe: { run(root: Document, options: unknown): Promise<{ violations: { id: string; impact: string; nodes: unknown[] }[] }> } }).axe;
+    const engine = (window as unknown as { axe: { run(root: Document, options: unknown): Promise<{ violations: { id: string; impact: string; nodes: { target: string[] }[] }[] }> } }).axe;
     const result = await engine.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] } });
-    return result.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.length }));
+    return result.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => n.target) }));
   });
   expect(violations).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+}
+
+async function rejectMobileCrosswordConsent(page: Page) {
+  const banner = page.locator(".consent-banner");
+  if (await banner.count() === 0) return;
+  await expect(banner).toBeVisible();
+  await expect(page.locator(".crossword-actions")).toHaveCSS("position", "static");
+  await banner.getByRole("button", { name: /^(Recusar|Reject) Google Analytics$/ }).click();
+  await expect(banner).toHaveCount(0);
+  await expect(page.locator(".crossword-actions")).toHaveCSS("position", "sticky");
 }
 
 async function capture(page: Page, name: string) {
@@ -69,6 +79,7 @@ for (const game of games) for (const locale of ["pt", "en"] as const)
         // grid as the player sees it after scrolling to it.
         if (game.id === "crossword") await page.locator(".crossword-board").evaluate(e => e.scrollIntoView({ block: "start" }));
         await audit(page);
+        if (game.id === "crossword" && viewport.width <= 390) await rejectMobileCrosswordConsent(page);
         await page.getByText(locale === "pt" ? "Como jogar" : "How to play", { exact: true }).click();
         expect(errors).toEqual([]);
       });
@@ -87,6 +98,7 @@ for (const game of games) test(`${game.id}: 200 percent text reflow and keyboard
     const check = page.getByRole("button", { name: "Check answers", exact: true });
     await check.scrollIntoViewIfNeeded();
     await expect(check).toBeInViewport();
+    await rejectMobileCrosswordConsent(page);
     await expect(page.locator(".crossword-actions")).toHaveCSS("position", "sticky");
   }
   await capture(page, `${game.id}-text-200-percent`);
@@ -110,6 +122,7 @@ test("crossword: keyboard completion announces and focuses cited results", async
   await page.getByRole("button", { name: "Verificar respostas", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: "Cruzadinha concluída!" })).toBeFocused();
+  await rejectMobileCrosswordConsent(page);
   await expect(page.locator(".crossword-actions")).toHaveCSS("position", "sticky");
   await page.getByRole("button", { name: "Ver fonte" }).click();
   await expect(page.locator(".crossword-actions")).toHaveCSS("position", "static");
