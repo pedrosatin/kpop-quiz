@@ -54,12 +54,25 @@
     },
     "words": {
       "type": "array",
-      "description": "Six to nine entries, spangram included.",
+      "description": "Six to nine entries, spangram included. Exactly one entry has is_spangram true.",
       "minItems": 6,
       "maxItems": 9,
       "items": {
         "$ref": "#/$defs/word_entry"
-      }
+      },
+      "contains": {
+        "type": "object",
+        "required": [
+          "is_spangram"
+        ],
+        "properties": {
+          "is_spangram": {
+            "const": true
+          }
+        }
+      },
+      "minContains": 1,
+      "maxContains": 1
     }
   },
   "$defs": {
@@ -198,41 +211,40 @@
           "items": {
             "$ref": "#/$defs/evidence"
           }
+        },
+        "spangram_kind": {
+          "enum": [
+            "entity",
+            "theme"
+          ],
+          "description": "Spangram only. entity: names a cited entity and carries id, canonical_name and evidence. theme: a theme expression without those fields."
         }
       },
       "allOf": [
         {
-          "description": "id, canonical_name and evidence appear together or not at all.",
+          "description": "Spangram declares its kind.",
           "if": {
-            "anyOf": [
-              {
-                "required": [
-                  "id"
-                ]
-              },
-              {
-                "required": [
-                  "canonical_name"
-                ]
-              },
-              {
-                "required": [
-                  "evidence"
-                ]
+            "required": [
+              "is_spangram"
+            ],
+            "properties": {
+              "is_spangram": {
+                "const": true
               }
-            ]
+            }
           },
           "then": {
             "required": [
-              "id",
-              "canonical_name",
-              "evidence"
+              "spangram_kind"
             ]
           }
         },
         {
-          "description": "Theme words always name a cited entity.",
+          "description": "Theme words name a cited entity and have no spangram_kind.",
           "if": {
+            "required": [
+              "is_spangram"
+            ],
             "properties": {
               "is_spangram": {
                 "const": false
@@ -244,7 +256,66 @@
               "id",
               "canonical_name",
               "evidence"
+            ],
+            "not": {
+              "required": [
+                "spangram_kind"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Entity spangram carries id, canonical_name and evidence.",
+          "if": {
+            "required": [
+              "spangram_kind"
+            ],
+            "properties": {
+              "spangram_kind": {
+                "const": "entity"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "id",
+              "canonical_name",
+              "evidence"
             ]
+          }
+        },
+        {
+          "description": "Theme spangram carries none of id, canonical_name and evidence.",
+          "if": {
+            "required": [
+              "spangram_kind"
+            ],
+            "properties": {
+              "spangram_kind": {
+                "const": "theme"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "id"
+                  ]
+                },
+                {
+                  "required": [
+                    "canonical_name"
+                  ]
+                },
+                {
+                  "required": [
+                    "evidence"
+                  ]
+                }
+              ]
+            }
           }
         }
       ]

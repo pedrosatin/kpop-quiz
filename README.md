@@ -258,21 +258,25 @@ A geração abre o SQLite somente para leitura e exige seis QIDs aceitos com cla
 
 ## Contrato do Strands
 
-O Strands, oitavo jogo, ainda não tem gerador nem página. Esta fatia publica o contrato `kpop-strands-puzzle-v1` em `schemas/strands-puzzle-v1.json` e o validador `kpop_scraping/strands_schema.py`. O jogador procura palavras ligadas a um tema central bilíngue (`theme`, pt-BR e en) numa grade de letras A–Z. Os temas iniciais previstos são elencos de grupos e décadas.
+O contrato `kpop-strands-puzzle-v1` fica em `schemas/strands-puzzle-v1.json`, com o validador em `kpop_scraping/strands_schema.py`. O Strands ainda não tem gerador nem página. O jogador procura palavras ligadas a um tema central bilíngue, o campo `theme` em pt-BR e en, numa grade de letras de A a Z. Os temas iniciais previstos são elencos de grupos e décadas.
 
 A grade tem de 9 a 10 linhas e de 9 a 10 colunas, contadas de forma independente; 9×10 e 10×9 também são aceitos. Cada item de `words` traz `cells`, a trilha em ordem de leitura como pares `[linha, coluna]` a partir de zero, com uma célula por letra. O validador exige:
 
 - passos entre os 8 vizinhos de uma célula, sem repetir célula na mesma palavra nem entre palavras;
 - cobertura total: cada célula da grade pertence a exatamente uma palavra;
-- nenhum passo diagonal cruza outro em X dentro do mesmo quadrado 2×2, na mesma palavra ou entre palavras, para que as trilhas desenhadas fiquem legíveis;
+- nenhum passo diagonal cruza outro em X dentro do mesmo quadrado 2×2, na mesma palavra ou entre palavras;
 - letras da grade ao longo de `cells` iguais a `word`;
 - de 6 a 9 palavras, contando o spangram;
 - exatamente uma palavra com `is_spangram: true`, cuja trilha toca a primeira e a última linha ou a primeira e a última coluna;
 - `puzzle_id` igual ao SHA-256 do JSON canônico sem o próprio `puzzle_id`.
 
-Palavras do tema exigem `id` (QID), `canonical_name` e `evidence` com revisão e URL https, e as duas legendas de `labels` precisam normalizar para `word`. O spangram pode nomear uma entidade, como o grupo de um tema de elenco, e então leva os mesmos três campos. Também pode ser uma expressão do tema sem afirmação própria, caso de um tema de década; nesse caso os três campos ficam ausentes, e basta que uma das legendas normalize para `word`, porque a grade usa uma grafia só para os dois idiomas. As afirmações publicáveis ficam nas palavras do tema.
+A regra do cruzamento em X mantém as trilhas legíveis quando a interface as desenha. Relaxar a regra depois não invalida artefatos publicados.
 
-A unicidade da solução fica a cargo do gerador da próxima fatia; o validador confere apenas a estrutura. O fixture fictício `tests/fixtures/strands_puzzle_valid.json` mostra uma grade 9×9 com seis integrantes e o grupo como spangram.
+Palavras do tema exigem `id` (QID), `canonical_name` e `evidence` com revisão e URL https. As duas legendas de `labels` precisam normalizar para `word`.
+
+O spangram declara `spangram_kind`, campo que só ele tem. Com `entity`, o spangram nomeia uma entidade, como o grupo de um tema de elenco. Ele leva então `id`, `canonical_name` e `evidence`, e as duas legendas normalizam para `word`. Com `theme`, o spangram é uma expressão do tema sem afirmação própria, como num tema de década. Os três campos de entidade ficam ausentes e basta uma legenda normalizar para `word`, porque a grade usa uma grafia só para os dois idiomas. As afirmações publicáveis ficam nas palavras do tema.
+
+A unicidade da solução cabe ao gerador; o validador confere apenas a estrutura. O fixture fictício `tests/fixtures/strands_puzzle_valid.json` mostra uma grade 9×9 com seis integrantes e o grupo como spangram `entity`.
 
 ## Cobertura de pares idol/grupo
 

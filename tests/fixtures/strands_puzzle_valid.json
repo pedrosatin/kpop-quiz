@@ -1,6 +1,6 @@
 {
   "schema_version": "kpop-strands-puzzle-v1",
-  "puzzle_id": "5fb55ffb5de1057617aca06021dc97ee6ecfd9975afa98071d37a67d3073fe8c",
+  "puzzle_id": "f82eb97dccdb1dfc48b7c76b3c13d7266be797252ccc47faacdd0e064f6b36b8",
   "dataset_version": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
   "reference_date": "2026-10-20",
   "theme": {
@@ -172,7 +172,8 @@
           "source_key": "fixture",
           "source_url": "https://example.org/strands-fixture"
         }
-      ]
+      ],
+      "spangram_kind": "entity"
     },
     {
       "word": "ALPHAMOONLIT",

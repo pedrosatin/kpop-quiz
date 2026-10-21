@@ -50,7 +50,8 @@ EVIDENCE_FIELDS = frozenset(
 
 WORD_COMMON_REQUIRED_FIELDS = frozenset({"word", "labels", "is_spangram", "cells"})
 WORD_ENTITY_FIELDS = frozenset({"id", "canonical_name", "evidence"})
-WORD_ALL_FIELDS = WORD_COMMON_REQUIRED_FIELDS | WORD_ENTITY_FIELDS
+WORD_ALL_FIELDS = WORD_COMMON_REQUIRED_FIELDS | WORD_ENTITY_FIELDS | {"spangram_kind"}
+SPANGRAM_KINDS = frozenset({"entity", "theme"})
 
 _HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _QID_PATTERN = re.compile(r"^Q[1-9][0-9]*$")
@@ -276,25 +277,43 @@ def _validate_word_entry(
 
     _require_bilingual_text(word_obj["labels"], f"{context}.labels")
     normalized = {lang: normalize_word(word_obj["labels"][lang]) for lang in ("pt-BR", "en")}
+    entity_keys = keys & WORD_ENTITY_FIELDS
     if is_spangram:
+        kind = word_obj.get("spangram_kind")
         _require(
-            word in normalized.values(),
-            f"{context}.labels must normalize to '{word}' in at least one locale",
+            kind in SPANGRAM_KINDS,
+            f"{context}.spangram_kind must be 'entity' or 'theme' on the spangram",
         )
+        if kind == "entity":
+            _require(
+                entity_keys == WORD_ENTITY_FIELDS,
+                f"{context} entity spangram requires id, canonical_name and evidence",
+            )
+            for lang, value in normalized.items():
+                _require(
+                    value == word,
+                    f"{context}.labels.{lang} normalizes to '{value}', which does not "
+                    f"match word '{word}' of an entity spangram",
+                )
+        else:
+            _require(
+                not entity_keys,
+                f"{context} theme spangram cannot carry id, canonical_name or evidence",
+            )
+            _require(
+                word in normalized.values(),
+                f"{context}.labels must normalize to '{word}' in at least one locale",
+            )
     else:
+        _require(
+            "spangram_kind" not in keys,
+            f"{context}.spangram_kind is only allowed on the spangram",
+        )
         for lang, value in normalized.items():
             _require(
                 value == word,
                 f"{context}.labels.{lang} normalizes to '{value}', which does not match word '{word}'",
             )
-
-    entity_keys = keys & WORD_ENTITY_FIELDS
-    if is_spangram:
-        _require(
-            entity_keys in (frozenset(), WORD_ENTITY_FIELDS),
-            f"{context} spangram must carry id, canonical_name and evidence together or none of them",
-        )
-    else:
         _require(
             entity_keys == WORD_ENTITY_FIELDS,
             f"{context} theme word requires id, canonical_name and evidence",
@@ -378,7 +397,7 @@ def validate_strands_puzzle(payload: dict[str, Any]) -> None:
     crossing = find_crossing(paths)
     _require(
         crossing is None,
-        f"diagonal step {[list(c) for c in crossing] if crossing else None} crosses another path",
+        f"diagonal step {[list(c) for c in crossing] if crossing else None} crosses another diagonal step",
     )
 
     for idx, path in enumerate(paths):
