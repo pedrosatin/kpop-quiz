@@ -35,6 +35,7 @@ from .strands_generator import (
     PlacementStats,
     StrandsGenerationError,
     StrandsWord,
+    UniquenessBudgetExceeded,
     assess_theme,
     build_strands_themes,
     choose_word_subset,
@@ -69,23 +70,28 @@ def _word_list(pool: list[str], rows: int, cols: int, count: int, rng: random.Ra
 
 def benchmark_solver(pool: list[str], sizes, counts, samples: int, seed: str) -> list[str]:
     lines = [
-        "| Grade | Palavras | Listas | Fechadas | Tentativas com layout | ms/tentativa | s/grade fechada (mediana / máx.) | Layouts ambíguos |",
-        "|---|---|---|---|---|---|---|---|",
+        "| Grade | Palavras | Listas | Fechadas | Tentativas com layout | ms/tentativa | s/grade fechada (mediana / máx.) | Layouts ambíguos | Listas com unicidade não provada |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for rows, cols in sizes:
         for count in counts:
             rng = random.Random(f"{seed}-{rows}x{cols}-{count}")
             lists = [wl for wl in (_word_list(pool, rows, cols, count, rng) for _ in range(samples)) if wl]
             if not lists:
-                lines.append(f"| {rows}×{cols} | {count} | 0 | — | — | — | — | — |")
+                lines.append(f"| {rows}×{cols} | {count} | 0 | — | — | — | — | — | — |")
                 continue
             closed, attempts, layouts, orientations, ambiguous = 0, 0, 0, 0, 0
             elapsed_total = 0.0
+            unproved = 0
             closed_times: list[float] = []
             for words in lists:
                 stats = PlacementStats()
                 started = time.perf_counter()
-                solved = solve_strands_grid(words, rows, cols, random.Random(" ".join(words)), stats=stats)
+                try:
+                    solved = solve_strands_grid(words, rows, cols, random.Random(" ".join(words)), stats=stats)
+                except UniquenessBudgetExceeded:
+                    unproved += 1
+                    solved = None
                 elapsed = time.perf_counter() - started
                 elapsed_total += elapsed
                 attempts += stats.attempts
@@ -103,7 +109,7 @@ def benchmark_solver(pool: list[str], sizes, counts, samples: int, seed: str) ->
             lines.append(
                 f"| {rows}×{cols} | {count} | {len(lists)} | {closed} ({100 * closed / len(lists):.0f}%) "
                 f"| {layouts}/{attempts} ({100 * layouts / attempts:.0f}%) | {per_attempt:.0f} "
-                f"| {times} | {ambiguous}/{orientations} |"
+                f"| {times} | {ambiguous}/{orientations} | {unproved} |"
             )
     return lines
 

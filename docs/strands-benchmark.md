@@ -6,7 +6,7 @@ Medição histórica de 2026-10-21 que orientou a grade padrão do gerador em 9�
 python -m kpop_scraping.strands_benchmark --database data/kpop.db --samples 10 --theme-seeds 5
 ```
 
-A medição usou os limites padrão da época: 60 tentativas de layout por lista de palavras, 4000 nós de busca por tentativa, 6 orientações de letras por layout e 30 s de tempo total.
+A medição usou os limites padrão da época: 60 tentativas de layout por lista de palavras, 4000 nós de busca por tentativa e 6 orientações de letras por layout. A etapa com listas sintéticas chama o solver sem deadline. A geração de temas reais usou prazo de 30 s por execução.
 
 Os números abaixo não foram reexecutados após a correção dos limites de busca. O gerador agora limita também a prova de unicidade a 100000 nós por enumeração, compartilhados entre prefixos e combinações de trilhas, e verifica o prazo durante as buscas e antes de devolver o artefato. Exceder esse orçamento interrompe a geração com falha explícita, sem conclusão sobre unicidade. O prazo é cooperativo: operações externas, como leituras SQLite, são verificadas antes e depois, sem cancelamento durante a chamada.
 
@@ -41,6 +41,8 @@ Cada descarte fica registrado com motivo em `python -m kpop_scraping.strands_cli
 ## Solver com listas sintéticas de 6 a 9 palavras
 
 Listas sintéticas sorteadas a partir dos 408 nomes reais normalizados da base, incluindo integrantes, grupos e spangrams, com letras somando a área da grade. Cada lista pode misturar temas e mede apenas o solver, sem demonstrar diversidade de temas publicáveis. "Listas" conta as amostras encontradas pela busca limitada: zero significa que ela não encontrou uma lista, sem provar inexistência. Os percentuais de fechamento valem somente para as amostras medidas.
+
+O relatório atual em Markdown acrescenta a coluna "Listas com unicidade não provada", que conta amostras interrompidas por `UniquenessBudgetExceeded`. O benchmark continua nas demais amostras e inclui o tempo e as tentativas já consumidos no cálculo de ms/tentativa. A interrupção não soma ambiguidade nem grade fechada; ambiguidades já comprovadas na amostra permanecem na contagem. Outras exceções propagam. O comando não emite JSON. A tabela histórica abaixo permanece sem a nova coluna, pois a medição não foi repetida e não produziu essa contagem.
 
 | Grade | Palavras | Listas | Fechadas | Tentativas com layout | ms/tentativa | s/grade fechada (mediana / máx.) | Layouts ambíguos |
 |---|---|---|---|---|---|---|---|
@@ -87,6 +89,8 @@ Girls' Generation soma 71 letras nos oito nomes de integrantes normalizados e 15
 A CLI gerou e verificou (schema e unicidade) os dias 2026-11-01 a 2026-11-12 com a seed diária padrão: 12 de 12 puzzles válidos, de 1,1 s a 3,8 s por dia, incluindo a carga da base.
 
 ## Decisão
+
+O operador decidiu concluir o gerador e adiar a estreia até ampliar os temas disponíveis. Essa decisão preserva o contrato, o pipeline e a aplicação web.
 
 A grade padrão fica em 9×9. É o único tamanho do contrato em que um elenco cabe, fechou todas as listas sintéticas amostradas de 7 a 9 palavras e os dois temas reais nas cinco sementes medidas de cada um. Em 10×10 a década de 2010 não fechou em nenhuma das 5 sementes, porque precisa de 85 letras em 8 palavras e quase só sobram nomes de 9 e 10 letras.
 
