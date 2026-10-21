@@ -120,8 +120,134 @@ function invalid(): never {
   throw new CrosswordArtifactError("invalid");
 }
 
+/** Throws CrosswordArtifactError("invalid") unless the condition holds. */
+function ensure(condition: unknown): asserts condition {
+  if (!condition) invalid();
+}
+
 function isSide(value: unknown): value is number {
   return Number.isInteger(value) && (value as number) >= 1 && (value as number) <= CROSSWORD_MAX_SIDE;
+}
+
+function isText(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+function isRealDate(value: string): boolean {
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+/** Root fields, identity, date and checksum. */
+async function checkIdentity(value: unknown): Promise<CrosswordPuzzle> {
+  ensure(hasKeys(value, CROSSWORD_ROOT_KEYS));
+  const p = value as unknown as CrosswordPuzzle;
+  ensure(p.schema_version === CROSSWORD_SCHEMA_VERSION && p.mode === CROSSWORD_MODE && p.puzzle_id === CROSSWORD_PUZZLE_ID);
+  ensure(typeof p.dataset_version === "string" && /^[a-f0-9]{64}$/.test(p.dataset_version));
+  ensure(typeof p.reference_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.reference_date));
+  ensure(isRealDate(p.reference_date));
+  ensure((await crosswordChecksum(p)) === p.dataset_version);
+  return p;
+}
+
+/** Board bounds, entry count, audited count and the list shapes. */
+function checkBoardShape(p: CrosswordPuzzle): void {
+  ensure(isSide(p.rows) && isSide(p.cols));
+  ensure(Array.isArray(p.entries));
+  ensure(p.entries.length >= CROSSWORD_MIN_ENTRIES && p.entries.length <= CROSSWORD_MAX_ENTRIES);
+  ensure(Number.isInteger(p.audited_group_count) && p.audited_group_count >= p.entries.length);
+  ensure(Array.isArray(p.cells) && Array.isArray(p.vocabulary));
+  ensure(p.cells.every((c) => hasKeys(c, CROSSWORD_CELL_KEYS)));
+}
+
+/** Field set, identity, answer, direction, coordinates and clues of one entry. */
+function checkEntryFields(e: CrosswordEntry, ids: Set<string>): string {
+  ensure(hasKeys(e, CROSSWORD_ENTRY_KEYS) && hasKeys(e.clue, ["pt-BR", "en"]));
+  ensure(Array.isArray(e.aliases) && Array.isArray(e.sources) && Array.isArray(e.matching_qids));
+  ensure(typeof e.qid === "string" && /^Q[1-9][0-9]*$/.test(e.qid) && !ids.has(e.qid));
+  ensure(typeof e.canonical_name === "string");
+  const word = normalizeCrosswordText(e.canonical_name);
+  ensure(word && word === e.answer);
+  ensure(e.direction === "across" || e.direction === "down");
+  ensure(Number.isInteger(e.row) && Number.isInteger(e.col));
+  ensure((["pt-BR", "en"] as const).every((l) => typeof e.clue[l] === "string" && e.clue[l].trim()));
+  return word;
+}
+
+/** No normalized name or alias may point at two groups. */
+function checkAliases(e: CrosswordEntry, names: Map<string, string>): void {
+  for (const name of [e.canonical_name, ...e.aliases]) {
+    ensure(typeof name === "string");
+    const alias = normalizeCrosswordText(name);
+    ensure(!alias || !names.has(alias) || names.get(alias) === e.qid);
+    names.set(alias, e.qid);
+  }
+}
+
+/** A cited Wikipedia revision whose URL matches its locator, with a non-empty span. */
+function checkSource(source: CrosswordSource, qid: string): void {
+  ensure(hasKeys(source, CROSSWORD_SOURCE_KEYS));
+  ensure(isText(source.predicate) && isText(source.value) && isText(source.snippet));
+  const url = typeof source.url === "string" ? source.url.match(WIKIPEDIA_URL) : null;
+  const locator = typeof source.locator === "string" ? source.locator.match(WIKIPEDIA_LOCATOR) : null;
+  ensure(url && locator);
+  ensure(url.slice(1, 4).join(":") === locator.slice(1, 4).join(":"));
+  ensure(Number(locator[4]) < Number(locator[5]));
+  ensure(typeof source.statement_id === "string" && source.statement_id.startsWith(`${qid}$`));
+}
+
+interface Placement {
+  expected: Map<string, string>;
+  owners: Map<string, CrosswordEntry[]>;
+}
+
+/** Places the letters of an entry, rejecting squares off the board and bad crossings. */
+function placeEntry(p: CrosswordPuzzle, e: CrosswordEntry, word: string, { expected, owners }: Placement): void {
+  for (let i = 0; i < word.length; i++) {
+    const key = entryCellKey(e, i);
+    const [r, c] = key.split(":").map(Number) as [number, number];
+    ensure(r >= 0 && r < p.rows && c >= 0 && c < p.cols);
+    const others = owners.get(key) ?? [];
+    ensure(!expected.has(key) || (expected.get(key) === word[i] && others.every((o) => o.direction !== e.direction)));
+    expected.set(key, word[i]!);
+    owners.set(key, [...others, e]);
+  }
+}
+
+function compareKeys(a: string, b: string): number {
+  const [ar, ac] = a.split(":").map(Number) as [number, number];
+  const [br, bc] = b.split(":").map(Number) as [number, number];
+  return ar - br || ac - bc;
+}
+
+/** Numbers follow the reading order of the distinct start squares. */
+function checkNumbering(p: CrosswordPuzzle): void {
+  const starts = [...new Set(p.entries.map((e) => cellKey(e.row, e.col)))].sort(compareKeys);
+  ensure(p.entries.every((e) => e.number === starts.indexOf(cellKey(e.row, e.col)) + 1));
+}
+
+/** Every entry is reachable from the first through shared squares. */
+function checkConnected(p: CrosswordPuzzle, owners: Map<string, CrosswordEntry[]>, ids: Set<string>): void {
+  const reached = new Set([p.entries[0]!.qid]);
+  for (const _ of p.entries) {
+    for (const group of owners.values()) {
+      if (group.some((e) => reached.has(e.qid))) group.forEach((e) => reached.add(e.qid));
+    }
+  }
+  ensure(reached.size === ids.size);
+}
+
+/** Vocabulary, unique clues and the cell list match what the entries imply. */
+function checkDerivedLists(p: CrosswordPuzzle, expected: Map<string, string>, ids: Set<string>): void {
+  ensure(JSON.stringify([...ids].sort()) === JSON.stringify(p.vocabulary));
+  ensure(p.entries.every((e) => e.matching_qids.length === 1 && e.matching_qids[0] === e.qid));
+  const derived = [...expected.entries()]
+    .sort(([a], [b]) => compareKeys(a, b))
+    .map(([key, answer]) => {
+      const [row, col] = key.split(":").map(Number) as [number, number];
+      return { row, col, answer };
+    });
+  ensure(JSON.stringify(derived) === JSON.stringify(p.cells.map(({ row, col, answer }) => ({ row, col, answer }))));
 }
 
 /**
@@ -131,85 +257,22 @@ function isSide(value: unknown): value is number {
  * the cell list derived from the entries. Throws CrosswordArtifactError.
  */
 export async function validateCrosswordPuzzle(value: unknown): Promise<CrosswordPuzzle> {
-  if (!hasKeys(value, CROSSWORD_ROOT_KEYS)) invalid();
-  const p = value as unknown as CrosswordPuzzle;
-  if (p.schema_version !== CROSSWORD_SCHEMA_VERSION || p.mode !== CROSSWORD_MODE || p.puzzle_id !== CROSSWORD_PUZZLE_ID) invalid();
-  if (typeof p.dataset_version !== "string" || !/^[a-f0-9]{64}$/.test(p.dataset_version)) invalid();
-  if (typeof p.reference_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(p.reference_date)) invalid();
-  const parsedDate = new Date(`${p.reference_date}T00:00:00Z`);
-  if (!Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== p.reference_date) invalid();
-  if ((await crosswordChecksum(p)) !== p.dataset_version) invalid();
-  if (!isSide(p.rows) || !isSide(p.cols)) invalid();
-  if (!Array.isArray(p.entries) || p.entries.length < CROSSWORD_MIN_ENTRIES || p.entries.length > CROSSWORD_MAX_ENTRIES) invalid();
-  if (!Number.isInteger(p.audited_group_count) || p.audited_group_count < p.entries.length) invalid();
-  if (!Array.isArray(p.cells) || !Array.isArray(p.vocabulary)) invalid();
-  if (!p.cells.every((c) => hasKeys(c, CROSSWORD_CELL_KEYS))) invalid();
-
-  const expected = new Map<string, string>();
-  const owners = new Map<string, CrosswordEntry[]>();
+  const p = await checkIdentity(value);
+  checkBoardShape(p);
+  const placement: Placement = { expected: new Map(), owners: new Map() };
   const names = new Map<string, string>();
   const ids = new Set<string>();
   for (const e of p.entries) {
-    if (!hasKeys(e, CROSSWORD_ENTRY_KEYS) || !hasKeys(e.clue, ["pt-BR", "en"])) invalid();
-    if (!Array.isArray(e.aliases) || !Array.isArray(e.sources) || !Array.isArray(e.matching_qids)) invalid();
-    if (typeof e.qid !== "string" || !/^Q[1-9][0-9]*$/.test(e.qid) || ids.has(e.qid)) invalid();
+    const word = checkEntryFields(e, ids);
     ids.add(e.qid);
-    if (typeof e.canonical_name !== "string") invalid();
-    const word = normalizeCrosswordText(e.canonical_name);
-    if (!word || word !== e.answer) invalid();
-    if (e.direction !== "across" && e.direction !== "down") invalid();
-    if (!Number.isInteger(e.row) || !Number.isInteger(e.col)) invalid();
-    for (const name of [e.canonical_name, ...e.aliases]) {
-      if (typeof name !== "string") invalid();
-      const alias = normalizeCrosswordText(name);
-      if (alias && names.has(alias) && names.get(alias) !== e.qid) invalid();
-      names.set(alias, e.qid);
-    }
-    if (!(["pt-BR", "en"] as const).every((l) => typeof e.clue[l] === "string" && e.clue[l].trim())) invalid();
-    if (!e.sources.length) invalid();
-    for (const source of e.sources) {
-      if (!hasKeys(source, CROSSWORD_SOURCE_KEYS)) invalid();
-      if (![source.predicate, source.value].every((s) => typeof s === "string" && s)) invalid();
-      const url = typeof source.url === "string" ? source.url.match(WIKIPEDIA_URL) : null;
-      const locator = typeof source.locator === "string" ? source.locator.match(WIKIPEDIA_LOCATOR) : null;
-      if (!url || !locator || url.slice(1, 4).join(":") !== locator.slice(1, 4).join(":")) invalid();
-      if (Number(locator[4]) >= Number(locator[5])) invalid();
-      if (typeof source.snippet !== "string" || !source.snippet) invalid();
-      if (typeof source.statement_id !== "string" || !source.statement_id.startsWith(`${e.qid}$`)) invalid();
-    }
-    for (let i = 0; i < word.length; i++) {
-      const key = entryCellKey(e, i);
-      const [r, c] = key.split(":").map(Number) as [number, number];
-      if (r < 0 || r >= p.rows || c < 0 || c >= p.cols) invalid();
-      if (expected.has(key) && (expected.get(key) !== word[i] || owners.get(key)!.some((o) => o.direction === e.direction))) invalid();
-      expected.set(key, word[i]!);
-      owners.set(key, [...(owners.get(key) ?? []), e]);
-    }
+    checkAliases(e, names);
+    ensure(e.sources.length > 0);
+    for (const source of e.sources) checkSource(source, e.qid);
+    placeEntry(p, e, word, placement);
   }
-
-  const starts = [...new Set(p.entries.map((e) => cellKey(e.row, e.col)))].sort((a, b) => {
-    const [ar, ac] = a.split(":").map(Number) as [number, number];
-    const [br, bc] = b.split(":").map(Number) as [number, number];
-    return ar - br || ac - bc;
-  });
-  if (p.entries.some((e) => e.number !== starts.indexOf(cellKey(e.row, e.col)) + 1)) invalid();
-
-  const reached = new Set([p.entries[0]!.qid]);
-  for (const _ of p.entries) {
-    for (const group of owners.values()) {
-      if (group.some((e) => reached.has(e.qid))) group.forEach((e) => reached.add(e.qid));
-    }
-  }
-  if (reached.size !== ids.size) invalid();
-  if (JSON.stringify([...ids].sort()) !== JSON.stringify(p.vocabulary)) invalid();
-  if (p.entries.some((e) => e.matching_qids.length !== 1 || e.matching_qids[0] !== e.qid)) invalid();
-  const derived = [...expected.entries()]
-    .map(([key, answer]) => {
-      const [row, col] = key.split(":").map(Number) as [number, number];
-      return { row, col, answer };
-    })
-    .sort((a, b) => a.row - b.row || a.col - b.col);
-  if (JSON.stringify(derived) !== JSON.stringify(p.cells.map(({ row, col, answer }) => ({ row, col, answer })))) invalid();
+  checkNumbering(p);
+  checkConnected(p, placement.owners, ids);
+  checkDerivedLists(p, placement.expected, ids);
   return p;
 }
 

@@ -1,15 +1,12 @@
+import type { JSX } from "preact";
 import { useRef, useState } from "preact/hooks";
-import {
-  cellKey,
-  entryCellKey,
-  entryCellKeys,
-  normalizeCrosswordText,
-  type CrosswordEntry,
-  type CrosswordPuzzle,
-} from "../../data/crossword";
+import { entryCellKey, type CrosswordPuzzle } from "../../data/crossword";
 import type { Messages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import type { CrosswordStatus } from "./crossword-save";
+import { CrosswordClues, clueText } from "./CrosswordClues";
+import { CrosswordGrid, type CrosswordInputs } from "./CrosswordGrid";
 import { CrosswordResult } from "./CrosswordResult";
 import { useCrosswordGame } from "./useCrosswordGame";
 
@@ -19,18 +16,36 @@ export interface CrosswordGameContentProps {
   messages: Messages;
 }
 
-const ARROWS: Record<string, [number, number]> = {
-  ArrowUp: [-1, 0],
-  ArrowDown: [1, 0],
-  ArrowLeft: [0, -1],
-  ArrowRight: [0, 1],
-};
+export type ShareNote = { kind: "copied" | "shareFailed"; n: number } | null;
+
+/**
+ * The live message of the action bar and its tint: the share outcome after
+ * the end, the verdict of a wrong check, or the instructions. A new key
+ * replaces the paragraph, so the same message is announced again.
+ */
+export function barMessage(
+  status: CrosswordStatus,
+  wrongCheck: number,
+  shareNote: ShareNote,
+  messages: Messages,
+): { message: JSX.Element | null; barState: string } {
+  if (status !== "playing") {
+    const barState = status === "won" ? " is-correct" : "";
+    if (!shareNote) return { message: null, barState };
+    const text = shareNote.kind === "copied" ? messages.copiedToClipboard : messages.shareFailed;
+    return { message: <p key={shareNote.n}>{text}</p>, barState };
+  }
+  if (wrongCheck > 0) {
+    return { message: <p key={wrongCheck} class="game-actions-title">{messages.crosswordWrong}</p>, barState: " is-incorrect" };
+  }
+  return { message: <p class="game-actions-hint">{messages.crosswordHint}</p>, barState: "" };
+}
 
 export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGameContentProps) {
-  const { values, status, finished, checks, correctWords, wrongCheck, setLetters, check, reveal, restart } =
-    useCrosswordGame(puzzle, locale);
+  const game = useCrosswordGame(puzzle, locale);
+  const { values, status, finished } = game;
   const [active, setActive] = useState(0);
-  const inputs = useRef<Record<string, HTMLInputElement | null>>({});
+  const inputs = useRef<CrosswordInputs>({});
 
   // Only a round finished in this visit moves focus to the result; a round
   // restored from storage leaves focus where the page put it.
@@ -38,44 +53,21 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
   const resultTitle = useRef<HTMLHeadingElement>(null);
   useFocusOnChange(resultTitle, finished && playedHere.current);
 
-  // n changes on every share, so the same message is announced again.
-  const [shareNote, setShareNote] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
+  const [shareNote, setShareNote] = useState<ShareNote>(null);
   const shares = useRef(0);
 
-  const direction = (entry: CrosswordEntry) => (entry.direction === "across" ? messages.crosswordAcross : messages.crosswordDown);
-  const clueText = (entry: CrosswordEntry) =>
-    messages.crosswordClue(entry.number, direction(entry), entry.clue[locale], entry.answer.length);
   const selected = puzzle.entries[active] ?? puzzle.entries[0]!;
-  const selectedCells = entryCellKeys(selected);
-
   const select = (index: number) => {
     const input = inputs.current[entryCellKey(puzzle.entries[index]!, 0)];
     input?.focus();
     input?.select();
     setActive(index);
   };
-
-  const onCheck = () => {
+  const endHere = (action: () => void) => () => {
     playedHere.current = true;
-    check();
+    action();
   };
-  const onReveal = () => {
-    playedHere.current = true;
-    reveal();
-  };
-
-  let message = null;
-  let barState = "";
-  if (finished) {
-    if (shareNote?.kind === "copied") message = <p key={shareNote.n}>{messages.copiedToClipboard}</p>;
-    else if (shareNote?.kind === "shareFailed") message = <p key={shareNote.n}>{messages.shareFailed}</p>;
-    if (status === "won") barState = " is-correct";
-  } else if (wrongCheck > 0) {
-    message = <p key={wrongCheck} class="game-actions-title">{messages.crosswordWrong}</p>;
-    barState = " is-incorrect";
-  } else {
-    message = <p class="game-actions-hint">{messages.crosswordHint}</p>;
-  }
+  const { message, barState } = barMessage(status, game.wrongCheck, shareNote, messages);
 
   return (
     <section
@@ -88,102 +80,29 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
       <div class="game-layout">
         <div class="crossword-board">
           <p class="crossword-active-clue" data-testid="crossword-active-clue">
-            {finished ? messages.crosswordBoardLabel : clueText(selected)}
+            {finished ? messages.crosswordBoardLabel : clueText(puzzle, puzzle.entries.indexOf(selected), locale, messages)}
           </p>
-          <div
-            class="crossword-grid"
-            role="group"
-            aria-label={messages.crosswordBoardLabel}
-            style={{ "--crossword-rows": String(puzzle.rows), "--crossword-cols": String(puzzle.cols) }}
-          >
-            {Array.from({ length: puzzle.rows * puzzle.cols }, (_, index) => {
-              const r = Math.floor(index / puzzle.cols);
-              const c = index % puzzle.cols;
-              const k = cellKey(r, c);
-              const cell = puzzle.cells.find((x) => x.row === r && x.col === c);
-              if (!cell) return <span key={k} class="crossword-block" aria-hidden="true" />;
-              const start = puzzle.entries.find((e) => e.row === r && e.col === c);
-              const clues = puzzle.entries.filter((e) => entryCellKeys(e).includes(k));
-              const highlighted = !finished && selectedCells.includes(k);
-              return (
-                <label key={k} class={`crossword-cell${highlighted ? " selected" : ""}`}>
-                  {start && <span aria-hidden="true">{start.number}</span>}
-                  <input
-                    ref={(el) => {
-                      inputs.current[k] = el;
-                    }}
-                    aria-label={messages.crosswordCellLabel(
-                      r + 1,
-                      c + 1,
-                      clues.map((e) => `${e.number} ${direction(e)}`).join("; "),
-                    )}
-                    value={finished ? cell.answer : values[k] ?? ""}
-                    disabled={finished}
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    spellcheck={false}
-                    inputMode="text"
-                    onFocus={(event) => {
-                      event.currentTarget.select();
-                      if (!clues.includes(selected)) setActive(puzzle.entries.indexOf(clues[0]!));
-                    }}
-                    onInput={(event) => {
-                      const input = event.currentTarget;
-                      const letters = normalizeCrosswordText(input.value);
-                      const offset = selectedCells.indexOf(k);
-                      const updates: Record<string, string> = {};
-                      for (let i = 0; i < Math.max(1, letters.length) && offset + i < selectedCells.length; i++) {
-                        updates[selectedCells[offset + i]!] = letters[i] ?? "";
-                      }
-                      // Keep the controlled value in step even when the state does not change.
-                      input.value = updates[k] ?? "";
-                      setLetters(updates);
-                      if (letters) {
-                        inputs.current[selectedCells[Math.min(offset + letters.length, selectedCells.length - 1)]!]?.focus();
-                      }
-                    }}
-                    onKeyDown={(event) => {
-                      const delta = ARROWS[event.key];
-                      if (!delta) return;
-                      event.preventDefault();
-                      const [dr, dc] = delta;
-                      for (let step = 1; step < Math.max(puzzle.rows, puzzle.cols); step++) {
-                        const rr = r + dr * step;
-                        const cc = c + dc * step;
-                        if (rr < 0 || rr >= puzzle.rows || cc < 0 || cc >= puzzle.cols) break;
-                        const next = inputs.current[cellKey(rr, cc)];
-                        if (next) {
-                          next.focus();
-                          break;
-                        }
-                      }
-                    }}
-                  />
-                </label>
-              );
-            })}
-          </div>
+          <CrosswordGrid
+            puzzle={puzzle}
+            messages={messages}
+            values={values}
+            finished={finished}
+            selected={selected}
+            inputs={inputs}
+            onSelectEntry={setActive}
+            onLetters={game.setLetters}
+          />
         </div>
 
         <div class="game-layout-side">
-          <div class="crossword-clues-panel">
-            <h2 class="crossword-clues-title">{messages.crosswordCluesHeading}</h2>
-            <ol class="crossword-clues">
-              {puzzle.entries.map((entry, index) => (
-                <li key={entry.qid}>
-                  <button
-                    class="btn btn-secondary"
-                    type="button"
-                    aria-pressed={!finished && active === index}
-                    onClick={() => select(index)}
-                    disabled={finished}
-                  >
-                    {clueText(entry)}
-                  </button>
-                </li>
-              ))}
-            </ol>
-          </div>
+          <CrosswordClues
+            puzzle={puzzle}
+            locale={locale}
+            messages={messages}
+            active={active}
+            finished={finished}
+            onSelect={select}
+          />
 
           {/* The verdict and the controls while playing, the result at the
               end; the grid above never moves. */}
@@ -205,23 +124,23 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
                 messages={messages}
                 values={values}
                 status={status}
-                checks={checks}
-                correctWords={correctWords}
+                checks={game.checks}
+                correctWords={game.correctWords}
                 titleRef={resultTitle}
                 onRestart={() => {
                   setShareNote(null);
                   setActive(0);
-                  restart();
+                  game.restart();
                 }}
                 onCopied={() => setShareNote({ kind: "copied", n: ++shares.current })}
                 onShareFailed={() => setShareNote({ kind: "shareFailed", n: ++shares.current })}
               />
             ) : (
               <div class="crossword-controls">
-                <button type="button" class="btn btn-primary" onClick={onCheck}>
+                <button type="button" class="btn btn-primary" onClick={endHere(game.check)}>
                   {messages.crosswordCheck}
                 </button>
-                <button type="button" class="btn btn-secondary" onClick={onReveal}>
+                <button type="button" class="btn btn-secondary" onClick={endHere(game.reveal)}>
                   {messages.crosswordReveal}
                 </button>
               </div>
