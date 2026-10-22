@@ -11,7 +11,7 @@ from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
 
-EVIDENCE_RULES_VERSION = "text-evidence-v5"
+EVIDENCE_RULES_VERSION = "text-evidence-v6"
 MIN_NAME_LENGTH = 4
 MAX_SNIPPET_LENGTH = 300
 MONTHS = (
@@ -108,6 +108,20 @@ _PERFORMER_TRIGGER = re.compile(r"\b(?:by|por)\s+", _I)
 _RELEASE_DATE_TRIGGER = re.compile(
     r"\b(?:was\s+)?released(?:\s+worldwide)?\s+(?:on|in)\s+"
     r"|\b(?:foi\s+)?lançad[oa]\s+em\s+",
+    _I,
+)
+# A bounded proper-name list, not arbitrary text between "released" and a date.
+_RELEASE_LABEL_WORD = r"[A-ZÀ-ÖØ-Þ0-9][\w’'&.-]{0,39}"
+_RELEASE_LABEL = rf"{_RELEASE_LABEL_WORD}(?:\s+{_RELEASE_LABEL_WORD}){{0,5}}"
+_RELEASE_LABEL_LIST = (
+    rf"{_RELEASE_LABEL}(?:(?:,\s+(?:and\s+)?|\s+(?:and|&)\s+)"
+    rf"{_RELEASE_LABEL}){{0,3}}"
+)
+_RELEASE_BY_SCOPE = re.compile(
+    r"\b(?:digital\w*|physical\w*|vinyl|CD|DVD|cassette|edition\w*|"
+    r"territor\w*|Japan|Korea|(?-i:US|UK)|exclusiv\w*|only|in|for|reissu\w*|re-?releas\w*|"
+    r"remaster\w*|announc\w*|schedul\w*|plan\w*|delay\w*|postpon\w*|"
+    r"will|would|upcoming|future|expected|was|were|released|premier\w*|debut\w*|teaser|pre-?order\w*)\b",
     _I,
 )
 _PERFORMER_DESCRIPTION = re.compile(
@@ -466,6 +480,11 @@ def release_date_evidence(
                 return _text_evidence(
                     page, start + match.start("date"), start + match.end("date")
                 )
+        match = _release_by_date(sentence, page.language, value, date)
+        if match and _release_by_subject(page, subject_names, start):
+            return _text_evidence(
+                page, start + match.start("date"), start + match.end("date")
+            )
         for trigger in _RELEASE_DATE_TRIGGER.finditer(sentence):
             tail = sentence[trigger.end() : trigger.end() + 80]
             if re.search(
@@ -489,6 +508,48 @@ def release_date_evidence(
                     page, start + match.start("date"), start + match.end("date")
                 )
     return None
+
+
+def _release_by_subject(
+    page: WikipediaPage, subject_names: Sequence[str], start: int,
+) -> bool:
+    """Keep "It" anchored to a named release across descriptive sentences."""
+    for begin, end in reversed(_sentences(page.extract[:start])):
+        previous = page.extract[begin:end]
+        if (
+            _leading_subject(previous, subject_names)
+            and not _leading_subject(previous, ())
+        ):
+            return bool(re.search(rf"\b{_RELEASE_NOUN}\b", previous, _I))
+        if not re.match(r"^\s*It is (?:the |an? )?[^.;]*\brelease\b", previous):
+            return False
+    return False
+
+
+def _release_by_date(
+    sentence: str, language: str, value: TimeValue, date: str,
+) -> re.Match[str] | None:
+    """Recognize only a completed, unscoped English release with label names."""
+    if language != "en" or value.precision != PRECISION_DAY:
+        return None
+    match = re.match(
+        rf"^\s*It was released by (?P<labels>{_RELEASE_LABEL_LIST}) "
+        rf"on (?P<date>{date})(?P<suffix>[^\n]{{0,220}})$",
+        sentence,
+    )
+    if match is None or len(match.group("labels")) > 120:
+        return None
+    suffix = match.group("suffix")
+    # Descriptive continuations in release leads keep the same subject. Other
+    # clauses (including another event or a new subject) are not this syntax.
+    if not re.fullmatch(
+        r"(?:\.|\s*|, and (?:contains |serves as |distributed by )[^;.!?]{1,200}\.?)",
+        suffix,
+    ):
+        return None
+    if _RELEASE_BY_SCOPE.search(match.group("labels") + " " + suffix):
+        return None
+    return match
 
 
 def _performer_list_item(
