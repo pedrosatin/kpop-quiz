@@ -224,6 +224,81 @@ class ReleaseFactTest(unittest.TestCase):
                 ):
                     self.assertIsNone(release_date_evidence(page, other, names))
 
+    def test_released_by_rejects_subject_changes_in_antecedents(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        antecedents = (
+            "Alpha is an album. Alpha includes a single called Beta.",
+            "Alpha is an album. It is the music video for the release.",
+            "Alpha includes a single called Beta.",
+            "Alpha is the music video for an album.",
+            "Alpha is an album with a single called Beta.",
+            "Alpha is an album by Group One, which includes a single called Beta.",
+            "Alpha is an album. It is a single from the release.",
+            "Alpha is an album. It is the first music video for the release.",
+            "Alpha is an album. Beta is a song.",
+            "In Japan, Alpha is an album.",
+            "In physical editions, Alpha is an album.",
+            "In the planned release, Alpha is an album.",
+        )
+        for antecedent in antecedents:
+            with self.subTest(antecedent=antecedent):
+                page = WikipediaPage(
+                    1, "en", 1, 10,
+                    antecedent + " It was released by Label One on January 2, 2020.",
+                    "Alpha",
+                )
+                self.assertIsNone(release_date_evidence(page, value, ("Alpha",)))
+
+    def test_released_by_rejects_scopes_of_subject_in_antecedents(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        descriptions = (
+            "a reissue of the album Beta",
+            "a physical edition of an album",
+            "an album released only in Japan",
+            "a digital album",
+            "a vinyl edition of an album",
+            "a remastered album",
+            "an album for the Japanese market",
+            "an album released in Korea",
+            "an album planned for release",
+            "an upcoming album",
+            "an album scheduled for release",
+            "an album by Group One, planned for release",
+            "an album by Group One released only in Japan",
+            "an album by Group One from the reissue of their second studio album, Beta (2019)",
+            "a song by Group One from the reissue of their second studio album, Beta (2019), released only in Japan",
+        )
+        # Apply each scope both to the named subject and to a pronoun bridge.
+        # A safe earlier lead must not override the immediate scoped antecedent.
+        for description in descriptions:
+            for prefix in ("Alpha is ", "Alpha is an album. It is "):
+                with self.subTest(description=description, prefix=prefix):
+                    page = WikipediaPage(
+                        1, "en", 1, 10,
+                        prefix + description + ". It was released by Label One on January 2, 2020.",
+                        "Alpha",
+                    )
+                    self.assertIsNone(release_date_evidence(page, value, ("Alpha",)))
+
+    def test_released_by_rejects_scoped_or_changed_descriptive_bridges(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        bridges = (
+            "It is the first release of the band planned for Japan.",
+            "It is the first physical release of the band.",
+            "It is the first reissue release of the band.",
+            "It is the first release of the band since the departure of Singer One on June 12, 2019, and is a physical edition.",
+            "It is the first release of the band since the departure of Singer One on June 12, 2019. It is the music video for the release.",
+            "It is the first release of the band since the departure of Singer One on June 12, 2019. It is an album released only in Japan.",
+        )
+        for bridge in bridges:
+            with self.subTest(bridge=bridge):
+                page = WikipediaPage(
+                    1, "en", 1, 10,
+                    "Alpha is an album. " + bridge
+                    + " It was released by Label One on January 2, 2020.", "Alpha",
+                )
+                self.assertIsNone(release_date_evidence(page, value, ("Alpha",)))
+
     def test_released_by_accepts_bounded_label_list_punctuation(self):
         value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
         for labels in (
@@ -241,6 +316,25 @@ class ReleaseFactTest(unittest.TestCase):
                 self.assertEqual(
                     evidence.locator,
                     f"wikipedia:en:pageid=1:revid=10#extract[{start}:{start + 14}]",
+                )
+
+    def test_released_by_descriptions_do_not_depend_on_specific_names(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        antecedents = (
+            "Alpha is an album. It is the second release of the group since the departure of Singer One on June 12, 2019.",
+            "Alpha is a song by South Korean group Group One from the reissue of their third studio album, Other Album (2019).",
+            "Alpha is the first Japanese extended play by South Korean boy group Group One.",
+        )
+        for antecedent in antecedents:
+            with self.subTest(antecedent=antecedent):
+                extract = antecedent + " It was released by Label One on January 2, 2020."
+                page = WikipediaPage(1, "en", 1, 10, extract, "Alpha")
+                evidence = release_date_evidence(page, value, ("Alpha",))
+                self.assertIsNotNone(evidence)
+                start = extract.index("January 2, 2020")
+                self.assertEqual(
+                    evidence.locator,
+                    f"wikipedia:en:pageid=1:revid=10#extract[{start}:{start + 15}]",
                 )
 
     def test_released_by_rejects_nearby_events_scopes_and_unbounded_labels(self):

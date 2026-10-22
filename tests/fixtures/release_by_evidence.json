@@ -151,5 +151,41 @@
     "extract": "Fatal Love is the seventh and the third Korean-language studio album by the South Korean boy group Monsta X. It was released by Starship Entertainment and distributed by Kakao M on November 2, 2020.",
     "accepted": false,
     "source_url": "https://en.wikipedia.org/w/index.php?curid=65577315&oldid=1315077610"
+  },
+  {
+    "title": "Youth (WEi EP)",
+    "date": "2022-08-11",
+    "pageid": 72050623,
+    "revid": 1349488260,
+    "extract": "Youth is the first Japanese extended play by South Korean boy group WEi. It was released by Oui Entertainment on August 11, 2022, and contains three tracks, including the lead single \"Maldives\".",
+    "date_locator": "wikipedia:en:pageid=72050623:revid=1349488260#extract[113:128]",
+    "source_url": "https://en.wikipedia.org/w/index.php?curid=72050623&oldid=1349488260"
+  },
+  {
+    "title": "Wave (WEi EP)",
+    "date": "2024-02-14",
+    "pageid": 76149513,
+    "revid": 1349488646,
+    "extract": "Wave is the second Japanese extended play by South Korean boy group WEi. It was released by Oui Entertainment on February 14, 2024, and contains three tracks, including the lead single \"Fake Love\".",
+    "date_locator": "wikipedia:en:pageid=76149513:revid=1349488646#extract[113:130]",
+    "source_url": "https://en.wikipedia.org/w/index.php?curid=76149513&oldid=1349488646"
+  },
+  {
+    "title": "Tilt (EP)",
+    "date": "2025-05-26",
+    "pageid": 79894089,
+    "revid": 1374038148,
+    "extract": "Tilt is the second extended play by South Korean duo Red Velvet – Irene & Seulgi, a sub-unit of South Korean girl group Red Velvet. It was released by SM Entertainment on May 26, 2025, and contains six tracks, including the lead single of the same name.",
+    "date_locator": "wikipedia:en:pageid=79894089:revid=1374038148#extract[171:183]",
+    "source_url": "https://en.wikipedia.org/w/index.php?curid=79894089&oldid=1374038148"
+  },
+  {
+    "title": "Bad Boy (Red Velvet song)",
+    "date": "2018-01-29",
+    "pageid": 57026045,
+    "revid": 1380097825,
+    "extract": "\"Bad Boy\" is a song by South Korean girl group Red Velvet from the reissue of their second studio album, The Perfect Red Velvet (2018). It was released by SM Entertainment on January 29, 2018.",
+    "date_locator": "wikipedia:en:pageid=57026045:revid=1380097825#extract[175:191]",
+    "source_url": "https://en.wikipedia.org/w/index.php?curid=57026045&oldid=1380097825"
   }
 ]

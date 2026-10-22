@@ -124,6 +124,45 @@ _RELEASE_BY_SCOPE = re.compile(
     r"will|would|upcoming|future|expected|was|were|released|premier\w*|debut\w*|teaser|pre-?order\w*)\b",
     _I,
 )
+# These nominal descriptions identify the release itself. A release noun in
+# an object ("includes a single") cannot establish the antecedent of "It".
+_RELEASE_ORDINAL = (
+    r"(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|"
+    r"eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|\d+(?:st|nd|rd|th))"
+)
+_RELEASE_DESCRIPTION = re.compile(
+    rf"\s+is (?:the |an? )(?:(?:{_RELEASE_ORDINAL}|debut|only|special|studio|"
+    r"Japanese(?:-language)?|Korean(?:[- ]language)?|English(?:-language)?|"
+    r"and|the)\s+)*"
+    r"(?P<kind>single album|extended play(?: music album)?|album|single|EP|record|song)\b"
+    rf"(?:\s*\(EP\))?(?: and (?:the )?{_RELEASE_ORDINAL} overall)?"
+    r"(?P<credit>[^\n]*)$"
+)
+# Names may include iKON, (G)I-dle and N.Flying. Require a capital or digit in
+# each name token, rather than allowing arbitrary clauses after the artist.
+_RELEASE_NAME_WORD = r"(?=[\w()’'&.!+-]*[A-Z0-9])[\w()’'&.!+-]+"
+_RELEASE_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & ){_RELEASE_NAME_WORD})*"
+_RELEASE_ARTIST = (
+    r"(?:the )?(?:(?:South Korean|Korean|Japanese|Chinese|Thai) )?"
+    r"(?:(?:girl|boy|pop|rock) )*(?:group|band|duo|artist|singer|rapper) "
+    rf"{_RELEASE_NAME}(?: \({_RELEASE_NAME}(?: of {_RELEASE_NAME})?\))?"
+)
+_RELEASE_CREDIT = re.compile(
+    rf"(?P<artist>\s+(?:by|of) {_RELEASE_ARTIST}"
+    rf"(?:, a sub-unit of (?:{_RELEASE_ARTIST}|{_RELEASE_NAME})"
+    rf"(?: consisting of members {_RELEASE_NAME}, {_RELEASE_NAME}, and {_RELEASE_NAME})?)?)"
+    r'(?:, featuring (?:two|three|\d+) songs, the only single and title track '
+    r'of the same name and "[^".;!?]+")?\.?\s*$'
+)
+_RELEASE_ALBUM_ORIGIN = re.compile(
+    rf" from the reissue of (?:their|the) {_RELEASE_ORDINAL} studio album, "
+    rf"{_RELEASE_NAME} \(\d{{4}}\)\.\s*$"
+)
+_RELEASE_DESCRIPTIVE_BRIDGE = re.compile(
+    rf"^\s*It is the {_RELEASE_ORDINAL} release of the (?:band|group) "
+    rf"since the departure of {_RELEASE_NAME} on (?:{'|'.join(MONTHS)}) "
+    r"\d{1,2}, \d{4}\.\s*$"
+)
 _PERFORMER_DESCRIPTION = re.compile(
     r"(?:(?:South\s+Korean|Korean|Japanese|Chinese|Thai)\s+)?"
     r"(?:(?:girl|boy)\s+)?(?:group|band|duo|artist|singer|rapper)\s+",
@@ -516,12 +555,36 @@ def _release_by_subject(
     """Keep "It" anchored to a named release across descriptive sentences."""
     for begin, end in reversed(_sentences(page.extract[:start])):
         previous = page.extract[begin:end]
-        if (
-            _leading_subject(previous, subject_names)
-            and not _leading_subject(previous, ())
-        ):
-            return bool(re.search(rf"\b{_RELEASE_NOUN}\b", previous, _I))
-        if not re.match(r"^\s*It is (?:the |an? )?[^.;]*\brelease\b", previous):
+        # Do not inherit the generic subject helper's "In ...," prefix: it
+        # can carry precisely the territorial scope excluded by this rule.
+        subject = re.match(
+            rf"^\s*[\"'“]?(?:{_alternation(subject_names)})[\"'”]?(?![\w'-])",
+            previous, _I,
+        )
+        if subject and not _leading_subject(previous, ()):
+            description = previous[subject.end():]
+            # Styling/short-title notes are part of the name, not predicates.
+            description = re.sub(
+                r"^\s*\((?:stylized|occasionally referred just as) "
+                r"(?:[^()]|\([^()]*\))*\)", "", description,
+            )
+            description = re.sub(
+                r"^, often shortened to [^,;]+,", "", description,
+            )
+            release = _RELEASE_DESCRIPTION.fullmatch(description)
+            if release is None:
+                return False
+            credit = release.group("credit")
+            # A song can belong to a reissued album without itself being a
+            # reissue. Accept only this explicit nominal attachment, then
+            # validate the remaining credit; other scopes stay rejected.
+            if release.group("kind") == "song":
+                credit = _RELEASE_ALBUM_ORIGIN.sub(".", credit)
+            if credit.strip() in {"", "."}:
+                return True
+            attribution = _RELEASE_CREDIT.fullmatch(credit)
+            return bool(attribution and not _RELEASE_BY_SCOPE.search(attribution.group("artist")))
+        if not _RELEASE_DESCRIPTIVE_BRIDGE.fullmatch(previous):
             return False
     return False
 
