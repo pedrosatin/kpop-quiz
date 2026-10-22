@@ -11,7 +11,7 @@ from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
 
-EVIDENCE_RULES_VERSION = "text-evidence-v5"
+EVIDENCE_RULES_VERSION = "text-evidence-v6"
 MIN_NAME_LENGTH = 4
 MAX_SNIPPET_LENGTH = 300
 MONTHS = (
@@ -109,6 +109,59 @@ _RELEASE_DATE_TRIGGER = re.compile(
     r"\b(?:was\s+)?released(?:\s+worldwide)?\s+(?:on|in)\s+"
     r"|\b(?:foi\s+)?lançad[oa]\s+em\s+",
     _I,
+)
+# A bounded proper-name list, not arbitrary text between "released" and a date.
+_RELEASE_LABEL_WORD = r"[A-ZÀ-ÖØ-Þ0-9][\w’'&.-]{0,39}"
+_RELEASE_LABEL = rf"{_RELEASE_LABEL_WORD}(?:\s+{_RELEASE_LABEL_WORD}){{0,5}}"
+_RELEASE_LABEL_LIST = (
+    rf"{_RELEASE_LABEL}(?:(?:,\s+(?:and\s+)?|\s+(?:and|&)\s+)"
+    rf"{_RELEASE_LABEL}){{0,3}}"
+)
+_RELEASE_BY_SCOPE = re.compile(
+    r"\b(?:digital\w*|physical\w*|vinyl|CD|DVD|cassette|edition\w*|"
+    r"territor\w*|Japan|Korea|(?-i:US|UK)|exclusiv\w*|only|in|for|reissu\w*|re-?releas\w*|"
+    r"remaster\w*|announc\w*|schedul\w*|plan\w*|delay\w*|postpon\w*|"
+    r"will|would|upcoming|future|expected|was|were|released|premier\w*|debut\w*|teaser|pre-?order\w*)\b",
+    _I,
+)
+# These nominal descriptions identify the release itself. A release noun in
+# an object ("includes a single") cannot establish the antecedent of "It".
+_RELEASE_ORDINAL = (
+    r"(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|"
+    r"eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|\d+(?:st|nd|rd|th))"
+)
+_RELEASE_DESCRIPTION = re.compile(
+    rf"\s+is (?:the |an? )(?:(?:{_RELEASE_ORDINAL}|debut|only|special|studio|"
+    r"Japanese(?:-language)?|Korean(?:[- ]language)?|English(?:-language)?|"
+    r"and|the)\s+)*"
+    r"(?P<kind>single album|extended play(?: music album)?|album|single|EP|record|song)\b"
+    rf"(?:\s*\(EP\))?(?: and (?:the )?{_RELEASE_ORDINAL} overall)?"
+    r"(?P<credit>[^\n]*)$"
+)
+# Names may include iKON, (G)I-dle and N.Flying. Require a capital or digit in
+# each name token, rather than allowing arbitrary clauses after the artist.
+_RELEASE_NAME_WORD = r"(?=[\w()’'&.!+-]*[A-Z0-9])[\w()’'&.!+-]+"
+_RELEASE_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & ){_RELEASE_NAME_WORD})*"
+_RELEASE_ARTIST = (
+    r"(?:the )?(?:(?:South Korean|Korean|Japanese|Chinese|Thai) )?"
+    r"(?:(?:girl|boy|pop|rock) )*(?:group|band|duo|artist|singer|rapper) "
+    rf"{_RELEASE_NAME}(?: \({_RELEASE_NAME}(?: of {_RELEASE_NAME})?\))?"
+)
+_RELEASE_CREDIT = re.compile(
+    rf"(?P<artist>\s+(?:by|of) {_RELEASE_ARTIST}"
+    rf"(?:, a sub-unit of (?:{_RELEASE_ARTIST}|{_RELEASE_NAME})"
+    rf"(?: consisting of members {_RELEASE_NAME}, {_RELEASE_NAME}, and {_RELEASE_NAME})?)?)"
+    r'(?:, featuring (?:two|three|\d+) songs, the only single and title track '
+    r'of the same name and "[^".;!?]+")?\.?\s*$'
+)
+_RELEASE_ALBUM_ORIGIN = re.compile(
+    rf" from the reissue of (?:their|the) {_RELEASE_ORDINAL} studio album, "
+    rf"{_RELEASE_NAME} \(\d{{4}}\)\.\s*$"
+)
+_RELEASE_DESCRIPTIVE_BRIDGE = re.compile(
+    rf"^\s*It is the {_RELEASE_ORDINAL} release of the (?:band|group) "
+    rf"since the departure of {_RELEASE_NAME} on (?:{'|'.join(MONTHS)}) "
+    r"\d{1,2}, \d{4}\.\s*$"
 )
 _PERFORMER_DESCRIPTION = re.compile(
     r"(?:(?:South\s+Korean|Korean|Japanese|Chinese|Thai)\s+)?"
@@ -466,6 +519,11 @@ def release_date_evidence(
                 return _text_evidence(
                     page, start + match.start("date"), start + match.end("date")
                 )
+        match = _release_by_date(sentence, page.language, value, date)
+        if match and _release_by_subject(page, subject_names, start):
+            return _text_evidence(
+                page, start + match.start("date"), start + match.end("date")
+            )
         for trigger in _RELEASE_DATE_TRIGGER.finditer(sentence):
             tail = sentence[trigger.end() : trigger.end() + 80]
             if re.search(
@@ -489,6 +547,72 @@ def release_date_evidence(
                     page, start + match.start("date"), start + match.end("date")
                 )
     return None
+
+
+def _release_by_subject(
+    page: WikipediaPage, subject_names: Sequence[str], start: int,
+) -> bool:
+    """Keep "It" anchored to a named release across descriptive sentences."""
+    for begin, end in reversed(_sentences(page.extract[:start])):
+        previous = page.extract[begin:end]
+        # Do not inherit the generic subject helper's "In ...," prefix: it
+        # can carry precisely the territorial scope excluded by this rule.
+        subject = re.match(
+            rf"^\s*[\"'“]?(?:{_alternation(subject_names)})[\"'”]?(?![\w'-])",
+            previous, _I,
+        )
+        if subject and not _leading_subject(previous, ()):
+            description = previous[subject.end():]
+            # Styling/short-title notes are part of the name, not predicates.
+            description = re.sub(
+                r"^\s*\((?:stylized|occasionally referred just as) "
+                r"(?:[^()]|\([^()]*\))*\)", "", description,
+            )
+            description = re.sub(
+                r"^, often shortened to [^,;]+,", "", description,
+            )
+            release = _RELEASE_DESCRIPTION.fullmatch(description)
+            if release is None:
+                return False
+            credit = release.group("credit")
+            # A song can belong to a reissued album without itself being a
+            # reissue. Accept only this explicit nominal attachment, then
+            # validate the remaining credit; other scopes stay rejected.
+            if release.group("kind") == "song":
+                credit = _RELEASE_ALBUM_ORIGIN.sub(".", credit)
+            if credit.strip() in {"", "."}:
+                return True
+            attribution = _RELEASE_CREDIT.fullmatch(credit)
+            return bool(attribution and not _RELEASE_BY_SCOPE.search(attribution.group("artist")))
+        if not _RELEASE_DESCRIPTIVE_BRIDGE.fullmatch(previous):
+            return False
+    return False
+
+
+def _release_by_date(
+    sentence: str, language: str, value: TimeValue, date: str,
+) -> re.Match[str] | None:
+    """Recognize only a completed, unscoped English release with label names."""
+    if language != "en" or value.precision != PRECISION_DAY:
+        return None
+    match = re.match(
+        rf"^\s*It was released by (?P<labels>{_RELEASE_LABEL_LIST}) "
+        rf"on (?P<date>{date})(?P<suffix>[^\n]{{0,220}})$",
+        sentence,
+    )
+    if match is None or len(match.group("labels")) > 120:
+        return None
+    suffix = match.group("suffix")
+    # Descriptive continuations in release leads keep the same subject. Other
+    # clauses (including another event or a new subject) are not this syntax.
+    if not re.fullmatch(
+        r"(?:\.|\s*|, and (?:contains |serves as |distributed by )[^;.!?]{1,200}\.?)",
+        suffix,
+    ):
+        return None
+    if _RELEASE_BY_SCOPE.search(match.group("labels") + " " + suffix):
+        return None
+    return match
 
 
 def _performer_list_item(

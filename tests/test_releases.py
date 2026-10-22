@@ -189,6 +189,203 @@ class ReleaseFactTest(unittest.TestCase):
         self.assertIn("wd:Q2", client.query_text)
         self.assertEqual(run_count, 1)
 
+    def test_released_by_real_revision_spans_and_scoped_rejections(self):
+        cases = json.loads(
+            (Path(__file__).parent / "fixtures/release_by_evidence.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        for case in cases:
+            with self.subTest(title=case["title"]):
+                precision = {4: 9, 7: 10, 10: 11}[len(case["date"])]
+                value = TimeValue(case["date"], precision, GREGORIAN_CALENDAR)
+                page = WikipediaPage(
+                    1, "en", case["pageid"], case["revid"],
+                    case["extract"], case["title"],
+                )
+                names = (case["title"], case["title"].split(" (")[0])
+                evidence = release_date_evidence(page, value, names)
+                if not case.get("accepted", True):
+                    self.assertIsNone(evidence)
+                    continue
+                self.assertIsNotNone(evidence)
+                self.assertEqual(evidence.locator, case["date_locator"])
+                self.assertEqual(evidence.source_revision_id, 1)
+                self.assertEqual(evidence.source_key, "wikipedia:en")
+                span = evidence.locator.split("#extract[")[1].rstrip("]")
+                start, end = map(int, span.split(":"))
+                self.assertIn(page.extract[start:end], evidence.snippet)
+                # A date at another precision or a different P577 day cannot
+                # borrow the exact day from the release sentence.
+                for other in (
+                    TimeValue(case["date"][:4], 9, GREGORIAN_CALENDAR),
+                    TimeValue(case["date"][:7], 10, GREGORIAN_CALENDAR),
+                    TimeValue("1900-01-01", 11, GREGORIAN_CALENDAR),
+                ):
+                    self.assertIsNone(release_date_evidence(page, other, names))
+
+    def test_released_by_rejects_subject_changes_in_antecedents(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        antecedents = (
+            "Alpha is an album. Alpha includes a single called Beta.",
+            "Alpha is an album. It is the music video for the release.",
+            "Alpha includes a single called Beta.",
+            "Alpha is the music video for an album.",
+            "Alpha is an album with a single called Beta.",
+            "Alpha is an album by Group One, which includes a single called Beta.",
+            "Alpha is an album. It is a single from the release.",
+            "Alpha is an album. It is the first music video for the release.",
+            "Alpha is an album. Beta is a song.",
+            "In Japan, Alpha is an album.",
+            "In physical editions, Alpha is an album.",
+            "In the planned release, Alpha is an album.",
+        )
+        for antecedent in antecedents:
+            with self.subTest(antecedent=antecedent):
+                page = WikipediaPage(
+                    1, "en", 1, 10,
+                    antecedent + " It was released by Label One on January 2, 2020.",
+                    "Alpha",
+                )
+                self.assertIsNone(release_date_evidence(page, value, ("Alpha",)))
+
+    def test_released_by_rejects_scopes_of_subject_in_antecedents(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        descriptions = (
+            "a reissue of the album Beta",
+            "a physical edition of an album",
+            "an album released only in Japan",
+            "a digital album",
+            "a vinyl edition of an album",
+            "a remastered album",
+            "an album for the Japanese market",
+            "an album released in Korea",
+            "an album planned for release",
+            "an upcoming album",
+            "an album scheduled for release",
+            "an album by Group One, planned for release",
+            "an album by Group One released only in Japan",
+            "an album by Group One from the reissue of their second studio album, Beta (2019)",
+            "a song by Group One from the reissue of their second studio album, Beta (2019), released only in Japan",
+        )
+        # Apply each scope both to the named subject and to a pronoun bridge.
+        # A safe earlier lead must not override the immediate scoped antecedent.
+        for description in descriptions:
+            for prefix in ("Alpha is ", "Alpha is an album. It is "):
+                with self.subTest(description=description, prefix=prefix):
+                    page = WikipediaPage(
+                        1, "en", 1, 10,
+                        prefix + description + ". It was released by Label One on January 2, 2020.",
+                        "Alpha",
+                    )
+                    self.assertIsNone(release_date_evidence(page, value, ("Alpha",)))
+
+    def test_released_by_rejects_scoped_or_changed_descriptive_bridges(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        bridges = (
+            "It is the first release of the band planned for Japan.",
+            "It is the first physical release of the band.",
+            "It is the first reissue release of the band.",
+            "It is the first release of the band since the departure of Singer One on June 12, 2019, and is a physical edition.",
+            "It is the first release of the band since the departure of Singer One on June 12, 2019. It is the music video for the release.",
+            "It is the first release of the band since the departure of Singer One on June 12, 2019. It is an album released only in Japan.",
+        )
+        for bridge in bridges:
+            with self.subTest(bridge=bridge):
+                page = WikipediaPage(
+                    1, "en", 1, 10,
+                    "Alpha is an album. " + bridge
+                    + " It was released by Label One on January 2, 2020.", "Alpha",
+                )
+                self.assertIsNone(release_date_evidence(page, value, ("Alpha",)))
+
+    def test_released_by_accepts_bounded_label_list_punctuation(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        for labels in (
+            "Label One and Label Two",
+            "Label One, Label Two, and Label Three",
+            "Label One & Label Two",
+            "Écho Records and O'Clock Music",
+        ):
+            with self.subTest(labels=labels):
+                extract = f"Alpha is an album. It was released by {labels} on 2 January 2020."
+                page = WikipediaPage(1, "en", 1, 10, extract, "Alpha")
+                evidence = release_date_evidence(page, value, ("Alpha",))
+                self.assertIsNotNone(evidence)
+                start = extract.index("2 January 2020")
+                self.assertEqual(
+                    evidence.locator,
+                    f"wikipedia:en:pageid=1:revid=10#extract[{start}:{start + 14}]",
+                )
+
+    def test_released_by_descriptions_do_not_depend_on_specific_names(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        antecedents = (
+            "Alpha is an album. It is the second release of the group since the departure of Singer One on June 12, 2019.",
+            "Alpha is a song by South Korean group Group One from the reissue of their third studio album, Other Album (2019).",
+            "Alpha is the first Japanese extended play by South Korean boy group Group One.",
+        )
+        for antecedent in antecedents:
+            with self.subTest(antecedent=antecedent):
+                extract = antecedent + " It was released by Label One on January 2, 2020."
+                page = WikipediaPage(1, "en", 1, 10, extract, "Alpha")
+                evidence = release_date_evidence(page, value, ("Alpha",))
+                self.assertIsNotNone(evidence)
+                start = extract.index("January 2, 2020")
+                self.assertEqual(
+                    evidence.locator,
+                    f"wikipedia:en:pageid=1:revid=10#extract[{start}:{start + 15}]",
+                )
+
+    def test_released_by_rejects_nearby_events_scopes_and_unbounded_labels(self):
+        value = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
+        sentences = (
+            "It was released through Label One on January 2, 2020.",
+            "It will be released by Label One on January 2, 2020.",
+            "It was scheduled to be released by Label One on January 2, 2020.",
+            "It was announced that it was released by Label One on January 2, 2020.",
+            "It was released by Label One and Beta debuted on January 2, 2020.",
+            "It was released by Label One, whose video premiered on January 2, 2020.",
+            "It was released by Label One and distributed by Label Two on January 2, 2020.",
+            "It was released by Label One in Japan on January 2, 2020.",
+            "It was released by Universal Music Japan on January 2, 2020.",
+            "It was released by Label One digitally on January 2, 2020.",
+            "It was released by Label One on January 2, 2020 in Japan.",
+            "It was released by Label One on January 2, 2020, physically.",
+            "It was released by Label One on January 2, 2020 as a reissue.",
+            "It was released by Label One on January 2, 2020, and Beta was released later.",
+            "It was released by Label One on January 2, 2020, and contains a video released in Japan.",
+            "It was released by Label One on January 2, 2020, and serves as a physical edition.",
+            "It was released by Label One on January 2, 2020, and serves as a planned release.",
+            "It was released by Label One. On January 2, 2020, a video premiered.",
+            "Its music video was released by Label One on January 2, 2020.",
+            "The single was released by Label One on January 2, 2020.",
+            "Its teaser was released by Label One on January 2, 2020.",
+            "Its pre-order was released by Label One on January 2, 2020.",
+            "Its reissue was released by Label One on January 2, 2020.",
+            "Beta is an album. It was released by Label One on January 2, 2020.",
+            "The group recorded an album. It was released by Label One on January 2, 2020.",
+            "Its video premiered. It was released by Label One on January 2, 2020.",
+            "It was released by " + "Longlabel " * 14 + "on January 2, 2020.",
+            "It was released by " + " ".join(["A" * 39] * 4) + " on January 2, 2020.",
+            "It was released by A, B, C, D, and E on January 2, 2020.",
+            "It was released by Label One on January 2, 2020-01-03.",
+        )
+        for sentence in sentences:
+            with self.subTest(sentence=sentence):
+                page = WikipediaPage(
+                    1, "en", 1, 10, "Alpha is an album. " + sentence, "Alpha",
+                )
+                self.assertIsNone(release_date_evidence(page, value, ("Alpha",)))
+        # The new grammar requires a preceding release subject and English.
+        for language, extract in (
+            ("en", "It was released by Label One on January 2, 2020."),
+            ("en", "Beta is an album. It was released by Label One on January 2, 2020."),
+            ("pt", "Alpha is an album. It was released by Label One on January 2, 2020."),
+        ):
+            page = WikipediaPage(1, language, 1, 10, extract, "Alpha")
+            self.assertIsNone(release_date_evidence(page, value, ("Alpha",)))
+
     def test_release_text_rules_pass_editorial_positive_and_negative_cases(self):
         date = TimeValue("2020-01-02", 11, GREGORIAN_CALENDAR)
         positives = (
