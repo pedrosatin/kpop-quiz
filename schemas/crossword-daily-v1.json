@@ -1,0 +1,419 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kpop-quiz.local/schemas/crossword-daily-v1.json",
+  "title": "Daily crossword v1 (fixed clue slots)",
+  "description": "Structural contract. Python validation recomputes identity, previous-day exclusion, full-universe factual matching, canonical geometry and bounded unique assignment proof against the supplied fact base.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reference_date",
+    "seed",
+    "base_id",
+    "previous",
+    "limits",
+    "status",
+    "attempts",
+    "rejections",
+    "eligible_group_count",
+    "connected_group_count",
+    "puzzle",
+    "dataset_version"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "crossword-daily-v1"
+    },
+    "reference_date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "format": "date"
+    },
+    "seed": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_id": {
+      "$ref": "#/$defs/hash"
+    },
+    "previous": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "date",
+        "qids"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "bootstrap",
+            "played",
+            "omitted"
+          ]
+        },
+        "date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "format": "date"
+        },
+        "qids": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/qid"
+          }
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempts",
+        "placement_nodes",
+        "proof_nodes"
+      ],
+      "properties": {
+        "attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "placement_nodes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "proof_nodes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "omitted"
+      ]
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "rejections": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "placement": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "budget": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "validation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        }
+      }
+    },
+    "eligible_group_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000000
+    },
+    "connected_group_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000000
+    },
+    "puzzle": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/board"
+        }
+      ]
+    },
+    "dataset_version": {
+      "$ref": "#/$defs/hash"
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "qid": {
+      "type": "string",
+      "pattern": "^Q[1-9][0-9]*$"
+    },
+    "letter": {
+      "type": "string",
+      "pattern": "^[A-Z0-9]$"
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "qid",
+        "canonical_name",
+        "aliases",
+        "answer",
+        "row",
+        "col",
+        "direction",
+        "number",
+        "clue",
+        "matching_qids",
+        "sources"
+      ],
+      "properties": {
+        "qid": {
+          "$ref": "#/$defs/qid"
+        },
+        "canonical_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "answer": {
+          "type": "string",
+          "pattern": "^[A-Z0-9]+$"
+        },
+        "row": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "col": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "direction": {
+          "enum": [
+            "across",
+            "down"
+          ]
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "clue": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pt-BR",
+            "en"
+          ],
+          "properties": {
+            "pt-BR": {
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "en": {
+              "type": "string",
+              "pattern": "\\S"
+            }
+          }
+        },
+        "matching_qids": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/qid"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url",
+        "locator",
+        "snippet",
+        "statement_id",
+        "predicate",
+        "value"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https://[a-z]{2,3}(-[a-z]+)?\\.wikipedia\\.org/w/index\\.php\\?curid=[1-9][0-9]*&oldid=[1-9][0-9]*$"
+        },
+        "locator": {
+          "type": "string",
+          "pattern": "^wikipedia:[a-z]{2,3}(-[a-z]+)?:pageid=[1-9][0-9]*:revid=[1-9][0-9]*#(extract|wikitext)\\[[0-9]+:[0-9]+\\]$"
+        },
+        "snippet": {
+          "type": "string",
+          "minLength": 1
+        },
+        "statement_id": {
+          "type": "string",
+          "pattern": "^Q[1-9][0-9]*\\$"
+        },
+        "predicate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row",
+        "col",
+        "answer"
+      ],
+      "properties": {
+        "row": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "col": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "answer": {
+          "$ref": "#/$defs/letter"
+        }
+      }
+    },
+    "board": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rows",
+        "cols",
+        "entries",
+        "vocabulary",
+        "cells",
+        "audited_group_count",
+        "proof"
+      ],
+      "properties": {
+        "rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/entry"
+          }
+        },
+        "vocabulary": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/qid"
+          }
+        },
+        "cells": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/cell"
+          }
+        },
+        "audited_group_count": {
+          "type": "integer",
+          "minimum": 3
+        },
+        "proof": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "solutions",
+            "complete",
+            "nodes"
+          ],
+          "properties": {
+            "solutions": {
+              "type": "integer",
+              "const": 1
+            },
+            "complete": {
+              "type": "boolean",
+              "const": true
+            },
+            "nodes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000000
+            }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "ready"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "puzzle": {
+            "$ref": "#/$defs/board"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "puzzle": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

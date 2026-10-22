@@ -27,6 +27,17 @@ CLUES = [{'pt-BR': 'Grupo que inclui J-Hope.', 'en': 'Group whose members includ
 def normalize(name: str) -> str:
     return re.sub('[^A-Z0-9]', '', unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode().upper())
 
+def validate_source(source: dict, qid: str) -> None:
+    """Shared revision/locator contract for fixed and daily crosswords."""
+    if not isinstance(source, dict) or set(source) != SOURCE_KEYS or not all((isinstance(source[k], str) and source[k] for k in ('predicate', 'value', 'snippet'))):
+        raise ValueError('invalid evidence')
+    if not isinstance(source['url'], str) or not isinstance(source['locator'], str) or not isinstance(source['statement_id'], str):
+        raise ValueError('invalid evidence')
+    url = re.fullmatch(r'https://([a-z]{2,3}(?:-[a-z]+)?).wikipedia.org/w/index.php\?curid=([1-9][0-9]*)&oldid=([1-9][0-9]*)', source['url'])
+    locator = re.fullmatch(r'wikipedia:([a-z]{2,3}(?:-[a-z]+)?):pageid=([1-9][0-9]*):revid=([1-9][0-9]*)#(?:extract|wikitext)\[(\d+):(\d+)\]', source['locator'])
+    if not url or not locator or url.groups() != locator.groups()[:3] or int(locator[4]) >= int(locator[5]) or not source['statement_id'].startswith(qid+'$'):
+        raise ValueError('invalid evidence')
+
 def validate(p: dict) -> None:
     """Domain rules of crossword-pilot-v1; web/src/data/crossword.ts mirrors them."""
     if not isinstance(p, dict) or p.get('schema_version') != SCHEMA or p.get('mode') != MODE:
@@ -82,14 +93,7 @@ def validate(p: dict) -> None:
         if not e['sources']:
             raise ValueError('missing evidence')
         for source in e['sources']:
-            if not isinstance(source, dict) or set(source) != SOURCE_KEYS or not all((isinstance(source[k], str) and source[k] for k in ('predicate', 'value', 'snippet'))):
-                raise ValueError('invalid evidence')
-            if not isinstance(source['url'], str) or not isinstance(source['locator'], str) or not isinstance(source['statement_id'], str):
-                raise ValueError('invalid evidence')
-            url = re.fullmatch(r'https://([a-z]{2,3}(?:-[a-z]+)?).wikipedia.org/w/index.php\?curid=([1-9][0-9]*)&oldid=([1-9][0-9]*)', source['url'])
-            locator = re.fullmatch(r'wikipedia:([a-z]{2,3}(?:-[a-z]+)?):pageid=([1-9][0-9]*):revid=([1-9][0-9]*)#(?:extract|wikitext)\[(\d+):(\d+)\]', source['locator'])
-            if not url or not locator or url.groups() != locator.groups()[:3] or int(locator[4]) >= int(locator[5]) or not source['statement_id'].startswith(e['qid']+'$'):
-                raise ValueError('invalid evidence')
+            validate_source(source, e['qid'])
         for i, letter in enumerate(word):
             key = (e['row'] + (i if e['direction'] == 'down' else 0), e['col'] + (i if e['direction'] == 'across' else 0))
             if not (0 <= key[0] < rows and 0 <= key[1] < cols):

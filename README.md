@@ -4,6 +4,8 @@ Daily K-pop quiz and puzzle games about groups and artists, in Portuguese and En
 
 The site has nine games: a ten-question quiz with assisted, standard, and expert modes, a grid, connections, name guess, word search, timeline, a map, a group code logic game, and a crossword. New puzzles are published every day, except for the crossword, which is still a fixed audited puzzle.
 
+An offline daily crossword generator is available separately, with a versioned schema, previous-day group exclusion and a bounded unique-assignment proof. It is not connected to the runner or website yet. See [the CLI and benchmark guide](docs/crossword-daily.md).
+
 Every answer comes from Wikipedia and Wikidata. A Python collector queries both APIs, records the consulted revisions in SQLite, and keeps page and entity responses as compressed JSON. Each accepted fact points to a Wikidata reference or a Wikipedia revision excerpt, and the games only use accepted facts.
 
 The collector covers page discovery, summaries, candidate classification, and Wikidata fact extraction for accepted groups and members. It also keeps an auditable catalog of music release candidates. The catalog rejects lists, disambiguation pages, redirects, and QIDs without an accepted music type.
