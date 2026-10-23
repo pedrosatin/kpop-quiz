@@ -91,11 +91,26 @@ KNOWN_RECORD_LABELS: dict[str, tuple[str, dict[str, str]]] = {
     "Q50595": ("label_yg", {"pt-BR": "YG Entertainment", "en": "YG Entertainment"}),
     "Q16161254": ("label_hybe", {"pt-BR": "HYBE", "en": "HYBE"}),
     "Q106296918": ("label_bighit", {"pt-BR": "Big Hit Music", "en": "Big Hit Music"}),
-    "Q484449": ("label_cube", {"pt-BR": "Cube Entertainment", "en": "Cube Entertainment"}),
-    "Q255363": ("label_starship", {"pt-BR": "Starship Entertainment", "en": "Starship Entertainment"}),
-    "Q12581039": ("label_fnc", {"pt-BR": "FNC Entertainment", "en": "FNC Entertainment"}),
-    "Q45282": ("label_pledis", {"pt-BR": "Pledis Entertainment", "en": "Pledis Entertainment"}),
-    "Q50596": ("label_woollim", {"pt-BR": "Woollim Entertainment", "en": "Woollim Entertainment"}),
+    "Q484449": (
+        "label_cube",
+        {"pt-BR": "Cube Entertainment", "en": "Cube Entertainment"},
+    ),
+    "Q255363": (
+        "label_starship",
+        {"pt-BR": "Starship Entertainment", "en": "Starship Entertainment"},
+    ),
+    "Q12581039": (
+        "label_fnc",
+        {"pt-BR": "FNC Entertainment", "en": "FNC Entertainment"},
+    ),
+    "Q45282": (
+        "label_pledis",
+        {"pt-BR": "Pledis Entertainment", "en": "Pledis Entertainment"},
+    ),
+    "Q50596": (
+        "label_woollim",
+        {"pt-BR": "Woollim Entertainment", "en": "Woollim Entertainment"},
+    ),
     "Q489428": ("label_dsp", {"pt-BR": "DSP Media", "en": "DSP Media"}),
     "Q31179359": ("label_kq", {"pt-BR": "KQ Entertainment", "en": "KQ Entertainment"}),
     "Q13424955": ("label_fantagio", {"pt-BR": "Fantagio", "en": "Fantagio"}),
@@ -104,11 +119,23 @@ KNOWN_RECORD_LABELS: dict[str, tuple[str, dict[str, str]]] = {
     "Q483471": ("label_yg", {"pt-BR": "YG Entertainment", "en": "YG Entertainment"}),
     "Q106399432": ("label_hybe", {"pt-BR": "HYBE", "en": "HYBE"}),
     "Q523826": ("label_bighit", {"pt-BR": "Big Hit Music", "en": "Big Hit Music"}),
-    "Q483327": ("label_cube", {"pt-BR": "Cube Entertainment", "en": "Cube Entertainment"}),
-    "Q491823": ("label_starship", {"pt-BR": "Starship Entertainment", "en": "Starship Entertainment"}),
+    "Q483327": (
+        "label_cube",
+        {"pt-BR": "Cube Entertainment", "en": "Cube Entertainment"},
+    ),
+    "Q491823": (
+        "label_starship",
+        {"pt-BR": "Starship Entertainment", "en": "Starship Entertainment"},
+    ),
     "Q484795": ("label_fnc", {"pt-BR": "FNC Entertainment", "en": "FNC Entertainment"}),
-    "Q492067": ("label_pledis", {"pt-BR": "Pledis Entertainment", "en": "Pledis Entertainment"}),
-    "Q486717": ("label_woollim", {"pt-BR": "Woollim Entertainment", "en": "Woollim Entertainment"}),
+    "Q492067": (
+        "label_pledis",
+        {"pt-BR": "Pledis Entertainment", "en": "Pledis Entertainment"},
+    ),
+    "Q486717": (
+        "label_woollim",
+        {"pt-BR": "Woollim Entertainment", "en": "Woollim Entertainment"},
+    ),
     "Q487053": ("label_dsp", {"pt-BR": "DSP Media", "en": "DSP Media"}),
 }
 
@@ -142,7 +169,9 @@ def _get_record_label_criterion(entity: Entity) -> dict[str, Any]:
         en_name = label["en"]
     else:
         crit_id = f"label_{entity.wikidata_id.lower()}"
-        pt_name = entity.names.get("pt") or entity.names.get("pt-BR") or entity.canonical_name
+        pt_name = (
+            entity.names.get("pt") or entity.names.get("pt-BR") or entity.canonical_name
+        )
         en_name = entity.names.get("en") or entity.canonical_name
 
     return {
@@ -310,7 +339,10 @@ def evaluate_connections_criteria(
 
     for group_qid, members in group_members.items():
         count = len(members)
-        if complete_member_groups is not None and group_qid not in complete_member_groups:
+        if (
+            complete_member_groups is not None
+            and group_qid not in complete_member_groups
+        ):
             continue
         if count in MEMBER_COUNT_CRITERIA:
             member_crit = MEMBER_COUNT_CRITERIA[count]
@@ -333,7 +365,9 @@ def _rank_difficulty(
     pool_set = set(candidate_items)
 
     def sort_key(cat_id: str) -> tuple[int, int, int, str]:
-        distractors = len((criterion_groups[cat_id] & pool_set) - set(assignment[cat_id]))
+        distractors = len(
+            (criterion_groups[cat_id] & pool_set) - set(assignment[cat_id])
+        )
         cat_type = all_criteria[cat_id]["category"]
         type_rank = CATEGORY_TYPE_ORDER.get(cat_type, 99)
         db_count = len(criterion_groups[cat_id])
@@ -394,12 +428,116 @@ def _find_disjoint_assignment(
                 for a3 in combos_3:
                     eval_count += 1
                     candidate_16 = sorted(set_a012 | set(a3))
-                    if count_valid_partitions(candidate_16, categories_criteria, max_count=2) == 1:
+                    if (
+                        count_valid_partitions(
+                            candidate_16, categories_criteria, max_count=2
+                        )
+                        == 1
+                    ):
                         assignment = {k0: a0, k1: a1, k2: a2, k3: a3}
                         return assignment, candidate_16
                     if eval_count >= max_evaluations:
                         return None
     return None
+
+
+def _find_solvable_combo(
+    active_criteria: dict[str, dict[str, Any]],
+    criterion_groups: dict[str, set[str]],
+    seed: str,
+) -> tuple[tuple[str, ...], dict[str, tuple[str, ...]], list[str], random.Random]:
+    active_crit_ids = sorted(active_criteria.keys())
+    criteria_combos = list(itertools.combinations(active_crit_ids, 4))
+    criteria_combos.sort()
+
+    seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
+    rng = random.Random(seed_bytes)
+    shuffled_combos = list(criteria_combos)
+    rng.shuffle(shuffled_combos)
+
+    for combo in shuffled_combos:
+        c0, c1, c2, c3 = combo
+        s0 = criterion_groups[c0]
+        s1 = criterion_groups[c1]
+        s2 = criterion_groups[c2]
+        s3 = criterion_groups[c3]
+
+        if len(s0 | s1 | s2 | s3) < 16:
+            continue
+
+        result = _find_disjoint_assignment(combo, criterion_groups, rng)
+        if result is not None:
+            assignment_map, candidate_items = result
+            return combo, assignment_map, candidate_items, rng
+
+    raise ValueError(
+        f"Unable to generate a solvable connections puzzle with seed {seed!r}"
+    )
+
+
+def _build_categories_payload(
+    ranked_cats: list[str],
+    assignment_map: dict[str, tuple[str, ...]],
+    group_evidence: dict[tuple[str, str], list[Evidence]],
+    all_criteria: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    categories_payload: list[dict[str, Any]] = []
+    for rank_idx, cat_id in enumerate(ranked_cats):
+        diff_level = rank_idx + 1
+        crit_def = all_criteria[cat_id]
+        item_ids = sorted(assignment_map[cat_id])
+
+        cat_evidences: list[Evidence] = []
+        for qid in item_ids:
+            cat_evidences.extend(group_evidence.get((qid, cat_id), ()))
+
+        serialized_ev = _serialize_evidence(cat_evidences)
+        if not serialized_ev:
+            raise ValueError(f"No evidence found for category {cat_id}")
+
+        categories_payload.append(
+            {
+                "id": cat_id,
+                "label": {
+                    "pt-BR": crit_def["label"]["pt-BR"],
+                    "en": crit_def["label"]["en"],
+                },
+                "difficulty_level": diff_level,
+                "item_ids": item_ids,
+                "explanation": {
+                    "pt-BR": crit_def["explanation"]["pt-BR"],
+                    "en": crit_def["explanation"]["en"],
+                },
+                "evidence": serialized_ev,
+            }
+        )
+    return categories_payload
+
+
+def _build_items_payload(
+    candidate_items: list[str],
+    candidate_groups: dict[str, Entity],
+    rng: random.Random,
+) -> list[dict[str, Any]]:
+    items_payload: list[dict[str, Any]] = []
+    for qid in sorted(candidate_items):
+        group = candidate_groups[qid]
+        items_payload.append(
+            {
+                "id": qid,
+                "canonical_name": group.canonical_name,
+                "labels": {
+                    "pt-BR": (
+                        group.names.get("pt")
+                        or group.names.get("pt-BR")
+                        or group.canonical_name
+                    ),
+                    "en": group.names.get("en") or group.canonical_name,
+                },
+            }
+        )
+    rng.shuffle(items_payload)
+    return items_payload
 
 
 def generate_connections_puzzle(
@@ -451,45 +589,10 @@ def generate_connections_puzzle(
             f"Insufficient active criteria: found {len(active_criteria)}, need at least 4"
         )
 
-    active_crit_ids = sorted(active_criteria.keys())
-    criteria_combos = list(itertools.combinations(active_crit_ids, 4))
-    criteria_combos.sort()
+    chosen_combo, assignment_map, candidate_items, rng = _find_solvable_combo(
+        active_criteria, criterion_groups, seed
+    )
 
-    seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
-    rng = random.Random(seed_bytes)
-    shuffled_combos = list(criteria_combos)
-    rng.shuffle(shuffled_combos)
-
-    found_puzzle_data: tuple[
-        tuple[str, ...],
-        dict[str, tuple[str, ...]],
-        list[str],
-    ] | None = None
-
-    for combo in shuffled_combos:
-        c0, c1, c2, c3 = combo
-        s0 = criterion_groups[c0]
-        s1 = criterion_groups[c1]
-        s2 = criterion_groups[c2]
-        s3 = criterion_groups[c3]
-
-        if len(s0 | s1 | s2 | s3) < 16:
-            continue
-
-        result = _find_disjoint_assignment(combo, criterion_groups, rng)
-        if result is not None:
-            assignment_map, candidate_items = result
-            found_puzzle_data = (combo, assignment_map, candidate_items)
-            break
-
-    if found_puzzle_data is None:
-        raise ValueError(
-            f"Unable to generate a solvable connections puzzle with seed {seed!r}"
-        )
-
-    chosen_combo, assignment_map, candidate_items = found_puzzle_data
-
-    # Rank categories by difficulty (levels 1, 2, 3, 4)
     ranked_cats = _rank_difficulty(
         chosen_combo,
         assignment_map,
@@ -498,56 +601,11 @@ def generate_connections_puzzle(
         all_criteria,
     )
 
-    categories_payload: list[dict[str, Any]] = []
-    for rank_idx, cat_id in enumerate(ranked_cats):
-        diff_level = rank_idx + 1
-        crit_def = all_criteria[cat_id]
-        item_ids = sorted(assignment_map[cat_id])
+    categories_payload = _build_categories_payload(
+        ranked_cats, assignment_map, group_evidence, all_criteria
+    )
 
-        cat_evidences: list[Evidence] = []
-        for qid in item_ids:
-            cat_evidences.extend(group_evidence.get((qid, cat_id), ()))
-
-        serialized_ev = _serialize_evidence(cat_evidences)
-        if not serialized_ev:
-            raise ValueError(f"No evidence found for category {cat_id}")
-
-        categories_payload.append(
-            {
-                "id": cat_id,
-                "label": {
-                    "pt-BR": crit_def["label"]["pt-BR"],
-                    "en": crit_def["label"]["en"],
-                },
-                "difficulty_level": diff_level,
-                "item_ids": item_ids,
-                "explanation": {
-                    "pt-BR": crit_def["explanation"]["pt-BR"],
-                    "en": crit_def["explanation"]["en"],
-                },
-                "evidence": serialized_ev,
-            }
-        )
-
-    # Build and shuffle items presentation order deterministically
-    items_payload: list[dict[str, Any]] = []
-    for qid in sorted(candidate_items):
-        group = candidate_groups[qid]
-        items_payload.append(
-            {
-                "id": qid,
-                "canonical_name": group.canonical_name,
-                "labels": {
-                    "pt-BR": (
-                        group.names.get("pt")
-                        or group.names.get("pt-BR")
-                        or group.canonical_name
-                    ),
-                    "en": group.names.get("en") or group.canonical_name,
-                },
-            }
-        )
-    rng.shuffle(items_payload)
+    items_payload = _build_items_payload(candidate_items, candidate_groups, rng)
 
     reference_date_str = reference_date.isoformat()
     dimensions = {"groups": 4, "items_per_group": 4, "total_items": 16}
