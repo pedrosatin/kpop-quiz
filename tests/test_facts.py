@@ -10,7 +10,7 @@ from kpop_scraping.facts import (
     _single_time,
 )
 from kpop_scraping.entities import QualifierTime, TimeValue, PRECISION_YEAR
-from wikidata_fixture import SUNMI, SUNYE, TWICE, WONDER_GIRLS, load_fixture
+from .wikidata_fixture import SUNMI, SUNYE, TWICE, WONDER_GIRLS, load_fixture
 
 
 class FactsTest(unittest.TestCase):
