@@ -7,7 +7,11 @@ from collections import defaultdict
 from .catalog import MUSICAL_GROUP_CLASSES
 from .entities import extract_aliases, instance_of, matching_names
 from .fact_store import FactRunTotals, FactStore, count_statuses
-from .release_facts import EXTRACTOR_VERSION, release_entity_type, release_fact_candidates
+from .release_facts import (
+    EXTRACTOR_VERSION,
+    release_entity_type,
+    release_fact_candidates,
+)
 from .release_evidence import collect_release_pages
 from .validation import ValidationContext, validate_facts
 from .wikidata import LABEL_PROFILE, SUBJECT_PROFILE, WikidataEntityClient
@@ -52,9 +56,7 @@ def _completed_discovery_scope(repository, discovery_run_id: int) -> frozenset[i
     if run is None:
         raise ValueError(f"release discovery run {discovery_run_id} does not exist")
     if run["status"] != "completed":
-        raise ValueError(
-            f"release discovery run {discovery_run_id} is not completed"
-        )
+        raise ValueError(f"release discovery run {discovery_run_id} is not completed")
     group_ids = frozenset(
         int(row["group_entity_id"])
         for row in repository.connection.execute(
@@ -114,47 +116,73 @@ def _collect(
     subjects_by_entity = {}
     batches = 0
     requested = sorted(candidate_rows)
+    update_params = []
     for offset in range(0, len(requested), batch_size):
         batch = requested[offset : offset + batch_size]
         response = client.get_entities(batch, SUBJECT_PROFILE)
         batches += 1
         found = {doc.requested_id: doc for doc in response.documents}
-        update_params = []
         for qid in batch:
             document = found.get(qid)
             if document is None:
                 _reject(repository, candidate_rows[qid], "entity_missing")
                 continue
-            snapshot_id = store.save_entity_snapshot(run_id, document, SUBJECT_PROFILE.name)
+            snapshot_id = store.save_entity_snapshot(
+                run_id, document, SUBJECT_PROFILE.name
+            )
             kind = release_entity_type(document.payload)
             if kind is None:
-                _reject(repository, candidate_rows[qid], "release_class_not_allowed", document.wikidata_id, snapshot_id)
+                _reject(
+                    repository,
+                    candidate_rows[qid],
+                    "release_class_not_allowed",
+                    document.wikidata_id,
+                    snapshot_id,
+                )
                 continue
             extracted = release_fact_candidates(document.wikidata_id, document.payload)
-            entity_id, _ = store.save_entity(document, snapshot_id, SUBJECT_PROFILE.name, kind)
+            entity_id, _ = store.save_entity(
+                document, snapshot_id, SUBJECT_PROFILE.name, kind
+            )
             for key in {qid, document.wikidata_id}:
                 entity_ids[key] = entity_id
                 entity_types[key] = kind
-                names[key] = tuple(alias.name for alias in extract_aliases(document.payload))
+                names[key] = tuple(
+                    alias.name for alias in extract_aliases(document.payload)
+                )
             subjects_by_entity.setdefault(
                 entity_id,
-                (entity_id, snapshot_id, document.wikidata_id, extracted, document.payload),
+                (
+                    entity_id,
+                    snapshot_id,
+                    document.wikidata_id,
+                    extracted,
+                    document.payload,
+                ),
             )
             update_params.extend(
-                [(document.wikidata_id, entity_id, snapshot_id, row["id"]) for row in candidate_rows[qid]]
+                [
+                    (document.wikidata_id, entity_id, snapshot_id, row["id"])
+                    for row in candidate_rows[qid]
+                ]
             )
-        if update_params:
-            repository.connection.executemany(
-                "UPDATE release_candidates SET resolved_wikidata_id=?,entity_id=?,snapshot_id=? WHERE id=?",
-                update_params,
-            )
+    if update_params:
+        repository.connection.executemany(
+            "UPDATE release_candidates SET resolved_wikidata_id=?,entity_id=?,snapshot_id=? WHERE id=?",
+            update_params,
+        )
     value_roles = {}
     subjects = tuple(subjects_by_entity.values())
-    ignored = sum(extracted.ignored for _entity_id, _snapshot_id, _qid, extracted, _payload in subjects)
+    ignored = sum(
+        extracted.ignored
+        for _entity_id, _snapshot_id, _qid, extracted, _payload in subjects
+    )
     for _entity_id, _snapshot_id, _qid, extracted, _payload in subjects:
         for candidate in extracted.candidates:
             if candidate.value_id and candidate.value_id not in entity_types:
-                value_roles.setdefault(candidate.value_id, candidate.spec.value_entity_type or "genre")
+                value_roles.setdefault(
+                    candidate.value_id, candidate.spec.value_entity_type or "genre"
+                )
     performer_ids = sorted(qid for qid, role in value_roles.items() if role == "group")
     for offset in range(0, len(performer_ids), batch_size):
         batch = performer_ids[offset : offset + batch_size]
@@ -166,22 +194,34 @@ def _collect(
             ):
                 entity_types[document.requested_id] = "unsupported"
                 continue
-            snapshot_id = store.save_entity_snapshot(run_id, document, SUBJECT_PROFILE.name)
-            entity_id, stored = store.save_entity(document, snapshot_id, SUBJECT_PROFILE.name, "group")
+            snapshot_id = store.save_entity_snapshot(
+                run_id, document, SUBJECT_PROFILE.name
+            )
+            entity_id, stored = store.save_entity(
+                document, snapshot_id, SUBJECT_PROFILE.name, "group"
+            )
             for key in {document.requested_id, document.wikidata_id}:
                 entity_ids[key] = entity_id
                 entity_types[key] = stored
-                names[key] = tuple(alias.name for alias in extract_aliases(document.payload))
+                names[key] = tuple(
+                    alias.name for alias in extract_aliases(document.payload)
+                )
     updates = []
     for qid, rows_for_qid in candidate_rows.items():
-        subject = next((item for item in subjects if item[0] == entity_ids.get(qid)), None)
+        subject = next(
+            (item for item in subjects if item[0] == entity_ids.get(qid)), None
+        )
         if subject is None:
             continue
         performer_entity_ids = _performer_entity_ids(subject[3], entity_ids)
         for row in rows_for_qid:
             accepted = int(row["group_entity_id"]) in performer_entity_ids
             updates.append(
-                ("accepted" if accepted else "rejected", None if accepted else "catalog_performer_not_confirmed", row["id"])
+                (
+                    "accepted" if accepted else "rejected",
+                    None if accepted else "catalog_performer_not_confirmed",
+                    row["id"],
+                )
             )
     if updates:
         repository.connection.executemany(
@@ -194,8 +234,15 @@ def _collect(
         response = client.get_entities(batch, LABEL_PROFILE)
         batches += 1
         for document in response.documents:
-            snapshot_id = store.save_entity_snapshot(run_id, document, LABEL_PROFILE.name)
-            entity_id, stored = store.save_entity(document, snapshot_id, LABEL_PROFILE.name, value_roles[document.requested_id])
+            snapshot_id = store.save_entity_snapshot(
+                run_id, document, LABEL_PROFILE.name
+            )
+            entity_id, stored = store.save_entity(
+                document,
+                snapshot_id,
+                LABEL_PROFILE.name,
+                value_roles[document.requested_id],
+            )
             for key in {document.requested_id, document.wikidata_id}:
                 entity_ids[key] = entity_id
                 entity_types[key] = stored
@@ -212,13 +259,17 @@ def _collect(
         for _entity_id, _snapshot_id, qid, extracted, _payload in subjects
     }
     context = ValidationContext(
-        names=names, entity_types=entity_types, group_pages={},
+        names=names,
+        entity_types=entity_types,
+        group_pages={},
         release_pages=release_pages,
         release_performers=release_performers,
     )
     for entity_id, snapshot_id, _qid, extracted, _payload in subjects:
         current = validate_facts(extracted.candidates, context)
-        store.save_facts(run_id, EXTRACTOR_VERSION, entity_id, snapshot_id, current, entity_ids)
+        store.save_facts(
+            run_id, EXTRACTOR_VERSION, entity_id, snapshot_id, current, entity_ids
+        )
         decisions.extend(current)
     repository.connection.execute(
         """UPDATE release_candidates AS rc SET state='rejected',reason='performed_by_not_accepted'
@@ -237,7 +288,9 @@ def _collect(
         (discovery_run_id, discovery_run_id, discovery_run_id),
     )
     counts = count_statuses(decisions)
-    release_entity_ids = {entity_id for entity_id, _snapshot_id, _qid, _extracted, _payload in subjects}
+    release_entity_ids = {
+        entity_id for entity_id, _snapshot_id, _qid, _extracted, _payload in subjects
+    }
     return FactRunTotals(
         len(scoped_group_ids),
         len(release_entity_ids),
