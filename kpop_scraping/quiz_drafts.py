@@ -88,6 +88,40 @@ def _build_drafts(
     for group, person, _pair in memberships:
         group_ids_by_person[person.wikidata_id].add(group.wikidata_id)
 
+
+    formation_drafts, formation_rejections = _build_formation_drafts(formed)
+    drafts.extend(formation_drafts)
+    rejected.update(formation_rejections)
+
+    birth_drafts, birth_rejections = _build_birth_and_age_drafts(born, reference_date, memberships)
+    drafts.extend(birth_drafts)
+    rejected.update(birth_rejections)
+
+    membership_drafts, membership_rejections = _build_membership_drafts(memberships, groups, people, group_ids_by_person)
+    drafts.extend(membership_drafts)
+    rejected.update(membership_rejections)
+
+    member_for_group_drafts, member_for_group_rejections = _build_member_for_group_drafts(has_members, member_people, member_ids_by_group)
+    drafts.extend(member_for_group_drafts)
+    rejected.update(member_for_group_rejections)
+
+    record_label_drafts, record_label_rejections = _build_record_label_drafts(record_labels)
+    drafts.extend(record_label_drafts)
+    rejected.update(record_label_rejections)
+
+    drafts.extend(_comparison_drafts(formed, "group", memberships))
+    drafts.extend(_comparison_drafts(born, "person", memberships))
+    release_drafts, release_rejections = build_release_drafts(facts)
+    drafts.extend(release_drafts)
+    rejected.update(release_rejections)
+    drafts.sort(key=lambda draft: draft.key)
+    return drafts, rejected
+
+
+
+def _build_formation_drafts(formed: list[Fact]) -> tuple[list[Draft], Counter[str]]:
+    drafts: list[Draft] = []
+    rejected: Counter[str] = Counter()
     for fact in formed:
         alternatives = _year_alternatives(fact, formed)
         if alternatives is None:
@@ -102,7 +136,15 @@ def _build_drafts(
                 (fact.statement_id,),
             )
         )
+    return drafts, rejected
 
+def _build_birth_and_age_drafts(
+    born: list[Fact],
+    reference_date: date,
+    memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
+) -> tuple[list[Draft], Counter[str]]:
+    drafts: list[Draft] = []
+    rejected: Counter[str] = Counter()
     for fact in born:
         alternatives = _time_alternatives(fact, born)
         if alternatives is None:
@@ -133,8 +175,8 @@ def _build_drafts(
                 and "insufficient_precision_for_age" not in other.flags
             }
         )
-        alternatives = _numeric_alternatives(age, age_values)
-        if alternatives is None:
+        age_alternatives = _numeric_alternatives(age, age_values)
+        if age_alternatives is None:
             rejected["insufficient_age_distractors"] += 1
             continue
         drafts.append(
@@ -142,7 +184,7 @@ def _build_drafts(
                 ("age_on_date", fact.statement_id, reference_date.isoformat()),
                 "age_on_date", "people", "medium",
                 _groups_for_person(fact.subject.wikidata_id, memberships),
-                (str(age), "number"), alternatives,
+                (str(age), "number"), age_alternatives,
                 {
                     "person_id": fact.subject.wikidata_id,
                     "born_on": fact.value_time or "",
@@ -152,7 +194,16 @@ def _build_drafts(
                 (fact.statement_id,),
             )
         )
+    return drafts, rejected
 
+def _build_membership_drafts(
+    memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
+    groups: list[Entity],
+    people: list[Entity],
+    group_ids_by_person: dict[str, set[str]],
+) -> tuple[list[Draft], Counter[str]]:
+    drafts: list[Draft] = []
+    rejected: Counter[str] = Counter()
     for group, person, pair_facts in memberships:
         if _group_mentions_person(group, person):
             rejected["group_label_mentions_member"] += 1
@@ -200,7 +251,15 @@ def _build_drafts(
                 tuple(sorted(fact.statement_id for fact in pair_facts)),
             )
         )
+    return drafts, rejected
 
+def _build_member_for_group_drafts(
+    has_members: list[Fact],
+    member_people: list[Entity],
+    member_ids_by_group: dict[str, set[str]],
+) -> tuple[list[Draft], Counter[str]]:
+    drafts: list[Draft] = []
+    rejected: Counter[str] = Counter()
     for fact in has_members:
         person = fact.value_entity
         if person is None:
@@ -226,6 +285,13 @@ def _build_drafts(
                 (fact.statement_id,),
             )
         )
+    return drafts, rejected
+
+def _build_record_label_drafts(
+    record_labels: list[Fact],
+) -> tuple[list[Draft], Counter[str]]:
+    drafts: list[Draft] = []
+    rejected: Counter[str] = Counter()
 
     labels_to_facts: dict[str, list[Fact]] = defaultdict(list)
     label_entities: dict[str, Entity] = {}
@@ -292,15 +358,7 @@ def _build_drafts(
                 (fact.statement_id,),
             )
         )
-
-    drafts.extend(_comparison_drafts(formed, "group", memberships))
-    drafts.extend(_comparison_drafts(born, "person", memberships))
-    release_drafts, release_rejections = build_release_drafts(facts)
-    drafts.extend(release_drafts)
-    rejected.update(release_rejections)
-    drafts.sort(key=lambda draft: draft.key)
     return drafts, rejected
-
 
 def _membership_pairs(facts: list[Fact]) -> list[tuple[Entity, Entity, tuple[Fact, ...]]]:
     sides: dict[tuple[str, str], dict[str, list[Fact]]] = defaultdict(
