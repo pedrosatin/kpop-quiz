@@ -62,9 +62,20 @@ class ReleaseFactTest(unittest.TestCase):
 
     def test_classifies_only_explicit_release_classes(self):
         album = {"claims": {"P31": [item_statement("i", "P31", "Q482994")]}}
+        release1 = {"claims": {"P31": [item_statement("i", "P31", "Q169930")]}}
+        release2 = {"claims": {"P31": [item_statement("i", "P31", "Q134556")]}}
         generic = {"claims": {"P31": [item_statement("i", "P31", "Q2031291")]}}
+        empty_claims = {"claims": {}}
+        missing_claims = {}
+        novalue_claim = {"claims": {"P31": [{"mainsnak": {"property": "P31", "snaktype": "novalue"}, "type": "statement"}]}}
+
         self.assertEqual(release_entity_type(album), "album")
+        self.assertEqual(release_entity_type(release1), "release")
+        self.assertEqual(release_entity_type(release2), "release")
         self.assertIsNone(release_entity_type(generic))
+        self.assertIsNone(release_entity_type(empty_claims))
+        self.assertIsNone(release_entity_type(missing_claims))
+        self.assertIsNone(release_entity_type(novalue_claim))
 
     def test_scoped_publication_date_is_not_publishable(self):
         entity = {"claims": {"P577": [time_statement({"P291": [{"snaktype": "value"}]})]}}
