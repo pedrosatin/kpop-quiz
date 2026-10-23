@@ -1,0 +1,5 @@
+🧪 Add unit tests for geometry_path in build_map_pilot_map
+
+🎯 What: Added a new test file tests/test_build_map_pilot_map.py to test the geometry_path function in scripts/build_map_pilot_map.py which was previously untested. Also added scripts/__init__.py to make scripts importable.
+📊 Coverage: Tested edge cases for None and empty dictionary inputs, as well as happy paths for standard Polygon and MultiPolygon GeoJSON geometry formats to verify SVG path generation.
+✨ Result: Ensured structural integrity and correctness of the SVG map path logic by checking the coordinate projections manually against expected strings.
