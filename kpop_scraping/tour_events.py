@@ -9,7 +9,6 @@ from datetime import date
 from urllib.parse import urlsplit
 from uuid import UUID
 
-
 QID_PATTERN = re.compile(r"Q[1-9][0-9]*\Z")
 ISO_ALPHA2_PATTERN = re.compile(r"[A-Z]{2}\Z")
 REQUIRED_FIELDS = frozenset(
@@ -28,7 +27,13 @@ REQUIRED_FIELDS = frozenset(
     }
 )
 OPTIONAL_FIELDS = frozenset(
-    {"tour_mbid", "event_status", "schedule_status", "source_locator", "source_checked_at"}
+    {
+        "tour_mbid",
+        "event_status",
+        "schedule_status",
+        "source_locator",
+        "source_checked_at",
+    }
 )
 
 
@@ -104,17 +109,59 @@ def assess_tour_event_candidate(
     if missing:
         return TourEventAssessment(None, tuple(issues), False)
 
-    values = {key: payload[key] for key in REQUIRED_FIELDS | (OPTIONAL_FIELDS & payload.keys())}
+    values = {
+        key: payload[key]
+        for key in REQUIRED_FIELDS | (OPTIONAL_FIELDS & payload.keys())
+    }
     if any(not isinstance(value, str) for value in values.values()):
         return TourEventAssessment(None, ("field_not_string",), False)
     string_values = {key: str(value) for key, value in values.items()}
 
     source_url = string_values["source_url"]
+    source_host = _validate_source_url(source_url, context, issues)
+
+    _validate_mbids(string_values, issues)
+    _validate_artists(string_values, context, issues)
+    _validate_event_details(string_values, issues)
+    _validate_location(string_values, context, issues)
+
+    normalized = NormalizedTourEvent(
+        source_url=source_url,
+        source_host=source_host,
+        subject_wikidata_id=string_values["subject_wikidata_id"],
+        artist_musicbrainz_mbid=string_values["artist_musicbrainz_mbid"],
+        event_mbid=string_values["event_mbid"],
+        event_date=string_values["event_date"],
+        event_type=string_values["event_type"],
+        billing_role=string_values["billing_role"],
+        place_mbid=string_values["place_mbid"],
+        city_area_mbid=string_values["city_area_mbid"],
+        country_wikidata_id=string_values["country_wikidata_id"],
+        country_iso_3166_1=string_values["country_iso_3166_1"],
+        event_status=string_values.get("event_status"),
+        schedule_status=string_values.get("schedule_status"),
+        source_locator=string_values.get("source_locator"),
+        source_checked_at=string_values.get("source_checked_at"),
+        tour_mbid=string_values.get("tour_mbid"),
+    )
+    unique_issues = tuple(dict.fromkeys(issues))
+    return TourEventAssessment(
+        normalized=normalized,
+        issues=unique_issues,
+        ready_for_editor_review=not unique_issues,
+    )
+
+
+def _validate_source_url(
+    source_url: str, context: TourEventContext, issues: list[str]
+) -> str:
     try:
         parsed_url = urlsplit(source_url)
         source_host = (parsed_url.hostname or "").lower().rstrip(".")
         source_port = parsed_url.port
-        has_credentials = parsed_url.username is not None or parsed_url.password is not None
+        has_credentials = (
+            parsed_url.username is not None or parsed_url.password is not None
+        )
     except ValueError:
         parsed_url = None
         source_host = ""
@@ -130,11 +177,10 @@ def assess_tour_event_candidate(
         issues.append("invalid_source_url")
     elif source_host not in context.approved_source_hosts:
         issues.append("source_host_not_approved")
+    return source_host
 
-    group_id = string_values["subject_wikidata_id"]
-    if not QID_PATTERN.fullmatch(group_id):
-        issues.append("invalid_subject_wikidata_id")
 
+def _validate_mbids(string_values: dict[str, str], issues: list[str]) -> None:
     for field in (
         "artist_musicbrainz_mbid",
         "event_mbid",
@@ -143,6 +189,18 @@ def assess_tour_event_candidate(
     ):
         if not _is_canonical_mbid(string_values[field]):
             issues.append(f"invalid_{field}")
+
+    tour_id = string_values.get("tour_mbid")
+    if tour_id is not None and not _is_canonical_mbid(tour_id):
+        issues.append("invalid_tour_mbid")
+
+
+def _validate_artists(
+    string_values: dict[str, str], context: TourEventContext, issues: list[str]
+) -> None:
+    group_id = string_values["subject_wikidata_id"]
+    if not QID_PATTERN.fullmatch(group_id):
+        issues.append("invalid_subject_wikidata_id")
 
     event_id = string_values["event_mbid"]
     artist_id = string_values["artist_musicbrainz_mbid"]
@@ -156,6 +214,8 @@ def assess_tour_event_candidate(
     if artist_id not in context.reviewed_event_artists.get(event_id, frozenset()):
         issues.append("event_artist_binding_unreviewed")
 
+
+def _validate_event_details(string_values: dict[str, str], issues: list[str]) -> None:
     event_date = string_values["event_date"]
     if not _is_iso_date(event_date):
         issues.append("invalid_event_date")
@@ -180,6 +240,10 @@ def assess_tour_event_candidate(
     if source_checked_at is not None and not _is_iso_date(source_checked_at):
         issues.append("invalid_source_checked_at")
 
+
+def _validate_location(
+    string_values: dict[str, str], context: TourEventContext, issues: list[str]
+) -> None:
     place_id = string_values["place_mbid"]
     city_id = string_values["city_area_mbid"]
     place_cities = context.place_city_relations.get(place_id, frozenset())
@@ -206,36 +270,6 @@ def assess_tour_event_candidate(
         or city_matches[0].iso_3166_1 != country_iso
     ):
         issues.append("country_identity_mismatch")
-
-    tour_id = string_values.get("tour_mbid")
-    if tour_id is not None and not _is_canonical_mbid(tour_id):
-        issues.append("invalid_tour_mbid")
-
-    normalized = NormalizedTourEvent(
-        source_url=source_url,
-        source_host=source_host,
-        subject_wikidata_id=group_id,
-        artist_musicbrainz_mbid=artist_id,
-        event_mbid=event_id,
-        event_date=event_date,
-        event_type=string_values["event_type"],
-        billing_role=string_values["billing_role"],
-        place_mbid=place_id,
-        city_area_mbid=city_id,
-        country_wikidata_id=country_id,
-        country_iso_3166_1=country_iso,
-        event_status=event_status,
-        schedule_status=schedule_status,
-        source_locator=source_locator,
-        source_checked_at=source_checked_at,
-        tour_mbid=tour_id,
-    )
-    unique_issues = tuple(dict.fromkeys(issues))
-    return TourEventAssessment(
-        normalized=normalized,
-        issues=unique_issues,
-        ready_for_editor_review=not unique_issues,
-    )
 
 
 def _is_canonical_mbid(value: str) -> bool:
