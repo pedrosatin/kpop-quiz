@@ -130,8 +130,10 @@ jobs:
       # deployed=true only after wrangler succeeds (or false when secrets were missing).
       - name: Record deploy result
         id: record
+        env:
+          SKIP: ${{ steps.credentials.outputs.skip }}
         run: |
-          if [ "${{ steps.credentials.outputs.skip }}" = "true" ]; then
+          if [ "$SKIP" = "true" ]; then
             echo "deployed=false" >> "$GITHUB_OUTPUT"
           else
             echo "deployed=true" >> "$GITHUB_OUTPUT"
