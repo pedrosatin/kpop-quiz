@@ -7,7 +7,6 @@ from collections.abc import Mapping
 
 from .group_relevance import WINDOW_DAYS, _article_key
 
-
 ALGORITHM_VERSION = "group-relevance-pageview-percentiles-v1"
 MAX_SCORE = 10_000
 ASSISTED_MIN_SCORE = 6_667
@@ -65,12 +64,13 @@ def score_groups(
     return rows
 
 
-def latest_complete_pageviews(connection: sqlite3.Connection) -> tuple[int, dict[str, int]] | None:
+def latest_complete_pageviews(
+    connection: sqlite3.Connection,
+) -> tuple[int, dict[str, int]] | None:
     """Return the newest single run covering every accepted English group."""
     connection.row_factory = sqlite3.Row
     try:
-        accepted_rows = connection.execute(
-            """
+        accepted_rows = connection.execute("""
             SELECT e.id, e.wikidata_id, MIN(sp.title) AS page_title
             FROM entities e
             JOIN catalog_entity_links cel ON cel.entity_id=e.id
@@ -79,8 +79,7 @@ def latest_complete_pageviews(connection: sqlite3.Connection) -> tuple[int, dict
             WHERE e.entity_type='group' AND ce.state='accepted'
               AND sp.provider='wikipedia' AND sp.language='en'
             GROUP BY e.id, e.wikidata_id
-            """
-        ).fetchall()
+            """).fetchall()
         runs = connection.execute(
             """
             SELECT id FROM group_pageview_runs
@@ -112,7 +111,10 @@ def latest_complete_pageviews(connection: sqlite3.Connection) -> tuple[int, dict
             (run["id"],),
         ).fetchall()
         by_entity = {
-            int(row["entity_id"]): (int(row["total_views"]), _article_key(str(row["page_title"])))
+            int(row["entity_id"]): (
+                int(row["total_views"]),
+                _article_key(str(row["page_title"])),
+            )
             for row in measurements
         }
         titles_match = all(
@@ -135,11 +137,12 @@ def store_relevance_scores(connection: sqlite3.Connection) -> int:
     """Calculate and store a complete score snapshot in one transaction."""
     owns_transaction = not connection.in_transaction
     savepoint = "group_relevance_score"
+    safe_savepoint = '"' + savepoint.replace('"', '""') + '"'
     try:
         if owns_transaction:
             connection.execute("BEGIN IMMEDIATE")
         else:
-            connection.execute(f"SAVEPOINT {savepoint}")
+            connection.execute(f"SAVEPOINT {safe_savepoint}")
         snapshot = latest_complete_pageviews(connection)
         if snapshot is None:
             raise RelevanceScoreError("no complete 365-day pageview run is available")
@@ -189,13 +192,13 @@ def store_relevance_scores(connection: sqlite3.Connection) -> int:
         if owns_transaction:
             connection.commit()
         else:
-            connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+            connection.execute(f"RELEASE SAVEPOINT {safe_savepoint}")
     except Exception:
         if owns_transaction:
             connection.rollback()
         else:
-            connection.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
-            connection.execute(f"RELEASE SAVEPOINT {savepoint}")
+            connection.execute(f"ROLLBACK TO SAVEPOINT {safe_savepoint}")
+            connection.execute(f"RELEASE SAVEPOINT {safe_savepoint}")
         raise
     return run_id
 
@@ -204,10 +207,7 @@ def load_latest_relevance_scores(connection: sqlite3.Connection) -> dict[str, in
     """Load the newest score run only when it covers the accepted catalog."""
     connection.row_factory = sqlite3.Row
     try:
-        accepted = {
-            str(row["wikidata_id"])
-            for row in connection.execute(
-                """
+        accepted = {str(row["wikidata_id"]) for row in connection.execute("""
                 SELECT DISTINCT e.wikidata_id
                 FROM entities e
                 JOIN catalog_entity_links cel ON cel.entity_id=e.id
@@ -215,9 +215,7 @@ def load_latest_relevance_scores(connection: sqlite3.Connection) -> dict[str, in
                 JOIN catalog_entries ce ON ce.source_page_id=sp.id
                 WHERE e.entity_type='group' AND ce.state='accepted'
                   AND sp.provider='wikipedia' AND sp.language='en'
-                """
-            )
-        }
+                """)}
         cursor = connection.execute(
             """
             SELECT r.id, e.wikidata_id, s.relevance_score
@@ -227,7 +225,7 @@ def load_latest_relevance_scores(connection: sqlite3.Connection) -> dict[str, in
             WHERE r.algorithm_version=?
             ORDER BY r.created_at DESC, r.id DESC
             """,
-            (ALGORITHM_VERSION,)
+            (ALGORITHM_VERSION,),
         )
     except sqlite3.OperationalError as exc:
         if "no such table" in str(exc):
