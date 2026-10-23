@@ -62,9 +62,30 @@ class ReleaseFactTest(unittest.TestCase):
 
     def test_classifies_only_explicit_release_classes(self):
         album = {"claims": {"P31": [item_statement("i", "P31", "Q482994")]}}
+        release = {"claims": {"P31": [item_statement("i", "P31", "Q169930")]}}
         generic = {"claims": {"P31": [item_statement("i", "P31", "Q2031291")]}}
         self.assertEqual(release_entity_type(album), "album")
+        self.assertEqual(release_entity_type(release), "release")
         self.assertIsNone(release_entity_type(generic))
+
+    def test_release_fact_candidates_happy_path(self):
+        entity = {
+            "claims": {
+                "P175": [item_statement("p175", "P175", "Q10")],
+                "P577": [time_statement()],
+                "P136": [item_statement("p136", "P136", "Q20")]
+            }
+        }
+        extracted = release_fact_candidates("Q100", entity)
+        candidates = extracted.candidates
+
+        self.assertEqual(len(candidates), 3)
+
+        predicates = {c.predicate for c in candidates}
+        self.assertEqual(predicates, {"performed_by", "released_on", "release_genre"})
+
+        released_on_candidate = next(c for c in candidates if c.predicate == "released_on")
+        self.assertIsNone(released_on_candidate.error)
 
     def test_scoped_publication_date_is_not_publishable(self):
         entity = {"claims": {"P577": [time_statement({"P291": [{"snaktype": "value"}]})]}}
