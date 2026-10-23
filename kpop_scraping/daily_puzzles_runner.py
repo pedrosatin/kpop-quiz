@@ -62,7 +62,6 @@ from .web_publish import (
 )
 from .word_search_generator import generate_word_search_puzzle
 
-
 # Holds the next day's set, published ahead of time.
 NEXT_DIRNAME = "next"
 
@@ -99,7 +98,9 @@ def generate_daily_puzzles(
     base_sessions = {
         f"{locale}.{difficulty}": create_session(
             dataset,
-            QuizConfig(locale, base_seed, play_mode=difficulty, timer_seconds=timer_seconds),
+            QuizConfig(
+                locale, base_seed, play_mode=difficulty, timer_seconds=timer_seconds
+            ),
         )
         for locale in LOCALES
         for difficulty in DIFFICULTIES
@@ -119,7 +120,9 @@ def generate_daily_puzzles(
         grid = generate_daily_grid(connection, reference_date=ref_date)
     except ValueError as exc:
         grid_error = str(exc)
-        sys.stderr.write(f"Daily grid generation failed; reusing the previous grid only if it validates: {exc}\n")
+        sys.stderr.write(
+            f"Daily grid generation failed; reusing the previous grid only if it validates: {exc}\n"
+        )
 
     # 3. Connections puzzle
     connections_seed = f"kpop-connections-daily-{iso_date}"
@@ -179,6 +182,95 @@ def generate_daily_puzzles(
     }
 
 
+def _stage_puzzles(
+    staging_dir: Path, puzzles: dict[str, Any], previous_grid: Path
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Publish all games into staging directory, handling fallbacks and skipped states."""
+    publish(
+        staging_dir,
+        puzzles["sessions"],
+        grid=puzzles["grid"],
+        connections=puzzles["connections"],
+        name_guess=puzzles["name_guess"],
+        word_search=puzzles["word_search"],
+        timeline=puzzles["timeline"],
+        code_groups=puzzles["code_groups"],
+    )
+
+    grid_skipped = None
+    if puzzles["grid"] is None:
+        previous_invalid = _invalid_grid_reason(previous_grid)
+        if previous_invalid is None and previous_grid.is_file():
+            shutil.copyfile(previous_grid, staging_dir / GRID_DAILY_FILENAME)
+        else:
+            # No grid to publish; the grid page reports the artifact
+            # as missing for this day.
+            grid_skipped = {
+                "error": puzzles.get("grid_error") or "unknown error",
+                "previous_invalid": previous_invalid,
+            }
+
+    write_json_atomic(
+        staging_dir / "session.pt-BR.json", puzzles["session_pt_br"], validate_session
+    )
+    write_json_atomic(
+        staging_dir / "session.en.json", puzzles["session_en"], validate_session
+    )
+
+    # Partial publish policy for the group code pilot: the day goes out
+    # without code-groups.daily.json and the result keeps the error.
+    code_groups_skipped = (
+        {"error": puzzles.get("code_groups_error") or "unknown error"}
+        if puzzles["code_groups"] is None
+        else None
+    )
+
+    return grid_skipped, code_groups_skipped
+
+
+def _build_publish_result(
+    output_dir: Path,
+    staging_dir: Path,
+    puzzles: dict[str, Any],
+    grid_skipped: dict[str, Any] | None,
+    code_groups_skipped: dict[str, Any] | None,
+    dry_run: bool,
+) -> dict[str, Any]:
+    """Construct the result dictionary tracking published artifacts and reuses/skips."""
+    published_grid = puzzles["grid"]
+    grid_reused = None
+    if published_grid is None and grid_skipped is None:
+        published_grid = json.loads(
+            (staging_dir / GRID_DAILY_FILENAME).read_text(encoding="utf-8")
+        )
+        # Set only when the previous day's grid was kept.
+        grid_reused = {
+            "reference_date": published_grid.get("reference_date"),
+            "error": puzzles.get("grid_error") or "unknown error",
+        }
+
+    return {
+        "reference_date": puzzles["reference_date"],
+        "dataset_version": puzzles["dataset_version"],
+        "grid_id": published_grid["grid_id"] if published_grid is not None else None,
+        "grid_reused": grid_reused,
+        "grid_skipped": grid_skipped,
+        "connections_id": puzzles["connections"]["puzzle_id"],
+        "name_guess_id": puzzles["name_guess"]["puzzle_id"],
+        "word_search_id": puzzles["word_search"]["puzzle_id"],
+        "timeline_id": puzzles["timeline"]["puzzle_id"],
+        "code_groups_id": (
+            puzzles["code_groups"]["puzzle_id"]
+            if puzzles["code_groups"] is not None
+            else None
+        ),
+        "code_groups_skipped": code_groups_skipped,
+        "dry_run": dry_run,
+        "output_dir": str(output_dir),
+        "published_files": [p.name for p in sorted(staging_dir.glob("*.json"))],
+    }
+
+
 def publish_daily_puzzles(
     output_dir: Path,
     puzzles: dict[str, Any],
@@ -206,37 +298,8 @@ def publish_daily_puzzles(
         staging_dir = Path(temp_dir_str)
 
         # 1. Publish all games into staging directory
-        publish(
-            staging_dir,
-            puzzles["sessions"],
-            grid=puzzles["grid"],
-            connections=puzzles["connections"],
-            name_guess=puzzles["name_guess"],
-            word_search=puzzles["word_search"],
-            timeline=puzzles["timeline"],
-            code_groups=puzzles["code_groups"],
-        )
-        grid_skipped = None
-        if puzzles["grid"] is None:
-            previous_invalid = _invalid_grid_reason(previous_grid)
-            if previous_invalid is None and previous_grid.is_file():
-                shutil.copyfile(previous_grid, staging_dir / GRID_DAILY_FILENAME)
-            else:
-                # No grid to publish; the grid page reports the artifact
-                # as missing for this day.
-                grid_skipped = {
-                    "error": puzzles.get("grid_error") or "unknown error",
-                    "previous_invalid": previous_invalid,
-                }
-        write_json_atomic(staging_dir / "session.pt-BR.json", puzzles["session_pt_br"], validate_session)
-        write_json_atomic(staging_dir / "session.en.json", puzzles["session_en"], validate_session)
-
-        # Partial publish policy for the group code pilot: the day goes out
-        # without code-groups.daily.json and the result keeps the error.
-        code_groups_skipped = (
-            {"error": puzzles.get("code_groups_error") or "unknown error"}
-            if puzzles["code_groups"] is None
-            else None
+        grid_skipped, code_groups_skipped = _stage_puzzles(
+            staging_dir, puzzles, previous_grid
         )
 
         # 2. Verify all artifacts in staging directory. The grid and the
@@ -244,33 +307,15 @@ def publish_daily_puzzles(
         # present, verify() validates it.
         verify_artifacts(staging_dir, require_grid=False, require_code_groups=False)
 
-        published_grid = puzzles["grid"]
-        grid_reused = None
-        if published_grid is None and grid_skipped is None:
-            published_grid = json.loads((staging_dir / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))
-            # Set only when the previous day's grid was kept.
-            grid_reused = {
-                "reference_date": published_grid.get("reference_date"),
-                "error": puzzles.get("grid_error") or "unknown error",
-            }
-        result = {
-            "reference_date": puzzles["reference_date"],
-            "dataset_version": puzzles["dataset_version"],
-            "grid_id": published_grid["grid_id"] if published_grid is not None else None,
-            "grid_reused": grid_reused,
-            "grid_skipped": grid_skipped,
-            "connections_id": puzzles["connections"]["puzzle_id"],
-            "name_guess_id": puzzles["name_guess"]["puzzle_id"],
-            "word_search_id": puzzles["word_search"]["puzzle_id"],
-            "timeline_id": puzzles["timeline"]["puzzle_id"],
-            "code_groups_id": (
-                puzzles["code_groups"]["puzzle_id"] if puzzles["code_groups"] is not None else None
-            ),
-            "code_groups_skipped": code_groups_skipped,
-            "dry_run": dry_run,
-            "output_dir": str(output_dir),
-            "published_files": [p.name for p in sorted(staging_dir.glob("*.json"))],
-        }
+        result = _build_publish_result(
+            output_dir,
+            staging_dir,
+            puzzles,
+            grid_skipped,
+            code_groups_skipped,
+            dry_run,
+        )
+
         if dry_run:
             return result
 
@@ -319,7 +364,9 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
             continue
         names.add(source_file.name)
         target_path = output_dir / source_file.name
-        descriptor, temp_path = tempfile.mkstemp(prefix=f".{source_file.name}.", dir=output_dir)
+        descriptor, temp_path = tempfile.mkstemp(
+            prefix=f".{source_file.name}.", dir=output_dir
+        )
         try:
             with os.fdopen(descriptor, "wb") as dst, source_file.open("rb") as src:
                 shutil.copyfileobj(src, dst)
@@ -347,20 +394,28 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
 
 def _published_day(directory: Path) -> str | None:
     try:
-        payload = json.loads((directory / CONNECTIONS_DAILY_FILENAME).read_text(encoding="utf-8"))
+        payload = json.loads(
+            (directory / CONNECTIONS_DAILY_FILENAME).read_text(encoding="utf-8")
+        )
     except (OSError, json.JSONDecodeError):
         return None
     value = payload.get("reference_date") if isinstance(payload, dict) else None
     return value if isinstance(value, str) else None
 
 
-def _published_result(output_dir: Path, reference_date: str, **flags: bool) -> dict[str, Any]:
+def _published_result(
+    output_dir: Path, reference_date: str, **flags: bool
+) -> dict[str, Any]:
     def read(name: str) -> dict[str, Any]:
         return json.loads((output_dir / name).read_text(encoding="utf-8"))
 
     # A day may be published without a grid; grid_id is None then.
     grid_path = output_dir / GRID_DAILY_FILENAME
-    grid = json.loads(grid_path.read_text(encoding="utf-8")) if grid_path.is_file() else None
+    grid = (
+        json.loads(grid_path.read_text(encoding="utf-8"))
+        if grid_path.is_file()
+        else None
+    )
     # Kept or promoted bytes carry no generation error, so the skip record
     # only marks the artifact as absent for that day.
     grid_skipped = (
@@ -468,7 +523,11 @@ def run_daily_puzzles(
         raise FileNotFoundError(f"Database does not exist: {db_path}")
 
     iso_date = get_reference_date(reference_date)
-    result = None if dry_run or regenerate else keep_or_promote_day(output_dir_path, iso_date)
+    result = (
+        None
+        if dry_run or regenerate
+        else keep_or_promote_day(output_dir_path, iso_date)
+    )
 
     try:
         connection = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
