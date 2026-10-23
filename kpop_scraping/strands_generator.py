@@ -60,7 +60,11 @@ from .strands_schema import (
     compute_strands_puzzle_id,
     validate_strands_puzzle,
 )
-from .word_search_generator import ThemeDefinition, _serialize_evidence, extract_viable_themes
+from .word_search_generator import (
+    ThemeDefinition,
+    _serialize_evidence,
+    extract_viable_themes,
+)
 from .word_search_schema import normalize_word
 
 # Fixed by docs/strands-benchmark.md.
@@ -120,7 +124,9 @@ class _UniquenessBudget:
         _check_deadline(self.deadline)
         self.remaining -= 1
         if self.remaining < 0:
-            raise UniquenessBudgetExceeded("Strands uniqueness not proved: node budget exceeded")
+            raise UniquenessBudgetExceeded(
+                "Strands uniqueness not proved: node budget exceeded"
+            )
 
 
 @dataclass(frozen=True)
@@ -251,7 +257,10 @@ def _build_theme(theme: ThemeDefinition, facts: Sequence[Fact]) -> StrandsTheme:
         else:
             word, reason = classify_name(group.canonical_name)
             group_evidence = _serialize_evidence(
-                ev for _member, member_facts in entries for f in member_facts for ev in f.evidence
+                ev
+                for _member, member_facts in entries
+                for f in member_facts
+                for ev in f.evidence
             )
             if word is None:
                 spangram_problem = f"group_{reason}"
@@ -300,7 +309,9 @@ def _build_theme(theme: ThemeDefinition, facts: Sequence[Fact]) -> StrandsTheme:
                 reason = DISCARD_DUPLICATE_WORD
             else:
                 continue
-        discarded.append(DiscardedName(entity.wikidata_id, entity.canonical_name, reason))
+        discarded.append(
+            DiscardedName(entity.wikidata_id, entity.canonical_name, reason)
+        )
 
     return StrandsTheme(
         theme_id=theme.theme_id,
@@ -323,7 +334,9 @@ def _build_theme(theme: ThemeDefinition, facts: Sequence[Fact]) -> StrandsTheme:
     )
 
 
-def build_strands_themes(entities: dict[int, Entity], facts: list[Fact]) -> list[StrandsTheme]:
+def build_strands_themes(
+    entities: dict[int, Entity], facts: list[Fact]
+) -> list[StrandsTheme]:
     """Return roster and decade themes with spangrams and discard reasons.
 
     ``extract_viable_themes`` keeps names of 3 to 16 letters and audited
@@ -343,7 +356,10 @@ def build_strands_themes(entities: dict[int, Entity], facts: list[Fact]) -> list
 
 
 def _subset_sums_possible(
-    lengths: Sequence[int], target: int, min_count: int, max_count: int,
+    lengths: Sequence[int],
+    target: int,
+    min_count: int,
+    max_count: int,
     deadline: float | None = None,
 ) -> bool:
     reachable: set[tuple[int, int]] = {(0, 0)}
@@ -358,7 +374,10 @@ def _subset_sums_possible(
 
 
 def assess_theme(
-    theme: StrandsTheme, rows: int, cols: int, deadline: float | None = None,
+    theme: StrandsTheme,
+    rows: int,
+    cols: int,
+    deadline: float | None = None,
 ) -> ThemeFeasibility:
     """Check, before any search, whether the theme can fill a grid exactly."""
     area = rows * cols
@@ -375,10 +394,17 @@ def assess_theme(
         return result
     target = area - len(theme.spangram.word)
     if not _subset_sums_possible(
-        [len(w.word) for w in theme.words], target, STRANDS_MIN_WORDS - 1, STRANDS_MAX_WORDS - 1,
+        [len(w.word) for w in theme.words],
+        target,
+        STRANDS_MIN_WORDS - 1,
+        STRANDS_MAX_WORDS - 1,
         deadline,
     ):
-        best = sum(sorted((len(w.word) for w in theme.words), reverse=True)[: STRANDS_MAX_WORDS - 1])
+        best = sum(
+            sorted((len(w.word) for w in theme.words), reverse=True)[
+                : STRANDS_MAX_WORDS - 1
+            ]
+        )
         result.reason = (
             "not_enough_letters" if best < target else "no_exact_letter_count"
         )
@@ -489,7 +515,9 @@ def _components(geometry: _Geometry, owner: list[int]) -> list[int]:
     return sizes
 
 
-def _can_split(sizes: list[int], lengths: list[int], deadline: float | None = None) -> bool:
+def _can_split(
+    sizes: list[int], lengths: list[int], deadline: float | None = None
+) -> bool:
     """Return True when the lengths can be grouped to fill each region exactly."""
     if not sizes:
         return not lengths
@@ -508,7 +536,11 @@ def _can_split(sizes: list[int], lengths: list[int], deadline: float | None = No
             return fill(region + 1, sizes[region + 1], used, 0)
         previous = -1
         for idx in range(start, len(lengths)):
-            if used & (1 << idx) or lengths[idx] > remaining or lengths[idx] == previous:
+            if (
+                used & (1 << idx)
+                or lengths[idx] > remaining
+                or lengths[idx] == previous
+            ):
                 continue
             previous = lengths[idx]
             if fill(region, remaining - lengths[idx], used | (1 << idx), idx + 1):
@@ -521,7 +553,9 @@ def _can_split(sizes: list[int], lengths: list[int], deadline: float | None = No
 def spans_opposite_sides_idx(path: Sequence[int], rows: int, cols: int) -> bool:
     rows_seen = {cell // cols for cell in path}
     cols_seen = {cell % cols for cell in path}
-    return (0 in rows_seen and rows - 1 in rows_seen) or (0 in cols_seen and cols - 1 in cols_seen)
+    return (0 in rows_seen and rows - 1 in rows_seen) or (
+        0 in cols_seen and cols - 1 in cols_seen
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -531,6 +565,202 @@ def spans_opposite_sides_idx(path: Sequence[int], rows: int, cols: int) -> bool:
 
 class _BudgetExceeded(Exception):
     pass
+
+
+class _PathPlacer:
+    def __init__(
+        self,
+        lengths: Sequence[int],
+        rows: int,
+        cols: int,
+        rng: random.Random,
+        node_budget: int,
+        deadline: float | None,
+    ) -> None:
+        self.lengths = lengths
+        self.rows = rows
+        self.cols = cols
+        self.rng = rng
+        self.node_budget = node_budget
+        self.deadline = deadline
+
+        self.geometry = _Geometry(rows, cols)
+        if sum(lengths) != self.geometry.size:
+            raise ValueError("word lengths must add up to the grid area")
+        self.owner = [-1] * self.geometry.size
+        self.diagonals: set[int] = set()
+        self.result: list[Path | None] = [None] * len(lengths)
+        self.nodes = 0
+
+    def tick(self) -> None:
+        _check_deadline(self.deadline)
+        self.nodes += 1
+        if self.nodes > self.node_budget:
+            raise _BudgetExceeded
+
+    def free_degree(self, cell: int) -> int:
+        return sum(1 for nxt in self.geometry.neighbors[cell] if self.owner[nxt] == -1)
+
+    def step_allowed(self, a: int, b: int) -> bool:
+        key = self.geometry.crossing_key(a, b)
+        return key is None or key not in self.diagonals
+
+    def isolates_cell(self, previous: int, head: int, remaining: int) -> bool:
+        """Return True when the last step left an empty cell no path can reach.
+
+        An empty cell without empty neighbours can only be the last cell of
+        the path being grown, and only when it touches the head and exactly
+        one letter is left.
+        """
+        stranded = 0
+        for cell in set(self.geometry.neighbors[previous]) | set(
+            self.geometry.neighbors[head]
+        ):
+            if self.owner[cell] != -1 or self.free_degree(cell):
+                continue
+            if (
+                remaining == 1
+                and cell in self.geometry.neighbors[head]
+                and stranded == 0
+            ):
+                stranded = 1
+                continue
+            return True
+        return False
+
+    def remaining_lengths(self) -> list[int]:
+        return [
+            self.lengths[i] for i in range(len(self.lengths)) if self.result[i] is None
+        ]
+
+    def grow(
+        self,
+        path: Path,
+        length: int,
+        index: int,
+        accept: Callable[[Path], bool],
+        prune: Callable[[Path], bool],
+        warnsdorff: bool,
+    ) -> bool:
+        self.tick()
+        if len(path) == length:
+            return accept(path)
+        head = path[-1]
+        options = [
+            nxt
+            for nxt in self.geometry.neighbors[head]
+            if self.owner[nxt] == -1 and self.step_allowed(head, nxt)
+        ]
+        self.rng.shuffle(options)
+        if warnsdorff:
+            options.sort(key=self.free_degree)
+        for nxt in options:
+            path.append(nxt)
+            self.owner[nxt] = index
+            key = None
+            if self.geometry.crossing_key(head, nxt) is not None:
+                key = self.geometry.edge_key(head, nxt)
+                self.diagonals.add(key)
+            ok = (
+                not self.isolates_cell(head, nxt, length - len(path))
+                and not prune(path)
+                and self.grow(path, length, index, accept, prune, warnsdorff)
+            )
+            if ok:
+                return True
+            if key is not None:
+                self.diagonals.discard(key)
+            self.owner[nxt] = -1
+            path.pop()
+        return False
+
+    def regions_ok(self) -> bool:
+        return _can_split(
+            _components(self.geometry, self.owner),
+            self.remaining_lengths(),
+            self.deadline,
+        )
+
+    def place_next(self) -> bool:
+        pending = [i for i in range(len(self.lengths)) if self.result[i] is None]
+        if not pending:
+            return True
+        empty = [cell for cell in range(self.geometry.size) if self.owner[cell] == -1]
+        degrees = {cell: self.free_degree(cell) for cell in empty}
+        lowest = min(degrees.values())
+        start = self.rng.choice([cell for cell in empty if degrees[cell] == lowest])
+        tried_lengths: set[int] = set()
+        order = list(pending)
+        self.rng.shuffle(order)
+        for index in order:
+            length = self.lengths[index]
+            if length in tried_lengths:
+                continue
+            tried_lengths.add(length)
+
+            def accept(path: Path, index: int = index) -> bool:
+                self.result[index] = list(path)
+                if self.regions_ok() and self.place_next():
+                    return True
+                self.result[index] = None
+                return False
+
+            self.owner[start] = index
+            if self.grow([start], length, index, accept, lambda _p: False, True):
+                return True
+            self.owner[start] = -1
+        return False
+
+    def spangram_far_side(self, path: Path, axis: str) -> int:
+        if axis == "horizontal":
+            return max(cell % self.cols for cell in path)
+        return max(cell // self.cols for cell in path)
+
+    def place(self) -> list[Path] | None:
+        spangram_length = self.lengths[0]
+        axes = []
+        if spangram_length >= self.cols:
+            axes.append("horizontal")
+        if spangram_length >= self.rows:
+            axes.append("vertical")
+        if not axes:
+            raise ValueError("spangram is too short to touch two opposite sides")
+
+        try:
+            for _ in range(4):
+                axis = self.rng.choice(axes)
+                span = self.cols if axis == "horizontal" else self.rows
+                other = self.rows if axis == "horizontal" else self.cols
+                line = self.rng.randrange(other)
+                start = line * self.cols if axis == "horizontal" else line
+
+                def sp_prune(path: Path, axis: str = axis, span: int = span) -> bool:
+                    reached = self.spangram_far_side(path, axis)
+                    return (span - 1 - reached) > (spangram_length - len(path))
+
+                def sp_accept(path: Path, axis: str = axis, span: int = span) -> bool:
+                    if self.spangram_far_side(path, axis) != span - 1:
+                        return False
+                    self.result[0] = list(path)
+                    if self.regions_ok() and self.place_next():
+                        return True
+                    self.result[0] = None
+                    return False
+
+                self.owner[start] = 0
+                if self.grow([start], spangram_length, 0, sp_accept, sp_prune, False):
+                    break
+                self.owner[start] = -1
+            else:
+                return None
+        except _BudgetExceeded:
+            return None
+
+        paths = [p for p in self.result if p is not None]
+        if len(paths) != len(self.lengths):
+            return None
+        _check_deadline(self.deadline)
+        return paths
 
 
 def place_strands_paths(
@@ -548,171 +778,10 @@ def place_strands_paths(
     other paths follow in the returned order of ``lengths``.  Returns ``None``
     when the node budget runs out before a partition is found.
     """
-    geometry = _Geometry(rows, cols)
-    if sum(lengths) != geometry.size:
-        raise ValueError("word lengths must add up to the grid area")
-    owner = [-1] * geometry.size
-    diagonals: set[int] = set()
-    result: list[Path | None] = [None] * len(lengths)
-    nodes = [0]
-
-    def tick() -> None:
-        _check_deadline(deadline)
-        nodes[0] += 1
-        if nodes[0] > node_budget:
-            raise _BudgetExceeded
-
-    def free_degree(cell: int) -> int:
-        return sum(1 for nxt in geometry.neighbors[cell] if owner[nxt] == -1)
-
-    def step_allowed(a: int, b: int) -> bool:
-        key = geometry.crossing_key(a, b)
-        return key is None or key not in diagonals
-
-    def isolates_cell(previous: int, head: int, remaining: int) -> bool:
-        """Return True when the last step left an empty cell no path can reach.
-
-        An empty cell without empty neighbours can only be the last cell of
-        the path being grown, and only when it touches the head and exactly
-        one letter is left.
-        """
-        stranded = 0
-        for cell in set(geometry.neighbors[previous]) | set(geometry.neighbors[head]):
-            if owner[cell] != -1 or free_degree(cell):
-                continue
-            if remaining == 1 and cell in geometry.neighbors[head] and stranded == 0:
-                stranded = 1
-                continue
-            return True
-        return False
-
-    def remaining_lengths() -> list[int]:
-        return [lengths[i] for i in range(len(lengths)) if result[i] is None]
-
-    def grow(
-        path: Path,
-        length: int,
-        index: int,
-        accept: Callable[[Path], bool],
-        prune: Callable[[Path], bool],
-        warnsdorff: bool,
-    ) -> bool:
-        tick()
-        if len(path) == length:
-            return accept(path)
-        head = path[-1]
-        options = [
-            nxt
-            for nxt in geometry.neighbors[head]
-            if owner[nxt] == -1 and step_allowed(head, nxt)
-        ]
-        rng.shuffle(options)
-        if warnsdorff:
-            options.sort(key=free_degree)
-        for nxt in options:
-            path.append(nxt)
-            owner[nxt] = index
-            key = None
-            if geometry.crossing_key(head, nxt) is not None:
-                key = geometry.edge_key(head, nxt)
-                diagonals.add(key)
-            ok = (
-                not isolates_cell(head, nxt, length - len(path))
-                and not prune(path)
-                and grow(path, length, index, accept, prune, warnsdorff)
-            )
-            if ok:
-                return True
-            if key is not None:
-                diagonals.discard(key)
-            owner[nxt] = -1
-            path.pop()
-        return False
-
-    def regions_ok() -> bool:
-        return _can_split(_components(geometry, owner), remaining_lengths(), deadline)
-
-    def place_next() -> bool:
-        pending = [i for i in range(len(lengths)) if result[i] is None]
-        if not pending:
-            return True
-        empty = [cell for cell in range(geometry.size) if owner[cell] == -1]
-        degrees = {cell: free_degree(cell) for cell in empty}
-        lowest = min(degrees.values())
-        start = rng.choice([cell for cell in empty if degrees[cell] == lowest])
-        tried_lengths: set[int] = set()
-        order = list(pending)
-        rng.shuffle(order)
-        for index in order:
-            length = lengths[index]
-            if length in tried_lengths:
-                continue
-            tried_lengths.add(length)
-
-            def accept(path: Path, index: int = index) -> bool:
-                result[index] = list(path)
-                if regions_ok() and place_next():
-                    return True
-                result[index] = None
-                return False
-
-            owner[start] = index
-            if grow([start], length, index, accept, lambda _p: False, True):
-                return True
-            owner[start] = -1
-        return False
-
-    spangram_length = lengths[0]
-    axes = []
-    if spangram_length >= cols:
-        axes.append("horizontal")
-    if spangram_length >= rows:
-        axes.append("vertical")
-    if not axes:
-        raise ValueError("spangram is too short to touch two opposite sides")
-
-    def spangram_far_side(path: Path, axis: str) -> int:
-        if axis == "horizontal":
-            return max(cell % cols for cell in path)
-        return max(cell // cols for cell in path)
-
-    try:
-        for _ in range(4):
-            axis = rng.choice(axes)
-            span = cols if axis == "horizontal" else rows
-            other = rows if axis == "horizontal" else cols
-            line = rng.randrange(other)
-            start = line * cols if axis == "horizontal" else line
-
-            def sp_prune(path: Path, axis: str = axis, span: int = span) -> bool:
-                reached = spangram_far_side(path, axis)
-                return (span - 1 - reached) > (spangram_length - len(path))
-
-            def sp_accept(path: Path, axis: str = axis, span: int = span) -> bool:
-                if spangram_far_side(path, axis) != span - 1:
-                    return False
-                result[0] = list(path)
-                if regions_ok() and place_next():
-                    return True
-                result[0] = None
-                return False
-
-            owner[start] = 0
-            if grow([start], spangram_length, 0, sp_accept, sp_prune, False):
-                break
-            owner[start] = -1
-        else:
-            return None
-    except _BudgetExceeded:
-        return None
-    finally:
-        if stats is not None:
-            stats.nodes += nodes[0]
-
-    paths = [p for p in result if p is not None]
-    if len(paths) != len(lengths):
-        return None
-    _check_deadline(deadline)
+    placer = _PathPlacer(lengths, rows, cols, rng, node_budget, deadline)
+    paths = placer.place()
+    if stats is not None:
+        stats.nodes += placer.nodes
     return paths
 
 
@@ -726,9 +795,13 @@ class AmbiguityLimitExceeded(Exception):
 
 
 def find_word_paths(
-    grid: Sequence[Sequence[str]], word: str, limit: int = MAX_PATHS_PER_WORD,
-    *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
-    deadline: float | None = None, _budget: _UniquenessBudget | None = None,
+    grid: Sequence[Sequence[str]],
+    word: str,
+    limit: int = MAX_PATHS_PER_WORD,
+    *,
+    node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
+    deadline: float | None = None,
+    _budget: _UniquenessBudget | None = None,
 ) -> list[tuple[int, ...]]:
     """Return every 8-neighbour path without reused cells spelling ``word``.
 
@@ -747,7 +820,9 @@ def find_word_paths(
     path: list[int] = []
     on_path = [False] * geometry.size
 
-    budget = _budget if _budget is not None else _UniquenessBudget(node_budget, deadline)
+    budget = (
+        _budget if _budget is not None else _UniquenessBudget(node_budget, deadline)
+    )
 
     def extend(cell: int) -> None:
         budget.tick()
@@ -777,7 +852,8 @@ def enumerate_strands_solutions(
     words: Sequence[str],
     limit: int = 2,
     path_limit: int = MAX_PATHS_PER_WORD,
-    *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
+    *,
+    node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
     deadline: float | None = None,
 ) -> list[list[tuple[int, ...]]]:
     """Return up to ``limit`` assignments of one disjoint path per word.
@@ -796,7 +872,9 @@ def enumerate_strands_solutions(
     budget = _UniquenessBudget(node_budget, deadline)
     options: list[list[tuple[int, tuple[int, ...]]]] = []
     for word in words:
-        paths = find_word_paths(grid, word, path_limit, deadline=deadline, _budget=budget)
+        paths = find_word_paths(
+            grid, word, path_limit, deadline=deadline, _budget=budget
+        )
         options.append([(sum(1 << cell for cell in p), p) for p in paths])
 
     solutions: list[list[tuple[int, ...]]] = []
@@ -841,17 +919,25 @@ def enumerate_strands_solutions(
 
 
 def count_strands_solutions(
-    grid: Sequence[Sequence[str]], words: Sequence[str], limit: int = 2,
-    *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET, deadline: float | None = None,
+    grid: Sequence[Sequence[str]],
+    words: Sequence[str],
+    limit: int = 2,
+    *,
+    node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
+    deadline: float | None = None,
 ) -> int:
     """Count disjoint path assignments for ``words``, stopping at ``limit``."""
-    return len(enumerate_strands_solutions(
-        grid, words, limit=limit, node_budget=node_budget, deadline=deadline
-    ))
+    return len(
+        enumerate_strands_solutions(
+            grid, words, limit=limit, node_budget=node_budget, deadline=deadline
+        )
+    )
 
 
 def verify_strands_uniqueness(
-    payload: dict[str, Any], *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
+    payload: dict[str, Any],
+    *,
+    node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
     deadline: float | None = None,
 ) -> None:
     """Raise ValueError unless the puzzle's word list has exactly one solution.
@@ -875,10 +961,14 @@ def verify_strands_uniqueness(
             f"Strands puzzle must have exactly one solution for its words, found "
             f"{'at least 2' if len(solutions) > 1 else 0}"
         )
-    declared = [tuple(r * cols + c for r, c in entry["cells"]) for entry in payload["words"]]
+    declared = [
+        tuple(r * cols + c for r, c in entry["cells"]) for entry in payload["words"]
+    ]
     _check_deadline(deadline)
     if solutions[0] != declared:
-        raise ValueError("Strands puzzle's only solution differs from the declared cells")
+        raise ValueError(
+            "Strands puzzle's only solution differs from the declared cells"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -911,7 +1001,9 @@ def solve_strands_grid(
     for _ in range(attempts):
         _check_deadline(deadline)
         stats.attempts += 1
-        paths = place_strands_paths(lengths, rows, cols, rng, node_budget, stats, deadline=deadline)
+        paths = place_strands_paths(
+            lengths, rows, cols, rng, node_budget, stats, deadline=deadline
+        )
         if paths is None:
             continue
         stats.layouts += 1
@@ -935,13 +1027,19 @@ def solve_strands_grid(
             for word, path in zip(words, assignment):
                 for letter, cell in zip(word, path):
                     letters[cell] = letter
-            grid = [letters[r * cols:(r + 1) * cols] for r in range(rows)]
+            grid = [letters[r * cols : (r + 1) * cols] for r in range(rows)]
             try:
                 count = count_strands_solutions(
-                    grid, words, limit=2, node_budget=uniqueness_node_budget, deadline=deadline
+                    grid,
+                    words,
+                    limit=2,
+                    node_budget=uniqueness_node_budget,
+                    deadline=deadline,
                 )
             except AmbiguityLimitExceeded as exc:
-                stats.events.append(f"uniqueness not proved: path limit for {exc.args[0]}")
+                stats.events.append(
+                    f"uniqueness not proved: path limit for {exc.args[0]}"
+                )
                 _check_deadline(deadline)
                 continue
             _check_deadline(deadline)
@@ -952,7 +1050,9 @@ def solve_strands_grid(
     return None
 
 
-def _word_entry(word: StrandsWord, path: Path, cols: int, spangram_kind: str | None) -> dict[str, Any]:
+def _word_entry(
+    word: StrandsWord, path: Path, cols: int, spangram_kind: str | None
+) -> dict[str, Any]:
     entry: dict[str, Any] = {
         "word": word.word,
         "labels": dict(word.labels),
@@ -1057,10 +1157,14 @@ def generate_strands_puzzle(
     if theme_filter is not None:
         themes = [t for t in themes if _matches_filter(t, theme_filter)]
         if not themes:
-            raise StrandsGenerationError(f"No strands theme matches filter: {theme_filter}")
+            raise StrandsGenerationError(
+                f"No strands theme matches filter: {theme_filter}"
+            )
     feasible = [t for t in themes if assess_theme(t, rows, cols, deadline).feasible]
     if not feasible:
-        reasons = sorted({assess_theme(t, rows, cols, deadline).reason or "" for t in themes})
+        reasons = sorted(
+            {assess_theme(t, rows, cols, deadline).reason or "" for t in themes}
+        )
         raise StrandsGenerationError(
             f"No strands theme can fill a {rows}x{cols} grid exactly "
             f"({len(themes)} themes checked; reasons: {', '.join(reasons) or 'no themes'})"
@@ -1074,14 +1178,23 @@ def generate_strands_puzzle(
         assert theme.spangram is not None
         target = area - len(theme.spangram.word)
         for _ in range(subsets_per_theme):
-            chosen = choose_word_subset(theme.words, target, rng, theme.spangram.word, deadline=deadline)
+            chosen = choose_word_subset(
+                theme.words, target, rng, theme.spangram.word, deadline=deadline
+            )
             if chosen is None:
                 stats.events.append(f"{theme.theme_id}: no word subset")
                 break
             words = [theme.spangram.word, *(w.word for w in chosen)]
             solved = solve_strands_grid(
-                words, rows, cols, rng, attempts=attempts, node_budget=node_budget,
-                deadline=deadline, stats=stats, uniqueness_node_budget=uniqueness_node_budget,
+                words,
+                rows,
+                cols,
+                rng,
+                attempts=attempts,
+                node_budget=node_budget,
+                deadline=deadline,
+                stats=stats,
+                uniqueness_node_budget=uniqueness_node_budget,
             )
             if solved is None:
                 stats.events.append(f"{theme.theme_id}: solver gave up on {words}")
@@ -1091,7 +1204,9 @@ def generate_strands_puzzle(
             )
             validate_strands_puzzle(payload)
             _check_deadline(deadline)
-            verify_strands_uniqueness(payload, node_budget=uniqueness_node_budget, deadline=deadline)
+            verify_strands_uniqueness(
+                payload, node_budget=uniqueness_node_budget, deadline=deadline
+            )
             _check_deadline(deadline)
             return payload
     _check_deadline(deadline)
