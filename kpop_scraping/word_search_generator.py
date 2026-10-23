@@ -16,7 +16,6 @@ from .quiz_repository import _dataset_version, _load_entities, _load_facts
 from .quiz_utils import hash_payload
 from .word_search_schema import (
     WORD_SEARCH_SCHEMA_VERSION,
-    extract_word_coordinates,
     normalize_word,
     validate_word_search_clues,
     validate_word_search_puzzle,
@@ -26,13 +25,13 @@ QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
 
 # Eight linear directions on a 2D grid: (row_step, col_step)
 DIRECTIONS: list[tuple[int, int]] = [
-    (0, 1),    # Horizontal left to right
-    (0, -1),   # Horizontal right to left
-    (1, 0),    # Vertical top to bottom
-    (-1, 0),   # Vertical bottom to top
-    (1, 1),    # Diagonal down-right
-    (1, -1),   # Diagonal down-left
-    (-1, 1),   # Diagonal up-right
+    (0, 1),  # Horizontal left to right
+    (0, -1),  # Horizontal right to left
+    (1, 0),  # Vertical top to bottom
+    (-1, 0),  # Vertical bottom to top
+    (1, 1),  # Diagonal down-right
+    (1, -1),  # Diagonal down-left
+    (-1, 1),  # Diagonal up-right
     (-1, -1),  # Diagonal up-left
 ]
 
@@ -68,8 +67,6 @@ LETTER_WEIGHTS: dict[str, int] = {
 
 _WEIGHTED_LETTERS = list(LETTER_WEIGHTS.keys())
 _WEIGHTS_LIST = list(LETTER_WEIGHTS.values())
-
-
 
 
 def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
@@ -148,7 +145,9 @@ CLUE_KIND_PRIORITY: dict[str, int] = {
 _YEAR_PRECISION = 9
 
 
-def _merge_serialized_evidence(*groups: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+def _merge_serialized_evidence(
+    *groups: Iterable[dict[str, Any]]
+) -> list[dict[str, Any]]:
     unique: dict[tuple[str, str, int, str, str], dict[str, Any]] = {}
     for group in groups:
         for item in group:
@@ -236,7 +235,9 @@ def _fact_year(fact: Fact) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _year_option(kind: str, facts: list[Fact], text: dict[str, str]) -> ClueOption | None:
+def _year_option(
+    kind: str, facts: list[Fact], text: dict[str, str]
+) -> ClueOption | None:
     years = {_fact_year(fact) for fact in facts}
     if len(years) != 1 or None in years:
         # Missing or disagreeing years are not stated as a clue.
@@ -265,7 +266,9 @@ class _FactIndex:
                 self.formed[subject_id].append(fact)
             elif fact.predicate == "record_label" and fact.value_entity:
                 label = fact.value_entity
-                entry = self.labels[subject_id].setdefault(label.wikidata_id, (label, []))
+                entry = self.labels[subject_id].setdefault(
+                    label.wikidata_id, (label, [])
+                )
                 entry[1].append(fact)
             elif fact.predicate in {"has_member", "member_of"} and fact.value_entity:
                 if fact.predicate == "has_member":
@@ -291,9 +294,13 @@ class _FactIndex:
             {"pt-BR": "Grupo formado em {year}", "en": "Group formed in {year}"},
         )
 
-    def record_labels(self, entity: Entity, exclude: str | None = None) -> list[ClueOption]:
+    def record_labels(
+        self, entity: Entity, exclude: str | None = None
+    ) -> list[ClueOption]:
         options = []
-        for label_qid, (label, label_facts) in sorted(self.labels.get(entity.wikidata_id, {}).items()):
+        for label_qid, (label, label_facts) in sorted(
+            self.labels.get(entity.wikidata_id, {}).items()
+        ):
             if label_qid == exclude:
                 continue
             options.append(
@@ -310,7 +317,9 @@ class _FactIndex:
 
     def other_groups(self, entity: Entity, exclude: str) -> list[ClueOption]:
         options = []
-        for group_qid, (group, group_facts) in sorted(self.groups.get(entity.wikidata_id, {}).items()):
+        for group_qid, (group, group_facts) in sorted(
+            self.groups.get(entity.wikidata_id, {}).items()
+        ):
             if group_qid == exclude:
                 continue
             options.append(
@@ -551,7 +560,9 @@ def extract_viable_themes(
     return viable_themes
 
 
-def find_word_occurrences(grid: list[list[str]], word: str) -> list[tuple[int, int, int, int]]:
+def find_word_occurrences(
+    grid: list[list[str]], word: str
+) -> list[tuple[int, int, int, int]]:
     """Find all start and end coordinates where the target word occurs in the grid."""
     rows = len(grid)
     cols = len(grid[0]) if rows > 0 else 0
@@ -564,7 +575,9 @@ def find_word_occurrences(grid: list[list[str]], word: str) -> list[tuple[int, i
                 end_r = r + (length - 1) * dr
                 end_c = c + (length - 1) * dc
                 if 0 <= end_r < rows and 0 <= end_c < cols:
-                    if all(grid[r + i * dr][c + i * dc] == word[i] for i in range(length)):
+                    if all(
+                        grid[r + i * dr][c + i * dc] == word[i] for i in range(length)
+                    ):
                         occurrences.append((r, c, end_r, end_c))
 
     return occurrences
@@ -674,13 +687,17 @@ def fill_empty_cells_and_verify(
     """Fill empty grid cells with weighted characters and verify word uniqueness."""
     rows = len(grid)
     cols = len(grid[0])
-    empty_cells = [(r, c) for r in range(rows) for c in range(cols) if grid[r][c] is None]
+    empty_cells = [
+        (r, c) for r in range(rows) for c in range(cols) if grid[r][c] is None
+    ]
 
     for _ in range(max_fill_attempts):
         completed: list[list[str]] = [
             [cell if cell is not None else "" for cell in row] for row in grid
         ]
-        drawn_letters = rng.choices(_WEIGHTED_LETTERS, weights=_WEIGHTS_LIST, k=len(empty_cells))
+        drawn_letters = rng.choices(
+            _WEIGHTED_LETTERS, weights=_WEIGHTS_LIST, k=len(empty_cells)
+        )
         for (r, c), char in zip(empty_cells, drawn_letters):
             completed[r][c] = char
 
@@ -693,8 +710,8 @@ def fill_empty_cells_and_verify(
             if is_palindrome:
                 reverse_expected = (p.end_row, p.end_col, p.start_row, p.start_col)
                 if len(matches) != 2 or not (
-                    (matches[0] == expected and matches[1] == reverse_expected) or
-                    (matches[0] == reverse_expected and matches[1] == expected)
+                    (matches[0] == expected and matches[1] == reverse_expected)
+                    or (matches[0] == reverse_expected and matches[1] == expected)
                 ):
                     spurious = True
                     break
@@ -707,6 +724,130 @@ def fill_empty_cells_and_verify(
             return completed
 
     return None
+
+
+def _filter_themes(
+    viable_themes: list[ThemeDefinition], theme_filter: str | None
+) -> list[ThemeDefinition]:
+    if theme_filter is None:
+        return viable_themes
+    q = theme_filter.strip().lower()
+    matched = [
+        t
+        for t in viable_themes
+        if q == t.theme_id.lower()
+        or q in t.theme_id.lower()
+        or q in t.theme["pt-BR"].lower()
+        or q in t.theme["en"].lower()
+        or q in t.category.lower()
+        or q == t.target_id.lower()
+    ]
+    if not matched:
+        raise ValueError(f"No viable theme matches filter: {theme_filter}")
+    return matched
+
+
+def _select_and_place_words(
+    chosen_theme: ThemeDefinition,
+    rows: int,
+    cols: int,
+    rng: random.Random,
+) -> tuple[list[list[str]], list[PlacedWord]]:
+    candidates_pool = sorted(chosen_theme.candidates, key=lambda c: (c.word, c.id))
+    min_select = min(len(candidates_pool), 6)
+    max_select = min(len(candidates_pool), 10)
+    target_count = rng.randint(min_select, max_select)
+
+    final_grid: list[list[str]] | None = None
+    final_placed: list[PlacedWord] | None = None
+
+    attempts = 0
+    while attempts < 30 and (final_grid is None or final_placed is None):
+        attempts += 1
+        subset = rng.sample(candidates_pool, target_count)
+        placement_result = place_words_on_grid(subset, rows, cols, rng)
+        if placement_result is not None:
+            raw_grid, placed_words = placement_result
+            completed_grid = fill_empty_cells_and_verify(raw_grid, placed_words, rng)
+            if completed_grid is not None:
+                final_grid = completed_grid
+                final_placed = placed_words
+                break
+
+        # Decrement target count if upper bound attempts fail
+        if attempts % 10 == 0 and target_count > min_select:
+            target_count -= 1
+
+    if final_grid is None or final_placed is None:
+        raise ValueError(
+            f"Failed to place word search grid for theme {chosen_theme.theme_id} within budget"
+        )
+    return final_grid, final_placed
+
+
+def _build_words_payload(final_placed: list[PlacedWord]) -> list[dict[str, Any]]:
+    # Build words payload sorted alphabetically by word
+    ordered_placed = sorted(final_placed, key=lambda item: item.candidate.word)
+    final_candidates = _drop_uninformative_clues([p.candidate for p in ordered_placed])
+    words_payload: list[dict[str, Any]] = []
+    for p, candidate in zip(ordered_placed, final_candidates):
+        word_entry: dict[str, Any] = {
+            "id": candidate.id,
+            "word": candidate.word,
+            "canonical_name": candidate.canonical_name,
+            "labels": candidate.labels,
+            "start_row": p.start_row,
+            "start_col": p.start_col,
+            "end_row": p.end_row,
+            "end_col": p.end_col,
+            "evidence": candidate.published_evidence(),
+        }
+        if candidate.clue is not None:
+            word_entry["clue"] = candidate.clue
+        words_payload.append(word_entry)
+    return words_payload
+
+
+def _assemble_puzzle(
+    dataset_version: str,
+    reference_date_str: str,
+    rows: int,
+    cols: int,
+    chosen_theme: ThemeDefinition,
+    final_grid: list[list[str]],
+    words_payload: list[dict[str, Any]],
+) -> dict[str, Any]:
+    dimensions = {"rows": rows, "cols": cols}
+    hashable_payload: dict[str, Any] = {
+        "dataset_version": dataset_version,
+        "dimensions": dimensions,
+        "grid": final_grid,
+        "reference_date": reference_date_str,
+        "schema_version": WORD_SEARCH_SCHEMA_VERSION,
+        "theme": chosen_theme.theme,
+        "words": words_payload,
+    }
+    if chosen_theme.theme_description is not None:
+        hashable_payload["theme_description"] = chosen_theme.theme_description
+
+    puzzle_id = hash_payload(hashable_payload)
+
+    puzzle: dict[str, Any] = {
+        "schema_version": WORD_SEARCH_SCHEMA_VERSION,
+        "puzzle_id": puzzle_id,
+        "dataset_version": dataset_version,
+        "reference_date": reference_date_str,
+        "theme": chosen_theme.theme,
+        "dimensions": dimensions,
+        "grid": final_grid,
+        "words": words_payload,
+    }
+    if chosen_theme.theme_description is not None:
+        puzzle["theme_description"] = chosen_theme.theme_description
+
+    validate_word_search_puzzle(puzzle)
+    validate_word_search_clues(puzzle)
+    return puzzle
 
 
 def generate_word_search_puzzle(
@@ -738,22 +879,7 @@ def generate_word_search_puzzle(
     if not viable_themes:
         raise ValueError("No viable themes found in database for word search puzzle")
 
-    # Filter themes if requested
-    if theme_filter is not None:
-        q = theme_filter.strip().lower()
-        matched = [
-            t
-            for t in viable_themes
-            if q == t.theme_id.lower()
-            or q in t.theme_id.lower()
-            or q in t.theme["pt-BR"].lower()
-            or q in t.theme["en"].lower()
-            or q in t.category.lower()
-            or q == t.target_id.lower()
-        ]
-        if not matched:
-            raise ValueError(f"No viable theme matches filter: {theme_filter}")
-        viable_themes = matched
+    viable_themes = _filter_themes(viable_themes, theme_filter)
 
     # Sort themes deterministically
     viable_themes.sort(key=lambda t: (t.category, t.theme_id))
@@ -764,87 +890,15 @@ def generate_word_search_puzzle(
 
     chosen_theme = rng.choice(viable_themes)
 
-    # Candidate subset selection and placement loop
-    candidates_pool = sorted(chosen_theme.candidates, key=lambda c: (c.word, c.id))
-    min_select = min(len(candidates_pool), 6)
-    max_select = min(len(candidates_pool), 10)
-    target_count = rng.randint(min_select, max_select)
+    final_grid, final_placed = _select_and_place_words(chosen_theme, rows, cols, rng)
+    words_payload = _build_words_payload(final_placed)
 
-    final_grid: list[list[str]] | None = None
-    final_placed: list[PlacedWord] | None = None
-
-    attempts = 0
-    while attempts < 30 and (final_grid is None or final_placed is None):
-        attempts += 1
-        subset = rng.sample(candidates_pool, target_count)
-        placement_result = place_words_on_grid(subset, rows, cols, rng)
-        if placement_result is not None:
-            raw_grid, placed_words = placement_result
-            completed_grid = fill_empty_cells_and_verify(raw_grid, placed_words, rng)
-            if completed_grid is not None:
-                final_grid = completed_grid
-                final_placed = placed_words
-                break
-
-        # Decrement target count if upper bound attempts fail
-        if attempts % 10 == 0 and target_count > min_select:
-            target_count -= 1
-
-    if final_grid is None or final_placed is None:
-        raise ValueError(
-            f"Failed to place word search grid for theme {chosen_theme.theme_id} within budget"
-        )
-
-    # Build words payload sorted alphabetically by word
-    ordered_placed = sorted(final_placed, key=lambda item: item.candidate.word)
-    final_candidates = _drop_uninformative_clues([p.candidate for p in ordered_placed])
-    words_payload: list[dict[str, Any]] = []
-    for p, candidate in zip(ordered_placed, final_candidates):
-        word_entry: dict[str, Any] = {
-            "id": candidate.id,
-            "word": candidate.word,
-            "canonical_name": candidate.canonical_name,
-            "labels": candidate.labels,
-            "start_row": p.start_row,
-            "start_col": p.start_col,
-            "end_row": p.end_row,
-            "end_col": p.end_col,
-            "evidence": candidate.published_evidence(),
-        }
-        if candidate.clue is not None:
-            word_entry["clue"] = candidate.clue
-        words_payload.append(word_entry)
-
-    reference_date_str = reference_date.isoformat()
-    dimensions = {"rows": rows, "cols": cols}
-
-    hashable_payload: dict[str, Any] = {
-        "dataset_version": dataset_version,
-        "dimensions": dimensions,
-        "grid": final_grid,
-        "reference_date": reference_date_str,
-        "schema_version": WORD_SEARCH_SCHEMA_VERSION,
-        "theme": chosen_theme.theme,
-        "words": words_payload,
-    }
-    if chosen_theme.theme_description is not None:
-        hashable_payload["theme_description"] = chosen_theme.theme_description
-
-    puzzle_id = hash_payload(hashable_payload)
-
-    puzzle: dict[str, Any] = {
-        "schema_version": WORD_SEARCH_SCHEMA_VERSION,
-        "puzzle_id": puzzle_id,
-        "dataset_version": dataset_version,
-        "reference_date": reference_date_str,
-        "theme": chosen_theme.theme,
-        "dimensions": dimensions,
-        "grid": final_grid,
-        "words": words_payload,
-    }
-    if chosen_theme.theme_description is not None:
-        puzzle["theme_description"] = chosen_theme.theme_description
-
-    validate_word_search_puzzle(puzzle)
-    validate_word_search_clues(puzzle)
-    return puzzle
+    return _assemble_puzzle(
+        dataset_version=dataset_version,
+        reference_date_str=reference_date.isoformat(),
+        rows=rows,
+        cols=cols,
+        chosen_theme=chosen_theme,
+        final_grid=final_grid,
+        words_payload=words_payload,
+    )
