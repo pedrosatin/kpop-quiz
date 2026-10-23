@@ -13,11 +13,16 @@ from .quiz_models import (
     Draft,
     Fact,
     GENERATOR_VERSION,
-    InsufficientQuestionsError,
-    QuizConfig,
+    InsufficientQuestionsError,  # noqa: F401  # noqa: F401
+    QuizConfig,  # noqa: F401  # noqa: F401
 )
 from .quiz_rendering import _draft_predicate, render_play_mode_variants
-from .quiz_repository import _dataset_version, _load_entities, _load_facts, _load_group_relevance
+from .quiz_repository import (
+    _dataset_version,
+    _load_entities,
+    _load_facts,
+    _load_group_relevance,
+)
 from .quiz_schema import (
     DATASET_SCHEMA_VERSION,
     QUESTION_TYPES,
@@ -69,6 +74,54 @@ def generate_dataset(
         and (fact.value_time or "")[:4].isdigit()
     }
     performers = _performers_by_release(facts)
+
+    questions, kept_drafts = _render_questions(
+        drafts,
+        selected_languages,
+        reference_date,
+        entities_by_qid,
+        person_memberships,
+        relevance_by_group,
+        group_decades,
+        performers,
+        rejected,
+    )
+
+    payload = _build_payload(
+        dataset_version,
+        questions,
+        selected_languages,
+        kept_drafts,
+        reference_date,
+    )
+
+    report = _build_report(
+        kept_drafts,
+        questions,
+        dataset_version,
+        selected_languages,
+        rejected,
+        reference_date,
+        entities_by_qid,
+        person_memberships,
+    )
+
+    validate_dataset(payload)
+    validate_report(report)
+    return payload, report
+
+
+def _render_questions(
+    drafts: list[Draft],
+    selected_languages: tuple[str, ...],
+    reference_date: date,
+    entities_by_qid: dict[str, Any],
+    person_memberships: dict[str, Any],
+    relevance_by_group: dict[str, int],
+    group_decades: dict[str, int],
+    performers: dict[str, tuple[str, ...]],
+    rejected: dict[str, int],
+) -> tuple[list[dict[str, Any]], list[Draft]]:
     questions = []
     kept_drafts = []
     for draft in drafts:
@@ -77,8 +130,12 @@ def generate_dataset(
             rendered = []
             for language in selected_languages:
                 for question in render_play_mode_variants(
-                    draft, language, reference_date, entities_by_qid,
-                    person_memberships, relevance_by_group,
+                    draft,
+                    language,
+                    reference_date,
+                    entities_by_qid,
+                    person_memberships,
+                    relevance_by_group,
                 ):
                     question["decades"] = decades
                     rendered.append(question)
@@ -89,13 +146,24 @@ def generate_dataset(
             continue
         kept_drafts.append(draft)
         questions.extend(rendered)
-    drafts = kept_drafts
     questions.sort(
         key=lambda question: (
-            question["logical_id"], question["language"], question["play_mode"]
+            question["logical_id"],
+            question["language"],
+            question["play_mode"],
         )
     )
-    payload = {
+    return questions, kept_drafts
+
+
+def _build_payload(
+    dataset_version: str,
+    questions: list[dict[str, Any]],
+    selected_languages: tuple[str, ...],
+    drafts: list[Draft],
+    reference_date: date,
+) -> dict[str, Any]:
+    return {
         "dataset_version": dataset_version,
         "generator_version": GENERATOR_VERSION,
         "language_variant_count": len(questions),
@@ -107,12 +175,24 @@ def generate_dataset(
         "source_policy_version": SOURCE_POLICY_VERSION,
         "template_version": TEMPLATE_VERSION,
     }
+
+
+def _build_report(
+    drafts: list[Draft],
+    questions: list[dict[str, Any]],
+    dataset_version: str,
+    selected_languages: tuple[str, ...],
+    rejected: dict[str, int],
+    reference_date: date,
+    entities_by_qid: dict[str, Any],
+    person_memberships: dict[str, Any],
+) -> dict[str, Any]:
     accepted = Counter(draft.question_type for draft in drafts)
     accepted_by_predicate = Counter(_draft_predicate(draft) for draft in drafts)
     fact_base_count = len(
         {fact_id for draft in drafts for fact_id in draft.fact_base_ids}
     )
-    report = {
+    return {
         "accepted_by_predicate": dict(sorted(accepted_by_predicate.items())),
         "accepted_by_template": {
             question_type: accepted[question_type]
@@ -132,19 +212,131 @@ def generate_dataset(
             language: len(drafts) * 3 for language in selected_languages
         },
         "variants_by_play_mode": {
-            play_mode: len(drafts)
-            for play_mode in ("assisted", "standard", "expert")
+            play_mode: len(drafts) for play_mode in ("assisted", "standard", "expert")
         },
         "clue_eligible_base_questions": sum(
-            bool(render_play_mode_variants(
-                draft, "en", reference_date, entities_by_qid, person_memberships
-            )[0]["clues_available"])
+            bool(
+                render_play_mode_variants(
+                    draft, "en", reference_date, entities_by_qid, person_memberships
+                )[0]["clues_available"]
+            )
             for draft in drafts
         ),
     }
-    validate_dataset(payload)
-    validate_report(report)
-    return payload, report
+
+
+def _render_questions(
+    drafts: list[Draft],
+    selected_languages: tuple[str, ...],
+    reference_date: date,
+    entities_by_qid: dict[str, Any],
+    person_memberships: dict[str, Any],
+    relevance_by_group: dict[str, int],
+    group_decades: dict[str, int],
+    performers: dict[str, tuple[str, ...]],
+    rejected: dict[str, int],
+) -> tuple[list[dict[str, Any]], list[Draft]]:
+    questions = []
+    kept_drafts = []
+    for draft in drafts:
+        decades = _subject_decades(draft, group_decades, person_memberships, performers)
+        try:
+            rendered = []
+            for language in selected_languages:
+                for question in render_play_mode_variants(
+                    draft,
+                    language,
+                    reference_date,
+                    entities_by_qid,
+                    person_memberships,
+                    relevance_by_group,
+                ):
+                    question["decades"] = decades
+                    rendered.append(question)
+        except ValueError:
+            # A distractor can still echo a group alias after draft filters;
+            # drop the logical question instead of aborting the daily publish.
+            rejected["option_label_echoes_prompt"] += 1
+            continue
+        kept_drafts.append(draft)
+        questions.extend(rendered)
+    questions.sort(
+        key=lambda question: (
+            question["logical_id"],
+            question["language"],
+            question["play_mode"],
+        )
+    )
+    return questions, kept_drafts
+
+
+def _build_payload(
+    dataset_version: str,
+    questions: list[dict[str, Any]],
+    selected_languages: tuple[str, ...],
+    drafts: list[Draft],
+    reference_date: date,
+) -> dict[str, Any]:
+    return {
+        "dataset_version": dataset_version,
+        "generator_version": GENERATOR_VERSION,
+        "language_variant_count": len(questions),
+        "languages": list(selected_languages),
+        "logical_question_count": len(drafts),
+        "questions": questions,
+        "reference_date": reference_date.isoformat(),
+        "schema_version": DATASET_SCHEMA_VERSION,
+        "source_policy_version": SOURCE_POLICY_VERSION,
+        "template_version": TEMPLATE_VERSION,
+    }
+
+
+def _build_report(
+    drafts: list[Draft],
+    questions: list[dict[str, Any]],
+    dataset_version: str,
+    selected_languages: tuple[str, ...],
+    rejected: dict[str, int],
+    reference_date: date,
+    entities_by_qid: dict[str, Any],
+    person_memberships: dict[str, Any],
+) -> dict[str, Any]:
+    accepted = Counter(draft.question_type for draft in drafts)
+    accepted_by_predicate = Counter(_draft_predicate(draft) for draft in drafts)
+    fact_base_count = len(
+        {fact_id for draft in drafts for fact_id in draft.fact_base_ids}
+    )
+    return {
+        "accepted_by_predicate": dict(sorted(accepted_by_predicate.items())),
+        "accepted_by_template": {
+            question_type: accepted[question_type]
+            for question_type in sorted(QUESTION_TYPES)
+        },
+        "accepted_by_type": {
+            question_type: accepted[question_type]
+            for question_type in sorted(QUESTION_TYPES)
+        },
+        "accepted_logical": len(drafts),
+        "accepted_distinct_fact_bases": fact_base_count,
+        "dataset_version": dataset_version,
+        "language_variants": len(questions),
+        "rejected_by_reason": dict(sorted(rejected.items())),
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "variants_by_language": {
+            language: len(drafts) * 3 for language in selected_languages
+        },
+        "variants_by_play_mode": {
+            play_mode: len(drafts) for play_mode in ("assisted", "standard", "expert")
+        },
+        "clue_eligible_base_questions": sum(
+            bool(
+                render_play_mode_variants(
+                    draft, "en", reference_date, entities_by_qid, person_memberships
+                )[0]["clues_available"]
+            )
+            for draft in drafts
+        ),
+    }
 
 
 SESSION_DECADES = frozenset({1990, 2000, 2010, 2020})
@@ -181,11 +373,13 @@ def _subject_decades(
         group_ids = performers.get(draft.answer[0], ())
     else:
         group_ids = draft.group_ids
-    return sorted({
-        decade
-        for group_id in group_ids
-        if (decade := group_decades.get(group_id)) in SESSION_DECADES
-    })
+    return sorted(
+        {
+            decade
+            for group_id in group_ids
+            if (decade := group_decades.get(group_id)) in SESSION_DECADES
+        }
+    )
 
 
 def _person_memberships(
