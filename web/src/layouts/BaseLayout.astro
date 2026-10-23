@@ -19,6 +19,10 @@ import { StatsNavTrigger } from "../components/Stats/StatsNavTrigger";
 import { OPEN_CONSENT_PREFERENCES_EVENT } from "../components/Consent/ConsentBanner";
 import { ConsentBanner } from "../components/Consent/ConsentBanner";
 
+function escapeJsonLd(obj: any): string {
+  return JSON.stringify(obj).replace(/[<>&]/g, (c) => (c === '<' ? '\\u003c' : c === '>' ? '\\u003e' : '\\u0026'));
+}
+
 /**
  * Pass `canonicalPath` and `alternatePath` together on indexable routes.
  * Omit both on pages without a canonical URL (404). The layout then skips
@@ -265,7 +269,7 @@ const games = [
       <script
         type="application/ld+json"
         is:inline
-        set:html={JSON.stringify({
+        set:html={escapeJsonLd({
           "@context": "https://schema.org",
           "@type": "WebApplication",
           "@id": `${canonical.url}#game`,
@@ -275,28 +279,28 @@ const games = [
           operatingSystem: "All",
           inLanguage: locale,
           description: meta.description,
-        }).replace(/</g, '\\u003c')}
+        })}
       />
     )}
     {canonical && indexable && !isPrivacy && faqJsonLd && (
       <script
         type="application/ld+json"
         is:inline
-        set:html={JSON.stringify(faqJsonLd).replace(/</g, '\\u003c')}
+        set:html={escapeJsonLd(faqJsonLd)}
       />
     )}
     {canonical && indexable && !isPrivacy && route === "quiz" && (
       <script
         type="application/ld+json"
         is:inline
-        set:html={JSON.stringify({
+        set:html={escapeJsonLd({
           "@context": "https://schema.org",
           "@type": "WebSite",
           "@id": `${SEO_PROD_ORIGIN}/#website`,
           name: "K-pop Quiz",
           url: `${SEO_PROD_ORIGIN}/`,
           inLanguage: ["pt-BR", "en"],
-        }).replace(/</g, '\\u003c')}
+        })}
       />
     )}
     <title>{meta.title} | K-pop Quiz</title>
