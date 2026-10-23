@@ -10,6 +10,8 @@ from .entities import PRECISION_DAY, PRECISION_MONTH, Statement, TimeValue
 from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
+from functools import lru_cache
+
 
 EVIDENCE_RULES_VERSION = "text-evidence-v6"
 MIN_NAME_LENGTH = 4
@@ -379,6 +381,23 @@ def genre_evidence(
     return None
 
 
+
+@lru_cache(maxsize=1024)
+def _compile_membership_forms(patterns: tuple[str, ...]) -> tuple[list[list[re.Pattern[str]]], list[re.Pattern[str]]]:
+    first_forms_list = []
+    for pattern in patterns:
+        first_forms_list.append([
+            re.compile(rf"\bmember,?\s+(?P<name>{pattern}),?\s+(?:joined|left|departed)\b", _I),
+            re.compile(rf"(?P<name>{pattern}),?\s+(?:joined|left|departed(?:\s+from)?)\s+the\s+group", _I)
+        ])
+
+    second_forms_list = [
+        re.compile(rf"(?P<name>{pattern}),?\s+(?:joined|left|departed(?:\s+from)?)\s+", _I)
+        for pattern in patterns
+    ]
+    return first_forms_list, second_forms_list
+
+
 def membership_evidence(
     page: WikipediaPage,
     names: Iterable[str],
@@ -402,6 +421,9 @@ def membership_evidence(
             found = _list_item(sentence, listing.end(), list_patterns, _PERSON_LIST_BEFORE, True)
             if found:
                 return _text_evidence(page, start + found[0], start + found[1])
+    pattern_strings = tuple(p.pattern for p in patterns)
+    first_forms, second_forms = _compile_membership_forms(pattern_strings)
+
     for start, sentence in _subject_sentences(page, subject_names):
         if re.match(rf"^\s*{_SUBJECT_PREFIX}They\b", sentence, _I):
             continue
@@ -409,14 +431,9 @@ def membership_evidence(
             found = _list_item(sentence, change.end(), list_patterns, _PERSON_LIST_BEFORE, True)
             if found:
                 return _text_evidence(page, start + found[0], start + found[1])
-        for pattern in patterns:
-            forms = [
-                rf"\bmember,?\s+(?P<name>{pattern.pattern}),?\s+(?:joined|left|departed)\b",
-                rf"(?P<name>{pattern.pattern}),?\s+(?:joined|left|departed(?:\s+from)?)\s+"
-                rf"the\s+group",
-            ]
+        for forms in first_forms:
             for form in forms:
-                for match in re.finditer(form, sentence, _I):
+                for match in form.finditer(sentence):
                     if (
                         not _ambiguous_membership_context(sentence, match.start("name"))
                         and _clean_boundaries(
@@ -427,15 +444,9 @@ def membership_evidence(
                             page, start + match.start("name"), start + match.end("name")
                         )
     exact_group = re.compile(rf"(?:the\s+)?(?:group\s+)?(?:{group})(?![\w'-])", _I)
-    forms_precompiled = [
-        re.compile(
-            rf"(?P<name>{pattern.pattern}),?\s+(?:joined|left|departed(?:\s+from)?)\s+"
-        )
-        for pattern in patterns
-    ]
     for start, end in _sentences(page.extract):
         sentence = page.extract[start:end]
-        for form in forms_precompiled:
+        for form in second_forms:
             for match in form.finditer(sentence):
                 target = exact_group.match(sentence, match.end())
                 if (
