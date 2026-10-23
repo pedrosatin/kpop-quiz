@@ -916,6 +916,20 @@ class QuizGeneratorTest(unittest.TestCase):
             {question["logical_id"] for question in assisted["questions"]},
             set(logical_ids[:10]),
         )
+    def test_create_session_validates_config(self):
+        dataset, _report = generate_dataset(self.connection)
+
+        with self.assertRaisesRegex(ValueError, "unsupported session language"):
+            create_session(dataset, QuizConfig(language="es", seed="test"))
+
+        with self.assertRaisesRegex(ValueError, "unsupported play mode"):
+            create_session(dataset, QuizConfig(language="en", seed="test", play_mode="invalid"))
+
+        with self.assertRaisesRegex(ValueError, "timer_seconds must be greater than zero"):
+            create_session(dataset, QuizConfig(language="en", seed="test", timer_seconds=0))
+
+        with self.assertRaisesRegex(ValueError, "unsupported decade"):
+            create_session(dataset, QuizConfig(language="en", seed="test", decade=1980))
 
     def test_decade_clue_never_isolates_one_time_option(self):
         dataset, _report = generate_dataset(self.connection)
