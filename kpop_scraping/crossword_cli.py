@@ -59,10 +59,14 @@ def validate(p: dict) -> None:
         raise ValueError('entry count')
     if type(p['audited_group_count']) is not int or p['audited_group_count'] < len(entries):
         raise ValueError('audited group count')
-    if not isinstance(p['cells'], list) or any((not isinstance(c, dict) or set(c) != CELL_KEYS for c in p['cells'])):
-        raise ValueError('unexpected fields')
-    if any((type(c['row']) is not int or type(c['col']) is not int or not isinstance(c['answer'], str) for c in p['cells'])):
-        raise ValueError('cell types')
+    cells_list = p.get("cells")
+    if type(cells_list) is not list:
+        raise ValueError("unexpected fields")
+    for c in cells_list:
+        if type(c) is not dict or set(c) != CELL_KEYS:
+            raise ValueError("unexpected fields")
+        if type(c["row"]) is not int or type(c["col"]) is not int or type(c["answer"]) is not str:
+            raise ValueError("cell types")
     if not isinstance(p['vocabulary'], list):
         raise ValueError('vocabulary mismatch')
     cells, owners, aliases, ids = ({}, {}, {}, set())
@@ -148,8 +152,8 @@ def select(database: Path, reference_date: str) -> dict:
             entries.append({'qid': qid, 'canonical_name': entity['canonical_name'], 'aliases': [r[0] for r in c.execute('select name from entity_aliases where entity_id=?', (entity['id'],))], 'answer': normalize(entity['canonical_name']), 'row': row, 'col': col, 'direction': direction, 'number': 1 if col == 0 else 2, 'clue': CLUES[index], 'sources': sources, 'matching_qids': sorted(matches)})
     cells = {}
     for e in entries:
-        for i, l in enumerate(e['answer']):
-            cells[e['row'] + (i if e['direction'] == 'down' else 0), e['col'] + (i if e['direction'] == 'across' else 0)] = l
+        for i, letter in enumerate(e['answer']):
+            cells[e['row'] + (i if e['direction'] == 'down' else 0), e['col'] + (i if e['direction'] == 'across' else 0)] = letter
     payload = {'schema_version': SCHEMA, 'mode': MODE, 'puzzle_id': PUZZLE_ID, 'reference_date': reference_date, 'rows': 6, 'cols': 3, 'vocabulary': sorted((q for q, *_ in SELECTION)), 'audited_group_count': len(vocabulary), 'entries': entries, 'cells': [{'row': r, 'col': c, 'answer': v} for (r, c), v in sorted(cells.items())]}
     payload['dataset_version'] = hashlib.sha256(canonical_json(payload)).hexdigest()
     validate(payload)
