@@ -14,19 +14,12 @@ describe("sitemap", () => {
     expect(xml).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"');
   });
 
-  it("lists the 18 canonical URLs without lastmod when no date is given", () => {
+  it("lists the 18 canonical URLs without lastmod", () => {
     const blocks = urlBlocks(xml);
     expect(blocks).toHaveLength(18);
     for (const block of blocks) {
       expect(block).toMatch(/<loc>https:\/\/kpopquiz\.online\/[^<]+<\/loc>/);
       expect(block).not.toContain("<lastmod>");
-    }
-  });
-
-  it("adds lastmod to every URL when a date is given", () => {
-    const dated = buildSitemapXml(SEO_ROUTES, "2026-10-12");
-    for (const block of urlBlocks(dated)) {
-      expect(block).toContain("<lastmod>2026-10-12</lastmod>");
     }
   });
 

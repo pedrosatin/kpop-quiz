@@ -5,10 +5,10 @@ import { seoAbsoluteUrl } from "./seo-routes";
  * Sitemap XML for the canonical production routes. Every URL carries
  * `xhtml:link` alternates for its own language, the paired one and
  * `x-default` (the English version), matching the `<head>` hreflang.
- * When `lastmod` is given (the daily reference date), every URL carries
- * it: the daily games renew their content every day.
+ * Omit `lastmod` until reliable per-route significant modification dates
+ * are available.
  */
-export function buildSitemapXml(routes: readonly SeoRoute[], lastmod?: string): string {
+export function buildSitemapXml(routes: readonly SeoRoute[]): string {
   const byPath = new Map(routes.map((route) => [route.path, route]));
   const urls = routes.map((route) => {
     const alternate = byPath.get(route.alternatePath);
@@ -28,7 +28,6 @@ export function buildSitemapXml(routes: readonly SeoRoute[], lastmod?: string): 
       );
     }
     const lines = ["  <url>", `    <loc>${seoAbsoluteUrl(route.path)}</loc>`];
-    if (lastmod) lines.push(`    <lastmod>${lastmod}</lastmod>`);
     lines.push(...links, "  </url>");
     return lines.join("\n");
   });
