@@ -16,7 +16,6 @@ from .quiz_repository import _dataset_version, _load_entities, _load_facts
 from .quiz_utils import hash_payload
 from .word_search_schema import (
     WORD_SEARCH_SCHEMA_VERSION,
-    extract_word_coordinates,
     normalize_word,
     validate_word_search_clues,
     validate_word_search_puzzle,
@@ -26,13 +25,13 @@ QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
 
 # Eight linear directions on a 2D grid: (row_step, col_step)
 DIRECTIONS: list[tuple[int, int]] = [
-    (0, 1),    # Horizontal left to right
-    (0, -1),   # Horizontal right to left
-    (1, 0),    # Vertical top to bottom
-    (-1, 0),   # Vertical bottom to top
-    (1, 1),    # Diagonal down-right
-    (1, -1),   # Diagonal down-left
-    (-1, 1),   # Diagonal up-right
+    (0, 1),  # Horizontal left to right
+    (0, -1),  # Horizontal right to left
+    (1, 0),  # Vertical top to bottom
+    (-1, 0),  # Vertical bottom to top
+    (1, 1),  # Diagonal down-right
+    (1, -1),  # Diagonal down-left
+    (-1, 1),  # Diagonal up-right
     (-1, -1),  # Diagonal up-left
 ]
 
@@ -68,8 +67,6 @@ LETTER_WEIGHTS: dict[str, int] = {
 
 _WEIGHTED_LETTERS = list(LETTER_WEIGHTS.keys())
 _WEIGHTS_LIST = list(LETTER_WEIGHTS.values())
-
-
 
 
 def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
@@ -148,7 +145,9 @@ CLUE_KIND_PRIORITY: dict[str, int] = {
 _YEAR_PRECISION = 9
 
 
-def _merge_serialized_evidence(*groups: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+def _merge_serialized_evidence(
+    *groups: Iterable[dict[str, Any]]
+) -> list[dict[str, Any]]:
     unique: dict[tuple[str, str, int, str, str], dict[str, Any]] = {}
     for group in groups:
         for item in group:
@@ -236,7 +235,9 @@ def _fact_year(fact: Fact) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def _year_option(kind: str, facts: list[Fact], text: dict[str, str]) -> ClueOption | None:
+def _year_option(
+    kind: str, facts: list[Fact], text: dict[str, str]
+) -> ClueOption | None:
     years = {_fact_year(fact) for fact in facts}
     if len(years) != 1 or None in years:
         # Missing or disagreeing years are not stated as a clue.
@@ -265,7 +266,9 @@ class _FactIndex:
                 self.formed[subject_id].append(fact)
             elif fact.predicate == "record_label" and fact.value_entity:
                 label = fact.value_entity
-                entry = self.labels[subject_id].setdefault(label.wikidata_id, (label, []))
+                entry = self.labels[subject_id].setdefault(
+                    label.wikidata_id, (label, [])
+                )
                 entry[1].append(fact)
             elif fact.predicate in {"has_member", "member_of"} and fact.value_entity:
                 if fact.predicate == "has_member":
@@ -291,9 +294,13 @@ class _FactIndex:
             {"pt-BR": "Grupo formado em {year}", "en": "Group formed in {year}"},
         )
 
-    def record_labels(self, entity: Entity, exclude: str | None = None) -> list[ClueOption]:
+    def record_labels(
+        self, entity: Entity, exclude: str | None = None
+    ) -> list[ClueOption]:
         options = []
-        for label_qid, (label, label_facts) in sorted(self.labels.get(entity.wikidata_id, {}).items()):
+        for label_qid, (label, label_facts) in sorted(
+            self.labels.get(entity.wikidata_id, {}).items()
+        ):
             if label_qid == exclude:
                 continue
             options.append(
@@ -310,7 +317,9 @@ class _FactIndex:
 
     def other_groups(self, entity: Entity, exclude: str) -> list[ClueOption]:
         options = []
-        for group_qid, (group, group_facts) in sorted(self.groups.get(entity.wikidata_id, {}).items()):
+        for group_qid, (group, group_facts) in sorted(
+            self.groups.get(entity.wikidata_id, {}).items()
+        ):
             if group_qid == exclude:
                 continue
             options.append(
@@ -404,19 +413,13 @@ def _collect_candidates(
     return pairs
 
 
-def extract_viable_themes(
-    entities: dict[int, Entity],
+def _extract_label_themes(
     facts: list[Fact],
-    rows: int,
-    cols: int,
-    min_candidates: int = 5,
+    index: _FactIndex,
+    min_dim: int,
+    min_candidates: int,
 ) -> list[ThemeDefinition]:
-    """Extract all thematic groups satisfying candidate count thresholds."""
-    min_dim = min(rows, cols)
     viable_themes: list[ThemeDefinition] = []
-    index = _FactIndex(facts)
-
-    # 1. Record label themes
     label_groups: dict[str, list[tuple[Entity, list[Fact]]]] = defaultdict(list)
     label_entities: dict[str, Entity] = {}
 
@@ -462,8 +465,16 @@ def extract_viable_themes(
                     candidates=_assign_clues(pairs, theme),
                 )
             )
+    return viable_themes
 
-    # 2. Formation decade themes
+
+def _extract_decade_themes(
+    facts: list[Fact],
+    index: _FactIndex,
+    min_dim: int,
+    min_candidates: int,
+) -> list[ThemeDefinition]:
+    viable_themes: list[ThemeDefinition] = []
     decade_groups: dict[int, list[tuple[Entity, list[Fact]]]] = defaultdict(list)
     for fact in facts:
         if fact.predicate == "formed_on" and fact.value_time:
@@ -499,8 +510,16 @@ def extract_viable_themes(
                     candidates=_assign_clues(pairs, theme),
                 )
             )
+    return viable_themes
 
-    # 3. Group members themes (has_member and member_of)
+
+def _extract_group_member_themes(
+    facts: list[Fact],
+    index: _FactIndex,
+    min_dim: int,
+    min_candidates: int,
+) -> list[ThemeDefinition]:
+    viable_themes: list[ThemeDefinition] = []
     members_by_group: dict[str, list[tuple[Entity, list[Fact]]]] = defaultdict(list)
     group_entities: dict[str, Entity] = {}
 
@@ -547,11 +566,33 @@ def extract_viable_themes(
                     candidates=_assign_clues(pairs, theme),
                 )
             )
+    return viable_themes
+
+
+def extract_viable_themes(
+    entities: dict[int, Entity],
+    facts: list[Fact],
+    rows: int,
+    cols: int,
+    min_candidates: int = 5,
+) -> list[ThemeDefinition]:
+    """Extract all thematic groups satisfying candidate count thresholds."""
+    min_dim = min(rows, cols)
+    index = _FactIndex(facts)
+    viable_themes: list[ThemeDefinition] = []
+
+    viable_themes.extend(_extract_label_themes(facts, index, min_dim, min_candidates))
+    viable_themes.extend(_extract_decade_themes(facts, index, min_dim, min_candidates))
+    viable_themes.extend(
+        _extract_group_member_themes(facts, index, min_dim, min_candidates)
+    )
 
     return viable_themes
 
 
-def find_word_occurrences(grid: list[list[str]], word: str) -> list[tuple[int, int, int, int]]:
+def find_word_occurrences(
+    grid: list[list[str]], word: str
+) -> list[tuple[int, int, int, int]]:
     """Find all start and end coordinates where the target word occurs in the grid."""
     rows = len(grid)
     cols = len(grid[0]) if rows > 0 else 0
@@ -564,7 +605,9 @@ def find_word_occurrences(grid: list[list[str]], word: str) -> list[tuple[int, i
                 end_r = r + (length - 1) * dr
                 end_c = c + (length - 1) * dc
                 if 0 <= end_r < rows and 0 <= end_c < cols:
-                    if all(grid[r + i * dr][c + i * dc] == word[i] for i in range(length)):
+                    if all(
+                        grid[r + i * dr][c + i * dc] == word[i] for i in range(length)
+                    ):
                         occurrences.append((r, c, end_r, end_c))
 
     return occurrences
@@ -674,13 +717,17 @@ def fill_empty_cells_and_verify(
     """Fill empty grid cells with weighted characters and verify word uniqueness."""
     rows = len(grid)
     cols = len(grid[0])
-    empty_cells = [(r, c) for r in range(rows) for c in range(cols) if grid[r][c] is None]
+    empty_cells = [
+        (r, c) for r in range(rows) for c in range(cols) if grid[r][c] is None
+    ]
 
     for _ in range(max_fill_attempts):
         completed: list[list[str]] = [
             [cell if cell is not None else "" for cell in row] for row in grid
         ]
-        drawn_letters = rng.choices(_WEIGHTED_LETTERS, weights=_WEIGHTS_LIST, k=len(empty_cells))
+        drawn_letters = rng.choices(
+            _WEIGHTED_LETTERS, weights=_WEIGHTS_LIST, k=len(empty_cells)
+        )
         for (r, c), char in zip(empty_cells, drawn_letters):
             completed[r][c] = char
 
@@ -693,8 +740,8 @@ def fill_empty_cells_and_verify(
             if is_palindrome:
                 reverse_expected = (p.end_row, p.end_col, p.start_row, p.start_col)
                 if len(matches) != 2 or not (
-                    (matches[0] == expected and matches[1] == reverse_expected) or
-                    (matches[0] == reverse_expected and matches[1] == expected)
+                    (matches[0] == expected and matches[1] == reverse_expected)
+                    or (matches[0] == reverse_expected and matches[1] == expected)
                 ):
                     spurious = True
                     break
