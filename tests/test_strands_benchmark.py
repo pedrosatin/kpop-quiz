@@ -22,9 +22,17 @@ class StrandsBenchmarkTests(unittest.TestCase):
             return object()
 
         with (
-            patch("kpop_scraping.strands_benchmark._word_list", side_effect=[["FIRST"], ["SECOND"]]),
-            patch("kpop_scraping.strands_benchmark.solve_strands_grid", side_effect=solve) as solver,
-            patch("kpop_scraping.strands_benchmark.time.perf_counter", side_effect=[10, 12, 20, 23]),
+            patch(
+                "kpop_scraping.strands_benchmark._word_list",
+                side_effect=[["FIRST"], ["SECOND"]],
+            ),
+            patch(
+                "kpop_scraping.strands_benchmark.solve_strands_grid", side_effect=solve
+            ) as solver,
+            patch(
+                "kpop_scraping.strands_benchmark.time.perf_counter",
+                side_effect=[10, 12, 20, 23],
+            ),
         ):
             lines = benchmark_solver([], [(9, 9)], [6], samples=2, seed="test")
 
@@ -38,7 +46,42 @@ class StrandsBenchmarkTests(unittest.TestCase):
     def test_unexpected_exception_propagates(self) -> None:
         with (
             patch("kpop_scraping.strands_benchmark._word_list", return_value=["FIRST"]),
-            patch("kpop_scraping.strands_benchmark.solve_strands_grid", side_effect=RuntimeError("unexpected")),
+            patch(
+                "kpop_scraping.strands_benchmark.solve_strands_grid",
+                side_effect=RuntimeError("unexpected"),
+            ),
         ):
             with self.assertRaisesRegex(RuntimeError, "unexpected"):
                 benchmark_solver([], [(9, 9)], [6], samples=1, seed="test")
+
+    def test_no_lists_found(self) -> None:
+        with patch("kpop_scraping.strands_benchmark._word_list", return_value=None):
+            lines = benchmark_solver([], [(9, 9)], [6], samples=1, seed="test")
+            self.assertEqual(
+                lines[2],
+                "| 9×9 | 6 | 0 | — | — | — | — | — | — |",
+            )
+
+    def test_no_closed_grids(self) -> None:
+        def solve(words, rows, cols, rng, *, stats):
+            stats.attempts = 4
+            stats.layouts = 2
+            stats.orientations = 1
+            stats.ambiguous = 1
+            return None
+
+        with (
+            patch("kpop_scraping.strands_benchmark._word_list", return_value=["FIRST"]),
+            patch(
+                "kpop_scraping.strands_benchmark.solve_strands_grid", side_effect=solve
+            ),
+            patch(
+                "kpop_scraping.strands_benchmark.time.perf_counter",
+                side_effect=[10, 15],
+            ),
+        ):
+            lines = benchmark_solver([], [(9, 9)], [6], samples=1, seed="test")
+            self.assertEqual(
+                lines[2],
+                "| 9×9 | 6 | 1 | 0 (0%) | 2/4 (50%) | 1250 | — | 1/1 | 0 |",
+            )
