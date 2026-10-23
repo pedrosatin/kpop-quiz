@@ -205,6 +205,120 @@ def _extract_clues_and_evidence(
     return clues, serialized_evidence
 
 
+def _collect_eligible_candidates(
+    entities: dict[str, Entity],
+    facts_by_subject: dict[str, list[Fact]],
+    word_length: int | None,
+) -> dict[int, list[tuple[Entity, str, list[Fact]]]]:
+    """Collect candidate entities that possess valid QIDs, normalized names, and evidence."""
+    eligible_candidates: list[tuple[Entity, str, list[Fact]]] = []
+    for entity in sorted(entities.values(), key=lambda e: e.wikidata_id):
+        if not bool(QID_REGEX.match(entity.wikidata_id)):
+            continue
+        norm = normalize_name(entity.canonical_name)
+        if not (3 <= len(norm) <= 10):
+            continue
+        if word_length is not None and len(norm) != word_length:
+            continue
+        entity_facts = facts_by_subject.get(entity.wikidata_id, [])
+        has_evidence = any(len(f.evidence) > 0 for f in entity_facts)
+        if has_evidence:
+            eligible_candidates.append((entity, norm, entity_facts))
+
+    if not eligible_candidates:
+        msg = "No eligible entities with evidence found in database"
+        if word_length is not None:
+            msg += f" for word length {word_length}"
+        raise ValueError(msg)
+
+    # Group eligible target candidates by word length
+    by_length: dict[int, list[tuple[Entity, str, list[Fact]]]] = defaultdict(list)
+    for candidate in eligible_candidates:
+        by_length[len(candidate[1])].append(candidate)
+
+    return by_length
+
+
+def _choose_target_entity(
+    by_length: dict[int, list[tuple[Entity, str, list[Fact]]]],
+    seed: str,
+    word_length: int | None,
+) -> tuple[int, Entity, str, list[Fact]]:
+    """Select the target entity deterministically based on seed and word length."""
+    # Initialize deterministic RNG
+    seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
+    rng = random.Random(seed_bytes)
+
+    # Choose word length and target entity
+    if word_length is None:
+        available_lengths = sorted(by_length.keys())
+        chosen_length = rng.choice(available_lengths)
+    else:
+        chosen_length = word_length
+
+    target_pool = by_length[chosen_length]
+    target_pool.sort(key=lambda item: (item[1], item[0].wikidata_id))
+    target_entity, target_normalized, target_facts = rng.choice(target_pool)
+
+    return chosen_length, target_entity, target_normalized, target_facts
+
+
+def _build_valid_guesses(
+    entities: dict[str, Entity], chosen_length: int, target_normalized: str
+) -> list[str]:
+    """Collect valid word guesses from aliases and curated vocabulary."""
+    # Build closed set of valid guesses of the exact chosen word length
+    guesses_set: set[str] = {target_normalized}
+
+    # Harvest from all entities and aliases in the database
+    for entity in entities.values():
+        all_names = (
+            entity.canonical_name,
+            *entity.names.values(),
+            *entity.aliases,
+        )
+        for name in all_names:
+            norm_alias = normalize_name(name)
+            if len(norm_alias) == chosen_length and norm_alias.isalpha():
+                guesses_set.add(norm_alias)
+
+    # Supplement with curated vocabulary of this word length
+    for supplemental in CURATED_SUPPLEMENTAL_VOCABULARY.get(chosen_length, ()):
+        if len(supplemental) == chosen_length and supplemental.isalpha():
+            guesses_set.add(supplemental)
+
+    return sorted(guesses_set)
+
+
+def _build_target_payload(
+    target_entity: Entity,
+    target_normalized: str,
+    clues: dict[str, Any],
+    serialized_evidence: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Structure the target payload dictionary."""
+    return {
+        "id": target_entity.wikidata_id,
+        "canonical_name": target_entity.canonical_name,
+        "normalized_name": target_normalized,
+        "labels": {
+            "pt-BR": (
+                target_entity.names.get("pt")
+                or target_entity.names.get("pt-BR")
+                or target_entity.canonical_name
+            ),
+            "en": target_entity.names.get("en") or target_entity.canonical_name,
+        },
+        "entity_type": (
+            target_entity.entity_type
+            if target_entity.entity_type in {"group", "person"}
+            else "group"
+        ),
+        "clues": clues,
+        "evidence": serialized_evidence,
+    }
+
+
 def generate_name_guess_puzzle(
     connection: sqlite3.Connection,
     seed: str,
@@ -234,93 +348,20 @@ def generate_name_guess_puzzle(
     for fact in facts:
         facts_by_subject[fact.subject.wikidata_id].append(fact)
 
-    # Collect candidate entities that possess valid QIDs, normalized names, and evidence
-    eligible_candidates: list[tuple[Entity, str, list[Fact]]] = []
-    for entity in sorted(entities.values(), key=lambda e: e.wikidata_id):
-        if not bool(QID_REGEX.match(entity.wikidata_id)):
-            continue
-        norm = normalize_name(entity.canonical_name)
-        if not (3 <= len(norm) <= 10):
-            continue
-        if word_length is not None and len(norm) != word_length:
-            continue
-        entity_facts = facts_by_subject.get(entity.wikidata_id, [])
-        has_evidence = any(len(f.evidence) > 0 for f in entity_facts)
-        if has_evidence:
-            eligible_candidates.append((entity, norm, entity_facts))
-
-    if not eligible_candidates:
-        msg = "No eligible entities with evidence found in database"
-        if word_length is not None:
-            msg += f" for word length {word_length}"
-        raise ValueError(msg)
-
-    # Group eligible target candidates by word length
-    by_length: dict[int, list[tuple[Entity, str, list[Fact]]]] = defaultdict(list)
-    for candidate in eligible_candidates:
-        by_length[len(candidate[1])].append(candidate)
-
-    # Initialize deterministic RNG
-    seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
-    rng = random.Random(seed_bytes)
-
-    # Choose word length and target entity
-    if word_length is None:
-        available_lengths = sorted(by_length.keys())
-        chosen_length = rng.choice(available_lengths)
-    else:
-        chosen_length = word_length
-
-    target_pool = by_length[chosen_length]
-    target_pool.sort(key=lambda item: (item[1], item[0].wikidata_id))
-    target_entity, target_normalized, target_facts = rng.choice(target_pool)
+    by_length = _collect_eligible_candidates(entities, facts_by_subject, word_length)
+    chosen_length, target_entity, target_normalized, target_facts = (
+        _choose_target_entity(by_length, seed, word_length)
+    )
 
     clues, serialized_evidence = _extract_clues_and_evidence(
         target_entity, target_facts
     )
 
-    # Build closed set of valid guesses of the exact chosen word length
-    guesses_set: set[str] = {target_normalized}
+    valid_guesses = _build_valid_guesses(entities, chosen_length, target_normalized)
 
-    # Harvest from all entities and aliases in the database
-    for entity in entities.values():
-        all_names = (
-            entity.canonical_name,
-            *entity.names.values(),
-            *entity.aliases,
-        )
-        for name in all_names:
-            norm_alias = normalize_name(name)
-            if len(norm_alias) == chosen_length and norm_alias.isalpha():
-                guesses_set.add(norm_alias)
-
-    # Supplement with curated vocabulary of this word length
-    for supplemental in CURATED_SUPPLEMENTAL_VOCABULARY.get(chosen_length, ()):
-        if len(supplemental) == chosen_length and supplemental.isalpha():
-            guesses_set.add(supplemental)
-
-    valid_guesses = sorted(guesses_set)
-
-    target_payload: dict[str, Any] = {
-        "id": target_entity.wikidata_id,
-        "canonical_name": target_entity.canonical_name,
-        "normalized_name": target_normalized,
-        "labels": {
-            "pt-BR": (
-                target_entity.names.get("pt")
-                or target_entity.names.get("pt-BR")
-                or target_entity.canonical_name
-            ),
-            "en": target_entity.names.get("en") or target_entity.canonical_name,
-        },
-        "entity_type": (
-            target_entity.entity_type
-            if target_entity.entity_type in {"group", "person"}
-            else "group"
-        ),
-        "clues": clues,
-        "evidence": serialized_evidence,
-    }
+    target_payload = _build_target_payload(
+        target_entity, target_normalized, clues, serialized_evidence
+    )
 
     reference_date_str = reference_date.isoformat()
 
