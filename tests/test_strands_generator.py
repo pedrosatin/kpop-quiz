@@ -108,12 +108,34 @@ ROSTER_THEME_ID = f"members_{ROSTER_GROUP[0].lower()}"
 
 class TestNames(unittest.TestCase):
     def test_classify_name(self) -> None:
+        # Valid names
         self.assertEqual(classify_name("Han Seoyeon"), ("HANSEOYEON", None))
         self.assertEqual(classify_name("Rosé"), ("ROSE", None))
+        self.assertEqual(classify_name("Aespa"), ("AESPA", None))
+        self.assertEqual(classify_name("A.B.C"), ("ABC", None)) # With punctuation
+        self.assertEqual(classify_name("O2"), (None, DISCARD_SHORT_NAME)) # With digits, leaves "O"
+
+        # Too short names (length < 3)
         self.assertEqual(classify_name("RM"), (None, DISCARD_SHORT_NAME))
         self.assertEqual(classify_name("I.N"), (None, DISCARD_SHORT_NAME))
+        self.assertEqual(classify_name("V"), (None, DISCARD_SHORT_NAME))
+        self.assertEqual(classify_name("BO"), (None, DISCARD_SHORT_NAME))
+
+        # Edge case: spaces and characters that are stripped away resulting in too short
+        self.assertEqual(classify_name("A B"), (None, DISCARD_SHORT_NAME))
+        self.assertEqual(classify_name("A1B"), (None, DISCARD_SHORT_NAME))
+
+        # Edge case: empty after normalization
+        self.assertEqual(classify_name(""), (None, DISCARD_SHORT_NAME))
+        self.assertEqual(classify_name("   "), (None, DISCARD_SHORT_NAME))
+        self.assertEqual(classify_name("123"), (None, DISCARD_SHORT_NAME))
+        self.assertEqual(classify_name("!@#"), (None, DISCARD_SHORT_NAME))
+
+        # Non-Latin characters
         self.assertEqual(classify_name("하늘"), (None, DISCARD_NON_LATIN_NAME))
         self.assertEqual(classify_name("Mina 미나"), (None, DISCARD_NON_LATIN_NAME))
+        self.assertEqual(classify_name("Алекс"), (None, DISCARD_NON_LATIN_NAME)) # Cyrillic
+        self.assertEqual(classify_name("Αλέξανδρος"), (None, DISCARD_NON_LATIN_NAME)) # Greek
 
 
 class TestThemes(unittest.TestCase):
