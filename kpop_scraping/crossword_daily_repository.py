@@ -70,11 +70,21 @@ def load_base(database: Path) -> FactBase:
         c.execute('PRAGMA query_only=ON')
         c.execute('BEGIN')
         groups = {}
-        for r in c.execute("SELECT * FROM entities WHERE entity_type='group' ORDER BY wikidata_id"):
+
+        aliases_by_id = defaultdict(set)
+        for entity_id, name in c.execute('''
+            SELECT a.entity_id, a.name
+            FROM entity_aliases a
+            JOIN entities e ON e.id = a.entity_id
+            WHERE e.entity_type='group'
+        ''').fetchall():
+            aliases_by_id[entity_id].add(name)
+
+        for r in c.execute("SELECT * FROM entities WHERE entity_type='group' ORDER BY wikidata_id").fetchall():
             groups[r['wikidata_id']] = {
                 'canonical_name': r['canonical_name'],
-                'aliases': sorted({a[0] for a in c.execute(
-                    'SELECT name FROM entity_aliases WHERE entity_id=?', (r['id'],))})}
+                'aliases': sorted(aliases_by_id[r['id']])
+            }
         conflicts = c.execute("SELECT * FROM facts WHERE status='conflict'").fetchall()
         matches, sources = defaultdict(set), defaultdict(list)
         rows = c.execute("""SELECT f.*,e.wikidata_id,coalesce(f.value_time,v.canonical_name) value
