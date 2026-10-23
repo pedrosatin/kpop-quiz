@@ -10,17 +10,36 @@ from .entities import PRECISION_DAY, PRECISION_MONTH, Statement, TimeValue
 from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
-
 EVIDENCE_RULES_VERSION = "text-evidence-v6"
 MIN_NAME_LENGTH = 4
 MAX_SNIPPET_LENGTH = 300
 MONTHS = (
-    "January", "February", "March", "April", "May", "June", "July",
-    "August", "September", "October", "November", "December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 )
 MONTHS_PT = (
-    "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-    "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+    "janeiro",
+    "fevereiro",
+    "março",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
 )
 _I = re.IGNORECASE
 _FORMATION_VERB = re.compile(r"\b(?:formed|founded|established|created)\b", _I)
@@ -44,9 +63,7 @@ _MEMBERSHIP_OWNER_BLOCKERS = re.compile(
 _MEMBER_AS_SUBJECT = re.compile(r"\bmember,?\s+[A-Z][\w'.-]*")
 _PLACE_BLOCKERS = re.compile(r"\bdebut\w*", _I)
 _LABEL_BLOCKERS = re.compile(r"\b(?:trainee\w*|from|former\w*)\b", _I)
-_LABEL_TRIGGER = re.compile(
-    r"\bsigned\s+(?:to|with)\s+", _I
-)
+_LABEL_TRIGGER = re.compile(r"\bsigned\s+(?:to|with)\s+", _I)
 _TOKEN_PATTERN = re.compile(r"[^\s,.;()]+\s+")
 _GROUP_NOUN = r"(?:group|band|duo|trio|quartet|quintet|act|ensemble|unit)"
 _GENRE_COPULA = re.compile(r"\b(?:is|was|are|were)\s+an?\s+", _I)
@@ -60,22 +77,55 @@ _MEMBER_CHANGE_LIST = re.compile(r"\b(?:additions?|graduations?)\s+of\s+", _I)
 # Nationality adjectives used in "<group> is a South Korean girl group".
 COUNTRY_TERMS = {
     "South Korea": {
-        "names": ("South Korea", "Republic of Korea", "Coreia do Sul", "República da Coreia"),
+        "names": (
+            "South Korea",
+            "Republic of Korea",
+            "Coreia do Sul",
+            "República da Coreia",
+        ),
         "demonyms": ("South Korean", "sul-coreano", "sul-coreana"),
     },
     "North Korea": {
-        "names": ("North Korea", "Democratic People's Republic of Korea", "Coreia do Norte"),
+        "names": (
+            "North Korea",
+            "Democratic People's Republic of Korea",
+            "Coreia do Norte",
+        ),
         "demonyms": ("North Korean", "norte-coreano", "norte-coreana"),
     },
-    "Japan": {"names": ("Japan", "Japão"), "demonyms": ("Japanese", "japonês", "japonesa")},
+    "Japan": {
+        "names": ("Japan", "Japão"),
+        "demonyms": ("Japanese", "japonês", "japonesa"),
+    },
     "China": {"names": ("China",), "demonyms": ("Chinese", "chinês", "chinesa")},
-    "Taiwan": {"names": ("Taiwan",), "demonyms": ("Taiwanese", "taiwanês", "taiwanesa")},
-    "Thailand": {"names": ("Thailand", "Tailândia"), "demonyms": ("Thai", "tailandês", "tailandesa")},
-    "Myanmar": {"names": ("Myanmar",), "demonyms": ("Myanmar", "Burmese", "birmanês", "birmanesa")},
-    "United States": {"names": ("United States", "Estados Unidos"), "demonyms": ("American", "americano", "americana")},
-    "Philippines": {"names": ("Philippines", "Filipinas"), "demonyms": ("Filipino", "filipino", "filipina")},
-    "Indonesia": {"names": ("Indonesia", "Indonésia"), "demonyms": ("Indonesian", "indonésio", "indonésia")},
-    "Vietnam": {"names": ("Vietnam", "Vietnã"), "demonyms": ("Vietnamese", "vietnamita")},
+    "Taiwan": {
+        "names": ("Taiwan",),
+        "demonyms": ("Taiwanese", "taiwanês", "taiwanesa"),
+    },
+    "Thailand": {
+        "names": ("Thailand", "Tailândia"),
+        "demonyms": ("Thai", "tailandês", "tailandesa"),
+    },
+    "Myanmar": {
+        "names": ("Myanmar",),
+        "demonyms": ("Myanmar", "Burmese", "birmanês", "birmanesa"),
+    },
+    "United States": {
+        "names": ("United States", "Estados Unidos"),
+        "demonyms": ("American", "americano", "americana"),
+    },
+    "Philippines": {
+        "names": ("Philippines", "Filipinas"),
+        "demonyms": ("Filipino", "filipino", "filipina"),
+    },
+    "Indonesia": {
+        "names": ("Indonesia", "Indonésia"),
+        "demonyms": ("Indonesian", "indonésio", "indonésia"),
+    },
+    "Vietnam": {
+        "names": ("Vietnam", "Vietnã"),
+        "demonyms": ("Vietnamese", "vietnamita"),
+    },
 }
 _SUBJECT_PREFIX = r"(?:(?:In|On|By|Since)\b[^,]{0,40},\s*)?"
 _GENERIC_SUBJECT = (
@@ -101,9 +151,13 @@ _PERSON_LIST_BEFORE = re.compile(
     rf"\s*(?:[^:;,.]{{0,40}}:\s*)?(?:(?:original\s+|former\s+)?(?:members?|siblings)\s+)?"
     rf"(?:{_PERSON_ITEM}{_LIST_SEPARATOR})*"
 )
-_GENRE_LIST_BEFORE = re.compile(rf"\s*(?:[\w&'-]+(?:\s+[\w&'-]+){{0,2}}{_LIST_SEPARATOR})*")
+_GENRE_LIST_BEFORE = re.compile(
+    rf"\s*(?:[\w&'-]+(?:\s+[\w&'-]+){{0,2}}{_LIST_SEPARATOR})*"
+)
 _LIST_AFTER = re.compile(r"(?:\s*[,;.]|\s*$|\s+and\b|\s*\()", _I)
-_RELEASE_NOUN = r"(?:album|single|EP|extended play|record|song|álbum|sencillo|음반|싱글)"
+_RELEASE_NOUN = (
+    r"(?:album|single|EP|extended play|record|song|álbum|sencillo|음반|싱글)"
+)
 _PERFORMER_TRIGGER = re.compile(r"\b(?:by|por)\s+", _I)
 _RELEASE_DATE_TRIGGER = re.compile(
     r"\b(?:was\s+)?released(?:\s+worldwide)?\s+(?:on|in)\s+"
@@ -151,7 +205,7 @@ _RELEASE_CREDIT = re.compile(
     rf"(?P<artist>\s+(?:by|of) {_RELEASE_ARTIST}"
     rf"(?:, a sub-unit of (?:{_RELEASE_ARTIST}|{_RELEASE_NAME})"
     rf"(?: consisting of members {_RELEASE_NAME}, {_RELEASE_NAME}, and {_RELEASE_NAME})?)?)"
-    r'(?:, featuring (?:two|three|\d+) songs, the only single and title track '
+    r"(?:, featuring (?:two|three|\d+) songs, the only single and title track "
     r'of the same name and "[^".;!?]+")?\.?\s*$'
 )
 _RELEASE_ALBUM_ORIGIN = re.compile(
@@ -290,15 +344,21 @@ def place_evidence(
     country_names, demonyms = _reviewed_country_terms(names) if country else (names, ())
     patterns = _name_patterns(country_names)
     no_noun = rf"(?:(?!\b{_GROUP_NOUN}\b)[^.;]){{0,40}}?"
+    demonym_patterns = [
+        re.compile(
+            rf"{no_noun}(?<![\w-])(?P<name>{re.escape(demonym)})(?![\w-])"
+            rf"[^.;]{{0,40}}?\b{_GROUP_NOUN}\b"
+        )
+        for demonym in demonyms
+    ]
     for start, sentence in _subject_sentences(page, subject_names):
-        for demonym in demonyms:
+        for pattern in demonym_patterns:
             for copula in _GENRE_COPULA.finditer(sentence):
-                if not _relation_belongs_to_group(sentence, copula.start(), subject_names):
+                if not _relation_belongs_to_group(
+                    sentence, copula.start(), subject_names
+                ):
                     continue
-                match = re.compile(
-                    rf"{no_noun}(?<![\w-])(?P<name>{re.escape(demonym)})(?![\w-])"
-                    rf"[^.;]{{0,40}}?\b{_GROUP_NOUN}\b"
-                ).match(sentence, copula.end())
+                match = pattern.match(sentence, copula.end())
                 if match:
                     return _text_evidence(
                         page, start + match.start("name"), start + match.end("name")
@@ -307,7 +367,7 @@ def place_evidence(
             if not _formation_has_group_subject(sentence, verb.start(), subject_names):
                 continue
             for position in _prefix_ends(sentence, verb.end(), country):
-                relation = sentence[verb.end():position]
+                relation = sentence[verb.end() : position]
                 if (
                     _FORMATION_OBJECT_BLOCKERS.search(relation)
                     or _PLACE_BLOCKERS.search(relation)
@@ -356,16 +416,24 @@ def genre_evidence(
     """Accept a genre inside "is a ... <genre> group" or in a list after "genres including"."""
     patterns = _name_patterns(names)
     no_noun = rf"(?:(?!\b{_GROUP_NOUN}\b)[^.;]){{0,40}}?"
+    genre_patterns = [
+        re.compile(
+            rf"{no_noun}(?P<name>{pattern.pattern})[^.;]{{0,20}}?\b{_GROUP_NOUN}\b", _I
+        )
+        for pattern in patterns
+    ]
     for start, sentence in _subject_sentences(page, subject_names):
         for copula in _GENRE_COPULA.finditer(sentence):
             if not _relation_belongs_to_group(sentence, copula.start(), subject_names):
                 continue
-            for pattern in patterns:
-                match = re.compile(
-                    rf"{no_noun}(?P<name>{pattern.pattern})[^.;]{{0,20}}?\b{_GROUP_NOUN}\b", _I
-                ).match(sentence, copula.end())
+            for genre_pattern in genre_patterns:
+                match = genre_pattern.match(sentence, copula.end())
                 if match and _clean_boundaries(
-                    sentence, match.start("name"), match.end("name"), False, check_before=False
+                    sentence,
+                    match.start("name"),
+                    match.end("name"),
+                    False,
+                    check_before=False,
                 ):
                     return _text_evidence(
                         page, start + match.start("name"), start + match.end("name")
@@ -373,7 +441,9 @@ def genre_evidence(
         for listing in _GENRE_LIST.finditer(sentence):
             if not _relation_belongs_to_group(sentence, listing.start(), subject_names):
                 continue
-            found = _list_item(sentence, listing.end(), patterns, _GENRE_LIST_BEFORE, False)
+            found = _list_item(
+                sentence, listing.end(), patterns, _GENRE_LIST_BEFORE, False
+            )
             if found:
                 return _text_evidence(page, start + found[0], start + found[1])
     return None
@@ -399,14 +469,18 @@ def membership_evidence(
         for listing in _MEMBER_LIST.finditer(sentence):
             if _membership_owner_shifted(sentence, listing.start(), subject_names):
                 continue
-            found = _list_item(sentence, listing.end(), list_patterns, _PERSON_LIST_BEFORE, True)
+            found = _list_item(
+                sentence, listing.end(), list_patterns, _PERSON_LIST_BEFORE, True
+            )
             if found:
                 return _text_evidence(page, start + found[0], start + found[1])
     for start, sentence in _subject_sentences(page, subject_names):
         if re.match(rf"^\s*{_SUBJECT_PREFIX}They\b", sentence, _I):
             continue
         for change in _MEMBER_CHANGE_LIST.finditer(sentence):
-            found = _list_item(sentence, change.end(), list_patterns, _PERSON_LIST_BEFORE, True)
+            found = _list_item(
+                sentence, change.end(), list_patterns, _PERSON_LIST_BEFORE, True
+            )
             if found:
                 return _text_evidence(page, start + found[0], start + found[1])
         for pattern in patterns:
@@ -417,11 +491,10 @@ def membership_evidence(
             ]
             for form in forms:
                 for match in re.finditer(form, sentence, _I):
-                    if (
-                        not _ambiguous_membership_context(sentence, match.start("name"))
-                        and _clean_boundaries(
-                            sentence, match.start("name"), match.end("name"), True
-                        )
+                    if not _ambiguous_membership_context(
+                        sentence, match.start("name")
+                    ) and _clean_boundaries(
+                        sentence, match.start("name"), match.end("name"), True
                     ):
                         return _text_evidence(
                             page, start + match.start("name"), start + match.end("name")
@@ -441,7 +514,9 @@ def membership_evidence(
                 if (
                     target
                     and not _ambiguous_membership_context(sentence, match.start("name"))
-                    and _clean_boundaries(sentence, match.start("name"), match.end("name"), True)
+                    and _clean_boundaries(
+                        sentence, match.start("name"), match.end("name"), True
+                    )
                 ):
                     return _text_evidence(
                         page, start + match.start("name"), start + match.end("name")
@@ -463,20 +538,19 @@ def release_performer_evidence(
             if page.language == "ko"
             else re.search(rf"\b{_RELEASE_NOUN}\b", sentence, _I)
         )
-        if (
-            not release_noun
-            or re.search(r"\b(?:list|lista)\s+(?:of|de)\b", sentence, _I)
+        if not release_noun or re.search(
+            r"\b(?:list|lista)\s+(?:of|de)\b", sentence, _I
         ):
             continue
         if page.language == "ko":
             continue
         for trigger in _PERFORMER_TRIGGER.finditer(sentence):
-            if re.search(r"\b(?:with|including|featuring)\b", sentence[:trigger.start()], _I):
+            if re.search(
+                r"\b(?:with|including|featuring)\b", sentence[: trigger.start()], _I
+            ):
                 continue
             relation = sentence[max(0, trigger.start() - 35) : trigger.start()]
-            if not re.search(
-                rf"\b{_RELEASE_NOUN}\b(?:\s+recorded)?\s*$", relation, _I
-            ):
+            if not re.search(rf"\b{_RELEASE_NOUN}\b(?:\s+recorded)?\s*$", relation, _I):
                 continue
             positions = [trigger.end()]
             description = _PERFORMER_DESCRIPTION.match(sentence, trigger.end())
@@ -485,9 +559,7 @@ def release_performer_evidence(
             for position in positions:
                 match = _performer_list_item(sentence, position, names, peer_names)
                 if match:
-                    return _text_evidence(
-                        page, start + match[0], start + match[1]
-                    )
+                    return _text_evidence(page, start + match[0], start + match[1])
     return None
 
 
@@ -550,7 +622,9 @@ def release_date_evidence(
 
 
 def _release_by_subject(
-    page: WikipediaPage, subject_names: Sequence[str], start: int,
+    page: WikipediaPage,
+    subject_names: Sequence[str],
+    start: int,
 ) -> bool:
     """Keep "It" anchored to a named release across descriptive sentences."""
     for begin, end in reversed(_sentences(page.extract[:start])):
@@ -559,17 +633,22 @@ def _release_by_subject(
         # can carry precisely the territorial scope excluded by this rule.
         subject = re.match(
             rf"^\s*[\"'“]?(?:{_alternation(subject_names)})[\"'”]?(?![\w'-])",
-            previous, _I,
+            previous,
+            _I,
         )
         if subject and not _leading_subject(previous, ()):
-            description = previous[subject.end():]
+            description = previous[subject.end() :]
             # Styling/short-title notes are part of the name, not predicates.
             description = re.sub(
                 r"^\s*\((?:stylized|occasionally referred just as) "
-                r"(?:[^()]|\([^()]*\))*\)", "", description,
+                r"(?:[^()]|\([^()]*\))*\)",
+                "",
+                description,
             )
             description = re.sub(
-                r"^, often shortened to [^,;]+,", "", description,
+                r"^, often shortened to [^,;]+,",
+                "",
+                description,
             )
             release = _RELEASE_DESCRIPTION.fullmatch(description)
             if release is None:
@@ -583,14 +662,20 @@ def _release_by_subject(
             if credit.strip() in {"", "."}:
                 return True
             attribution = _RELEASE_CREDIT.fullmatch(credit)
-            return bool(attribution and not _RELEASE_BY_SCOPE.search(attribution.group("artist")))
+            return bool(
+                attribution
+                and not _RELEASE_BY_SCOPE.search(attribution.group("artist"))
+            )
         if not _RELEASE_DESCRIPTIVE_BRIDGE.fullmatch(previous):
             return False
     return False
 
 
 def _release_by_date(
-    sentence: str, language: str, value: TimeValue, date: str,
+    sentence: str,
+    language: str,
+    value: TimeValue,
+    date: str,
 ) -> re.Match[str] | None:
     """Recognize only a completed, unscoped English release with label names."""
     if language != "en" or value.precision != PRECISION_DAY:
@@ -629,7 +714,9 @@ def _performer_list_item(
     usable = [
         name
         for name in known
-        if len(name) >= MIN_NAME_LENGTH or " " in name or any(char.isdigit() for char in name)
+        if len(name) >= MIN_NAME_LENGTH
+        or " " in name
+        or any(char.isdigit() for char in name)
     ]
     if not usable:
         return None
@@ -638,7 +725,7 @@ def _performer_list_item(
     listing = re.compile(rf"(?P<artists>{item}(?:{separator}{item})*)", _I).match(
         sentence, position
     )
-    suffix = sentence[listing.end():] if listing else ""
+    suffix = sentence[listing.end() :] if listing else ""
     if (
         listing is None
         or re.match(r"(?:'s|’s)", suffix, _I)
@@ -652,7 +739,10 @@ def _performer_list_item(
             _I,
         )
         if match:
-            return listing.start("artists") + match.start(), listing.start("artists") + match.end()
+            return (
+                listing.start("artists") + match.start(),
+                listing.start("artists") + match.end(),
+            )
     return None
 
 
@@ -667,7 +757,8 @@ def _release_subject_sentences(
         generic = re.match(
             r"^\s*(?:It|Ele|Ela|The\s+(?P<en>album|single|EP|song)"
             r"|O\s+(?P<pt>álbum|single))\b",
-            sentence, _I,
+            sentence,
+            _I,
         )
         noun = (generic.group("en") or generic.group("pt")) if generic else None
         if leading or (generic and (noun is None or noun.casefold() in subject_nouns)):
@@ -685,7 +776,9 @@ def _release_subject_nouns(
             continue
         found = {
             match.group(0).casefold()
-            for match in re.finditer(r"\b(?:album|single|EP|song|álbum)\b", sentence, _I)
+            for match in re.finditer(
+                r"\b(?:album|single|EP|song|álbum)\b", sentence, _I
+            )
         }
         if found:
             return frozenset(found)
@@ -745,9 +838,7 @@ def infobox_evidence(
     if not page.wikitext:
         return None
     wanted = {
-        " ".join(name.split()).casefold()
-        for name in names
-        if len(name.strip()) >= 2
+        " ".join(name.split()).casefold() for name in names if len(name.strip()) >= 2
     }
     if not wanted:
         return None
@@ -762,7 +853,9 @@ def infobox_evidence(
     return None
 
 
-def _infobox_evidence(page: WikipediaPage, field: str, start: int, end: int) -> EvidenceItem:
+def _infobox_evidence(
+    page: WikipediaPage, field: str, start: int, end: int
+) -> EvidenceItem:
     snippet = f"{field} = {page.wikitext[start:end].strip()}"
     if len(snippet) > MAX_SNIPPET_LENGTH:
         snippet = snippet[: MAX_SNIPPET_LENGTH - 3].rstrip() + "..."
@@ -869,7 +962,9 @@ def _list_item(
                 continue
             # List items are separated by commas, so the name only needs to
             # avoid a capitalized continuation such as "Warner Music Japan".
-            if _clean_boundaries(sentence, match.start(), match.end(), proper_noun, False):
+            if _clean_boundaries(
+                sentence, match.start(), match.end(), proper_noun, False
+            ):
                 return match.start(), match.end()
     return None
 
@@ -919,7 +1014,7 @@ def _formation_has_group_subject(
     subject = _leading_subject(sentence, subject_names)
     if subject is None or _is_appositive(sentence, verb_start):
         return False
-    relation_head = sentence[subject.end():verb_start]
+    relation_head = sentence[subject.end() : verb_start]
     if relation_head.lstrip().startswith(("'s", "’s")):
         return False
     return not (
@@ -940,7 +1035,7 @@ def _relation_belongs_to_group(
     subject = _leading_subject(sentence, subject_names)
     if subject is None:
         return False
-    relation_head = sentence[subject.end():relation_start]
+    relation_head = sentence[subject.end() : relation_start]
     return not (
         _DEPENDENT_SUBJECT.search(relation_head)
         or _NON_GROUP_HEAD_BLOCKERS.search(relation_head)
@@ -958,7 +1053,9 @@ def _membership_owner_shifted(
     subject = _leading_subject(sentence, subject_names)
     if subject is None:
         return True
-    return bool(_MEMBERSHIP_OWNER_BLOCKERS.search(sentence[subject.end():relation_start]))
+    return bool(
+        _MEMBERSHIP_OWNER_BLOCKERS.search(sentence[subject.end() : relation_start])
+    )
 
 
 def _reviewed_country_terms(names: Iterable[str]) -> tuple[list[str], tuple[str, ...]]:
