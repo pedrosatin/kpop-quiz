@@ -53,19 +53,24 @@ DISCARDED_MEMBERS = [
 ]
 
 
-def _insert_entity(conn: sqlite3.Connection, qid: str, entity_type: str, name: str) -> int:
+def _insert_entity(
+    conn: sqlite3.Connection, qid: str, entity_type: str, name: str
+) -> int:
     cur = conn.execute(
         "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, ?, ?)",
         (qid, entity_type, name),
     )
     for language in ("en", "pt"):
         conn.execute(
-            "INSERT INTO entity_aliases VALUES (?, ?, ?, 'label')", (cur.lastrowid, language, name)
+            "INSERT INTO entity_aliases VALUES (?, ?, ?, 'label')",
+            (cur.lastrowid, language, name),
         )
     return int(cur.lastrowid)
 
 
-def _insert_member(conn: sqlite3.Connection, group_id: int, person_qid: str, person_id: int) -> None:
+def _insert_member(
+    conn: sqlite3.Connection, group_id: int, person_qid: str, person_id: int
+) -> None:
     cur = conn.execute(
         """
         INSERT INTO facts(
@@ -116,6 +121,51 @@ class TestNames(unittest.TestCase):
         self.assertEqual(classify_name("Mina 미나"), (None, DISCARD_NON_LATIN_NAME))
 
 
+class TestBuildStrandsThemes(unittest.TestCase):
+    def test_build_strands_themes_filters_and_sorts(self) -> None:
+        from kpop_scraping.strands_generator import (
+            build_strands_themes,
+            STRANDS_DECADES,
+        )
+        from unittest.mock import patch, MagicMock
+
+        with patch(
+            "kpop_scraping.strands_generator.extract_viable_themes"
+        ) as mock_extract:
+            theme1 = MagicMock()
+            theme1.category = "has_member"
+            theme1.theme_id = "theme_b"
+
+            theme2 = MagicMock()
+            theme2.category = "formed_on"
+            theme2.target_id = str(STRANDS_DECADES[0])
+            theme2.theme_id = "theme_a"
+
+            theme3 = MagicMock()
+            theme3.category = "formed_on"
+            theme3.target_id = "1980"  # Not in STRANDS_DECADES
+            theme3.theme_id = "theme_c"
+
+            theme4 = MagicMock()
+            theme4.category = "other"
+            theme4.theme_id = "theme_d"
+
+            mock_extract.return_value = [theme1, theme2, theme3, theme4]
+
+            with patch(
+                "kpop_scraping.strands_generator._build_theme"
+            ) as mock_build_theme:
+                mock_build_theme.side_effect = lambda t, f: t
+
+                themes = build_strands_themes({}, [])
+
+                self.assertEqual(len(themes), 2)
+                self.assertEqual(themes[0].theme_id, "theme_a")
+                self.assertEqual(themes[0].category, "formed_on")
+                self.assertEqual(themes[1].theme_id, "theme_b")
+                self.assertEqual(themes[1].category, "has_member")
+
+
 class TestThemes(unittest.TestCase):
     def setUp(self) -> None:
         self.conn = build_strands_test_database()
@@ -156,12 +206,15 @@ class TestThemes(unittest.TestCase):
         self.assertIsNone(theme.spangram.entity_id)
 
     def test_record_label_themes_are_excluded(self) -> None:
-        self.assertFalse(any(t.category == "record_label" for t in self.themes.values()))
+        self.assertFalse(
+            any(t.category == "record_label" for t in self.themes.values())
+        )
 
     def test_feasibility_reasons(self) -> None:
         self.assertTrue(assess_theme(self.themes[ROSTER_THEME_ID], 9, 9).feasible)
         self.assertEqual(
-            assess_theme(self.themes[ROSTER_THEME_ID], 10, 10).reason, "not_enough_letters"
+            assess_theme(self.themes[ROSTER_THEME_ID], 10, 10).reason,
+            "not_enough_letters",
         )
         twice = self.themes["members_q21480414"]
         self.assertEqual(assess_theme(twice, 9, 9).reason, "spangram_too_short")
@@ -196,18 +249,25 @@ class TestUniqueness(unittest.TestCase):
 
     def test_prefix_node_budget_interrupts_without_completed_paths(self) -> None:
         # No B exists: a completed-path cap alone cannot bound this search.
-        with self.assertRaisesRegex(UniquenessBudgetExceeded, "not proved.*node budget"):
+        with self.assertRaisesRegex(
+            UniquenessBudgetExceeded, "not proved.*node budget"
+        ):
             find_word_paths([list("AAAA")] * 4, "AAAAAAAAAB", node_budget=10)
 
     def test_assignment_budget_is_shared_with_prefix_enumeration(self) -> None:
         with self.assertRaises(UniquenessBudgetExceeded):
-            enumerate_strands_solutions([list("ABC"), list("DEF")], ["ABC", "DEF"], node_budget=6)
+            enumerate_strands_solutions(
+                [list("ABC"), list("DEF")], ["ABC", "DEF"], node_budget=6
+            )
 
     def test_verification_never_accepts_interrupted_proof(self) -> None:
-        payload = {"grid": [list("ABC"), list("DEF")], "words": [
-            {"word": "ABC", "cells": [[0, 0], [0, 1], [0, 2]]},
-            {"word": "DEF", "cells": [[1, 0], [1, 1], [1, 2]]},
-        ]}
+        payload = {
+            "grid": [list("ABC"), list("DEF")],
+            "words": [
+                {"word": "ABC", "cells": [[0, 0], [0, 1], [0, 2]]},
+                {"word": "DEF", "cells": [[1, 0], [1, 1], [1, 2]]},
+            ],
+        }
         with self.assertRaisesRegex(UniquenessBudgetExceeded, "not proved"):
             verify_strands_uniqueness(payload, node_budget=1)
 
@@ -265,10 +325,23 @@ class TestPlacement(unittest.TestCase):
 
     def test_path_cap_is_recorded_as_unproved_not_ambiguous(self) -> None:
         stats = strands_generator.PlacementStats()
-        with patch.object(strands_generator, "place_strands_paths", return_value=[[0, 1, 2], [3, 4, 5]]):
-            with patch.object(strands_generator, "count_strands_solutions", side_effect=AmbiguityLimitExceeded("ABC")):
+        with patch.object(
+            strands_generator,
+            "place_strands_paths",
+            return_value=[[0, 1, 2], [3, 4, 5]],
+        ):
+            with patch.object(
+                strands_generator,
+                "count_strands_solutions",
+                side_effect=AmbiguityLimitExceeded("ABC"),
+            ):
                 result = strands_generator.solve_strands_grid(
-                    ["ABC", "DEF"], 2, 3, random.Random(0), attempts=1, stats=stats,
+                    ["ABC", "DEF"],
+                    2,
+                    3,
+                    random.Random(0),
+                    attempts=1,
+                    stats=stats,
                 )
         self.assertIsNone(result)
         self.assertEqual(stats.ambiguous, 0)
@@ -281,11 +354,21 @@ class TestPlacement(unittest.TestCase):
             clock[0] = 2.0
             return 1
 
-        with patch.object(strands_generator.time, "monotonic", side_effect=lambda: clock[0]):
-            with patch.object(strands_generator, "place_strands_paths", return_value=[[0, 1, 2], [3, 4, 5]]):
-                with patch.object(strands_generator, "count_strands_solutions", side_effect=late_count):
+        with patch.object(
+            strands_generator.time, "monotonic", side_effect=lambda: clock[0]
+        ):
+            with patch.object(
+                strands_generator,
+                "place_strands_paths",
+                return_value=[[0, 1, 2], [3, 4, 5]],
+            ):
+                with patch.object(
+                    strands_generator, "count_strands_solutions", side_effect=late_count
+                ):
                     with self.assertRaisesRegex(StrandsGenerationError, "time limit"):
-                        strands_generator.solve_strands_grid(["ABC", "DEF"], 2, 3, random.Random(0), deadline=1)
+                        strands_generator.solve_strands_grid(
+                            ["ABC", "DEF"], 2, 3, random.Random(0), deadline=1
+                        )
 
     def test_lengths_must_match_area(self) -> None:
         with self.assertRaises(ValueError):
@@ -324,15 +407,22 @@ class TestGenerateStrandsPuzzle(unittest.TestCase):
         first = self._generate("strands-determinism")
         second = self._generate("strands-determinism", uniqueness_node_budget=200000)
         self.assertEqual(first, second)
-        self.assertEqual(json.dumps(first, ensure_ascii=False), json.dumps(second, ensure_ascii=False))
+        self.assertEqual(
+            json.dumps(first, ensure_ascii=False),
+            json.dumps(second, ensure_ascii=False),
+        )
 
     def test_seed_variation_changes_grid(self) -> None:
-        grids = {json.dumps(self._generate(f"strands-seed-{i}")["grid"]) for i in range(3)}
+        grids = {
+            json.dumps(self._generate(f"strands-seed-{i}")["grid"]) for i in range(3)
+        }
         self.assertGreater(len(grids), 1)
 
     def test_infeasible_theme_fails_explicitly(self) -> None:
         with self.assertRaisesRegex(StrandsGenerationError, "spangram_too_short"):
-            generate_strands_puzzle(self.conn, seed="x", theme_filter="members_q21480414")
+            generate_strands_puzzle(
+                self.conn, seed="x", theme_filter="members_q21480414"
+            )
 
     def test_unknown_theme_fails_explicitly(self) -> None:
         with self.assertRaisesRegex(StrandsGenerationError, "No strands theme matches"):
@@ -357,8 +447,14 @@ class TestGenerateStrandsPuzzle(unittest.TestCase):
         def finish_after_deadline(*args, **kwargs):
             clock[0] = 2.0
 
-        with patch.object(strands_generator.time, "monotonic", side_effect=lambda: clock[0]):
-            with patch.object(strands_generator, "verify_strands_uniqueness", side_effect=finish_after_deadline):
+        with patch.object(
+            strands_generator.time, "monotonic", side_effect=lambda: clock[0]
+        ):
+            with patch.object(
+                strands_generator,
+                "verify_strands_uniqueness",
+                side_effect=finish_after_deadline,
+            ):
                 with self.assertRaisesRegex(StrandsGenerationError, "time limit"):
                     self._generate("strands-valid", time_limit_seconds=1)
 
@@ -389,12 +485,16 @@ class TestStrandsCLI(unittest.TestCase):
     def test_nonexistent_database_returns_error(self) -> None:
         err = io.StringIO()
         with patch("sys.stderr", err):
-            code = cli_main(["--database", str(Path(self.temp_dir.name) / "missing.db")])
+            code = cli_main(
+                ["--database", str(Path(self.temp_dir.name) / "missing.db")]
+            )
         self.assertEqual(code, 1)
         self.assertIn("Database does not exist", err.getvalue())
 
     def test_stdout_generation_and_verify(self) -> None:
-        code, out, _err = self._run("--date", "2026-10-21", "--theme", ROSTER_THEME_ID, "--verify")
+        code, out, _err = self._run(
+            "--date", "2026-10-21", "--theme", ROSTER_THEME_ID, "--verify"
+        )
         self.assertEqual(code, 0)
         payload = json.loads(out)
         validate_strands_puzzle(payload)
@@ -403,15 +503,25 @@ class TestStrandsCLI(unittest.TestCase):
     def test_default_seed_follows_date(self) -> None:
         _c, first, _e = self._run("--date", "2026-10-21", "--theme", ROSTER_THEME_ID)
         _c, second, _e = self._run(
-            "--date", "2026-10-21", "--theme", ROSTER_THEME_ID,
-            "--seed", "kpop-strands-daily-2026-10-21",
+            "--date",
+            "2026-10-21",
+            "--theme",
+            ROSTER_THEME_ID,
+            "--seed",
+            "kpop-strands-daily-2026-10-21",
         )
         self.assertEqual(first, second)
 
     def test_file_output(self) -> None:
         target = Path(self.temp_dir.name) / "strands.json"
         code, out, _err = self._run(
-            "--theme", ROSTER_THEME_ID, "--seed", "cli-file", "--output", str(target), "--verify"
+            "--theme",
+            ROSTER_THEME_ID,
+            "--seed",
+            "cli-file",
+            "--output",
+            str(target),
+            "--verify",
         )
         self.assertEqual(code, 0)
         self.assertIn("puzzle_id", out)
@@ -439,7 +549,9 @@ class TestStrandsRealDatabase(unittest.TestCase):
         try:
             puzzles = [
                 generate_strands_puzzle(
-                    conn, seed="kpop-strands-daily-2026-10-21", reference_date=date(2026, 10, 21)
+                    conn,
+                    seed="kpop-strands-daily-2026-10-21",
+                    reference_date=date(2026, 10, 21),
                 )
                 for _ in range(2)
             ]
