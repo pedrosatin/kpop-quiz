@@ -601,11 +601,15 @@ class FactStore:
             )
             if row["statement_id"] not in keep
         ]
-        for fact_id in removed:
+        for i in range(0, len(removed), 900):
+            batch = removed[i : i + 900]
+            placeholders = ",".join("?" * len(batch))
             self.connection.execute(
-                "DELETE FROM fact_evidence WHERE fact_id=?", (fact_id,)
+                f"DELETE FROM fact_evidence WHERE fact_id IN ({placeholders})", batch
             )
-            self.connection.execute("DELETE FROM facts WHERE id=?", (fact_id,))
+            self.connection.execute(
+                f"DELETE FROM facts WHERE id IN ({placeholders})", batch
+            )
 
     def mark_stale_facts(self, run_id: int) -> int:
         """Mark facts whose subject left the catalog or every group member list.
