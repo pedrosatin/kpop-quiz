@@ -134,10 +134,12 @@ def place(groups, rng, target, node_limit):
         candidates = [q for q in qids if q not in {e['qid'] for e in entries}]
         rng.shuffle(candidates)
         added = False
+        used_names = set()
+        for e in entries:
+            used_names.update({normalize(n) for n in [groups[e['qid']]['canonical_name'], *groups[e['qid']]['aliases']]})
         for qid in candidates:
             names = {normalize(n) for n in [groups[qid]['canonical_name'], *groups[qid]['aliases']]} - {''}
-            if any(names & {normalize(n) for n in [groups[e['qid']]['canonical_name'],
-                         *groups[e['qid']]['aliases']]} for e in entries):
+            if names & used_names:
                 continue
             answer = normalize(groups[qid]['canonical_name'])
             proposals = set()
