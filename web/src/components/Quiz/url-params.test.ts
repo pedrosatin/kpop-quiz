@@ -42,12 +42,20 @@ describe("url-params", () => {
     });
 
     it("reads, deduplicates, and sorts multiple decade parameters", () => {
-      window.history.replaceState(null, "", "/?decade=2020&decade=1990&decade=2020");
+      window.history.replaceState(
+        null,
+        "",
+        "/?decade=2020&decade=1990&decade=2020",
+      );
       expect(getInitialUrlParams().decades).toEqual([1990, 2020]);
     });
 
     it("rejects invalid values returning defaults (mode: standard, theme: history)", () => {
-      window.history.replaceState(null, "", "/?mode=invalido&theme=desconhecido");
+      window.history.replaceState(
+        null,
+        "",
+        "/?mode=invalido&theme=desconhecido",
+      );
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
         theme: "history",
@@ -90,7 +98,7 @@ describe("url-params", () => {
       expect(replaceStateSpy).toHaveBeenCalledWith(
         null,
         "",
-        "/quiz?mode=expert&theme=daily"
+        "/quiz?mode=expert&theme=daily",
       );
 
       expect(langLink.href).not.toContain("??");
@@ -122,12 +130,36 @@ describe("url-params", () => {
       vi.stubGlobal("window", undefined);
       expect(() => updateUrlParams("expert", "daily")).not.toThrow();
     });
+
+    it("prevents open redirects and javascript injection via langLink", () => {
+      window.history.replaceState(null, "", "/quiz");
+
+      const langLink = document.createElement("a");
+      langLink.className = "language-link";
+      // Malicious payload trying to redirect or run JS
+      langLink.href = "javascript:alert(1)";
+      document.body.appendChild(langLink);
+
+      updateUrlParams("expert", "daily");
+
+      // Because the origin of javascript: is not same-origin, it shouldn't be updated
+      expect(langLink.href).toBe("javascript:alert(1)");
+
+      // Protocol relative malicious url
+      langLink.href = "//evil.com/quiz";
+      updateUrlParams("expert", "daily");
+
+      // Since the origin is evil.com, it does not match window.location.origin, so it's skipped.
+      expect(langLink.href).toBe("http://evil.com/quiz");
+    });
   });
 
   it("serializes multiple decades in stable order", () => {
     window.history.replaceState(null, "", "/quiz?decade=1990");
     updateUrlParams("standard", "history", [2020, 1990, 2020]);
 
-    expect(window.location.search).toBe("?mode=standard&theme=history&decade=1990&decade=2020");
+    expect(window.location.search).toBe(
+      "?mode=standard&theme=history&decade=1990&decade=2020",
+    );
   });
 });
