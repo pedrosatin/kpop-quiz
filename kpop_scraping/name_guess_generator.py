@@ -245,7 +245,7 @@ def generate_name_guess_puzzle(
         if word_length is not None and len(norm) != word_length:
             continue
         entity_facts = facts_by_subject.get(entity.wikidata_id, [])
-        has_evidence = any(len(f.evidence) > 0 for f in entity_facts)
+        has_evidence = any(f.evidence for f in entity_facts)
         if has_evidence:
             eligible_candidates.append((entity, norm, entity_facts))
 

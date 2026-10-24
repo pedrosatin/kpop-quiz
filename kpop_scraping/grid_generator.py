@@ -236,7 +236,7 @@ def has_distinct_assignment(cell_options: list[list[str]]) -> bool:
     """
     if len(cell_options) != 9:
         return False
-    if any(len(options) == 0 for options in cell_options):
+    if not all(cell_options):
         return False
 
     matching: dict[str, int] = {}
