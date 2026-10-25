@@ -7,6 +7,8 @@ import {
   calculateScore,
   generateTimelineShareText,
   getCanonicalChronologicalOrder,
+  getInitialTimelineEventIds,
+  getInitialTimelineOrder,
   loadTimelineSavedState,
 } from "./timeline-utils";
 
@@ -21,16 +23,44 @@ describe("useTimelineGame and timeline utils", () => {
     localStorage.clear();
   });
 
-  it("initializes with puzzle events order and canonical order", () => {
+  it("initializes with a deterministic non-solution order and canonical order", () => {
+    const expectedIds = getInitialTimelineEventIds(reversedPuzzle);
+    const canonicalIds = getCanonicalChronologicalOrder(reversedPuzzle.events).map((e) => e.id);
+
     const { result } = renderHook(() => useTimelineGame(reversedPuzzle, "pt-BR"));
     expect(result.current.gameStatus).toBe("in_progress");
-    expect(result.current.orderedEventIds).toEqual(reversedPuzzle.events.map((e) => e.id));
+    expect(result.current.orderedEventIds).toEqual(expectedIds);
+    expect(result.current.orderedEventIds).not.toEqual(canonicalIds);
+    expect(new Set(result.current.orderedEventIds).size).toBe(reversedPuzzle.events.length);
+    expect([...result.current.orderedEventIds].sort()).toEqual([...canonicalIds].sort());
     expect(result.current.score).toBe(0);
     expect(result.current.results).toEqual([]);
     expect(result.current.shareText).toBe("");
     expect(result.current.canonicalOrder.map((e) => e.date)).toEqual([
       "1997", "1999", "2011", "2017", "2021",
     ]);
+  });
+
+  it("keeps the same initial order for the same puzzle identity across locales and artifact order", () => {
+    const fromCanonical = getInitialTimelineEventIds(puzzle);
+    const fromReversed = getInitialTimelineEventIds(reversedPuzzle);
+    expect(fromCanonical).toEqual(fromReversed);
+
+    const { result: pt } = renderHook(() => useTimelineGame(puzzle, "pt-BR"));
+    const { result: en } = renderHook(() => useTimelineGame(puzzle, "en"));
+    expect(pt.current.orderedEventIds).toEqual(fromCanonical);
+    expect(en.current.orderedEventIds).toEqual(fromCanonical);
+  });
+
+  it("never returns the chronological solution as the opening order", () => {
+    const seeds = [puzzle.puzzle_id, "seed-a", "seed-b", "0", "timeline-derangement-guard"];
+    for (const seed of seeds) {
+      const order = getInitialTimelineOrder(puzzle.events, seed);
+      const canonical = getCanonicalChronologicalOrder(puzzle.events);
+      expect(order.map((e) => e.id)).not.toEqual(canonical.map((e) => e.id));
+      expect(order).toHaveLength(puzzle.events.length);
+      expect(new Set(order.map((e) => e.id)).size).toBe(puzzle.events.length);
+    }
   });
 
   it("calculates score directly for zero matches, partial matches, and exact matches", () => {
@@ -135,6 +165,8 @@ describe("useTimelineGame and timeline utils", () => {
 
   it("treats actions as no-ops once submitted", () => {
     const { result } = renderHook(() => useTimelineGame(puzzle, "pt-BR"));
+    const canonicalIds = result.current.canonicalOrder.map((e) => e.id);
+    act(() => result.current.setOrder(canonicalIds));
     act(() => result.current.submit());
 
     const submittedIds = [...result.current.orderedEventIds];
@@ -150,16 +182,26 @@ describe("useTimelineGame and timeline utils", () => {
     expect(result.current.gameStatus).toBe("submitted");
   });
 
-  it("restores completed game state from localStorage", () => {
+  it("restores completed game state from localStorage without reshuffling", () => {
     const key = `kpop-timeline-${puzzle.puzzle_id}`;
     const { result: firstRun } = renderHook(() => useTimelineGame(puzzle, "pt-BR"));
+    const canonicalIds = firstRun.current.canonicalOrder.map((e) => e.id);
+    act(() => firstRun.current.setOrder(canonicalIds));
     act(() => firstRun.current.submit());
 
     const { result: secondRun } = renderHook(() => useTimelineGame(puzzle, "pt-BR"));
     expect(secondRun.current.gameStatus).toBe("submitted");
+    expect(secondRun.current.orderedEventIds).toEqual(canonicalIds);
     expect(secondRun.current.score).toBe(5);
     expect(secondRun.current.results).toEqual([true, true, true, true, true]);
     expect(localStorage.getItem(key)).not.toBeNull();
+  });
+
+  it("leaves an untouched new game below a perfect score", () => {
+    const { result } = renderHook(() => useTimelineGame(puzzle, "pt-BR"));
+    act(() => result.current.submit());
+    expect(result.current.gameStatus).toBe("submitted");
+    expect(result.current.score).toBeLessThan(5);
   });
 
   it("discards mismatched or corrupt localStorage data", () => {

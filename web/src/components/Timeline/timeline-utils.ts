@@ -7,11 +7,70 @@ import { withShareUrl } from "../Results/share-text";
 /**
  * Sort events chronologically by date string. Break ties by event ID.
  */
-export function getCanonicalChronologicalOrder(events: TimelineEvent[]): TimelineEvent[] {
+export function getCanonicalChronologicalOrder(events: readonly TimelineEvent[]): TimelineEvent[] {
   return [...events].sort((a, b) =>
     (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) ||
     (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   );
+}
+
+/** FNV-1a style seed, matching the map pilot's deterministic RNG. */
+function hashSeed(value: string): number {
+  let hash = 2166136261;
+  for (const character of value) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Fisher–Yates shuffle driven by a linear congruential generator.
+ * Same seed and items always yield the same permutation.
+ */
+function seededShuffle<T>(items: readonly T[], seed: string): T[] {
+  const shuffled = [...items];
+  let state = hashSeed(seed) || 1;
+  for (let index = shuffled.length - 1; index > 0; index--) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    const target = state % (index + 1);
+    [shuffled[index], shuffled[target]] = [shuffled[target]!, shuffled[index]!];
+  }
+  return shuffled;
+}
+
+function sameEventIds(left: readonly TimelineEvent[], right: readonly TimelineEvent[]): boolean {
+  return left.length === right.length && left.every((event, index) => event.id === right[index]?.id);
+}
+
+/**
+ * Deterministic initial board order for a daily puzzle identity.
+ * Starts from the canonical chronological list so artifact presentation
+ * order does not affect the result, then shuffles with the puzzle seed.
+ * Guarantees the opening order differs from the solution when there are
+ * at least two events.
+ */
+export function getInitialTimelineOrder(
+  events: readonly TimelineEvent[],
+  seed: string,
+): TimelineEvent[] {
+  if (events.length <= 1) return [...events];
+
+  const canonical = getCanonicalChronologicalOrder(events);
+  let shuffled = seededShuffle(canonical, seed);
+
+  if (sameEventIds(shuffled, canonical)) {
+    shuffled = [...shuffled.slice(1), shuffled[0]!];
+  }
+
+  return shuffled;
+}
+
+/**
+ * Initial event-id sequence for a new timeline match (no saved progress).
+ */
+export function getInitialTimelineEventIds(puzzle: TimelinePuzzle): string[] {
+  return getInitialTimelineOrder(puzzle.events, puzzle.puzzle_id).map((event) => event.id);
 }
 
 /**
