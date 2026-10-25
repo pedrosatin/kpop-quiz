@@ -25,7 +25,7 @@ from kpop_scraping.daily_puzzles_runner import (
     publish_daily_puzzles,
     run_daily_puzzles,
 )
-from kpop_scraping.grid_generator import generate_daily_grid
+from kpop_scraping.grid_generator import generate_daily_grid, grid_incompatibility
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
 from kpop_scraping.quiz_schema import validate_session
@@ -782,6 +782,198 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         validate_connections_puzzle(connections)
         self.assertEqual(connections["reference_date"], "2026-09-20")
         verify_artifacts(output_dir, require_grid=False)
+
+    def _database_without_roster_proof(self, name, group=None):
+        """Copy the fixture database and drop roster proof, of one group or of all."""
+        path = self.temp_path / name
+        shutil.copyfile(self.db_path, path)
+        connection = sqlite3.connect(path)
+        proof = "evidence_type='wikipedia_revision'"
+        if group is None:
+            connection.execute(f"DELETE FROM fact_evidence WHERE {proof}")
+            # One decade only, so that the grid cannot be generated again.
+            connection.execute("UPDATE facts SET value_time='2010' WHERE predicate='formed_on'")
+        else:
+            connection.execute(
+                f"DELETE FROM fact_evidence WHERE {proof} AND fact_id IN ("
+                "SELECT f.id FROM facts f JOIN entities e ON e.id=f.subject_entity_id "
+                "WHERE f.predicate='has_member' AND e.wikidata_id=?)",
+                (group,),
+            )
+        connection.commit()
+        connection.close()
+        return path
+
+    @staticmethod
+    def _member_answer(grid):
+        """Return a group whose answer in some cell depends on a member count."""
+        for cell in grid["cells"]:
+            row = grid["row_criteria"][cell["row_index"]]
+            col = grid["col_criteria"][cell["col_index"]]
+            if "has_member" in (row["category"], col["category"]):
+                return cell["valid_entity_ids"][0]
+        raise AssertionError("fixture grid has no member-count criterion")
+
+    def _assert_policy_compatible(self, output_dir, database):
+        grid = json.loads((output_dir / "grid.daily.json").read_text(encoding="utf-8"))
+        connection = sqlite3.connect(database)
+        try:
+            self.assertIsNone(grid_incompatibility(connection, grid))
+        finally:
+            connection.close()
+        return grid
+
+    def test_promotion_replaces_a_grid_the_current_policy_no_longer_admits(self):
+        output_dir = self.temp_path / "promote_incompatible"
+        run_daily_puzzles(
+            database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True
+        )
+        stale = json.loads((output_dir / "next" / "grid.daily.json").read_text(encoding="utf-8"))
+        group = self._member_answer(stale)
+        database = self._database_without_roster_proof("promote.db", group)
+        next_connections = (output_dir / "next" / "connections.daily.json").read_bytes()
+
+        result = run_daily_puzzles(
+            database=database, output_dir=output_dir, reference_date="2026-09-19"
+        )
+
+        self.assertTrue(result["promoted_from_next"])
+        self.assertEqual(result["grid_revalidated"]["action"], "regenerated")
+        self.assertEqual(result["grid_revalidated"]["previous_grid_id"], stale["grid_id"])
+        self.assertIn("no longer admits", result["grid_revalidated"]["reason"])
+        grid = self._assert_policy_compatible(output_dir, database)
+        self.assertEqual(result["grid_id"], grid["grid_id"])
+        self.assertNotEqual(grid["grid_id"], stale["grid_id"])
+        self.assertEqual(grid["reference_date"], "2026-09-19")
+        self.assertEqual((output_dir / "connections.daily.json").read_bytes(), next_connections)
+        verify_artifacts(output_dir, require_grid=True)
+
+    def test_kept_day_replaces_an_incompatible_grid_and_keeps_a_compatible_one(self):
+        output_dir = self.temp_path / "keep_incompatible"
+        first = run_daily_puzzles(
+            database=self.db_path, output_dir=output_dir, reference_date="2026-09-18"
+        )
+        stale_bytes = (output_dir / "grid.daily.json").read_bytes()
+        again = run_daily_puzzles(
+            database=self.db_path, output_dir=output_dir, reference_date="2026-09-18"
+        )
+        self.assertTrue(again["already_published"])
+        self.assertIsNone(again["grid_revalidated"])
+        self.assertEqual((output_dir / "grid.daily.json").read_bytes(), stale_bytes)
+
+        group = self._member_answer(json.loads(stale_bytes))
+        database = self._database_without_roster_proof("keep.db", group)
+        kept = run_daily_puzzles(
+            database=database, output_dir=output_dir, reference_date="2026-09-18"
+        )
+
+        self.assertTrue(kept["already_published"])
+        self.assertEqual(kept["grid_revalidated"]["action"], "regenerated")
+        self.assertEqual(kept["grid_revalidated"]["previous_grid_id"], first["grid_id"])
+        grid = self._assert_policy_compatible(output_dir, database)
+        self.assertEqual(grid["reference_date"], "2026-09-18")
+        self.assertEqual(kept["grid_id"], grid["grid_id"])
+
+    def test_kept_day_drops_an_incompatible_grid_when_none_can_be_generated(self):
+        output_dir = self.temp_path / "keep_dropped"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        connections = (output_dir / "connections.daily.json").read_bytes()
+        database = self._database_without_roster_proof("dropped.db")
+
+        with redirect_stderr(io.StringIO()):
+            kept = run_daily_puzzles(
+                database=database, output_dir=output_dir, reference_date="2026-09-18"
+            )
+
+        self.assertEqual(kept["grid_revalidated"]["action"], "removed")
+        self.assertIn("3x3", kept["grid_revalidated"]["error"])
+        self.assertIsNone(kept["grid_id"])
+        self.assertTrue(kept["grid_skipped"]["published_without_grid"])
+        self.assertFalse((output_dir / "grid.daily.json").exists())
+        self.assertEqual((output_dir / "connections.daily.json").read_bytes(), connections)
+        verify_artifacts(output_dir, require_grid=False)
+
+    def test_generation_failure_does_not_reuse_a_grid_the_current_policy_rejects(self):
+        output_dir = self.temp_path / "fallback_incompatible"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        previous = (output_dir / "grid.daily.json").read_bytes()
+        database = self._database_without_roster_proof("fallback.db")
+
+        # Natural failure: no complete rosters and a single decade remain.
+        with redirect_stderr(io.StringIO()):
+            result = run_daily_puzzles(
+                database=database, output_dir=output_dir, reference_date="2026-09-19"
+            )
+
+        self.assertTrue(previous)
+        self.assertIsNone(result["grid_reused"])
+        self.assertIsNone(result["grid_id"])
+        self.assertIn("3x3", result["grid_skipped"]["error"])
+        self.assertIn("no longer admits", result["grid_skipped"]["previous_invalid"])
+        self.assertFalse((output_dir / "grid.daily.json").exists())
+        connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        self.assertEqual(connections["reference_date"], "2026-09-19")
+        verify_artifacts(output_dir, require_grid=False)
+
+    def test_grid_bytes_do_not_depend_on_local_revision_ids(self):
+        connection = sqlite3.connect(self.db_path)
+        connection.row_factory = sqlite3.Row
+        # Each group gets a second complete list in a newer revision, inserted
+        # under local ids that sort before and after the original ones.
+        for row in connection.execute(
+            "SELECT id, source_page_id, external_revision_id FROM source_revisions"
+        ).fetchall():
+            connection.execute(
+                "INSERT INTO source_revisions VALUES (?, ?, ?)",
+                (row["id"] + 1000, row["source_page_id"], row["external_revision_id"] + 100000),
+            )
+            for evidence in connection.execute(
+                "SELECT fact_id, source_key, locator, snippet FROM fact_evidence "
+                "WHERE source_revision_id=? AND evidence_type='wikipedia_revision'",
+                (row["id"],),
+            ).fetchall():
+                connection.execute(
+                    "INSERT INTO fact_evidence(fact_id, evidence_type, source_key, locator, "
+                    "source_revision_id, snippet) VALUES (?, 'wikipedia_revision', ?, ?, ?, ?)",
+                    (
+                        evidence["fact_id"],
+                        evidence["source_key"],
+                        evidence["locator"].replace(
+                            f"revid={row['external_revision_id']}",
+                            f"revid={row['external_revision_id'] + 100000}",
+                        ),
+                        row["id"] + 1000,
+                        evidence["snippet"],
+                    ),
+                )
+        connection.commit()
+        first = generate_daily_grid(connection, reference_date=date(2026, 10, 25))
+        connection.execute("UPDATE source_revisions SET id=id+2000 WHERE id<1000")
+        connection.execute("UPDATE fact_evidence SET source_revision_id=source_revision_id+2000 WHERE source_revision_id<1000")
+        connection.commit()
+        second = generate_daily_grid(connection, reference_date=date(2026, 10, 25))
+        connection.close()
+
+        self.assertEqual(first["dataset_version"], second["dataset_version"])
+        self.assertEqual(first["grid_id"], second["grid_id"])
+        self.assertEqual(json.dumps(first, sort_keys=True), json.dumps(second, sort_keys=True))
+        revisions = {item["revision_id"] for cell in first["cells"] for item in cell["evidence"]}
+        self.assertTrue(any(revision > 100000 for revision in revisions))
+
+    def test_ahead_run_publishes_neither_day_with_a_rejected_grid(self):
+        output_dir = self.temp_path / "ahead_fallback"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        database = self._database_without_roster_proof("ahead.db")
+
+        with redirect_stderr(io.StringIO()):
+            result = run_daily_puzzles(
+                database=database, output_dir=output_dir, reference_date="2026-09-19", ahead=True
+            )
+
+        self.assertIn("no longer admits", result["grid_skipped"]["previous_invalid"])
+        self.assertIsNone(result["next"]["grid_skipped"]["previous_invalid"])
+        self.assertFalse((output_dir / "grid.daily.json").exists())
+        self.assertFalse((output_dir / "next" / "grid.daily.json").exists())
 
     def test_ahead_publishes_the_next_day_under_next(self):
         output_dir = self.temp_path / "ahead"

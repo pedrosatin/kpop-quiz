@@ -36,8 +36,8 @@ from typing import Any
 
 from .code_groups_cli import generate as generate_code_groups_puzzle
 from .connections_generator import generate_connections_puzzle
-from .grid_generator import generate_daily_grid
-from .grid_schema import validate_intersection_grid
+from .grid_generator import generate_daily_grid, grid_incompatibility
+from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_generator import generate_name_guess_puzzle
 from .quiz_generator import QuizConfig, generate_dataset
 from .quiz_session import create_session
@@ -185,6 +185,7 @@ def publish_daily_puzzles(
     dry_run: bool = False,
     previous_grid: Path | None = None,
     prune: bool = False,
+    connection: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Publish generated puzzles to output_dir with atomic writes and schema verification.
 
@@ -192,6 +193,8 @@ def publish_daily_puzzles(
     content still passes validation; it defaults to the one already in
     output_dir. When it is missing or invalid, the day publishes without
     ``grid.daily.json`` and the result records why in ``grid_skipped``.
+    With ``connection``, the previous grid must also still satisfy the
+    current eligibility policy for its answers, not only the schema.
     The group code pilot follows a plain partial publish policy: when its
     generation failed (``code_groups`` is None), the day publishes without
     ``code-groups.daily.json`` and the result records why in
@@ -218,7 +221,7 @@ def publish_daily_puzzles(
         )
         grid_skipped = None
         if puzzles["grid"] is None:
-            previous_invalid = _invalid_grid_reason(previous_grid)
+            previous_invalid = _invalid_grid_reason(previous_grid, connection)
             if previous_invalid is None and previous_grid.is_file():
                 shutil.copyfile(previous_grid, staging_dir / GRID_DAILY_FILENAME)
             else:
@@ -299,15 +302,49 @@ def publish_daily_puzzles(
         return result
 
 
-def _invalid_grid_reason(grid_path: Path) -> str | None:
-    """Return why the grid at grid_path fails validation, or None when valid or absent."""
+def _invalid_grid_reason(grid_path: Path, connection: sqlite3.Connection | None = None) -> str | None:
+    """Return why the grid at grid_path fails validation, or None when valid or absent.
+
+    With ``connection``, the answers must also pass the current eligibility
+    policy, which a schema check cannot tell.
+    """
     if not grid_path.is_file():
         return None
     try:
-        validate_intersection_grid(json.loads(grid_path.read_text(encoding="utf-8")))
+        grid = json.loads(grid_path.read_text(encoding="utf-8"))
+        validate_intersection_grid(grid)
     except (OSError, ValueError) as exc:
         return str(exc)
-    return None
+    return grid_incompatibility(connection, grid) if connection is not None else None
+
+
+def _revalidate_published_grid(
+    output_dir: Path, reference_date: str, connection: sqlite3.Connection
+) -> dict[str, Any] | None:
+    """Replace a kept or promoted grid that the current policy no longer admits.
+
+    The day's other artifacts keep their bytes. The grid is generated again
+    for the same date, which derives a new ``grid_id`` from its content; when
+    that fails too, the day goes without a grid, as for any failed generation.
+    Returns None when there was nothing to replace.
+    """
+    grid_path = output_dir / GRID_DAILY_FILENAME
+    reason = _invalid_grid_reason(grid_path, connection)
+    if reason is None:
+        return None
+    previous_grid_id = None
+    try:
+        previous_grid_id = json.loads(grid_path.read_text(encoding="utf-8")).get("grid_id")
+    except (OSError, ValueError, AttributeError):
+        pass
+    outcome = {"reason": reason, "previous_grid_id": previous_grid_id}
+    try:
+        grid = generate_daily_grid(connection, reference_date=reference_date)
+    except ValueError as exc:
+        grid_path.unlink()
+        return {**outcome, "action": "removed", "error": str(exc)}
+    write_intersection_grid_atomic(grid_path, grid)
+    return {**outcome, "action": "regenerated", "grid_id": grid["grid_id"]}
 
 
 def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> None:
@@ -354,7 +391,7 @@ def _published_day(directory: Path) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _published_result(output_dir: Path, reference_date: str, **flags: bool) -> dict[str, Any]:
+def _published_result(output_dir: Path, reference_date: str, **flags: Any) -> dict[str, Any]:
     def read(name: str) -> dict[str, Any]:
         return json.loads((output_dir / name).read_text(encoding="utf-8"))
 
@@ -397,19 +434,30 @@ def _published_result(output_dir: Path, reference_date: str, **flags: bool) -> d
     }
 
 
-def keep_or_promote_day(output_dir: Path, reference_date: str) -> dict[str, Any] | None:
+def keep_or_promote_day(
+    output_dir: Path,
+    reference_date: str,
+    connection: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
     """Reuse a set already published for reference_date.
 
     Players may already have played the day, from output_dir or from the copy
     published ahead under ``next/``, so the day keeps those bytes instead of
     being generated again from a newer database. Returns None when neither
     directory holds that day.
+
+    With ``connection``, a grid the current eligibility policy no longer
+    admits is replaced before the day is reported (see
+    ``_revalidate_published_grid``); the other artifacts keep their bytes.
     """
     # The grid and the group code artifact are optional in a published set;
     # verify() still validates either file when it is present.
     if _published_day(output_dir) == reference_date:
         verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
-        return _published_result(output_dir, reference_date, already_published=True)
+        revalidated = _revalidate_published_grid(output_dir, reference_date, connection) if connection else None
+        return _published_result(
+            output_dir, reference_date, grid_revalidated=revalidated, already_published=True
+        )
     next_dir = output_dir / NEXT_DIRNAME
     if _published_day(next_dir) != reference_date:
         return None
@@ -428,8 +476,11 @@ def keep_or_promote_day(output_dir: Path, reference_date: str) -> dict[str, Any]
             (output_dir / CODE_GROUPS_DAILY_FILENAME).unlink()
         except FileNotFoundError:
             pass
+    revalidated = _revalidate_published_grid(output_dir, reference_date, connection) if connection else None
     verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
-    return _published_result(output_dir, reference_date, promoted_from_next=True)
+    return _published_result(
+        output_dir, reference_date, grid_revalidated=revalidated, promoted_from_next=True
+    )
 
 
 def run_daily_puzzles(
@@ -468,7 +519,6 @@ def run_daily_puzzles(
         raise FileNotFoundError(f"Database does not exist: {db_path}")
 
     iso_date = get_reference_date(reference_date)
-    result = None if dry_run or regenerate else keep_or_promote_day(output_dir_path, iso_date)
 
     try:
         connection = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
@@ -476,6 +526,7 @@ def run_daily_puzzles(
         connection = sqlite3.connect(str(db_path))
 
     try:
+        result = None if dry_run or regenerate else keep_or_promote_day(output_dir_path, iso_date, connection)
         if result is None:
             puzzles = generate_daily_puzzles(
                 connection,
@@ -483,7 +534,7 @@ def run_daily_puzzles(
                 base_seed=base_seed,
                 timer_seconds=timer_seconds,
             )
-            result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run)
+            result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run, connection=connection)
         if ahead:
             next_date = (date.fromisoformat(iso_date) + timedelta(days=1)).isoformat()
             next_puzzles = generate_daily_puzzles(
@@ -498,6 +549,7 @@ def run_daily_puzzles(
                 dry_run=dry_run,
                 previous_grid=output_dir_path / GRID_DAILY_FILENAME,
                 prune=True,
+                connection=connection,
             )
     finally:
         connection.close()

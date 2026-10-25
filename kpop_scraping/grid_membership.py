@@ -21,6 +21,9 @@ _ROSTER = re.compile(
     r"(?P<count>\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen) "
     r"members: (?P<names>.+)\.", re.I,
 )
+# A revision is identified by what the source says (key, page id, revision id),
+# never by a local row id, so equivalent databases select the same proof.
+Revision = tuple[str, int, int]
 _NUMBERS = dict(zip(
     ("two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen"),
     range(2, 14),
@@ -81,7 +84,10 @@ def grid_member_facts(
 
     Proof is bounded to the cited revision, not lifetime membership. Multiple
     closed lists must agree. Rejected/conflicting/unresolved members cannot be
-    omitted to obtain a smaller count. Historical facts remain in the database.
+    omitted to obtain a smaller count. Former-member proof excludes a person
+    only within the cited revisions, and a positive current claim for that
+    person blocks the count. Of several agreeing lists, the newest revision
+    supplies the evidence. Historical facts remain in the database.
     """
     identities: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
     for row in connection.execute(
@@ -101,35 +107,52 @@ def grid_member_facts(
         WHERE f.predicate='has_member' AND f.status NOT IN ('stale', 'superseded')
     """):
         assertions[row["wikidata_id"]][row["statement_id"]] = row["value_id"] or row["value_wikidata_id"]
-    historical: set[str] = set()
     loaded = {f.statement_id: f for f in facts if f.predicate == "has_member"}
-    proofs: dict[str, dict[tuple[int, str], list[tuple[str, str]]]] = defaultdict(lambda: defaultdict(list))
+    historical: dict[str, set[Revision]] = defaultdict(set)
+    current_claims: dict[str, set[Revision]] = defaultdict(set)
+    proofs: dict[str, dict[tuple[Revision, str], list[tuple[str, str]]]] = defaultdict(lambda: defaultdict(list))
     rows = connection.execute("""
-        SELECT e.wikidata_id, f.statement_id, fe.source_revision_id, fe.snippet, fe.locator, f.value_entity_id
+        SELECT e.wikidata_id, f.statement_id, fe.source_key, sp.external_page_id,
+               sr.external_revision_id, fe.snippet, fe.locator, f.value_entity_id
         FROM facts f JOIN entities e ON e.id=f.subject_entity_id
         JOIN fact_evidence fe ON fe.fact_id=f.id
+        JOIN source_revisions sr ON sr.id=fe.source_revision_id
+        JOIN source_pages sp ON sp.id=sr.source_page_id
         WHERE f.predicate='has_member' AND f.status NOT IN ('stale', 'superseded')
           AND fe.evidence_type='wikipedia_revision'
-        ORDER BY e.wikidata_id, fe.source_revision_id, fe.snippet, fe.locator, f.statement_id
+        ORDER BY e.wikidata_id, f.statement_id, fe.source_key, sp.external_page_id,
+                 sr.external_revision_id, fe.snippet, fe.locator
     """)
     for row in rows:
         snippet = row["snippet"] or ""
+        revision: Revision = (
+            row["source_key"], int(row["external_page_id"]), int(row["external_revision_id"])
+        )
         if _former_member(snippet, entities.get(row["value_entity_id"])):
-            historical.add(row["statement_id"])
+            historical[row["statement_id"]].add(revision)
+        if re.match(r"^current_members\s*=", snippet, re.I):
+            current_claims[row["statement_id"]].add(revision)
         if _ROSTER.fullmatch(snippet):
-            proofs[row["wikidata_id"]][(row["source_revision_id"], snippet)].append((row["statement_id"], row["locator"]))
+            proofs[row["wikidata_id"]][(revision, snippet)].append((row["statement_id"], row["locator"]))
     selected = []
     for group, lists in proofs.items():
         rosters = [_roster(snippet, identities[group]) for _, snippet in lists]
         if None in rosters or len(set(rosters)) != 1:
             continue
         expected = rosters[0]
+        revisions = {revision for revision, _ in lists}
+        # Former-member proof is bounded to the revisions of the cited lists
+        # and never overrides a positive current claim for the same person.
         if any(
-            person not in expected and statement not in historical
+            person not in expected and (
+                current_claims[statement]
+                or not revisions <= historical[statement]
+            )
             for statement, person in assertions[group].items()
         ):
             continue
-        for statements in lists.values():
+        valid: dict[tuple[Revision, str], list[Fact]] = {}
+        for key, statements in lists.items():
             locators: dict[str, set[str]] = defaultdict(set)
             for statement_id, locator in statements:
                 locators[statement_id].add(locator)
@@ -137,14 +160,17 @@ def grid_member_facts(
                 replace(loaded[s], evidence=tuple(
                     e for e in loaded[s].evidence if e.locator in locators[s]
                 ))
-                for s in locators if s in loaded
+                for s in sorted(locators) if s in loaded
             ]
             actual = {f.value_entity.wikidata_id for f in members if f.value_entity}
             if actual != expected or any(
                 not f.evidence or not _period_allows(f, reference_date) for f in members
             ):
                 break
+            valid[key] = members
         else:
-            # Use one complete revision list; do not mix evidence across lists.
-            selected.extend(members)
+            # Use one complete list, the newest cited revision; do not mix
+            # evidence across lists. Ties break on source identity and text.
+            newest = max(valid, key=lambda key: (key[0][2], key[0][0], key[0][1], key[1]))
+            selected.extend(valid[newest])
     return selected

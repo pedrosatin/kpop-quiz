@@ -140,3 +140,62 @@ class GridMembershipTest(unittest.TestCase):
     def test_departure_followed_by_return_is_not_unambiguous_former_proof(self) -> None:
         self.db.execute("UPDATE fact_evidence SET snippet='Soojin departed the group but rejoined later.' WHERE snippet LIKE '%departed%'")
         self.assertEqual(self.selected(), [])
+
+    def add_current_claim(self, snippet: str = 'current_members = [[Soojin]]') -> None:
+        self.db.execute("""
+            INSERT INTO fact_evidence(fact_id, evidence_type, source_revision_id, source_key, locator, snippet)
+            SELECT id, 'wikipedia_revision', 249, 'wikipedia:en',
+                   'wikipedia:en:pageid=57057212:revid=1374817865#wikitext[10:20]', ?
+            FROM facts WHERE value_entity_id=10006
+        """, (snippet,))
+
+    def test_historical_proof_does_not_silence_a_positive_current_claim(self) -> None:
+        self.add_current_claim()
+        self.assertEqual(self.selected(), [])
+
+    def test_historical_field_next_to_the_normal_roster_still_counts(self) -> None:
+        self.add_current_claim('past_members = [[Soojin]]')
+        self.assertEqual(len(self.selected()), 5)
+
+    def test_current_claim_in_another_revision_also_blocks_the_count(self) -> None:
+        self.db.execute('INSERT INTO source_revisions VALUES (250, 249, 1381301828)')
+        self.add_current_claim()
+        self.db.execute('UPDATE fact_evidence SET source_revision_id=250 WHERE snippet LIKE ?', ('current_members%',))
+        self.assertEqual(self.selected(), [])
+
+    def test_former_member_proof_is_bounded_to_the_cited_revision(self) -> None:
+        self.db.execute('INSERT INTO source_revisions VALUES (248, 249, 1374817864)')
+        self.db.execute("UPDATE fact_evidence SET source_revision_id=248 WHERE snippet LIKE '%departed%'")
+        self.assertEqual(self.selected(), [])
+
+    def add_agreeing_revision(self, local_id: int, external_id: int = 1381301828) -> None:
+        """Repeat the whole cited list, with its former-member proof, in a newer revision."""
+        self.db.execute('INSERT INTO source_revisions VALUES (?, 249, ?)', (local_id, external_id))
+        self.db.execute("""
+            INSERT INTO fact_evidence(fact_id, evidence_type, source_revision_id, source_key, locator, snippet)
+            SELECT fact_id, evidence_type, ?, source_key, replace(locator, '1374817865', ?), snippet
+            FROM fact_evidence WHERE source_revision_id=249
+        """, (local_id, str(external_id)))
+
+    def provenance(self):
+        return sorted(
+            (f.statement_id, tuple((e.revision_id, e.locator, e.source_url) for e in f.evidence))
+            for f in self.selected()
+        )
+
+    def test_equivalent_databases_select_the_same_proof_whatever_the_local_ids(self) -> None:
+        self.add_agreeing_revision(250)
+        higher = self.provenance()
+        self.setUp()
+        self.add_agreeing_revision(100)
+        lower = self.provenance()
+        self.setUp()
+        self.add_agreeing_revision(250)
+        self.db.execute('UPDATE source_revisions SET id=id+5000')
+        self.db.execute('UPDATE fact_evidence SET source_revision_id=source_revision_id+5000')
+        shifted = self.provenance()
+
+        self.assertEqual(len(higher), 5)
+        self.assertEqual(higher, lower)
+        self.assertEqual(higher, shifted)
+        self.assertEqual({revision for _, evidence in higher for revision, _, _ in evidence}, {1381301828})
