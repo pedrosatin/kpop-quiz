@@ -103,6 +103,7 @@ export function loadTimelineSavedState(
     if (parsed.referenceDate !== puzzle.reference_date) return null;
     if (typeof parsed.submitted !== "boolean") return null;
     if (!parsed.submitted) return null;
+    if (parsed.gaveUp !== undefined && typeof parsed.gaveUp !== "boolean") return null;
     if (typeof parsed.score !== "number" || !Number.isInteger(parsed.score) || parsed.score < 0) return null;
     if (!Array.isArray(parsed.results) || !parsed.results.every((r: unknown) => typeof r === "boolean")) {
       return null;
@@ -134,6 +135,7 @@ export function loadTimelineSavedState(
       referenceDate: parsed.referenceDate,
       orderedEventIds: parsed.orderedEventIds,
       submitted: parsed.submitted,
+      gaveUp: parsed.gaveUp === true,
       score: parsed.score,
       results: parsed.results,
     };
@@ -154,6 +156,7 @@ export function saveTimelineState(storageKey: string, state: TimelineStoredState
 }
 
 export interface GenerateTimelineShareTextParams {
+  gaveUp?: boolean;
   referenceDate: string;
   score: number;
   totalEvents: number;
@@ -166,6 +169,7 @@ export interface GenerateTimelineShareTextParams {
  */
 export function generateTimelineShareText({
   referenceDate,
+  gaveUp = false,
   score,
   totalEvents,
   results,
@@ -175,7 +179,11 @@ export function generateTimelineShareText({
   const title = isPt
     ? `K-pop Quiz • Linha do Tempo ${referenceDate}`
     : `K-pop Quiz • Timeline ${referenceDate}`;
-  const scoreLine = isPt
+  const scoreLine = gaveUp
+    ? (isPt
+      ? `Desistência · Pontuação da sequência: ${score}/${totalEvents}`
+      : `Gave up · Sequence score: ${score}/${totalEvents}`)
+    : isPt
     ? `Pontuação: ${score}/${totalEvents} ⭐️`
     : `Score: ${score}/${totalEvents} ⭐️`;
   const emojiLine = results.map((r) => (r ? "🟩" : "🟥")).join(" ");
