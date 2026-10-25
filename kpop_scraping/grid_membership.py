@@ -144,7 +144,8 @@ def grid_member_facts(
         # Former-member proof is bounded to the revisions of the cited lists
         # and never overrides a positive current claim for the same person.
         if any(
-            person not in expected and (
+            (person in expected and bool(revisions & historical[statement]))
+            or person not in expected and (
                 current_claims[statement]
                 or not revisions <= historical[statement]
             )

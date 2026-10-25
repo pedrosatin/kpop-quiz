@@ -168,6 +168,21 @@ class GridMembershipTest(unittest.TestCase):
         self.db.execute("UPDATE fact_evidence SET source_revision_id=248 WHERE snippet LIKE '%departed%'")
         self.assertEqual(self.selected(), [])
 
+    def test_current_member_with_contemporary_former_proof_blocks_count(self):
+        for snippet in ('past_members = [[Miyeon]]', 'Miyeon departed the group on May 1, 2024.'):
+            with self.subTest(snippet=snippet):
+                self.db.execute("DELETE FROM fact_evidence WHERE locator='conflict'")
+                self.db.execute("""INSERT INTO fact_evidence(fact_id,evidence_type,source_revision_id,source_key,locator,snippet)
+                    SELECT id,'wikipedia_revision',249,'wikipedia:en','conflict',? FROM facts WHERE value_entity_id=10005""", (snippet,))
+                self.assertEqual(self.selected(), [])
+
+    def test_former_claim_in_an_old_revision_does_not_veto_current_roster(self):
+        self.db.execute('INSERT INTO source_revisions VALUES (248,249,1374817864)')
+        self.db.execute("""INSERT INTO fact_evidence(fact_id,evidence_type,source_revision_id,source_key,locator,snippet)
+            SELECT id,'wikipedia_revision',248,'wikipedia:en','old','past_members = [[Miyeon]]'
+            FROM facts WHERE value_entity_id=10005""")
+        self.assertEqual(len(self.selected()), 5)
+
     def add_agreeing_revision(self, local_id: int, external_id: int = 1381301828) -> None:
         """Repeat the whole cited list, with its former-member proof, in a newer revision."""
         self.db.execute('INSERT INTO source_revisions VALUES (?, 249, ?)', (local_id, external_id))

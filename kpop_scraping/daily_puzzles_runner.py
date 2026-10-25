@@ -37,6 +37,7 @@ from typing import Any
 from .code_groups_cli import generate as generate_code_groups_puzzle
 from .connections_generator import generate_connections_puzzle
 from .grid_generator import generate_daily_grid, grid_incompatibility
+from .grid_publication import publication, read_publication, write_publication
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_generator import generate_name_guess_puzzle
 from .quiz_generator import QuizConfig, generate_dataset
@@ -256,6 +257,18 @@ def publish_daily_puzzles(
                 "reference_date": published_grid.get("reference_date"),
                 "error": puzzles.get("grid_error") or "unknown error",
             }
+        day = puzzles["reference_date"]
+        previous_publication = read_publication(output_dir, day)
+        rejected_id = None
+        if previous_grid.is_file() and _invalid_grid_reason(previous_grid, connection):
+            try:
+                old = json.loads(previous_grid.read_text(encoding="utf-8"))
+                validate_intersection_grid(old)
+                if old["reference_date"] == day:
+                    rejected_id = old["grid_id"]
+            except (OSError, ValueError):
+                pass
+        write_publication(staging_dir, publication(day, published_grid, previous_publication, rejected_id))
         result = {
             "reference_date": puzzles["reference_date"],
             "dataset_version": puzzles["dataset_version"],
@@ -337,6 +350,12 @@ def _revalidate_published_grid(
         previous_grid_id = json.loads(grid_path.read_text(encoding="utf-8")).get("grid_id")
     except (OSError, ValueError, AttributeError):
         pass
+    previous_publication = read_publication(output_dir, reference_date)
+    # Reject malformed identities instead of publishing them as replacement history.
+    if not isinstance(previous_grid_id, str) or len(previous_grid_id) != 64:
+        previous_grid_id = None
+    tombstone = publication(reference_date, None, previous_publication, previous_grid_id)
+    write_publication(output_dir, tombstone)
     outcome = {"reason": reason, "previous_grid_id": previous_grid_id}
     try:
         grid = generate_daily_grid(connection, reference_date=reference_date)
@@ -344,6 +363,7 @@ def _revalidate_published_grid(
         grid_path.unlink()
         return {**outcome, "action": "removed", "error": str(exc)}
     write_intersection_grid_atomic(grid_path, grid)
+    write_publication(output_dir, publication(reference_date, grid, tombstone))
     return {**outcome, "action": "regenerated", "grid_id": grid["grid_id"]}
 
 
@@ -453,6 +473,7 @@ def keep_or_promote_day(
     # The grid and the group code artifact are optional in a published set;
     # verify() still validates either file when it is present.
     if _published_day(output_dir) == reference_date:
+        read_publication(output_dir, reference_date)
         verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
         revalidated = _revalidate_published_grid(output_dir, reference_date, connection) if connection else None
         return _published_result(
@@ -461,6 +482,7 @@ def keep_or_promote_day(
     next_dir = output_dir / NEXT_DIRNAME
     if _published_day(next_dir) != reference_date:
         return None
+    read_publication(next_dir, reference_date)
     verify_artifacts(next_dir, require_grid=False, require_code_groups=False)
     _install_files(next_dir, output_dir)
     if not (next_dir / GRID_DAILY_FILENAME).is_file():
@@ -477,6 +499,15 @@ def keep_or_promote_day(
         except FileNotFoundError:
             pass
     revalidated = _revalidate_published_grid(output_dir, reference_date, connection) if connection else None
+    if revalidated is not None:
+        current = output_dir / GRID_DAILY_FILENAME
+        if current.is_file():
+            write_intersection_grid_atomic(
+                next_dir / GRID_DAILY_FILENAME, json.loads(current.read_text(encoding="utf-8"))
+            )
+        else:
+            (next_dir / GRID_DAILY_FILENAME).unlink(missing_ok=True)
+        write_publication(next_dir, read_publication(output_dir, reference_date))
     verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
     return _published_result(
         output_dir, reference_date, grid_revalidated=revalidated, promoted_from_next=True

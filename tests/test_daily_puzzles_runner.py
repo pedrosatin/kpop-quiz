@@ -844,6 +844,10 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         grid = self._assert_policy_compatible(output_dir, database)
         self.assertEqual(result["grid_id"], grid["grid_id"])
         self.assertNotEqual(grid["grid_id"], stale["grid_id"])
+        marker = json.loads((output_dir / "grid-publication.2026-09-19.json").read_text())
+        self.assertEqual(marker["replaces"], [stale["grid_id"]])
+        self.assertEqual(marker["grid_id"], grid["grid_id"])
+        self.assertEqual((output_dir / "next" / "grid.daily.json").read_bytes(), (output_dir / "grid.daily.json").read_bytes())
         self.assertEqual(grid["reference_date"], "2026-09-19")
         self.assertEqual((output_dir / "connections.daily.json").read_bytes(), next_connections)
         verify_artifacts(output_dir, require_grid=True)
@@ -854,6 +858,8 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             database=self.db_path, output_dir=output_dir, reference_date="2026-09-18"
         )
         stale_bytes = (output_dir / "grid.daily.json").read_bytes()
+        # An unrelated historical marker cannot block today's other artifacts.
+        (output_dir / "grid-publication.2000-01-01.json").write_text('{"schema_version":"invalid"}')
         again = run_daily_puzzles(
             database=self.db_path, output_dir=output_dir, reference_date="2026-09-18"
         )
@@ -892,6 +898,27 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertFalse((output_dir / "grid.daily.json").exists())
         self.assertEqual((output_dir / "connections.daily.json").read_bytes(), connections)
         verify_artifacts(output_dir, require_grid=False)
+
+    def test_promotion_failure_removes_rejected_next_and_publishes_tombstone(self):
+        output_dir = self.temp_path / "promotion_failure"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        next_dir = output_dir / "next"
+        other_bytes = {p.name: p.read_bytes() for p in next_dir.glob("*.json") if not p.name.startswith("grid")}
+        rejected = json.loads((next_dir / "grid.daily.json").read_text())["grid_id"]
+        database = self._database_without_roster_proof("promotion-failure.db")
+        result = run_daily_puzzles(database=database, output_dir=output_dir, reference_date="2026-09-19")
+        self.assertEqual(result["grid_revalidated"]["action"], "removed")
+        for directory in (output_dir, next_dir):
+            self.assertFalse((directory / "grid.daily.json").exists())
+            marker = json.loads((directory / "grid-publication.2026-09-19.json").read_text())
+            self.assertIsNone(marker["grid_id"])
+            self.assertEqual(marker["replaces"], [rejected])
+            for name, content in other_bytes.items():
+                self.assertEqual((directory / name).read_bytes(), content)
+            verify_artifacts(directory, require_grid=False)
+        again = run_daily_puzzles(database=database, output_dir=output_dir, reference_date="2026-09-19")
+        self.assertIsNone(again["grid_id"])
+        self.assertEqual(json.loads((output_dir / "grid-publication.2026-09-19.json").read_text())["replaces"], [rejected])
 
     def test_generation_failure_does_not_reuse_a_grid_the_current_policy_rejects(self):
         output_dir = self.temp_path / "fallback_incompatible"
