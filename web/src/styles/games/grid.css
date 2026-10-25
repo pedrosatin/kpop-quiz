@@ -398,6 +398,32 @@
   flex-wrap: wrap;
 }
 
+/*
+  Phones: the shared bar stretches its button to the full width up to 420px,
+  and in a nowrap row that pushed the bar past the screen (504px at 390px)
+  and squeezed the message to no width. The message takes its own line; the
+  counters and the button share the line under it.
+*/
+@media (max-width: 30rem) {
+  .grid-actions {
+    flex-wrap: wrap;
+  }
+
+  .grid-message {
+    flex-basis: 100%;
+  }
+
+  .grid-progress {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .game-actions.grid-actions > .btn {
+    width: auto;
+  }
+}
+
 .grid-result {
   display: flex;
   flex: 1 1 100%;
