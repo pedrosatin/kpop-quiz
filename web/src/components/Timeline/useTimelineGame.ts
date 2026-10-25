@@ -6,6 +6,7 @@ import {
   calculateScore,
   generateTimelineShareText,
   getCanonicalChronologicalOrder,
+  getInitialTimelineEventIds,
   loadTimelineSavedState,
   saveTimelineState,
 } from "./timeline-utils";
@@ -22,7 +23,7 @@ export function useTimelineGame(
   );
 
   const [orderedEventIds, setOrderedEventIds] = useState<string[]>(
-    () => initialSaved?.orderedEventIds ?? puzzle.events.map((e) => e.id)
+    () => initialSaved?.orderedEventIds ?? getInitialTimelineEventIds(puzzle)
   );
   const [gameStatus, setGameStatus] = useState<TimelineGameStatus>(
     () => (initialSaved?.submitted ? "submitted" : "in_progress")

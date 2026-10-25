@@ -6,7 +6,11 @@ import type { TimelinePuzzle } from "../../lib/quiz-types";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 import fixture from "../../tests/fixtures/timeline.daily.json";
 import { TimelineGame } from "./TimelineGame";
-import { calculateScore, getCanonicalChronologicalOrder } from "./timeline-utils";
+import {
+  calculateScore,
+  getCanonicalChronologicalOrder,
+  getInitialTimelineEventIds,
+} from "./timeline-utils";
 
 const puzzle = fixture as unknown as TimelinePuzzle;
 const pt = getMessages("pt-BR");
@@ -75,12 +79,12 @@ describe("TimelineGame", () => {
   it("moves cards and transitions to TimelineResults on submit", async () => {
     render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
     const cards = screen.getAllByRole("listitem");
-    const secondTitle = puzzle.events[1]!.title["pt-BR"];
-    const upBtn = within(cards[1]!).getByRole("button", { name: `Mover "${secondTitle}" para cima` });
+    const movedTitle = within(cards[1]!).getByRole("heading").textContent!;
+    const upBtn = within(cards[1]!).getByRole("button", { name: `Mover "${movedTitle}" para cima` });
 
     fireEvent.click(upBtn);
     const reordered = screen.getAllByRole("listitem");
-    expect(within(reordered[0]!).getByText(secondTitle)).toBeInTheDocument();
+    expect(within(reordered[0]!).getByText(movedTitle)).toBeInTheDocument();
 
     const submitBtn = screen.getByRole("button", { name: "Verificar ordem" });
     fireEvent.click(submitBtn);
@@ -127,11 +131,7 @@ describe("TimelineGame", () => {
 
   it("records a partial-score submit as played without a win", async () => {
     render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
-    const cards = screen.getAllByRole("listitem");
-    const secondTitle = puzzle.events[1]!.title["pt-BR"];
-    const upBtn = within(cards[1]!).getByRole("button", { name: `Mover "${secondTitle}" para cima` });
-    fireEvent.click(upBtn);
-
+    // Opening order is already off the solution; verify without rearranging.
     fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
     await screen.findByRole("heading", { name: /Pontuação:/ });
 
@@ -139,18 +139,43 @@ describe("TimelineGame", () => {
     expect(loadPlayerStats().games.timeline?.won).toBe(0);
   });
 
-  it("records a win when submitting the canonical order", async () => {
-    // The fixture may already be chronological, so shuffle first to prove
-    // the sorted puzzle wins on an untouched submit.
-    const shuffled = [...puzzle.events].reverse();
-    const sortedPuzzle = {
-      ...puzzle,
-      events: getCanonicalChronologicalOrder(shuffled),
-    } as TimelinePuzzle;
-    render(<TimelineGame locale="pt-BR" puzzle={sortedPuzzle} />);
+  it("starts shuffled so an untouched submit is not a perfect score", async () => {
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    const initialIds = screen.getAllByRole("listitem").map(
+      (item) => item.getAttribute("data-testid")?.replace("timeline-card-", ""),
+    );
+    expect(initialIds).toEqual(getInitialTimelineEventIds(puzzle));
+    expect(initialIds).not.toEqual(
+      getCanonicalChronologicalOrder(puzzle.events).map((event) => event.id),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
-    await screen.findByRole("heading", { name: /Pontuação:/ });
+    const heading = await screen.findByRole("heading", { name: /Pontuação:/ });
+    expect(heading.textContent).not.toMatch(/Pontuação:\s*5\/5/);
+  });
+
+  it("records a win when submitting the canonical order", async () => {
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    const canonical = getCanonicalChronologicalOrder(puzzle.events);
+
+    // Reorder via move buttons until the board matches the solution.
+    for (let target = 0; target < canonical.length; target++) {
+      const cards = screen.getAllByRole("listitem");
+      const currentIndex = cards.findIndex(
+        (card) => card.getAttribute("data-testid") === `timeline-card-${canonical[target]!.id}`,
+      );
+      expect(currentIndex).toBeGreaterThanOrEqual(0);
+      for (let from = currentIndex; from > target; from--) {
+        const title = canonical[target]!.title["pt-BR"];
+        const btn = within(screen.getAllByRole("listitem")[from]!).getByRole("button", {
+          name: `Mover "${title}" para cima`,
+        });
+        fireEvent.click(btn);
+      }
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
+    await screen.findByRole("heading", { name: /Pontuação:\s*5\/5/ });
 
     expect(loadPlayerStats().games.timeline?.played).toBe(1);
     expect(loadPlayerStats().games.timeline?.won).toBe(1);

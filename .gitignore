@@ -25,3 +25,6 @@ raw/
 .scratch/
 /web/graphify-out/
 .coverage
+
+# Vitest coverage (local)
+web/coverage/
