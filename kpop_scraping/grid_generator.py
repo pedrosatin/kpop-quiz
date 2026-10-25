@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import date
 from typing import Any, Callable, Iterable
 
+from .grid_membership import grid_member_facts
 from .grid_schema import GRID_SCHEMA_VERSION, validate_intersection_grid
 from .quiz_models import DEFAULT_REFERENCE_DATE, Entity, Evidence, Fact
 from .quiz_repository import (
@@ -493,8 +494,10 @@ def generate_intersection_grid(
             f"Insufficient candidate groups: found {len(candidate_groups)}, need at least 9"
         )
 
+    current_members = grid_member_facts(connection, facts, entities, reference_date)
+    grid_facts = [f for f in facts if f.predicate != "has_member"] + current_members
     group_criteria, group_evidence, all_criteria = evaluate_group_criteria(
-        facts, candidate_groups, _groups_with_complete_members(connection, facts)
+        grid_facts, candidate_groups, {f.subject.wikidata_id for f in current_members}
     )
 
     # Group entities matching each criterion

@@ -235,6 +235,14 @@ def build_test_database(db_path: Path) -> sqlite3.Connection:
             (cur_y.lastrowid,),
         )
 
+        # Grid counts require a complete current roster in one cited revision.
+        member_names = [f"Member {letters[idx]} {m}" for m in range(member_counts[num])]
+        roster = f"The group consists of {len(member_names)} members: {', '.join(member_names)}."
+        conn.execute(
+            "UPDATE source_pages SET provider='wikipedia', language='en', external_page_id=? WHERE id=?",
+            (num, num - 100),
+        )
+        conn.execute("INSERT INTO source_revisions VALUES (?, ?, ?)", (num, num - 100, 10000 + num))
         for m in range(member_counts[num]):
             mqid = person_wikidata_id(num, m)
             mcname = f"Member {letters[idx]} {m}"
@@ -267,6 +275,14 @@ def build_test_database(db_path: Path) -> sqlite3.Connection:
                 ) VALUES (?, 'wikidata_reference', 'domain:example.com', 'claims/P527/ref', 'ref1', 1)
                 """,
                 (cur_mf.lastrowid,),
+            )
+            conn.execute(
+                """
+                INSERT INTO fact_evidence(fact_id, evidence_type, source_key, locator,
+                                          source_revision_id, snippet)
+                VALUES (?, 'wikipedia_revision', 'wikipedia:en', ?, ?, ?)
+                """,
+                (cur_mf.lastrowid, f"wikipedia:en:pageid={num}:revid={10000 + num}#extract[0:{len(roster)}]", num, roster),
             )
 
     for i in range(1, 10):
