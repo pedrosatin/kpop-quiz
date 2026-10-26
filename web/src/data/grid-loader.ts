@@ -43,9 +43,11 @@ async function loadAuthority(root: string, day: string, today: string): Promise<
 }
 
 async function authorityForGrid(root: string, grid: IntersectionGrid | null, authority: GridPublication | null, today: string) {
-  if (authority) return authority;
-  if (!grid || grid.reference_date >= today) return null;
-  return loadAuthority(root, grid.reference_date, today);
+  if (!grid || grid.reference_date >= today) return authority;
+  const origin = await loadAuthority(root, grid.reference_date, today);
+  // Reuse permission cannot revoke the origin's rejection of this identity.
+  if (origin && !admitted(grid, origin, today)) return origin;
+  return authority ?? origin;
 }
 
 export async function loadIntersectionGrid(

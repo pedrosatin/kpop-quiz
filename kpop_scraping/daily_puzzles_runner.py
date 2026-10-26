@@ -200,8 +200,8 @@ def publish_daily_puzzles(
     generation failed (``code_groups`` is None), the day publishes without
     ``code-groups.daily.json`` and the result records why in
     ``code_groups_skipped``; no previous artifact is reused.
-    With ``prune``, files that the new set does not contain are removed, so
-    a directory holds exactly one day.
+    With ``prune``, game files outside the new set are removed. Publication
+    history remains available to reject cached artifacts from earlier days.
     """
     output_dir = Path(output_dir)
     previous_grid = previous_grid or output_dir / GRID_DAILY_FILENAME
@@ -264,10 +264,14 @@ def publish_daily_puzzles(
             try:
                 old = json.loads(previous_grid.read_text(encoding="utf-8"))
                 validate_intersection_grid(old)
+            except (OSError, ValueError):
+                old = None
+            if old is not None:
+                if not dry_run:
+                    _reject_grid_origin(previous_grid.parent, old)
                 if old["reference_date"] == day:
                     rejected_id = old["grid_id"]
-            except (OSError, ValueError):
-                pass
+                    previous_publication = read_publication(output_dir, day)
         write_publication(staging_dir, publication(day, published_grid, previous_publication, rejected_id))
         result = {
             "reference_date": puzzles["reference_date"],
@@ -331,6 +335,34 @@ def _invalid_grid_reason(grid_path: Path, connection: sqlite3.Connection | None 
     return grid_incompatibility(connection, grid) if connection is not None else None
 
 
+def _reject_grid_origin(directory: Path, grid: dict) -> None:
+    """Persist rejection at the artifact's date before any replacement/removal."""
+    day = grid["reference_date"]
+    previous = read_publication(directory, day)
+    # Rejecting an older version must preserve a newer authorized replacement.
+    accepted = None
+    if previous and previous["grid_id"] not in (None, grid["grid_id"]):
+        accepted = dict(grid_id=previous["grid_id"], reference_date=previous["grid_reference_date"])
+    write_publication(directory, publication(day, accepted, previous, grid["grid_id"]))
+
+
+def _install_publication(source: Path, directory: Path) -> None:
+    day = source.name.removeprefix("grid-publication.").removesuffix(".json")
+    try:
+        incoming = read_publication(source.parent, day)
+        previous = read_publication(directory, day)
+    except ValueError:
+        # Keep malformed historical records closed to the loader, without
+        # blocking publication of an unrelated day or overwriting its ledger.
+        return
+    # Promotion of an older next set cannot resurrect an already rejected hash.
+    if previous and incoming["grid_id"] in previous["replaces"]:
+        incoming = {**previous, "replaces": sorted(set(previous["replaces"] + incoming["replaces"]))}
+    elif previous:
+        incoming["replaces"] = sorted(set(previous["replaces"] + incoming["replaces"]))
+    write_publication(directory, incoming)
+
+
 def _revalidate_published_grid(
     output_dir: Path, reference_date: str, connection: sqlite3.Connection
 ) -> dict[str, Any] | None:
@@ -347,9 +379,13 @@ def _revalidate_published_grid(
         return None
     previous_grid_id = None
     try:
-        previous_grid_id = json.loads(grid_path.read_text(encoding="utf-8")).get("grid_id")
-    except (OSError, ValueError, AttributeError):
-        pass
+        old = json.loads(grid_path.read_text(encoding="utf-8"))
+        validate_intersection_grid(old)
+    except (OSError, ValueError):
+        old = None
+    if old is not None:
+        _reject_grid_origin(output_dir, old)
+        previous_grid_id = old["grid_id"]
     previous_publication = read_publication(output_dir, reference_date)
     # Reject malformed identities instead of publishing them as replacement history.
     if not isinstance(previous_grid_id, str) or len(previous_grid_id) != 64:
@@ -375,6 +411,9 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
         if not source_file.is_file():
             continue
         names.add(source_file.name)
+        if source_file.name.startswith("grid-publication.") and (output_dir / source_file.name).is_file():
+            _install_publication(source_file, output_dir)
+            continue
         target_path = output_dir / source_file.name
         descriptor, temp_path = tempfile.mkstemp(prefix=f".{source_file.name}.", dir=output_dir)
         try:
@@ -391,7 +430,7 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
             raise
     if prune:
         for stale in output_dir.iterdir():
-            if stale.is_file() and stale.name not in names:
+            if stale.is_file() and stale.name not in names and not stale.name.startswith("grid-publication."):
                 stale.unlink()
 
     # Fsync output_dir directory entry

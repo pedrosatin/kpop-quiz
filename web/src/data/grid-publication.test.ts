@@ -64,3 +64,33 @@ it("a corrected prior-day grid may be reused without announcing a new-day correc
   serve({ [`/data/grid-publication.${day}.json`]: marker, "/data/grid.daily.json": grid });
   expect((await loadIntersectionGrid("en", "/", "2099-01-01")).corrected).toBe(false);
 });
+
+it.each(["/", "/stage", "/stage/"])("reuse authorization cannot override an origin rejection under %s", async base => {
+  const root = `${base.replace(/\/$/, "")}/data/`;
+  const today = "2099-01-01";
+  const reuse = { ...marker, reference_date: today, replaces: [] };
+  for (const origin of [
+    { ...marker, grid_id: null, grid_reference_date: null, replaces: [grid.grid_id] },
+    { ...marker, grid_id: "c".repeat(64), replaces: [grid.grid_id, "b".repeat(64)] },
+  ]) {
+    serve({ [`${root}grid-publication.${today}.json`]: reuse, [`${root}grid-publication.${day}.json`]: origin,
+      [`${root}grid.daily.json`]: grid, [`${root}next/grid.daily.json`]: grid });
+    await expect(loadIntersectionGrid("en", base, today)).rejects.toEqual(new GridArtifactError("missing"));
+    expect(fetch).toHaveBeenCalledWith(`${root}grid-publication.${day}.json?d=${today}`, { cache: "no-store" });
+  }
+});
+it.each([404, 200])("legitimate reuse admits an authorized or legacy origin (%s)", async status => {
+  const today = "2099-01-01";
+  const reuse = { ...marker, reference_date: today, replaces: [] };
+  for (const origin of [null, marker]) {
+    serve({ [`/data/grid-publication.${today}.json`]: reuse,
+      ...(origin ? { [`/data/grid-publication.${day}.json`]: origin } : {}), "/data/grid.daily.json": grid }, status);
+    expect(await loadIntersectionGrid("en", "/", today)).toMatchObject({ grid_id: grid.grid_id, corrected: false });
+  }
+});
+it("reuse permission cannot bypass invalid origin metadata", async () => {
+  const today = "2099-01-01";
+  serve({ [`/data/grid-publication.${today}.json`]: { ...marker, reference_date: today, replaces: [] },
+    [`/data/grid-publication.${day}.json`]: { ...marker, grid_id: "bad" }, "/data/grid.daily.json": grid });
+  await expect(loadIntersectionGrid("en", "/", today)).rejects.toEqual(new GridArtifactError("invalid"));
+});
