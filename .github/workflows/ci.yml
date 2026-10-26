@@ -87,7 +87,6 @@ jobs:
       PUBLIC_CF_BEACON_TOKEN: ${{ matrix.beacon }}
       CODE_FEEDBACK_ENV: ${{ matrix.environment }}
       CODE_FEEDBACK_CF_BEACON: "false"
-      BASE_URL: http://127.0.0.1:4321${{ matrix.base }}/
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -99,6 +98,8 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Verify feedback and the explicit consent contract
+        env:
+          BASE_URL: http://127.0.0.1:4321${{ matrix.base }}/
         run: npx playwright test e2e/code-visible-feedback.spec.ts --project=chromium --retries=0 --workers=1
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
