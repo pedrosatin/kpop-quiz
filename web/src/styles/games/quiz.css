@@ -124,6 +124,49 @@
 
 /* Question round */
 
+/* Keep the reading area above the actions, including when consent or source
+   details change height. The question scrolls without passing under the bar. */
+@media (max-width: 59.999rem) {
+  .quiz-round {
+    display: grid;
+    grid-template-rows: auto minmax(4rem, 1fr) auto;
+    max-height: calc(100dvh - var(--consent-banner-height, 0px) - 2 * var(--space-4));
+    scroll-margin-top: var(--space-4);
+  }
+
+  .quiz-round .quiz-question-card {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    padding: var(--space-1);
+    margin: calc(-1 * var(--space-1));
+  }
+
+  .quiz-round .option {
+    position: relative;
+  }
+
+  .quiz-round .quiz-actions .game-actions-message {
+    min-height: 0;
+    max-height: 8dvh;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    display: block;
+  }
+
+  .quiz-round .quiz-verdict {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+  }
+
+  .quiz-round .quiz-source {
+    max-height: 8dvh;
+    overscroll-behavior-y: contain;
+  }
+}
+
 .quiz-hud {
   margin-bottom: 0;
   padding-bottom: 0;
@@ -282,8 +325,8 @@
   min-height: calc(2lh + 0.2rem);
 }
 
-/* A long pair of answers is cut at two lines on screen only: the live region
-   still announces the whole text, and the sources panel repeats it. */
+/* Desktop keeps the compact verdict; mobile uses the scrollable message
+   above. The sources panel repeats the full answers at every width. */
 .quiz-verdict {
   display: -webkit-box;
   -webkit-box-orient: vertical;
