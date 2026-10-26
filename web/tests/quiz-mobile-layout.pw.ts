@@ -91,6 +91,86 @@ for (const locale of ["pt-br", "en"]) {
     await next.press("Enter");
     await expect(page.locator("#question-heading")).toBeFocused();
   });
+  test(`${locale} 360 long feedback is readable by keyboard`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
+    const wrongId = await longFeedbackFixture(page, locale);
+    await page.goto(`/${locale}/`);
+    await expect(page.locator(".consent-banner")).toBeVisible();
+    await page.getByTestId("game-start").click();
+    const wrong = page.locator(`.option:has(input[value="${wrongId}"])`);
+    await wrong.scrollIntoViewIfNeeded();
+    await wrong.click();
+    await page.getByRole("button", { name: /^(Responder|Submit answer)$/ }).click();
+    const next = page.getByRole("button", { name: /Próxima pergunta|Next question/ });
+    await expect(next, "answering keeps focus on Next instead of stealing it to the feedback").toBeFocused();
+    const message = page.locator(".quiz-actions").getByRole("status");
+    await expect(message).toHaveAttribute("role", "status");
+    await expect(message, "scrollable feedback carries an explicit keyboard stop").toHaveAttribute("tabindex", "0");
+    expect(await message.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    const toggle = page.getByRole("button", { name: /^(Ver fonte|Show source)$/ });
+    await page.keyboard.press("Shift+Tab");
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(message, "Tab order reaches the scrollable feedback region").toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect.poll(() => message.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    for (let step = 0; step < 10; step += 1) await page.keyboard.press("PageDown");
+    await expect.poll(() => message.evaluate((element) => element.scrollTop + element.clientHeight >= element.scrollHeight - 1)).toBe(true);
+    expect(await message.evaluate((element) => {
+      const text = element.querySelector("strong:last-child")!.lastChild!;
+      const range = document.createRange();
+      range.setStart(text, text.textContent!.length - 1);
+      range.setEnd(text, text.textContent!.length);
+      const rect = range.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return !!hit && element.contains(hit);
+    })).toBe(true);
+    await page.keyboard.press("Tab");
+    await expect(toggle, "Tab leaves the feedback region to the source toggle without a trap").toBeFocused();
+    await page.keyboard.press("Enter");
+    const source = page.locator(".quiz-source");
+    await expect(source).toBeVisible();
+    await page.keyboard.press("Tab");
+    await expect(source, "Tab order reaches the scrollable source region").toBeFocused();
+    for (let step = 0; step < 40; step += 1) await page.keyboard.press("PageDown");
+    await expect.poll(() => source.evaluate((element) => element.scrollTop + element.clientHeight >= element.scrollHeight - 1)).toBe(true);
+    await page.keyboard.press("Tab");
+    await expect(source.getByRole("link").first(), "Tab leaves the source region to its link without a trap").toBeFocused();
+    await page.screenshot({ path: testInfo.outputPath("keyboard-feedback.png") });
+  });
+  test(`${locale} 360 reopened consent with source open keeps question and options reachable`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
+    await page.goto(`/${locale}/`);
+    const banner = page.locator(".consent-banner");
+    await expect(banner).toBeVisible();
+    await banner.getByRole("button", { name: /Recusar|Reject/ }).click();
+    await expect(banner).toBeHidden();
+    await page.getByTestId("game-start").click();
+    await page.locator(".option").first().click();
+    await page.getByRole("button", { name: /^(Responder|Submit answer)$/ }).click();
+    await page.getByRole("button", { name: /^(Ver fonte|Show source)$/ }).click();
+    await expect(page.locator(".quiz-source")).toBeVisible();
+    await page.getByRole("button", { name: /Preferências de privacidade|Privacy preferences/ }).click();
+    await expect(banner).toBeVisible();
+    await page.locator(".quiz-round").scrollIntoViewIfNeeded();
+    const question = page.locator(".quiz-question-card");
+    const actions = page.locator(".quiz-actions");
+    const questionBox = await question.boundingBox();
+    const actionBox = await actions.boundingBox();
+    expect(questionBox!.y + questionBox!.height, "question scrollport stays above actions after consent reopens").toBeLessThanOrEqual(actionBox!.y + 1);
+    await question.evaluate((element) => { element.scrollTop = 0; });
+    await unobscured(page, page.locator("#question-heading"));
+    await readEveryAnswerLine(page);
+    for (const button of await actions.getByRole("button").all()) {
+      await button.focus();
+      await unobscured(page, button);
+      const box = await button.boundingBox();
+      expect(box!.y + box!.height, "focused action stays above the consent banner").toBeLessThanOrEqual((await banner.boundingBox())!.y + 1);
+    }
+    await page.screenshot({ path: testInfo.outputPath("reopened-consent.png") });
+  });
   for (const width of [360, 390, 1280]) {
     for (const consent of ["open", "rejected"]) {
       for (const long of [false, true]) {

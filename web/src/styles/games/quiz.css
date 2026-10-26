@@ -132,6 +132,19 @@
     grid-template-rows: auto minmax(4rem, 1fr) auto;
     max-height: calc(100dvh - var(--consent-banner-height, 0px) - 2 * var(--space-4));
     scroll-margin-top: var(--space-4);
+    scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-4));
+  }
+
+  /* The grid already pins the bar as the last row of the capped round. The
+     shared sticky offset lets the bar ride up over the question scrollport
+     when the consent banner grows after the round was positioned, so the
+     round keeps the bar in flow and lets scroll margin keep it reachable. */
+  .quiz-round .quiz-actions {
+    position: static;
+  }
+
+  .quiz-round .quiz-actions .btn {
+    scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-4));
   }
 
   .quiz-round .quiz-question-card {

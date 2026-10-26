@@ -30,7 +30,7 @@ export function AnswerFeedbackSource({
       >
         {sourceOpen ? messages.hideSource : messages.showSource}
       </button>
-      <div class="quiz-source" id={sourceId} hidden={!sourceOpen}>
+      <div class="quiz-source" id={sourceId} hidden={!sourceOpen} tabIndex={0}>
         {/* The bar clamps the verdict to two lines; the full answers stay here. */}
         {answers && <p>{answers}</p>}
         <p>{explanation}</p>

@@ -36,8 +36,8 @@ export interface AnswerFeedbackProps {
  * The quiz action bar. Before an answer it holds the hint and Submit; after
  * it, the verdict, a toggle for the explanation and sources, and Next.
  * Only the message is a live region, so buttons and links are not announced.
- * The sources panel sits between the toggle and Next in the DOM, so Tab from
- * the open toggle reaches its links first.
+ * The message and the sources panel are keyboard-focusable scroll regions in
+ * DOM order, so Tab reaches each region before the controls that follow it.
  * Mount it with a key per question so the sources start closed.
  */
 export function AnswerFeedback({
@@ -79,7 +79,7 @@ export function AnswerFeedback({
 
   return (
     <div class={`game-actions quiz-actions${quizBarState(answered, right)}`}>
-      <div class="game-actions-message" role="status" aria-live="polite">
+      <div class="game-actions-message" role="status" aria-live="polite" tabIndex={0}>
         <AnswerFeedbackMessage
           answered={answered}
           right={right}
