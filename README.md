@@ -339,6 +339,8 @@ PILOT_EVIDENCE_DIR=/tmp/kpop-pilot-screenshots npm run test:e2e:ci -- --grep 'la
 
 Run browser suites sequentially when sharing their default output directory. The local preview uses `--ignore-lock` to stay in the foreground so Playwright can start and stop its server. The readiness URL preserves the path in `BASE_URL`, including a staging subdirectory.
 
+Run `npm run test:e2e -- grid-mobile-actions --retries=0` from `web/` for the eight consent scenarios. They build their own temporary production fixture with `PUBLIC_GA4_ID=G-E2EGRID296` and an empty Cloudflare beacon token. They run against a loopback server on an OS-assigned port, even when `BASE_URL` points elsewhere. All requests outside that fixture's origin are aborted, consent is never accepted, and every scenario asserts the real banner is visible before checking its open or rejected state. No secret is required. The fixture is removed after the worker finishes and does not overwrite `web/dist`; normal builds and `astro dev` retain their existing analytics configuration.
+
 ### Game measurement with GA4
 
 When production has `PUBLIC_GA4_ID` configured and the visitor accepts analytics,
