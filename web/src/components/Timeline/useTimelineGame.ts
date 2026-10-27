@@ -28,6 +28,7 @@ export function useTimelineGame(
   const [gameStatus, setGameStatus] = useState<TimelineGameStatus>(
     () => (initialSaved?.submitted ? "submitted" : "in_progress")
   );
+  const [gaveUp, setGaveUp] = useState(initialSaved?.gaveUp === true);
   const [score, setScore] = useState<number>(() => initialSaved?.score ?? 0);
   const [results, setResults] = useState<boolean[]>(() => initialSaved?.results ?? []);
 
@@ -114,10 +115,11 @@ export function useTimelineGame(
     [gameStatus, puzzle.events, orderedEventIds]
   );
 
-  const submit = useCallback(() => {
+  const submit = useCallback((abandoned = false) => {
     if (gameStatus !== "in_progress") return;
     analytics.start();
     const evaluation = calculateScore(orderedEvents, canonicalOrder);
+    setGaveUp(abandoned);
     setScore(evaluation.score);
     setResults(evaluation.results);
     setGameStatus("submitted");
@@ -126,6 +128,7 @@ export function useTimelineGame(
       referenceDate: puzzle.reference_date,
       orderedEventIds,
       submitted: true,
+      gaveUp: abandoned,
       score: evaluation.score,
       results: evaluation.results,
     });
@@ -135,17 +138,19 @@ export function useTimelineGame(
     if (gameStatus !== "submitted") return "";
     return generateTimelineShareText({
       referenceDate: puzzle.reference_date,
+      gaveUp,
       score,
       totalEvents: puzzle.events.length,
       results,
       locale,
     });
-  }, [gameStatus, puzzle.reference_date, score, puzzle.events.length, results, locale]);
+  }, [gameStatus, puzzle.reference_date, score, puzzle.events.length, results, locale, gaveUp]);
 
   return {
     orderedEvents,
     orderedEventIds,
     gameStatus,
+    gaveUp,
     score,
     results,
     canonicalOrder,
