@@ -46,8 +46,8 @@ export function MapPilotPickForm({
   onEmptySubmit: () => void;
 }) {
   return (
-    // Narrow screens have no room for the list beside the map: the same
-    // countries sit in the bar as a select with its answer button.
+    // Narrow screens use the select; wide screens hide it in CSS and keep
+    // Answer so map/list selection still needs an explicit submit.
     <form
       class="map-pilot-pick"
       onSubmit={(event) => {
