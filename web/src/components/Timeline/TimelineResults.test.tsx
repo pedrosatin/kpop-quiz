@@ -90,7 +90,7 @@ describe("TimelineResults", () => {
       ],
     };
     render(<TimelineResults score={3} totalEvents={5} canonicalEvents={[eventWithInvalidUrl]} results={[true]} shareText={sampleShareText} locale="pt-BR" />);
-    expect(screen.getByRole("link", { name: "safe" })).toHaveAttribute("href", "https://example.com");
+    expect(screen.getByRole("link", { name: "example.com" })).toHaveAttribute("href", "https://example.com/");
     expect(screen.queryByRole("link", { name: "unsafe" })).not.toBeInTheDocument();
     expect(screen.getByText("unsafe")).toBeInTheDocument();
   });
