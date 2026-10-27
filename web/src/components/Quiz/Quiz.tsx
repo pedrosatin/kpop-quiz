@@ -1,5 +1,5 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
 import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../../lib/quiz-types";
 import { loadQuizSessionWithAvailability, QuizArtifactError } from "../../data/session-loader";
@@ -8,6 +8,7 @@ import { QuizRound } from "./QuizRound";
 import { groupEvidence } from "./AnswerFeedback";
 import { QuizState } from "./QuizState";
 import { QuizResult } from "./QuizResult";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { loadStoredPreferences, saveStoredPlayMode, saveStoredTimerEnabled } from "./storage";
 import { computeAwardedPoints } from "./scoring";
 import { useQuizTimer } from "./useQuizTimer";
@@ -45,6 +46,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const [history, setHistory] = useState<QuestionResult[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [hydrated, setHydrated] = useState(false);
+  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
 
   const analytics = useGameAnalytics({ game: "quiz", locale, mode: playMode }, state === "results");
 
@@ -56,10 +58,16 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const loadRequestRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
   const recordedMatchRef = useRef<string | null>(null);
+  const confirmGiveUpOpenRef = useRef(false);
   const question = session?.questions[questionIndex];
   const timerSeconds = timerEnabled ? 20 : session?.config.timer_seconds ?? null;
   const decadeKey = decades.join(",");
   const requestKey = `${locale}|${playMode}|${theme}|${decadeKey}`;
+
+  const closeGiveUpConfirm = useCallback(() => {
+    confirmGiveUpOpenRef.current = false;
+    setConfirmGiveUpOpen(false);
+  }, []);
 
   const recordAnswer = (selected: string | null, isCorrect: boolean) => {
     if (question) {
@@ -74,6 +82,8 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     active: state === "question.ready" && Boolean(question),
     initialSeconds: timerSeconds,
     onExpire: () => {
+      // Timeout applies the normal rule once and drops any pending give-up confirm.
+      closeGiveUpConfirm();
       answerLockedRef.current = true;
       setTimedOut(true);
       recordAnswer(null, false);
@@ -223,6 +233,18 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     setState("results");
   };
 
+  const requestGiveUp = () => {
+    confirmGiveUpOpenRef.current = true;
+    setConfirmGiveUpOpen(true);
+  };
+
+  const confirmGiveUp = () => {
+    // A delayed click after timeout (or Escape) must not end the round.
+    if (!confirmGiveUpOpenRef.current) return;
+    closeGiveUpConfirm();
+    giveUp();
+  };
+
   const restart = () => {
     startTimeRef.current = Date.now();
     recordedMatchRef.current = null;
@@ -275,12 +297,23 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   }
 
   return (
-    <QuizRound
-      session={session} question={question} questionIndex={questionIndex} score={score}
-      secondsLeft={secondsLeft} timerVisible={timerSeconds !== null} selectedId={selectedId}
-      onSelectOption={setSelectedId} answered={state === "question.answered"} timedOut={timedOut}
-      revealedClues={revealedClues} playMode={playMode} headingRef={headingRef} actionRef={nextButtonRef}
-      onSubmit={submit} onAdvance={advance} onGiveUp={giveUp} onRevealClue={revealClue} messages={messages}
-    />
+    <>
+      <QuizRound
+        session={session} question={question} questionIndex={questionIndex} score={score}
+        secondsLeft={secondsLeft} timerVisible={timerSeconds !== null} selectedId={selectedId}
+        onSelectOption={setSelectedId} answered={state === "question.answered"} timedOut={timedOut}
+        revealedClues={revealedClues} playMode={playMode} headingRef={headingRef} actionRef={nextButtonRef}
+        onSubmit={submit} onAdvance={advance} onGiveUp={requestGiveUp} onRevealClue={revealClue} messages={messages}
+      />
+      <ConfirmDialog
+        isOpen={confirmGiveUpOpen}
+        title={messages.giveUpConfirmTitle}
+        body={messages.giveUpConfirmBody}
+        confirmLabel={messages.giveUpConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmGiveUp}
+        onCancel={closeGiveUpConfirm}
+      />
+    </>
   );
 }

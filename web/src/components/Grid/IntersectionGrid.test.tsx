@@ -484,6 +484,7 @@ describe("IntersectionGrid orchestrator component", () => {
     pick(0, 0, "TWICE");
 
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
 
     const title = await screen.findByRole("heading", { name: "Fim da partida" });
     expect(title).toHaveAccessibleDescription("1 de 9 casas certas com 1 palpites");
@@ -499,9 +500,44 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(cellButton(0, 0)).toHaveAccessibleName(/Certa: TWICE/);
   });
 
+  it("asks for confirmation before giving up and keeps the board on cancel or Escape", async () => {
+    await renderReady();
+    pick(0, 0, "TWICE");
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("grid")).getByText("TWICE")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
+    expect(cellButton(0, 0)).not.toHaveClass("revealed");
+  });
+
+  it("shows English give-up confirmation copy on the grid", async () => {
+    const enMessages = getMessages("en");
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(validGridJson))));
+    render(<IntersectionGrid locale="en" messages={enMessages} />);
+    await screen.findByRole("grid");
+
+    fireEvent.click(screen.getByRole("button", { name: "Give up" }));
+    expect(screen.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(screen.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Give up" })).toBeInTheDocument();
+  });
+
   it("keeps the result after giving up with zero guesses and reloading", async () => {
     const view = await renderReady();
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
     await screen.findByRole("heading", { name: "Fim da partida" });
     view.unmount();
 

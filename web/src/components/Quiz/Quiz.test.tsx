@@ -421,6 +421,7 @@ describe("Quiz", () => {
 
     // Unanswered: give up on the first question.
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
     await screen.findByRole("heading", { name: "Fim da partida" });
     expect(document.querySelectorAll(".review-item")).toHaveLength(total);
 
@@ -431,19 +432,76 @@ describe("Quiz", () => {
     fireEvent.click(screen.getByRole("radio", { name: question.options[0]!.label }));
     fireEvent.click(screen.getByRole("button", { name: "Responder" }));
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
     await screen.findByRole("heading", { name: "Fim da partida" });
     expect(document.querySelectorAll(".review-item")).toHaveLength(total);
 
-    // Double activation in the same tick records nothing twice.
+    // Double confirm in the same tick records nothing twice.
     fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
     await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
-    const giveUp = screen.getByRole("button", { name: "Desistir" });
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    const confirm = screen.getByRole("button", { name: "Sim, desistir" });
     act(() => {
-      giveUp.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      giveUp.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      confirm.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      confirm.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await screen.findByRole("heading", { name: "Fim da partida" });
     expect(document.querySelectorAll(".review-item")).toHaveLength(total);
+  });
+
+  it("asks for confirmation before giving up and keeps the round on cancel or Escape", async () => {
+    await renderReady();
+    const prompt = ptSession.questions[0]!.prompt;
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: prompt })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: prompt })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: prompt })).toBeInTheDocument();
+  });
+
+  it("closes a pending give-up confirm when the timer expires and ignores a delayed confirm", async () => {
+    vi.useFakeTimers();
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
+    fireEvent.click(screen.getByRole("checkbox", { name: "Limitar cada pergunta a 20 segundos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+
+    for (let second = 0; second < 20; second += 1) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    }
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Acabou o tempo.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+
+    // After timeout the round stays on the verdict; give-up still needs a fresh confirm.
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByText("Acabou o tempo.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+  });
+
+  it("shows English give-up confirmation copy", async () => {
+    await renderReady("en");
+    fireEvent.click(screen.getByRole("button", { name: "Give up" }));
+    expect(screen.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(screen.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("persists play-mode and timer preferences in localStorage", async () => {
