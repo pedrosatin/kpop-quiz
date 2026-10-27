@@ -73,6 +73,24 @@ def report_reused_grid(grid_reused: dict[str, str] | None) -> None:
         print(f"::warning title=Daily grid not updated::{message}")
 
 
+def report_revalidated_grid(grid_revalidated: dict[str, Any] | None) -> None:
+    """Make a published grid replaced or dropped by the current eligibility policy visible."""
+    if not grid_revalidated:
+        return
+    outcome = (
+        f"replaced by grid {grid_revalidated['grid_id']}"
+        if grid_revalidated["action"] == "regenerated"
+        else f"removed because a new one could not be generated: {grid_revalidated['error']}"
+    )
+    message = (
+        f"Published grid {grid_revalidated['previous_grid_id']} no longer meets the "
+        f"eligibility policy ({grid_revalidated['reason']}); {outcome}"
+    )
+    sys.stderr.write(f"WARNING: {message}\n")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=Daily grid revalidated::{message}")
+
+
 def report_skipped_grid(grid_skipped: dict[str, Any] | None) -> None:
     """Make a day published without a grid visible in the run summary."""
     if not grid_skipped:
@@ -141,6 +159,7 @@ def main(argv: list[str] | None = None) -> int:
             regenerate=args.regenerate,
         )
         report_reused_grid(result.get("grid_reused"))
+        report_revalidated_grid(result.get("grid_revalidated"))
         report_skipped_grid(result.get("grid_skipped"))
         report_skipped_code_groups(result.get("code_groups_skipped"))
         mode_str = "[dry-run] " if result.get("dry_run") else ""
