@@ -83,6 +83,7 @@ for (const locale of ["pt", "en"]) {
           await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("kpop-word-search-")).forEach((key) => localStorage.removeItem(key)));
           await page.reload();
           await page.locator(".word-search-actions > button").click();
+          await page.getByRole("button", { name: /Sim, desistir|Yes, give up/ }).click();
           await expect(page.getByTestId("game-result")).toBeVisible();
           await expectContained(page);
           await page.screenshot({ path: testInfo.outputPath("gave-up.png") });

@@ -388,6 +388,7 @@ describe("NameGuessGame component", () => {
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
 
     const title = screen.getByRole("heading", { name: tPt.lostTitle });
     expect(document.activeElement).toBe(title);
@@ -399,12 +400,40 @@ describe("NameGuessGame component", () => {
     const first = render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
     expect(screen.getByText(tPt.targetWas)).toBeInTheDocument();
     first.unmount();
 
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
     expect(screen.getByText(tPt.targetWas)).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: tPt.keyboardAria })).not.toBeInTheDocument();
+  });
+
+  it("asks for confirmation before giving up and keeps the board on cancel or Escape", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: tPt.lostTitle })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: tPt.keyboardAria })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
+
+  it("shows English give-up confirmation copy on name guess", () => {
+    render(<NameGuessGame locale="en" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Give up" }));
+    expect(screen.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(screen.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Give up" })).toBeInTheDocument();
   });
 
   it("rejects typing the same word twice", () => {

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "preact/hooks";
+import { useId, useLayoutEffect, useRef } from "preact/hooks";
 
 export interface ConfirmDialogProps {
   isOpen: boolean;
@@ -45,8 +45,9 @@ export function ConfirmDialog({
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const confirmedRef = useRef(false);
-  const titleId = "confirm-dialog-title";
-  const bodyId = "confirm-dialog-body";
+  // Per-instance ids so multiple ConfirmDialog mounts do not collide.
+  const titleId = useId();
+  const bodyId = useId();
 
   useLayoutEffect(() => {
     if (!isOpen) {

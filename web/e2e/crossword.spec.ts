@@ -22,8 +22,8 @@ const entries: Entry[] = puzzle.entries;
 const sourceCount = puzzle.entries.flatMap((e: { sources: unknown[] }) => e.sources).length;
 const prefix = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
 const copy = {
-  "pt-br": { path: "/pt-br/cruzadinha/", across: "Horizontal", down: "Vertical", check: "Verificar respostas", reveal: "Revelar respostas", wrong: "incorretas", won: "Cruzadinha concluída!", revealed: "Respostas reveladas", source: "Ver fonte", share: "Compartilhar resultado" },
-  en: { path: "/en/crossword/", across: "Across", down: "Down", check: "Check answers", reveal: "Reveal answers", wrong: "incorrect", won: "Crossword completed!", revealed: "Answers revealed", source: "Show source", share: "Share result" },
+  "pt-br": { path: "/pt-br/cruzadinha/", across: "Horizontal", down: "Vertical", check: "Verificar respostas", reveal: "Revelar respostas", confirmReveal: "Sim, revelar", wrong: "incorretas", won: "Cruzadinha concluída!", revealed: "Respostas reveladas", source: "Ver fonte", share: "Compartilhar resultado" },
+  en: { path: "/en/crossword/", across: "Across", down: "Down", check: "Check answers", reveal: "Reveal answers", confirmReveal: "Yes, reveal", wrong: "incorrect", won: "Crossword completed!", revealed: "Answers revealed", source: "Show source", share: "Share result" },
 } as const;
 
 async function open(page: Page, baseURL: string | undefined, path: string) {
@@ -72,6 +72,7 @@ test("progress resumes after a reload and a finished round is not counted twice"
   const first = entries[0]!;
   await expect(page.getByRole("textbox", { name: new RegExp(`^Row ${first.row + 1}, column ${first.col + 1}\\.`) })).toHaveValue(first.answer[0]!);
   await page.getByRole("button", { name: copy.en.reveal }).click();
+  await page.getByRole("button", { name: copy.en.confirmReveal }).click();
   await expect(page.getByRole("heading", { name: copy.en.revealed })).toBeVisible();
   const played = () => page.evaluate(() => JSON.parse(localStorage.getItem("kpop-player-stats-v1") ?? "{}").games?.crossword?.played);
   expect(await played()).toBe(1);
@@ -87,6 +88,7 @@ test("share falls back to a text field without a date or answers", async ({ page
   });
   await open(page, baseURL, copy.en.path);
   await page.getByRole("button", { name: copy.en.reveal }).click();
+  await page.getByRole("button", { name: copy.en.confirmReveal }).click();
   await expect(page.getByRole("heading", { name: copy.en.revealed })).toBeVisible();
   // Result buttons ignore presses for 300 ms after they replace the controls.
   await page.waitForTimeout(400);

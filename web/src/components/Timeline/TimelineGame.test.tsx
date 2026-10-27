@@ -184,6 +184,7 @@ describe("TimelineGame", () => {
   it("submits on give-up and reveals the canonical order", async () => {
     render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
 
     const heading = await screen.findByRole("heading", { name: "Você desistiu" });
     expect(heading).toBeInTheDocument();
@@ -196,6 +197,32 @@ describe("TimelineGame", () => {
     for (const [index, event] of canonical.entries()) {
       expect(items[index]!.textContent).toContain(event.title["pt-BR"]);
     }
+  });
+
+  it("asks for confirmation before giving up and keeps the board on cancel or Escape", () => {
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Você desistiu" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
+
+  it("shows English give-up confirmation copy on timeline", () => {
+    render(<TimelineGame locale="en" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Give up" }));
+    expect(screen.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(screen.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Give up" })).toBeInTheDocument();
   });
 
   it("restores a persisted give-up as a loss when the stats marker is absent", async () => {
@@ -226,6 +253,7 @@ describe("TimelineGame", () => {
       }
     }
     fireEvent.click(screen.getByRole("button", { name: locale === "pt-BR" ? "Desistir" : "Give up" }));
+    fireEvent.click(screen.getByRole("button", { name: locale === "pt-BR" ? "Sim, desistir" : "Yes, give up" }));
     const heading = locale === "pt-BR" ? "Você desistiu" : "You gave up";
     await screen.findByRole("heading", { name: heading });
     expect(screen.getByText(locale === "pt-BR" ? "Pontuação da sequência: 5/5" : "Sequence score: 5/5")).toBeInTheDocument();

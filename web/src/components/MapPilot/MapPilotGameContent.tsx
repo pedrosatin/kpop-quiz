@@ -21,6 +21,7 @@ import {
   type ShareNotice,
 } from "./map-pilot-feedback";
 import { MapPilotNextButton, MapPilotPickForm } from "./MapPilotControls";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 /** How long Next ignores activation after it replaces the answer controls. */
 export const NEXT_GUARD_MS = 300;
@@ -68,6 +69,8 @@ export function MapPilotGameContent({
   // from storage leaves focus where the page put it.
   const playedHere = useRef(false);
   const [restarts, setRestarts] = useState(0);
+  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
+  const confirmGiveUpOpenRef = useRef(false);
 
   const questionIndex = game.index;
   const answers = game.answers;
@@ -128,6 +131,28 @@ export function MapPilotGameContent({
     setGame({ ...game, index: game.index + 1 });
   }
 
+  function closeGiveUpConfirm() {
+    confirmGiveUpOpenRef.current = false;
+    setConfirmGiveUpOpen(false);
+  }
+
+  function requestGiveUp() {
+    if (isComplete) return;
+    confirmGiveUpOpenRef.current = true;
+    setConfirmGiveUpOpen(true);
+  }
+
+  function confirmGiveUp() {
+    if (!confirmGiveUpOpenRef.current || isComplete) return;
+    closeGiveUpConfirm();
+    analytics.start();
+    playedHere.current = true;
+    setListChoice("");
+    setPickPrompt(0);
+    setGaveUpRound(true);
+    setGame({ ...game, index: round.length });
+  }
+
   function restart() {
     analytics.reset();
     clearMapPilotSave(game.date);
@@ -136,19 +161,10 @@ export function MapPilotGameContent({
     setListChoice("");
     setPickPrompt(0);
     setNotice(null);
+    closeGiveUpConfirm();
     setGame({ date: game.date, answers: [], index: 0 });
     setGaveUpRound(false);
     setRestarts((value) => value + 1);
-  }
-
-  function giveUp() {
-    if (isComplete) return;
-    analytics.start();
-    playedHere.current = true;
-    setListChoice("");
-    setPickPrompt(0);
-    setGaveUpRound(true);
-    setGame({ ...game, index: round.length });
   }
 
   const roundFeatures = new Set(round.map((event) => event.map_feature_id));
@@ -290,11 +306,21 @@ export function MapPilotGameContent({
           />
         )}
         {!isComplete && (
-          <button type="button" class="btn btn-secondary" onClick={giveUp}>
+          <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
             {messages.giveUp}
           </button>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmGiveUpOpen}
+        title={messages.giveUpConfirmTitle}
+        body={messages.giveUpConfirmBody}
+        confirmLabel={messages.giveUpConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmGiveUp}
+        onCancel={closeGiveUpConfirm}
+      />
     </section>
   );
 }

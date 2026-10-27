@@ -239,6 +239,7 @@ describe("ConnectionsGame component integration", () => {
   it("reveals every category and the result when the player gives up", () => {
     renderGame();
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
 
     expect(screen.getByRole("heading", { level: 2, name: pt.connectionsGameOverLost })).toBeInTheDocument();
     expect(screen.getByText(pt.connectionsResultSummaryLost)).toBeInTheDocument();
@@ -259,12 +260,40 @@ describe("ConnectionsGame component integration", () => {
   it("keeps the lost result after giving up and reloading", () => {
     const view = renderGame();
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
     expect(screen.getByRole("heading", { level: 2, name: pt.connectionsGameOverLost })).toBeInTheDocument();
     view.unmount();
 
     renderGame();
     expect(screen.getByRole("heading", { level: 2, name: pt.connectionsGameOverLost })).toBeInTheDocument();
     expect(document.querySelectorAll(".connections-grid .connections-tile")).toHaveLength(0);
+  });
+
+  it("asks for confirmation before giving up and keeps the board on cancel or Escape", () => {
+    renderGame();
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: pt.connectionsGameOverLost })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".connections-grid .connections-tile").length).toBeGreaterThan(0);
+  });
+
+  it("shows English give-up confirmation copy on connections", () => {
+    const en = getMessages("en");
+    render(<ConnectionsGame locale="en" puzzle={puzzle} messages={en} />);
+    fireEvent.click(screen.getByRole("button", { name: "Give up" }));
+    expect(screen.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(screen.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Give up" })).toBeInTheDocument();
   });
 
   it("shows a wrong guess in the bar's live region and leaves the board as it was", () => {

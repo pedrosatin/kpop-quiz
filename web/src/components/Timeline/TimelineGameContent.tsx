@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { Locale, TimelinePuzzle } from "../../lib/quiz-types";
 import {
   getTodayDateString,
@@ -10,6 +10,8 @@ import { useTimelineGame } from "./useTimelineGame";
 import { TimelineBoard } from "./TimelineBoard";
 import { TimelineResults } from "./TimelineResults";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { getMessages } from "../../i18n/catalog";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 export interface TimelineGameContentProps {
   puzzle: TimelinePuzzle;
@@ -73,15 +75,32 @@ export function TimelineGameContent({
     [orderedEventIds, setOrder]
   );
 
+  const messages = getMessages(locale);
+
   const handleSubmit = useCallback(() => {
     playedHere.current = true;
     submit();
   }, [submit]);
 
-  const handleGiveUp = useCallback(() => {
+  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
+  const confirmGiveUpOpenRef = useRef(false);
+
+  const closeGiveUpConfirm = useCallback(() => {
+    confirmGiveUpOpenRef.current = false;
+    setConfirmGiveUpOpen(false);
+  }, []);
+
+  const requestGiveUp = useCallback(() => {
+    confirmGiveUpOpenRef.current = true;
+    setConfirmGiveUpOpen(true);
+  }, []);
+
+  const confirmGiveUp = useCallback(() => {
+    if (!confirmGiveUpOpenRef.current) return;
+    closeGiveUpConfirm();
     playedHere.current = true;
     submit(true);
-  }, [submit]);
+  }, [closeGiveUpConfirm, submit]);
 
   const recordedMatchRef = useRef<string | null>(null);
 
@@ -124,9 +143,19 @@ export function TimelineGameContent({
           onMoveDown={handleMoveDown}
           onReorder={handleReorder}
           onSubmit={handleSubmit}
-          onGiveUp={handleGiveUp}
+          onGiveUp={requestGiveUp}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={confirmGiveUpOpen}
+        title={messages.giveUpConfirmTitle}
+        body={messages.giveUpConfirmBody}
+        confirmLabel={messages.giveUpConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmGiveUp}
+        onCancel={closeGiveUpConfirm}
+      />
     </section>
   );
 }

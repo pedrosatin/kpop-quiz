@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
@@ -15,6 +15,7 @@ import {
   recordGameFinish,
 } from "../../lib/player-stats";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 interface WordSearchGameContentProps {
   puzzle: WordSearchPuzzle;
@@ -57,6 +58,25 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   // n changes on every share, so the same message is announced again.
   const [shareNote, setShareNote] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
   const shares = useRef(0);
+
+  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
+  const confirmGiveUpOpenRef = useRef(false);
+
+  const closeGiveUpConfirm = useCallback(() => {
+    confirmGiveUpOpenRef.current = false;
+    setConfirmGiveUpOpen(false);
+  }, []);
+
+  const requestGiveUp = useCallback(() => {
+    confirmGiveUpOpenRef.current = true;
+    setConfirmGiveUpOpen(true);
+  }, []);
+
+  const confirmGiveUp = useCallback(() => {
+    if (!confirmGiveUpOpenRef.current) return;
+    closeGiveUpConfirm();
+    giveUp();
+  }, [closeGiveUpConfirm, giveUp]);
 
   const recordedMatchRef = useRef<string | null>(null);
 
@@ -194,12 +214,22 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
                 <dd class="timer-display" data-testid="timer-display">{formatTime(elapsedSeconds)}</dd>
               </div>
             </dl>
-            <button type="button" class="btn btn-secondary" onClick={giveUp}>
+            <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
               {messages.giveUp}
             </button>
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmGiveUpOpen}
+        title={messages.giveUpConfirmTitle}
+        body={messages.giveUpConfirmBody}
+        confirmLabel={messages.giveUpConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmGiveUp}
+        onCancel={closeGiveUpConfirm}
+      />
     </section>
   );
 }

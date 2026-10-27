@@ -120,6 +120,7 @@ describe("CrosswordGame", () => {
     await renderGame();
     typeEntry(0);
     fireEvent.click(screen.getByRole("button", { name: pt.crosswordReveal }));
+    fireEvent.click(screen.getByRole("button", { name: pt.revealConfirmAction }));
     await act(async () => {});
     expect(screen.getByRole("heading", { level: 2, name: pt.crosswordResultRevealed })).toBeInTheDocument();
     expect(screen.getByText(pt.crosswordSummaryRevealed(1, puzzle.entries.length))).toBeInTheDocument();
@@ -127,6 +128,36 @@ describe("CrosswordGame", () => {
     const stats = loadPlayerStats().games.crossword;
     expect(stats.played).toBe(1);
     expect(stats.won).toBe(0);
+  });
+
+  it("asks for confirmation before revealing and keeps the board on cancel or Escape", async () => {
+    serve();
+    await renderGame();
+    typeEntry(0);
+    fireEvent.click(screen.getByRole("button", { name: pt.crosswordReveal }));
+    expect(screen.getByRole("dialog", { name: pt.revealConfirmTitle })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: pt.crosswordResultRevealed })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: pt.cancel }));
+    expect(screen.queryByRole("dialog", { name: pt.revealConfirmTitle })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: pt.crosswordReveal })).toBeInTheDocument();
+    expect(cellInput(puzzle.entries[0]!.row, puzzle.entries[0]!.col).value).toBe(puzzle.entries[0]!.answer[0]);
+
+    fireEvent.click(screen.getByRole("button", { name: pt.crosswordReveal }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: pt.revealConfirmTitle })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: pt.crosswordReveal })).toBeInTheDocument();
+  });
+
+  it("shows English reveal confirmation copy on crossword", async () => {
+    serve();
+    await renderGame("en");
+    fireEvent.click(screen.getByRole("button", { name: en.crosswordReveal }));
+    expect(screen.getByRole("dialog", { name: en.revealConfirmTitle })).toBeInTheDocument();
+    expect(screen.getByText(en.revealConfirmBody)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: en.cancel }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: en.crosswordReveal })).toBeInTheDocument();
   });
 
   it("resumes letters from localStorage under the board hash", async () => {
@@ -205,6 +236,7 @@ describe("CrosswordGame", () => {
     serve();
     await renderGame();
     fireEvent.click(screen.getByRole("button", { name: pt.crosswordReveal }));
+    fireEvent.click(screen.getByRole("button", { name: pt.revealConfirmAction }));
     await act(async () => {});
     const toggle = screen.getByRole("button", { name: pt.showSource });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -218,6 +250,7 @@ describe("CrosswordGame", () => {
     serve();
     await renderGame();
     fireEvent.click(screen.getByRole("button", { name: pt.crosswordReveal }));
+    fireEvent.click(screen.getByRole("button", { name: pt.revealConfirmAction }));
     await act(async () => {});
     await pressAfterGuard(pt.restart);
     expect(screen.queryByTestId("game-result")).toBeNull();
