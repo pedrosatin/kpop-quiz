@@ -163,6 +163,14 @@ export interface Messages {
   resultText: (score: number) => string;
   restart: string;
   giveUp: string;
+  /** Title of the give-up confirmation dialog. */
+  giveUpConfirmTitle: string;
+  /** Body of the give-up confirmation dialog. */
+  giveUpConfirmBody: string;
+  /** Confirm button inside the give-up dialog (distinct from the trigger). */
+  giveUpConfirmAction: string;
+  /** Generic cancel label for confirmation dialogs. */
+  cancel: string;
   chooseAnswer: string;
   submitHint: string;
   themeLabel: string;
@@ -552,6 +560,10 @@ const catalogs: Record<Locale, Messages> = {
     resultText: (score) => `Você fez ${score} pontos.`,
     restart: "Jogar novamente",
     giveUp: "Desistir",
+    giveUpConfirmTitle: "Desistir da partida?",
+    giveUpConfirmBody: "Você perde o progresso desta partida.",
+    giveUpConfirmAction: "Sim, desistir",
+    cancel: "Cancelar",
     chooseAnswer: "Escolha uma resposta para continuar.",
     submitHint: "Escolha uma alternativa e confirme em Responder.",
     themeLabel: "Tema",
@@ -1002,6 +1014,10 @@ const catalogs: Record<Locale, Messages> = {
     resultText: (score) => `You scored ${score} points.`,
     restart: "Play again",
     giveUp: "Give up",
+    giveUpConfirmTitle: "Give up this game?",
+    giveUpConfirmBody: "You will lose your progress in this game.",
+    giveUpConfirmAction: "Yes, give up",
+    cancel: "Cancel",
     chooseAnswer: "Choose an answer to continue.",
     submitHint: "Pick an option and confirm with Submit answer.",
     themeLabel: "Theme",

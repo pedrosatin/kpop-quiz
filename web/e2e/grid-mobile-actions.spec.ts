@@ -97,8 +97,9 @@ for (const locale of locales)
         });
         expect(hit).toBe(true);
 
-        // Giving up still works from the bar and the finished bar fits too.
+        // Giving up still works from the bar after confirmation; the finished bar fits too.
         await giveUp.click();
+        await page.getByRole("button", { name: locale.id === "pt" ? "Sim, desistir" : "Yes, give up" }).click();
         await expect(page.locator(".grid-result")).toBeVisible();
         await expectNoHorizontalOverflow(page);
         if (consent === "open") await expect(banner).toBeVisible();
