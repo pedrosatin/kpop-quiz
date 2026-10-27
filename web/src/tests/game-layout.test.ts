@@ -133,6 +133,20 @@ describe("board and side panel layout", () => {
     expect(side?.body).toMatch(/display:\s*contents/);
   });
 
+  it("keeps the grid bar inside a phone screen", () => {
+    // The shared bar stretches its button to the full width up to 420px. In
+    // the grid's nowrap row that made the bar 504px wide at 390px and left
+    // the message no width, so on phones the bar wraps and the button keeps
+    // its own width.
+    const phone = rules(read("games/grid.css")).filter(({ media }) => media.includes("max-width: 30rem"));
+    const body = (selector: string) => phone.find((rule) => rule.selector === selector)?.body ?? "";
+    expect(body(".grid-actions")).toMatch(/flex-wrap:\s*wrap/);
+    expect(body(".grid-message")).toMatch(/flex-basis:\s*100%/);
+    expect(body(".game-actions.grid-actions > .btn")).toMatch(/width:\s*auto/);
+    // Overflow stays visible: nothing here hides what does not fit.
+    expect(phone.map((rule) => rule.body).join("")).not.toMatch(/overflow(-x)?:\s*(hidden|clip)/);
+  });
+
   it("drops the sticky bar only beside the board", () => {
     const panel = rules(read("components.css")).filter(({ selector }) =>
       selector.includes(".game-layout > .game-actions,"),
