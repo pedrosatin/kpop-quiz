@@ -97,6 +97,21 @@ Playthroughs are pt-BR only. They drive each of the six board-and-question games
 
 Locally, `npm run test:e2e` runs `pretest:e2e` first, which builds `dist/`. CI already has a build, so the workflows call `npm run test:e2e:ci` against that artifact. Do not use `test:e2e` in CI, because pretest would rebuild. Narrower scripts are `test:e2e:boot` and `test:e2e:playthrough`.
 
+The Code feedback spec has three build contracts selected with `CODE_FEEDBACK_ENV`: `banner` requires the real consent island and runs open/rejected banner cases; `root` requires no GA4 or banner and, by default, no Cloudflare beacon; `staging` requires a path prefix, no analytics or banner, and `noindex`. All three exercise PT/EN at 360, 390 and 1280 pixels. A mismatched build fails its contract assertions.
+
+The default is `staging` when `ASTRO_BASE` or `BASE_URL` has a prefix, otherwise `root`. CI runs all three contracts with dummy IDs where needed, without retries or secrets. Production and staging workflows select the contract for their built artifact. Production also declares `CODE_FEEDBACK_CF_BEACON=true` when its existing build includes the independent Cloudflare beacon; staging always forbids it.
+
+For local reproduction, run each build and its browser check sequentially from `web/`. An empty ID removes analytics; a dummy ID renders the real banner only at the root. External requests in this spec are aborted unless their exact origin matches the target, including scheme and port. The known puzzle is intercepted only at the target's prefixed data paths.
+
+```bash
+ASTRO_BASE= PUBLIC_CF_BEACON_TOKEN= PUBLIC_GA4_ID=G-CODEFEEDBACKTEST npm run build
+CODE_FEEDBACK_ENV=banner BASE_URL=http://127.0.0.1:4321/ npx playwright test e2e/code-visible-feedback.spec.ts --project=chromium --retries=0 --workers=1
+ASTRO_BASE= PUBLIC_CF_BEACON_TOKEN= PUBLIC_GA4_ID= npm run build
+CODE_FEEDBACK_ENV=root BASE_URL=http://127.0.0.1:4321/ npx playwright test e2e/code-visible-feedback.spec.ts --project=chromium --retries=0 --workers=1
+ASTRO_SITE=https://example.test ASTRO_BASE=/kpop-quiz PUBLIC_CF_BEACON_TOKEN=staging-guard-dummy-token PUBLIC_GA4_ID=G-STAGINGGUARD npm run build
+ASTRO_BASE=/kpop-quiz CODE_FEEDBACK_ENV=staging BASE_URL=http://127.0.0.1:4321/kpop-quiz/ npx playwright test e2e/code-visible-feedback.spec.ts --project=chromium --retries=0 --workers=1
+```
+
 The suite runs on the built `dist/` before publish, then again on the live URL after deploy. On PRs that touch the web paths, and on the build jobs for `master` and `dev`, it runs against the local `dist/` before publish. After a push to `dev` deploys staging on GitHub Pages, `smoke-staging` hits the live staging URL. After a push to `master` deploys production on Cloudflare Pages, `smoke-prod` hits `https://kpopquiz.online`. A red post-prod suite fails the workflow. That is the alert. There is no automatic rollback, so fix or roll back by hand.
 
 A nightly workflow (`.github/workflows/e2e-nightly.yml`) runs at 06:00 UTC on `master` (cron `0 6 * * *`, plus `workflow_dispatch`). It builds `dist/` and runs boot smoke only on Firefox and WebKit via `test:e2e:nightly`. A red nightly is visible in Actions; it does not block PR merges.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 import {
@@ -19,6 +19,24 @@ export interface StatsModalProps {
   locale: Locale;
   initialTab?: StatsTabId;
   stats?: PlayerStats;
+}
+
+function trapTabFocus(e: KeyboardEvent, modal: HTMLDivElement | null) {
+  if (e.key !== "Tab" || !modal) return;
+  const focusableElements = modal.querySelectorAll<HTMLElement>(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  if (focusableElements.length === 0) return;
+
+  const firstElement = focusableElements[0];
+  const lastElement = focusableElements[focusableElements.length - 1];
+  if (e.shiftKey && document.activeElement === firstElement) {
+    e.preventDefault();
+    lastElement?.focus();
+  } else if (!e.shiftKey && document.activeElement === lastElement) {
+    e.preventDefault();
+    firstElement?.focus();
+  }
 }
 
 export function StatsModal({
@@ -44,8 +62,8 @@ export function StatsModal({
     }
   }, [isOpen, initialTab, propStats]);
 
-  // Focus trap & Escape key
-  useEffect(() => {
+  // Install keyboard handling when the dialog is mounted.
+  useLayoutEffect(() => {
     if (!isOpen) return;
 
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
@@ -61,23 +79,7 @@ export function StatsModal({
         return;
       }
 
-      if (e.key === "Tab" && modalRef.current) {
-        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusableElements.length === 0) return;
-
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        if (e.shiftKey && document.activeElement === firstElement) {
-          e.preventDefault();
-          lastElement?.focus();
-        } else if (!e.shiftKey && document.activeElement === lastElement) {
-          e.preventDefault();
-          firstElement?.focus();
-        }
-      }
+      trapTabFocus(e, modalRef.current);
     };
 
     window.addEventListener("keydown", handleKeyDown);
