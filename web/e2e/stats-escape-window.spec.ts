@@ -1,7 +1,16 @@
-import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures/consent";
+
+/** Wait until StatsNavTrigger has hydrated so #stats-open-nav-btn onClick is attached. */
+async function waitForStatsNavHydrated(page: Page) {
+  const island = page.locator('astro-island[component-url*="StatsNavTrigger"]');
+  await expect(island).toBeAttached();
+  await expect(island).not.toHaveAttribute("ssr");
+}
 
 test("Escape closes the visible statistics dialog before passive effects run", async ({ page }) => {
   await page.goto("/pt-br/codigo/");
+  await waitForStatsNavHydrated(page);
   const trigger = page.locator("#stats-open-nav-btn");
   await expect(trigger).toBeVisible();
   await page.evaluate(() => {
@@ -13,8 +22,9 @@ test("Escape closes the visible statistics dialog before passive effects run", a
       if (event.key === "Escape") evidence.trustedEscape = event.isTrusted;
     }, { capture: true });
     window.requestAnimationFrame = () => { evidence.heldFrames++; return 0; };
+    // Match StatsModal focus-install fallback (30ms).
     window.setTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) =>
-      delay === 35 ? (evidence.heldFallbacks++, 0) : timeout(handler, delay, ...args)) as typeof window.setTimeout;
+      delay === 30 ? (evidence.heldFallbacks++, 0) : timeout(handler, delay, ...args)) as typeof window.setTimeout;
     Object.assign(window, { __restoreScheduling: () => {
       window.requestAnimationFrame = raf;
       window.setTimeout = timeout;

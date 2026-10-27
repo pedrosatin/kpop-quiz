@@ -1,18 +1,26 @@
-import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./fixtures/consent";
 
 const base = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
-for (const [locale, path, reject] of [
-  ["pt", "/pt-br/codigo/", "Recusar Google Analytics"],
-  ["en", "/en/code/", "Reject Google Analytics"],
-  ["pt", "/pt-br/conexoes/", "Recusar Google Analytics"],
-  ["en", "/en/crossword/", "Reject Google Analytics"],
+
+/** Wait until StatsNavTrigger has hydrated so #stats-open-nav-btn onClick is attached. */
+async function waitForStatsNavHydrated(page: Page) {
+  const island = page.locator('astro-island[component-url*="StatsNavTrigger"]');
+  await expect(island).toBeAttached();
+  await expect(island).not.toHaveAttribute("ssr");
+}
+
+for (const [locale, path] of [
+  ["pt", "/pt-br/codigo/"],
+  ["en", "/en/code/"],
+  ["pt", "/pt-br/conexoes/"],
+  ["en", "/en/crossword/"],
 ] as const) {
   test(`${locale} ${path}: statistics keyboard and close controls`, async ({ page, baseURL }) => {
     const origin = new URL(baseURL!).origin;
     await page.route("**/*", route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
     await page.goto(`${base}${path}`);
-    const rejectButton = page.getByRole("button", { name: reject });
-    if (await rejectButton.isVisible()) await rejectButton.click();
+    await waitForStatsNavHydrated(page);
     const trigger = page.locator("#stats-open-nav-btn");
     const dialog = page.getByRole("dialog");
     const close = page.locator(".stats-modal-card .modal-close");
