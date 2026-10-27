@@ -297,7 +297,7 @@ export interface Messages {
   gameCode: string;
   gameCrossword: string;
   codeSequenceNote: string;
-  codeAttemptsLeft: string;
+  codeAttemptsLeft: (remaining: number) => string;
   codeYourGuess: string;
   codePosition: string;
   codeChooseGroup: string;
@@ -703,7 +703,7 @@ const catalogs: Record<Locale, Messages> = {
     codeEyebrow: "10 tentativas · 4 posições",
     codeIntro: "Descubra quatro grupos diferentes do catálogo na ordem secreta do dia.",
     codeSequenceNote: "A sequência é a mesma em todas as partidas do dia.",
-    codeAttemptsLeft: "Tentativas restantes",
+    codeAttemptsLeft: (remaining) => remaining === 1 ? "Tentativa restante" : "Tentativas restantes",
     codeYourGuess: "Seu palpite",
     codePosition: "Posição",
     codeChooseGroup: "Escolha um grupo",
@@ -711,8 +711,8 @@ const catalogs: Record<Locale, Messages> = {
     codeChooseAll: "Escolha os quatro grupos. Nenhuma tentativa usada.",
     codeChooseDistinct: "Escolha quatro grupos diferentes. Nenhuma tentativa usada.",
     codeAttemptFeedback: (attempt, exact, misplaced, remaining) =>
-      `Tentativa ${attempt}: ${exact} exatos, ${misplaced} deslocados. ${remaining} tentativas restantes.`,
-    codeGuessSummary: (exact, misplaced) => `${exact} exatos · ${misplaced} deslocados`,
+      `Tentativa ${attempt}: ${exact} ${exact === 1 ? "exato" : "exatos"}, ${misplaced} ${misplaced === 1 ? "deslocado" : "deslocados"}. ${remaining} ${remaining === 1 ? "tentativa restante" : "tentativas restantes"}.`,
+    codeGuessSummary: (exact, misplaced) => `${exact} ${exact === 1 ? "exato" : "exatos"} · ${misplaced} ${misplaced === 1 ? "deslocado" : "deslocados"}`,
     codeHistoryHeading: "Histórico de palpites",
     codeResultWon: "Código descoberto!",
     codeResultLost: "Tentativas esgotadas",
@@ -720,9 +720,9 @@ const catalogs: Record<Locale, Messages> = {
     codeAttemptsUsed: "Tentativas usadas",
     codeAboutGroups: "Sobre os grupos",
     codeShareButton: "Compartilhar resultado",
-    codeShareWon: (attempts) => `Código descoberto em ${attempts} tentativas.`,
+    codeShareWon: (attempts) => `Código descoberto em ${attempts} ${attempts === 1 ? "tentativa" : "tentativas"}.`,
     codeShareLost: "Código não descoberto nas 10 tentativas.",
-    codeShareAttemptsLine: (attempts) => `Tentativas: ${attempts}`,
+    codeShareAttemptsLine: (attempts) => `${attempts === 1 ? "Tentativa" : "Tentativas"}: ${attempts}`,
     codeArtifactMissing: "O código de hoje ainda não foi publicado. Tente mais tarde.",
     crosswordTitle: "Cruzadinha de K-pop",
     crosswordEyebrow: "Partida fixa · pistas com fonte",
@@ -1152,7 +1152,7 @@ const catalogs: Record<Locale, Messages> = {
     codeEyebrow: "10 guesses · 4 positions",
     codeIntro: "Find four different catalog groups in the day's secret order.",
     codeSequenceNote: "The sequence is the same in every game you play that day.",
-    codeAttemptsLeft: "Guesses left",
+    codeAttemptsLeft: () => "Guesses left",
     codeYourGuess: "Your guess",
     codePosition: "Position",
     codeChooseGroup: "Choose a group",
@@ -1160,7 +1160,7 @@ const catalogs: Record<Locale, Messages> = {
     codeChooseAll: "Choose all four groups. No attempt used.",
     codeChooseDistinct: "Choose four different groups. No attempt used.",
     codeAttemptFeedback: (attempt, exact, misplaced, remaining) =>
-      `Attempt ${attempt}: ${exact} exact, ${misplaced} misplaced. ${remaining} attempts remaining.`,
+      `Attempt ${attempt}: ${exact} exact, ${misplaced} misplaced. ${remaining} ${remaining === 1 ? "attempt" : "attempts"} remaining.`,
     codeGuessSummary: (exact, misplaced) => `${exact} exact · ${misplaced} misplaced`,
     codeHistoryHeading: "Guess history",
     codeResultWon: "Code solved!",
@@ -1169,7 +1169,7 @@ const catalogs: Record<Locale, Messages> = {
     codeAttemptsUsed: "Attempts used",
     codeAboutGroups: "About the groups",
     codeShareButton: "Share result",
-    codeShareWon: (attempts) => `Code solved in ${attempts} attempts.`,
+    codeShareWon: (attempts) => `Code solved in ${attempts} ${attempts === 1 ? "attempt" : "attempts"}.`,
     codeShareLost: "Code not found in 10 attempts.",
     codeShareAttemptsLine: (attempts) => `Attempts: ${attempts}`,
     codeArtifactMissing: "Today's code has not been published yet. Try again later.",
