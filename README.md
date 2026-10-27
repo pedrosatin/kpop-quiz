@@ -244,6 +244,12 @@ palavra, digite por célula (Tab e setas), verifique a grade quantas vezes
 quiser ou revele as respostas. O resultado mostra o veredito, o
 compartilhamento e o painel "Ver fonte" com os trechos e as revisões citadas.
 
+Backspace apaga a casa preenchida. Numa casa vazia, volta à anterior da
+palavra selecionada e apaga sua letra; na primeira casa vazia não faz nada.
+A direção selecionada permanece nos cruzamentos. Ao focar ou digitar, a
+página rola quando necessário para manter a casa acima da barra e do banner
+de consentimento.
+
 As rotas antigas `/pt-br/cruzadinha-piloto/` e `/en/crossword-pilot/`
 respondem `301` no Cloudflare Pages pelo `web/public/_redirects`; no GitHub
 Pages de homologação elas dão 404, como no código de grupos

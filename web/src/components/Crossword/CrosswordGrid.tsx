@@ -55,6 +55,35 @@ export function nextSquare(puzzle: CrosswordPuzzle, inputs: CrosswordInputs, row
   return null;
 }
 
+/** Account for overlays that native focus scrolling cannot see. */
+function keepSquareVisible(input: HTMLInputElement): void {
+  requestAnimationFrame(() => {
+    if (document.activeElement !== input) return;
+    const rect = input.getBoundingClientRect();
+    if (!rect.width) return;
+    let bottom = window.innerHeight;
+    const overlays = [document.querySelector('.consent-banner'), input.closest('.crossword')?.querySelector('.crossword-actions')];
+    for (const overlay of overlays) {
+      if (!overlay || !['fixed', 'sticky'].includes(getComputedStyle(overlay).position)) continue;
+      const obstruction = overlay.getBoundingClientRect();
+      if (obstruction.left < rect.right && obstruction.right > rect.left) bottom = Math.min(bottom, obstruction.top);
+    }
+    const offset = Math.max(0, rect.bottom - bottom + 8) || Math.min(0, rect.top - 8);
+    if (offset) window.scrollBy({ top: offset, behavior: 'instant' });
+  });
+}
+
+function eraseSquare(key: string, input: HTMLInputElement, wordCells: readonly string[], inputs: CrosswordInputs, onLetters: CrosswordGridProps['onLetters']): void {
+  const target = input.value ? key : wordCells[wordCells.indexOf(key) - 1];
+  if (!target) return;
+  onLetters({ [target]: '' });
+  const square = inputs[target]!;
+  // Clear immediately so repeated native keydowns see the updated value.
+  square.value = '';
+  square.focus();
+  keepSquareVisible(square);
+}
+
 export function CrosswordGrid({ puzzle, messages, values, finished, selected, inputs, onSelectEntry, onLetters }: CrosswordGridProps) {
   const selectedCells = entryCellKeys(selected);
   const direction = (entry: CrosswordEntry) => (entry.direction === "across" ? messages.crosswordAcross : messages.crosswordDown);
@@ -65,12 +94,18 @@ export function CrosswordGrid({ puzzle, messages, values, finished, selected, in
     // Keep the controlled value in step even when the state does not change.
     input.value = updates[key] ?? "";
     onLetters(updates);
+    keepSquareVisible(input);
     if (!typed) return;
     const next = selectedCells[Math.min(selectedCells.indexOf(key) + typed, selectedCells.length - 1)]!;
     inputs.current?.[next]?.focus();
   };
 
   const onKeyDown = (row: number, col: number, event: KeyboardEvent) => {
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      eraseSquare(cellKey(row, col), event.currentTarget as HTMLInputElement, selectedCells, inputs.current!, onLetters);
+      return;
+    }
     const delta = ARROWS[event.key];
     if (!delta) return;
     event.preventDefault();
@@ -110,6 +145,7 @@ export function CrosswordGrid({ puzzle, messages, values, finished, selected, in
               onFocus={(event) => {
                 event.currentTarget.select();
                 if (!clues.includes(selected)) onSelectEntry(puzzle.entries.indexOf(clues[0]!));
+                keepSquareVisible(event.currentTarget);
               }}
               onInput={(event) => onInput(k, event.currentTarget)}
               onKeyDown={(event) => onKeyDown(r, c, event)}
