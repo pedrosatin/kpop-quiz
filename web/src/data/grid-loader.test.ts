@@ -3,6 +3,11 @@ import { GridArtifactError, loadIntersectionGrid } from "./grid-loader";
 import { isIntersectionGrid } from "../lib/quiz-types";
 import validGrid from "../tests/fixtures/grid.daily.json";
 
+function stubLegacy(fetch: (url: string, options?: RequestInit) => Promise<Response>) {
+  vi.stubGlobal("fetch", vi.fn((url: string, options?: RequestInit) => url.includes("grid-publication.")
+    ? Promise.resolve(new Response(null, { status: 404 })) : fetch(url, options)));
+}
+
 describe("published intersection grid loader and validator", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -12,12 +17,12 @@ describe("published intersection grid loader and validator", () => {
 
   it("loads a validated grid below Astro base path", async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(validGrid)));
-    vi.stubGlobal("fetch", fetch);
+    stubLegacy(fetch);
 
     const result = await loadIntersectionGrid("pt-BR", "/base", validGrid.reference_date);
     expect(result.schema_version).toBe("kpop-intersection-grid-v1");
     expect(result.cells).toHaveLength(9);
-    expect(fetch).toHaveBeenCalledWith(`/base/data/grid.daily.json?d=${validGrid.reference_date}`);
+    expect(fetch).toHaveBeenCalledWith(`/base/data/grid.daily.json?d=${validGrid.reference_date}`, { cache: "no-store" });
   });
 
   it("keeps a reused grid from an earlier day", async () => {
@@ -26,11 +31,11 @@ describe("published intersection grid loader and validator", () => {
         ? new Response(null, { status: 404 })
         : new Response(JSON.stringify(validGrid), { headers: { "content-type": "application/json" } })
     );
-    vi.stubGlobal("fetch", fetch);
+    stubLegacy(fetch);
 
     const result = await loadIntersectionGrid("pt-BR", "/", "2099-01-01");
     expect(result.reference_date).toBe(validGrid.reference_date);
-    expect(fetch).toHaveBeenCalledWith("/data/grid.daily.json?d=2099-01-01");
+    expect(fetch).toHaveBeenCalledWith("/data/grid.daily.json?d=2099-01-01", { cache: "no-store" });
   });
 
   it("treats the host's HTML fallback as a missing artifact", async () => {
@@ -52,13 +57,13 @@ describe("published intersection grid loader and validator", () => {
         ? new Response(JSON.stringify(validGrid), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     );
-    vi.stubGlobal("fetch", fetch);
+    stubLegacy(fetch);
 
     const result = await loadIntersectionGrid("pt-BR", "/base", today);
     expect(result.schema_version).toBe("kpop-intersection-grid-v1");
     expect(result.reference_date).toBe(today);
-    expect(fetch).toHaveBeenCalledWith(`/base/data/grid.daily.json?d=${today}`);
-    expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json");
+    expect(fetch).toHaveBeenCalledWith(`/base/data/grid.daily.json?d=${today}`, { cache: "no-store" });
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json", { cache: "no-store" });
   });
 
   it("falls back to data/next/ when root artifact returns HTML fallback", async () => {
@@ -68,7 +73,7 @@ describe("published intersection grid loader and validator", () => {
         ? new Response(JSON.stringify(validGrid), { headers: { "content-type": "application/json" } })
         : new Response("<!DOCTYPE html><html></html>", { headers: { "content-type": "text/html; charset=utf-8" } })
     );
-    vi.stubGlobal("fetch", fetch);
+    stubLegacy(fetch);
 
     const result = await loadIntersectionGrid("pt-BR", "/base", today);
     expect(result.reference_date).toBe(today);
@@ -76,13 +81,13 @@ describe("published intersection grid loader and validator", () => {
 
   it("throws missing when both root artifact and next/ return 404", async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
-    vi.stubGlobal("fetch", fetch);
+    stubLegacy(fetch);
 
     await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
     );
-    expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json?d=2026-03-30");
-    expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json");
+    expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json?d=2026-03-30", { cache: "no-store" });
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json", { cache: "no-store" });
   });
 
   it("does not prematurely serve future grid from next/ when root artifact is 404", async () => {
@@ -93,13 +98,13 @@ describe("published intersection grid loader and validator", () => {
         ? new Response(JSON.stringify(futureGrid), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     );
-    vi.stubGlobal("fetch", fetch);
+    stubLegacy(fetch);
 
     await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
     );
-    expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json?d=2026-03-30");
-    expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json");
+    expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json?d=2026-03-30", { cache: "no-store" });
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json", { cache: "no-store" });
   });
 
   it("throws missing when root artifact is 404 and next/ has invalid schema", async () => {
@@ -109,7 +114,7 @@ describe("published intersection grid loader and validator", () => {
         ? new Response(JSON.stringify(invalidGrid), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     );
-    vi.stubGlobal("fetch", fetch);
+    stubLegacy(fetch);
 
     await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
@@ -122,7 +127,7 @@ describe("published intersection grid loader and validator", () => {
         ? new Response("{ malformed", { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     );
-    vi.stubGlobal("fetch", fetch);
+    stubLegacy(fetch);
 
     await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
@@ -136,7 +141,7 @@ describe("published intersection grid loader and validator", () => {
       }
       return new Response(null, { status: 404 });
     });
-    vi.stubGlobal("fetch", fetch);
+    stubLegacy(fetch);
 
     await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
