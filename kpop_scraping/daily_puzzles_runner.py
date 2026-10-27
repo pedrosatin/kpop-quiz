@@ -36,8 +36,9 @@ from typing import Any
 
 from .code_groups_cli import generate as generate_code_groups_puzzle
 from .connections_generator import generate_connections_puzzle
-from .grid_generator import generate_daily_grid
-from .grid_schema import validate_intersection_grid
+from .grid_generator import generate_daily_grid, grid_incompatibility
+from .grid_publication import publication, read_publication, write_publication
+from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_generator import generate_name_guess_puzzle
 from .quiz_generator import QuizConfig, generate_dataset
 from .quiz_session import create_session
@@ -185,6 +186,7 @@ def publish_daily_puzzles(
     dry_run: bool = False,
     previous_grid: Path | None = None,
     prune: bool = False,
+    connection: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Publish generated puzzles to output_dir with atomic writes and schema verification.
 
@@ -192,12 +194,14 @@ def publish_daily_puzzles(
     content still passes validation; it defaults to the one already in
     output_dir. When it is missing or invalid, the day publishes without
     ``grid.daily.json`` and the result records why in ``grid_skipped``.
+    With ``connection``, the previous grid must also still satisfy the
+    current eligibility policy for its answers, not only the schema.
     The group code pilot follows a plain partial publish policy: when its
     generation failed (``code_groups`` is None), the day publishes without
     ``code-groups.daily.json`` and the result records why in
     ``code_groups_skipped``; no previous artifact is reused.
-    With ``prune``, files that the new set does not contain are removed, so
-    a directory holds exactly one day.
+    With ``prune``, game files outside the new set are removed. Publication
+    history remains available to reject cached artifacts from earlier days.
     """
     output_dir = Path(output_dir)
     previous_grid = previous_grid or output_dir / GRID_DAILY_FILENAME
@@ -218,7 +222,7 @@ def publish_daily_puzzles(
         )
         grid_skipped = None
         if puzzles["grid"] is None:
-            previous_invalid = _invalid_grid_reason(previous_grid)
+            previous_invalid = _invalid_grid_reason(previous_grid, connection)
             if previous_invalid is None and previous_grid.is_file():
                 shutil.copyfile(previous_grid, staging_dir / GRID_DAILY_FILENAME)
             else:
@@ -253,6 +257,22 @@ def publish_daily_puzzles(
                 "reference_date": published_grid.get("reference_date"),
                 "error": puzzles.get("grid_error") or "unknown error",
             }
+        day = puzzles["reference_date"]
+        previous_publication = read_publication(output_dir, day)
+        rejected_id = None
+        if previous_grid.is_file() and _invalid_grid_reason(previous_grid, connection):
+            try:
+                old = json.loads(previous_grid.read_text(encoding="utf-8"))
+                validate_intersection_grid(old)
+            except (OSError, ValueError):
+                old = None
+            if old is not None:
+                if not dry_run:
+                    _reject_grid_origin(previous_grid.parent, old)
+                if old["reference_date"] == day:
+                    rejected_id = old["grid_id"]
+                    previous_publication = read_publication(output_dir, day)
+        write_publication(staging_dir, publication(day, published_grid, previous_publication, rejected_id))
         result = {
             "reference_date": puzzles["reference_date"],
             "dataset_version": puzzles["dataset_version"],
@@ -299,15 +319,88 @@ def publish_daily_puzzles(
         return result
 
 
-def _invalid_grid_reason(grid_path: Path) -> str | None:
-    """Return why the grid at grid_path fails validation, or None when valid or absent."""
+def _invalid_grid_reason(grid_path: Path, connection: sqlite3.Connection | None = None) -> str | None:
+    """Return why the grid at grid_path fails validation, or None when valid or absent.
+
+    With ``connection``, the answers must also pass the current eligibility
+    policy, which a schema check cannot tell.
+    """
     if not grid_path.is_file():
         return None
     try:
-        validate_intersection_grid(json.loads(grid_path.read_text(encoding="utf-8")))
+        grid = json.loads(grid_path.read_text(encoding="utf-8"))
+        validate_intersection_grid(grid)
     except (OSError, ValueError) as exc:
         return str(exc)
-    return None
+    return grid_incompatibility(connection, grid) if connection is not None else None
+
+
+def _reject_grid_origin(directory: Path, grid: dict) -> None:
+    """Persist rejection at the artifact's date before any replacement/removal."""
+    day = grid["reference_date"]
+    previous = read_publication(directory, day)
+    # Rejecting an older version must preserve a newer authorized replacement.
+    accepted = None
+    if previous and previous["grid_id"] not in (None, grid["grid_id"]):
+        accepted = dict(grid_id=previous["grid_id"], reference_date=previous["grid_reference_date"])
+    write_publication(directory, publication(day, accepted, previous, grid["grid_id"]))
+
+
+def _install_publication(source: Path, directory: Path) -> None:
+    day = source.name.removeprefix("grid-publication.").removesuffix(".json")
+    try:
+        incoming = read_publication(source.parent, day)
+        previous = read_publication(directory, day)
+    except ValueError:
+        # Keep malformed historical records closed to the loader, without
+        # blocking publication of an unrelated day or overwriting its ledger.
+        return
+    # Promotion of an older next set cannot resurrect an already rejected hash.
+    if previous and incoming["grid_id"] in previous["replaces"]:
+        incoming = {**previous, "replaces": sorted(set(previous["replaces"] + incoming["replaces"]))}
+    elif previous:
+        incoming["replaces"] = sorted(set(previous["replaces"] + incoming["replaces"]))
+    write_publication(directory, incoming)
+
+
+def _revalidate_published_grid(
+    output_dir: Path, reference_date: str, connection: sqlite3.Connection
+) -> dict[str, Any] | None:
+    """Replace a kept or promoted grid that the current policy no longer admits.
+
+    The day's other artifacts keep their bytes. The grid is generated again
+    for the same date, which derives a new ``grid_id`` from its content; when
+    that fails too, the day goes without a grid, as for any failed generation.
+    Returns None when there was nothing to replace.
+    """
+    grid_path = output_dir / GRID_DAILY_FILENAME
+    reason = _invalid_grid_reason(grid_path, connection)
+    if reason is None:
+        return None
+    previous_grid_id = None
+    try:
+        old = json.loads(grid_path.read_text(encoding="utf-8"))
+        validate_intersection_grid(old)
+    except (OSError, ValueError):
+        old = None
+    if old is not None:
+        _reject_grid_origin(output_dir, old)
+        previous_grid_id = old["grid_id"]
+    previous_publication = read_publication(output_dir, reference_date)
+    # Reject malformed identities instead of publishing them as replacement history.
+    if not isinstance(previous_grid_id, str) or len(previous_grid_id) != 64:
+        previous_grid_id = None
+    tombstone = publication(reference_date, None, previous_publication, previous_grid_id)
+    write_publication(output_dir, tombstone)
+    outcome = {"reason": reason, "previous_grid_id": previous_grid_id}
+    try:
+        grid = generate_daily_grid(connection, reference_date=reference_date)
+    except ValueError as exc:
+        grid_path.unlink()
+        return {**outcome, "action": "removed", "error": str(exc)}
+    write_intersection_grid_atomic(grid_path, grid)
+    write_publication(output_dir, publication(reference_date, grid, tombstone))
+    return {**outcome, "action": "regenerated", "grid_id": grid["grid_id"]}
 
 
 def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> None:
@@ -318,6 +411,9 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
         if not source_file.is_file():
             continue
         names.add(source_file.name)
+        if source_file.name.startswith("grid-publication.") and (output_dir / source_file.name).is_file():
+            _install_publication(source_file, output_dir)
+            continue
         target_path = output_dir / source_file.name
         descriptor, temp_path = tempfile.mkstemp(prefix=f".{source_file.name}.", dir=output_dir)
         try:
@@ -334,7 +430,7 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
             raise
     if prune:
         for stale in output_dir.iterdir():
-            if stale.is_file() and stale.name not in names:
+            if stale.is_file() and stale.name not in names and not stale.name.startswith("grid-publication."):
                 stale.unlink()
 
     # Fsync output_dir directory entry
@@ -354,7 +450,7 @@ def _published_day(directory: Path) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _published_result(output_dir: Path, reference_date: str, **flags: bool) -> dict[str, Any]:
+def _published_result(output_dir: Path, reference_date: str, **flags: Any) -> dict[str, Any]:
     def read(name: str) -> dict[str, Any]:
         return json.loads((output_dir / name).read_text(encoding="utf-8"))
 
@@ -397,22 +493,35 @@ def _published_result(output_dir: Path, reference_date: str, **flags: bool) -> d
     }
 
 
-def keep_or_promote_day(output_dir: Path, reference_date: str) -> dict[str, Any] | None:
+def keep_or_promote_day(
+    output_dir: Path,
+    reference_date: str,
+    connection: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
     """Reuse a set already published for reference_date.
 
     Players may already have played the day, from output_dir or from the copy
     published ahead under ``next/``, so the day keeps those bytes instead of
     being generated again from a newer database. Returns None when neither
     directory holds that day.
+
+    With ``connection``, a grid the current eligibility policy no longer
+    admits is replaced before the day is reported (see
+    ``_revalidate_published_grid``); the other artifacts keep their bytes.
     """
     # The grid and the group code artifact are optional in a published set;
     # verify() still validates either file when it is present.
     if _published_day(output_dir) == reference_date:
+        read_publication(output_dir, reference_date)
         verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
-        return _published_result(output_dir, reference_date, already_published=True)
+        revalidated = _revalidate_published_grid(output_dir, reference_date, connection) if connection else None
+        return _published_result(
+            output_dir, reference_date, grid_revalidated=revalidated, already_published=True
+        )
     next_dir = output_dir / NEXT_DIRNAME
     if _published_day(next_dir) != reference_date:
         return None
+    read_publication(next_dir, reference_date)
     verify_artifacts(next_dir, require_grid=False, require_code_groups=False)
     _install_files(next_dir, output_dir)
     if not (next_dir / GRID_DAILY_FILENAME).is_file():
@@ -428,8 +537,20 @@ def keep_or_promote_day(output_dir: Path, reference_date: str) -> dict[str, Any]
             (output_dir / CODE_GROUPS_DAILY_FILENAME).unlink()
         except FileNotFoundError:
             pass
+    revalidated = _revalidate_published_grid(output_dir, reference_date, connection) if connection else None
+    if revalidated is not None:
+        current = output_dir / GRID_DAILY_FILENAME
+        if current.is_file():
+            write_intersection_grid_atomic(
+                next_dir / GRID_DAILY_FILENAME, json.loads(current.read_text(encoding="utf-8"))
+            )
+        else:
+            (next_dir / GRID_DAILY_FILENAME).unlink(missing_ok=True)
+        write_publication(next_dir, read_publication(output_dir, reference_date))
     verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
-    return _published_result(output_dir, reference_date, promoted_from_next=True)
+    return _published_result(
+        output_dir, reference_date, grid_revalidated=revalidated, promoted_from_next=True
+    )
 
 
 def run_daily_puzzles(
@@ -468,7 +589,6 @@ def run_daily_puzzles(
         raise FileNotFoundError(f"Database does not exist: {db_path}")
 
     iso_date = get_reference_date(reference_date)
-    result = None if dry_run or regenerate else keep_or_promote_day(output_dir_path, iso_date)
 
     try:
         connection = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
@@ -476,6 +596,7 @@ def run_daily_puzzles(
         connection = sqlite3.connect(str(db_path))
 
     try:
+        result = None if dry_run or regenerate else keep_or_promote_day(output_dir_path, iso_date, connection)
         if result is None:
             puzzles = generate_daily_puzzles(
                 connection,
@@ -483,7 +604,7 @@ def run_daily_puzzles(
                 base_seed=base_seed,
                 timer_seconds=timer_seconds,
             )
-            result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run)
+            result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run, connection=connection)
         if ahead:
             next_date = (date.fromisoformat(iso_date) + timedelta(days=1)).isoformat()
             next_puzzles = generate_daily_puzzles(
@@ -498,6 +619,7 @@ def run_daily_puzzles(
                 dry_run=dry_run,
                 previous_grid=output_dir_path / GRID_DAILY_FILENAME,
                 prune=True,
+                connection=connection,
             )
     finally:
         connection.close()

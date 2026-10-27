@@ -66,7 +66,7 @@ describe("IntersectionGrid orchestrator component", () => {
     vi.spyOn(performance, "now").mockImplementation(() => clock);
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify(validGridJson)))
+      vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(validGridJson)))
     );
   });
 
@@ -173,7 +173,7 @@ describe("IntersectionGrid orchestrator component", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify(validGridJson)))
+      vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(validGridJson)))
     );
 
     fireEvent.click(retryBtn);
@@ -406,7 +406,7 @@ describe("IntersectionGrid orchestrator component", () => {
     const grid = structuredClone(validGridJson);
     const shinee = grid.candidate_pool.find((c) => c.id === "Q243884")!;
     shinee.names = { "pt-BR": "SHINee (pt)", en: "SHINee (en)" };
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(grid)))));
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(grid))));
 
     const view = render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
     await screen.findByRole("grid");
@@ -506,7 +506,7 @@ describe("IntersectionGrid orchestrator component", () => {
     view.unmount();
 
     // A Response body reads once, so the remount gets a fresh one.
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(validGridJson)))));
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(validGridJson))));
     render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
     await screen.findByRole("heading", { name: "Fim da partida" });
   });
@@ -525,7 +525,7 @@ describe("IntersectionGrid orchestrator component", () => {
   });
 
   it("counts a restored finished game that was not counted yet, once", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(validGridJson)))));
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(validGridJson))));
     const cells = emptyCells();
     cells["0,0"] = { solved: true, failed: false, entityId: "Q21461452" };
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 9, cells }));

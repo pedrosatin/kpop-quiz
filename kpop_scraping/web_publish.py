@@ -421,7 +421,9 @@ def verify(
         raise ValueError(f"missing required grid artifact: {grid_path}")
     connections_path = output_dir / CONNECTIONS_DAILY_FILENAME
     if connections_path.is_file():
-        _read_connections(connections_path)
+        from .grid_publication import read_publication
+        connections = _read_connections(connections_path)
+        read_publication(output_dir, connections["reference_date"])
     elif require_connections:
         raise ValueError(f"missing required connections artifact: {connections_path}")
     name_guess_path = output_dir / NAME_GUESS_DAILY_FILENAME
