@@ -24,6 +24,7 @@ export function TimelineGameContent({
     orderedEvents,
     orderedEventIds,
     gameStatus,
+    gaveUp,
     score,
     results,
     canonicalOrder,
@@ -77,12 +78,9 @@ export function TimelineGameContent({
     submit();
   }, [submit]);
 
-  const gaveUpRef = useRef(false);
-
   const handleGiveUp = useCallback(() => {
     playedHere.current = true;
-    gaveUpRef.current = true;
-    submit();
+    submit(true);
   }, [submit]);
 
   const recordedMatchRef = useRef<string | null>(null);
@@ -93,21 +91,21 @@ export function TimelineGameContent({
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("timeline", matchId)) {
         // A give-up reveals the canonical order, so a correct board after
         // one still counts as played without a win.
-        const isWin = !gaveUpRef.current && score === puzzle.events.length;
+        const isWin = !gaveUp && score === puzzle.events.length;
         recordGameFinish("timeline", isWin, puzzle.reference_date || getTodayDateString());
         markGameMatchRecorded("timeline", matchId);
         recordedMatchRef.current = matchId;
       }
     } else {
       recordedMatchRef.current = null;
-      gaveUpRef.current = false;
     }
-  }, [gameStatus, puzzle, score]);
+  }, [gameStatus, puzzle, score, gaveUp]);
 
   return (
     <section id="timeline" class="timeline-game" data-testid="game-board" aria-labelledby="timeline-board-heading">
       {gameStatus === "submitted" ? (
         <TimelineResults
+          gaveUp={gaveUp}
           score={score}
           totalEvents={puzzle.events.length}
           results={results}

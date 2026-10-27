@@ -4,6 +4,8 @@ Daily K-pop quiz and puzzle games about groups and artists, in Portuguese and En
 
 The site has nine games: a ten-question quiz with assisted, standard, and expert modes, a grid, connections, name guess, word search, timeline, a map, a group code logic game, and a crossword. New puzzles are published every day, except for the crossword, which is still a fixed audited puzzle.
 
+Giving up in Timeline records a loss, even when the current sequence is correct. The result and share text explicitly say that the player gave up and label the numerical score as the sequence score. This distinction survives a reload; saved results from before this field was introduced retain their original submitted status. Dates and source links appear only after the round ends. Source labels identify the linked host and keep the original revision URL and locator.
+
 An offline daily crossword generator is available separately, with a versioned schema, previous-day group exclusion and a bounded unique-assignment proof. It is not connected to the runner or website yet. See [the CLI and benchmark guide](docs/crossword-daily.md).
 
 Every answer comes from Wikipedia and Wikidata. A Python collector queries both APIs, records the consulted revisions in SQLite, and keeps page and entity responses as compressed JSON. Each accepted fact points to a Wikidata reference or a Wikipedia revision excerpt, and the games only use accepted facts.

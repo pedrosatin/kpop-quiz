@@ -298,6 +298,21 @@ describe("useTimelineGame and timeline utils", () => {
     expect(loadTimelineSavedState(key, puzzle)).toBeNull();
   });
 
+  it("rejects a non-boolean give-up flag and restores the persisted give-up", () => {
+    const key = `kpop-timeline-${puzzle.puzzle_id}`;
+    const state = {
+      puzzleId: puzzle.puzzle_id, referenceDate: puzzle.reference_date,
+      orderedEventIds: getCanonicalChronologicalOrder(puzzle.events).map(event => event.id),
+      submitted: true, score: 5, results: [true, true, true, true, true], gaveUp: "false",
+    };
+    localStorage.setItem(key, JSON.stringify(state));
+    expect(loadTimelineSavedState(key, puzzle)).toBeNull();
+    localStorage.setItem(key, JSON.stringify({ ...state, gaveUp: true }));
+    const { result } = renderHook(() => useTimelineGame(puzzle, "en"));
+    expect(result.current.gaveUp).toBe(true);
+    expect(result.current.shareText).toContain("Gave up · Sequence score: 5/5");
+  });
+
   it("formats spoiler-free share text in pt-BR and en", () => {
     const textPt = generateTimelineShareText({
       referenceDate: "2026-09-30",
