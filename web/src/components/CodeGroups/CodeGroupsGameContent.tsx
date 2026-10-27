@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "preact/hooks";
+import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { CodeGroupsPuzzle } from "../../data/code-groups";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages, type Messages } from "../../i18n/catalog";
@@ -57,9 +57,24 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
   };
 
   const resultRef = useRef<HTMLElement>(null);
+  const feedbackRef = useRef<HTMLParagraphElement>(null);
   // Only a game finished in this visit moves focus to the result; a finished
   // game restored from storage leaves focus where the page put it.
   useFocusOnChange(resultRef, finished && playedHere.current);
+  useLayoutEffect(() => {
+    if (!feedback || !playedHere.current) return;
+    if (finished) {
+      resultRef.current?.scrollIntoView?.({ block: "start" });
+      return;
+    }
+    const target = feedbackRef.current;
+    if (!target) return;
+    const bounds = target.getBoundingClientRect();
+    const bannerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--consent-banner-height")) || 0;
+    const visibleBottom = window.innerHeight - bannerHeight - 12;
+    if (bounds.bottom > visibleBottom) window.scrollBy(0, bounds.bottom - visibleBottom);
+    else if (bounds.top < 12) window.scrollBy(0, bounds.top - 12);
+  }, [feedback, finished]);
 
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({
@@ -91,7 +106,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
     <section id="code-groups" tabIndex={-1} aria-label={messages.codeTitle} class="game-card game-card--wide code-groups" data-testid="game-board">
       <p class="code-sequence-note">{messages.codeSequenceNote}</p>
       <p class="code-hud" data-testid="code-remaining">
-        {messages.codeAttemptsLeft}: {attemptsLeft}/{puzzle.max_attempts}
+        {messages.codeAttemptsLeft(attemptsLeft)}: {attemptsLeft}/{puzzle.max_attempts}
       </p>
       <form
         onSubmit={(event) => {
@@ -125,7 +140,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
           </button>
         </fieldset>
       </form>
-      <p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">
+      <p ref={feedbackRef} role="status" aria-live="polite" aria-atomic="true" class="code-feedback">
         {feedbackText}
       </p>
       <h2>{messages.codeHistoryHeading}</h2>

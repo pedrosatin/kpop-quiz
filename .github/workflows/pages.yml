@@ -78,6 +78,8 @@ jobs:
       - name: Run Playwright boot and playthrough against local dist
         env:
           CI: true
+          CODE_FEEDBACK_ENV: ${{ secrets.PUBLIC_GA4_ID != '' && 'banner' || 'root' }}
+          CODE_FEEDBACK_CF_BEACON: ${{ secrets.PUBLIC_CF_BEACON_TOKEN != '' }}
         run: npm run test:e2e:ci
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
@@ -192,6 +194,8 @@ jobs:
       - name: Run Playwright boot and playthrough against production
         env:
           CI: true
+          CODE_FEEDBACK_ENV: ${{ secrets.PUBLIC_GA4_ID != '' && 'banner' || 'root' }}
+          CODE_FEEDBACK_CF_BEACON: ${{ secrets.PUBLIC_CF_BEACON_TOKEN != '' }}
         run: npm run test:e2e:prod
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
