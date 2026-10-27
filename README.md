@@ -84,6 +84,13 @@ npm run test:e2e:prod        # full Chromium suite against https://kpopquiz.onli
 
 ### End-to-end tests
 
+On mobile, the Quiz keeps a scrollable question area above its sticky actions.
+Long feedback and source details scroll independently without covering answers.
+`cd web && npx playwright test --config playwright.quiz-layout.config.ts` checks
+PT/EN at 360, 390 and 1280 pixels with consent open and rejected. It creates a
+separate local build with a fictitious GA4 ID and blocks external browser requests;
+it does not require analytics credentials or replace the production artifact.
+
 Playwright's Chromium gate runs boot smoke plus pt-BR playthroughs. The gate covers game routes and privacy in pt-BR and EN.
 
 Boot for games checks HTTP 200, the shell, a setup or start CTA, and a visible board (or Grid missing+retry when the daily artifact is absent). Privacy boot checks the shell and privacy content only.

@@ -1,4 +1,5 @@
 import type { RefObject } from "preact";
+import { useLayoutEffect, useRef } from "preact/hooks";
 import type { PlayMode, QuizQuestion, QuizSession } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { ProgressHeader } from "./ProgressHeader";
@@ -51,9 +52,17 @@ export function QuizRound({
   messages,
 }: QuizRoundProps) {
   const totalQuestions = session?.questions?.length ?? 1;
+  const roundRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    if (window.matchMedia?.("(max-width: 59.999rem)").matches) {
+      roundRef.current?.querySelector(".quiz-question-card")?.scrollTo(0, 0);
+      roundRef.current?.scrollIntoView({ block: "start" });
+    }
+  }, [question.id]);
 
   return (
-    <section id="quiz" class="game-card game-card--wide quiz-round" data-testid="game-board" aria-labelledby="question-heading">
+    <section ref={roundRef} id="quiz" class="game-card game-card--wide quiz-round" data-testid="game-board" aria-labelledby="question-heading">
       <ProgressHeader
         currentIndex={questionIndex}
         totalQuestions={totalQuestions}
