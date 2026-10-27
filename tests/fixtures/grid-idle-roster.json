@@ -1,0 +1,144 @@
+{
+  "source_url": "https://en.wikipedia.org/w/index.php?curid=57057212&oldid=1374817865",
+  "revision_id": 1374817865,
+  "page_id": 57057212,
+  "group": {
+    "qid": "Q51885404",
+    "name": "I-dle"
+  },
+  "members": [
+    {
+      "qid": "Q26707915",
+      "name": "Jeon Soyeon",
+      "aliases": [
+        "Jeon So-Yeon",
+        "Jeon So-yeon",
+        "Jeon Soyeon",
+        "So-yeon",
+        "Soyeon",
+        "Soyeon Jeon",
+        "소연",
+        "전소연"
+      ],
+      "statement_id": "Q51885404$538c3691-4fe3-0134-e9ac-b33c17a6fb15",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group consists of five members: Miyeon, Minnie, Soyeon, Yuqi, and Shuhua.",
+      "locator": "wikipedia:en:pageid=57057212:revid=1374817865#extract[220:226]"
+    },
+    {
+      "qid": "Q55287305",
+      "name": "Shuhua",
+      "aliases": [
+        "Shuhua",
+        "Shuhua Yeh",
+        "Yeh Shu-hua",
+        "葉舒華",
+        "슈화",
+        "예 슈화"
+      ],
+      "statement_id": "Q51885404$22d55531-4659-638b-915e-220df835604d",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group consists of five members: Miyeon, Minnie, Soyeon, Yuqi, and Shuhua.",
+      "locator": "wikipedia:en:pageid=57057212:revid=1374817865#extract[238:244]"
+    },
+    {
+      "qid": "Q56761923",
+      "name": "Minnie",
+      "aliases": [
+        "Minnie",
+        "Minnie Nicha Yontararak",
+        "니차 욘뜨라락",
+        "민니"
+      ],
+      "statement_id": "Q51885404$d1241c04-416f-289f-03a9-bfc0452a7476",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group consists of five members: Miyeon, Minnie, Soyeon, Yuqi, and Shuhua.",
+      "locator": "wikipedia:en:pageid=57057212:revid=1374817865#extract[212:218]"
+    },
+    {
+      "qid": "Q55287306",
+      "name": "Song Yuqi",
+      "aliases": [
+        "Song Yuqi",
+        "Sòng Yǔqí",
+        "Yuqi",
+        "宋雨琦",
+        "송우기",
+        "쑹위치",
+        "우기"
+      ],
+      "statement_id": "Q51885404$222c1036-4f82-d27d-22c0-e039760d353d",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group consists of five members: Miyeon, Minnie, Soyeon, Yuqi, and Shuhua.",
+      "locator": "wikipedia:en:pageid=57057212:revid=1374817865#extract[228:232]"
+    },
+    {
+      "qid": "Q56259927",
+      "name": "Cho Mi-yeon",
+      "aliases": [
+        "Cho Mi-yeon",
+        "Cho Miyeon",
+        "Miyeon",
+        "미연",
+        "조미연"
+      ],
+      "statement_id": "Q51885404$526984a6-43f9-588a-de55-12b333b94fbb",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group consists of five members: Miyeon, Minnie, Soyeon, Yuqi, and Shuhua.",
+      "locator": "wikipedia:en:pageid=57057212:revid=1374817865#extract[204:210]"
+    },
+    {
+      "qid": "Q61100297",
+      "name": "Soojin",
+      "aliases": [
+        "Seo Soo-jin",
+        "Soojin",
+        "서수진",
+        "서탱",
+        "수진"
+      ],
+      "statement_id": "Q51885404$66068ced-45d3-a8dd-763a-49aaff1f24c3",
+      "valid_from": "2018",
+      "valid_from_precision": 9,
+      "valid_to": "2021",
+      "valid_to_precision": 9,
+      "flags": [
+        "validity_not_evidenced",
+        "validity_precision_below_day"
+      ],
+      "snippet": "(G)I-dle was originally a sextet ensemble; member Soojin departed the group on August 14, 2021.",
+      "locator": "wikipedia:en:pageid=57057212:revid=1374817865#extract[296:302]"
+    }
+  ],
+  "license": "Wikipedia extract: CC BY-SA; Wikidata identities and qualifiers: CC0."
+}

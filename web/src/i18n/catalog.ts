@@ -236,6 +236,7 @@ export interface Messages {
   gridCategoryAgency: string;
   gridCategoryMembers: string;
   gridDailyMissing: string;
+  gridCorrected: string;
   connectionsTitle: string;
   connectionsEyebrow: string;
   connectionsIntro: string;
@@ -622,6 +623,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCategoryDebut: "Estreia",
     gridCategoryAgency: "Agência",
     gridCategoryMembers: "Integrantes",
+    gridCorrected: "Este desafio foi corrigido. O progresso da versão anterior não pode ser retomado. Os novos palpites são salvos nesta versão corrigida.",
     gridDailyMissing: "A grade de hoje não pôde ser gerada ou está temporariamente indisponível.",
     connectionsTitle: "Conexões de K-pop",
     connectionsEyebrow: "4 categorias · 16 nomes",
@@ -1071,6 +1073,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCategoryDebut: "Debut",
     gridCategoryAgency: "Agency",
     gridCategoryMembers: "Members",
+    gridCorrected: "This challenge was corrected. Progress from the previous version cannot be resumed. New guesses are saved in this corrected version.",
     gridDailyMissing: "Today's grid could not be generated or is temporarily unavailable.",
     connectionsTitle: "K-pop Connections",
     connectionsEyebrow: "4 categories · 16 names",

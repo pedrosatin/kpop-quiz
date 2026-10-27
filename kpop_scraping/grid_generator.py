@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import date
 from typing import Any, Callable, Iterable
 
+from .grid_membership import grid_member_facts
 from .grid_schema import GRID_SCHEMA_VERSION, validate_intersection_grid
 from .quiz_models import DEFAULT_REFERENCE_DATE, Entity, Evidence, Fact
 from .quiz_repository import (
@@ -468,15 +469,17 @@ def _find_mixed_axis_grid(
     return None
 
 
-def generate_intersection_grid(
+def _eligible_criteria(
     connection: sqlite3.Connection,
-    seed: str,
-    reference_date: date | None = None,
-) -> dict[str, Any]:
-    """Generate a deterministic, verified 3x3 intersection grid from local facts."""
-    if reference_date is None:
-        reference_date = DEFAULT_REFERENCE_DATE
-
+    reference_date: date,
+) -> tuple[
+    dict[str, Entity],
+    dict[str, set[str]],
+    dict[tuple[str, str], list[Evidence]],
+    dict[str, dict[str, Any]],
+    str,
+]:
+    """Return the groups each criterion admits under the current grid policy."""
     connection.row_factory = sqlite3.Row
     entities = _load_entities(connection)
     facts, _rejected = _load_facts(connection, entities)
@@ -493,8 +496,10 @@ def generate_intersection_grid(
             f"Insufficient candidate groups: found {len(candidate_groups)}, need at least 9"
         )
 
+    current_members = grid_member_facts(connection, facts, entities, reference_date)
+    grid_facts = [f for f in facts if f.predicate != "has_member"] + current_members
     group_criteria, group_evidence, all_criteria = evaluate_group_criteria(
-        facts, candidate_groups, _groups_with_complete_members(connection, facts)
+        grid_facts, candidate_groups, {f.subject.wikidata_id for f in current_members}
     )
 
     # Group entities matching each criterion
@@ -502,6 +507,51 @@ def generate_intersection_grid(
     for group_qid, crits in group_criteria.items():
         for crit_id in crits:
             criterion_groups[crit_id].add(group_qid)
+    return candidate_groups, criterion_groups, group_evidence, all_criteria, dataset_version
+
+
+def grid_incompatibility(connection: sqlite3.Connection, grid: dict[str, Any]) -> str | None:
+    """Return why a published grid fails the current eligibility policy, or None.
+
+    Structural validity does not show that each answer is still admitted by its
+    row and column criteria, for example after member counts stopped counting
+    former members. The check uses the grid's own reference date and never
+    adds answers; newer eligible groups are not a reason to replace a grid.
+    """
+    try:
+        reference_date = date.fromisoformat(grid["reference_date"])
+        _, criterion_groups, _, all_criteria, _ = _eligible_criteria(connection, reference_date)
+        for axis in ("row_criteria", "col_criteria"):
+            for criterion in grid[axis]:
+                if criterion["id"] not in all_criteria:
+                    return f"{axis} criterion {criterion['id']!r} is no longer defined"
+        for cell in grid["cells"]:
+            row_id = grid["row_criteria"][cell["row_index"]]["id"]
+            col_id = grid["col_criteria"][cell["col_index"]]["id"]
+            admitted = criterion_groups[row_id] & criterion_groups[col_id]
+            rejected = sorted(set(cell["valid_entity_ids"]) - admitted)
+            if rejected or not cell["valid_entity_ids"]:
+                return (
+                    f"cell ({cell['row_index']},{cell['col_index']}) {row_id} x {col_id} "
+                    f"no longer admits {rejected or 'any answer'} under current eligibility"
+                )
+    except (KeyError, IndexError, TypeError, ValueError) as exc:
+        return f"cannot revalidate grid eligibility: {exc}"
+    return None
+
+
+def generate_intersection_grid(
+    connection: sqlite3.Connection,
+    seed: str,
+    reference_date: date | None = None,
+) -> dict[str, Any]:
+    """Generate a deterministic, verified 3x3 intersection grid from local facts."""
+    if reference_date is None:
+        reference_date = DEFAULT_REFERENCE_DATE
+
+    candidate_groups, criterion_groups, group_evidence, all_criteria, dataset_version = (
+        _eligible_criteria(connection, reference_date)
+    )
 
     # A criterion on an axis covers three cells, and the nine answers must be
     # distinct groups, so a criterion with fewer than three groups can never

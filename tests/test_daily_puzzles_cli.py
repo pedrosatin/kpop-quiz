@@ -47,6 +47,25 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
 
         self.assertIn("WARNING: Day published without a grid because generation failed: some error (previous grid rejected: invalid reasons)", stderr.getvalue())
 
+    def test_report_revalidated_grid_regenerated_and_removed(self):
+        base = {"reason": "cell (0,0) a x b no longer admits ['Q1']", "previous_grid_id": "old"}
+        for extra, expected in (
+            ({"action": "regenerated", "grid_id": "new"}, "replaced by grid new"),
+            ({"action": "removed", "error": "no 3x3"}, "removed because a new one could not be generated: no 3x3"),
+        ):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr), patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
+                daily_puzzles_cli.report_revalidated_grid({**base, **extra})
+            self.assertIn("Published grid old no longer meets the eligibility policy", stderr.getvalue())
+            self.assertIn(expected, stderr.getvalue())
+            self.assertIn("::warning title=Daily grid revalidated::", stdout.getvalue())
+
+    def test_report_revalidated_grid_none(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            daily_puzzles_cli.report_revalidated_grid(None)
+        self.assertEqual(stdout.getvalue() + stderr.getvalue(), "")
+
     def test_report_reused_grid_none(self):
         stdout, stderr = io.StringIO(), io.StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):

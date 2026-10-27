@@ -399,7 +399,33 @@
   column-gap: var(--space-3);
 }
 
-/* The message always takes two lines, so a verdict does not grow the bar. */
+/* Keep the instruction above the counters and the compact action on phones.
+   The shared full-width button cannot fit beside the counters in one row.
+   Reserve 123px for the two-row bar in the grid height budget. */
+@media (max-width: 420px) {
+  .word-search {
+    --ws-actions: 7.6875rem;
+  }
+
+  .word-search-actions {
+    flex-wrap: wrap;
+  }
+
+  .word-search-actions > .word-search-message:not(.visually-hidden) {
+    flex-basis: 100%;
+  }
+
+  .word-search-actions .word-search-message p {
+    display: block;
+    overflow: visible;
+  }
+
+  .word-search-actions > .btn {
+    width: auto;
+  }
+}
+
+/* Reserve two lines for the message; phone instructions can use more. */
 .word-search-message {
   display: flex;
   flex-direction: column;
