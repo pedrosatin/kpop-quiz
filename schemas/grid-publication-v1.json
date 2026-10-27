@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kpop-quiz.local/schemas/grid-publication-v1.json",
+  "title": "Daily grid publication authority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reference_date",
+    "grid_id",
+    "grid_reference_date",
+    "replaces"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "kpop-grid-publication-v1"
+    },
+    "reference_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "grid_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "grid_reference_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "replaces": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    }
+  }
+}

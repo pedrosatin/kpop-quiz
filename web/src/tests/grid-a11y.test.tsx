@@ -182,7 +182,7 @@ describe("Automated accessibility audits with axe-core for Intersection Grid", (
   it("validates IntersectionGrid orchestrator in ready state", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify(validGridJson)))
+      vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(validGridJson)))
     );
 
     const { container, findByRole } = render(

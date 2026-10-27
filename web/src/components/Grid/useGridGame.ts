@@ -102,7 +102,18 @@ function createEmptyCells(): Record<string, GridStoredCell> {
   return cells;
 }
 
+function restoreGame(grid: IntersectionGrid) {
+  const saved = loadSavedGrid(grid);
+  const cells = saved?.cells ?? createEmptyCells();
+  const guesses = saved?.guessesUsed ?? 0;
+  const gaveUp = saved?.gaveUp === true;
+  const usedIds = new Set(Object.values(cells).flatMap((cell) => cell.solved && cell.entityId ? [cell.entityId] : []));
+  const status: GridGameStatus = isFinished(cells, guesses) || gaveUp ? "complete" : "ready";
+  return { cells, guesses, gaveUp, usedIds, status };
+}
+
 export function useGridGame(locale: Locale, baseUrl?: string) {
+  const [corrected, setCorrected] = useState(false);
   const [grid, setGrid] = useState<IntersectionGrid | null>(null);
   const [status, setStatus] = useState<GridGameStatus>("loading");
   const [errorKind, setErrorKind] = useState<"missing" | "invalid" | undefined>();
@@ -121,18 +132,16 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     setErrorKind(undefined);
     try {
       const data = await loadIntersectionGrid(locale, baseUrl);
-      const saved = loadSavedGrid(data);
-      const restoredCells = saved?.cells ?? createEmptyCells();
-      const restoredGuesses = saved?.guessesUsed ?? 0;
-      const restoredGaveUp = saved?.gaveUp === true;
-      setCells(restoredCells);
-      setGuessesUsed(restoredGuesses);
-      setGaveUp(restoredGaveUp);
-      setUsedEntityIds(new Set(Object.values(restoredCells).flatMap((c) => (c.solved && c.entityId ? [c.entityId] : []))));
+      setCorrected(data.corrected);
+      const restored = restoreGame(data);
+      setCells(restored.cells);
+      setGuessesUsed(restored.guesses);
+      setGaveUp(restored.gaveUp);
+      setUsedEntityIds(restored.usedIds);
       setSelectedCell(null);
       setUniquenessError(null);
       setGrid(data);
-      setStatus(isFinished(restoredCells, restoredGuesses) || restoredGaveUp ? "complete" : "ready");
+      setStatus(restored.status);
     } catch (err) {
       if (err instanceof GridArtifactError) {
         setErrorKind(err.kind);
@@ -249,6 +258,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   }, [grid]);
 
   return {
+    corrected,
     grid,
     status,
     errorKind,
