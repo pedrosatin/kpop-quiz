@@ -362,6 +362,7 @@ describe("WordSearch end of puzzle", () => {
     select(found);
 
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
 
     expect(screen.getByRole("heading", { level: 2, name: pt.resultTitle })).toBeInTheDocument();
     expect(screen.queryByTestId("found-counter")).not.toBeInTheDocument();
@@ -384,6 +385,33 @@ describe("WordSearch end of puzzle", () => {
       expect(hrefs).toContain(`https://www.wikidata.org/wiki/${word.id}`);
       for (const evidence of word.evidence) expect(hrefs).toContain(evidence.source_url);
     }
+  });
+
+  it("asks for confirmation before giving up and keeps the board on cancel or Escape", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: pt.resultTitle })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+    expect(screen.getByTestId("found-counter")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
+
+  it("shows English give-up confirmation copy on word search", () => {
+    render(<WordSearchGame locale="en" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Give up" }));
+    expect(screen.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(screen.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Give up" })).toBeInTheDocument();
   });
 
   it("restores a finished puzzle without moving focus", () => {

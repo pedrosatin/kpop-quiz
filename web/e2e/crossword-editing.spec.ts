@@ -178,6 +178,7 @@ for (const [locale, t] of Object.entries(locales)) {
     await expect(board.locator('input')).toHaveCount(11);
     if (await page.locator('.consent-banner').isVisible()) await page.getByRole('button', { name: t.reject, exact: true }).click();
     await board.getByRole('button', { name: locale === 'pt' ? 'Revelar respostas' : 'Reveal answers', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: locale === 'pt' ? 'Sim, revelar' : 'Yes, reveal', exact: true }).click();
     const title = locale === 'pt' ? 'Respostas reveladas' : 'Answers revealed';
     await expect(board.getByRole('heading', { name: title })).toBeFocused();
     await expect(board.locator('input:enabled')).toHaveCount(0);

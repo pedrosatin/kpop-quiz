@@ -297,6 +297,7 @@ describe("map pilot saved progress", () => {
   it("keeps the result after giving up before the first answer and reloading", () => {
     const first = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     fireEvent.click(first.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(first.getByRole("button", { name: "Sim, desistir" }));
     expect(first.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
     expect(stored()).toEqual({ events: eventIds, answers: [], index: round.length });
     first.unmount();
@@ -565,6 +566,7 @@ describe("map pilot result", () => {
   it("completes the round on give-up and reviews every correct country", () => {
     const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     fireEvent.click(view.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(view.getByRole("button", { name: "Sim, desistir" }));
 
     const title = view.getByRole("heading", { name: "Rodada concluída" });
     expect(title).toHaveAccessibleDescription("0 de 10 certas.");
@@ -584,6 +586,32 @@ describe("map pilot result", () => {
       expect(items[index]).toHaveTextContent(`País correto: ${label(event.country_iso_3166_1)}`);
       expect(items[index]).toHaveTextContent("Sua resposta: Sem resposta");
     }
+  });
+
+  it("asks for confirmation before giving up and keeps the round on cancel or Escape", () => {
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    fireEvent.click(view.getByRole("button", { name: "Desistir" }));
+    expect(view.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(view.queryByRole("heading", { name: "Rodada concluída" })).toBeNull();
+
+    fireEvent.click(view.getByRole("button", { name: "Cancelar" }));
+    expect(view.queryByRole("dialog", { name: "Desistir da partida?" })).toBeNull();
+    expect(view.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(view.queryByRole("dialog", { name: "Desistir da partida?" })).toBeNull();
+    expect(view.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
+
+  it("shows English give-up confirmation copy on map pilot", () => {
+    const view = render(<MapPilotGame locale="en" seedDate={DATE} />);
+    fireEvent.click(view.getByRole("button", { name: "Give up" }));
+    expect(view.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(view.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(view.getByRole("button", { name: "Cancel" }));
+    expect(view.queryByRole("dialog")).toBeNull();
+    expect(view.getByRole("button", { name: "Give up" })).toBeInTheDocument();
   });
 
   it("lists every date with both answers and its sources behind Ver fonte", () => {

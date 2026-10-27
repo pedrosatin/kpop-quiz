@@ -169,6 +169,12 @@ export interface Messages {
   giveUpConfirmBody: string;
   /** Confirm button inside the give-up dialog (distinct from the trigger). */
   giveUpConfirmAction: string;
+  /** Title of the terminal reveal confirmation dialog (crossword). */
+  revealConfirmTitle: string;
+  /** Body of the terminal reveal confirmation dialog. */
+  revealConfirmBody: string;
+  /** Confirm button inside the reveal dialog. */
+  revealConfirmAction: string;
   /** Generic cancel label for confirmation dialogs. */
   cancel: string;
   chooseAnswer: string;
@@ -563,6 +569,9 @@ const catalogs: Record<Locale, Messages> = {
     giveUpConfirmTitle: "Desistir da partida?",
     giveUpConfirmBody: "Você perde o progresso desta partida.",
     giveUpConfirmAction: "Sim, desistir",
+    revealConfirmTitle: "Revelar as respostas?",
+    revealConfirmBody: "Você encerra a partida e vê todas as respostas.",
+    revealConfirmAction: "Sim, revelar",
     cancel: "Cancelar",
     chooseAnswer: "Escolha uma resposta para continuar.",
     submitHint: "Escolha uma alternativa e confirme em Responder.",
@@ -1017,6 +1026,9 @@ const catalogs: Record<Locale, Messages> = {
     giveUpConfirmTitle: "Give up this game?",
     giveUpConfirmBody: "You will lose your progress in this game.",
     giveUpConfirmAction: "Yes, give up",
+    revealConfirmTitle: "Reveal the answers?",
+    revealConfirmBody: "You will end this game and see every answer.",
+    revealConfirmAction: "Yes, reveal",
     cancel: "Cancel",
     chooseAnswer: "Choose an answer to continue.",
     submitHint: "Pick an option and confirm with Submit answer.",
