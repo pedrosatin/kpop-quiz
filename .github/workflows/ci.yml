@@ -12,19 +12,23 @@ on:
     paths-ignore:
       - "web/public/data/**"
       - "data/map-pilot/**"
+      - "**.md"
+      - "docs/**"
+      - ".scratch/**"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   verify:
     name: Verify Python & Web
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -60,9 +64,9 @@ jobs:
   code-feedback:
     name: Code feedback (${{ matrix.environment }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         include:
           - environment: banner
@@ -96,6 +100,11 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run build
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
       - run: npx playwright install --with-deps chromium
       - name: Verify feedback and the explicit consent contract
         env:
