@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { test, expect } from "./fixtures/consent";
 import { ConnectionsPage } from "./pages/connections.page";
 import { joinBaseUrl } from "../src/lib/join-base-url";
@@ -9,6 +10,14 @@ const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 800 },
   { name: "mobile", width: 390, height: 844 },
 ] as const;
+
+// The 2026-10-26 board publishes the pt-BR label "shinee" (Q269836), frozen
+// from the daily publication like the legacy grid fixture. The daily artifact
+// rotates, so serving the frozen board keeps this test independent of which
+// puzzle happens to be published today.
+const shineeBoard = JSON.parse(
+  readFileSync(new URL("../src/tests/fixtures/connections.published-shinee-20261026.json", import.meta.url), "utf8"),
+) as { reference_date: string };
 
 // Visible names on the Connections board, per locale and viewport, and again
 // after a reload (the board is rebuilt from the artifact, not from memory).
@@ -62,6 +71,7 @@ for (const lag of ["normal", "delayed effects"] as const) {
 for (const viewport of VIEWPORTS) {
   test(`pt connections ${viewport.name}: the published shinee reads SHINee, f(x) and TXT stay as published`, async ({ page, baseURL }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.route("**/data/connections.daily.json", (request) => request.fulfill({ json: shineeBoard }));
     await page.route("**/data/next/connections.daily.json", (request) => request.fulfill({ status: 404, body: "missing" }));
     const connections = new ConnectionsPage(page, baseURL!);
     await connections.open();
