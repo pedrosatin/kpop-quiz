@@ -2,6 +2,7 @@ import { test, expect } from "./fixtures/consent";
 import { ConnectionsPage } from "./pages/connections.page";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { expectBoardDirectReady } from "./helpers/boot";
+import { NameGuessPage } from "./pages/name-guess.page";
 
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 800 },
@@ -65,5 +66,19 @@ for (const viewport of VIEWPORTS) {
     await expect(board.getByRole("button", { name: /^shinee,/ })).toHaveCount(0);
     await expect(board.getByRole("button", { name: /^f\(x\),/ })).toBeVisible();
     await expect(board.getByRole("button", { name: /^TXT,/ })).toBeVisible();
+  });
+}
+
+// Name Guess shows one target, so its answer keeps the label as published.
+for (const viewport of VIEWPORTS) {
+  test(`pt name guess ${viewport.name}: the revealed answer is the published label, also after reload`, async ({ page, baseURL }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const nameGuess = new NameGuessPage(page, baseURL!);
+    await nameGuess.open();
+    await nameGuess.loseWithWrongGuesses();
+    await nameGuess.expectRevealedLabel("pt-BR");
+    await page.reload();
+    await expectBoardDirectReady(page);
+    await nameGuess.expectRevealedLabel("pt-BR");
   });
 }

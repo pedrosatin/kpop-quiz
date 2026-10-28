@@ -86,9 +86,10 @@ export function NameGuessResults({
   const details = useRef<HTMLDivElement>(null);
   const won = status === "won";
   const target = puzzle.target;
-  // The artifact label already went through the generator's catalog-wide
-  // homonym check; only the target is published, so the page cannot strip a
-  // suffix again without peers.
+  // The artifact publishes the label as the source gave it, and its puzzle_id
+  // covers it. Only the target is shown, so there are no peers to prove the
+  // short form unique: a Wikipedia note stays (see `alignLoneLabel`) and only
+  // a reviewed override changes the spelling.
   const targetDisplayName = alignLoneLabel(
     target.labels[locale],
     target.canonical_name,

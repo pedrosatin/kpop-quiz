@@ -10,7 +10,6 @@ from collections import defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, Iterable
 
-from .display_names import resolve_display_labels
 from .name_guess_schema import (
     NAME_GUESS_SCHEMA_VERSION,
     normalize_name,
@@ -206,50 +205,6 @@ def _extract_clues_and_evidence(
     return clues, serialized_evidence
 
 
-def _raw_target_labels(target: Entity) -> dict[str, str]:
-    """Labels as published by the sources; they feed the puzzle identity."""
-    return {
-        "pt-BR": (
-            target.names.get("pt") or target.names.get("pt-BR") or target.canonical_name
-        ),
-        "en": target.names.get("en") or target.canonical_name,
-    }
-
-
-def _display_target_labels(
-    target: Entity, entities: dict[int, Entity]
-) -> dict[str, str]:
-    """Display labels for the target, checked against every catalog entity.
-
-    The page shows only the target, so the homonym guard cannot rely on labels
-    published together: a suffix like " (band)" is dropped only when no other
-    entity in the catalog would end up with the same short form.
-    """
-    ordered = sorted(entities.values(), key=lambda entity: entity.wikidata_id)
-    index = next(
-        i for i, entity in enumerate(ordered) if entity.wikidata_id == target.wikidata_id
-    )
-    pt_labels = resolve_display_labels(
-        [
-            (
-                entity.names.get("pt") or entity.names.get("pt-BR"),
-                entity.canonical_name,
-                entity.wikidata_id,
-            )
-            for entity in ordered
-        ],
-        "pt-BR",
-    )
-    en_labels = resolve_display_labels(
-        [
-            (entity.names.get("en"), entity.canonical_name, entity.wikidata_id)
-            for entity in ordered
-        ],
-        "en",
-    )
-    return {"pt-BR": pt_labels[index], "en": en_labels[index]}
-
-
 def generate_name_guess_puzzle(
     connection: sqlite3.Connection,
     seed: str,
@@ -350,7 +305,14 @@ def generate_name_guess_puzzle(
         "id": target_entity.wikidata_id,
         "canonical_name": target_entity.canonical_name,
         "normalized_name": target_normalized,
-        "labels": _display_target_labels(target_entity, entities),
+        "labels": {
+            "pt-BR": (
+                target_entity.names.get("pt")
+                or target_entity.names.get("pt-BR")
+                or target_entity.canonical_name
+            ),
+            "en": target_entity.names.get("en") or target_entity.canonical_name,
+        },
         "entity_type": (
             target_entity.entity_type
             if target_entity.entity_type in {"group", "person"}
@@ -362,14 +324,12 @@ def generate_name_guess_puzzle(
 
     reference_date_str = reference_date.isoformat()
 
-    # The id names the puzzle (saves are keyed by it), so it is derived from the
-    # sources' labels. Display cleanup is cosmetic and must not move it.
     hashable_payload = {
         "dataset_version": dataset_version,
         "max_attempts": max_attempts,
         "reference_date": reference_date_str,
         "schema_version": NAME_GUESS_SCHEMA_VERSION,
-        "target": {**target_payload, "labels": _raw_target_labels(target_entity)},
+        "target": target_payload,
         "valid_guesses": valid_guesses,
         "word_length": chosen_length,
     }
