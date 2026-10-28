@@ -116,6 +116,11 @@ export interface Messages {
   quizReplayUnavailable: string;
   /** General quiz: exactly ten eligible questions, so replay repeats the set. */
   quizReplayRepeats: string;
+  /**
+   * General quiz: catalog absent, so the round uses the published legacy
+   * session and "Play again" repeats those same questions.
+   */
+  quizReplayLegacyRepeats: string;
   consentLabel: string;
   consentText: string;
   consentAccept: string;
@@ -483,6 +488,7 @@ const catalogs: Record<Locale, Messages> = {
     empty: "Este quiz ainda não tem perguntas.",
     quizReplayUnavailable: "Não há perguntas suficientes para esta combinação de idioma, modo e filtros.",
     quizReplayRepeats: "Só há dez perguntas elegíveis nesta combinação; jogar novamente repete o mesmo conjunto.",
+    quizReplayLegacyRepeats: "O catálogo de perguntas novas ainda não está disponível; jogar novamente usa as mesmas perguntas publicadas.",
     consentLabel: "Preferências de privacidade",
     consentText:
       "Usamos o Cloudflare Web Analytics para medir o uso do site sem cookies. Se você aceitar, o Google Analytics também vai usar cookies e identificadores para gerar estatísticas de audiência.",
@@ -954,6 +960,7 @@ const catalogs: Record<Locale, Messages> = {
     empty: "This quiz has no questions yet.",
     quizReplayUnavailable: "There are not enough questions for this language, mode and filter combination.",
     quizReplayRepeats: "Only ten eligible questions exist for this combination; playing again repeats the same set.",
+    quizReplayLegacyRepeats: "The new-question catalog is not available yet; playing again uses the same published questions.",
     consentLabel: "Privacy preferences",
     consentText:
       "We use Cloudflare Web Analytics to measure site usage without cookies. If you accept, Google Analytics will also use cookies and identifiers to produce audience statistics.",

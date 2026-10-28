@@ -102,3 +102,43 @@ test("corrupted catalog manifest yields a clear invalid state", async ({ page, b
   await page.goto(joinBaseUrl(baseURL!, "/pt-br/"));
   await expect(page.getByText(/Não foi possível ler os dados deste jogo/)).toBeVisible({ timeout: 30_000 });
 });
+
+for (const locale of [
+  {
+    id: "pt",
+    path: "/pt-br/",
+    start: "Começar partida",
+    submit: "Responder",
+    next: /Próxima pergunta|Ver resultado/,
+    restart: "Jogar novamente",
+    notice: /catálogo de perguntas novas ainda não está disponível/,
+  },
+  {
+    id: "en",
+    path: "/en/",
+    start: "Start game",
+    submit: "Submit answer",
+    next: /Next question|See results/,
+    restart: "Play again",
+    notice: /new-question catalog is not available yet/,
+  },
+] as const) {
+  test(`missing catalog falls back to legacy sessions with a repeat notice (${locale.id})`, async ({ page, baseURL }) => {
+    test.setTimeout(90_000);
+    await page.route("**/data/catalog-manifest-v1.json", (route) =>
+      route.fulfill({ status: 404, body: "" }),
+    );
+    await page.route("**/data/catalog.*", (route) =>
+      route.fulfill({ status: 404, body: "" }),
+    );
+    await page.goto(joinBaseUrl(baseURL!, locale.path));
+    await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
+    await expect(page.getByTestId("quiz-replay-notice")).toHaveText(locale.notice);
+    await page.getByTestId("game-start").click();
+    await answerAll(page, locale.submit, locale.next);
+    await expect(page.getByTestId("game-result")).toBeVisible();
+    await expect(page.getByTestId("quiz-replay-notice")).toHaveText(locale.notice);
+    await page.getByRole("button", { name: locale.restart }).click();
+    await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
+  });
+}

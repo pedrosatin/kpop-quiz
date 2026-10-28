@@ -111,6 +111,8 @@ describe("catalog session selection", () => {
     expect(round.session.config.language).toBe("pt-BR");
     expect(round.session.config.play_mode).toBe("assisted");
     expect(round.availableDecades).toEqual([2000]);
+    expect(round.session.catalog_version).toBe(round.catalogVersion);
+    expect(round.session.catalog_version).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("avoids the immediately previous semantic set when another combination exists", async () => {

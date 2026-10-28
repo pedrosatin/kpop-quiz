@@ -14,9 +14,66 @@ import expertSession from "../../tests/fixtures/session.pt-BR.expert.987d0b408eb
 import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c1ff312324883f8b724318e6bf7c132293eb9ee53ff8f8e0e5c2072562738f4.json";
 import manifest from "../../tests/fixtures/manifest-v2.json";
 import { clearCatalogCache } from "../../data/catalog-loader";
+import { buildQuizProgressEnvelope } from "./storage";
 
 const CATALOG_DIR = path.resolve(__dirname, "../../tests/fixtures/catalog");
 const catalogManifest = JSON.parse(fs.readFileSync(path.join(CATALOG_DIR, "catalog-manifest-v1.json"), "utf-8"));
+
+async function sha256Hex(bytes: Uint8Array | string): Promise<string> {
+  const data = typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes;
+  const digest = await crypto.subtle.digest("SHA-256", data as BufferSource);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** Serve a catalog whose pt-BR.standard pool has exactly ten questions (repeats). */
+async function mockCatalogFetchWithTenEligible() {
+  const files = new Map<string, Uint8Array | string>();
+  for (const name of fs.readdirSync(CATALOG_DIR)) {
+    files.set(name, fs.readFileSync(path.join(CATALOG_DIR, name)));
+  }
+  const catalogMan = structuredClone(catalogManifest) as Record<string, any>;
+  const key = "pt-BR.standard";
+  const entry = catalogMan.shards[key];
+  const shard = JSON.parse(Buffer.from(files.get(entry.path) as Buffer).toString("utf-8"));
+  shard.questions = shard.questions.slice(0, 10);
+  shard.pools = {
+    all: shard.questions.map((_: unknown, index: number) => index),
+    "decade.1990": [],
+    "decade.2000": shard.questions.map((_: unknown, index: number) => index),
+    "decade.2010": [],
+    "decade.2020": [],
+  };
+  const bytes = new TextEncoder().encode(`${JSON.stringify(shard)}\n`);
+  entry.sha256 = await sha256Hex(bytes);
+  entry.path = `catalog.${key}.${entry.sha256}.json`;
+  entry.questions = 10;
+  entry.pools = {
+    all: 10, "decade.1990": 0, "decade.2000": 10, "decade.2010": 0, "decade.2020": 0,
+  };
+  files.set(entry.path, bytes);
+  const versionLines = [
+    "kpop-quiz-catalog-manifest-v1",
+    catalogMan.dataset_version,
+    ...Object.keys(catalogMan.shards).sort().map((shardKey) => `${shardKey}:${catalogMan.shards[shardKey].sha256}`),
+  ];
+  catalogMan.catalog_version = await sha256Hex(versionLines.join("\n"));
+  const legacyManifest = structuredClone(manifest) as Record<string, any>;
+
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    const name = url.split("/data/")[1] ?? "";
+    if (name === "catalog-manifest-v1.json") return new Response(JSON.stringify(catalogMan));
+    if (files.has(name)) {
+      const body = files.get(name)!;
+      return new Response(typeof body === "string" ? body : new Uint8Array(body));
+    }
+    if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
+    if (url.endsWith("manifest-v2.json")) return new Response(JSON.stringify(legacyManifest));
+    if (url.includes("pt-BR.assisted")) return new Response(`${JSON.stringify(assistedSession)}\n`);
+    if (url.includes("pt-BR.expert")) return new Response(`${JSON.stringify(expertSession)}\n`);
+    if (url.includes("pt-BR")) return new Response(`${JSON.stringify(ptSession)}\n`);
+    return new Response(`${JSON.stringify(enSession)}\n`);
+  }));
+}
 
 function mockSessionFetch(customPtSession?: any) {
   const testManifest = structuredClone(manifest) as Record<string, any>;
@@ -186,6 +243,51 @@ describe("Quiz", () => {
     const requested = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map(([url]) => url);
     expect(requested.some((url) => url.includes("catalog-manifest"))).toBe(true);
     expect(requested.some((url) => url.includes("manifest-v2.json") || url.includes("session."))).toBe(true);
+  });
+
+  it("shows the legacy repeat notice when the catalog is absent", async () => {
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await waitForSetupReady();
+    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
+      /catálogo de perguntas novas ainda não está disponível/,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    for (let index = 0; index < ptSession.questions.length; index += 1) {
+      fireEvent.click(screen.getAllByRole("radio")[0]!);
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      const isLast = index === ptSession.questions.length - 1;
+      advanceClock();
+      fireEvent.click(screen.getByRole("button", { name: isLast ? "Ver resultado" : "Próxima pergunta" }));
+    }
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
+      /catálogo de perguntas novas ainda não está disponível/,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+    await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
+    // Restart on the legacy path keeps the same published set with the notice.
+  });
+
+  it("shows the catalog repeat notice when exactly ten questions are eligible", async () => {
+    await mockCatalogFetchWithTenEligible();
+    render(<Quiz locale="pt-BR" />);
+    await waitForSetupReady();
+    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
+      /Só há dez perguntas elegíveis/,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    for (let index = 0; index < 10; index += 1) {
+      fireEvent.click(screen.getAllByRole("radio")[0]!);
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      const isLast = index === 9;
+      advanceClock();
+      fireEvent.click(screen.getByRole("button", { name: isLast ? "Ver resultado" : "Próxima pergunta" }));
+    }
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
+      /Só há dez perguntas elegíveis/,
+    );
   });
 
   it("charges the declared cost when standard mode reveals a clue", async () => {
@@ -499,8 +601,8 @@ describe("Quiz", () => {
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     expect(await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
     expect(legacyManifestRequests).toBe(2);
-    // catalog probe + v3 + v2 (miss), then retry: catalog + v3 + v2 + session
-    expect(fetch.mock.calls.length).toBeGreaterThanOrEqual(7);
+    // catalog probe + v3 + v2 (miss), then retry: catalog + v3 + v2 + session = 7
+    expect(fetch).toHaveBeenCalledTimes(7);
   });
 
   it("completes all questions, displays results, and restarts the round", async () => {
@@ -783,20 +885,61 @@ describe("Quiz", () => {
   });
 
   it("keeps the daily quiz on the published session without reading catalog shards", async () => {
-    await act(async () => { await Promise.resolve(); });
     window.history.replaceState(null, "", "/?theme=daily&mode=standard");
-    mockCatalogFetch();
-    const fetchMock = fetch as unknown as { mock: { calls: [string][] } };
-    const callsBefore = fetchMock.mock.calls.length;
+    const dailyRaw = `${JSON.stringify(dailyPtSession)}\n`;
+    const dailyHash = createHash("sha256").update(dailyRaw).digest("hex");
+    const testManifest = structuredClone(manifest) as Record<string, any>;
+    for (const locale of ["pt-BR", "en"]) {
+      for (const mode of ["assisted", "standard", "expert"]) {
+        testManifest.sessions[`daily.${locale}.${mode}`] = {
+          path: `session.daily.${locale}.${mode}.${dailyHash}.json`,
+          sha256: dailyHash,
+          session_id: dailyPtSession.session_id,
+        };
+      }
+    }
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("catalog-manifest") || /\/catalog\./.test(url)) {
+        return new Response(null, { status: 404 });
+      }
+      if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
+      if (url.endsWith("manifest-v2.json")) return new Response(JSON.stringify(testManifest));
+      if (url.includes("session.daily")) return new Response(dailyRaw);
+      return new Response(`${JSON.stringify(ptSession)}\n`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    // Absorb orphan catalog shard requests still resolving from the previous
+    // catalog case (manifest already done; shard fetch can land after unstub).
+    for (let quiet = 0; quiet < 3; ) {
+      const before = fetchMock.mock.calls.length;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      quiet = fetchMock.mock.calls.length === before ? quiet + 1 : 0;
+    }
+    fetchMock.mockClear();
     render(<Quiz locale="pt-BR" />);
     await waitForSetupReady();
-    const requested = fetchMock.mock.calls.slice(callsBefore).map(([url]) => url);
-    // Daily must not open the catalog path (no manifest probe). A leftover shard
-    // request from a prior test's in-flight fetch is ignored here.
-    expect(requested.some((url) => url.includes("catalog-manifest"))).toBe(false);
+    const requested = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requested.some((url) => url.includes("catalog-manifest") || /\/catalog\./.test(url))).toBe(false);
     expect(requested.some((url) => url.includes("session.daily"))).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     expect(await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt })).toBeInTheDocument();
+  });
+
+  it("includes catalog_version in the Q04 progress envelope for catalog rounds", async () => {
+    mockCatalogFetch();
+    const { selectCatalogRound } = await import("../../data/catalog-session");
+    const round = await selectCatalogRound({
+      locale: "pt-BR", playMode: "standard", avoidPrevious: false, baseUrl: "/",
+    });
+    const envelope = buildQuizProgressEnvelope(round.session, "catalog");
+    expect(envelope.catalog_version).toBe(round.catalogVersion);
+    expect(envelope.session_source).toBe("catalog");
+    expect(envelope.session_id).toBe(round.session.session_id);
+    const publishedEnvelope = buildQuizProgressEnvelope(ptSession as typeof round.session, "published");
+    expect(publishedEnvelope.catalog_version).toBeUndefined();
+    expect(publishedEnvelope.session_source).toBe("published");
   });
 
   it("shows unavailability for a decade filter with fewer than ten catalog questions", async () => {

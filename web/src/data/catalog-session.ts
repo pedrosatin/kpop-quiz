@@ -228,6 +228,7 @@ export async function buildCatalogSession(
     schema_version: SESSION_SCHEMA,
     dataset_version: catalog.datasetVersion,
     session_id: sessionId,
+    catalog_version: catalog.catalogVersion,
     config,
     questions: selected,
   };

@@ -28,6 +28,8 @@ import {
 } from "../../lib/player-stats";
 
 type SessionSource = "catalog" | "published";
+/** UI notice for the next replay: catalog pool of exactly ten, or legacy fallback. */
+type ReplayNotice = "ok" | "repeats" | "legacy-repeats" | null;
 
 export { groupEvidence };
 
@@ -55,7 +57,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const [hydrated, setHydrated] = useState(false);
   const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
   const [sessionSource, setSessionSource] = useState<SessionSource>("published");
-  const [replayStatus, setReplayStatus] = useState<"ok" | "repeats" | null>(null);
+  const [replayStatus, setReplayStatus] = useState<ReplayNotice>(null);
 
   const analytics = useGameAnalytics({ game: "quiz", locale, mode: playMode }, state === "results");
 
@@ -120,7 +122,8 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     available: Exclude<QuizDecadeSelection[number], null>[],
     loadedDecades: QuizDecadeSelection,
     source: SessionSource,
-    status: "ok" | "repeats" | null,
+    status: ReplayNotice,
+    nextState: QuizMachineState = "setup",
   ) => {
     if (!isQuizSession(value)) throw new Error("Invalid quiz session");
     stopTimer();
@@ -133,22 +136,31 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       setDecades(loadedDecades);
       updateUrlParams(playMode, loadedDecades.length ? "history" : theme, loadedDecades);
     }
-    resetRound(value.questions.length, value.config.timer_seconds ?? 0, "setup");
+    resetRound(value.questions.length, nextState === "question.ready" ? (timerSeconds ?? 0) : (value.config.timer_seconds ?? 0), nextState);
   };
 
-  const loadPublished = (request: number) =>
+  const isCatalogMissing = (error: unknown) =>
+    (error instanceof CatalogSelectionError && error.kind === "missing")
+    || (error instanceof CatalogArtifactError && error.kind === "missing");
+
+  const loadPublished = (
+    request: number,
+    status: ReplayNotice = null,
+    nextState: QuizMachineState = "setup",
+  ) =>
     loadQuizSessionWithAvailability(locale, playMode, theme, undefined, decades)
       .then(({ session: value, availableDecades: available, decades: loadedDecades }) => {
         if (request !== loadRequestRef.current) return;
-        applyRound(value, available, loadedDecades, "published", null);
+        applyRound(value, available, loadedDecades, "published", status, nextState);
       });
 
   const load = () => {
     const request = ++loadRequestRef.current;
     if (state !== "setup") setState("loading");
     // Daily stays on the published session of the day. General quiz prefers the
-    // validated catalog when published; a missing catalog keeps the legacy
-    // sessions. A corrupted catalog is a closed error with no unvalidated fallback.
+    // validated catalog when published. Missing catalog → legacy published
+    // sessions with an explicit repeat notice (operator decision 28/10/2026).
+    // Corrupted catalog is a closed error with no unvalidated fallback.
     const pending = theme === "daily"
       ? loadPublished(request)
       : selectCatalogRound({ locale, playMode, decades, avoidPrevious: false })
@@ -171,11 +183,8 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
             setState("unavailable");
             return;
           }
-          if (
-            (error instanceof CatalogSelectionError && error.kind === "missing")
-            || (error instanceof CatalogArtifactError && error.kind === "missing")
-          ) {
-            return loadPublished(request);
+          if (isCatalogMissing(error)) {
+            return loadPublished(request, "legacy-repeats");
           }
           throw error;
         });
@@ -183,11 +192,12 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     pending.catch((error) => {
       if (request !== loadRequestRef.current) return;
       if (error instanceof CatalogSelectionError) {
-        setState(error.kind === "unavailable" ? "unavailable" : error.kind === "missing" ? "missing" : "invalid");
+        // Missing already fell back above; treat a stray missing as invalid path noise.
+        setState(error.kind === "unavailable" ? "unavailable" : "invalid");
         return;
       }
       if (error instanceof QuizArtifactError || error instanceof CatalogArtifactError) {
-        setState(error.kind);
+        setState(error.kind === "missing" ? "missing" : "invalid");
         return;
       }
       setState("invalid");
@@ -310,10 +320,20 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   };
 
   const restart = () => {
-    // Daily and legacy published sessions keep the same ten questions.
-    // Catalog-backed general quiz draws a new set, avoiding the previous one
-    // when another combination exists.
-    if (theme === "daily" || sessionSource !== "catalog") {
+    // Daily keeps the published day session. Legacy published rounds (catalog
+    // absent) reset the same ten with the legacy repeat notice. Catalog-backed
+    // general quiz draws a new set when another combination exists; a missing
+    // catalog on restart falls back to legacy with the same notice as load.
+    if (theme === "daily") {
+      startTimeRef.current = Date.now();
+      recordedMatchRef.current = null;
+      resetRound(session?.questions.length ?? 0, timerSeconds ?? 0, "question.ready");
+      analytics.start();
+      focusQuestionRef.current = true;
+      return;
+    }
+    if (sessionSource !== "catalog") {
+      setReplayStatus("legacy-repeats");
       startTimeRef.current = Date.now();
       recordedMatchRef.current = null;
       resetRound(session?.questions.length ?? 0, timerSeconds ?? 0, "question.ready");
@@ -326,16 +346,16 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     selectCatalogRound({ locale, playMode, decades, avoidPrevious: true })
       .then((round) => {
         if (request !== loadRequestRef.current) return;
-        if (!isQuizSession(round.session)) throw new Error("Invalid quiz session");
-        stopTimer();
-        setSession(round.session);
-        setSessionSource("catalog");
-        setReplayStatus(round.status === "repeats" ? "repeats" : "ok");
-        setAvailableDecades(round.availableDecades);
-        setLoadedRequestKey(`${locale}|${playMode}|${theme}|${decades.join(",")}`);
+        applyRound(
+          round.session,
+          round.availableDecades,
+          decades,
+          "catalog",
+          round.status === "repeats" ? "repeats" : "ok",
+          "question.ready",
+        );
         startTimeRef.current = Date.now();
         recordedMatchRef.current = null;
-        resetRound(round.session.questions.length, timerSeconds ?? 0, "question.ready");
         analytics.start();
         focusQuestionRef.current = true;
       })
@@ -345,13 +365,38 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
           setState("unavailable");
           return;
         }
+        if (isCatalogMissing(error)) {
+          loadPublished(request, "legacy-repeats", "question.ready")
+            .then(() => {
+              if (request !== loadRequestRef.current) return;
+              startTimeRef.current = Date.now();
+              recordedMatchRef.current = null;
+              analytics.start();
+              focusQuestionRef.current = true;
+            })
+            .catch((publishedError) => {
+              if (request !== loadRequestRef.current) return;
+              if (publishedError instanceof QuizArtifactError) {
+                setState(publishedError.kind);
+                return;
+              }
+              setState("invalid");
+            });
+          return;
+        }
         if (error instanceof CatalogSelectionError || error instanceof CatalogArtifactError) {
-          setState(error.kind === "missing" ? "missing" : "invalid");
+          setState("invalid");
           return;
         }
         setState("invalid");
       });
   };
+
+  const replayNotice = replayStatus === "repeats"
+    ? messages.quizReplayRepeats
+    : replayStatus === "legacy-repeats"
+      ? messages.quizReplayLegacyRepeats
+      : undefined;
 
   const revealClue = () => {
     if (!question) return;
@@ -400,7 +445,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     return (
       <GameSetup key={hydrated ? "client" : "ssr"} busy={state === "loading"} busyLabel={messages.loading}
         playMode={playMode} theme={theme} decades={decades} availableDecades={availableDecades} timerEnabled={timerEnabled} messages={messages}
-        notice={replayStatus === "repeats" ? messages.quizReplayRepeats : undefined}
+        notice={replayNotice}
         onSelectTheme={(t) => { setTheme(t); setDecades([]); updateUrlParams(playMode, t, []); }}
         onSelectDecades={(selected) => { setDecades(selected); setTheme("history"); updateUrlParams(playMode, "history", selected); }}
         onSelectMode={(mode) => { setPlayMode(mode); saveStoredPlayMode(mode); updateUrlParams(mode, theme, decades); }}
@@ -421,7 +466,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
         cluesUsedCount={history.reduce((acc, h) => acc + h.cluesUsedCount, 0)}
         playMode={playMode} history={history} headingRef={resultHeadingRef} onRestart={restart}
         dailyDate={dailyDate} feedbackEligible={!gaveUpRef.current}
-        notice={sessionSource === "catalog" && replayStatus === "repeats" ? messages.quizReplayRepeats : undefined}
+        notice={replayNotice}
       />
     );
   }
