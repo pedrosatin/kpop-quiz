@@ -8,7 +8,7 @@ Aceita
 
 2026-10-28
 
-A decisão de produto foi aceita pelo operador em 25/10/2026, após o playtest de produção, com o rascunho "ADR 025 sobre catálogo publicado, replay e retomada do Quiz". Esse número passou a ser da [ADR 025](025-manifesto-v3-pistas-relacionadas.md) (manifesto v3), publicada antes. Este registro leva o texto adiante com o número 026 e o contrato implementado na fatia Q02. Replay (Q03) e retomada (Q04) seguem pendentes.
+A decisão de produto foi aceita pelo operador em 25/10/2026, após o playtest de produção, com o rascunho "ADR 025 sobre catálogo publicado, replay e retomada do Quiz". Esse número passou a ser da [ADR 025](025-manifesto-v3-pistas-relacionadas.md) (manifesto v3), publicada antes. Este registro leva o texto adiante com o número 026 e o contrato implementado na fatia Q02. A fatia Q03 (replay) consome o catálogo no Quiz geral; a retomada (Q04) segue pendente.
 
 ## Contexto
 
@@ -45,17 +45,17 @@ Publicar um catálogo estático validado de perguntas elegíveis, versionado por
 
 - **Publicador.** Valida dataset, cada pergunta, cada shard e o manifesto antes de gravar. Grava os shards, depois o manifesto, depois apaga a geração anterior. Uma falha antes do manifesto deixa o catálogo anterior inteiro.
 - **Verificação.** `web_publish --verify` relê tudo: hash de cada shard contra o manifesto, schema, identidade, idioma, modo, versão e pools, e compara o manifesto recalculado byte a byte. Quando catálogo e sessões vêm do mesmo `dataset_version`, toda pergunta de sessão precisa estar no pool correspondente e igual à do catálogo, exceto as pistas e a ordem das opções. `--require-catalog` torna a presença obrigatória.
-- **Consumidor.** `catalog-loader.ts` confere o manifesto, o hash dos bytes antes do parse, o schema, o idioma e o modo pedidos, a versão do dataset, a data de referência, a unicidade de IDs, a ordem, os pools e a contagem declarada. Só então devolve o catálogo. Ausente: erro `missing`. Qualquer divergência: erro `invalid` com o motivo. Não há fallback para sessões, para outro manifesto ou para conteúdo não validado.
+- **Consumidor.** `catalog-loader.ts` confere o manifesto, o hash dos bytes antes do parse, o schema, o idioma e o modo pedidos, a versão do dataset, a data de referência, a unicidade de IDs, a ordem, os pools e a contagem declarada. Só então devolve o catálogo. Qualquer divergência: erro `invalid` com o motivo; não há fallback para conteúdo não validado nem para outro manifesto. **Ausente (decisão do operador em 28/10/2026):** o carregador ainda sinaliza `missing`, e o Quiz geral cai nas sessões publicadas legadas **com aviso visível de repetição** na interface (carga inicial e “Jogar novamente” simétricos). Catálogo corrompido/inválido permanece erro fechado. O diário não lê o catálogo.
 
 ### Publicação sob opção, desligada
 
 `daily_puzzles_cli --catalog` (variável de repositório `QUIZ_CATALOG` no cron) publica o catálogo; sem a opção a saída é a anterior, byte a byte. Com a opção desligada, um catálogo deixado por execução anterior é retirado, como o manifesto v3: é assim que o catálogo se desfaz sem migração. O catálogo vive só no diretório principal, nunca em `next/`, e segue o banco da execução, não o dia: um dia mantido ou promovido de `next/` conserva as sessões, enquanto o catálogo não guarda histórico. Mantém-se uma geração; os shards substituídos saem na publicação.
 
-O replay do Quiz não usa o catálogo nesta fatia e continua desativado.
+### Replay no Quiz geral (Q03)
 
-### Preservado do rascunho aceito
+O Quiz geral (`history` e filtros de década) monta a partida a partir do catálogo quando `catalog-manifest-v1.json` está publicado: dez `semantic_id` distintos, restritos ao idioma, modo e filtros escolhidos, com opções embaralhadas pela mesma regra de `create_session`. O replay evita o conjunto semanticamente igual ao imediatamente anterior quando existe outra combinação; só mudar a ordem não conta. Com exatamente dez elegíveis, a interface avisa que a partida repetirá o conjunto; com menos de dez, informa indisponibilidade sem duplicatas nem troca de filtro. O diário continua na sessão publicada do dia e não lê o catálogo. A identidade da partida de catálogo inclui `catalog_version`, configuração e ids das perguntas selecionadas, para estatísticas idempotentes na mesma seleção e distintas entre seleções. Catálogo ausente no Quiz geral volta às sessões publicadas legadas **com aviso de repetição na UI** (decisão do operador em 28/10/2026; vale na carga e no restart). Catálogo corrompido é erro fechado, sem fallback para conteúdo não validado. A partida montada do catálogo inclui `catalog_version` de forma aditiva na sessão em memória (e no envelope de progresso de Q04), sem alterar o schema publicado das sessões legadas. A implementação vive em `web/src/data/catalog-session.ts` e no carregamento do `Quiz`.
 
-O replay geral evita repetir o conjunto imediatamente anterior quando existir outra combinação elegível. Embaralhar a ordem das mesmas dez não satisfaz esse requisito. Não há promessa de dez perguntas inéditas por rodada. O diário mantém a mesma identidade e seleção do dia. A sessão selecionada terá identidade ligada à versão do catálogo, à configuração e ao conteúdo selecionado, sem enfraquecer a idempotência do registro de resultados. A retomada salva localmente a partida e o prazo do cronômetro, que continua correndo durante a confirmação de desistência. Esses pontos pertencem a Q03 e Q04.
+A retomada salva localmente a partida e o prazo do cronômetro, que continua correndo durante a confirmação de desistência. Esse ponto permanece em Q04.
 
 ## Alternativas consideradas
 
@@ -70,8 +70,8 @@ O replay geral evita repetir o conjunto imediatamente anterior quando existir ou
 
 ## Consequências
 
-- Habilitar `QUIZ_CATALOG` acrescenta cerca de 37 MB (9 MB comprimidos, no banco local) ao diretório de dados e ao artefato do cron. O diff diário é pequeno quando os fatos mudam pouco, porque os IDs de pergunta são estáveis. A variável permanece desligada até o replay que o lê entrar no ar.
+- Habilitar `QUIZ_CATALOG` acrescenta cerca de 37 MB (9 MB comprimidos, no banco local) ao diretório de dados e ao artefato do cron. O diff diário é pequeno quando os fatos mudam pouco, porque os IDs de pergunta são estáveis. Com o replay (Q03) no código, a variável pode ser ligada na operação; esta entrega não a ativa.
 - Um cliente com o manifesto do catálogo em memória que peça um shard depois de nova publicação recebe `missing` e resolve recarregando. Só existe uma geração.
 - Dez perguntas continuam sendo o tamanho da rodada. Fontes, critérios de elegibilidade e correção factual das ADRs anteriores permanecem obrigatórios.
 - A cobertura por pool é relatada a cada publicação (`web_publish` e `daily_puzzles_cli`) e quantidade insuficiente não autoriza completar a sessão com duplicatas ou filtros diferentes.
-- Q03 consome `loadQuizCatalog`, `eligibleQuestions` e `replayStatus`. Q04 acrescenta a persistência da partida e define como restaurar perguntas de um catálogo de versão anterior.
+- Q03 consome `loadQuizCatalog`, `eligibleQuestions`, `replayStatus` e `selectCatalogRound`. Q04 acrescenta a persistência da partida e define como restaurar perguntas de um catálogo de versão anterior.

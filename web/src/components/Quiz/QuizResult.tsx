@@ -21,6 +21,8 @@ export interface QuizResultProps {
   history?: QuestionResult[];
   dailyDate?: string | null | undefined;
   feedbackEligible?: boolean;
+  /** Notice above the actions (e.g. replay will repeat the only ten questions). */
+  notice?: string | undefined;
 }
 
 export function QuizResult({
@@ -37,6 +39,7 @@ export function QuizResult({
   history = [],
   dailyDate,
   feedbackEligible = true,
+  notice,
 }: QuizResultProps) {
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
   const correct = correctCount ?? history.filter((h) => h.isCorrect).length;
@@ -59,6 +62,7 @@ export function QuizResult({
           cluesUsedCount={clues}
           messages={messages}
         />
+        {notice && <p class="game-actions-message" role="status" data-testid="quiz-replay-notice">{notice}</p>}
         <div class="btn-row">
           <ShareResult
             correctCount={correct}

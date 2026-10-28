@@ -68,6 +68,12 @@ export interface QuizSession {
   schema_version: "kpop-quiz-session-v2";
   dataset_version: string;
   session_id: string;
+  /**
+   * Present on client-built catalog rounds (Q03). Omitted on published session
+   * artifacts. Additive for Q04 local saves: older saves without the field stay
+   * readable.
+   */
+  catalog_version?: string;
   config: {
     language: Locale;
     seed: string;
@@ -269,12 +275,19 @@ export function isQuestion(value: unknown, locale: Locale): value is QuizQuestio
 }
 
 export function isQuizSession(value: unknown): value is QuizSession {
-  if (!isRecord(value) || !hasExactKeys(value, SESSION_FIELDS) || !isRecord(value.config)
+  if (!isRecord(value)) return false;
+  const sessionFields = [
+    ...SESSION_FIELDS,
+    ...(Object.hasOwn(value, "catalog_version") ? ["catalog_version"] : []),
+  ];
+  if (!hasExactKeys(value, sessionFields) || !isRecord(value.config)
     || !hasExactKeys(value.config, [...CONFIG_FIELDS, ...(Object.hasOwn(value.config, "decade") ? ["decade"] : [])])) return false;
   const { config } = value;
   if (value.schema_version !== "kpop-quiz-session-v2"
     || typeof value.dataset_version !== "string" || !HASH.test(value.dataset_version)
     || typeof value.session_id !== "string" || !HASH.test(value.session_id)
+    || (value.catalog_version !== undefined
+      && (typeof value.catalog_version !== "string" || !HASH.test(value.catalog_version)))
     || (config.language !== "pt-BR" && config.language !== "en")
     || typeof config.seed !== "string"
     || !(config.theme === null || typeof config.theme === "string" && config.theme.length > 0)
