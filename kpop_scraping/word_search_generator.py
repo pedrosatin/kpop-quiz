@@ -709,6 +709,72 @@ def fill_empty_cells_and_verify(
     return None
 
 
+class WordSearchFallback(NamedTuple):
+    """Record of a day whose first drawn theme could not be placed.
+
+    ``failed_theme_ids`` lists every theme tried and abandoned, in order, the
+    drawn theme first; ``used_theme_id`` is the theme that was published.
+    """
+
+    requested_theme_id: str
+    used_theme_id: str
+    failed_theme_ids: tuple[str, ...]
+
+
+def _place_theme(
+    theme: ThemeDefinition,
+    rows: int,
+    cols: int,
+    rng: random.Random,
+) -> tuple[list[list[str]], list[PlacedWord]] | None:
+    """Place a theme within the fixed attempt budget, or return None.
+
+    The budget (30 subset draws, 2000 backtracking steps each) and the
+    uniqueness check in ``fill_empty_cells_and_verify`` are the same for every
+    theme: a word that also occurs outside its declared position, as VIXX does
+    inside VIXXLR, is never accepted.
+    """
+    candidates_pool = sorted(theme.candidates, key=lambda c: (c.word, c.id))
+    min_select = min(len(candidates_pool), 6)
+    max_select = min(len(candidates_pool), 10)
+    target_count = rng.randint(min_select, max_select)
+
+    attempts = 0
+    while attempts < 30:
+        attempts += 1
+        subset = rng.sample(candidates_pool, target_count)
+        placement_result = place_words_on_grid(subset, rows, cols, rng)
+        if placement_result is not None:
+            raw_grid, placed_words = placement_result
+            completed_grid = fill_empty_cells_and_verify(raw_grid, placed_words, rng)
+            if completed_grid is not None:
+                return completed_grid, placed_words
+
+        # Decrement target count if upper bound attempts fail
+        if attempts % 10 == 0 and target_count > min_select:
+            target_count -= 1
+    return None
+
+
+def _fallback_digest(seed: str, theme_id: str) -> bytes:
+    return hashlib.sha256(f"{seed}\x00theme-fallback\x00{theme_id}".encode("utf-8")).digest()
+
+
+def _fallback_rng(seed: str, theme: ThemeDefinition) -> random.Random:
+    """Random stream of a fallback theme, independent of the abandoned ones."""
+    return random.Random(_fallback_digest(seed, theme.theme_id))
+
+
+def _fallback_order(
+    seed: str,
+    themes: list[ThemeDefinition],
+    drawn: ThemeDefinition,
+) -> list[ThemeDefinition]:
+    """Other themes in an order fixed by the seed and the theme ids alone."""
+    others = [theme for theme in themes if theme.theme_id != drawn.theme_id]
+    return sorted(others, key=lambda t: (_fallback_digest(seed, t.theme_id), t.theme_id))
+
+
 def generate_word_search_puzzle(
     connection: sqlite3.Connection,
     seed: str,
@@ -720,6 +786,32 @@ def generate_word_search_puzzle(
     """Deterministically generate a word search puzzle from audited database facts.
 
     Raises ValueError if parameters are invalid or database contains insufficient facts.
+    See ``generate_word_search_puzzle_with_fallback`` for the theme fallback policy.
+    """
+    puzzle, _fallback = generate_word_search_puzzle_with_fallback(
+        connection, seed, reference_date, theme_filter, rows, cols
+    )
+    return puzzle
+
+
+def generate_word_search_puzzle_with_fallback(
+    connection: sqlite3.Connection,
+    seed: str,
+    reference_date: date | None = None,
+    theme_filter: str | None = None,
+    rows: int = 12,
+    cols: int = 12,
+) -> tuple[dict[str, Any], WordSearchFallback | None]:
+    """Generate a puzzle and report when the drawn theme had to be replaced.
+
+    The seed draws one theme. When that theme cannot be placed within the
+    fixed budget, the remaining themes (those matching ``theme_filter`` when
+    given) are tried one by one in an order fixed by the seed, each with its
+    own random stream, under the same budget and the same validators. The
+    second element is None when the drawn theme succeeded, which is the only
+    case that existed before the fallback and publishes the same bytes. When
+    no theme can be placed, ValueError names every theme tried and nothing is
+    returned.
     """
     if not (8 <= rows <= 16):
         raise ValueError("rows must be an integer between 8 and 16")
@@ -764,36 +856,31 @@ def generate_word_search_puzzle(
 
     chosen_theme = rng.choice(viable_themes)
 
-    # Candidate subset selection and placement loop
-    candidates_pool = sorted(chosen_theme.candidates, key=lambda c: (c.word, c.id))
-    min_select = min(len(candidates_pool), 6)
-    max_select = min(len(candidates_pool), 10)
-    target_count = rng.randint(min_select, max_select)
-
-    final_grid: list[list[str]] | None = None
-    final_placed: list[PlacedWord] | None = None
-
-    attempts = 0
-    while attempts < 30 and (final_grid is None or final_placed is None):
-        attempts += 1
-        subset = rng.sample(candidates_pool, target_count)
-        placement_result = place_words_on_grid(subset, rows, cols, rng)
-        if placement_result is not None:
-            raw_grid, placed_words = placement_result
-            completed_grid = fill_empty_cells_and_verify(raw_grid, placed_words, rng)
-            if completed_grid is not None:
-                final_grid = completed_grid
-                final_placed = placed_words
+    placed_theme = _place_theme(chosen_theme, rows, cols, rng)
+    fallback: WordSearchFallback | None = None
+    if placed_theme is None:
+        # Only a theme that cannot be placed within the fixed budget reaches
+        # this branch, so dates whose first theme succeeds consume the same
+        # random stream, and publish the same bytes, as before the fallback.
+        failed = [chosen_theme.theme_id]
+        for other in _fallback_order(seed, viable_themes, chosen_theme):
+            placed_theme = _place_theme(other, rows, cols, _fallback_rng(seed, other))
+            if placed_theme is not None:
+                fallback = WordSearchFallback(
+                    requested_theme_id=chosen_theme.theme_id,
+                    used_theme_id=other.theme_id,
+                    failed_theme_ids=tuple(failed),
+                )
+                chosen_theme = other
                 break
-
-        # Decrement target count if upper bound attempts fail
-        if attempts % 10 == 0 and target_count > min_select:
-            target_count -= 1
-
-    if final_grid is None or final_placed is None:
-        raise ValueError(
-            f"Failed to place word search grid for theme {chosen_theme.theme_id} within budget"
-        )
+            failed.append(other.theme_id)
+        else:
+            raise ValueError(
+                f"Failed to place word search grid for theme {chosen_theme.theme_id} within budget; "
+                f"none of the {len(viable_themes)} candidate themes could be placed "
+                f"({', '.join(failed)})"
+            )
+    final_grid, final_placed = placed_theme
 
     # Build words payload sorted alphabetically by word
     ordered_placed = sorted(final_placed, key=lambda item: item.candidate.word)
@@ -847,4 +934,4 @@ def generate_word_search_puzzle(
 
     validate_word_search_puzzle(puzzle)
     validate_word_search_clues(puzzle)
-    return puzzle
+    return puzzle, fallback

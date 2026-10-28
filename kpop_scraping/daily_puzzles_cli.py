@@ -142,6 +142,20 @@ def report_skipped_code_groups(code_groups_skipped: dict[str, Any] | None) -> No
         print(f"::warning title=Daily group code missing::{message}")
 
 
+def report_word_search_fallback(fallback: dict[str, Any] | None) -> None:
+    """Make a word search published with a theme other than the drawn one visible."""
+    if not fallback:
+        return
+    message = (
+        f"Word search theme {fallback['requested_theme_id']} could not be placed; "
+        f"published {fallback['used_theme_id']} instead "
+        f"(tried and abandoned: {', '.join(fallback['failed_theme_ids'])})"
+    )
+    sys.stderr.write(f"WARNING: {message}\n")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=Word search theme replaced::{message}")
+
+
 def report_clue_coverage(output_dir: str | Path, prefix: str = "") -> None:
     """Print how many published quiz questions carry a clue.
 
@@ -192,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
         report_revalidated_grid(result.get("grid_revalidated"))
         report_skipped_grid(result.get("grid_skipped"))
         report_skipped_code_groups(result.get("code_groups_skipped"))
+        report_word_search_fallback(result.get("word_search_fallback"))
         mode_str = "[dry-run] " if result.get("dry_run") else ""
         action = (
             "promoted from next/"
@@ -208,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
             report_reused_grid(result["next"].get("grid_reused"))
             report_skipped_grid(result["next"].get("grid_skipped"))
             report_skipped_code_groups(result["next"].get("code_groups_skipped"))
+            report_word_search_fallback(result["next"].get("word_search_fallback"))
             print(f"{mode_str}Daily puzzles for {result['next']['reference_date']} published ahead in {result['next']['output_dir']}")
             report_clue_coverage(result["next"]["output_dir"], mode_str)
         return 0
