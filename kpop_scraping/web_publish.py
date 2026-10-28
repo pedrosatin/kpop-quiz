@@ -18,6 +18,14 @@ from .quiz_generator import QuizConfig, generate_dataset
 from .quiz_session import create_session
 from .quiz_clue_coverage import published_clue_coverage_lines
 from .quiz_models import InsufficientQuestionsError
+from .quiz_catalog import (
+    CATALOG_MANIFEST_FILENAME,
+    build_catalog,
+    publish_catalog,
+    published_catalog_coverage_lines,
+    read_catalog,
+    validate_sessions_in_catalog,
+)
 from .quiz_schema import (
     mode_neutral_question,
     validate_legacy_clues,
@@ -437,6 +445,7 @@ def verify(
     require_word_search: bool = False,
     require_timeline: bool = False,
     require_code_groups: bool = False,
+    require_catalog: bool = False,
 ) -> None:
     """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, word-search, timeline, and group code.
 
@@ -476,6 +485,12 @@ def verify(
             under the partial publish policy (generation failure), verifiable.
             When True: code-groups.daily.json is mandatory and must exist and
             satisfy contract validation, raising ValueError if missing or invalid.
+        require_catalog: Verification policy flag for the question catalog
+            (catalog-manifest-v1.json and its shards).
+            When False (default): the catalog is optional, as it is published
+            only when the daily run asks for it; one that is present must verify
+            completely (hashes, schema, identity, language, version).
+            When True: the catalog is mandatory.
     """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
@@ -493,6 +508,7 @@ def verify(
     for session in sessions.values():
         validate_legacy_clues(session)
     verify_enriched_manifest(output_dir, sessions)
+    verify_question_catalog(output_dir, manifest, sessions, require_catalog)
     grid_path = output_dir / GRID_DAILY_FILENAME
     if grid_path.is_file():
         _read_grid(grid_path)
@@ -552,6 +568,28 @@ def verify_enriched_manifest(output_dir: Path, legacy: dict[str, dict[str, Any]]
     validate_enrichment(legacy, sessions)
 
 
+def verify_question_catalog(
+    output_dir: Path,
+    manifest: dict[str, Any],
+    sessions: dict[str, dict[str, Any]],
+    required: bool = False,
+) -> None:
+    """Verify the question catalog, when present, and its agreement with the sessions.
+
+    The catalog is refreshed on every run while a day's sessions may be kept or
+    promoted from ``next/``, so the two can come from different datasets. Only
+    when they share one does every session question have to be an eligible
+    question of the catalog.
+    """
+    if not (output_dir / CATALOG_MANIFEST_FILENAME).is_file():
+        if required:
+            raise ValueError(f"missing required catalog manifest: {output_dir / CATALOG_MANIFEST_FILENAME}")
+        return
+    catalog_manifest, shards = read_catalog(output_dir)
+    if catalog_manifest["dataset_version"] == manifest["dataset_version"]:
+        validate_sessions_in_catalog(sessions, shards)
+
+
 def verify_artifacts(
     output_dir: Path,
     require_grid: bool = True,
@@ -560,6 +598,7 @@ def verify_artifacts(
     require_word_search: bool = True,
     require_timeline: bool = True,
     require_code_groups: bool = True,
+    require_catalog: bool = False,
 ) -> None:
     """Verify published static quiz artifacts and daily puzzle files.
 
@@ -575,8 +614,8 @@ def verify_artifacts(
         require_word_search=require_word_search,
         require_timeline=require_timeline,
         require_code_groups=require_code_groups,
+        require_catalog=require_catalog,
     )
-
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -617,6 +656,19 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Require code-groups.daily.json to exist and pass contract validation during --verify",
     )
+    parser.add_argument(
+        "--require-catalog",
+        action="store_true",
+        help="Require the question catalog to exist and verify completely during --verify",
+    )
+    parser.add_argument(
+        "--catalog",
+        action="store_true",
+        help=(
+            "Also publish the static question catalog (catalog-manifest-v1.json and "
+            "its shards) built from the same dataset as the sessions"
+        ),
+    )
     return parser
 
 
@@ -635,6 +687,10 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--require-timeline can only be used with --verify")
         if args.require_code_groups and not args.verify:
             raise ValueError("--require-code-groups can only be used with --verify")
+        if args.require_catalog and not args.verify:
+            raise ValueError("--require-catalog can only be used with --verify")
+        if args.catalog and args.verify:
+            raise ValueError("--catalog publishes; it cannot be used with --verify")
         if args.verify:
             # next/ holds the following day's set when the daily run publishes ahead.
             next_dir = args.output_dir / "next"
@@ -649,6 +705,7 @@ def main(argv: list[str] | None = None) -> int:
                     require_word_search=args.require_word_search,
                     require_timeline=args.require_timeline,
                     require_code_groups=args.require_code_groups,
+                    require_catalog=args.require_catalog and directory is args.output_dir,
                 )
         elif args.database:
             if not args.database.is_file():
@@ -670,6 +727,8 @@ def main(argv: list[str] | None = None) -> int:
             decade_sessions = create_decade_sessions(dataset, args.seed, args.timer_seconds)
             sessions = {**base_sessions, **daily_sessions, **decade_sessions}
             publish(args.output_dir, sessions)
+            if args.catalog:
+                publish_catalog(args.output_dir, build_catalog(dataset))
         else:
             raise ValueError("provide --database or --verify")
     except (OSError, sqlite3.Error, ValueError) as exc:
@@ -678,6 +737,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Web artifacts {'verified' if args.verify else 'published'} in {args.output_dir}")
     for line in published_clue_coverage_lines(args.output_dir, "Quiz clues"):
         print(line)
+    if (args.output_dir / CATALOG_MANIFEST_FILENAME).is_file():
+        for line in published_catalog_coverage_lines(args.output_dir, "Quiz catalog"):
+            print(line)
     return 0
 
 

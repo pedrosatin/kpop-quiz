@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isConnectionsPuzzle,
   isIntersectionGrid,
@@ -21,6 +21,7 @@ import publishedCodePilot from "../../public/data/code-groups.pilot.json";
 import publishedNameGuess from "../../public/data/name-guess.daily.json";
 import publishedWordSearch from "../../public/data/word-search.daily.json";
 import publishedManifest from "../../public/data/manifest-v2.json";
+import { clearCatalogCache, loadQuizCatalog } from "../data/catalog-loader";
 
 // Behavioural tests read frozen copies under src/tests/fixtures so the suite does
 // not break every time the daily cron regenerates the artifacts. These checks stay
@@ -120,6 +121,36 @@ describe("published quiz manifest", () => {
       const legacySession = JSON.parse(readFileSync(join(DATA_DIR, legacy.path), "utf-8")) as QuizSession;
       expect(withoutClues(session as QuizSession), key).toEqual(withoutClues(legacySession));
       if ((session as QuizSession).config.play_mode === "expert") expect(session).toEqual(legacySession);
+    }
+  });
+});
+
+describe("published question catalog", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearCatalogCache();
+  });
+
+  // The catalog is published only when the daily run is asked for it. A catalog
+  // that is there must be one the consumer accepts for every language and mode,
+  // and it must agree with the sessions of the same dataset.
+  it("is accepted by the consumer for every language and play mode when published", async () => {
+    const manifestPath = join(DATA_DIR, "catalog-manifest-v1.json");
+    if (!existsSync(manifestPath)) return;
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const file = join(DATA_DIR, url.split("/data/")[1]!);
+      return existsSync(file) ? new Response(readFileSync(file)) : new Response(null, { status: 404 });
+    }));
+    for (const locale of ["pt-BR", "en"] as const) {
+      for (const mode of ["assisted", "standard", "expert"] as const) {
+        const catalog = await loadQuizCatalog(locale, mode, "/");
+        expect(catalog.questions.length, `${locale}.${mode}`).toBeGreaterThan(0);
+        if (catalog.datasetVersion !== publishedManifest.dataset_version) continue;
+        const ids = new Set(catalog.questions.map((question) => question.id));
+        const entry = publishedManifest.sessions[`${locale}.${mode}` as keyof typeof publishedManifest.sessions];
+        const session = JSON.parse(readFileSync(join(DATA_DIR, entry.path), "utf-8")) as QuizSession;
+        for (const question of session.questions) expect(ids.has(question.id), `${locale}.${mode}: ${question.id}`).toBe(true);
+      }
     }
   });
 });

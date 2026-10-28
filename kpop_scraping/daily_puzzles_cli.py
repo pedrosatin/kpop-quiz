@@ -63,6 +63,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--catalog",
+        action="store_true",
+        help=(
+            "Also publish the static question catalog (catalog-manifest-v1.json and its "
+            "shards) built from this run's dataset. Without it a catalog left by an earlier "
+            "run is withdrawn. No released client reads the catalog yet"
+        ),
+    )
+    parser.add_argument(
         "--timer-seconds",
         type=int,
         help="Optional question timer limit in seconds for quiz sessions",
@@ -175,6 +184,17 @@ def report_clue_coverage(output_dir: str | Path, prefix: str = "") -> None:
         print(line)
 
 
+def report_catalog(catalog: dict[str, Any] | None, prefix: str = "") -> None:
+    """Print what the question catalog offers, or that it was withdrawn."""
+    if not catalog:
+        return
+    if catalog.get("withdrawn"):
+        print(f"{prefix}Quiz catalog withdrawn: this run was not asked to publish one")
+        return
+    for line in catalog["lines"]:
+        print(f"{prefix}{line}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -201,6 +221,7 @@ def main(argv: list[str] | None = None) -> int:
             ahead=args.ahead,
             regenerate=args.regenerate,
             related_clues=args.related_clues,
+            catalog=args.catalog,
         )
         report_reused_grid(result.get("grid_reused"))
         report_revalidated_grid(result.get("grid_revalidated"))
@@ -219,6 +240,7 @@ def main(argv: list[str] | None = None) -> int:
             f"{mode_str}Daily puzzles for {result['reference_date']} {action} and verified successfully in {result['output_dir']}"
         )
         report_clue_coverage(result["output_dir"], mode_str)
+        report_catalog(result.get("catalog"), mode_str)
         if "next" in result:
             report_reused_grid(result["next"].get("grid_reused"))
             report_skipped_grid(result["next"].get("grid_skipped"))

@@ -40,6 +40,13 @@ from .grid_generator import generate_daily_grid, grid_incompatibility
 from .grid_publication import publication, read_publication, write_publication
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_generator import generate_name_guess_puzzle
+from .quiz_catalog import (
+    build_catalog,
+    build_catalog_manifest,
+    catalog_coverage_lines,
+    publish_catalog,
+    remove_catalog,
+)
 from .quiz_generator import QuizConfig, generate_dataset
 from .quiz_session import create_session
 from .quiz_schema import validate_session, write_json_atomic
@@ -126,6 +133,7 @@ def generate_daily_puzzles(
     dataset, _ = generate_dataset(connection)
     all_sessions = _quiz_sessions(dataset, iso_date, base_seed, timer_seconds)
     enriched_sessions = None
+    enriched_dataset = None
     if related_clues:
         enriched_dataset, _ = generate_dataset(connection, related_clues=True)
         enriched_sessions = _quiz_sessions(enriched_dataset, iso_date, base_seed, timer_seconds)
@@ -195,6 +203,9 @@ def generate_daily_puzzles(
         "dataset_version": dataset["dataset_version"],
         "sessions": all_sessions,
         "enriched_sessions": enriched_sessions,
+        # Kept for the question catalog, so one run generates each dataset once.
+        "dataset": dataset,
+        "enriched_dataset": enriched_dataset,
         "session_pt_br": session_pt_br,
         "session_en": session_en,
         "grid": grid,
@@ -608,12 +619,18 @@ def run_daily_puzzles(
     ahead: bool = False,
     regenerate: bool = False,
     related_clues: bool = False,
+    catalog: bool = False,
 ) -> dict[str, Any]:
     """Orchestrate daily puzzles generation and publication.
 
     With ``ahead``, the next day's set is also published under ``next/`` so
     the site can switch to it at midnight in Sao Paulo, before the next run.
     A day that is already published is kept unless ``regenerate`` is set.
+
+    With ``catalog``, the run also publishes the question catalog built from
+    the dataset of this run, whether or not the day was kept; it lives in
+    ``output_dir`` only, never in ``next/``. Without it a catalog left by an
+    earlier run is withdrawn, which is how the flag is turned off again.
     """
     output_dir_path = Path(output_dir)
 
@@ -640,6 +657,7 @@ def run_daily_puzzles(
     except sqlite3.Error:
         connection = sqlite3.connect(str(db_path))
 
+    puzzles = next_puzzles = None
     try:
         result = None if dry_run or regenerate else keep_or_promote_day(output_dir_path, iso_date, connection)
         if result is None:
@@ -668,6 +686,48 @@ def run_daily_puzzles(
                 prune=True,
                 connection=connection,
             )
+        # Prefer today's dataset when both exist: the catalog lives in the main
+        # directory beside today's sessions. Fall back to next/ or regenerate.
+        result["catalog"] = _publish_run_catalog(
+            output_dir_path, connection, catalog, related_clues, dry_run,
+            puzzles or next_puzzles,
+        )
     finally:
         connection.close()
     return result
+
+
+def _publish_run_catalog(
+    output_dir: Path,
+    connection: sqlite3.Connection,
+    enabled: bool,
+    related_clues: bool,
+    dry_run: bool,
+    puzzles: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    """Publish (or withdraw) the question catalog of this run; return what it offers.
+
+    The catalog reflects the database of the run, not the day: a day kept or
+    promoted from ``next/`` keeps its sessions, while the catalog, which holds
+    no history, follows the facts of the moment. It carries the related decade
+    clues exactly when ``manifest-v3.json`` does.
+    """
+    if not enabled:
+        if not dry_run and remove_catalog(output_dir):
+            return {"withdrawn": True}
+        return None
+    source = None if puzzles is None else puzzles["enriched_dataset" if related_clues else "dataset"]
+    if source is None:
+        source, _ = generate_dataset(connection, related_clues=related_clues)
+    shards = build_catalog(source)
+    manifest = (
+        build_catalog_manifest(shards) if dry_run else publish_catalog(output_dir, shards)
+    )
+    if not dry_run:
+        verify_artifacts(output_dir, require_grid=False, require_code_groups=False, require_catalog=True)
+    return {
+        "catalog_version": manifest["catalog_version"],
+        "dataset_version": manifest["dataset_version"],
+        "lines": catalog_coverage_lines(manifest, shards, "Quiz catalog"),
+        "dry_run": dry_run,
+    }
