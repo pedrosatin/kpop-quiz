@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .daily_puzzles_runner import run_daily_puzzles
-from .quiz_clue_coverage import MANIFEST_FILENAME, format_clue_coverage, published_clue_coverage
+from .quiz_clue_coverage import MANIFEST_FILENAME, published_clue_coverage_lines
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -57,9 +57,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--related-clues",
         action="store_true",
         help=(
-            "Add decade clues that cite the answer's own dated fact. A client released "
-            "before they were allowed rejects any session carrying one, so enable this "
-            "only once the client that accepts them has been live long enough"
+            "Also publish manifest-v3.json, whose sessions carry the decade clues that "
+            "cite the answer's own dated fact. manifest-v2.json keeps the sessions without "
+            "them, which is all a client released before they existed ever reads"
         ),
     )
     parser.add_argument(
@@ -153,11 +153,11 @@ def report_clue_coverage(output_dir: str | Path, prefix: str = "") -> None:
     if not (directory / MANIFEST_FILENAME).is_file():
         return
     try:
-        coverage = published_clue_coverage(directory)
+        lines = published_clue_coverage_lines(directory, f"{prefix}Quiz clues in {directory}")
     except (OSError, ValueError, KeyError) as exc:
         sys.stderr.write(f"WARNING: Quiz clue coverage not reported for {directory}: {exc}\n")
         return
-    for line in format_clue_coverage(coverage, f"{prefix}Quiz clues in {directory}:"):
+    for line in lines:
         print(line)
 
 

@@ -17,6 +17,8 @@ async function longFeedbackFixture(page: Page, locale: string) {
   const hash = createHash("sha256").update(body).digest("hex");
   const path = `session.${key}.${hash}.json`;
   manifest.sessions[key] = { ...entry, path, sha256: hash };
+  // The client reads the enriched manifest first; keep it off so the fixture below is what loads.
+  await page.route("**/data/manifest-v3.json", (route) => route.fulfill({ status: 404 }));
   await page.route("**/data/manifest-v2.json", (route) => route.fulfill({ json: manifest }));
   await page.route(`**/data/${path}`, (route) => route.fulfill({ body, contentType: "application/json" }));
   return question.options.find((option: { id: string }) => option.id !== question.answer_option_id).id as string;

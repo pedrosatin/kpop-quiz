@@ -34,9 +34,11 @@ jobs:
       REFERENCE_DATE: ${{ inputs.date }}
       REGENERATE: ${{ inputs.regenerate }}
       # Related decade clues cite a fact outside the question's own, which a
-      # client released before they existed rejects. Set the repository
-      # variable QUIZ_RELATED_CLUES to "true" only after the client that
-      # accepts them has been live long enough for stale pages to be gone.
+      # client released before they existed rejects. With the repository
+      # variable QUIZ_RELATED_CLUES set to "true" the run also publishes
+      # manifest-v3.json with those clues. manifest-v2.json keeps listing only
+      # sessions every released client accepts, so the variable is safe to
+      # turn on or off at any time: older clients never read the v3 manifest.
       RELATED_CLUES: ${{ vars.QUIZ_RELATED_CLUES }}
     steps:
       - name: Checkout repository
