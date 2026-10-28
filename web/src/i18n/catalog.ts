@@ -121,6 +121,12 @@ export interface Messages {
    * session and "Play again" repeats those same questions.
    */
   quizReplayLegacyRepeats: string;
+  /** Saved progress exists but does not match the current artifact or config. */
+  quizResumeIncompatible: string;
+  /** Saved progress is corrupt or fails schema checks. */
+  quizResumeInvalid: string;
+  /** localStorage is unavailable; the round continues without persistence. */
+  quizStorageUnavailable: string;
   consentLabel: string;
   consentText: string;
   consentAccept: string;
@@ -489,6 +495,9 @@ const catalogs: Record<Locale, Messages> = {
     quizReplayUnavailable: "Não há perguntas suficientes para esta combinação de idioma, modo e filtros.",
     quizReplayRepeats: "Só há dez perguntas elegíveis nesta combinação; jogar novamente repete o mesmo conjunto.",
     quizReplayLegacyRepeats: "O catálogo de perguntas novas ainda não está disponível; jogar novamente usa as mesmas perguntas publicadas.",
+    quizResumeIncompatible: "Não foi possível retomar a partida salva: ela não combina com os dados atuais. Comece uma nova.",
+    quizResumeInvalid: "O progresso salvo está inválido e foi descartado. Comece uma nova partida.",
+    quizStorageUnavailable: "O armazenamento local está indisponível; o progresso desta partida não será guardado.",
     consentLabel: "Preferências de privacidade",
     consentText:
       "Usamos o Cloudflare Web Analytics para medir o uso do site sem cookies. Se você aceitar, o Google Analytics também vai usar cookies e identificadores para gerar estatísticas de audiência.",
@@ -961,6 +970,9 @@ const catalogs: Record<Locale, Messages> = {
     quizReplayUnavailable: "There are not enough questions for this language, mode and filter combination.",
     quizReplayRepeats: "Only ten eligible questions exist for this combination; playing again repeats the same set.",
     quizReplayLegacyRepeats: "The new-question catalog is not available yet; playing again uses the same published questions.",
+    quizResumeIncompatible: "Could not resume the saved game: it does not match the current data. Start a new round.",
+    quizResumeInvalid: "The saved progress is invalid and was discarded. Start a new game.",
+    quizStorageUnavailable: "Local storage is unavailable; progress for this round will not be saved.",
     consentLabel: "Privacy preferences",
     consentText:
       "We use Cloudflare Web Analytics to measure site usage without cookies. If you accept, Google Analytics will also use cookies and identifiers to produce audience statistics.",

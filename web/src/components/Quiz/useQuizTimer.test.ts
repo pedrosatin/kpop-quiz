@@ -5,24 +5,22 @@ import { useQuizTimer } from "./useQuizTimer";
 describe("useQuizTimer", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-28T12:00:00.000Z"));
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("counts down seconds when active", async () => {
+  it("counts down from an absolute deadline when active", async () => {
     const onExpire = vi.fn();
+    const deadlineMs = Date.now() + 20_000;
     const { result, rerender } = renderHook(
-      ({ active }) => useQuizTimer({ active, initialSeconds: 20, onExpire }),
-      { initialProps: { active: false } }
+      ({ active }) => useQuizTimer({ active, deadlineMs, onExpire }),
+      { initialProps: { active: false } },
     );
 
-    act(() => {
-      result.current.setSecondsLeft(20);
-    });
     rerender({ active: true });
-
     expect(result.current.secondsLeft).toBe(20);
 
     await act(async () => {
@@ -33,48 +31,44 @@ describe("useQuizTimer", () => {
     expect(onExpire).not.toHaveBeenCalled();
   });
 
-  it("does not restart 1s timeout when onExpire reference changes", async () => {
+  it("keeps the original deadline when the parent re-renders", async () => {
     let expireCallback = vi.fn();
+    const deadlineMs = Date.now() + 20_000;
     const { result, rerender } = renderHook(
-      ({ onExpire }) => useQuizTimer({ active: true, initialSeconds: 20, onExpire }),
-      { initialProps: { onExpire: expireCallback } }
+      ({ onExpire }) => useQuizTimer({ active: true, deadlineMs, onExpire }),
+      { initialProps: { onExpire: expireCallback } },
     );
 
-    act(() => {
-      result.current.setSecondsLeft(20);
-    });
+    expect(result.current.secondsLeft).toBe(20);
 
-    // Advance 600ms
     await act(async () => {
       await vi.advanceTimersByTimeAsync(600);
     });
     expect(result.current.secondsLeft).toBe(20);
 
-    // Provide a new onExpire reference (simulating parent re-render due to selection or clues)
     expireCallback = vi.fn();
     rerender({ onExpire: expireCallback });
 
-    // Advance remaining 400ms (total 1000ms from start)
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400);
     });
 
-    // It should have completed the second without restarting from 0ms!
     expect(result.current.secondsLeft).toBe(19);
   });
 
-  it("calls latest onExpire when secondsLeft reaches zero", async () => {
+  it("calls onExpire once when the deadline has passed", async () => {
     const onExpire = vi.fn();
-    const { result } = renderHook(() =>
-      useQuizTimer({ active: true, initialSeconds: 20, onExpire })
-    );
-
-    act(() => {
-      result.current.setSecondsLeft(0);
-    });
+    const deadlineMs = Date.now() - 500;
+    renderHook(() => useQuizTimer({ active: true, deadlineMs, onExpire }));
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(onExpire).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
     });
 
     expect(onExpire).toHaveBeenCalledTimes(1);
