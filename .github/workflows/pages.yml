@@ -10,6 +10,9 @@ on:
     paths-ignore:
       - "web/public/data/**"
       - "data/map-pilot/**"
+      - "**.md"
+      - "docs/**"
+      - ".scratch/**"
   push:
     branches: [master]
     paths:
@@ -29,7 +32,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-pages-${{ github.ref }}
+  group: cloudflare-pages-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -40,6 +43,7 @@ jobs:
       github.event.workflow_run.head_repository.full_name == github.repository &&
       contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: web
@@ -54,6 +58,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Run Python verification
+        if: github.event_name != 'pull_request'
         working-directory: .
         run: |
           python -m unittest discover -v
@@ -74,6 +79,11 @@ jobs:
       - run: npm run csp:verify
       # Full Chromium suite (boot smoke + playthrough) against dist/ already built above.
       # Do not use npm run test:e2e; pretest rebuilds. Prefer test:e2e:ci (no pretest).
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Run Playwright boot and playthrough against local dist
@@ -103,6 +113,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     outputs:
       deployed: ${{ steps.record.outputs.deployed }}
@@ -178,6 +189,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: deploy
     defaults:
       run:
@@ -190,6 +202,11 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
       - name: Run Playwright boot and playthrough against production
