@@ -8,6 +8,7 @@ export function AnswerFeedbackSource({
   answers,
   explanation,
   evidence,
+  clues = [],
   messages,
   onToggle,
 }: {
@@ -16,6 +17,7 @@ export function AnswerFeedbackSource({
   answers: ComponentChildren;
   explanation: string;
   evidence: DisplayEvidence[];
+  clues?: { text: string; evidence: DisplayEvidence[] }[];
   messages: Messages;
   onToggle: () => void;
 }) {
@@ -35,18 +37,32 @@ export function AnswerFeedbackSource({
         {answers && <p>{answers}</p>}
         <p>{explanation}</p>
         {evidence.map((item) => (
-          <p class="quiz-source-item" key={`${item.source_url}-${item.revision_id}-${item.locator}`}>
-            {item.project}, {messages.revision} {item.revision_id}.
-            {item.declaredReference && (
-              <> {messages.declaredReference}: {item.declaredReference}.</>
-            )}
-            {" "}
-            <a href={item.source_url} target="_blank" rel="noreferrer">
-              {messages.openRevision(item.project)}
-            </a>
-          </p>
+          <SourceItem key={`${item.source_url}-${item.revision_id}-${item.locator}`} item={item} messages={messages} />
+        ))}
+        {clues.map((clue) => (
+          <div class="quiz-source-clue" data-testid="quiz-clue-source" key={clue.text}>
+            <p><strong>{messages.clue}:</strong> {clue.text}</p>
+            {clue.evidence.map((item) => (
+              <SourceItem key={`${item.source_url}-${item.revision_id}-${item.locator}`} item={item} messages={messages} />
+            ))}
+          </div>
         ))}
       </div>
     </>
+  );
+}
+
+function SourceItem({ item, messages }: { item: DisplayEvidence; messages: Messages }) {
+  return (
+    <p class="quiz-source-item">
+      {item.project}, {messages.revision} {item.revision_id}.
+      {item.declaredReference && (
+        <> {messages.declaredReference}: {item.declaredReference}.</>
+      )}
+      {" "}
+      <a href={item.source_url} target="_blank" rel="noreferrer">
+        {messages.openRevision(item.project)}
+      </a>
+    </p>
   );
 }

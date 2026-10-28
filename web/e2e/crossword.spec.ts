@@ -2,6 +2,8 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { delayPassiveEffects, settleEffects } from "./helpers/passive-effects";
+import { gamePlayed } from "./helpers/player-stats";
 
 type Entry = { number: number; direction: "across" | "down"; answer: string; canonical_name: string; row: number; col: number };
 
@@ -64,22 +66,26 @@ for (const locale of ["pt-br", "en"] as const) {
   });
 }
 
-test("progress resumes after a reload and a finished round is not counted twice", async ({ page, baseURL }) => {
-  await open(page, baseURL, copy.en.path);
-  await fill(page, "en", entries.slice(0, 1));
-  await page.reload();
-  await expect(page.locator("#crossword input")).toHaveCount(puzzle.cells.length);
-  const first = entries[0]!;
-  await expect(page.getByRole("textbox", { name: new RegExp(`^Row ${first.row + 1}, column ${first.col + 1}\\.`) })).toHaveValue(first.answer[0]!);
-  await page.getByRole("button", { name: copy.en.reveal }).click();
-  await page.getByRole("button", { name: copy.en.confirmReveal }).click();
-  await expect(page.getByRole("heading", { name: copy.en.revealed })).toBeVisible();
-  const played = () => page.evaluate(() => JSON.parse(localStorage.getItem("kpop-player-stats-v1") ?? "{}").games?.crossword?.played);
-  expect(await played()).toBe(1);
-  await page.reload();
-  await expect(page.getByRole("heading", { name: copy.en.revealed })).toBeVisible();
-  expect(await played()).toBe(1);
-});
+for (const lag of ["normal", "delayed effects"] as const) {
+  test(`progress resumes after a reload and a finished round is not counted twice (${lag})`, async ({ page, baseURL }) => {
+    if (lag === "delayed effects") await delayPassiveEffects(page);
+    await open(page, baseURL, copy.en.path);
+    await fill(page, "en", entries.slice(0, 1));
+    await page.reload();
+    await expect(page.locator("#crossword input")).toHaveCount(puzzle.cells.length);
+    const first = entries[0]!;
+    await expect(page.getByRole("textbox", { name: new RegExp(`^Row ${first.row + 1}, column ${first.col + 1}\\.`) })).toHaveValue(first.answer[0]!);
+    await page.getByRole("button", { name: copy.en.reveal }).click();
+    await page.getByRole("button", { name: copy.en.confirmReveal }).click();
+    await expect(page.getByRole("heading", { name: copy.en.revealed })).toBeVisible();
+    // The stats write is an effect that runs after the result is painted.
+    await expect.poll(() => gamePlayed(page, "crossword")).toBe(1);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: copy.en.revealed })).toBeVisible();
+    await settleEffects(page);
+    expect(await gamePlayed(page, "crossword")).toBe(1);
+  });
+}
 
 test("share falls back to a text field without a date or answers", async ({ page, baseURL }) => {
   await page.addInitScript(() => {

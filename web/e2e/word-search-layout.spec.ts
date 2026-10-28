@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { loadPreferNextDaily } from "./helpers/daily-artifact";
+import { reloadPersisted } from "./helpers/passive-effects";
 
 interface Daily {
   reference_date: string;
@@ -65,7 +66,7 @@ for (const locale of ["pt", "en"]) {
           };
           await select(0);
           await expect(page.getByTestId("found-counter")).toContainText("1");
-          await page.reload();
+          await reloadPersisted(page);
           await expect(page.getByTestId("found-counter")).toContainText("1");
           await page.locator(".toggle-mode-btn").click();
           await expectContained(page);
@@ -73,7 +74,7 @@ for (const locale of ["pt", "en"]) {
           for (let i = 1; i < puzzle.words.length; i++) await select(i);
           await expect(page.getByTestId("game-result")).toBeVisible();
           await expectContained(page);
-          await page.reload();
+          await reloadPersisted(page);
           await expect(page.getByTestId("game-result")).toBeVisible();
           await expectContained(page);
           await page.locator(".word-search-result-buttons > button").first().click();
@@ -83,7 +84,7 @@ for (const locale of ["pt", "en"]) {
           await page.screenshot({ path: testInfo.outputPath("victory.png") });
           await context.clearCookies();
           await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("kpop-word-search-")).forEach((key) => localStorage.removeItem(key)));
-          await page.reload();
+          await reloadPersisted(page);
           await page.locator(".word-search-actions > button").click();
           await page.getByRole("button", { name: /Sim, desistir|Yes, give up/ }).click();
           await expect(page.getByTestId("game-result")).toBeVisible();

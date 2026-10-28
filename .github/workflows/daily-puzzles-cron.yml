@@ -33,6 +33,11 @@ jobs:
     env:
       REFERENCE_DATE: ${{ inputs.date }}
       REGENERATE: ${{ inputs.regenerate }}
+      # Related decade clues cite a fact outside the question's own, which a
+      # client released before they existed rejects. Set the repository
+      # variable QUIZ_RELATED_CLUES to "true" only after the client that
+      # accepts them has been live long enough for stale pages to be gone.
+      RELATED_CLUES: ${{ vars.QUIZ_RELATED_CLUES }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -103,6 +108,7 @@ jobs:
         run: |
           args=(--database data/kpop.db --output-dir web/public/data --ahead)
           if [ "$REGENERATE" = "true" ]; then args+=(--regenerate); fi
+          if [ "$RELATED_CLUES" = "true" ]; then args+=(--related-clues); fi
           if [ -n "$REFERENCE_DATE" ]; then
             python3 - <<'PY'
           import datetime, os

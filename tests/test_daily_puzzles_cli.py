@@ -1,9 +1,11 @@
 """Unit tests for the daily puzzles CLI."""
 
 import io
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -95,6 +97,14 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
         mock_run.assert_called_once_with(output_dir=Path("dummy_out"), verify_only=True)
 
     @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
+    def test_related_clues_are_off_unless_asked_for(self, mock_run):
+        mock_run.return_value = {"reference_date": "2023-01-01", "output_dir": Path("out")}
+        for argv, expected in (([], False), (["--related-clues"], True)):
+            with patch("pathlib.Path.is_file", return_value=True), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(daily_puzzles_cli.main(argv), 0)
+            self.assertIs(mock_run.call_args.kwargs["related_clues"], expected)
+
+    @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
     def test_main_with_next_output(self, mock_run):
         mock_run.return_value = {
             "reference_date": "2023-01-01",
@@ -119,6 +129,24 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
         self.assertIn("Daily puzzles for 2023-01-02 published ahead in out/next", out_str)
         self.assertIn("WARNING: Grid kept from 2023-01-01 because generation failed: err", err_str)
         self.assertIn("WARNING: Day published without a grid because generation failed: skipped err (no previous grid available)", err_str)
+
+    @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
+    def test_main_reports_clue_coverage_of_the_published_day(self, mock_run):
+        with tempfile.TemporaryDirectory() as raw:
+            out = Path(raw)
+            (out / "s.json").write_text(json.dumps({
+                "config": {"play_mode": "standard"},
+                "questions": [{"clues_available": [{"id": "c"}]}, {"clues_available": []}],
+            }))
+            (out / "manifest-v2.json").write_text(
+                json.dumps({"sessions": {"daily.en.standard": {"path": "s.json"}}})
+            )
+            mock_run.return_value = {"reference_date": "2023-01-01", "output_dir": out}
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch("pathlib.Path.is_file", return_value=True), redirect_stdout(stdout), redirect_stderr(stderr):
+                code = daily_puzzles_cli.main([])
+        self.assertEqual(code, 0)
+        self.assertIn("standard: 1/2 questions with a clue, 1/1 sessions with at least one", stdout.getvalue())
 
     @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
     def test_main_already_published(self, mock_run):

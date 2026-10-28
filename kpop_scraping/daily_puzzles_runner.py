@@ -82,6 +82,7 @@ def generate_daily_puzzles(
     reference_date: str | date | None = None,
     base_seed: str = "web-launch-v1",
     timer_seconds: int | None = None,
+    related_clues: bool = False,
 ) -> dict[str, Any]:
     """Deterministically generate the 7 daily puzzles for reference_date.
 
@@ -96,7 +97,7 @@ def generate_daily_puzzles(
     connection.row_factory = sqlite3.Row
 
     # 1. Daily quiz: 6 base sessions + 6 daily sessions
-    dataset, _ = generate_dataset(connection)
+    dataset, _ = generate_dataset(connection, related_clues=related_clues)
     base_sessions = {
         f"{locale}.{difficulty}": create_session(
             dataset,
@@ -563,6 +564,7 @@ def run_daily_puzzles(
     timer_seconds: int | None = None,
     ahead: bool = False,
     regenerate: bool = False,
+    related_clues: bool = False,
 ) -> dict[str, Any]:
     """Orchestrate daily puzzles generation and publication.
 
@@ -603,6 +605,7 @@ def run_daily_puzzles(
                 reference_date=iso_date,
                 base_seed=base_seed,
                 timer_seconds=timer_seconds,
+                related_clues=related_clues,
             )
             result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run, connection=connection)
         if ahead:
@@ -612,6 +615,7 @@ def run_daily_puzzles(
                 reference_date=next_date,
                 base_seed=base_seed,
                 timer_seconds=timer_seconds,
+                related_clues=related_clues,
             )
             result["next"] = publish_daily_puzzles(
                 output_dir_path / NEXT_DIRNAME,

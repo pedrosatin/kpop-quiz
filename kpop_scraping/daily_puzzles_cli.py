@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .daily_puzzles_runner import run_daily_puzzles
+from .quiz_clue_coverage import MANIFEST_FILENAME, format_clue_coverage, published_clue_coverage
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -51,6 +52,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--regenerate",
         action="store_true",
         help="Generate the day again even if it is already published or waiting in next/",
+    )
+    parser.add_argument(
+        "--related-clues",
+        action="store_true",
+        help=(
+            "Add decade clues that cite the answer's own dated fact. A client released "
+            "before they were allowed rejects any session carrying one, so enable this "
+            "only once the client that accepts them has been live long enough"
+        ),
     )
     parser.add_argument(
         "--timer-seconds",
@@ -132,6 +142,25 @@ def report_skipped_code_groups(code_groups_skipped: dict[str, Any] | None) -> No
         print(f"::warning title=Daily group code missing::{message}")
 
 
+def report_clue_coverage(output_dir: str | Path, prefix: str = "") -> None:
+    """Print how many published quiz questions carry a clue.
+
+    A dry run leaves nothing on disk, so a missing manifest prints nothing.
+    The artifacts were verified before this runs, so a read failure here only
+    costs the report and is surfaced as a warning.
+    """
+    directory = Path(output_dir)
+    if not (directory / MANIFEST_FILENAME).is_file():
+        return
+    try:
+        coverage = published_clue_coverage(directory)
+    except (OSError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"WARNING: Quiz clue coverage not reported for {directory}: {exc}\n")
+        return
+    for line in format_clue_coverage(coverage, f"{prefix}Quiz clues in {directory}:"):
+        print(line)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -157,6 +186,7 @@ def main(argv: list[str] | None = None) -> int:
             timer_seconds=args.timer_seconds,
             ahead=args.ahead,
             regenerate=args.regenerate,
+            related_clues=args.related_clues,
         )
         report_reused_grid(result.get("grid_reused"))
         report_revalidated_grid(result.get("grid_revalidated"))
@@ -173,11 +203,13 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"{mode_str}Daily puzzles for {result['reference_date']} {action} and verified successfully in {result['output_dir']}"
         )
+        report_clue_coverage(result["output_dir"], mode_str)
         if "next" in result:
             report_reused_grid(result["next"].get("grid_reused"))
             report_skipped_grid(result["next"].get("grid_skipped"))
             report_skipped_code_groups(result["next"].get("code_groups_skipped"))
             print(f"{mode_str}Daily puzzles for {result['next']['reference_date']} published ahead in {result['next']['output_dir']}")
+            report_clue_coverage(result["next"]["output_dir"], mode_str)
         return 0
     except Exception as exc:
         sys.stderr.write(f"Daily puzzles generation failed: {exc}\n")

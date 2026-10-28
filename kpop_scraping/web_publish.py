@@ -16,6 +16,7 @@ from .grid_schema import validate_intersection_grid, write_intersection_grid_ato
 from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
 from .quiz_generator import QuizConfig, generate_dataset
 from .quiz_session import create_session
+from .quiz_clue_coverage import format_clue_coverage, published_clue_coverage
 from .quiz_models import InsufficientQuestionsError
 from .quiz_schema import mode_neutral_question, validate_session, write_json_atomic
 from .storage import canonical_json
@@ -578,6 +579,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Web publication failed: {exc}")
         return 1
     print(f"Web artifacts {'verified' if args.verify else 'published'} in {args.output_dir}")
+    for line in format_clue_coverage(published_clue_coverage(args.output_dir), "Quiz clues"):
+        print(line)
     return 0
 
 

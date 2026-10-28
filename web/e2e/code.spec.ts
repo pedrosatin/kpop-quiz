@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { reloadPersisted } from "./helpers/passive-effects";
 
 // The pilot artifact stays committed as the fixed example; the specs serve it
 // as the day's artifact through route interception, so the secret is known.
@@ -83,7 +84,7 @@ test("progress resumes after a reload and does not replay stats", async ({ page,
   await choose(page,[secret[1],secret[0],secret[2],secret[3]]);
   await page.getByRole("button",{name:"Enviar palpite"}).click();
   await expect(page.locator(".code-history li")).toHaveCount(1);
-  await page.reload();
+  await reloadPersisted(page);
   await expect(page.locator("#code-groups")).toBeVisible();
   await expect(page.locator(".code-history li")).toHaveCount(1);
   await choose(page,secret);

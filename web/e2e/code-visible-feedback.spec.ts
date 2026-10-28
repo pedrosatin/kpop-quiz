@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { reloadPersisted } from "./helpers/passive-effects";
 
 // The committed public example fixes the answer and the available symbols.
 const puzzle = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
@@ -145,7 +146,7 @@ for (const locale of ["pt", "en"] as const) {
         await page.locator(".code-slots select").first().selectOption(secret[1]!);
         await expect(page.locator(".code-slots select").first()).toBeFocused();
         expect(await codeScrolls(page)).toEqual(scrolls);
-        await page.reload();
+        await reloadPersisted(page);
         await expect(page.locator(".code-history li")).toHaveCount(1);
         expect(await codeScrolls(page)).toEqual([]);
         await choose(page, secret);
@@ -153,7 +154,7 @@ for (const locale of ["pt", "en"] as const) {
         await expect(page.locator(".code-result h2")).toContainText(locale === "pt" ? "Código descoberto!" : "Code solved!");
         await expect(page.locator(".code-result")).toBeFocused();
         await visibleAboveBanner(page, ".code-result h2");
-        await page.reload();
+        await reloadPersisted(page);
         await expect(page.locator(".code-result h2")).toBeVisible();
         await expect(page.locator(".code-result")).not.toBeFocused();
         expect(await codeScrolls(page)).toEqual([]);
@@ -175,7 +176,7 @@ for (const locale of ["pt", "en"] as const) {
         await expect(page.locator(".code-result h2")).toContainText(locale === "pt" ? "Tentativas esgotadas" : "Attempts exhausted");
         await expect(page.locator(".code-result")).toBeFocused();
         await visibleAboveBanner(page, ".code-result h2");
-        await page.reload();
+        await reloadPersisted(page);
         await expect(page.locator(".code-result h2")).toBeVisible();
         await expect(page.locator(".code-result")).not.toBeFocused();
         expect(await codeScrolls(page)).toEqual([]);

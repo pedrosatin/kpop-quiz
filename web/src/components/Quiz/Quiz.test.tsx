@@ -159,6 +159,44 @@ describe("Quiz", () => {
     );
   });
 
+  it("tells the player a question has no clue and charges nothing", async () => {
+    await renderReady("pt-BR", dailyPtSession);
+    const first = dailyPtSession.questions[0]!;
+    expect(first.clues_available).toHaveLength(0);
+    expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent(
+      "Esta pergunta não tem pista disponível. Nenhum ponto será descontado.",
+    );
+    expect(screen.queryByRole("button", { name: /Ver pista/ })).not.toBeInTheDocument();
+    const answer = first.options.find((option) => option.id === first.answer_option_id)!;
+    fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    expect(screen.queryByTestId("quiz-no-clue")).not.toBeInTheDocument();
+    clickNext();
+    expect(screen.getByText("Pontos:").parentElement).toHaveTextContent(String(first.base_points));
+  });
+
+  it("lists the source of a clue the player opened next to the answer's", async () => {
+    await renderReady("pt-BR", dailyPtSession);
+    const clueIndex = dailyPtSession.questions.findIndex((question) => question.clues_available.length > 0);
+    for (let index = 0; index < clueIndex; index += 1) {
+      const current = dailyPtSession.questions[index]!;
+      const answer = current.options.find((option) => option.id === current.answer_option_id)!;
+      fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      clickNext();
+    }
+    const question = dailyPtSession.questions[clueIndex]!;
+    expect(screen.queryByTestId("quiz-no-clue")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: `Ver pista (-${question.hint_cost} pontos)` }));
+    const answer = question.options.find((option) => option.id === question.answer_option_id)!;
+    fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver fonte" }));
+    const source = screen.getByTestId("quiz-clue-source");
+    expect(source).toHaveTextContent(question.clues_available[0]!.text);
+    expect(source.querySelector("a")).toHaveAttribute("href", question.clues_available[0]!.evidence[0]!.source_url);
+  });
+
   it("chooses a mode before starting and keeps expert free of clues", async () => {
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
@@ -170,6 +208,7 @@ describe("Quiz", () => {
     const heading = await screen.findByRole("heading", { name: expertSession.questions[0]!.prompt });
     await vi.waitFor(() => expect(heading).toHaveFocus());
     expect(screen.queryByRole("button", { name: /pista/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("quiz-no-clue")).not.toBeInTheDocument();
   });
 
   it("ignores a stale session response after the locale changes", async () => {

@@ -61,6 +61,9 @@ export function QuizRound({
     }
   }, [question.id]);
 
+  const seenClueIds = new Set([...question.clues_shown, ...revealedClues]);
+  const seenClues = question.clues_available.filter((clue) => seenClueIds.has(clue.id));
+
   return (
     <section ref={roundRef} id="quiz" class="game-card game-card--wide quiz-round" data-testid="game-board" aria-labelledby="question-heading">
       <ProgressHeader
@@ -108,6 +111,7 @@ export function QuizRound({
         correctOption={question.options.find((opt) => opt.id === question.answer_option_id) ?? null}
         explanation={question.explanation}
         evidence={question.evidence}
+        seenClues={seenClues}
         messages={messages}
         isLastQuestion={questionIndex === totalQuestions - 1}
         onSubmit={onSubmit}

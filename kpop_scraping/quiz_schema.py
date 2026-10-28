@@ -16,7 +16,7 @@ from .storage import canonical_json
 
 DATASET_SCHEMA_VERSION = "kpop-quiz-dataset-v2"
 SESSION_SCHEMA_VERSION = "kpop-quiz-session-v2"
-REPORT_SCHEMA_VERSION = "kpop-quiz-generation-report-v3"
+REPORT_SCHEMA_VERSION = "kpop-quiz-generation-report-v4"
 QUESTION_TYPES = frozenset(
     {
         "formation_year",
@@ -193,7 +193,7 @@ def validate_report(payload: dict[str, Any]) -> None:
         == {
             "accepted_by_predicate", "accepted_by_template", "accepted_by_type",
             "accepted_distinct_fact_bases", "accepted_logical",
-            "clue_eligible_base_questions",
+            "clue_coverage", "clue_eligible_base_questions",
             "dataset_version", "language_variants", "rejected_by_reason",
             "schema_version", "variants_by_play_mode", "variants_by_language",
         },
@@ -202,6 +202,7 @@ def validate_report(payload: dict[str, Any]) -> None:
     _require_hash(payload.get("dataset_version"), "dataset_version")
     _require(type(payload.get("accepted_logical")) is int and payload["accepted_logical"] >= 0, "accepted_logical")
     _require(type(payload.get("clue_eligible_base_questions")) is int and 0 <= payload["clue_eligible_base_questions"] <= payload["accepted_logical"], "clue_eligible_base_questions")
+    _validate_clue_coverage(payload)
     _require(
         type(payload.get("accepted_distinct_fact_bases")) is int,
         "accepted_distinct_fact_bases",
@@ -298,7 +299,7 @@ def _validate_question(question: Any) -> None:
 
     _validate_question_metadata(question)
     fact_base_ids = _validate_question_fact_bases(question)
-    _validate_question_clues(question, fact_base_ids)
+    _validate_question_clues(question)
 
     _require(isinstance(question.get("prompt"), str) and question["prompt"], "prompt")
 
@@ -361,13 +362,15 @@ def _validate_question_fact_bases(question: dict[str, Any]) -> list[str]:
     return fact_base_ids
 
 
-def _validate_question_clues(question: dict[str, Any], fact_base_ids: list[str]) -> None:
+def _validate_question_clues(question: dict[str, Any]) -> None:
     clues = question.get("clues_available")
     _require(isinstance(clues, list), "clues_available")
     clue_ids: set[str] = set()
     for clue in clues:
+        # A clue may cite another entity's accepted fact (the answer's date),
+        # so its facts need not be among the question's own; _validate_clue
+        # still requires evidence for every fact it names.
         _validate_clue(clue)
-        _require(set(clue["fact_base_ids"]) <= set(fact_base_ids), "clue fact_base_ids")
         _require(clue["id"] not in clue_ids, "duplicate clue id")
         clue_ids.add(clue["id"])
     shown = question.get("clues_shown")
@@ -484,6 +487,48 @@ def _validate_clue(clue: Any) -> None:
         _require(isinstance(item.get("source_key"), str) and item["source_key"], "clue evidence source")
         _require(type(item.get("revision_id")) is int and item["revision_id"] > 0, "clue evidence revision")
     _require(covered == set(fact_ids), "clue evidence coverage")
+
+
+def _validate_clue_coverage(report: dict[str, Any]) -> None:
+    coverage = report.get("clue_coverage")
+    _require(
+        isinstance(coverage, dict)
+        and set(coverage) == {"by_type", "questions", "unavailable_by_reason", "with_clue"},
+        "clue_coverage",
+    )
+    by_type = coverage["by_type"]
+    _require(
+        isinstance(by_type, dict)
+        and set(by_type) == QUESTION_TYPES
+        and all(
+            isinstance(item, dict)
+            and set(item) == {"questions", "with_clue"}
+            and type(item["questions"]) is int
+            and type(item["with_clue"]) is int
+            and 0 <= item["with_clue"] <= item["questions"]
+            for item in by_type.values()
+        ),
+        "clue_coverage.by_type",
+    )
+    for question_type, item in by_type.items():
+        _require(
+            item["questions"] == report["accepted_by_type"].get(question_type),
+            "clue_coverage.by_type questions",
+        )
+    reasons = coverage["unavailable_by_reason"]
+    _require(
+        isinstance(reasons, dict)
+        and all(isinstance(key, str) and key and type(value) is int and value > 0
+                for key, value in reasons.items()),
+        "clue_coverage.unavailable_by_reason",
+    )
+    _require(
+        coverage["questions"] == report["accepted_logical"]
+        and coverage["with_clue"] == sum(item["with_clue"] for item in by_type.values())
+        and coverage["with_clue"] == report["clue_eligible_base_questions"]
+        and coverage["with_clue"] + sum(reasons.values()) == coverage["questions"],
+        "clue_coverage totals",
+    )
 
 
 def mode_neutral_question(
