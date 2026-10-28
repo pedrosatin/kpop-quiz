@@ -1245,5 +1245,184 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertEqual(missing_code, 1)
 
 
+class WordSearchThemeFallbackRunnerTests(unittest.TestCase):
+    """The daily batch must publish when the drawn word search theme cannot be placed."""
+
+    START = date(2026, 9, 18)
+
+    @classmethod
+    def setUpClass(cls):
+        # Imported here: both modules build their own fixture databases.
+        from tests.test_word_search_generator import add_jellyfish_theme, add_star_empire_theme
+
+        cls.temp_dir = tempfile.TemporaryDirectory()
+        cls.db_path = Path(cls.temp_dir.name) / "kpop.db"
+        conn = build_test_database(cls.db_path)
+        add_jellyfish_theme(conn)
+        add_star_empire_theme(conn)
+        conn.commit()
+        conn.close()
+        cls.fallback_day = cls._first_day(cls.db_path, 0, falls_back=True)
+        cls.passing_day = cls._first_day(cls.db_path, 0, falls_back=False)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp_dir.cleanup()
+
+    @staticmethod
+    def _first_day(db_path: Path, offset: int, falls_back: bool) -> date:
+        """First date whose word search draw, ``offset`` days later, does (not) need a fallback."""
+        from datetime import timedelta
+
+        from kpop_scraping.word_search_generator import generate_word_search_puzzle_with_fallback
+
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        try:
+            for days in range(120):
+                day = WordSearchThemeFallbackRunnerTests.START + timedelta(days=days)
+                probed = day + timedelta(days=offset)
+                _puzzle, fallback = generate_word_search_puzzle_with_fallback(
+                    conn, f"kpop-word-search-daily-{probed.isoformat()}", probed
+                )
+                if (fallback is not None) == falls_back:
+                    return day
+        finally:
+            conn.close()
+        raise AssertionError(f"no date in 120 days with falls_back={falls_back}")
+
+    def setUp(self):
+        self.out_dir = Path(tempfile.mkdtemp(dir=self.temp_dir.name))
+        # The runner logs every replaced theme to stderr; keep the test output readable.
+        self.enterContext(redirect_stderr(io.StringIO()))
+
+    def test_day_whose_theme_cannot_be_placed_publishes_another_theme(self):
+        iso = self.fallback_day.isoformat()
+        stderr = io.StringIO()
+        with redirect_stderr(stderr):
+            result = run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date=iso)
+
+        fallback = result["word_search_fallback"]
+        self.assertIn(fallback["requested_theme_id"], {"label_q16180845", "label_q3206859"})
+        self.assertNotEqual(fallback["used_theme_id"], fallback["requested_theme_id"])
+        self.assertIn(f"Word search theme {fallback['requested_theme_id']} could not be placed for {iso}", stderr.getvalue())
+        self.assertIn("word-search.daily.json", result["published_files"])
+        word_search = json.loads((self.out_dir / "word-search.daily.json").read_text(encoding="utf-8"))
+        validate_word_search_puzzle(word_search)
+        self.assertEqual(word_search["reference_date"], iso)
+        self.assertEqual(word_search["puzzle_id"], result["word_search_id"])
+        verify_artifacts(self.out_dir, require_grid=False, require_code_groups=False)
+
+    def test_days_that_already_passed_report_no_fallback(self):
+        result = run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date=self.passing_day.isoformat()
+        )
+        self.assertIsNone(result["word_search_fallback"])
+
+    def test_ahead_publishes_the_replaced_next_day_and_a_later_run_promotes_it(self):
+        from datetime import timedelta
+
+        next_day = self._first_day(self.db_path, 1, falls_back=True)
+        today = next_day.isoformat()
+        tomorrow = (next_day + timedelta(days=1)).isoformat()
+        after = (next_day + timedelta(days=2)).isoformat()
+        result = run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date=today, ahead=True
+        )
+
+        self.assertEqual(result["next"]["reference_date"], tomorrow)
+        self.assertIsNotNone(result["next"]["word_search_fallback"])
+        next_ws = json.loads((self.out_dir / NEXT_DIRNAME / "word-search.daily.json").read_text(encoding="utf-8"))
+        validate_word_search_puzzle(next_ws)
+        self.assertEqual(next_ws["reference_date"], tomorrow)
+        ahead_bytes = (self.out_dir / NEXT_DIRNAME / "word-search.daily.json").read_bytes()
+
+        promoted = run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date=tomorrow, ahead=True
+        )
+        self.assertTrue(promoted["promoted_from_next"])
+        self.assertEqual((self.out_dir / "word-search.daily.json").read_bytes(), ahead_bytes)
+        self.assertEqual(promoted["word_search_id"], next_ws["puzzle_id"])
+        self.assertEqual(promoted["next"]["reference_date"], after)
+        verify_artifacts(self.out_dir, require_grid=False, require_code_groups=False)
+        verify_artifacts(self.out_dir / NEXT_DIRNAME, require_grid=False, require_code_groups=False)
+
+    def test_regenerating_a_replaced_day_is_byte_identical(self):
+        iso = self.fallback_day.isoformat()
+        first_dir, second_dir = self.out_dir / "first", self.out_dir / "second"
+        run_daily_puzzles(database=self.db_path, output_dir=first_dir, reference_date=iso)
+        run_daily_puzzles(database=self.db_path, output_dir=second_dir, reference_date=iso)
+        self.assertEqual(
+            (first_dir / "word-search.daily.json").read_bytes(),
+            (second_dir / "word-search.daily.json").read_bytes(),
+        )
+
+    def test_cli_warns_in_github_actions_when_the_theme_is_replaced(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), redirect_stdout(stdout), redirect_stderr(stderr):
+            code = daily_puzzles_cli.main([
+                "--database", str(self.db_path),
+                "--output-dir", str(self.out_dir),
+                "--date", self.fallback_day.isoformat(),
+            ])
+        self.assertEqual(code, 0)
+        self.assertIn("::warning title=Word search theme replaced::Word search theme ", stdout.getvalue())
+        self.assertIn("WARNING: Word search theme ", stderr.getvalue())
+
+    def test_no_theme_can_be_placed_fails_without_publishing(self):
+        # The generator test covers a database whose every theme is
+        # unplaceable; here the budget is exhausted for all of this
+        # database's themes so the runner's failure path is exercised.
+        out = self.out_dir / "published"
+        stderr = io.StringIO()
+        with patch("kpop_scraping.word_search_generator._place_theme", return_value=None), redirect_stderr(stderr):
+            code = daily_puzzles_cli.main([
+                "--database", str(self.db_path), "--output-dir", str(out), "--date", "2026-09-18", "--ahead",
+            ])
+        self.assertEqual(code, 1)
+        self.assertIn("Failed to place word search grid for theme", stderr.getvalue())
+        self.assertRegex(stderr.getvalue(), r"none of the \d+ candidate themes could be placed")
+        self.assertFalse(out.exists(), "a failed generation must not leave a partial publication")
+
+    def test_failed_next_day_leaves_the_published_pair_untouched(self):
+        from datetime import timedelta
+
+        today = self.START.isoformat()
+        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date=today, ahead=True)
+        before = {
+            path.relative_to(self.out_dir).as_posix(): path.read_bytes()
+            for path in sorted(self.out_dir.rglob("*.json"))
+        }
+        tomorrow = (self.START + timedelta(days=1)).isoformat()
+        day_after = (self.START + timedelta(days=2)).isoformat()
+        original = generate_daily_puzzles
+
+        def failing_word_search_for_day_after(connection, reference_date=None, **kwargs):
+            if reference_date == day_after:
+                raise ValueError("Failed to place word search grid for theme x within budget")
+            return original(connection, reference_date=reference_date, **kwargs)
+
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_daily_puzzles",
+            side_effect=failing_word_search_for_day_after,
+        ):
+            with self.assertRaisesRegex(ValueError, "Failed to place word search grid"):
+                run_daily_puzzles(
+                    database=self.db_path, output_dir=self.out_dir, reference_date=tomorrow, ahead=True
+                )
+
+        # The day itself is the promoted set; the stale next/ was not touched
+        # and nothing half-written was left behind.
+        self.assertFalse(list(self.out_dir.rglob("*.tmp")))
+        after = {
+            path.relative_to(self.out_dir).as_posix(): path.read_bytes()
+            for path in sorted(self.out_dir.rglob("*.json"))
+            if path.relative_to(self.out_dir).parts[0] == NEXT_DIRNAME
+        }
+        self.assertEqual(after, {k: v for k, v in before.items() if k.startswith(f"{NEXT_DIRNAME}/")})
+        verify_artifacts(self.out_dir, require_grid=False, require_code_groups=False)
+        verify_artifacts(self.out_dir / NEXT_DIRNAME, require_grid=False, require_code_groups=False)
+
+
 if __name__ == "__main__":
     unittest.main()

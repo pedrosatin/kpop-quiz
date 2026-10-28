@@ -14,9 +14,11 @@ from unittest.mock import patch
 from kpop_scraping.word_search_cli import main as cli_main
 from kpop_scraping.word_search_generator import (
     DIRECTIONS,
+    _fallback_order,
     extract_viable_themes,
     find_word_occurrences,
     generate_word_search_puzzle,
+    generate_word_search_puzzle_with_fallback,
 )
 from kpop_scraping.word_search_schema import (
     extract_word_coordinates,
@@ -333,6 +335,94 @@ def build_word_search_test_database() -> sqlite3.Connection:
     return conn
 
 
+JELLYFISH_QID = "Q16180845"
+JELLYFISH_THEME_ID = "label_q16180845"
+STAR_EMPIRE_QID = "Q3206859"
+STAR_EMPIRE_THEME_ID = "label_q3206859"
+
+
+def add_label_theme(
+    conn: sqlite3.Connection,
+    label_qid: str,
+    label_name: str,
+    groups: list[tuple[str, str]],
+) -> None:
+    """Add a record label with audited ``record_label`` facts for its groups."""
+    cur = conn.execute(
+        "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, 'organization', ?)",
+        (label_qid, label_name),
+    )
+    label_id = cur.lastrowid
+    for language in ("en", "pt"):
+        conn.execute(
+            "INSERT INTO entity_aliases VALUES (?, ?, ?, 'label')", (label_id, language, label_name)
+        )
+    for qid, name in groups:
+        group = conn.execute(
+            "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, 'group', ?)",
+            (qid, name),
+        )
+        for language in ("en", "pt"):
+            conn.execute(
+                "INSERT INTO entity_aliases VALUES (?, ?, ?, 'label')", (group.lastrowid, language, name)
+            )
+        fact = conn.execute(
+            """
+            INSERT INTO facts(
+                statement_id, subject_entity_id, predicate, property_id, rank,
+                value_wikidata_id, value_entity_id, status, quality_flags_json
+            ) VALUES (?, ?, 'record_label', 'P264', 'normal', ?, ?, 'accepted', '[]')
+            """,
+            (f"label-{label_qid}-{qid}", group.lastrowid, label_qid, label_id),
+        )
+        conn.execute(
+            """
+            INSERT INTO fact_evidence(
+                fact_id, evidence_type, source_key, locator, reference_hash,
+                wikidata_snapshot_id
+            ) VALUES (?, 'wikidata_reference', 'wikidata', 'P264/hash1', 'ref1', 1)
+            """,
+            (fact.lastrowid,),
+        )
+
+
+def add_jellyfish_theme(conn: sqlite3.Connection) -> None:
+    """Five groups where VIXX hides inside VIXXLR, so no subset of five is placeable.
+
+    A theme with exactly five candidates always draws all five, and VIXX would
+    then also be read at VIXXLR's first four cells, outside its own position.
+    """
+    add_label_theme(
+        conn,
+        JELLYFISH_QID,
+        "Jellyfish Entertainment",
+        [
+            ("Q1000001", "VIXX"),
+            ("Q1000002", "VIXX LR"),
+            ("Q1000003", "Gugudan"),
+            ("Q1000004", "Verivery"),
+            ("Q1000005", "Spectrum"),
+        ],
+    )
+
+
+def add_star_empire_theme(conn: sqlite3.Connection) -> None:
+    """Six groups where NINE MUSES hides inside NINE MUSES A."""
+    add_label_theme(
+        conn,
+        STAR_EMPIRE_QID,
+        "Star Empire Entertainment",
+        [
+            ("Q1000011", "Nine Muses"),
+            ("Q1000012", "Nine Muses A"),
+            ("Q1000013", "Zea"),
+            ("Q1000014", "Kiss and Cry"),
+            ("Q1000015", "Pink Fantasy"),
+            ("Q1000016", "Tahiti"),
+        ],
+    )
+
+
 class TestWordNormalization(unittest.TestCase):
     def test_normalize_plain_words(self) -> None:
         self.assertEqual(normalize_word("TWICE"), "TWICE")
@@ -626,6 +716,172 @@ class TestWordSearchCLI(unittest.TestCase):
         self.assertEqual(ret, 0)
         payload = json.loads(stdout_buf.getvalue())
         self.assertIn("TWICE", payload["theme"]["en"])
+
+
+class TestWordSearchThemeFallback(unittest.TestCase):
+    """A drawn theme that cannot be placed must not take the whole day down."""
+
+    REFERENCE = date(2026, 10, 28)
+    # puzzle_id values produced by the generator before the fallback existed,
+    # for the fixture below. A day whose first theme succeeds must keep them.
+    UNCHANGED_PUZZLE_IDS = (
+        ("golden-0", "fe593a57c0b803248f2e83807dff4e65e4c572c84e82fa694ac6de93a7cd296d"),
+        ("golden-1", "bfa240892f07cf4deb94c22f7c9ac5288e900fee2b680adc882faa3424d30138"),
+        ("golden-2", "d86a12c5c4ffa359a1bd6cb528782960a06aadb2a81b0b8bdbb695280aaaaa29"),
+        ("golden-3", "8a27067189089fb197b33f140e3bcaeec4b134683aead85d463a63eb2c4e13b7"),
+        ("golden-4", "6fb75b95d0a6b0db1a80a1b589d7aeda8b1da97b58b751401bac8a8a1a29cda2"),
+        ("golden-7", "2dac8557d690bc8c6050830556697acf248f25b35ad54b4e420540dc5b2fd284"),
+        ("golden-8", "7d4da07d81c3e55e7328293bdb3d56bd408e94209c403fa366bcab9dc66f60dd"),
+        ("golden-9", "99da96567445c623a6b2e3d2da2600db0283debf8303839795a40954f5593372"),
+    )
+    # Seeds whose first draw is an unplaceable theme: the generator raised for
+    # them before the fallback existed.
+    FORMERLY_FAILING_SEEDS = ("golden-5", "golden-6", "golden-14", "golden-21")
+
+    def setUp(self) -> None:
+        self.conn = build_word_search_test_database()
+        add_jellyfish_theme(self.conn)
+        add_star_empire_theme(self.conn)
+        self.conn.commit()
+
+    def tearDown(self) -> None:
+        self.conn.close()
+
+    def generate(self, seed: str, **kwargs):
+        return generate_word_search_puzzle_with_fallback(
+            self.conn, seed, self.REFERENCE, **kwargs
+        )
+
+    def test_unplaceable_themes_are_structurally_unplaceable(self) -> None:
+        # Guards the fixture: the themes below fail for every seed because the
+        # pool equals the draw size, so the substring pair is always selected.
+        themes = {t.theme_id: t for t in self._themes()}
+        for theme_id, pair in (
+            (JELLYFISH_THEME_ID, ("VIXX", "VIXXLR")),
+            (STAR_EMPIRE_THEME_ID, ("NINEMUSES", "NINEMUSESA")),
+        ):
+            words = {c.word for c in themes[theme_id].candidates}
+            self.assertLessEqual(len(words), 6, theme_id)
+            self.assertTrue(set(pair) <= words, theme_id)
+
+    def _themes(self):
+        from kpop_scraping.quiz_repository import _load_entities, _load_facts
+
+        entities = _load_entities(self.conn)
+        facts, _rejected = _load_facts(self.conn, entities)
+        return extract_viable_themes(entities, facts, 12, 12)
+
+    def test_days_whose_first_theme_succeeds_keep_their_bytes(self) -> None:
+        for seed, expected_id in self.UNCHANGED_PUZZLE_IDS:
+            with self.subTest(seed=seed):
+                puzzle, fallback = self.generate(seed)
+                self.assertIsNone(fallback)
+                self.assertEqual(puzzle["puzzle_id"], expected_id)
+
+    def test_formerly_failing_days_publish_another_valid_theme(self) -> None:
+        requested = set()
+        for seed in self.FORMERLY_FAILING_SEEDS:
+            with self.subTest(seed=seed):
+                puzzle, fallback = self.generate(seed)
+                self.assertIsNotNone(fallback)
+                assert fallback is not None
+                self.assertIn(
+                    fallback.requested_theme_id, {JELLYFISH_THEME_ID, STAR_EMPIRE_THEME_ID}
+                )
+                requested.add(fallback.requested_theme_id)
+                self.assertEqual(fallback.failed_theme_ids[0], fallback.requested_theme_id)
+                self.assertNotIn(fallback.used_theme_id, fallback.failed_theme_ids)
+                self.assertNotIn(
+                    puzzle["theme"]["en"], ("Groups from Jellyfish Entertainment",)
+                    if fallback.requested_theme_id == JELLYFISH_THEME_ID
+                    else ("Groups from Star Empire Entertainment",),
+                )
+                validate_word_search_puzzle(puzzle)
+                validate_word_search_clues(puzzle)
+                self._assert_words_only_at_declared_positions(puzzle)
+        # Neither unplaceable theme is dropped from the draw: both are still
+        # drawn, reported and replaced.
+        self.assertEqual(requested, {JELLYFISH_THEME_ID, STAR_EMPIRE_THEME_ID})
+
+    def test_fallback_is_reproducible_and_independent_of_the_wrapper(self) -> None:
+        first, first_fallback = self.generate("golden-5")
+        second, second_fallback = self.generate("golden-5")
+        self.assertEqual(first, second)
+        self.assertEqual(first_fallback, second_fallback)
+        self.assertEqual(
+            generate_word_search_puzzle(self.conn, "golden-5", self.REFERENCE), first
+        )
+        # golden-21 draws Jellyfish, then meets Star Empire, then publishes.
+        _chained, chain = self.generate("golden-21")
+        assert chain is not None
+        self.assertEqual(chain.failed_theme_ids, (JELLYFISH_THEME_ID, STAR_EMPIRE_THEME_ID))
+
+    def test_fallback_order_depends_only_on_seed_and_theme_ids(self) -> None:
+        themes = sorted(self._themes(), key=lambda t: (t.category, t.theme_id))
+        drawn = themes[0]
+        order = [t.theme_id for t in _fallback_order("seed-a", themes, drawn)]
+        self.assertEqual(order, [t.theme_id for t in _fallback_order("seed-a", list(reversed(themes)), drawn)])
+        self.assertEqual(sorted(order), sorted(t.theme_id for t in themes if t is not drawn))
+        self.assertNotEqual(order, [t.theme_id for t in _fallback_order("seed-b", themes, drawn)])
+
+    def test_all_themes_unplaceable_raises_and_names_every_theme(self) -> None:
+        self.conn.execute(
+            "DELETE FROM facts WHERE statement_id NOT LIKE 'label-Q16180845-%' "
+            "AND statement_id NOT LIKE 'label-Q3206859-%'"
+        )
+        self.conn.commit()
+        self.assertEqual(
+            {t.theme_id for t in self._themes()}, {JELLYFISH_THEME_ID, STAR_EMPIRE_THEME_ID}
+        )
+        for seed in ("golden-5", "golden-6"):
+            with self.subTest(seed=seed):
+                with self.assertRaises(ValueError) as caught:
+                    self.generate(seed)
+                message = str(caught.exception)
+                self.assertIn("Failed to place word search grid for theme", message)
+                self.assertIn("none of the 2 candidate themes could be placed", message)
+                self.assertIn(JELLYFISH_THEME_ID, message)
+                self.assertIn(STAR_EMPIRE_THEME_ID, message)
+
+    def test_single_unplaceable_theme_without_alternative_raises(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Failed to place word search grid for theme label_q16180845"):
+            self.generate("golden-5", theme_filter=JELLYFISH_THEME_ID)
+
+    def test_fallback_stays_inside_the_theme_filter(self) -> None:
+        # "label_q" matches only the two unplaceable themes.
+        with self.assertRaisesRegex(ValueError, "none of the 2 candidate themes"):
+            self.generate("golden-5", theme_filter="label_q")
+        # "label" also matches the JYP and SM themes, which are placeable.
+        puzzle, fallback = self.generate("golden-5", theme_filter="label")
+        assert fallback is not None
+        self.assertTrue(fallback.used_theme_id.startswith("label_"))
+        self.assertIn("Groups from", puzzle["theme"]["en"])
+
+    def test_cli_prints_the_replaced_day_instead_of_failing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "kpop.db"
+            target = sqlite3.connect(str(db_path))
+            self.conn.backup(target)
+            target.close()
+            stdout_buf = io.StringIO()
+            with patch("sys.stdout", stdout_buf):
+                ret = cli_main(["--database", str(db_path), "--seed", "golden-5", "--date", "2026-10-28", "--verify"])
+        self.assertEqual(ret, 0)
+        validate_word_search_puzzle(json.loads(stdout_buf.getvalue()))
+
+    @staticmethod
+    def _assert_words_only_at_declared_positions(puzzle: dict) -> None:
+        grid = puzzle["grid"]
+        for entry in puzzle["words"]:
+            word = entry["word"]
+            expected = {
+                (entry["start_row"], entry["start_col"], entry["end_row"], entry["end_col"]),
+            }
+            if word == word[::-1]:
+                expected.add(
+                    (entry["end_row"], entry["end_col"], entry["start_row"], entry["start_col"])
+                )
+            assert set(find_word_occurrences(grid, word)) == expected, word
 
 
 class TestWordSearchRealDatabase(unittest.TestCase):

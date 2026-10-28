@@ -62,7 +62,7 @@ from .web_publish import (
     publish,
     verify_artifacts,
 )
-from .word_search_generator import generate_word_search_puzzle
+from .word_search_generator import generate_word_search_puzzle_with_fallback
 
 
 # Holds the next day's set, published ahead of time.
@@ -157,9 +157,15 @@ def generate_daily_puzzles(
 
     # 5. Word search puzzle
     ws_seed = f"kpop-word-search-daily-{iso_date}"
-    word_search = generate_word_search_puzzle(
+    word_search, word_search_fallback = generate_word_search_puzzle_with_fallback(
         connection, seed=ws_seed, reference_date=ref_date
     )
+    if word_search_fallback is not None:
+        sys.stderr.write(
+            f"Word search theme {word_search_fallback.requested_theme_id} could not be "
+            f"placed for {iso_date}; published theme {word_search_fallback.used_theme_id} "
+            f"(tried and abandoned: {', '.join(word_search_fallback.failed_theme_ids)})\n"
+        )
 
     # 6. Timeline puzzle
     timeline_seed = f"kpop-timeline-daily-{iso_date}"
@@ -196,6 +202,9 @@ def generate_daily_puzzles(
         "connections": connections,
         "name_guess": name_guess,
         "word_search": word_search,
+        "word_search_fallback": (
+            word_search_fallback._asdict() if word_search_fallback is not None else None
+        ),
         "timeline": timeline,
         "code_groups": code_groups,
         "code_groups_error": code_groups_error,
@@ -305,6 +314,7 @@ def publish_daily_puzzles(
             "connections_id": puzzles["connections"]["puzzle_id"],
             "name_guess_id": puzzles["name_guess"]["puzzle_id"],
             "word_search_id": puzzles["word_search"]["puzzle_id"],
+            "word_search_fallback": puzzles.get("word_search_fallback"),
             "timeline_id": puzzles["timeline"]["puzzle_id"],
             "code_groups_id": (
                 puzzles["code_groups"]["puzzle_id"] if puzzles["code_groups"] is not None else None

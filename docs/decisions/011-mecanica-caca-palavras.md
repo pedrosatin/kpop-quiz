@@ -61,6 +61,22 @@ Após o posicionamento das palavras temáticas, as células vazias da grade rece
 
 A distribuição de frequências das letras de preenchimento utiliza pesos proporcionais à frequência de letras nos nomes romanizados do catálogo de K-pop, enriquecendo as combinações para dificultar a identificação imediata das palavras sem gerar palavras indesejadas. O algoritmo verifica que nenhuma palavra da lista do tema aparece na grade fora das posições declaradas no artefato.
 
+### Tema sorteado que não cabe na grade
+
+A semente sorteia um tema. Quando ele não é posicionado dentro do orçamento fixo (30 sorteios de subconjunto, 2000 passos de retrocesso cada), o gerador tenta os outros temas, um por vez, e publica o primeiro que cabe. O orçamento, as direções, o preenchimento e os validadores são os mesmos para todos os temas, inclusive a regra desta decisão de que nenhuma palavra do tema ocorre na grade fora da posição declarada.
+
+Um tema falha de forma estrutural quando dois nomes do tema são um substring do outro, como `VIXX` dentro de `VIXXLR`, e o conjunto de candidatos é do tamanho do sorteio (5 ou 6 palavras). Todas as palavras entram em toda tentativa, então `VIXX` sempre aparece também nas quatro primeiras células de `VIXXLR`. A decisão não relaxa o validador nem remove palavras do tema.
+
+Regras do reserva:
+
+1. O sorteio e o primeiro posicionamento seguem o mesmo fluxo aleatório de antes. Uma data cujo tema sorteado cabe publica os mesmos bytes e o mesmo `puzzle_id`.
+2. Os outros temas entram em ordem crescente do SHA-256 de `{seed}\0theme-fallback\0{theme_id}`. Cada um usa um fluxo aleatório derivado desse mesmo hash, independente do que os temas abandonados consumiram. A ordem depende só da semente e dos identificadores dos temas.
+3. Nenhum tema sai do sorteio. Os que não cabem continuam sendo sorteados e são substituídos às claras: o gerador devolve `requested_theme_id`, `used_theme_id` e `failed_theme_ids`; o runner grava essa lista no stderr, a resposta do runner a traz em `word_search_fallback` (no dia e em `next`), e o workflow mostra o aviso `Word search theme replaced` no resumo da execução.
+4. Com `--theme`, o reserva fica entre os temas que casam com o filtro. Se só um casa e não cabe, o erro é o de antes.
+5. Se nenhum tema couber, `ValueError` nomeia todos os temas tentados. O runner não publica nada para aquele dia: a geração acontece antes da publicação em staging, então o diretório de saída não recebe arquivos parciais.
+
+O tema publicado no dia não muda a pista, as evidências nem o contrato `kpop-word-search-puzzle-v1`: o artefato não registra que houve substituição.
+
 ### Pistas pedagógicas e rastreabilidade de evidências
 
 Para preservar o objetivo educativo do projeto, cada palavra associada ao quebra-cabeça inclui metadados factuais auditados:
