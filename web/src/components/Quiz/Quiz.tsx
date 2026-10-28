@@ -291,7 +291,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
         correctCount={history.filter((h) => h.isCorrect).length} elapsedSeconds={elapsedSeconds}
         cluesUsedCount={history.reduce((acc, h) => acc + h.cluesUsedCount, 0)}
         playMode={playMode} history={history} headingRef={resultHeadingRef} onRestart={restart}
-        dailyDate={dailyDate}
+        dailyDate={dailyDate} feedbackEligible={!gaveUpRef.current}
       />
     );
   }
