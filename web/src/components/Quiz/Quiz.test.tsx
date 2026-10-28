@@ -416,10 +416,16 @@ describe("Quiz", () => {
   });
 
   it("shows the missing state and retries the publication", async () => {
-    const fetch = vi.fn()
-      .mockResolvedValueOnce(new Response(null, { status: 404 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
-      .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
+    // Only manifest-v2.json is published, and its first request is a 404.
+    let legacyManifestRequests = 0;
+    const fetch = vi.fn(async (url: string) => {
+      if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
+      if (url.endsWith("manifest-v2.json")) {
+        legacyManifestRequests += 1;
+        return legacyManifestRequests === 1 ? new Response(null, { status: 404 }) : new Response(JSON.stringify(manifest));
+      }
+      return new Response(`${JSON.stringify(ptSession)}\n`);
+    });
     vi.stubGlobal("fetch", fetch);
     render(<Quiz locale="pt-BR" />);
     expect(await screen.findByText("Este jogo ainda não está disponível em português.")).toBeInTheDocument();
@@ -427,7 +433,8 @@ describe("Quiz", () => {
     await waitForSetupReady();
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     expect(await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(legacyManifestRequests).toBe(2);
+    expect(fetch).toHaveBeenCalledTimes(5);
   });
 
   it("completes all questions, displays results, and restarts the round", async () => {

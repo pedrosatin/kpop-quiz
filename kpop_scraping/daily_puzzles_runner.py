@@ -49,6 +49,7 @@ from .web_publish import (
     CODE_GROUPS_DAILY_FILENAME,
     CONNECTIONS_DAILY_FILENAME,
     DIFFICULTIES,
+    ENRICHED_MANIFEST_FILENAME,
     GRID_DAILY_FILENAME,
     LOCALES,
     MANIFEST_FILENAME,
@@ -77,6 +78,25 @@ def get_reference_date(date_val: str | date | None = None) -> str:
     return parse_daily_date(date_val)
 
 
+def _quiz_sessions(
+    dataset: dict[str, Any], iso_date: str, base_seed: str, timer_seconds: int | None
+) -> dict[str, dict[str, Any]]:
+    """Base, daily and decade sessions of one dataset."""
+    base_sessions = {
+        f"{locale}.{difficulty}": create_session(
+            dataset,
+            QuizConfig(locale, base_seed, play_mode=difficulty, timer_seconds=timer_seconds),
+        )
+        for locale in LOCALES
+        for difficulty in DIFFICULTIES
+    }
+    return {
+        **base_sessions,
+        **create_daily_sessions(dataset, iso_date, timer_seconds),
+        **create_decade_sessions(dataset, base_seed, timer_seconds),
+    }
+
+
 def generate_daily_puzzles(
     connection: sqlite3.Connection,
     reference_date: str | date | None = None,
@@ -85,6 +105,12 @@ def generate_daily_puzzles(
     related_clues: bool = False,
 ) -> dict[str, Any]:
     """Deterministically generate the 7 daily puzzles for reference_date.
+
+    The quiz sessions always come out without related decade clues: those are
+    the ones the v2 manifest lists, and a client released before the clues
+    existed rejects a session that carries one. With ``related_clues`` the
+    result also carries ``enriched_sessions``, the same sessions with the
+    clues added, which are published under ``manifest-v3.json``.
 
     The group code pilot is best-effort: when its generation fails, the
     returned puzzles carry ``code_groups=None`` plus ``code_groups_error``
@@ -97,20 +123,14 @@ def generate_daily_puzzles(
     connection.row_factory = sqlite3.Row
 
     # 1. Daily quiz: 6 base sessions + 6 daily sessions
-    dataset, _ = generate_dataset(connection, related_clues=related_clues)
-    base_sessions = {
-        f"{locale}.{difficulty}": create_session(
-            dataset,
-            QuizConfig(locale, base_seed, play_mode=difficulty, timer_seconds=timer_seconds),
-        )
-        for locale in LOCALES
-        for difficulty in DIFFICULTIES
-    }
-    daily_sessions = create_daily_sessions(dataset, iso_date, timer_seconds)
-    decade_sessions = create_decade_sessions(dataset, base_seed, timer_seconds)
-    all_sessions = {**base_sessions, **daily_sessions, **decade_sessions}
-    session_pt_br = daily_sessions["daily.pt-BR.standard"]
-    session_en = daily_sessions["daily.en.standard"]
+    dataset, _ = generate_dataset(connection)
+    all_sessions = _quiz_sessions(dataset, iso_date, base_seed, timer_seconds)
+    enriched_sessions = None
+    if related_clues:
+        enriched_dataset, _ = generate_dataset(connection, related_clues=True)
+        enriched_sessions = _quiz_sessions(enriched_dataset, iso_date, base_seed, timer_seconds)
+    session_pt_br = all_sessions["daily.pt-BR.standard"]
+    session_en = all_sessions["daily.en.standard"]
 
     # 2. Intersection grid. If the catalog cannot fill a 3x3, leave grid
     # unset so publish_daily_puzzles can reuse the previous artifact when
@@ -174,6 +194,7 @@ def generate_daily_puzzles(
         "reference_date": iso_date,
         "dataset_version": dataset["dataset_version"],
         "sessions": all_sessions,
+        "enriched_sessions": enriched_sessions,
         "session_pt_br": session_pt_br,
         "session_en": session_en,
         "grid": grid,
@@ -229,6 +250,7 @@ def publish_daily_puzzles(
             word_search=puzzles["word_search"],
             timeline=puzzles["timeline"],
             code_groups=puzzles["code_groups"],
+            enriched_sessions=puzzles.get("enriched_sessions"),
         )
         grid_skipped = None
         if puzzles["grid"] is None:
@@ -298,6 +320,7 @@ def publish_daily_puzzles(
                 puzzles["code_groups"]["puzzle_id"] if puzzles["code_groups"] is not None else None
             ),
             "code_groups_skipped": code_groups_skipped,
+            "related_clues": puzzles.get("enriched_sessions") is not None,
             "dry_run": dry_run,
             "output_dir": str(output_dir),
             "published_files": [p.name for p in sorted(staging_dir.glob("*.json"))],
@@ -323,6 +346,12 @@ def publish_daily_puzzles(
                 (output_dir / CODE_GROUPS_DAILY_FILENAME).unlink()
             except FileNotFoundError:
                 pass
+
+        if puzzles.get("enriched_sessions") is None:
+            # Like the grid: the directory installs without prune, and an
+            # enriched manifest left by an earlier day names that day's
+            # sessions, which clients that read it would show as today's.
+            (output_dir / ENRICHED_MANIFEST_FILENAME).unlink(missing_ok=True)
 
         # 4. Final verification in output_dir; the grid and the group code
         # artifact stay optional here too.
@@ -541,6 +570,10 @@ def keep_or_promote_day(
             (output_dir / GRID_DAILY_FILENAME).unlink()
         except FileNotFoundError:
             pass
+    if not (next_dir / ENRICHED_MANIFEST_FILENAME).is_file():
+        # Same as the grid: an enriched manifest left by an earlier day does
+        # not survive the promotion of a set published without one.
+        (output_dir / ENRICHED_MANIFEST_FILENAME).unlink(missing_ok=True)
     if not (next_dir / CODE_GROUPS_DAILY_FILENAME).is_file():
         # Same as the grid: a group code artifact left by an earlier day
         # does not survive the promotion of a set without one.

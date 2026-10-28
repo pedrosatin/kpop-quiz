@@ -531,6 +531,24 @@ def _validate_clue_coverage(report: dict[str, Any]) -> None:
     )
 
 
+def validate_legacy_clues(session: dict[str, Any]) -> None:
+    """Require every clue to cite only facts of its own question.
+
+    A client released before related clues existed rejects the whole session
+    that carries a clue outside this bound, and the manifest it reads names
+    that session as soon as it is published. ``manifest-v2.json`` must
+    therefore only list sessions that pass this check; sessions with related
+    clues are listed in ``manifest-v3.json``, which those clients never read.
+    """
+    for question in session["questions"]:
+        question_facts = set(question["fact_base_ids"])
+        for clue in question["clues_available"]:
+            _require(
+                set(clue["fact_base_ids"]) <= question_facts,
+                f"clue cites a fact outside its question ({question['id']})",
+            )
+
+
 def mode_neutral_question(
     question: dict[str, Any], standard_question: dict[str, Any]
 ) -> dict[str, Any]:

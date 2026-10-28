@@ -14,6 +14,11 @@ from unittest.mock import patch
 from kpop_scraping import daily_puzzles_cli
 
 
+def _is_file_except_enriched_manifest(path: Path) -> bool:
+    """Everything is a file, as these tests assume, but manifest-v3.json only when it is on disk."""
+    return os.path.isfile(path) if path.name == "manifest-v3.json" else True
+
+
 class TestDailyPuzzlesCLI(unittest.TestCase):
     def test_report_skipped_grid_none(self):
         stdout, stderr = io.StringIO(), io.StringIO()
@@ -143,10 +148,32 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
             )
             mock_run.return_value = {"reference_date": "2023-01-01", "output_dir": out}
             stdout, stderr = io.StringIO(), io.StringIO()
-            with patch("pathlib.Path.is_file", return_value=True), redirect_stdout(stdout), redirect_stderr(stderr):
+            with patch("pathlib.Path.is_file", _is_file_except_enriched_manifest), redirect_stdout(stdout), redirect_stderr(stderr):
                 code = daily_puzzles_cli.main([])
         self.assertEqual(code, 0)
-        self.assertIn("standard: 1/2 questions with a clue, 1/1 sessions with at least one", stdout.getvalue())
+        self.assertIn("[manifest-v2, clients without related clues] standard: 1/2 questions with a clue, 1/1 sessions with at least one", stdout.getvalue())
+        self.assertIn("[manifest-v3]: not published, every client reads manifest-v2", stdout.getvalue())
+
+    @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
+    def test_main_reports_clue_coverage_for_both_manifests(self, mock_run):
+        with tempfile.TemporaryDirectory() as raw:
+            out = Path(raw)
+            for name, clues in (("legacy", []), ("enriched", [{"id": "c"}])):
+                (out / f"{name}.json").write_text(json.dumps({
+                    "config": {"play_mode": "standard"},
+                    "questions": [{"clues_available": clues}, {"clues_available": []}],
+                }))
+                (out / f"manifest-v{2 if name == 'legacy' else 3}.json").write_text(
+                    json.dumps({"sessions": {"daily.en.standard": {"path": f"{name}.json"}}})
+                )
+            mock_run.return_value = {"reference_date": "2023-01-01", "output_dir": out}
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch("pathlib.Path.is_file", _is_file_except_enriched_manifest), redirect_stdout(stdout), redirect_stderr(stderr):
+                code = daily_puzzles_cli.main([])
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("[manifest-v2, clients without related clues] standard: 0/2 questions with a clue, 0/1 sessions with at least one", stdout.getvalue())
+        self.assertIn("[manifest-v3, current clients] standard: 1/2 questions with a clue, 1/1 sessions with at least one", stdout.getvalue())
 
     @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
     def test_main_already_published(self, mock_run):
