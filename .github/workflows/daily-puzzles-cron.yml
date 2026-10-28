@@ -40,6 +40,12 @@ jobs:
       # sessions every released client accepts, so the variable is safe to
       # turn on or off at any time: older clients never read the v3 manifest.
       RELATED_CLUES: ${{ vars.QUIZ_RELATED_CLUES }}
+      # With the repository variable QUIZ_CATALOG set to "true" the run also
+      # publishes the static question catalog (catalog-manifest-v1.json and its
+      # shards). No released client reads it yet, so turning it on only adds
+      # files; turning it off again withdraws them. It is about 10 MB per
+      # shard before compression, so leave it off until the replay that reads it ships.
+      CATALOG: ${{ vars.QUIZ_CATALOG }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -111,6 +117,7 @@ jobs:
           args=(--database data/kpop.db --output-dir web/public/data --ahead)
           if [ "$REGENERATE" = "true" ]; then args+=(--regenerate); fi
           if [ "$RELATED_CLUES" = "true" ]; then args+=(--related-clues); fi
+          if [ "$CATALOG" = "true" ]; then args+=(--catalog); fi
           if [ -n "$REFERENCE_DATE" ]; then
             python3 - <<'PY'
           import datetime, os

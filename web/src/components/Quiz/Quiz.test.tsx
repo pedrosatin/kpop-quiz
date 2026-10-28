@@ -132,6 +132,13 @@ describe("Quiz", () => {
     expect(screen.getAllByRole("link", { name: /Abrir a revisão/ })[0]).toHaveAttribute("href", question.evidence[0]!.source_url);
   });
 
+  it("keeps drawing every round from the published sessions, without asking for the question catalog", async () => {
+    await renderReady("pt-BR");
+    const requested = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map(([url]) => url);
+    expect(requested.length).toBeGreaterThan(0);
+    expect(requested.filter((url) => url.includes("catalog"))).toEqual([]);
+  });
+
   it("charges the declared cost when standard mode reveals a clue", async () => {
     await renderReady("pt-BR", dailyPtSession);
     const clueIndex = dailyPtSession.questions.findIndex((question) => question.clues_available.length > 0);

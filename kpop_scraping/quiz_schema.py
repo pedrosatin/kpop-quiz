@@ -289,6 +289,11 @@ def write_json_atomic(path: Path, payload: dict[str, Any], validator: Any) -> by
     return content
 
 
+def validate_question(question: Any) -> None:
+    """Check one published question, wherever it is carried (session or catalog)."""
+    _validate_question(question)
+
+
 def _validate_question(question: Any) -> None:
     _require(isinstance(question, dict), "question")
     question_fields = set(question)

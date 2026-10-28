@@ -110,6 +110,14 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
             self.assertIs(mock_run.call_args.kwargs["related_clues"], expected)
 
     @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
+    def test_catalog_is_off_unless_asked_for(self, mock_run):
+        mock_run.return_value = {"reference_date": "2023-01-01", "output_dir": Path("out")}
+        for argv, expected in (([], False), (["--catalog"], True)):
+            with patch("pathlib.Path.is_file", return_value=True), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(daily_puzzles_cli.main(argv), 0)
+            self.assertIs(mock_run.call_args.kwargs["catalog"], expected)
+
+    @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
     def test_main_with_next_output(self, mock_run):
         mock_run.return_value = {
             "reference_date": "2023-01-01",
