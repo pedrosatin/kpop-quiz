@@ -6,6 +6,7 @@ import {
   isIntersectionGrid,
   isNameGuessPuzzle,
   isQuizSession,
+  type QuizSession,
 } from "../lib/quiz-types";
 import { isWordSearchPuzzle } from "../lib/word-search-types";
 import {
@@ -83,6 +84,42 @@ describe("published quiz manifest", () => {
     for (const [key, entry] of entries) {
       const raw = readFileSync(join(DATA_DIR, entry.path), "utf-8");
       expect(isQuizSession(JSON.parse(raw)), `session ${key} (${entry.path})`).toBe(true);
+    }
+  });
+
+  // A client released before related clues existed rejects any session whose
+  // clue cites a fact outside its question, and it reads this manifest on every
+  // game. The check is that client's own rule, applied to what is published.
+  it("lists only sessions a client without related clues accepts", () => {
+    for (const [key, entry] of Object.entries(publishedManifest.sessions)) {
+      const session = JSON.parse(readFileSync(join(DATA_DIR, entry.path), "utf-8")) as QuizSession;
+      for (const question of session.questions) {
+        for (const clue of question.clues_available) {
+          expect(
+            clue.fact_base_ids.every((id) => question.fact_base_ids.includes(id)),
+            `session ${key}: clue ${clue.id} cites a fact outside its question`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("publishes an enriched manifest only when every session in it matches the legacy one but for clues", () => {
+    const path = join(DATA_DIR, "manifest-v3.json");
+    if (!existsSync(path)) return;
+    const enriched = JSON.parse(readFileSync(path, "utf-8")) as typeof publishedManifest;
+    expect(enriched.schema_version).toBe("kpop-quiz-web-manifest-v3");
+    expect(enriched.dataset_version).toBe(publishedManifest.dataset_version);
+    expect(Object.keys(enriched.sessions).sort()).toEqual(Object.keys(publishedManifest.sessions).sort());
+    for (const [key, entry] of Object.entries(enriched.sessions)) {
+      const legacy = publishedManifest.sessions[key as keyof typeof publishedManifest.sessions];
+      expect(entry.session_id, key).toBe(legacy.session_id);
+      const session = JSON.parse(readFileSync(join(DATA_DIR, entry.path), "utf-8")) as unknown;
+      expect(isQuizSession(session), `enriched session ${key}`).toBe(true);
+      const withoutClues = (value: QuizSession) => value.questions.map(({ clues_available, clues_shown, ...rest }) => rest);
+      const legacySession = JSON.parse(readFileSync(join(DATA_DIR, legacy.path), "utf-8")) as QuizSession;
+      expect(withoutClues(session as QuizSession), key).toEqual(withoutClues(legacySession));
+      if ((session as QuizSession).config.play_mode === "expert") expect(session).toEqual(legacySession);
     }
   });
 });

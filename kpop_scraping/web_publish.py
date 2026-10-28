@@ -16,9 +16,14 @@ from .grid_schema import validate_intersection_grid, write_intersection_grid_ato
 from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
 from .quiz_generator import QuizConfig, generate_dataset
 from .quiz_session import create_session
-from .quiz_clue_coverage import format_clue_coverage, published_clue_coverage
+from .quiz_clue_coverage import published_clue_coverage_lines
 from .quiz_models import InsufficientQuestionsError
-from .quiz_schema import mode_neutral_question, validate_session, write_json_atomic
+from .quiz_schema import (
+    mode_neutral_question,
+    validate_legacy_clues,
+    validate_session,
+    write_json_atomic,
+)
 from .storage import canonical_json
 from .timeline_schema import validate_timeline_puzzle, write_timeline_puzzle_atomic
 from .word_search_schema import (
@@ -28,6 +33,12 @@ from .word_search_schema import (
 
 MANIFEST_VERSION = "kpop-quiz-web-manifest-v2"
 MANIFEST_FILENAME = "manifest-v2.json"
+# Same shape as the v2 manifest, but it names the sessions that carry related
+# decade clues. Clients released before those clues existed only ever read the
+# v2 manifest, so they never meet a session they would reject; clients that
+# accept them read this one first and fall back to v2 when it is absent.
+ENRICHED_MANIFEST_VERSION = "kpop-quiz-web-manifest-v3"
+ENRICHED_MANIFEST_FILENAME = "manifest-v3.json"
 GRID_DAILY_FILENAME = "grid.daily.json"
 CONNECTIONS_DAILY_FILENAME = "connections.daily.json"
 NAME_GUESS_DAILY_FILENAME = "name-guess.daily.json"
@@ -182,7 +193,9 @@ def create_decade_sessions(dataset: dict[str, Any], seed: str, timer_seconds: in
     return sessions
 
 
-def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def build_manifest(
+    sessions: dict[str, dict[str, Any]], schema_version: str = MANIFEST_VERSION
+) -> dict[str, Any]:
     """Describe validated locale sessions with hashes for deployment checks."""
     versions = {session["dataset_version"] for session in sessions.values()}
     if not _valid_session_keys(set(sessions)) or len(versions) != 1:
@@ -218,7 +231,7 @@ def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
                     {mode: sessions[f"decade.{decade}.{locale}.{mode}"] for mode in DIFFICULTIES}
                 )
     manifest = {
-        "schema_version": MANIFEST_VERSION,
+        "schema_version": schema_version,
         "dataset_version": versions.pop(),
         "sessions": {},
     }
@@ -258,10 +271,10 @@ def _validate_mode_sessions(sessions: dict[str, dict[str, Any]]) -> None:
                 raise ValueError(f"session questions do not match standard mode for {mode}")
 
 
-def validate_manifest(payload: dict[str, Any]) -> None:
+def validate_manifest(payload: dict[str, Any], schema_version: str = MANIFEST_VERSION) -> None:
     if set(payload) != {"schema_version", "dataset_version", "sessions"}:
         raise ValueError("invalid web manifest fields")
-    if payload["schema_version"] != MANIFEST_VERSION:
+    if payload["schema_version"] != schema_version:
         raise ValueError("invalid web manifest schema_version")
     dataset_version = payload["dataset_version"]
     if not isinstance(dataset_version, str) or len(dataset_version) != 64 or any(c not in "0123456789abcdef" for c in dataset_version):
@@ -281,6 +294,41 @@ def validate_manifest(payload: dict[str, Any]) -> None:
             raise ValueError(f"invalid web manifest path {key}")
 
 
+def validate_enrichment(
+    legacy: dict[str, dict[str, Any]], enriched: dict[str, dict[str, Any]]
+) -> None:
+    """Require the enriched sessions to differ from the legacy ones only by clues.
+
+    Identity stays put: the same sessions, in the same order, with the same
+    question ids, answers, options and evidence. The saved games and the daily
+    result of a player key on those ids, so a clue added to a question must
+    never move them. A question that already had a clue keeps it unchanged,
+    and the expert sessions, which never offer clues, stay byte-identical.
+    """
+    if set(legacy) != set(enriched):
+        raise ValueError("enriched sessions must cover the same keys as the legacy ones")
+    clue_fields = {"clues_available", "clues_shown"}
+    for key in sorted(legacy):
+        old, new = legacy[key], enriched[key]
+        if old["config"]["play_mode"] == "expert" and old != new:
+            raise ValueError(f"expert session {key} must not change")
+        for field in ("config", "dataset_version", "schema_version", "session_id"):
+            if old[field] != new[field]:
+                raise ValueError(f"enriched session {key} changes {field}")
+        if [q["id"] for q in old["questions"]] != [q["id"] for q in new["questions"]]:
+            raise ValueError(f"enriched session {key} changes the questions")
+        for before, after in zip(old["questions"], new["questions"]):
+            if {k: v for k, v in before.items() if k not in clue_fields} != {
+                k: v for k, v in after.items() if k not in clue_fields
+            }:
+                raise ValueError(f"enriched session {key} changes more than clues")
+            if before["clues_available"] and (
+                before["clues_available"] != after["clues_available"]
+                or before["clues_shown"] != after["clues_shown"]
+            ):
+                raise ValueError(f"enriched session {key} changes an existing clue")
+
+
 def publish(
     output_dir: Path,
     sessions: dict[str, dict[str, Any]],
@@ -290,12 +338,18 @@ def publish(
     word_search: dict[str, Any] | None = None,
     timeline: dict[str, Any] | None = None,
     code_groups: dict[str, Any] | None = None,
+    enriched_sessions: dict[str, dict[str, Any]] | None = None,
 ) -> None:
     """Publish static quiz sessions, optional daily grid, connections, name-guess, word-search, timeline, and group code puzzles.
 
     Args:
         output_dir: Target directory where artifacts and manifest are written.
-        sessions: Validated locale and difficulty quiz sessions mapping.
+        sessions: Validated locale and difficulty quiz sessions mapping. The
+            v2 manifest lists them, so none may carry a clue outside its own
+            question's facts (see ``validate_legacy_clues``).
+        enriched_sessions: Optional copy of ``sessions`` whose questions may
+            carry related decade clues (see ``validate_enrichment``). Written
+            with ``manifest-v3.json``; when None, no v3 manifest is written.
         grid: Optional intersection grid payload (written to grid.daily.json).
             When provided, validated against intersection grid schema before writing.
             When None, grid artifact is omitted.
@@ -318,6 +372,11 @@ def publish(
     """
     for session in sessions.values():
         validate_session(session)
+        validate_legacy_clues(session)
+    if enriched_sessions is not None:
+        for session in enriched_sessions.values():
+            validate_session(session)
+        validate_enrichment(sessions, enriched_sessions)
     if grid is not None:
         validate_intersection_grid(grid)
     if connections is not None:
@@ -331,6 +390,11 @@ def publish(
     if code_groups is not None:
         validate_code_groups_puzzle(code_groups)
     manifest = build_manifest(sessions)
+    enriched_manifest = (
+        build_manifest(enriched_sessions, ENRICHED_MANIFEST_VERSION)
+        if enriched_sessions is not None
+        else None
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
         write_intersection_grid_atomic(output_dir / GRID_DAILY_FILENAME, grid)
@@ -351,6 +415,17 @@ def publish(
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
+    if enriched_sessions is not None and enriched_manifest is not None:
+        for key in sorted(enriched_sessions):
+            filename = enriched_manifest["sessions"][key]["path"]
+            write_json_atomic(output_dir / filename, enriched_sessions[key], validate_session)
+        # The v2 manifest goes last of the two: a reader that finds either
+        # one finds every session it names.
+        write_json_atomic(
+            output_dir / ENRICHED_MANIFEST_FILENAME,
+            enriched_manifest,
+            lambda payload: validate_manifest(payload, ENRICHED_MANIFEST_VERSION),
+        )
     write_json_atomic(output_dir / MANIFEST_FILENAME, manifest, validate_manifest)
 
 
@@ -415,6 +490,9 @@ def verify(
     expected = build_manifest(sessions)
     if manifest != expected:
         raise ValueError("web artifacts do not match manifest")
+    for session in sessions.values():
+        validate_legacy_clues(session)
+    verify_enriched_manifest(output_dir, sessions)
     grid_path = output_dir / GRID_DAILY_FILENAME
     if grid_path.is_file():
         _read_grid(grid_path)
@@ -453,6 +531,25 @@ def verify(
     session_en_path = output_dir / "session.en.json"
     if session_en_path.is_file():
         _read_session(session_en_path)
+
+
+def verify_enriched_manifest(output_dir: Path, legacy: dict[str, dict[str, Any]]) -> None:
+    """Verify manifest-v3.json, when present, against the legacy sessions."""
+    path = output_dir / ENRICHED_MANIFEST_FILENAME
+    if not path.is_file():
+        return
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read enriched web manifest: {exc}") from exc
+    validate_manifest(manifest, ENRICHED_MANIFEST_VERSION)
+    sessions = {
+        key: _read_session(output_dir / manifest["sessions"][key]["path"])
+        for key in sorted(manifest["sessions"])
+    }
+    if manifest != build_manifest(sessions, ENRICHED_MANIFEST_VERSION):
+        raise ValueError("web artifacts do not match enriched manifest")
+    validate_enrichment(legacy, sessions)
 
 
 def verify_artifacts(
@@ -579,7 +676,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Web publication failed: {exc}")
         return 1
     print(f"Web artifacts {'verified' if args.verify else 'published'} in {args.output_dir}")
-    for line in format_clue_coverage(published_clue_coverage(args.output_dir), "Quiz clues"):
+    for line in published_clue_coverage_lines(args.output_dir, "Quiz clues"):
         print(line)
     return 0
 

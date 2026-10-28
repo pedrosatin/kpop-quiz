@@ -4,17 +4,21 @@ import type { QuizSession } from "../lib/quiz-types";
 import ptSession from "../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import manifest from "../tests/fixtures/manifest-v2.json";
 
+/** A site that publishes only manifest-v2.json: the one-version-ago world. */
+const legacyWorld = () => vi.fn().mockResolvedValueOnce(new Response(null, { status: 404 }));
+
 describe("published session loader", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("loads a validated session below Astro's base path", async () => {
-    const fetch = vi.fn()
+    const fetch = legacyWorld()
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
     vi.stubGlobal("fetch", fetch);
     await expect(loadQuizSession("pt-BR", "standard", "history", "/base")).resolves.toMatchObject({ config: { language: "pt-BR", play_mode: "standard" } });
-    expect(fetch).toHaveBeenNthCalledWith(1, "/base/data/manifest-v2.json");
-    expect(fetch).toHaveBeenNthCalledWith(2, `/base/data/${manifest.sessions["pt-BR.standard"].path}`);
+    expect(fetch).toHaveBeenNthCalledWith(1, "/base/data/manifest-v3.json");
+    expect(fetch).toHaveBeenNthCalledWith(2, "/base/data/manifest-v2.json");
+    expect(fetch).toHaveBeenNthCalledWith(3, `/base/data/${manifest.sessions["pt-BR.standard"].path}`);
   });
 
   it("distinguishes a missing artifact", async () => {
@@ -30,7 +34,7 @@ describe("published session loader", () => {
   it("rejects a session that does not match the manifest", async () => {
     const changed = structuredClone(ptSession);
     changed.dataset_version = "0".repeat(64);
-    vi.stubGlobal("fetch", vi.fn()
+    vi.stubGlobal("fetch", legacyWorld()
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(JSON.stringify(changed))));
     await expect(loadQuizSession("pt-BR", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
@@ -48,7 +52,7 @@ describe("published session loader", () => {
     const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
     const changedManifest = structuredClone(manifest);
     changedManifest.sessions["pt-BR.standard"].sha256 = sha256;
-    vi.stubGlobal("fetch", vi.fn()
+    vi.stubGlobal("fetch", legacyWorld()
       .mockResolvedValueOnce(new Response(JSON.stringify(changedManifest)))
       .mockResolvedValueOnce(new Response(bytes)));
     await expect(loadQuizSession("pt-BR", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
@@ -64,7 +68,7 @@ describe("published session loader", () => {
   it("rejects a session whose bytes do not match the declared SHA-256", async () => {
     const changed = structuredClone(ptSession);
     changed.questions[0]!.prompt = "Altered after publication";
-    vi.stubGlobal("fetch", vi.fn()
+    vi.stubGlobal("fetch", legacyWorld()
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(`${JSON.stringify(changed)}\n`)));
     await expect(loadQuizSession("pt-BR", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
@@ -78,7 +82,7 @@ describe("published session loader", () => {
     const sha256 = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
     const changedManifest = structuredClone(manifest);
     changedManifest.sessions["pt-BR.standard"].sha256 = sha256;
-    vi.stubGlobal("fetch", vi.fn()
+    vi.stubGlobal("fetch", legacyWorld()
       .mockResolvedValueOnce(new Response(JSON.stringify(changedManifest)))
       .mockResolvedValueOnce(new Response(bytes)));
     await expect(loadQuizSession("pt-BR", "standard")).rejects.toEqual(new QuizArtifactError("invalid"));
@@ -102,23 +106,23 @@ describe("published session loader", () => {
         session_id: "0".repeat(64),
       };
     }
-    const fetch = vi.fn()
+    const fetch = legacyWorld()
       .mockResolvedValueOnce(new Response(JSON.stringify(dailyManifest)))
       .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
     vi.stubGlobal("fetch", fetch);
     await expect(loadQuizSession("pt-BR", "standard", "daily")).resolves.toMatchObject({ config: { language: "pt-BR", play_mode: "standard" } });
-    expect(fetch).toHaveBeenNthCalledWith(2, `/data/${dailyManifest.sessions["daily.pt-BR.standard"].path}`);
+    expect(fetch).toHaveBeenNthCalledWith(3, `/data/${dailyManifest.sessions["daily.pt-BR.standard"].path}`);
   });
 
   it("loads the unfiltered session when the requested decade is absent", async () => {
-    const fetch = vi.fn()
+    const fetch = legacyWorld()
       .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
       .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
     vi.stubGlobal("fetch", fetch);
     await expect(loadQuizSession("pt-BR", "standard", "history", "/data-root", [2010])).resolves.toMatchObject({
       config: { language: "pt-BR", play_mode: "standard" },
     });
-    expect(fetch).toHaveBeenNthCalledWith(2, `/data-root/data/${manifest.sessions["pt-BR.standard"].path}`);
+    expect(fetch).toHaveBeenNthCalledWith(3, `/data-root/data/${manifest.sessions["pt-BR.standard"].path}`);
   });
 
   it("continues combining after an index contains only duplicate questions", async () => {
@@ -148,9 +152,11 @@ describe("published session loader", () => {
       combinedManifest.sessions[key] = { path, sha256: sha, session_id: session.session_id };
       artifacts.set(`/data/${path}`, bytes);
     }
-    const fetch = vi.fn(async (input: string) => input.endsWith("manifest-v2.json")
-      ? new Response(JSON.stringify(combinedManifest))
-      : new Response(artifacts.get(input)));
+    const fetch = vi.fn(async (input: string) => input.endsWith("manifest-v3.json")
+      ? new Response(null, { status: 404 })
+      : input.endsWith("manifest-v2.json")
+        ? new Response(JSON.stringify(combinedManifest))
+        : new Response(artifacts.get(input)));
     vi.stubGlobal("fetch", fetch);
 
     const first = await loadQuizSessionWithAvailability("pt-BR", "standard", "history", undefined, [2010, 1990, 1990]);

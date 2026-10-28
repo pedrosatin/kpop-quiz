@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 MANIFEST_FILENAME = "manifest-v2.json"
+ENRICHED_MANIFEST_FILENAME = "manifest-v3.json"
 PLAY_MODES = ("assisted", "standard", "expert")
 
 
@@ -35,14 +36,35 @@ def session_clue_coverage(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]
     return {"by_mode": by_mode, "sessions_without_clue": without_clue}
 
 
-def published_clue_coverage(directory: Path) -> dict[str, Any]:
+def published_clue_coverage(
+    directory: Path, manifest_filename: str = MANIFEST_FILENAME
+) -> dict[str, Any]:
     """Read the sessions a verified manifest lists and count their clues."""
-    manifest = json.loads((directory / MANIFEST_FILENAME).read_text(encoding="utf-8"))
+    manifest = json.loads((directory / manifest_filename).read_text(encoding="utf-8"))
     sessions = {
         key: json.loads((directory / entry["path"]).read_text(encoding="utf-8"))
         for key, entry in manifest["sessions"].items()
     }
     return session_clue_coverage(sessions)
+
+
+def published_clue_coverage_lines(directory: Path, label: str) -> list[str]:
+    """Report what each kind of client receives from a published directory.
+
+    The v2 manifest is what a client released before related clues reads; the
+    v3 manifest, when published, is what current clients read first.
+    """
+    lines = format_clue_coverage(
+        published_clue_coverage(directory), f"{label} [manifest-v2, clients without related clues]"
+    )
+    if (directory / ENRICHED_MANIFEST_FILENAME).is_file():
+        lines += format_clue_coverage(
+            published_clue_coverage(directory, ENRICHED_MANIFEST_FILENAME),
+            f"{label} [manifest-v3, current clients]",
+        )
+    else:
+        lines.append(f"{label} [manifest-v3]: not published, every client reads manifest-v2")
+    return lines
 
 
 def format_clue_coverage(coverage: dict[str, Any], label: str) -> list[str]:
