@@ -54,6 +54,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Generate the day again even if it is already published or waiting in next/",
     )
     parser.add_argument(
+        "--related-clues",
+        action="store_true",
+        help=(
+            "Add decade clues that cite the answer's own dated fact. A client released "
+            "before they were allowed rejects any session carrying one, so enable this "
+            "only once the client that accepts them has been live long enough"
+        ),
+    )
+    parser.add_argument(
         "--timer-seconds",
         type=int,
         help="Optional question timer limit in seconds for quiz sessions",
@@ -177,6 +186,7 @@ def main(argv: list[str] | None = None) -> int:
             timer_seconds=args.timer_seconds,
             ahead=args.ahead,
             regenerate=args.regenerate,
+            related_clues=args.related_clues,
         )
         report_reused_grid(result.get("grid_reused"))
         report_revalidated_grid(result.get("grid_revalidated"))

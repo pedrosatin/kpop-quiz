@@ -171,10 +171,11 @@ def render_play_mode_variants(
     """Render reproducible play modes without changing the underlying answer.
 
     ``clue_outcomes`` receives one entry per call: ``available`` or the reason
-    the question has no safe clue.
+    the question has no safe clue. ``dated_facts`` enables the related decade
+    clues; without it those questions carry no clue (see ``CLUE_RELATED_DISABLED``).
     """
     base = _render_draft(draft, language, reference_date, entities, relevance_by_group)
-    clues, reason = _clues_for_draft(draft, language, base, dated_facts or {}, entities)
+    clues, reason = _clues_for_draft(draft, language, base, dated_facts, entities)
     if clue_outcomes is not None:
         clue_outcomes[reason or "available"] += 1
     variants = []
@@ -279,19 +280,25 @@ CLUE_NOT_NARROWING = "clue_does_not_narrow_options"
 CLUE_ISOLATES_ANSWER = "clue_would_isolate_answer"
 CLUE_NO_DECADE = "clue_answer_date_missing_or_ambiguous"
 CLUE_ECHOES_ANSWER = "clue_text_repeats_answer"
+# A related clue cites a fact outside the question's own, which a client
+# released before it was allowed rejects. Generation leaves these clues off
+# until the publisher turns them on (see ``generate_dataset``).
+CLUE_RELATED_DISABLED = "related_clues_not_enabled"
 
 
 def _clues_for_draft(
     draft: Draft,
     language: str,
     question: dict[str, Any],
-    dated_facts: DatedFacts,
+    dated_facts: DatedFacts | None,
     entities: dict[str, Entity],
 ) -> tuple[list[dict[str, Any]], str | None]:
     """Return the safe clues of a question, or the reason there are none."""
     if draft.answer[1] == "time" or draft.question_type == "age_on_date":
         return _temporal_clues(draft, language, question)
     if draft.question_type in _RELATED_CLUE_TYPES:
+        if dated_facts is None:
+            return [], CLUE_RELATED_DISABLED
         return _related_decade_clues(draft, language, question, dated_facts, entities)
     return [], NO_CLUE_RULE
 

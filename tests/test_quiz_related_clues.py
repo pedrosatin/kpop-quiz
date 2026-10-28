@@ -9,6 +9,7 @@ from kpop_scraping.quiz_rendering import (
     CLUE_ISOLATES_ANSWER,
     CLUE_NO_DECADE,
     CLUE_NOT_NARROWING,
+    CLUE_RELATED_DISABLED,
     NO_CLUE_RULE,
     _clues_for_draft,
     index_dated_facts,
@@ -136,6 +137,45 @@ class RelatedDecadeClueTest(unittest.TestCase):
             ("L1", "organization"), (("L1", "organization"),), {}, (), ("x",),
         )
         self.assertEqual(_clues_for_draft(draft, "en", {}, {}, ENTITIES), ([], NO_CLUE_RULE))
+
+
+class RelatedCluesAreOffByDefaultTest(unittest.TestCase):
+    """A client released before related clues rejects any session that carries one."""
+
+    FACTS = [_formed("G1", "2012"), _formed("G2", "2013"), _formed("G3", "1999")]
+
+    def test_without_dated_facts_the_question_has_no_clue_and_says_why(self):
+        outcomes: Counter[str] = Counter()
+        variants = render_play_mode_variants(
+            _draft(), "en", REFERENCE, ENTITIES, {}, clue_outcomes=outcomes,
+        )
+        self.assertEqual(outcomes, Counter({CLUE_RELATED_DISABLED: 1}))
+        self.assertTrue(all(item["clues_available"] == [] and item["clues_shown"] == [] for item in variants))
+
+    def test_enabling_them_is_the_only_difference(self):
+        off = render_play_mode_variants(_draft(), "en", REFERENCE, ENTITIES, {})
+        on = _render(self.FACTS)
+        for disabled, enabled in zip(off, on):
+            keys = set(disabled) | set(enabled)
+            self.assertEqual(
+                {key for key in keys if disabled.get(key) != enabled.get(key)} - {"clues_available", "clues_shown"},
+                set(),
+            )
+
+    def test_enabled_clue_leaves_the_questions_own_facts_so_an_older_client_would_reject_it(self):
+        standard = _render(self.FACTS)[1]
+        cited = {fact_id for clue in standard["clues_available"] for fact_id in clue["fact_base_ids"]}
+        self.assertTrue(cited and not cited <= set(standard["fact_base_ids"]))
+
+    def test_own_fact_clues_stay_inside_the_questions_facts(self):
+        draft = Draft(
+            ("formation_year", "G1$formed-2012"), "formation_year", "debut", "easy", ("2012",),
+            ("2012", "time"), (("2012", "time"), ("2013", "time"), ("1999", "time"), ("2003", "time")),
+            {"group_id": "G1", "date": "2012"}, (_evidence("G1$formed-2012"),), ("G1$formed-2012",),
+        )
+        standard = render_play_mode_variants(draft, "en", REFERENCE, ENTITIES, {})[1]
+        for clue in standard["clues_available"]:
+            self.assertLessEqual(set(clue["fact_base_ids"]), set(standard["fact_base_ids"]))
 
 
 if __name__ == "__main__":

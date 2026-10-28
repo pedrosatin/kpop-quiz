@@ -1,6 +1,8 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { joinBaseUrl } from '../src/lib/join-base-url';
+import { reloadPersisted, settleEffects } from './helpers/passive-effects';
+import { gamePlayed } from './helpers/player-stats';
 import { RESULT_GUARD_MS } from '../src/components/Results/use-result-action-guard';
 
 const evidence = process.env.CROSSWORD_EVIDENCE;
@@ -82,7 +84,7 @@ for (const [locale, t] of Object.entries(locales)) {
           const key = Object.keys(localStorage).find(k => k.startsWith('kpop-crossword-'));
           return key ? JSON.parse(localStorage.getItem(key)!).values['4:2'] : null;
         })).toBe('');
-        await page.reload();
+        await reloadPersisted(page);
         await expect(last).toHaveValue('');
         await expect(page.locator('#crossword input').nth(8)).toHaveValue('T');
         const board = page.locator('#crossword');
@@ -103,7 +105,7 @@ for (const [locale, t] of Object.entries(locales)) {
         await expect(board.locator('.share-preview')).toHaveValue(
           locale === 'pt' ? /Cruzadinha de K-pop/ : /K-pop Crossword/,
         );
-        await page.reload();
+        await reloadPersisted(page);
         await expect(board.getByRole('heading', { name: locale === 'pt' ? 'Cruzadinha concluída!' : 'Crossword completed!' })).toBeVisible();
         await context.close();
       });
@@ -185,8 +187,9 @@ for (const [locale, t] of Object.entries(locales)) {
     await expect(board.getByRole('heading', { name: title })).toBeFocused();
     await expect(board.locator('input:enabled')).toHaveCount(0);
     for (let i = 0; i < puzzle.cells.length; i++) await expect(board.locator('input').nth(i)).toHaveValue(puzzle.cells[i].answer);
-    await page.reload();
+    await reloadPersisted(page);
     await expect(board.getByRole('heading', { name: title })).toBeVisible();
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('kpop-player-stats-v1') ?? '{}').games?.crossword?.played)).toBe(1);
+    await settleEffects(page);
+    expect(await gamePlayed(page, 'crossword')).toBe(1);
   });
 }

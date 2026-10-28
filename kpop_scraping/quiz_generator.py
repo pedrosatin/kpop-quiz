@@ -34,8 +34,16 @@ def generate_dataset(
     connection: sqlite3.Connection,
     reference_date: date = DEFAULT_REFERENCE_DATE,
     languages: Sequence[str] = SUPPORTED_LANGUAGES,
+    related_clues: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Generate a validated question bank and its rejection report."""
+    """Generate a validated question bank and its rejection report.
+
+    Related decade clues cite the answer entity's own dated fact, which is not
+    one of the question's facts. A client released before they existed rejects
+    the whole session that carries one, so they stay off unless
+    ``related_clues`` is set. Publish them only after the client that accepts
+    them has been live long enough for stale pages to be gone.
+    """
     requested_languages = set(languages)
     selected_languages = tuple(
         language for language in SUPPORTED_LANGUAGES if language in requested_languages
@@ -69,7 +77,7 @@ def generate_dataset(
         and (fact.value_time or "")[:4].isdigit()
     }
     performers = _performers_by_release(facts)
-    dated_facts = index_dated_facts(facts)
+    dated_facts = index_dated_facts(facts) if related_clues else None
     questions = []
     kept_drafts = []
     clue_outcomes_by_type: dict[str, Counter[str]] = defaultdict(Counter)

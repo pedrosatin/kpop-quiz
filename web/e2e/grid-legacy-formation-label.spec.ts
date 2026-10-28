@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "./fixtures/consent";
 import { visibleLabels } from "./helpers/visible-names";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { reloadPersisted } from "./helpers/passive-effects";
 
 // A grid published before the label said "Formado/Formed" (2026-10-26, frozen
 // from the daily publication), served as the day's artifact. The fallback
@@ -92,7 +93,7 @@ for (const locale of locales)
         await page.screenshot({ path: `${process.env.I05_SHOTS}/grid-legacy-${locale.id}-${viewport.name}.png` });
       }
 
-      await page.reload();
+      await reloadPersisted(page);
       await expect(board).toBeVisible();
       await expect(page.locator(".grid-progress")).toContainText(locale.left);
       await expect(board.locator('.grid-cell-btn[data-row="0"][data-col="0"]')).toHaveClass(/solved/);

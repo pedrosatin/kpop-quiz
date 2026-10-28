@@ -3,6 +3,7 @@ import { loadPreferNextDaily } from "./helpers/daily-artifact";
 import { visibleLabels } from "./helpers/visible-names";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { CELL_GUARD_MS } from "../src/components/Grid/next-cell-after-guess";
+import { reloadPersisted } from "./helpers/passive-effects";
 
 type Grid = {
   candidate_pool: { id: string; canonical_name: string; names: Record<string, string> }[];
@@ -90,7 +91,7 @@ for (const locale of locales)
       }
 
       // The spent guess survives a reload, and the finished review repeats the limit.
-      await page.reload();
+      await reloadPersisted(page);
       await expect(board).toBeVisible();
       await expect(page.locator(".grid-progress")).toContainText(locale.left);
       await page.waitForTimeout(CELL_GUARD_MS + 100);

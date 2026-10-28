@@ -1,10 +1,48 @@
-import { mkdirSync } from "node:fs";
+import { cpSync, mkdirSync, rmSync } from "node:fs";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { join } from "node:path";
-import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures/consent";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
+import { test as base, expect, type Page } from "@playwright/test";
+import { preview } from "astro";
+import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { PlayMode, QuizQuestion, QuizSession } from "../src/lib/quiz-types";
+
+// The real consent island only renders when a GA4 id is built in, which the
+// default dist leaves out. Build one that has it. QUIZ_CLUES_DATA_DIR swaps in
+// a dataset generated elsewhere (for instance straight from the database), so
+// the same checks can follow whatever the pipeline produced.
+const test = base.extend<{}, { consentURL: string }>({
+  consentURL: [async ({}, use) => {
+    const root = fileURLToPath(new URL("../", import.meta.url));
+    const scratch = join(root, "../.scratch");
+    await mkdir(scratch, { recursive: true });
+    // Astro moves assets by rename, so output must share the source filesystem.
+    const outDir = await mkdtemp(join(scratch, "quiz-clues-"));
+    let server: Awaited<ReturnType<typeof preview>> | undefined;
+    try {
+      await promisify(execFile)(process.execPath, ["./node_modules/astro/bin/astro.mjs", "build", "--outDir", outDir], {
+        cwd: root,
+        env: { ...process.env, NODE_ENV: "production", ASTRO_BASE: "", BASE_URL: "/", PUBLIC_GA4_ID: "G-E2EQUIZCLUES", PUBLIC_CF_BEACON_TOKEN: "" },
+        timeout: 120_000,
+      });
+      if (process.env.QUIZ_CLUES_DATA_DIR) {
+        rmSync(join(outDir, "data"), { recursive: true, force: true });
+        cpSync(process.env.QUIZ_CLUES_DATA_DIR, join(outDir, "data"), { recursive: true });
+      }
+      server = await preview({ root, outDir, base: "/", server: { host: "127.0.0.1", port: 0 }, logLevel: "error" });
+      await use(`http://127.0.0.1:${server.port}`);
+    } finally {
+      await server?.stop();
+      await rm(outDir, { recursive: true, force: true });
+    }
+  }, { scope: "worker", timeout: 120_000 }],
+});
+
+test.use({ serviceWorkers: "block" });
 
 /**
  * The browser must show what the published session says: the clue when the
@@ -14,10 +52,10 @@ import type { PlayMode, QuizQuestion, QuizSession } from "../src/lib/quiz-types"
  */
 
 const locales = [
-  { id: "pt", path: "/pt-br/", start: "Começar partida", submit: "Responder", next: /Próxima pergunta|Ver resultado/, source: "Ver fonte",
+  { id: "pt", path: "/pt-br/", reject: /^Recusar Google Analytics$/, start: "Começar partida", submit: "Responder", next: /Próxima pergunta|Ver resultado/, source: "Ver fonte",
     clueButton: (cost: number) => `Ver pista (-${cost} pontos)`, opened: "Pista aberta",
     none: { assisted: "Esta pergunta não tem pista disponível.", standard: "Esta pergunta não tem pista disponível. Nenhum ponto será descontado." } },
-  { id: "en", path: "/en/", start: "Start game", submit: "Submit answer", next: /Next question|See results/, source: "Show source",
+  { id: "en", path: "/en/", reject: /^Reject Google Analytics$/, start: "Start game", submit: "Submit answer", next: /Next question|See results/, source: "Show source",
     clueButton: (cost: number) => `Show clue (-${cost} points)`, opened: "Clue shown",
     none: { assisted: "This question has no clue available.", standard: "This question has no clue available. No points will be deducted." } },
 ] as const;
@@ -28,19 +66,31 @@ const viewports = [
   { name: "phone-390", width: 390, height: 844 },
 ] as const;
 
+// The daily game switches to the next day's set once that day arrives, so
+// "daily-tomorrow" runs the page with the clock a day and a half ahead.
 const scenarios = [
-  { name: "daily", query: "theme=daily" },
-  { name: "decade-2000", query: "decade=2000" },
+  { name: "daily", query: "theme=daily", tomorrow: false },
+  { name: "daily-tomorrow", query: "theme=daily", tomorrow: true },
+  { name: "decade-2000", query: "decade=2000", tomorrow: false },
 ] as const;
 
+/** The banner is either still open or already refused; the clue states must hold in both. */
+const consents = ["rejected", "open"] as const;
+type Consent = (typeof consents)[number];
+
 const shotDir = process.env.QUIZ_CLUES_SHOTS;
+
+async function seedConsent(page: Page) {
+  await page.addInitScript((key) => window.localStorage.setItem(key, "rejected"), CONSENT_STORAGE_KEY);
+}
 
 /**
  * Opens the quiz and returns the session artifacts the page fetched. The
  * daily game reads the current day and may then read the next one, so the
  * caller picks the one the board shows.
  */
-async function openSession(page: Page, baseURL: string, path: string, mode: PlayMode, query: string) {
+async function openSession(page: Page, baseURL: string, path: string, mode: PlayMode, query: string, consent?: { state: Consent; reject: RegExp }) {
+  if (!consent) await seedConsent(page);
   const bodies: QuizSession[] = [];
   page.on("response", async (response) => {
     if (/\/data\/(?:next\/)?session\.[^/]+\.json$/.test(response.url()) && response.ok()) {
@@ -50,6 +100,14 @@ async function openSession(page: Page, baseURL: string, path: string, mode: Play
   await page.goto(`${joinBaseUrl(baseURL, path)}?mode=${mode}&${query}`);
   await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
   expect(bodies.length, "the page must fetch a session artifact").toBeGreaterThan(0);
+  if (consent) {
+    const banner = page.locator(".consent-banner");
+    await expect(banner, "the consent build must render the real banner").toBeVisible();
+    if (consent.state === "rejected") {
+      await banner.getByRole("button", { name: consent.reject }).click();
+      await expect(banner).toHaveCount(0);
+    }
+  }
   return bodies;
 }
 
@@ -94,11 +152,16 @@ async function answerCorrectly(page: Page, question: QuizQuestion, locale: (type
 
 for (const locale of locales)
   for (const viewport of viewports)
-    for (const mode of ["assisted", "standard"] as const)
-      for (const scenario of scenarios) {
-        test(`quiz ${locale.id} ${viewport.name} ${mode} ${scenario.name}: clues and notices match the published session`, async ({ page, baseURL }) => {
+    for (const mode of ["assisted", "standard", "expert"] as const)
+      for (const scenario of scenarios)
+        for (const consent of consents) {
+        // The refused banner is checked on the daily game; the other scenarios reuse the same board.
+        if (consent === "rejected" && scenario.name !== "daily") continue;
+        test(`quiz ${locale.id} ${viewport.name} ${mode} ${scenario.name} banner ${consent}: clues and notices match the published session`, async ({ page, context, consentURL }) => {
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
-          const fetched = await openSession(page, baseURL!, locale.path, mode, scenario.query);
+          await context.route("**/*", (route) => new URL(route.request().url()).origin === consentURL ? route.continue() : route.abort());
+          if (scenario.tomorrow) await page.clock.setFixedTime(Date.now() + 36 * 3_600_000);
+          const fetched = await openSession(page, consentURL, locale.path, mode, scenario.query, { state: consent, reject: locale.reject });
           const session = await startAndMatch(page, fetched);
           expect(session.config.play_mode).toBe(mode);
           const board = page.getByTestId("game-board");
@@ -106,12 +169,19 @@ for (const locale of locales)
           let expectedScore = 0;
           let withClue = 0;
           let withoutClue = 0;
+          let related = 0;
           for (const [index, question] of session.questions.entries()) {
             await expect(board.getByRole("heading", { level: 2 })).toHaveText(question.prompt);
             const notice = page.getByTestId("quiz-no-clue");
             const clueButton = board.getByRole("button", { name: /Ver pista|Show clue|Pista aberta|Clue shown/ });
             let cost = 0;
-            if (question.clues_available.length === 0) {
+            if (mode === "expert") {
+              // Expert has no clues by design and says nothing about them.
+              expect(question.clues_available).toEqual([]);
+              withoutClue += 1;
+              await expect(notice).toHaveCount(0);
+              await expect(clueButton).toHaveCount(0);
+            } else if (question.clues_available.length === 0) {
               withoutClue += 1;
               await expect(notice).toHaveText(locale.none[mode]);
               await expect(clueButton).toHaveCount(0);
@@ -123,6 +193,7 @@ for (const locale of locales)
             } else {
               withClue += 1;
               const clue = question.clues_available[0]!;
+              if (!clue.fact_base_ids.every((id) => question.fact_base_ids.includes(id))) related += 1;
               await expect(notice).toHaveCount(0);
               if (mode === "assisted") {
                 await expect(board.getByText(clue.text)).toBeVisible();
@@ -157,7 +228,7 @@ for (const locale of locales)
           }
           await expect(page.getByTestId("game-result")).toBeVisible();
           // Expert would be the third mode; here the scenario must prove both states.
-          test.info().annotations.push({ type: "coverage", description: `${withClue} with clue, ${withoutClue} without` });
+          test.info().annotations.push({ type: "coverage", description: `${withClue} with clue (${related} cite the answer's own date), ${withoutClue} without` });
         });
       }
 
