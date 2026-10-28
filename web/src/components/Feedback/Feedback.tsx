@@ -17,11 +17,18 @@ export function Feedback({ locale, site = import.meta.env.PUBLIC_TBBC_SITE_KEY |
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const request = useRef<AbortController | null>(null);
+  const commentInput = useRef<HTMLTextAreaElement>(null);
+  const voteControl = useRef<Element | null>(null);
   const attempt = useRef<{ comment: string; nonce: string } | null>(null);
   useEffect(() => {
     try { setVisible(Boolean(site) && localStorage.getItem(STORAGE) !== "1"); } catch { setVisible(Boolean(site)); }
     return () => { const current = request.current; request.current = null; current?.abort(); };
   }, [site]);
+  useEffect(() => {
+    if (id && !pending && (document.activeElement === document.body || document.activeElement === voteControl.current)) {
+      commentInput.current?.focus();
+    }
+  }, [id, pending]);
   function dismiss() {
     try { localStorage.setItem(STORAGE, "1"); } catch { /* storage is optional */ }
     setVisible(false);
@@ -46,6 +53,7 @@ export function Feedback({ locale, site = import.meta.env.PUBLIC_TBBC_SITE_KEY |
   }
   function vote(vote: 1 | -1) {
     if (id) return;
+    voteControl.current = document.activeElement;
     void send("", { site, vote, section: "quiz-result", app: "ponder-club", lang: locale === "pt-BR" ? "pt-BR" : "en" }, 201, (receivedId) => { setId(receivedId); try { localStorage.setItem(STORAGE, "1"); } catch { /* optional */ } }, t.voteError);
   }
   function comment() {
@@ -58,7 +66,7 @@ export function Feedback({ locale, site = import.meta.env.PUBLIC_TBBC_SITE_KEY |
   return <section class="feedback" aria-label={t.question}>
     {done ? <p role="status">{t.thanks}</p> : <>
       <h3>{t.question}</h3><p>{t.notice}</p>
-      {!id ? <div class="btn-row"><button class="btn btn-secondary" disabled={pending} onClick={() => vote(1)}>{t.yes}</button><button class="btn btn-secondary" disabled={pending} onClick={() => vote(-1)}>{t.no}</button><button class="btn btn-secondary" disabled={pending} onClick={dismiss}>{t.dismiss}</button></div> : <><label for="feedback-comment">{t.comment}</label><textarea id="feedback-comment" maxLength={1000} value={value} onInput={(event) => setValue(event.currentTarget.value)} disabled={pending} /><div class="btn-row"><button class="btn btn-secondary" disabled={pending || !value.trim()} onClick={comment}>{t.send}</button><button class="btn btn-secondary" disabled={pending} onClick={dismiss}>{t.skip}</button></div></>}
+      {!id ? <div class="btn-row"><button class="btn btn-secondary" disabled={pending} onClick={() => vote(1)}>{t.yes}</button><button class="btn btn-secondary" disabled={pending} onClick={() => vote(-1)}>{t.no}</button><button class="btn btn-secondary" disabled={pending} onClick={dismiss}>{t.dismiss}</button></div> : <><label for="feedback-comment">{t.comment}</label><textarea ref={commentInput} id="feedback-comment" maxLength={1000} value={value} onInput={(event) => setValue(event.currentTarget.value)} disabled={pending} /><div class="btn-row"><button class="btn btn-secondary" disabled={pending || !value.trim()} onClick={comment}>{t.send}</button><button class="btn btn-secondary" disabled={pending} onClick={dismiss}>{t.skip}</button></div></>}
       {error && <p role="alert">{error}</p>}
     </>}
   </section>;
