@@ -408,3 +408,5 @@ consent is never queued or replayed, and revoking consent stops events.
 Measurement requires the production consent banner. An empty measurement ID or
 staging pages without the banner emit no events, even with saved acceptance and
 another `gtag` function present.
+
+O piloto de feedback após uma partida concluída do quiz, sua configuração e rollback estão descritos em [Feedback do quiz](docs/feedback.md).

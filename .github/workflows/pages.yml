@@ -68,6 +68,7 @@ jobs:
         env:
           PUBLIC_CF_BEACON_TOKEN: ${{ secrets.PUBLIC_CF_BEACON_TOKEN }}
           PUBLIC_GA4_ID: ${{ secrets.PUBLIC_GA4_ID }}
+          PUBLIC_TBBC_SITE_KEY: ${{ vars.PUBLIC_TBBC_SITE_KEY }}
         run: npm run build
       - run: npm run seo:verify -- --env prod
       - run: npm run csp:verify
