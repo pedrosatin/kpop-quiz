@@ -20,9 +20,11 @@ export function ConnectionsTile({
   messages,
   displayName: displayNameProp,
 }: ConnectionsTileProps) {
-  // The board resolves every tile against its peers; alone, a tile only
-  // aligns case, so a suffix that keeps two names apart is never dropped.
-  const displayName = displayNameProp || alignLoneLabel(item.labels[locale], item.canonical_name);
+  // The board resolves every tile against its peers; alone, a tile keeps the
+  // published label (plus any reviewed override), so a suffix that keeps two
+  // names apart is never dropped.
+  const displayName =
+    displayNameProp || alignLoneLabel(item.labels[locale], item.canonical_name, item.id, locale);
   const ariaLabel = messages.connectionsItemAriaLabel(displayName, isSelected);
 
   return (

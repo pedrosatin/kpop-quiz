@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from kpop_scraping.name_guess_generator import generate_name_guess_puzzle
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
+from kpop_scraping.quiz_utils import hash_payload
 
 
 def build_name_guess_test_database() -> sqlite3.Connection:
@@ -492,15 +493,98 @@ class TestNameGuessGenerator(unittest.TestCase):
             {"pt-BR": "Cravity (grupo)", "en": "Cravity (group)"},
         )
 
-    def test_target_label_cleanup_leaves_identity_and_answer_untouched(self):
-        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
-        puzzle = generate_name_guess_puzzle(
+    def _generate_labels_puzzle(self) -> dict:
+        return generate_name_guess_puzzle(
             self.conn, seed="labels", reference_date=self.ref_date, word_length=7
         )
+
+    @staticmethod
+    def _identity_of(puzzle: dict, raw_labels: dict) -> str:
+        """Recompute the id the way the contract defines it: from source labels."""
+        payload = {
+            key: puzzle[key]
+            for key in (
+                "dataset_version",
+                "max_attempts",
+                "reference_date",
+                "schema_version",
+                "valid_guesses",
+                "word_length",
+            )
+        }
+        payload["target"] = {**puzzle["target"], "labels": raw_labels}
+        return hash_payload(payload)
+
+    def test_target_label_cleanup_leaves_identity_and_answer_untouched(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        puzzle = self._generate_labels_puzzle()
         # Answer, QID and valid guesses come from the canonical name, never from labels.
         self.assertEqual(puzzle["target"]["normalized_name"], "CRAVITY")
         self.assertIn("CRAVITY", puzzle["valid_guesses"])
         self.assertEqual(puzzle["word_length"], 7)
+
+    def test_puzzle_id_is_derived_from_source_labels_not_display_labels(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        puzzle = self._generate_labels_puzzle()
+        # Display is clean, the id still names the puzzle by what the sources say.
+        self.assertEqual(puzzle["target"]["labels"], {"pt-BR": "Cravity", "en": "Cravity"})
+        self.assertEqual(
+            puzzle["puzzle_id"],
+            self._identity_of(puzzle, {"pt-BR": "Cravity (grupo)", "en": "Cravity (group)"}),
+        )
+        self.assertNotEqual(
+            puzzle["puzzle_id"],
+            self._identity_of(puzzle, puzzle["target"]["labels"]),
+        )
+
+    def test_puzzle_id_ignores_any_display_decision(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        baseline = self._generate_labels_puzzle()
+        for display in (
+            {"pt-BR": "Cravity (grupo)", "en": "Cravity (group)"},
+            {"pt-BR": "CRAVITY", "en": "cravity"},
+            {"pt-BR": "Cravity", "en": "Cravity"},
+        ):
+            with self.subTest(display=display):
+                with patch(
+                    "kpop_scraping.name_guess_generator._display_target_labels",
+                    return_value=display,
+                ):
+                    other = self._generate_labels_puzzle()
+                self.assertEqual(other["target"]["labels"], display)
+                self.assertEqual(other["puzzle_id"], baseline["puzzle_id"])
+
+    def test_puzzle_id_is_stable_across_generations(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        first = self._generate_labels_puzzle()
+        again = self._generate_labels_puzzle()
+        self.assertEqual(first, again)
+        self.assertEqual(first["puzzle_id"], again["puzzle_id"])
+
+    def test_homonym_guard_does_not_change_the_puzzle_id(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        self._add_entity("Q30000002", "Cravity", "Cravity", "Cravity", with_evidence=False)
+        puzzle = self._generate_labels_puzzle()
+        # The bare peer keeps the suffix on screen; the id is the source-label one.
+        self.assertEqual(
+            puzzle["target"]["labels"],
+            {"pt-BR": "Cravity (grupo)", "en": "Cravity (group)"},
+        )
+        self.assertEqual(
+            puzzle["puzzle_id"],
+            self._identity_of(puzzle, {"pt-BR": "Cravity (grupo)", "en": "Cravity (group)"}),
+        )
+
+    def test_distinct_entities_with_the_same_display_keep_distinct_ids(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        first = self._generate_labels_puzzle()
+        self.conn.execute("DELETE FROM entities WHERE wikidata_id = 'Q30000001'")
+        self.conn.commit()
+        self._add_entity("Q30000003", "Cravity", "Cravity (banda)", "Cravity (band)", with_evidence=True)
+        second = self._generate_labels_puzzle()
+        self.assertEqual(first["target"]["labels"], second["target"]["labels"])
+        self.assertNotEqual(first["target"]["id"], second["target"]["id"])
+        self.assertNotEqual(first["puzzle_id"], second["puzzle_id"])
 
 
 if __name__ == "__main__":

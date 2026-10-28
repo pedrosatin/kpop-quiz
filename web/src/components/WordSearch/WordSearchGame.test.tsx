@@ -773,12 +773,12 @@ describe("WordSearchGame display names", () => {
     expect(chipName(bare, 1)).toBe("Tempest");
   });
 
-  it("drops the note of a word that no other word shares, and aligns the case", () => {
+  it("drops the note of a word that no other word shares, and keeps the published case", () => {
     const unique = withLabels(["Uniq (band)", "Luv (group)"], { 1: "LUV" });
     renderEasy("pt-BR", unique);
 
     expect(chipName(unique, 0)).toBe("Uniq");
-    expect(chipName(unique, 1)).toBe("LUV");
+    expect(chipName(unique, 1)).toBe("Luv");
     // Identity does not follow the label.
     expect(unique.words[0]!.id).toBe(puzzle.words[0]!.id);
   });

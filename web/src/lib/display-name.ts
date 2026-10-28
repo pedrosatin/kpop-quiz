@@ -1,13 +1,44 @@
 /**
  * Player-facing labels from published artifact names.
  *
- * Keeps QID identity and answer keys untouched. Aligns casing to the
- * canonical name when the locale label differs only by case, and strips a
- * trailing Wikipedia-style disambiguator when that does not create a homonym
- * among labels shown together.
+ * Keeps QID identity and answer keys untouched. Strips a trailing
+ * Wikipedia-style disambiguator when that does not create a homonym among
+ * labels shown together, and applies reviewed per-entity overrides.
+ *
+ * No casing is inferred: a locale label that differs from `canonical_name`
+ * only by case keeps the published spelling, because neither side is a proven
+ * authority (`izna` and `tripleS` are correct as published). A spelling changes
+ * only through an entry in `display-label-overrides.json` that cites a pinned
+ * source revision.
  */
 
+import overrideTable from "../data/display-label-overrides.json" with { type: "json" };
 import type { Locale } from "./quiz-types";
+
+interface LabelOverride {
+  qid: string;
+  locale: string;
+  published: string;
+  display: string;
+}
+
+const OVERRIDES = new Map<string, LabelOverride>(
+  (overrideTable.overrides as LabelOverride[]).map((entry) => [
+    `${entry.qid}:${entry.locale}`,
+    entry,
+  ]),
+);
+
+/** The reviewed spelling, only while the label still reads as published. */
+export function applyDisplayOverride(
+  label: string,
+  id: string | null | undefined,
+  locale: Locale | null | undefined,
+): string {
+  if (!id || !locale) return label;
+  const override = OVERRIDES.get(`${id}:${locale}`);
+  return override && override.published === label ? override.display : label;
+}
 
 /** Wikipedia-style notes only; keeps f(x) and other intentional parentheses. */
 const TRAILING_DISAMBIG =
@@ -17,23 +48,17 @@ export function stripTrailingDisambiguator(name: string): string {
   return name.replace(TRAILING_DISAMBIG, "").trim();
 }
 
-export function alignCaseToCanonical(label: string, canonical: string): string {
-  if (
-    label &&
-    canonical &&
-    label.toLocaleLowerCase("en-US") === canonical.toLocaleLowerCase("en-US")
-  ) {
-    return canonical;
-  }
-  return label;
-}
-
 function caseKey(value: string): string {
   return value.toLocaleLowerCase("en-US");
 }
 
 export function resolveDisplayLabels(
-  entries: ReadonlyArray<{ label?: string | null | undefined; canonical: string }>,
+  entries: ReadonlyArray<{
+    label?: string | null | undefined;
+    canonical: string;
+    id?: string | undefined;
+  }>,
+  locale?: Locale,
 ): string[] {
   const raw = entries.map(({ label, canonical }) => (label ?? "").trim() || canonical);
   const stripped = raw.map(stripTrailingDisambiguator);
@@ -42,20 +67,25 @@ export function resolveDisplayLabels(
     const key = caseKey(value);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
-  return entries.map(({ canonical }, index) => {
+  return entries.map(({ id }, index) => {
     const chosen =
       (counts.get(caseKey(stripped[index]!)) ?? 0) > 1 ? raw[index]! : stripped[index]!;
-    return alignCaseToCanonical(chosen, canonical);
+    return applyDisplayOverride(chosen, id, locale);
   });
 }
 
 /**
- * Case-only alignment for a label shown without its peers. Stripping a
- * disambiguator needs the other labels published together, so a lone label
- * never loses its suffix here.
+ * A label shown without its peers. Stripping a disambiguator needs the other
+ * labels published together, so a lone label never loses its suffix here;
+ * only a reviewed override applies.
  */
-export function alignLoneLabel(label: string | null | undefined, canonical: string): string {
-  return alignCaseToCanonical((label ?? "").trim() || canonical, canonical);
+export function alignLoneLabel(
+  label: string | null | undefined,
+  canonical: string,
+  id?: string,
+  locale?: Locale,
+): string {
+  return applyDisplayOverride((label ?? "").trim() || canonical, id, locale);
 }
 
 /** Build id → display name for a pool that publishes `names` or `labels`. */
@@ -72,7 +102,9 @@ export function buildLocalizedDisplayNames(
     items.map((item) => ({
       label: item.names?.[locale] ?? item.labels?.[locale] ?? null,
       canonical: item.canonical_name,
+      id: item.id,
     })),
+    locale,
   );
   const map = new Map<string, string>();
   items.forEach((item, index) => {

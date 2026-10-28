@@ -89,7 +89,12 @@ export function NameGuessResults({
   // The artifact label already went through the generator's catalog-wide
   // homonym check; only the target is published, so the page cannot strip a
   // suffix again without peers.
-  const targetDisplayName = alignLoneLabel(target.labels[locale], target.canonical_name);
+  const targetDisplayName = alignLoneLabel(
+    target.labels[locale],
+    target.canonical_name,
+    target.id,
+    locale,
+  );
   // The buttons appear where the keyboard was, so a second tap or a held key
   // meant for the last guess must not share or restart the game.
   const { guarded, ignoreRepeat } = useResultActionGuard();

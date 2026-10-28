@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/name-guess.daily.json";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
@@ -823,10 +823,17 @@ describe("NameGuess revealed answer label", () => {
     localStorage.clear();
   });
 
-  function revealed(locale: "pt-BR" | "en", labels: { "pt-BR": string; en: string }, canonical = puzzle.target.canonical_name) {
+  function revealed(
+    locale: "pt-BR" | "en",
+    labels: { "pt-BR": string; en: string },
+    canonical = puzzle.target.canonical_name,
+    id = puzzle.target.id,
+  ) {
+    cleanup();
+    localStorage.clear(); // a finished round is saved by puzzle id and would skip Give up
     const withLabels: NameGuessPuzzle = {
       ...puzzle,
-      target: { ...puzzle.target, canonical_name: canonical, labels },
+      target: { ...puzzle.target, id, canonical_name: canonical, labels },
     };
     const messages = getMessages(locale);
     const view = render(<NameGuessGame locale={locale} puzzle={withLabels} />);
@@ -850,8 +857,15 @@ describe("NameGuess revealed answer label", () => {
     );
   });
 
-  it("aligns the case of a label to the canonical name", () => {
-    expect(revealed("pt-BR", { "pt-BR": "shinee", en: "SHINee" }, "SHINee").name).toBe("SHINee");
+  it("keeps the published case when it differs from the canonical name", () => {
+    expect(revealed("pt-BR", { "pt-BR": "Ateez", en: "ATEEZ" }, "ATEEZ").name).toBe("Ateez");
+    expect(revealed("en", { "pt-BR": "Ateez", en: "ATEEZ" }, "ATEEZ").name).toBe("ATEEZ");
+    expect(revealed("pt-BR", { "pt-BR": "tripleS", en: "tripleS" }, "TripleS").name).toBe("tripleS");
+  });
+
+  it("shows the reviewed SHINee spelling only for that entity and the published label", () => {
+    expect(revealed("pt-BR", { "pt-BR": "shinee", en: "SHINee" }, "SHINee", "Q269836").name).toBe("SHINee");
+    expect(revealed("pt-BR", { "pt-BR": "shinee", en: "SHINee" }, "SHINee", "Q1").name).toBe("shinee");
   });
 
   it("falls back to the canonical name when the label is empty", () => {
