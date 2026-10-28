@@ -54,7 +54,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "De onde vêm os dados da Grade de interseções de K-pop",
         faqHeading: "Perguntas sobre a Grade de interseções de K-pop",
         howToPlay: [
-          "A grade tem 3 linhas e 3 colunas. Cada linha e cada coluna traz um critério sobre grupos de K-pop, como a agência, a década de estreia ou o número de integrantes. Em cada uma das 9 casas, o grupo escolhido precisa atender ao critério da linha e ao da coluna.",
+          "A grade tem 3 linhas e 3 colunas. Cada linha e cada coluna traz um critério sobre grupos de K-pop, como a agência, a década de formação ou o número de integrantes. Em cada uma das 9 casas, o grupo escolhido precisa atender ao critério da linha e ao da coluna.",
           "São 9 palpites para as 9 casas, e um palpite errado também conta. Cada grupo vale para uma casa só. Quando um nome serve em mais de um cruzamento, guarde-o para a casa com menos opções. A busca lista apenas os grupos do catálogo do jogo, então a grafia ou a romanização do nome não atrapalha.",
           "No fim, a tela de respostas mostra os grupos aceitos em cada casa e a fonte de cada critério.",
         ],
@@ -276,7 +276,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "Where the K-pop Intersection Grid data comes from",
         faqHeading: "K-pop Intersection Grid FAQ",
         howToPlay: [
-          "The grid has 3 rows and 3 columns. Each row and each column carries a rule about K-pop groups, such as the agency, the debut decade or the number of members. For each of the 9 squares, pick a group that matches both its row and its column.",
+          "The grid has 3 rows and 3 columns. Each row and each column carries a rule about K-pop groups, such as the agency, the formation decade or the number of members. For each of the 9 squares, pick a group that matches both its row and its column.",
           "You get 9 guesses for 9 squares, and a wrong guess still uses one up. A group can fill only one square, so if a name fits several crossings, save it for the square with the fewest options. The search box only lists groups from the game's catalog, so spelling and romanization won't trip you up.",
           "When the game ends, the answers screen lists every group that would have counted in each square, along with the source behind each rule.",
         ],

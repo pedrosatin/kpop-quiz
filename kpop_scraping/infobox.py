@@ -67,17 +67,15 @@ def _item_spans(text: str, start: int, end: int) -> list[tuple[int, int]]:
     start, end = _trim(text, start, end)
     if start >= end:
         return []
-    name = _TEMPLATE_NAME.match(text, start)
-    if name and name.group(1).strip().lower() in LIST_TEMPLATES:
-        closing = _closing_braces(text, start)
-        if closing == end:
-            spans: list[tuple[int, int]] = []
-            arguments = _split_top_level(text, name.end(), end - 2, "|")
-            for arg_start, arg_end in arguments:
-                if _is_named_argument(text, arg_start, arg_end):
-                    continue
-                spans.extend(_item_spans(text, arg_start, arg_end))
-            return spans
+    wrapper = _list_wrapper(text, start, end)
+    if wrapper is not None:
+        name_end, close = wrapper
+        spans: list[tuple[int, int]] = []
+        for arg_start, arg_end in _split_top_level(text, name_end, close - 2, "|"):
+            if _is_named_argument(text, arg_start, arg_end):
+                continue
+            spans.extend(_item_spans(text, arg_start, arg_end))
+        return spans
     spans = []
     for piece_start, piece_end in _split_top_level(text, start, end, _ITEM_BREAK):
         piece_start, piece_end = _trim(text, piece_start, piece_end)
@@ -86,16 +84,38 @@ def _item_spans(text: str, start: int, end: int) -> list[tuple[int, int]]:
         piece_start, piece_end = _trim(text, piece_start, piece_end)
         if piece_start >= piece_end:
             continue
-        inner = _TEMPLATE_NAME.match(text, piece_start)
-        if (
-            inner
-            and inner.group(1).strip().lower() in LIST_TEMPLATES
-            and _closing_braces(text, piece_start) == piece_end
-        ):
+        if _list_wrapper(text, piece_start, piece_end) is not None:
             spans.extend(_item_spans(text, piece_start, piece_end))
         else:
             spans.append((piece_start, piece_end))
     return spans
+
+
+def _list_wrapper(text: str, start: int, end: int) -> tuple[int, int] | None:
+    """Return where the arguments begin and the template closes, if the span is a list template.
+
+    Comments around the template are not part of the list, so ``{{hlist|...}}
+    <!-- note -->`` still counts as a whole list. Both positions stay offsets
+    of the original text, which evidence locators rely on.
+    """
+    start, end = _skip_comments(text, start, end)
+    name = _TEMPLATE_NAME.match(text, start, end)
+    if name is None or name.group(1).strip().lower() not in LIST_TEMPLATES:
+        return None
+    close = _closing_braces(text, start)
+    return (name.end(), close) if close == end else None
+
+
+def _skip_comments(text: str, start: int, end: int) -> tuple[int, int]:
+    """Narrow ``text[start:end]`` past comments at either edge, and the space between."""
+    while True:
+        start, end = _trim(text, start, end)
+        if text.startswith("<!--", start) and (close := text.find("-->", start, end)) >= 0:
+            start = close + 3
+        elif text.endswith("-->", start, end) and (open_ := text.rfind("<!--", start, end - 3)) >= 0:
+            end = open_
+        else:
+            return start, end
 
 
 def _item_names(raw: str) -> tuple[str, ...]:

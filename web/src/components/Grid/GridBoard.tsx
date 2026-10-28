@@ -21,7 +21,7 @@ export interface GridBoardProps {
 function categoryBadge(category: GridCriterionCategory, messages: Messages): string {
   switch (category) {
     case "formed_on":
-      return messages.gridCategoryDebut;
+      return messages.gridCategoryFormation;
     case "record_label":
       return messages.gridCategoryAgency;
     case "has_member":

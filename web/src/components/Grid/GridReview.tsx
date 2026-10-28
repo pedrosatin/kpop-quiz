@@ -95,6 +95,7 @@ export function GridReview({ grid, cellStates, locale, messages }: GridReviewPro
       <h3 id="grid-review-heading" class="review-section-title">
         {messages.gridReviewTitle}
       </h3>
+      <p class="grid-review-note">{messages.gridReviewCatalogNote}</p>
       <ol class="review-list">
         {grid.cells.map((cell) => {
           const { row_index, col_index, valid_entity_ids } = cell;

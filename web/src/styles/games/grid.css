@@ -383,6 +383,34 @@
   overflow: hidden;
 }
 
+/*
+  A refused guess takes the two lines of the message: the verdict, then the
+  limit of the catalog. The count of guesses left is already in the bar, so the
+  note does not repeat that the guess was spent. Each line stays on one line, and
+  the shortest sentence that says it keeps it whole at 360px.
+*/
+.grid-message p.grid-refused {
+  display: block;
+}
+
+.grid-refused .grid-verdict,
+.grid-refused .grid-catalog-limit {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-catalog-limit {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.grid-review-note {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+}
+
 .grid-progress {
   flex: 0 0 auto;
   font-size: 0.875rem;
@@ -599,6 +627,13 @@
 
   .grid-message {
     flex: none;
+  }
+
+  /* The side panel has room to wrap: a long group name or note is never cut. */
+  .grid-refused .grid-verdict,
+  .grid-refused .grid-catalog-limit {
+    overflow: visible;
+    white-space: normal;
   }
 
   .grid-progress {

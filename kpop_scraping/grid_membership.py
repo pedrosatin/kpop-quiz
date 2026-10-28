@@ -16,10 +16,15 @@ from .quiz_models import Entity, Fact
 
 # Only complete present-tense enumerations with an explicit total are supported.
 # An unsupported construction remains unknown, rather than a smaller roster.
+# The enumeration may end with one clause naming who left, as in "..., while
+# former member Wonho left the group in October 2019."; the clause adds no
+# member and cannot name anyone on the roster.
 _ROSTER = re.compile(
     r"The (?:group|band) (?:currently )?(?:consists of|is (?:currently )?composed of|has) "
     r"(?P<count>\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen) "
-    r"members: (?P<names>.+)\.", re.I,
+    r"members: (?P<names>.+?)"
+    r"(?:, while former members? (?P<former>[^.,]+?) (?:left|departed) the group"
+    r"(?: in (?:[A-Z][a-z]+ )?\d{4})?)?\.", re.I,
 )
 # A revision is identified by what the source says (key, page id, revision id),
 # never by a local row id, so equivalent databases select the same proof.
@@ -44,6 +49,10 @@ def _roster(snippet: str, identities: dict[str, set[str]]) -> frozenset[str] | N
             return None
         members.append(next(iter(ids)))
     if len(members) != count or len(set(members)) != count:
+        return None
+    if match["former"] and {
+        name.strip().casefold() for name in re.split(r",\s*(?:and\s+)?|\s+and\s+", match["former"])
+    } & {name.strip().casefold() for name in names}:
         return None
     return frozenset(members)
 
