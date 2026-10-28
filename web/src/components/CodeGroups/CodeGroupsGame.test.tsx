@@ -249,7 +249,7 @@ describe("CodeGroups share", () => {
       { ids: [...puzzle.secret], exact: 4, misplaced: 0 },
     ];
     const text = generateShareText(puzzle, history, "pt-BR");
-    expect(text).toContain(`K-pop Code ${puzzle.reference_date}`);
+    expect(text).toContain(`Código de grupos de K-pop ${puzzle.reference_date}`);
     expect(text).toContain(pt.codeShareWon(2));
     expect(text).toContain(pt.codeShareAttemptsLine(2));
     expect(text).toContain("🟨🟨🟨🟨");
@@ -280,6 +280,6 @@ describe("CodeGroups share", () => {
     await winAndShare();
     const field = screen.getByRole("textbox", { name: pt.shareTextLabel });
     expect(field).toHaveAttribute("readonly");
-    expect((field as HTMLTextAreaElement).value).toContain("K-pop Code");
+    expect((field as HTMLTextAreaElement).value).toContain("Código de grupos de K-pop");
   });
 });

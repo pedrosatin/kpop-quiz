@@ -634,3 +634,37 @@ describe("Connections share", () => {
     }
   });
 });
+
+describe("ConnectionsGame display names", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+  });
+
+
+  it("keeps the note of homonym tiles and drops the one nobody shares", () => {
+    const [a, b, c] = puzzle.items;
+    const relabeled: ConnectionsPuzzle = {
+      ...puzzle,
+      items: puzzle.items.map((item) => {
+        if (item.id === a!.id) return { ...item, labels: { ...item.labels, "pt-BR": "Tempest (grupo)" } };
+        if (item.id === b!.id) return { ...item, labels: { ...item.labels, "pt-BR": "Tempest (banda)" } };
+        if (item.id === c!.id) return { ...item, labels: { ...item.labels, "pt-BR": "Uniq (banda)" } };
+        return item;
+      }),
+    };
+    render(<ConnectionsGame locale="pt-BR" puzzle={relabeled} messages={pt} />);
+
+    const names = Array.from(document.querySelectorAll(".connections-tile-text")).map((node) =>
+      (node.textContent ?? "").replace(/​/g, ""),
+    );
+    expect(names).toContain("Tempest (grupo)");
+    expect(names).toContain("Tempest (banda)");
+    expect(names).toContain("Uniq");
+    expect(names).not.toContain("Tempest");
+  });
+});

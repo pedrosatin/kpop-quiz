@@ -100,7 +100,9 @@ for (const [locale, t] of Object.entries(locales)) {
         // Read source URLs without visiting any third party.
         await page.waitForTimeout(RESULT_GUARD_MS + 1);
         await board.getByRole('button', { name: locale === 'pt' ? 'Compartilhar resultado' : 'Share result', exact: true }).click();
-        await expect(board.locator('.share-preview')).toHaveValue(/K-pop Crossword/);
+        await expect(board.locator('.share-preview')).toHaveValue(
+          locale === 'pt' ? /Cruzadinha de K-pop/ : /K-pop Crossword/,
+        );
         await page.reload();
         await expect(board.getByRole('heading', { name: locale === 'pt' ? 'Cruzadinha concluída!' : 'Crossword completed!' })).toBeVisible();
         await context.close();

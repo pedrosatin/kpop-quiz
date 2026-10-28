@@ -264,6 +264,7 @@ export interface Messages {
   connectionsGameOverLost: string;
   connectionsResultSummaryWon: (mistakes: number) => string;
   connectionsResultSummaryLost: string;
+  connectionsShareHeader: (date: string) => string;
   connectionsShareResultLine: (solved: number) => string;
   connectionsShareGuessesLine: (guesses: number, mistakes: number) => string;
   connectionsShareButton: string;
@@ -286,9 +287,12 @@ export interface Messages {
   wordSearchTitle: string;
   wordSearchEyebrow: string;
   wordSearchIntro: string;
+  wordSearchShareHeader: (date: string, found: number, total: number, time: string) => string;
   mapEyebrow: string;
   mapTitle: string;
   mapIntro: string;
+  mapShareHeader: (date: string) => string;
+  nameGuessShareHeader: (date: string, score: string) => string;
   timelineTitle: string;
   timelineEyebrow: string;
   timelineIntro: string;
@@ -328,6 +332,7 @@ export interface Messages {
   codeAttemptsUsed: string;
   codeAboutGroups: string;
   codeShareButton: string;
+  codeShareHeader: (date: string) => string;
   codeShareWon: (attempts: number) => string;
   codeShareLost: string;
   codeShareAttemptsLine: (attempts: number) => string;
@@ -350,6 +355,7 @@ export interface Messages {
   crosswordSummaryWon: (checks: number) => string;
   crosswordSummaryRevealed: (correct: number, total: number) => string;
   crosswordSourceClue: string;
+  crosswordShareHeader: string;
   crosswordArtifactMissing: string;
   statsTitle: string;
   statsNavLabel: string;
@@ -639,7 +645,7 @@ const catalogs: Record<Locale, Messages> = {
     gridReviewCellHeader: (row, col) => `Linha ${row + 1}, coluna ${col + 1}`,
     gridAcceptedAnswers: "Respostas aceitas:",
     gridRestart: "Jogar novamente",
-    gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 acertos (${guesses} palpites)`,
+    gridShareHeader: (date, correct, guesses) => `Grade de K-pop ${date}\n${correct}/9 acertos (${guesses} palpites)`,
     gridAxesHeader: "Critérios",
     gridCategoryDebut: "Estreia",
     gridCategoryAgency: "Agência",
@@ -660,6 +666,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsResultSummaryWon: (mistakes) =>
       mistakes === 0 ? "Você não errou nenhuma vez." : `Você errou ${mistakes} ${mistakes === 1 ? "vez" : "vezes"}.`,
     connectionsResultSummaryLost: "Você usou os 4 erros permitidos.",
+    connectionsShareHeader: (date) => `Conexões de K-pop ${date}`,
     connectionsShareResultLine: (solved) => `Resultado: ${solved}/4 categorias`,
     connectionsShareGuessesLine: (guesses, mistakes) =>
       `Palpites: ${guesses} (${mistakes} ${mistakes === 1 ? "erro" : "erros"})`,
@@ -719,9 +726,13 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchTitle: "Caça-palavras de K-pop",
     wordSearchEyebrow: "1 tema por dia · 8 direções",
     wordSearchIntro: "Encontre os nomes do tema escondidos na grade, em qualquer direção.",
+    wordSearchShareHeader: (date, found, total, time) =>
+      `Caça-palavras de K-pop ${date} ${found}/${total} (${time})`,
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
     mapTitle: "Quiz de mapa de K-pop: BLACKPINK",
     mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou.",
+    mapShareHeader: (date) => `Mapa de K-pop ${date}`,
+    nameGuessShareHeader: (date, score) => `Adivinhe o nome ${date} ${score}`,
     codeTitle: "Código de grupos de K-pop",
     codeEyebrow: "10 tentativas · 4 posições",
     codeIntro: "Descubra quatro grupos diferentes do catálogo na ordem secreta do dia.",
@@ -743,6 +754,7 @@ const catalogs: Record<Locale, Messages> = {
     codeAttemptsUsed: "Tentativas usadas",
     codeAboutGroups: "Sobre os grupos",
     codeShareButton: "Compartilhar resultado",
+    codeShareHeader: (date) => `Código de grupos de K-pop ${date}`,
     codeShareWon: (attempts) => `Código descoberto em ${attempts} ${attempts === 1 ? "tentativa" : "tentativas"}.`,
     codeShareLost: "Código não descoberto nas 10 tentativas.",
     codeShareAttemptsLine: (attempts) => `${attempts === 1 ? "Tentativa" : "Tentativas"}: ${attempts}`,
@@ -766,6 +778,7 @@ const catalogs: Record<Locale, Messages> = {
       checks === 1 ? "Resolvida na primeira verificação." : `Resolvida em ${checks} verificações.`,
     crosswordSummaryRevealed: (correct, total) => `${correct} de ${total} palavras certas antes de encerrar.`,
     crosswordSourceClue: "Pista:",
+    crosswordShareHeader: "Cruzadinha de K-pop",
     crosswordArtifactMissing: "A cruzadinha não está disponível agora. Tente mais tarde.",
     timelineTitle: "Linha do Tempo do K-pop",
     timelineEyebrow: "Desafio diário",
@@ -1117,6 +1130,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsResultSummaryWon: (mistakes) =>
       mistakes === 0 ? "No mistakes." : `${mistakes} ${mistakes === 1 ? "mistake" : "mistakes"}.`,
     connectionsResultSummaryLost: "You used all 4 mistakes.",
+    connectionsShareHeader: (date) => `K-pop Connections ${date}`,
     connectionsShareResultLine: (solved) => `Result: ${solved}/4 categories`,
     connectionsShareGuessesLine: (guesses, mistakes) =>
       `Guesses: ${guesses} (${mistakes} ${mistakes === 1 ? "mistake" : "mistakes"})`,
@@ -1176,9 +1190,13 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchTitle: "K-pop Word Search",
     wordSearchEyebrow: "1 theme a day · 8 directions",
     wordSearchIntro: "Find the theme's names hidden in the grid, in any direction.",
+    wordSearchShareHeader: (date, found, total, time) =>
+      `K-pop Word Search ${date} ${found}/${total} (${time})`,
     mapEyebrow: "10 dates per round · DEADLINE tour",
     mapTitle: "K-pop Map Quiz: BLACKPINK",
     mapIntro: "For each tour date, pick on the map the country the official schedule listed.",
+    mapShareHeader: (date) => `K-pop Map ${date}`,
+    nameGuessShareHeader: (date, score) => `K-pop Guess ${date} ${score}`,
     codeTitle: "K-pop Group Code",
     codeEyebrow: "10 guesses · 4 positions",
     codeIntro: "Find four different catalog groups in the day's secret order.",
@@ -1200,6 +1218,7 @@ const catalogs: Record<Locale, Messages> = {
     codeAttemptsUsed: "Attempts used",
     codeAboutGroups: "About the groups",
     codeShareButton: "Share result",
+    codeShareHeader: (date) => `K-pop Code ${date}`,
     codeShareWon: (attempts) => `Code solved in ${attempts} ${attempts === 1 ? "attempt" : "attempts"}.`,
     codeShareLost: "Code not found in 10 attempts.",
     codeShareAttemptsLine: (attempts) => `Attempts: ${attempts}`,
@@ -1222,6 +1241,7 @@ const catalogs: Record<Locale, Messages> = {
     crosswordSummaryWon: (checks) => (checks === 1 ? "Solved on the first check." : `Solved in ${checks} checks.`),
     crosswordSummaryRevealed: (correct, total) => `${correct} of ${total} words right before finishing.`,
     crosswordSourceClue: "Clue:",
+    crosswordShareHeader: "K-pop Crossword",
     crosswordArtifactMissing: "The crossword is not available right now. Try again later.",
     timelineTitle: "K-pop Timeline",
     timelineEyebrow: "Daily challenge",

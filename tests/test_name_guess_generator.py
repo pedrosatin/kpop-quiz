@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -11,6 +12,7 @@ from unittest.mock import patch
 
 from kpop_scraping.name_guess_generator import generate_name_guess_puzzle
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
+from kpop_scraping.quiz_utils import hash_payload
 
 
 def build_name_guess_test_database() -> sqlite3.Connection:
@@ -424,6 +426,170 @@ class TestNameGuessGenerator(unittest.TestCase):
         # The test database contains candidate words of lengths 4, 5, and 8
         self.assertGreater(len(lengths_seen), 1)
         self.assertTrue({4, 5, 8}.issubset(lengths_seen))
+
+    def _add_entity(
+        self,
+        qid: str,
+        canonical: str,
+        pt: str,
+        en: str,
+        *,
+        with_evidence: bool,
+    ) -> None:
+        cur = self.conn.execute(
+            "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, 'group', ?)",
+            (qid, canonical),
+        )
+        entity_id = cur.lastrowid
+        self.conn.execute("INSERT INTO entity_aliases VALUES (?, 'pt', ?, 'label')", (entity_id, pt))
+        self.conn.execute("INSERT INTO entity_aliases VALUES (?, 'en', ?, 'label')", (entity_id, en))
+        if with_evidence:
+            fact = self.conn.execute(
+                """
+                INSERT INTO facts(
+                    statement_id, subject_entity_id, predicate, property_id, rank,
+                    value_time, value_precision, status, quality_flags_json
+                ) VALUES (?, ?, 'formed_on', 'P571', 'normal', '2017-01-01', 9, 'accepted', '[]')
+                """,
+                (f"stmt-formed-{qid}", entity_id),
+            )
+            self.conn.execute(
+                """
+                INSERT INTO fact_evidence(fact_id, evidence_type, source_key, locator, wikidata_snapshot_id)
+                VALUES (?, 'claim', 'wikidata', ?, 1)
+                """,
+                (fact.lastrowid, f"claims/P571/{qid}"),
+            )
+        self.conn.commit()
+
+    def _generate(self, seed: str = "labels", word_length: int = 7) -> dict:
+        # Cravity is the only seven-letter candidate, so it is always the target.
+        puzzle = generate_name_guess_puzzle(
+            self.conn, seed=seed, reference_date=self.ref_date, word_length=word_length
+        )
+        self.assertEqual(puzzle["target"]["id"], "Q30000001")
+        self.assertEqual(puzzle["target"]["normalized_name"], "CRAVITY")
+        return puzzle
+
+    @staticmethod
+    def _recomputed_id(puzzle: dict) -> str:
+        """The contract's identity, recomputed here from the published bytes."""
+        return hash_payload({k: v for k, v in puzzle.items() if k != "puzzle_id"})
+
+    # Ids the pre-cleanup generator (master) produced for the same database.
+    MASTER_ID_SUFFIXED = "9c331257c24ad9ca5b3050e50b40390625b89d1088616d05b37689fb9fcf38ba"
+    MASTER_ID_SUFFIXED_WITH_HOMONYM = "8ad656c689a699d37b21389a3c1fab60b343a2fd08e32340603a2e2db32b772f"
+    MASTER_ID_CASE_DIFFERS = "7c064c71d4722c7b80812f191403e5b79917b975d5d9f5a51164e7dc0b9f8a72"
+
+    def test_published_labels_are_the_labels_the_sources_gave(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        puzzle = self._generate()
+        self.assertEqual(
+            puzzle["target"]["labels"],
+            {"pt-BR": "Cravity (grupo)", "en": "Cravity (group)"},
+        )
+
+    def test_puzzle_id_recomputes_from_the_published_payload(self):
+        cases = {
+            "suffix": [("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", True)],
+            "suffix with catalog homonym": [
+                ("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", True),
+                ("Q30000002", "Cravity (band)", "Cravity (banda)", "Cravity (band)", False),
+            ],
+            "bare peer": [
+                ("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", True),
+                ("Q30000002", "Cravity", "Cravity", "Cravity", False),
+            ],
+            "case differs from canonical": [("Q30000001", "CRAVITY", "Cravity", "CRAVITY", True)],
+            "reviewed spelling stays as published": [("Q30000001", "Cravity", "shinee", "SHINee", True)],
+        }
+        for name, entities in cases.items():
+            with self.subTest(case=name):
+                self.setUp()
+                for entity in entities:
+                    self._add_entity(entity[0], entity[1], entity[2], entity[3], with_evidence=entity[4])
+                puzzle = self._generate()
+                self.assertEqual(puzzle["puzzle_id"], self._recomputed_id(puzzle))
+                validate_name_guess_puzzle(puzzle)
+
+    def test_any_edit_of_the_published_label_is_detected(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        puzzle = self._generate()
+        for locale, edited in (("pt-BR", "Cravity"), ("en", "Cravity"), ("pt-BR", "CRAVITY")):
+            with self.subTest(locale=locale, edited=edited):
+                tampered = json.loads(json.dumps(puzzle))
+                tampered["target"]["labels"][locale] = edited
+                self.assertNotEqual(self._recomputed_id(tampered), puzzle["puzzle_id"])
+                with self.assertRaises(ValueError) as ctx:
+                    validate_name_guess_puzzle(tampered)
+                self.assertIn("puzzle_id does not match", str(ctx.exception))
+
+    def test_puzzle_id_matches_the_one_published_before_the_cleanup_work(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        self.assertEqual(self._generate()["puzzle_id"], self.MASTER_ID_SUFFIXED)
+
+    def test_catalog_homonym_does_not_move_the_id_or_the_labels(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        alone = self._generate()
+        # Not a candidate (no evidence), but a catalog entity with the same short form.
+        self._add_entity("Q30000002", "Cravity (band)", "Cravity (banda)", "Cravity (band)", with_evidence=False)
+        with_homonym = self._generate()
+        # The labels are the source's, whatever else the catalog holds. A homonym
+        # changes dataset_version (the catalog differs), never the label policy.
+        self.assertEqual(alone["target"]["labels"], with_homonym["target"]["labels"])
+        self.assertEqual(with_homonym["puzzle_id"], self.MASTER_ID_SUFFIXED_WITH_HOMONYM)
+        self.assertNotEqual(alone["puzzle_id"], with_homonym["puzzle_id"])
+
+    def test_case_differing_from_canonical_is_published_and_identified_as_is(self):
+        self._add_entity("Q30000001", "CRAVITY", "Cravity", "CRAVITY", with_evidence=True)
+        puzzle = self._generate()
+        self.assertEqual(puzzle["target"]["labels"], {"pt-BR": "Cravity", "en": "CRAVITY"})
+        self.assertEqual(puzzle["puzzle_id"], self.MASTER_ID_CASE_DIFFERS)
+
+    def test_answer_key_and_aliases_come_from_names_not_from_labels(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        # An alias in the catalog is a valid guess of its length; the label
+        # note never leaks into the answer or the guess list.
+        entity_id = self.conn.execute(
+            "SELECT id FROM entities WHERE wikidata_id = 'Q30000001'"
+        ).fetchone()[0]
+        for alias in ("Cravity", "Craviti"):
+            self.conn.execute(
+                "INSERT INTO entity_aliases VALUES (?, 'en', ?, 'alias')", (entity_id, alias)
+            )
+        self.conn.commit()
+        puzzle = self._generate()
+        self.assertEqual(puzzle["target"]["normalized_name"], "CRAVITY")
+        self.assertIn("CRAVITY", puzzle["valid_guesses"])
+        self.assertIn("CRAVITI", puzzle["valid_guesses"])
+        self.assertFalse(any("GRUPO" in guess or "GROUP" in guess for guess in puzzle["valid_guesses"]))
+        self.assertEqual(puzzle["target"]["id"], "Q30000001")
+
+    def test_regeneration_is_byte_identical_and_keeps_facts(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        first = self._generate()
+        again = self._generate()
+        self.assertEqual(
+            json.dumps(first, sort_keys=True, ensure_ascii=False),
+            json.dumps(again, sort_keys=True, ensure_ascii=False),
+        )
+        self.assertEqual(first["puzzle_id"], again["puzzle_id"])
+        evidence = first["target"]["evidence"]
+        self.assertEqual([item["locator"] for item in evidence], ["claims/P571/Q30000001"])
+        self.assertEqual({item["revision_id"] for item in evidence}, {1001})
+        self.assertEqual(evidence, again["target"]["evidence"])
+
+    def test_distinct_entities_with_the_same_short_label_keep_distinct_ids(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        first = self._generate()
+        self.conn.execute("DELETE FROM entities WHERE wikidata_id = 'Q30000001'")
+        self.conn.commit()
+        self._add_entity("Q30000003", "Cravity", "Cravity (banda)", "Cravity (band)", with_evidence=True)
+        second = generate_name_guess_puzzle(
+            self.conn, seed="labels", reference_date=self.ref_date, word_length=7
+        )
+        self.assertNotEqual(first["target"]["id"], second["target"]["id"])
+        self.assertNotEqual(first["puzzle_id"], second["puzzle_id"])
 
 
 if __name__ == "__main__":

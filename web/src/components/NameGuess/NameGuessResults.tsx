@@ -1,6 +1,8 @@
 import type { RefObject } from "preact";
 import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { Locale, NameGuessPuzzle } from "../../lib/quiz-types";
+import { getMessages } from "../../i18n/catalog";
+import { alignLoneLabel } from "../../lib/display-name";
 import type { GameStatus, LetterStatus, NameGuessTranslations } from "./types";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
@@ -25,7 +27,8 @@ export function generateShareText({
   locale: Locale;
 }): string {
   const scoreText = won ? `${attempts}/${puzzle.max_attempts}` : `X/${puzzle.max_attempts}`;
-  const lines = [`K-pop Guess ${puzzle.reference_date} ${scoreText}`, ""];
+  const messages = getMessages(locale);
+  const lines = [messages.nameGuessShareHeader(puzzle.reference_date, scoreText), ""];
 
   for (const fb of feedbacks) {
     const row = fb
@@ -83,7 +86,16 @@ export function NameGuessResults({
   const details = useRef<HTMLDivElement>(null);
   const won = status === "won";
   const target = puzzle.target;
-  const targetDisplayName = target.labels[locale] || target.canonical_name;
+  // The artifact publishes the label as the source gave it, and its puzzle_id
+  // covers it. Only the target is shown, so there are no peers to prove the
+  // short form unique: a Wikipedia note stays (see `alignLoneLabel`) and only
+  // a reviewed override changes the spelling.
+  const targetDisplayName = alignLoneLabel(
+    target.labels[locale],
+    target.canonical_name,
+    target.id,
+    locale,
+  );
   // The buttons appear where the keyboard was, so a second tap or a held key
   // meant for the last guess must not share or restart the game.
   const { guarded, ignoreRepeat } = useResultActionGuard();

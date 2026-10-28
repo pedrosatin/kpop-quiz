@@ -99,7 +99,7 @@ Para garantir conformidade com diretrizes de acessibilidade (WCAG 2.2) e apoiar 
 
 Os arquivos de partidas são gerados em tempo de compilação pelo pipeline Python e gravados atomicamente no formato JSON, conforme o contrato `kpop-name-guess-puzzle-v1`.
 
-Cada artefato gerado possui `puzzle_id` (hash SHA-256 canônico) e referencia `dataset_version` (hash SHA-256 canônico do banco de dados). O navegador carrega o artefato estático e executa toda a máquina de estados localmente via TypeScript, sem dependência de APIs em tempo de execução.
+Cada artefato gerado possui `puzzle_id` (hash SHA-256 canônico do JSON publicado sem o próprio `puzzle_id`, recalculado pelo validador; os saves do navegador usam esse id como chave, então todo campo publicado, rótulos incluídos, entra nele) e referencia `dataset_version` (hash SHA-256 canônico do banco de dados). O navegador carrega o artefato estático e executa toda a máquina de estados localmente via TypeScript, sem dependência de APIs em tempo de execução.
 
 ## Alternativas consideradas
 

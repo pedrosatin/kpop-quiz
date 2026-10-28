@@ -1,6 +1,7 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/name-guess.daily.json";
+import publishedTahiti from "../../tests/fixtures/name-guess.published-tahiti-banda.json";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessGame } from "./NameGuessGame";
 import { RESULT_GUARD_MS, generateShareText } from "./NameGuessResults";
@@ -811,5 +812,82 @@ describe("NameGuess share", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("NameGuess revealed answer label", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  function revealed(
+    locale: "pt-BR" | "en",
+    labels: { "pt-BR": string; en: string },
+    canonical = puzzle.target.canonical_name,
+    id = puzzle.target.id,
+  ) {
+    cleanup();
+    localStorage.clear(); // a finished round is saved by puzzle id and would skip Give up
+    const withLabels: NameGuessPuzzle = {
+      ...puzzle,
+      target: { ...puzzle.target, id, canonical_name: canonical, labels },
+    };
+    const messages = getMessages(locale);
+    const view = render(<NameGuessGame locale={locale} puzzle={withLabels} />);
+    fireEvent.click(screen.getByRole("button", { name: messages.giveUp }));
+    fireEvent.click(screen.getByRole("button", { name: messages.giveUpConfirmAction }));
+    return { view, name: document.querySelector(".name-guess-target-name")?.textContent };
+  }
+
+  it("shows the published note: a lone label is never stripped", () => {
+    // Only the target is on screen, so nothing proves the short form unique.
+    // Dropping the note here could turn "Tempest (grupo)" into the name of a
+    // homonym, so the page shows the label exactly as the artifact publishes it.
+    expect(revealed("pt-BR", { "pt-BR": "Tempest (grupo)", en: "Tempest (group)" }, "Tempest").name).toBe(
+      "Tempest (grupo)",
+    );
+    expect(revealed("pt-BR", { "pt-BR": "Tahiti (banda)", en: "Tahiti" }, "Tahiti").name).toBe("Tahiti (banda)");
+  });
+
+  it("shows the English label of the page's language", () => {
+    expect(revealed("en", { "pt-BR": "Tempest (grupo)", en: "Tempest (group)" }, "Tempest").name).toBe(
+      "Tempest (group)",
+    );
+  });
+
+  it("keeps the published case when it differs from the canonical name", () => {
+    expect(revealed("pt-BR", { "pt-BR": "Ateez", en: "ATEEZ" }, "ATEEZ").name).toBe("Ateez");
+    expect(revealed("en", { "pt-BR": "Ateez", en: "ATEEZ" }, "ATEEZ").name).toBe("ATEEZ");
+    expect(revealed("pt-BR", { "pt-BR": "tripleS", en: "tripleS" }, "TripleS").name).toBe("tripleS");
+  });
+
+  it("shows the reviewed SHINee spelling only for that entity and the published label", () => {
+    expect(revealed("pt-BR", { "pt-BR": "shinee", en: "SHINee" }, "SHINee", "Q269836").name).toBe("SHINee");
+    expect(revealed("pt-BR", { "pt-BR": "shinee", en: "SHINee" }, "SHINee", "Q1").name).toBe("shinee");
+  });
+
+  it("falls back to the canonical name when the label is empty", () => {
+    expect(revealed("pt-BR", { "pt-BR": "", en: "" }, "TWICE").name).toBe("TWICE");
+  });
+
+  it("resumes an artifact published before any label work, under its original save key", () => {
+    // Published on 2026-10-24 with the note in its pt-BR label. The save key is
+    // its puzzle_id, which this suite pins so a change of identity is caught.
+    cleanup();
+    localStorage.clear();
+    const published = publishedTahiti as unknown as NameGuessPuzzle;
+    expect(published.puzzle_id).toBe("8fa3457f09b96aadcd834487966bd0bb9d8f44eaa5a35366cd71441857a290a5");
+    localStorage.setItem(
+      `kpop_guess_state_${published.puzzle_id}`,
+      JSON.stringify({ guesses: [], feedbacks: [], status: "lost", highContrast: false }),
+    );
+    render(<NameGuessGame locale="pt-BR" puzzle={published} />);
+    expect(document.querySelector(".name-guess-target-name")?.textContent).toBe("Tahiti (banda)");
+    expect(screen.getByRole("heading", { name: tPt.lostTitle })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: tPt.keyboardAria })).not.toBeInTheDocument();
   });
 });

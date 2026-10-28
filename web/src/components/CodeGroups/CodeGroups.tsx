@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { resolveDisplayLabels } from "../../lib/display-name";
 import "./code-groups.css";
 
 type Symbol = { qid: string; name: string; source: { revision_id: number; locator: string; url: string } };
@@ -60,7 +61,9 @@ export function CodeGroups({ locale, artifactUrl }: { locale: "pt-BR" | "en"; ar
   useEffect(() => { if (finished) resultRef.current?.focus(); }, [finished]);
   if (failed) return <section id="code-groups" tabIndex={-1} class="code-pilot"><h1>{en ? "Group code" : "Código de grupos"}</h1><p role="alert">{en ? "The game could not be loaded. Try again." : "Não foi possível carregar o jogo. Tente novamente."}</p><button class="btn btn-primary" onClick={() => setRetry(retry + 1)}>{en ? "Retry" : "Tentar novamente"}</button></section>;
   if (!puzzle) return <section id="code-groups" tabIndex={-1} class="code-pilot" aria-busy="true"><h1>{en ? "Group code" : "Código de grupos"}</h1><p role="status">{en ? "Loading game…" : "Carregando jogo…"}</p></section>;
-  const label = (id: string) => puzzle.symbols.find(s => s.qid === id)?.name ?? id;
+  const symbolNames = resolveDisplayLabels(puzzle.symbols.map(s => ({ label: s.name, canonical: s.name })));
+  const nameByQid = new Map(puzzle.symbols.map((s, index) => [s.qid, symbolNames[index]!] as const));
+  const label = (id: string) => nameByQid.get(id) ?? id;
   function submit(event: Event) {
     event.preventDefault();
     if (finished || !puzzle) return;
@@ -94,7 +97,7 @@ export function CodeGroups({ locale, artifactUrl }: { locale: "pt-BR" | "en"; ar
           {en ? "Position" : "Posição"} {index + 1}
           <select value={value} onChange={event => { const next = [...selection]; next[index] = event.currentTarget.value; setSelection(next); setMessage(""); }}>
             <option value="">{en ? "Choose group" : "Escolha um grupo"}</option>
-            {puzzle.symbols.map(s => <option value={s.qid} key={s.qid}>{s.name}</option>)}
+            {puzzle.symbols.map(s => <option value={s.qid} key={s.qid}>{nameByQid.get(s.qid) ?? s.name}</option>)}
           </select>
         </label>)}</div>
         <button class="btn btn-primary" type="submit">{en ? "Submit guess" : "Enviar palpite"}</button>
@@ -111,7 +114,7 @@ export function CodeGroups({ locale, artifactUrl }: { locale: "pt-BR" | "en"; ar
       <p>{en ? "Secret sequence" : "Sequência secreta"}: <strong>{puzzle.secret.map(label).join(" / ")}</strong></p>
       <p>{en ? "Attempts used" : "Tentativas usadas"}: {history.length}/10</p>
       <h3>{en ? "About the groups" : "Sobre os grupos"}</h3>
-      <ul>{puzzle.symbols.map(s => <li key={s.qid}><a href={s.source.url}>{s.name} · Wikidata</a> · {en ? "revision" : "revisão"} {s.source.revision_id}</li>)}</ul>
+      <ul>{puzzle.symbols.map(s => <li key={s.qid}><a href={s.source.url}>{nameByQid.get(s.qid) ?? s.name} · Wikidata</a> · {en ? "revision" : "revisão"} {s.source.revision_id}</li>)}</ul>
       <p>Wikidata · CC0</p>
     </section>}
   </section>;

@@ -77,7 +77,9 @@ for (const locale of ["pt", "en"]) {
           await expect(page.getByTestId("game-result")).toBeVisible();
           await expectContained(page);
           await page.locator(".word-search-result-buttons > button").first().click();
-          await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("K-pop Word Search");
+          await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain(
+            locale === "pt" ? "Caça-palavras de K-pop" : "K-pop Word Search",
+          );
           await page.screenshot({ path: testInfo.outputPath("victory.png") });
           await context.clearCookies();
           await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("kpop-word-search-")).forEach((key) => localStorage.removeItem(key)));

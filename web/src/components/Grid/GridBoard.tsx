@@ -1,5 +1,6 @@
 import type { Ref } from "preact";
 import type { GridCriterionCategory, IntersectionGrid, Locale } from "../../lib/quiz-types";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import type { Messages } from "../../i18n/catalog";
 import { cellKey, type CellCoordinates, type GridCellState } from "./types";
 import { GridCell } from "./GridCell";
@@ -39,7 +40,7 @@ export function GridBoard({
   messages,
   revealed = false,
 }: GridBoardProps) {
-  const candidateNames = new Map(grid.candidate_pool.map((c) => [c.id, c.names[locale] || c.canonical_name]));
+  const candidateNames = buildLocalizedDisplayNames(grid.candidate_pool, locale);
   const revealedNameFor = (rowIdx: number, colIdx: number): string | undefined => {
     if (!revealed) return undefined;
     const cell = grid.cells.find((c) => c.row_index === rowIdx && c.col_index === colIdx);

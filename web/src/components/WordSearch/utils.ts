@@ -1,6 +1,7 @@
 import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
 import type { CellCoord, GameStatus } from "./types";
 import type { Locale } from "../../lib/quiz-types";
+import { getMessages } from "../../i18n/catalog";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 
@@ -169,8 +170,9 @@ export function generateWordSearchShareSummary(
   locale: Locale
 ): string {
   const time = formatTime(elapsedSeconds);
+  const messages = getMessages(locale);
   return withShareUrl(
-    `K-pop Word Search ${puzzle.reference_date} ${foundCount}/${totalCount} (${time})`,
+    messages.wordSearchShareHeader(puzzle.reference_date, foundCount, totalCount, time),
     seoShareUrl("wordSearch", locale)
   );
 }

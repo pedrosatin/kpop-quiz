@@ -54,6 +54,8 @@ export interface ConnectionsTileProps {
   onToggle: (id: string) => void;
   locale: Locale;
   messages: Messages;
+  /** Resolved against the full board so disambiguators stay when needed. */
+  displayName?: string;
 }
 
 export interface CategoryBannerProps {
@@ -62,6 +64,7 @@ export interface CategoryBannerProps {
   items?: ConnectionsItem[];
   locale: Locale;
   messages: Messages;
+  displayNames?: Map<string, string>;
 }
 
 export interface MistakesRemainingProps {

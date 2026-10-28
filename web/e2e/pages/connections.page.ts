@@ -4,6 +4,7 @@ import { SUBMIT_GUARD_MS } from "../../src/components/Connections/ConnectionsGam
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
 import { loadPreferNextDaily } from "../helpers/daily-artifact";
+import { hiddenNote, visibleLabels } from "../helpers/visible-names";
 
 /** Buffer past Submit guard so a second Enviar is not swallowed. */
 const SUBMIT_CLICK_WAIT_MS = SUBMIT_GUARD_MS + 50;
@@ -38,6 +39,35 @@ export class ConnectionsPage {
     await expectBoardDirectReady(this.page);
   }
 
+  /**
+   * Every tile reads as the visible contract says: the note hidden when the
+   * short form is unique, the published spelling otherwise. Also proves no
+   * tile on the board still shows a hidden note.
+   */
+  async expectVisibleNames(locale: "pt-BR" | "en" = "pt-BR"): Promise<void> {
+    const puzzle = await loadPreferNextDaily<ConnectionsDaily>(
+      this.page.request,
+      this.baseURL,
+      "connections.daily.json",
+    );
+    const visible = visibleLabels(puzzle.items, locale);
+    const board = this.page.getByTestId("game-board");
+    for (const item of puzzle.items) {
+      const label = visible.get(item.id)!;
+      await expect(
+        board.getByRole("button", { name: new RegExp(`^${escapeRegExp(label)},`) }),
+        `tile for ${item.id}`,
+      ).toBeVisible();
+      const note = hiddenNote(item.labels[locale] || item.canonical_name);
+      if (note && label !== (item.labels[locale] || item.canonical_name)) {
+        await expect(
+          board.getByRole("button", { name: new RegExp(escapeRegExp(note)) }),
+          `${item.id} keeps no ${note}`,
+        ).toHaveCount(0);
+      }
+    }
+  }
+
   /** Four distinct wrong groups (one tile from each category) → lost. */
   async loseWithWrongGuesses(): Promise<void> {
     const puzzle = await loadPreferNextDaily<ConnectionsDaily>(
@@ -45,7 +75,7 @@ export class ConnectionsPage {
       this.baseURL,
       "connections.daily.json",
     );
-    const byId = new Map(puzzle.items.map((item) => [item.id, item]));
+    const visible = visibleLabels(puzzle.items, "pt-BR");
     const board = this.page.getByTestId("game-board");
 
     for (let i = 0; i < 4; i += 1) {
@@ -59,11 +89,10 @@ export class ConnectionsPage {
 
       const ids = puzzle.categories.map((cat) => cat.item_ids[i]!);
       for (const id of ids) {
-        const item = byId.get(id);
-        expect(item, `connections item ${id}`).toBeTruthy();
-        const label = item!.labels["pt-BR"] || item!.canonical_name;
+        const label = visible.get(id);
+        expect(label, `connections item ${id}`).toBeTruthy();
         const tile = board.getByRole("button", {
-          name: new RegExp(`^${escapeRegExp(label)},`),
+          name: new RegExp(`^${escapeRegExp(label!)},`),
         });
         await expect(tile).toBeVisible();
         await tile.click();

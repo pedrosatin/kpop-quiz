@@ -11,6 +11,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from .quiz_schema import write_json_atomic
+from .quiz_utils import hash_payload
 
 NAME_GUESS_SCHEMA_VERSION = "kpop-name-guess-puzzle-v1"
 
@@ -340,6 +341,19 @@ def validate_name_guess_puzzle(payload: dict[str, Any]) -> None:
 
     normalized_name = _validate_target(payload["target"], word_length)
     _validate_valid_guesses(payload["valid_guesses"], word_length, normalized_name)
+    _require(
+        payload["puzzle_id"] == name_guess_puzzle_id(payload),
+        "puzzle_id does not match the SHA-256 of the canonical payload without puzzle_id",
+    )
+
+
+def name_guess_puzzle_id(payload: dict[str, Any]) -> str:
+    """Identity of a puzzle: SHA-256 of its canonical JSON without ``puzzle_id``.
+
+    Saves in the browser are keyed by this id, so every published field,
+    labels included, must be covered by it.
+    """
+    return hash_payload({k: v for k, v in payload.items() if k != "puzzle_id"})
 
 
 def write_name_guess_puzzle_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:

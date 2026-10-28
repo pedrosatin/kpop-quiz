@@ -1,0 +1,24 @@
+{
+  "schema_version": "kpop-display-label-overrides-v1",
+  "note": "Display only. An entry replaces one published label when, and only when, the label still reads exactly `published`. QIDs, answer keys, puzzle ids and aliases never change. Add an entry only with evidence in a pinned source revision; a label that merely differs in case from another locale is not evidence.",
+  "overrides": [
+    {
+      "qid": "Q269836",
+      "locale": "pt-BR",
+      "published": "shinee",
+      "display": "SHINee",
+      "evidence": [
+        {
+          "source_key": "wikipedia:en",
+          "locator": "wikipedia:en:pageid=17549610:revid=1374819748#lead: \"stylized as SHINee\"",
+          "source_url": "https://en.wikipedia.org/w/index.php?curid=17549610&oldid=1374819748"
+        },
+        {
+          "source_key": "wikidata",
+          "locator": "wikidata:Q269836:revid=2550137162#labels.en = \"SHINee\"; labels.pt = \"shinee\" (the published pt-BR label)",
+          "source_url": "https://www.wikidata.org/w/index.php?title=Q269836&oldid=2550137162"
+        }
+      ]
+    }
+  ]
+}

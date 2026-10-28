@@ -68,7 +68,10 @@ test("ten failed guesses reveal the code and lock input", async ({ page, baseURL
   for (let i=0;i<10;i++) await page.getByRole("button",{name:"Enviar palpite"}).click();
   await expect(page.locator(".code-history li")).toHaveCount(10);
   await expect(page.locator(".game-result")).toContainText("Tentativas esgotadas");
-  for (const id of secret) await expect(page.locator(".game-result")).toContainText(artifact.symbols.find((s: {qid:string}) => s.qid===id).name);
+  // The result reads the visible names: the Wikipedia note is hidden, the rest kept.
+  const result = page.locator(".game-result");
+  await expect(result).toContainText("Sequência secreta: Redsquare / Geenius / 1Verse / The Boyz");
+  await expect(result).not.toContainText("South Korean band");
   await expect(page.getByRole("button",{name:"Enviar palpite"})).toBeDisabled();
   const fits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
   expect(fits).toBe(true);
