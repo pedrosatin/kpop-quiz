@@ -1,3 +1,4 @@
+import { Feedback } from "../Feedback/Feedback";
 import type { RefObject } from "preact";
 import type { Locale, PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
@@ -19,6 +20,7 @@ export interface QuizResultProps {
   playMode?: PlayMode;
   history?: QuestionResult[];
   dailyDate?: string | null | undefined;
+  feedbackEligible?: boolean;
 }
 
 export function QuizResult({
@@ -34,6 +36,7 @@ export function QuizResult({
   playMode = "standard",
   history = [],
   dailyDate,
+  feedbackEligible = true,
 }: QuizResultProps) {
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
   const correct = correctCount ?? history.filter((h) => h.isCorrect).length;
@@ -73,6 +76,7 @@ export function QuizResult({
           </button>
         </div>
       </div>
+      {feedbackEligible && <Feedback locale={locale} />}
       <ReviewAnswers items={history} messages={messages} />
     </section>
   );
