@@ -1,11 +1,11 @@
 /*
-  Map quiz: question, map and action bar. The map is the main way to answer;
-  the same countries are a second way that stays on screen without scrolling.
-  From 60rem the list sits beside the map, in two columns of 44px buttons,
-  next to the question. Below 60rem a list under the map fell below the fold
-  (first country at y=765 under a bar at 774 on 390x844; 845 on 1440x900
-  before the list moved beside the map), so narrow screens get a select with
-  an Answer button in the bar instead, where Next appears after the answer.
+  Map quiz: question, map and action bar. Map and list only select a country;
+  Responder / Answer commits the attempt. From 60rem the list sits beside the
+  map, in two columns of 44px buttons, next to the question, and the bar keeps
+  Answer (the select stays hidden). Below 60rem a list under the map fell below
+  the fold (first country at y=765 under a bar at 774 on 390x844; 845 on
+  1440x900 before the list moved beside the map), so narrow screens get a
+  select with Answer in the bar instead, where Next appears after the answer.
 */
 .map-pilot-game {
   --game-actions-inset: clamp(1rem, 3vw, 2rem);
@@ -33,6 +33,7 @@
 
 /* Country list, only beside the map on wide screens. */
 .map-pilot-answers { display: none; }
+.map-pilot-country-heading { margin: 0 0 var(--space-2); font-size: 0.9375rem; line-height: 1.25; }
 .map-pilot-country-list { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 .map-pilot-country { min-height: var(--control-height); padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.9375rem; line-height: 1.15; cursor: pointer; }
 .map-pilot-country:hover:not(:disabled) { border-color: var(--color-action); background: var(--color-surface-muted); }
@@ -74,7 +75,9 @@
   .map-pilot-game:not(.is-complete) .map-pilot-map-wrap { grid-area: map; align-self: start; }
   .map-pilot-answers { display: block; grid-area: list; margin-top: var(--space-2); }
   .map-pilot-game > .game-actions { grid-area: bar; }
-  .map-pilot-pick { display: none; }
+  /* Wide screens use the button list; keep Answer in the bar, hide the select. */
+  .map-pilot-select { display: none; }
+  .map-pilot-pick { flex: 0 0 auto; }
 }
 
 /* Result: title and summary, then Share, Play again and the sources. */

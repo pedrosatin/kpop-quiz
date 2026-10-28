@@ -78,6 +78,9 @@ export function MapPilotGameContent({
   const analytics = useGameAnalytics({ game: "map", locale }, isComplete, answers.length > 0);
   const current = isComplete ? undefined : (round[questionIndex] as MapPilotEvent | undefined);
   const selectedFeature = answers.length > questionIndex ? answers[questionIndex]! : null;
+  // Pending pick from map/list/select; only Responder commits it into answers.
+  const pendingFeature = listChoice || null;
+  const highlightFeature = selectedFeature ?? pendingFeature;
   const answerCountry = current ? countryByFeature.get(current.map_feature_id) : undefined;
   const selectedCountry = selectedFeature ? countryByFeature.get(selectedFeature) : undefined;
   const answerState: AnswerState = selectedFeature === null || !current
@@ -112,11 +115,21 @@ export function MapPilotGameContent({
     [locale],
   );
 
-  function chooseCountry(featureId: string) {
+  function selectPending(featureId: string) {
+    if (!current || selectedFeature !== null || !playableFeatures.has(featureId)) return;
+    analytics.start();
+    playedHere.current = true;
+    setListChoice(featureId);
+    setPickPrompt(0);
+  }
+
+  function submitAnswer(featureId: string) {
     if (!current || selectedFeature !== null || !playableFeatures.has(featureId)) return;
     analytics.start();
     playedHere.current = true;
     answeredAt.current = performance.now();
+    setListChoice("");
+    setPickPrompt(0);
     setGame({ ...game, answers: [...game.answers, featureId] });
   }
 
@@ -204,7 +217,7 @@ export function MapPilotGameContent({
               );
             }
             const isPlayable = playableFeatures.has(feature.id);
-            const isSelected = selectedFeature === feature.id;
+            const isSelected = highlightFeature === feature.id;
             const isCorrect = selectedFeature !== null && current.map_feature_id === feature.id;
             return (
               <path
@@ -219,11 +232,11 @@ export function MapPilotGameContent({
                 tabindex={isPlayable && selectedFeature === null ? 0 : -1}
                 aria-label={isPlayable ? mapPilotCountryLabel(countryByFeature.get(feature.id)!, locale) : undefined}
                 aria-pressed={isPlayable ? isSelected : undefined}
-                onClick={isPlayable ? () => chooseCountry(feature.id) : undefined}
+                onClick={isPlayable ? () => selectPending(feature.id) : undefined}
                 onKeyDown={isPlayable ? (event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    chooseCountry(feature.id);
+                    selectPending(feature.id);
                   }
                 } : undefined}
               />
@@ -236,15 +249,15 @@ export function MapPilotGameContent({
       {current && (
         // Beside the map on wide screens; narrow screens use the select in the bar.
         <div class="map-pilot-answers" role="group" aria-labelledby="map-country-choices">
-          <h3 id="map-country-choices" class="visually-hidden">{copy.countryChoices}</h3>
+          <h3 id="map-country-choices" class="map-pilot-country-heading">{copy.countryChoices}</h3>
           <div class="map-pilot-country-list">
             {sortedCountries.map((country) => (
               <button
                 key={country.map_feature_id}
                 type="button"
-                class={`map-pilot-country ${selectedFeature === country.map_feature_id ? "is-selected" : ""} ${selectedFeature !== null && country.map_feature_id === current.map_feature_id ? "is-answer" : ""}`}
+                class={`map-pilot-country ${highlightFeature === country.map_feature_id ? "is-selected" : ""} ${selectedFeature !== null && country.map_feature_id === current.map_feature_id ? "is-answer" : ""}`}
                 disabled={selectedFeature !== null}
-                onClick={() => chooseCountry(country.map_feature_id)}
+                onClick={() => selectPending(country.map_feature_id)}
                 data-testid={`answer-country-${country.iso_3166_1}`}
               >
                 {mapPilotCountryLabel(country, locale)}
@@ -301,7 +314,7 @@ export function MapPilotGameContent({
             copy={copy}
             onListChoice={setListChoice}
             onClearPickPrompt={() => setPickPrompt(0)}
-            onChooseCountry={chooseCountry}
+            onChooseCountry={submitAnswer}
             onEmptySubmit={() => setPickPrompt((value) => value + 1)}
           />
         )}

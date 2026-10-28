@@ -505,8 +505,8 @@ const catalogs: Record<Locale, Messages> = {
       "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\". No fim, \"Ver fonte\" lista a revisão da Wikipédia ou do Wikidata que confirma cada nome.",
     ],
     mapHowToPlay: [
-      "Leia a data da turnê e escolha o país destacado no mapa ou o nome dele na lista. Em telas largas, a lista fica ao lado do mapa. Em telas menores, os países ficam num seletor na barra de baixo, com o botão \"Responder\".",
-      "No teclado, use Tab para chegar a um país e Enter para escolher.",
+      "Leia a data da turnê, selecione o país destacado no mapa ou o nome dele na lista e toque em \"Responder\". Em telas largas, a lista fica ao lado do mapa. Em telas menores, os países ficam num seletor na barra de baixo. Países pequenos, como Singapura, ficam mais fáceis pela lista.",
+      "No teclado, use Tab para chegar a um país, Enter para selecionar e \"Responder\" para enviar.",
       "Depois da resposta, a barra na parte de baixo da tela mostra o país correto e os links da agenda oficial e do MusicBrainz. Aperte Enter ou \"Próxima data\" para seguir. Na última pergunta, o botão vira \"Ver resultado\".",
       "No fim, \"Ver fonte\" lista as datas da rodada com a sua resposta e as fontes de cada uma. Uma data na agenda não confirma que o show aconteceu.",
     ],
@@ -963,8 +963,8 @@ const catalogs: Record<Locale, Messages> = {
       "The list shows how many letters each name has. If you get stuck, use \"Show words\". At the end, \"Show source\" lists the Wikipedia or Wikidata revision behind each name.",
     ],
     mapHowToPlay: [
-      "Read the tour date and pick the highlighted country on the map or its name in the list. On wide screens the list sits beside the map. On smaller screens the countries are in a menu in the bar at the bottom, with the \"Answer\" button.",
-      "With a keyboard, press Tab to reach a country and Enter to choose it.",
+      "Read the tour date, select the highlighted country on the map or its name in the list, then press \"Answer\". On wide screens the list sits beside the map. On smaller screens the countries are in a menu in the bar at the bottom. Small countries such as Singapore are easier to pick from the list.",
+      "With a keyboard, press Tab to reach a country, Enter to select it, and \"Answer\" to submit.",
       "After you answer, the bar at the bottom of the screen shows the correct country and links to the official schedule and MusicBrainz. Press Enter or \"Next date\" to continue. On the last question, the button reads \"See result\".",
       "At the end, \"Show source\" lists the round's dates with your answer and the sources for each. A date on the schedule does not confirm that the show took place.",
     ],

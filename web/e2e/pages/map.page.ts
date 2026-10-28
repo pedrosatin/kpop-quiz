@@ -38,6 +38,10 @@ export class MapPage {
       await expect(country).toBeEnabled();
       await country.click();
 
+      const submit = board.getByRole("button", { name: /^Responder$/ });
+      await expect(submit).toBeVisible();
+      await submit.click();
+
       const advance = board.getByRole("button", { name: /Próxima data|Ver resultado/ });
       await expect(advance).toBeVisible();
       await this.page.waitForTimeout(NEXT_CLICK_WAIT_MS);

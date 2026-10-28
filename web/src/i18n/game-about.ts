@@ -160,8 +160,8 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "De onde vêm os dados do Quiz de mapa de K-pop",
         faqHeading: "Perguntas sobre o Quiz de mapa de K-pop",
         howToPlay: [
-          "O quiz de mapa usa a turnê DEADLINE de BLACKPINK. Cada rodada traz 10 datas da agenda oficial. Para cada data, escolha o país do show no mapa ou na lista de países. Em telas menores, a lista fica num seletor na barra de baixo.",
-          "Depois da resposta, a barra mostra o país correto e os links da agenda oficial e do MusicBrainz para aquela data. No fim, você vê quantas acertou, e Ver fonte lista as 10 datas com a sua resposta. No teclado, Tab chega a um país e Enter escolhe.",
+          "O quiz de mapa usa a turnê DEADLINE de BLACKPINK. Cada rodada traz 10 datas da agenda oficial. Para cada data, selecione o país do show no mapa ou na lista e toque em Responder. Em telas menores, a lista fica num seletor na barra de baixo. Países pequenos, como Singapura, ficam mais fáceis pela lista.",
+          "Depois da resposta, a barra mostra o país correto e os links da agenda oficial e do MusicBrainz para aquela data. No fim, você vê quantas acertou, e Ver fonte lista as 10 datas com a sua resposta. No teclado, Tab chega a um país, Enter seleciona e Responder envia.",
         ],
         dataSources: [
           "Uma data só entra no jogo quando três fontes concordam. A agenda oficial da YG lista a data e a cidade. O MusicBrainz registra o show em um local. O país do local no Wikidata bate com o país que o MusicBrainz registra para ele. Depois, o identificador do Wikidata liga o país ao contorno correspondente no mapa do Natural Earth.",
@@ -382,8 +382,8 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "Where the K-pop Map Quiz data comes from",
         faqHeading: "K-pop Map Quiz FAQ",
         howToPlay: [
-          "The map quiz is built on BLACKPINK's DEADLINE world tour. Each round has 10 dates from the official schedule. For each date, pick the country of the show on the map or from the list of countries. On smaller screens the list sits in a menu in the bottom bar.",
-          "After you answer, the bar shows the correct country with links to the official schedule and to MusicBrainz for that date. At the end you see your score, and Show source lists all 10 dates with your answer. With a keyboard, Tab moves between countries and Enter picks one.",
+          "The map quiz is built on BLACKPINK's DEADLINE world tour. Each round has 10 dates from the official schedule. For each date, select the country of the show on the map or from the list, then press Answer. On smaller screens the list sits in a menu in the bottom bar. Small countries such as Singapore are easier to pick from the list.",
+          "After you answer, the bar shows the correct country with links to the official schedule and to MusicBrainz for that date. At the end you see your score, and Show source lists all 10 dates with your answer. With a keyboard, Tab moves between countries, Enter selects one, and Answer submits.",
         ],
         dataSources: [
           "A date makes it into the game only when three sources agree. YG's official schedule lists the date and city, MusicBrainz records the concert at a venue, and the venue's country on Wikidata matches the one MusicBrainz records. The country's Wikidata ID then links it to the matching shape on the Natural Earth map.",
