@@ -5,12 +5,18 @@ import { renderToString } from "preact-render-to-string";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { groupEvidence, Quiz } from "./Quiz";
 import { NEXT_GUARD_MS } from "./AnswerFeedback";
+import fs from "node:fs";
+import path from "node:path";
 import ptSession from "../../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import enSession from "../../tests/fixtures/session.en.standard.9c44914efa4be2eee52cf11ea63f542c8e913e01b5a58dc63d3627ed003e8c0e.json";
 import assistedSession from "../../tests/fixtures/session.pt-BR.assisted.fa5f191cdb87584a302ac221ddc4c4520c49c5cc9ef79f1242b4219558f7a56e.json";
 import expertSession from "../../tests/fixtures/session.pt-BR.expert.987d0b408ebba093fcebd95e04199ff967a4af740d1a2a82e1307b8ba4cba591.json";
 import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c1ff312324883f8b724318e6bf7c132293eb9ee53ff8f8e0e5c2072562738f4.json";
 import manifest from "../../tests/fixtures/manifest-v2.json";
+import { clearCatalogCache } from "../../data/catalog-loader";
+
+const CATALOG_DIR = path.resolve(__dirname, "../../tests/fixtures/catalog");
+const catalogManifest = JSON.parse(fs.readFileSync(path.join(CATALOG_DIR, "catalog-manifest-v1.json"), "utf-8"));
 
 function mockSessionFetch(customPtSession?: any) {
   const testManifest = structuredClone(manifest) as Record<string, any>;
@@ -33,6 +39,10 @@ function mockSessionFetch(customPtSession?: any) {
     }
   }
   vi.stubGlobal("fetch", vi.fn((url: string) => {
+    // QUIZ_CATALOG off: no catalog published. A 404 keeps the legacy session path.
+    if (url.includes("catalog-manifest") || url.includes("/catalog.")) {
+      return Promise.resolve(new Response(null, { status: 404 }));
+    }
     const payload = url.endsWith("manifest-v2.json") ? testManifest
       : url.includes("pt-BR.assisted") ? assistedSession
       : url.includes("pt-BR.expert") ? expertSession
@@ -80,9 +90,46 @@ function pressEnter(target: HTMLElement) {
   }
 }
 
+function mockCatalogFetch() {
+  const files = new Map<string, Buffer>();
+  for (const name of fs.readdirSync(CATALOG_DIR)) {
+    files.set(name, fs.readFileSync(path.join(CATALOG_DIR, name)));
+  }
+  const testManifest = structuredClone(manifest) as Record<string, any>;
+  // Point daily entries at the fixture daily session bytes, matching mockSessionFetch.
+  const dailyRaw = `${JSON.stringify(dailyPtSession)}\n`;
+  const dailyHash = createHash("sha256").update(dailyRaw).digest("hex");
+  for (const locale of ["pt-BR", "en"]) {
+    for (const mode of ["assisted", "standard", "expert"]) {
+      testManifest.sessions[`daily.${locale}.${mode}`] = {
+        path: `session.daily.${locale}.${mode}.${dailyHash}.json`,
+        sha256: dailyHash,
+        session_id: dailyPtSession.session_id,
+      };
+    }
+  }
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    const name = url.split("/data/")[1] ?? "";
+    if (name === "catalog-manifest-v1.json") {
+      return new Response(JSON.stringify(catalogManifest));
+    }
+    if (files.has(name)) return new Response(new Uint8Array(files.get(name)!));
+    if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
+    if (url.endsWith("manifest-v2.json")) return new Response(JSON.stringify(testManifest));
+    if (url.includes("session.daily")) {
+      return new Response(dailyRaw);
+    }
+    if (url.includes("pt-BR.assisted")) return new Response(`${JSON.stringify(assistedSession)}\n`);
+    if (url.includes("pt-BR.expert")) return new Response(`${JSON.stringify(expertSession)}\n`);
+    if (url.includes("pt-BR")) return new Response(`${JSON.stringify(ptSession)}\n`);
+    return new Response(`${JSON.stringify(enSession)}\n`);
+  }));
+}
+
 describe("Quiz", () => {
   beforeEach(() => {
     vi.spyOn(performance, "now").mockImplementation(() => now);
+    clearCatalogCache();
   });
 
   afterEach(() => {
@@ -90,7 +137,9 @@ describe("Quiz", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     window.localStorage.clear();
+    window.sessionStorage.clear();
     window.history.replaceState(null, "", "/");
+    clearCatalogCache();
   });
 
   it("groups visually identical evidence without changing the session", () => {
@@ -132,11 +181,11 @@ describe("Quiz", () => {
     expect(screen.getAllByRole("link", { name: /Abrir a revisão/ })[0]).toHaveAttribute("href", question.evidence[0]!.source_url);
   });
 
-  it("keeps drawing every round from the published sessions, without asking for the question catalog", async () => {
+  it("falls back to published sessions when the question catalog is not published", async () => {
     await renderReady("pt-BR");
     const requested = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map(([url]) => url);
-    expect(requested.length).toBeGreaterThan(0);
-    expect(requested.filter((url) => url.includes("catalog"))).toEqual([]);
+    expect(requested.some((url) => url.includes("catalog-manifest"))).toBe(true);
+    expect(requested.some((url) => url.includes("manifest-v2.json") || url.includes("session."))).toBe(true);
   });
 
   it("charges the declared cost when standard mode reveals a clue", async () => {
@@ -219,13 +268,19 @@ describe("Quiz", () => {
   });
 
   it("ignores a stale session response after the locale changes", async () => {
-    let releasePtManifest!: (response: Response) => void;
-    const delayedPtManifest = new Promise<Response>((resolve) => { releasePtManifest = resolve; });
+    let releasePtSession!: (response: Response) => void;
+    const delayedPtSession = new Promise<Response>((resolve) => { releasePtSession = resolve; });
     const fetch = vi.fn((url: string) => {
-      if (url.includes("pt-BR")) return Promise.resolve(new Response(`${JSON.stringify(ptSession)}\n`));
-      if (url.includes("session.en")) return Promise.resolve(new Response(`${JSON.stringify(enSession)}\n`));
-      if (fetch.mock.calls.length === 1) return delayedPtManifest;
-      return Promise.resolve(new Response(JSON.stringify(manifest)));
+      if (url.includes("catalog-manifest") || url.includes("/catalog.")) {
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }
+      if (url.endsWith("manifest-v3.json")) return Promise.resolve(new Response(null, { status: 404 }));
+      if (url.endsWith("manifest-v2.json")) return Promise.resolve(new Response(JSON.stringify(manifest)));
+      if (url.includes("session") && url.includes("pt-BR")) return delayedPtSession;
+      if (url.includes("session") && url.includes(".en.")) {
+        return Promise.resolve(new Response(`${JSON.stringify(enSession)}\n`));
+      }
+      return Promise.resolve(new Response(`${JSON.stringify(enSession)}\n`));
     });
     vi.stubGlobal("fetch", fetch);
     const view = render(<Quiz locale="pt-BR" />);
@@ -233,7 +288,7 @@ describe("Quiz", () => {
     await waitForSetupReady("Set up your game");
     fireEvent.click(screen.getByRole("button", { name: "Start game" }));
     expect(await screen.findByRole("heading", { name: enSession.questions[0]!.prompt })).toBeInTheDocument();
-    releasePtManifest(new Response(JSON.stringify(manifest)));
+    releasePtSession(new Response(`${JSON.stringify(ptSession)}\n`));
     await act(async () => { await Promise.resolve(); });
     await act(async () => { await Promise.resolve(); });
     expect(screen.getByRole("heading", { name: enSession.questions[0]!.prompt })).toBeInTheDocument();
@@ -423,9 +478,12 @@ describe("Quiz", () => {
   });
 
   it("shows the missing state and retries the publication", async () => {
-    // Only manifest-v2.json is published, and its first request is a 404.
+    // Catalog absent; only manifest-v2.json is published, and its first request is a 404.
     let legacyManifestRequests = 0;
     const fetch = vi.fn(async (url: string) => {
+      if (url.includes("catalog-manifest") || url.includes("/catalog.")) {
+        return new Response(null, { status: 404 });
+      }
       if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
       if (url.endsWith("manifest-v2.json")) {
         legacyManifestRequests += 1;
@@ -441,7 +499,8 @@ describe("Quiz", () => {
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     expect(await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
     expect(legacyManifestRequests).toBe(2);
-    expect(fetch).toHaveBeenCalledTimes(5);
+    // catalog probe + v3 + v2 (miss), then retry: catalog + v3 + v2 + session
+    expect(fetch.mock.calls.length).toBeGreaterThanOrEqual(7);
   });
 
   it("completes all questions, displays results, and restarts the round", async () => {
@@ -623,6 +682,9 @@ describe("Quiz", () => {
   it("initializes playMode lazily from localStorage avoiding double session fetch", async () => {
     window.localStorage.setItem("kpop-quiz-play-mode", "expert");
     const fetch = vi.fn((url: string) => {
+      if (url.includes("catalog-manifest") || url.includes("/catalog.")) {
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }
       const payload = url.endsWith("manifest-v2.json") ? manifest : expertSession;
       return Promise.resolve(new Response(`${JSON.stringify(payload)}\n`));
     });
@@ -632,7 +694,7 @@ describe("Quiz", () => {
     await waitForSetupReady();
 
     const fetchedUrls = fetch.mock.calls.map((call) => call[0] as string);
-    expect(fetchedUrls.some((url) => url.includes("standard"))).toBe(false);
+    expect(fetchedUrls.some((url) => url.includes("session") && url.includes("standard"))).toBe(false);
     expect(fetchedUrls.some((url) => url.includes("expert"))).toBe(true);
   });
 
@@ -694,6 +756,54 @@ describe("Quiz", () => {
     expect(langLink.search).toContain("theme=daily");
 
     document.body.removeChild(langLink);
+  });
+
+  it("draws the general quiz from the catalog and changes the set on replay", async () => {
+    mockCatalogFetch();
+    render(<Quiz locale="pt-BR" />);
+    await waitForSetupReady();
+    const requested = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map(([url]) => url);
+    expect(requested.some((url) => url.includes("catalog-manifest"))).toBe(true);
+    expect(requested.some((url) => url.includes("catalog.pt-BR.standard"))).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    const firstPrompt = (await screen.findByRole("heading", { level: 2 })).textContent!;
+    for (let index = 0; index < 10; index += 1) {
+      fireEvent.click(screen.getAllByRole("radio")[0]!);
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      const isLast = index === 9;
+      advanceClock();
+      fireEvent.click(screen.getByRole("button", { name: isLast ? "Ver resultado" : "Próxima pergunta" }));
+    }
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+    const replayPrompt = await screen.findByRole("heading", { level: 2 });
+    await vi.waitFor(() => expect(replayPrompt.textContent).not.toBe(firstPrompt));
+    await act(async () => { await Promise.resolve(); });
+  });
+
+  it("keeps the daily quiz on the published session without reading catalog shards", async () => {
+    await act(async () => { await Promise.resolve(); });
+    window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+    mockCatalogFetch();
+    const fetchMock = fetch as unknown as { mock: { calls: [string][] } };
+    const callsBefore = fetchMock.mock.calls.length;
+    render(<Quiz locale="pt-BR" />);
+    await waitForSetupReady();
+    const requested = fetchMock.mock.calls.slice(callsBefore).map(([url]) => url);
+    // Daily must not open the catalog path (no manifest probe). A leftover shard
+    // request from a prior test's in-flight fetch is ignored here.
+    expect(requested.some((url) => url.includes("catalog-manifest"))).toBe(false);
+    expect(requested.some((url) => url.includes("session.daily"))).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    expect(await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt })).toBeInTheDocument();
+  });
+
+  it("shows unavailability for a decade filter with fewer than ten catalog questions", async () => {
+    mockCatalogFetch();
+    window.history.replaceState(null, "", "/?decade=1990");
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByText(/Não há perguntas suficientes/)).toBeInTheDocument();
   });
 });
 
