@@ -1,5 +1,6 @@
 import { isIntersectionGrid, type IntersectionGrid, type Locale } from "../lib/quiz-types";
 import { dailyReferenceDate } from "./daily-artifact";
+import { withCurrentFormationLabels } from "./grid-legacy-labels";
 import { isGridPublication, isPublicationDate, type GridPublication } from "./grid-publication";
 
 export class GridArtifactError extends Error {
@@ -79,7 +80,7 @@ export async function loadIntersectionGrid(
       }
     }
     if (!selected) throw new GridArtifactError("missing");
-    return { ...selected, corrected: selectedAuthority?.reference_date === today && selectedAuthority.replaces.length > 0 };
+    return { ...withCurrentFormationLabels(selected), corrected: selectedAuthority?.reference_date === today && selectedAuthority.replaces.length > 0 };
   } catch (error) {
     if (error instanceof GridArtifactError) throw error;
     throw new GridArtifactError("invalid");

@@ -6,6 +6,7 @@ import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 import validGridJson from "../../tests/fixtures/grid.daily.json";
+import legacyGridJson from "../../tests/fixtures/grid.published-legacy-20261026.json";
 import { cellKey, type GridCellState } from "./types";
 
 const ptMessages = getMessages("pt-BR");
@@ -604,6 +605,86 @@ describe("IntersectionGrid orchestrator component", () => {
     await screen.findByRole("heading", { name: "Fim da partida" });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(loadPlayerStats().games.grid.played).toBe(1);
+  });
+});
+
+describe("IntersectionGrid with a grid published before the Formado/Formed wording", () => {
+  const legacyKey = `kpop-grid-${legacyGridJson.grid_id}`;
+  const answer = (legacyGridJson.cells.find((c) => c.row_index === 0 && c.col_index === 0)!).valid_entity_ids[0]!;
+  const answerName = legacyGridJson.candidate_pool.find((c) => c.id === answer)!.names;
+
+  async function renderLegacy(locale: Locale) {
+    const view = render(<IntersectionGrid locale={locale} messages={getMessages(locale)} />);
+    await screen.findByRole("grid");
+    return view;
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    clock = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    // Reused by the fallback: the artifact is an earlier day's, as published.
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      url.includes("grid-publication.") || url.includes("/next/")
+        ? new Response(null, { status: 404 })
+        : new Response(JSON.stringify(legacyGridJson))));
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("shows the decade axes as formation in pt-BR and leaves the other axes alone", async () => {
+    await renderLegacy("pt-BR");
+    const grid = screen.getByRole("grid");
+    expect(within(grid).getByText("Formado nos anos 2000")).toBeInTheDocument();
+    expect(within(grid).getByText("Formado nos anos 2010")).toBeInTheDocument();
+    expect(within(grid).getAllByText("Formação")).toHaveLength(2);
+    expect(within(grid).getByText("5 ou menos integrantes")).toBeInTheDocument();
+    for (const agency of ["DSP Media", "JYP Entertainment", "YG Entertainment"]) {
+      expect(within(grid).getByText(agency)).toBeInTheDocument();
+    }
+    expect(grid.textContent).not.toMatch(/Estreou|Estreia/);
+    expect(cellButton(0, 0)).toHaveAccessibleName(/DSP Media.*Formado nos anos 2000|Formado nos anos 2000.*DSP Media/);
+  });
+
+  it("shows the same axes as formation in English", async () => {
+    await renderLegacy("en");
+    const grid = screen.getByRole("grid");
+    expect(within(grid).getByText("Formed in the 2000s")).toBeInTheDocument();
+    expect(within(grid).getByText("Formed in the 2010s")).toBeInTheDocument();
+    expect(within(grid).getAllByText("Formation")).toHaveLength(2);
+    expect(within(grid).getByText("5 or fewer members")).toBeInTheDocument();
+    expect(grid.textContent).not.toMatch(/Debuted|Debut/);
+  });
+
+  it("keeps the published identity: the save key, the saved answers and a reload", async () => {
+    const first = await renderLegacy("pt-BR");
+    pick(0, 0, answerName["pt-BR"]);
+
+    expect(localStorage.getItem(`kpop-grid-${validGridJson.grid_id}`)).toBeNull();
+    const saved = JSON.parse(localStorage.getItem(legacyKey)!);
+    expect(saved.cells["0,0"]).toMatchObject({ solved: true, entityId: answer });
+    expect(JSON.stringify(saved)).not.toMatch(/Estreou|Formado/);
+    first.unmount();
+
+    await renderLegacy("pt-BR");
+    expect(screen.getByText("Formado nos anos 2000")).toBeInTheDocument();
+    expect(cellButton(0, 0)).toHaveAccessibleName(new RegExp(answerName["pt-BR"]));
+    expect(JSON.parse(localStorage.getItem(legacyKey)!)).toEqual(saved);
+  });
+
+  it("restores a save made before the wording changed", async () => {
+    localStorage.setItem(legacyKey, JSON.stringify({
+      guessesUsed: 1,
+      cells: { ...emptyCells(), "0,0": { solved: true, failed: false, entityId: answer } },
+    }));
+    await renderLegacy("en");
+    expect(screen.getByText("8 guesses left")).toBeInTheDocument();
+    expect(cellButton(0, 0)).toHaveAccessibleName(new RegExp(answerName.en));
+    expect(screen.getByText("Formed in the 2000s")).toBeInTheDocument();
   });
 });
 

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { GridArtifactError, loadIntersectionGrid } from "./grid-loader";
 import { isIntersectionGrid } from "../lib/quiz-types";
 import validGrid from "../tests/fixtures/grid.daily.json";
+import legacyMain from "../tests/fixtures/grid.published-legacy-20261026.json";
+import legacyNext from "../tests/fixtures/grid.published-legacy-20261027.json";
 
 function stubLegacy(fetch: (url: string, options?: RequestInit) => Promise<Response>) {
   vi.stubGlobal("fetch", vi.fn((url: string, options?: RequestInit) => url.includes("grid-publication.")
@@ -36,6 +38,47 @@ describe("published intersection grid loader and validator", () => {
     const result = await loadIntersectionGrid("pt-BR", "/", "2099-01-01");
     expect(result.reference_date).toBe(validGrid.reference_date);
     expect(fetch).toHaveBeenCalledWith("/data/grid.daily.json?d=2099-01-01", { cache: "no-store" });
+  });
+
+  it("shows a reused legacy grid with the formation wording and keeps its identity", async () => {
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(null, { status: 404 })
+        : new Response(JSON.stringify(legacyMain), { headers: { "content-type": "application/json" } })
+    );
+    stubLegacy(fetch);
+
+    const result = await loadIntersectionGrid("pt-BR", "/", "2026-10-28");
+    expect(result.reference_date).toBe("2026-10-26");
+    expect(result.grid_id).toBe(legacyMain.grid_id);
+    expect(result.col_criteria.map((c) => c.id)).toEqual(legacyMain.col_criteria.map((c) => c.id));
+    expect(result.col_criteria.map((c) => c.label.en)).toEqual(["Formed in the 2000s", "Formed in the 2010s", "5 or fewer members"]);
+    // The wording change keeps the shape the schema validates.
+    const { corrected, ...shown } = result;
+    expect(corrected).toBe(false);
+    expect(isIntersectionGrid(shown)).toBe(true);
+  });
+
+  it("shows a legacy grid served from next/ the same way", async () => {
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(legacyNext), { headers: { "content-type": "application/json" } })
+        : new Response(JSON.stringify(legacyMain), { headers: { "content-type": "application/json" } })
+    );
+    stubLegacy(fetch);
+
+    const result = await loadIntersectionGrid("pt-BR", "/", "2026-10-27");
+    expect(result.reference_date).toBe("2026-10-27");
+    expect(result.grid_id).toBe(legacyNext.grid_id);
+    expect(result.col_criteria.map((c) => c.label["pt-BR"])).toEqual([
+      "6 ou mais integrantes", "4 ou menos integrantes", "Formado nos anos 2010",
+    ]);
+  });
+
+  it("does not turn an invalid legacy-worded grid into a valid one", async () => {
+    const broken = { ...structuredClone(legacyMain), grid_id: "not-a-hash" };
+    stubLegacy(vi.fn(async () => new Response(JSON.stringify(broken), { headers: { "content-type": "application/json" } })));
+    await expect(loadIntersectionGrid("pt-BR", "/", "2026-10-28")).rejects.toEqual(new GridArtifactError("invalid"));
   });
 
   it("treats the host's HTML fallback as a missing artifact", async () => {

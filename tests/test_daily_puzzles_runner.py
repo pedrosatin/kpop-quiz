@@ -592,6 +592,43 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
         self.assertEqual(connections["reference_date"], "2026-09-19")
 
+    def test_fallback_reuses_a_grid_with_the_debut_wording_unchanged(self):
+        """Labels are display text: reuse neither rewrites them nor rejects the grid."""
+        output_dir = self.temp_path / "legacy_wording"
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        grid_file = output_dir / "grid.daily.json"
+        grid = json.loads(grid_file.read_text(encoding="utf-8"))
+        decades = [
+            criterion
+            for axis in ("row_criteria", "col_criteria")
+            for criterion in grid[axis]
+            if criterion["category"] == "formed_on"
+        ]
+        self.assertTrue(decades, "the fixture grid must have a decade axis")
+        for criterion in decades:
+            decade = criterion["id"].removeprefix("formed_").removesuffix("s")
+            criterion["label"] = {"pt-BR": f"Estreou nos anos {decade}", "en": f"Debuted in the {decade}s"}
+        grid_file.write_text(json.dumps(grid), encoding="utf-8")
+        legacy_bytes = grid_file.read_bytes()
+        connection = sqlite3.connect(self.db_path)
+        try:
+            self.assertIsNone(grid_incompatibility(connection, grid))
+        finally:
+            connection.close()
+
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_daily_grid",
+            side_effect=ValueError("Unable to generate a solvable 3x3 intersection grid"),
+        ):
+            result = run_daily_puzzles(
+                database=self.db_path, output_dir=output_dir, reference_date="2026-09-19"
+            )
+
+        self.assertEqual(result["grid_reused"]["reference_date"], "2026-09-18")
+        self.assertIsNone(result["grid_skipped"])
+        self.assertEqual(result["grid_id"], grid["grid_id"])
+        self.assertEqual(grid_file.read_bytes(), legacy_bytes)
+
     def test_grid_generation_failure_with_invalid_previous_publishes_without_grid(self):
         output_dir = self.temp_path / "invalid_previous_grid"
         run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")

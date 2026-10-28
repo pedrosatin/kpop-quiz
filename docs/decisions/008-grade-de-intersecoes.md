@@ -24,7 +24,7 @@ A grade de interseções é composta por uma matriz ortogonal de 3 linhas por 3 
 
 Os critérios associados às linhas e colunas pertencem a três categorias extraídas das tabelas de fatos aceitos:
 
-1. Décadas de formação do grupo (`formed_on`, a data de formação do Wikidata, P571). A estreia é outro fato e não sustenta este critério: um grupo pode se formar numa década e estrear em outra. Os rótulos dizem "Formado nos anos …" e "Formed in the …".
+1. Décadas de formação do grupo (`formed_on`, a data de formação do Wikidata, P571). A estreia é outro fato e não sustenta este critério: um grupo pode se formar numa década e estrear em outra. Os rótulos dizem "Formado nos anos …" e "Formed in the …". Grades publicadas antes dessa troca diziam "Estreou nos anos …" / "Debuted in the …" para o mesmo critério (o gerador sempre filtrou `formed_on`), e o fallback do publicador as copia sem alteração. A exibição no web reescreve o texto somente quando a categoria é `formed_on`, o id nomeia a década e os dois idiomas coincidem exatamente com o par antigo daquela década; o arquivo publicado, o `grid_id`, os ids dos critérios e os saves não mudam (`web/src/data/grid-legacy-labels.ts`).
 2. Gravadora ou empresa responsável (`record_label`).
 3. Contagem de integrantes do grupo (`has_member`).
 
