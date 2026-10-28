@@ -2,6 +2,7 @@ import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { CodeGroupsPuzzle } from "../../data/code-groups";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages, type Messages } from "../../i18n/catalog";
+import { resolveDisplayLabels } from "../../lib/display-name";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
@@ -28,7 +29,7 @@ export function generateShareText(
   locale: Locale,
 ): string {
   const messages = getMessages(locale);
-  const header = `K-pop Code ${puzzle.reference_date}`;
+  const header = messages.codeShareHeader(puzzle.reference_date);
   const verdict = history.at(-1)?.exact === 4
     ? messages.codeShareWon(history.length)
     : messages.codeShareLost;
@@ -90,7 +91,11 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
   const [shareFeedback, setShareFeedback] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
   const shares = useRef(0);
 
-  const label = (id: string) => puzzle.symbols.find((s) => s.qid === id)?.name ?? id;
+  const symbolNames = resolveDisplayLabels(
+    puzzle.symbols.map((s) => ({ label: s.name, canonical: s.name })),
+  );
+  const nameByQid = new Map(puzzle.symbols.map((s, index) => [s.qid, symbolNames[index]!] as const));
+  const label = (id: string) => nameByQid.get(id) ?? id;
   const shareText = generateShareText(puzzle, history, locale);
   const attemptsLeft = puzzle.max_attempts - history.length;
 
@@ -128,7 +133,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
                   <option value="">{messages.codeChooseGroup}</option>
                   {puzzle.symbols.map((s) => (
                     <option value={s.qid} key={s.qid}>
-                      {s.name}
+                      {nameByQid.get(s.qid) ?? s.name}
                     </option>
                   ))}
                 </select>
@@ -219,7 +224,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
           <ul>
             {puzzle.symbols.map((s) => (
               <li key={s.qid}>
-                <a href={s.source.url}>{`${s.name} · Wikidata`}</a> ·{" "}
+                <a href={s.source.url}>{`${nameByQid.get(s.qid) ?? s.name} · Wikidata`}</a> ·{" "}
                 {`${messages.revision} ${s.source.revision_id}`}
               </li>
             ))}

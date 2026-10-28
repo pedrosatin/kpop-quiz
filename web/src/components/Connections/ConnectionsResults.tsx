@@ -3,6 +3,7 @@ import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
 import type { ConnectionsResultsProps } from "./types";
 import { DIFFICULTY_COLORS } from "./types";
 import { getMessages } from "../../i18n/catalog";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
@@ -28,8 +29,8 @@ export function generateShareText({
     guessHistory.some((g) => c.item_ids.every((id) => g.includes(id)))
   ).length;
 
-  const header = `K-pop Connections ${puzzle.reference_date}`;
   const messages = getMessages(locale);
+  const header = messages.connectionsShareHeader(puzzle.reference_date);
   const resultLine = messages.connectionsShareResultLine(solvedCount);
   const attemptsLine = messages.connectionsShareGuessesLine(attempts, mistakesUsed);
 
@@ -71,6 +72,7 @@ function categorySources(
 ): SourceLine[] {
   const category = puzzle.categories.find((c) => c.id === categoryId);
   if (!category) return [];
+  const displayNames = buildLocalizedDisplayNames(puzzle.items, locale);
   const lines = new Map<string, SourceLine>();
   for (const evidence of category.evidence) {
     const key = `${evidence.source_url}\u0000${evidence.revision_id}`;
@@ -83,7 +85,7 @@ function categorySources(
     } catch {}
     lines.set(key, {
       key,
-      itemName: item ? item.labels[locale] || item.canonical_name : null,
+      itemName: item ? displayNames.get(item.id) || item.canonical_name : null,
       project,
       revision: evidence.revision_id,
       url: evidence.source_url,

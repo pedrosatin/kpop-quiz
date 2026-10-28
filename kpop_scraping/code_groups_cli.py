@@ -13,6 +13,7 @@ import sys
 import tempfile
 
 from .catalog import MUSICAL_GROUP_CLASSES
+from .display_names import resolve_display_labels, strip_trailing_disambiguator
 
 VERSION = "code-groups-pilot-v1"
 DIGEST = re.compile(r"[0-9a-f]{64}\Z")
@@ -101,6 +102,16 @@ def generate(connection: sqlite3.Connection, seed: str, reference_date: date) ->
     if len(eligible) < 6:
         raise ValueError(f"insufficient accepted group coverage: {len(eligible)} / 6")
     vocabulary = list(eligible.values())
+    # Wiki titles carry " (band)" / " (girl group)" notes; strip them when the
+    # short form stays unique across the accepted catalog.
+    cleaned_names = resolve_display_labels(
+        [
+            (item["name"], strip_trailing_disambiguator(item["name"]) or item["name"])
+            for item in vocabulary
+        ]
+    )
+    for item, name in zip(vocabulary, cleaned_names):
+        item["name"] = name
     dataset_version = hashlib.sha256(json.dumps(vocabulary, sort_keys=True).encode()).hexdigest()
     rng = random.Random(f"{VERSION}:{dataset_version}:{reference_date}:{seed}")
     symbols = rng.sample(vocabulary, 6)

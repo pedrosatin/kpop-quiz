@@ -10,6 +10,7 @@ from collections import defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, Iterable
 
+from .display_names import resolve_display_label
 from .name_guess_schema import (
     NAME_GUESS_SCHEMA_VERSION,
     normalize_name,
@@ -306,12 +307,14 @@ def generate_name_guess_puzzle(
         "canonical_name": target_entity.canonical_name,
         "normalized_name": target_normalized,
         "labels": {
-            "pt-BR": (
-                target_entity.names.get("pt")
-                or target_entity.names.get("pt-BR")
-                or target_entity.canonical_name
+            "pt-BR": resolve_display_label(
+                target_entity.names.get("pt") or target_entity.names.get("pt-BR"),
+                target_entity.canonical_name,
             ),
-            "en": target_entity.names.get("en") or target_entity.canonical_name,
+            "en": resolve_display_label(
+                target_entity.names.get("en"),
+                target_entity.canonical_name,
+            ),
         },
         "entity_type": (
             target_entity.entity_type

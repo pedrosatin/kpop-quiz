@@ -104,8 +104,9 @@ export function mapShareText(
 ): string {
   const marks = round.map((event, i) => (answers[i] === event.map_feature_id ? "🟩" : "⬛")).join("");
   const correct = round.filter((event, i) => answers[i] === event.map_feature_id).length;
+  const messages = getMessages(locale);
   return withShareUrl(
-    `K-pop Map ${roundDate}\n${COPY[locale].shareLine(correct, round.length)}\n${marks}`,
+    `${messages.mapShareHeader(roundDate)}\n${COPY[locale].shareLine(correct, round.length)}\n${marks}`,
     seoShareUrl("mapPilot", locale),
   );
 }

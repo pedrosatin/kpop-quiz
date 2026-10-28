@@ -1,3 +1,4 @@
+import { resolveDisplayLabel } from "../../lib/display-name";
 import type { ConnectionsTileProps } from "./types";
 
 /**
@@ -17,8 +18,11 @@ export function ConnectionsTile({
   onToggle,
   locale,
   messages,
+  displayName: displayNameProp,
 }: ConnectionsTileProps) {
-  const displayName = item.labels[locale] || item.canonical_name;
+  const displayName =
+    displayNameProp ||
+    resolveDisplayLabel(item.labels[locale], item.canonical_name);
   const ariaLabel = messages.connectionsItemAriaLabel(displayName, isSelected);
 
   return (

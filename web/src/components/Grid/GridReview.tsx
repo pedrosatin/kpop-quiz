@@ -1,4 +1,5 @@
 import type { GridCellData, IntersectionGrid, Locale } from "../../lib/quiz-types";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import type { Messages } from "../../i18n/catalog";
 import { cellKey, type GridCellState } from "./types";
 
@@ -35,13 +36,18 @@ export function cellSources(
   locale: Locale,
   firstQid?: string,
 ): GroupSources[] {
+  const displayNames = buildLocalizedDisplayNames(grid.candidate_pool, locale);
   const groups = new Map<string, GroupSources>();
   for (const evidence of cell.evidence) {
     const qid = evidence.fact_base_id.split("$")[0]!;
     let group = groups.get(qid);
     if (!group) {
       const candidate = grid.candidate_pool.find((c) => c.id === qid);
-      group = { qid, name: candidate ? candidate.names[locale] || candidate.canonical_name : null, lines: [] };
+      group = {
+        qid,
+        name: candidate ? displayNames.get(qid) || candidate.canonical_name : null,
+        lines: [],
+      };
       groups.set(qid, group);
     }
     const key = `${evidence.source_url}\u0000${evidence.revision_id}`;
@@ -82,7 +88,7 @@ export function readableLocator(locator: string, messages: Messages): string {
 }
 
 export function GridReview({ grid, cellStates, locale, messages }: GridReviewProps) {
-  const candidateMap = new Map(grid.candidate_pool.map((c) => [c.id, c]));
+  const displayNames = buildLocalizedDisplayNames(grid.candidate_pool, locale);
 
   return (
     <section class="review-section grid-review" aria-labelledby="grid-review-heading">
@@ -100,10 +106,7 @@ export function GridReview({ grid, cellStates, locale, messages }: GridReviewPro
           const lineCount = sources.reduce((n, g) => n + g.lines.length, 0);
 
           const acceptedNames = valid_entity_ids
-            .map((qid) => {
-              const cand = candidateMap.get(qid);
-              return cand ? cand.names[locale] || cand.canonical_name : qid;
-            })
+            .map((qid) => displayNames.get(qid) || qid)
             .join(", ");
 
           let badge = messages.gridReviewEmpty;

@@ -27,7 +27,10 @@ export function generateCrosswordShareText(
     ? messages.crosswordSummaryWon(checks)
     : messages.crosswordSummaryRevealed(solved.filter(Boolean).length, puzzle.entries.length);
   const squares = solved.map((ok) => (ok ? "🟩" : "⬜")).join("");
-  return withShareUrl(`K-pop Crossword\n${verdict}\n${squares}`, seoShareUrl("crossword", locale));
+  return withShareUrl(
+    `${messages.crosswordShareHeader}\n${verdict}\n${squares}`,
+    seoShareUrl("crossword", locale),
+  );
 }
 
 interface CrosswordResultProps {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
+import { resolveDisplayLabel } from "../../lib/display-name";
 import { useWordSearchGame } from "./useWordSearchGame";
 import { WordSearchHeader } from "./WordSearchHeader";
 import { WordSearchGrid } from "./WordSearchGrid";
@@ -95,7 +96,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
 
   const wordName = (id: string) => {
     const word = puzzle.words.find((w) => w.id === id);
-    return word ? word.labels[locale] || word.canonical_name : "";
+    return word ? resolveDisplayLabel(word.labels[locale], word.canonical_name) : "";
   };
 
   // One message at a time, in two reserved lines: the selection in progress,

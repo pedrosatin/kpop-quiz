@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import date
 from typing import Any, Callable, Iterable
 
+from .display_names import resolve_display_labels
 from .grid_membership import grid_member_facts
 from .grid_schema import GRID_SCHEMA_VERSION, validate_intersection_grid
 from .quiz_models import DEFAULT_REFERENCE_DATE, Entity, Evidence, Fact
@@ -702,20 +703,23 @@ def generate_intersection_grid(
                 }
             )
 
+    groups_sorted = sorted(candidate_groups.values(), key=lambda g: g.wikidata_id)
+    pt_names = resolve_display_labels(
+        [
+            (group.names.get("pt") or group.names.get("pt-BR"), group.canonical_name)
+            for group in groups_sorted
+        ]
+    )
+    en_names = resolve_display_labels(
+        [(group.names.get("en"), group.canonical_name) for group in groups_sorted]
+    )
     candidate_pool: list[dict[str, Any]] = [
         {
             "id": group.wikidata_id,
             "canonical_name": group.canonical_name,
-            "names": {
-                "pt-BR": (
-                    group.names.get("pt")
-                    or group.names.get("pt-BR")
-                    or group.canonical_name
-                ),
-                "en": group.names.get("en") or group.canonical_name,
-            },
+            "names": {"pt-BR": pt_name, "en": en_name},
         }
-        for group in sorted(candidate_groups.values(), key=lambda g: g.wikidata_id)
+        for group, pt_name, en_name in zip(groups_sorted, pt_names, en_names)
     ]
 
     reference_date_str = reference_date.isoformat()

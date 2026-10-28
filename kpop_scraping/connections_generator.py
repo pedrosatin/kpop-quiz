@@ -12,6 +12,7 @@ from datetime import date, datetime, timezone
 from typing import Any, Iterable
 
 from .connections_schema import CONNECTIONS_SCHEMA_VERSION, validate_connections_puzzle
+from .display_names import resolve_display_labels
 from .quiz_models import Entity, Evidence, Fact
 from .quiz_repository import (
     _dataset_version,
@@ -530,23 +531,24 @@ def generate_connections_puzzle(
         )
 
     # Build and shuffle items presentation order deterministically
-    items_payload: list[dict[str, Any]] = []
-    for qid in sorted(candidate_items):
-        group = candidate_groups[qid]
-        items_payload.append(
-            {
-                "id": qid,
-                "canonical_name": group.canonical_name,
-                "labels": {
-                    "pt-BR": (
-                        group.names.get("pt")
-                        or group.names.get("pt-BR")
-                        or group.canonical_name
-                    ),
-                    "en": group.names.get("en") or group.canonical_name,
-                },
-            }
-        )
+    groups_in_order = [candidate_groups[qid] for qid in sorted(candidate_items)]
+    pt_labels = resolve_display_labels(
+        [
+            (group.names.get("pt") or group.names.get("pt-BR"), group.canonical_name)
+            for group in groups_in_order
+        ]
+    )
+    en_labels = resolve_display_labels(
+        [(group.names.get("en"), group.canonical_name) for group in groups_in_order]
+    )
+    items_payload: list[dict[str, Any]] = [
+        {
+            "id": group.wikidata_id,
+            "canonical_name": group.canonical_name,
+            "labels": {"pt-BR": pt_label, "en": en_label},
+        }
+        for group, pt_label, en_label in zip(groups_in_order, pt_labels, en_labels)
+    ]
     rng.shuffle(items_payload)
 
     reference_date_str = reference_date.isoformat()

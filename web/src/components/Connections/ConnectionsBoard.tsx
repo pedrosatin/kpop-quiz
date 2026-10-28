@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useMemo, useRef } from "preact/hooks";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import type { ConnectionsBoardProps } from "./types";
 import { CategoryBanner } from "./CategoryBanner";
 import { ConnectionsTile } from "./ConnectionsTile";
@@ -57,6 +58,10 @@ export function ConnectionsBoard({
     .sort((a, b) => a.difficulty_level - b.difficulty_level);
 
   const itemsList = allItems ?? boardItems;
+  const displayNames = useMemo(
+    () => buildLocalizedDisplayNames(itemsList, locale),
+    [itemsList, locale],
+  );
   const ownGrid = useRef<HTMLDivElement>(null);
   const grid = gridRef ?? ownGrid;
 
@@ -115,6 +120,7 @@ export function ConnectionsBoard({
               allItems={itemsList}
               locale={locale}
               messages={messages}
+              displayNames={displayNames}
             />
           ))}
         </div>
@@ -136,6 +142,7 @@ export function ConnectionsBoard({
               onToggle={onToggleItem}
               locale={locale}
               messages={messages}
+              {...(displayNames.has(item.id) ? { displayName: displayNames.get(item.id)! } : {})}
             />
           ))}
         </div>

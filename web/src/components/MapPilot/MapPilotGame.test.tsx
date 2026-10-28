@@ -537,7 +537,7 @@ describe("map pilot result", () => {
 
   it("builds a short share text with the round date and the game link", () => {
     expect(mapShareText(DATE, round, oneWrong, "pt-BR")).toBe(
-      `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
+      `Mapa de K-pop ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
     );
     expect(mapShareText(DATE, round, rightAnswers, "en")).toBe(
       `K-pop Map ${DATE}\n10/10 dates right\n${"🟩".repeat(10)}\n${EN_URL}`,
@@ -565,7 +565,7 @@ describe("map pilot result", () => {
     const view = finished();
     await share(view);
     expect(shareFn).toHaveBeenCalledWith({
-      text: `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
+      text: `Mapa de K-pop ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
     });
     expect(writeText).not.toHaveBeenCalled();
   });

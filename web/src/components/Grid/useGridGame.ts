@@ -1,6 +1,7 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { CandidateEntity, IntersectionGrid, Locale } from "../../lib/quiz-types";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import { GridArtifactError, loadIntersectionGrid } from "../../data/grid-loader";
 import {
   cellKey,
@@ -21,9 +22,17 @@ function countSolved(cells: Record<string, GridStoredCell>): number {
   return Object.values(cells).filter((c) => c.solved).length;
 }
 
-function candidateName(grid: IntersectionGrid, id: string, locale: Locale): string | undefined {
-  const candidate = grid.candidate_pool.find((c) => c.id === id);
-  return candidate ? candidate.names[locale] || candidate.canonical_name : undefined;
+function displayNamesFor(grid: IntersectionGrid, locale: Locale): Map<string, string> {
+  return buildLocalizedDisplayNames(grid.candidate_pool, locale);
+}
+
+function candidateName(
+  grid: IntersectionGrid,
+  id: string,
+  locale: Locale,
+  names?: Map<string, string>,
+): string | undefined {
+  return (names ?? displayNamesFor(grid, locale)).get(id);
 }
 
 /** Adds the names of the saved QIDs in the page's language. */
@@ -32,11 +41,14 @@ function nameCells(
   grid: IntersectionGrid | null,
   locale: Locale,
 ): Record<string, GridCellState> {
+  const names = grid ? displayNamesFor(grid, locale) : undefined;
   const named: Record<string, GridCellState> = {};
   for (const [key, cell] of Object.entries(cells)) {
     const state: GridCellState = { ...cell };
-    if (grid && cell.entityId) state.entityName = candidateName(grid, cell.entityId, locale) ?? cell.entityId;
-    if (grid && cell.lastAttemptId) state.lastAttempt = candidateName(grid, cell.lastAttemptId, locale) ?? cell.lastAttemptId;
+    if (grid && cell.entityId) state.entityName = candidateName(grid, cell.entityId, locale, names) ?? cell.entityId;
+    if (grid && cell.lastAttemptId) {
+      state.lastAttempt = candidateName(grid, cell.lastAttemptId, locale, names) ?? cell.lastAttemptId;
+    }
     named[key] = state;
   }
   return named;
@@ -186,9 +198,11 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   const makeGuess = useCallback((candidate: CandidateEntity) => {
     if (!selectedCell || !grid) return { success: false, reason: "no_selection" as const };
 
+    const names = displayNamesFor(grid, locale);
+    const displayName = names.get(candidate.id) || candidate.canonical_name;
+
     if (usedEntityIds.has(candidate.id)) {
-      const name = candidate.names[locale] || candidate.canonical_name;
-      setUniquenessError(name);
+      setUniquenessError(displayName);
       return { success: false, reason: "already_used" as const };
     }
 
@@ -202,8 +216,6 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
 
     const updatedCells = { ...storedCells };
     const newUsed = new Set(usedEntityIds);
-
-    const displayName = candidate.names[locale] || candidate.canonical_name;
 
     if (isCorrect) {
       updatedCells[key] = { solved: true, failed: false, entityId: candidate.id };
