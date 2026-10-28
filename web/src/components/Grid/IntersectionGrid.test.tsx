@@ -88,8 +88,8 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
     expect(screen.getByText("0 de 9 casas certas")).toBeInTheDocument();
 
-    expect(screen.getByText("Estreou nos anos 2010")).toBeInTheDocument();
-    expect(screen.getByText("Estreou nos anos 2000")).toBeInTheDocument();
+    expect(screen.getByText("Formado nos anos 2010")).toBeInTheDocument();
+    expect(screen.getByText("Formado nos anos 2000")).toBeInTheDocument();
     expect(screen.getByText("4 integrantes")).toBeInTheDocument();
     expect(screen.getByText("JYP Entertainment")).toBeInTheDocument();
     expect(screen.getByText("SM Entertainment")).toBeInTheDocument();
@@ -282,7 +282,9 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(screen.getByText("0 de 9 casas certas")).toBeInTheDocument();
     expect(within(screen.getByRole("grid")).getByText("SHINee")).toBeInTheDocument();
 
-    expect(status()).toHaveTextContent("Errada: SHINee. 8 palpites restantes. 0 de 9 casas certas.");
+    expect(status()).toHaveTextContent(
+      "Não aceita: SHINee. O catálogo só aceita fatos comprovados. 8 palpites restantes. 0 de 9 casas certas.",
+    );
     expect(document.querySelector(".game-actions")).toHaveClass("is-incorrect");
     await waitFor(() => expect(cellButton(0, 0)).toHaveFocus());
     expect(cellButton(0, 0)).toHaveAttribute("aria-disabled", "false");
@@ -355,7 +357,7 @@ describe("IntersectionGrid orchestrator component", () => {
 
     const title = screen.getByRole("heading", { name: "Fim da partida" });
     // The verdict of the last guess opens the summary.
-    expect(title).toHaveAccessibleDescription("Errada: SHINee. 0 de 9 casas certas com 9 palpites");
+    expect(title).toHaveAccessibleDescription("Não aceita: SHINee. 0 de 9 casas certas com 9 palpites");
     await waitFor(() => expect(title).toHaveFocus());
     // The result sits in the action bar, and the kicker of the intro is not repeated.
     expect(title.closest(".game-actions")).not.toBeNull();
@@ -416,8 +418,34 @@ describe("IntersectionGrid orchestrator component", () => {
     const en: Locale = "en";
     view.rerender(<IntersectionGrid locale={en} messages={getMessages(en)} />);
     await waitFor(() => expect(within(screen.getByRole("grid")).getByText("SHINee (en)")).toBeInTheDocument());
-    expect(cellButton(0, 0)).toHaveAccessibleName(/Wrong: you tried SHINee \(en\)/);
+    expect(cellButton(0, 0)).toHaveAccessibleName(/Not accepted: you tried SHINee \(en\)/);
     expect(screen.queryByText("SHINee (pt)")).not.toBeInTheDocument();
+  });
+
+  it("explains the catalog limit on a refused guess without calling it false or naming the answer", async () => {
+    const grid = structuredClone(validGridJson);
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(grid))));
+    const en: Locale = "en";
+    render(<IntersectionGrid locale={en} messages={getMessages(en)} />);
+    await screen.findByRole("grid");
+    pick(0, 0, "SHINee");
+
+    expect(status()).toHaveTextContent(
+      "Not accepted: SHINee. The catalog only accepts proven facts. 8 guesses left. 0 of 9 squares correct.",
+    );
+    expect(status().textContent).not.toMatch(/wrong|incorrect|false|errada|falsa/i);
+    for (const answer of grid.cells[0]!.valid_entity_ids) {
+      const name = grid.candidate_pool.find((c) => c.id === answer)!.canonical_name;
+      expect(status().textContent).not.toContain(name);
+    }
+    // The refused guess is spent and stays on the saved board.
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).guessesUsed).toBe(1);
+  });
+
+  it("does not add the catalog note to an accepted guess", async () => {
+    await renderReady();
+    pick(0, 0, "TWICE");
+    expect(status().textContent).not.toMatch(/catálogo/i);
   });
 
   it("drops a save whose wrong group is not in the pool", async () => {
@@ -442,7 +470,7 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(screen.getByText("6 palpites restantes")).toBeInTheDocument();
     expect(screen.getByText("1 de 9 casas certas")).toBeInTheDocument();
     expect(cellButton(0, 0)).toHaveAttribute("aria-disabled", "true");
-    expect(cellButton(1, 1)).toHaveAccessibleName(/Errada: você tentou EXO/);
+    expect(cellButton(1, 1)).toHaveAccessibleName(/Não aceita: você tentou EXO/);
     expect(document.body).toHaveFocus();
     expect(status()).toHaveTextContent(ptMessages.gridHint);
   });

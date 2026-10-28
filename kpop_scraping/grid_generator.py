@@ -30,8 +30,8 @@ DECADE_CRITERIA: dict[str, dict[str, Any]] = {
         "id": "formed_1990s",
         "category": "formed_on",
         "label": {
-            "pt-BR": "Estreou nos anos 1990",
-            "en": "Debuted in the 1990s",
+            "pt-BR": "Formado nos anos 1990",
+            "en": "Formed in the 1990s",
         },
         "year_min": 1990,
         "year_max": 1999,
@@ -40,8 +40,8 @@ DECADE_CRITERIA: dict[str, dict[str, Any]] = {
         "id": "formed_2000s",
         "category": "formed_on",
         "label": {
-            "pt-BR": "Estreou nos anos 2000",
-            "en": "Debuted in the 2000s",
+            "pt-BR": "Formado nos anos 2000",
+            "en": "Formed in the 2000s",
         },
         "year_min": 2000,
         "year_max": 2009,
@@ -50,8 +50,8 @@ DECADE_CRITERIA: dict[str, dict[str, Any]] = {
         "id": "formed_2010s",
         "category": "formed_on",
         "label": {
-            "pt-BR": "Estreou nos anos 2010",
-            "en": "Debuted in the 2010s",
+            "pt-BR": "Formado nos anos 2010",
+            "en": "Formed in the 2010s",
         },
         "year_min": 2010,
         "year_max": 2019,
@@ -60,8 +60,8 @@ DECADE_CRITERIA: dict[str, dict[str, Any]] = {
         "id": "formed_2020s",
         "category": "formed_on",
         "label": {
-            "pt-BR": "Estreou nos anos 2020",
-            "en": "Debuted in the 2020s",
+            "pt-BR": "Formado nos anos 2020",
+            "en": "Formed in the 2020s",
         },
         "year_min": 2020,
         "year_max": 2029,

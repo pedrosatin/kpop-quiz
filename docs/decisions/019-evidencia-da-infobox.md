@@ -20,7 +20,7 @@ A extração de fatos baixa o wikitext da revisão do grupo que o catálogo já 
 
 ### Regra da infobox
 
-O parser lê só a primeira `Infobox musical artist` da página. Um item de lista é um argumento de `hlist`, `flatlist`, `plainlist`, `ubl` e equivalentes, ou um trecho separado por `<br>`, quebra de linha, marcador ou vírgula fora de links e templates. Referências, comentários, tags e outros templates saem do item antes da comparação, assim como uma nota final entre parênteses, como `(2015–2020)`.
+O parser lê só a primeira `Infobox musical artist` da página. Um item de lista é um argumento de `hlist`, `flatlist`, `plainlist`, `ubl` e equivalentes, ou um trecho separado por `<br>`, quebra de linha, marcador ou vírgula fora de links e templates. Referências, comentários, tags e outros templates saem do item antes da comparação, assim como uma nota final entre parênteses, como `(2015–2020)`. Um comentário antes ou depois de um template de lista, como em `{{hlist|...}} <!-- nota -->`, também não faz parte da lista: ela continua valendo, e os intervalos dos itens seguem sendo os do texto original. Outro texto fora do template continua impedindo que os itens provem algo.
 
 O item prova o valor quando é o próprio valor: o alvo de um link, o texto de um link ou texto simples, comparados por igualdade com o nome canônico ou um alias da entidade, sem diferenciar maiúsculas. Um item com texto além do link, ou com dois links, não prova nada. Um nome contido num item maior não prova nada.
 

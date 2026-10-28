@@ -232,6 +232,8 @@ export interface Messages {
   gridHint: string;
   gridGuessRight: (groupName: string) => string;
   gridGuessWrong: (groupName: string) => string;
+  gridCatalogLimit: string;
+  gridReviewCatalogNote: string;
   gridReviewTitle: string;
   gridReviewCorrect: string;
   gridReviewWrong: string;
@@ -246,7 +248,7 @@ export interface Messages {
   gridRestart: string;
   gridShareHeader: (date: string, correct: number, guesses: number) => string;
   gridAxesHeader: string;
-  gridCategoryDebut: string;
+  gridCategoryFormation: string;
   gridCategoryAgency: string;
   gridCategoryMembers: string;
   gridDailyMissing: string;
@@ -440,7 +442,7 @@ const catalogs: Record<Locale, Messages> = {
       modesBody: "Cada jogo tem regras próprias. Veja qual desafio você quer jogar:",
       games: {
         quiz: { title: "Quiz de K-pop", description: "Responda 10 perguntas de múltipla escolha sobre grupos, integrantes e datas, com a fonte de cada resposta." },
-        grid: { title: "Grade de interseções de K-pop", description: "Encontre grupos que atendam às regras de cada linha e coluna, como agência, estreia e número de integrantes. São 9 casas e 9 palpites." },
+        grid: { title: "Grade de interseções de K-pop", description: "Encontre grupos que atendam às regras de cada linha e coluna, como agência, década de formação e número de integrantes. São 9 casas e 9 palpites." },
         connections: { title: "Conexões de K-pop", description: "Separe 16 nomes em 4 categorias de 4. Descubra o que os nomes têm em comum antes de cometer 4 erros." },
         nameGuess: { title: "Wordle de K-pop", description: "Descubra o artista ou grupo do dia em até 6 palpites. As cores indicam quais letras estão no nome e na posição certa." },
         wordSearch: { title: "Caça-palavras de K-pop", description: "Procure nomes de K-pop na horizontal, vertical ou diagonal. Se precisar de ajuda, revele a lista de palavras." },
@@ -487,7 +489,7 @@ const catalogs: Record<Locale, Messages> = {
       "Depois de cada resposta, você vê a resposta correta e a fonte.",
     ],
     gridHowToPlay: [
-      "Cada casa cruza o critério da linha com o da coluna, como agência, ano de estreia ou número de integrantes.",
+      "Cada casa cruza o critério da linha com o da coluna, como agência, década de formação ou número de integrantes.",
       "Escolha uma casa e busque um grupo que atenda aos dois critérios.",
       "Você tem 9 palpites para as 9 casas. Palpite errado também conta.",
       "Cada grupo vale para uma casa só. Depois de acertar com um grupo, você não pode usá-lo de novo.",
@@ -617,7 +619,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCellEmpty: "Vazia. Escolha um grupo",
     gridCellRevealed: (groupName) => `Revelada: ${groupName}`,
     gridCellSolved: (groupName) => `Certa: ${groupName}`,
-    gridCellFailed: (lastAttempt) => (lastAttempt ? `Errada: você tentou ${lastAttempt}` : "Errada"),
+    gridCellFailed: (lastAttempt) => (lastAttempt ? `Não aceita: você tentou ${lastAttempt}` : "Não aceita"),
     gridPickerTitle: "Escolha um grupo",
     gridPickerSearchPlaceholder: "Buscar grupo...",
     gridPickerSearchLabel: "Buscar grupo pelo nome",
@@ -632,10 +634,12 @@ const catalogs: Record<Locale, Messages> = {
     gridHighContrastShare: "Versão sem cores (alto contraste)",
     gridHint: "Escolha uma casa e um grupo para ela.",
     gridGuessRight: (groupName) => `Certa: ${groupName}.`,
-    gridGuessWrong: (groupName) => `Errada: ${groupName}.`,
+    gridGuessWrong: (groupName) => `Não aceita: ${groupName}.`,
+    gridCatalogLimit: "O catálogo só aceita fatos comprovados.",
+    gridReviewCatalogNote: "A lista mostra só o que o catálogo comprova com fonte. Um grupo real pode ficar de fora quando falta prova de uma das regras.",
     gridReviewTitle: "Respostas e fontes",
     gridReviewCorrect: "Certa",
-    gridReviewWrong: "Errada",
+    gridReviewWrong: "Não aceita",
     gridReviewEmpty: "Vazia",
     gridSourcesSummary: (count) => (count === 1 ? "1 fonte" : `${count} fontes`),
     gridSourceLocator: "Local na fonte:",
@@ -647,7 +651,7 @@ const catalogs: Record<Locale, Messages> = {
     gridRestart: "Jogar novamente",
     gridShareHeader: (date, correct, guesses) => `Grade de K-pop ${date}\n${correct}/9 acertos (${guesses} palpites)`,
     gridAxesHeader: "Critérios",
-    gridCategoryDebut: "Estreia",
+    gridCategoryFormation: "Formação",
     gridCategoryAgency: "Agência",
     gridCategoryMembers: "Integrantes",
     gridCorrected: "Este desafio foi corrigido. O progresso da versão anterior não pode ser retomado. Os novos palpites são salvos nesta versão corrigida.",
@@ -905,7 +909,7 @@ const catalogs: Record<Locale, Messages> = {
       modesBody: "Each game has its own rules. Pick the challenge you want to play:",
       games: {
         quiz: { title: "K-pop quiz", description: "Answer 10 multiple-choice questions about groups, members and dates, with a source for every answer." },
-        grid: { title: "K-pop Grid", description: "Find groups that match each row and column rule, such as agency, debut and member count. You have 9 squares and 9 guesses." },
+        grid: { title: "K-pop Grid", description: "Find groups that match each row and column rule, such as agency, formation decade and member count. You have 9 squares and 9 guesses." },
         connections: { title: "K-pop Connections", description: "Sort 16 names into 4 categories of 4. Find what the names have in common before making 4 mistakes." },
         nameGuess: { title: "K-pop Wordle", description: "Find today's artist or group in up to 6 guesses. Colors show which letters belong in the name and which are in the right position." },
         wordSearch: { title: "K-pop Word Search", description: "Find K-pop names across, down or diagonally. Reveal the word list if you need help." },
@@ -952,7 +956,7 @@ const catalogs: Record<Locale, Messages> = {
       "After each answer, you see the correct answer and its source.",
     ],
     gridHowToPlay: [
-      "Each square crosses a row rule with a column rule, such as agency, debut year or number of members.",
+      "Each square crosses a row rule with a column rule, such as agency, formation decade or number of members.",
       "Pick a square and search for a group that fits both rules.",
       "You have 9 guesses for 9 squares. Wrong guesses count too.",
       "Each group fits one square only. Once a group is placed correctly, you can't use it again.",
@@ -1081,7 +1085,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCellEmpty: "Empty. Pick a group",
     gridCellRevealed: (groupName) => `Revealed: ${groupName}`,
     gridCellSolved: (groupName) => `Correct: ${groupName}`,
-    gridCellFailed: (lastAttempt) => (lastAttempt ? `Wrong: you tried ${lastAttempt}` : "Wrong"),
+    gridCellFailed: (lastAttempt) => (lastAttempt ? `Not accepted: you tried ${lastAttempt}` : "Not accepted"),
     gridPickerTitle: "Pick a group",
     gridPickerSearchPlaceholder: "Search groups...",
     gridPickerSearchLabel: "Search groups by name",
@@ -1096,10 +1100,12 @@ const catalogs: Record<Locale, Messages> = {
     gridHighContrastShare: "No-color version (high contrast)",
     gridHint: "Pick a square, then a group for it.",
     gridGuessRight: (groupName) => `Correct: ${groupName}.`,
-    gridGuessWrong: (groupName) => `Wrong: ${groupName}.`,
+    gridGuessWrong: (groupName) => `Not accepted: ${groupName}.`,
+    gridCatalogLimit: "The catalog only accepts proven facts.",
+    gridReviewCatalogNote: "The list shows only what the catalog proves with a source. A real group can be left out when one of the rules lacks proof.",
     gridReviewTitle: "Answers and sources",
     gridReviewCorrect: "Correct",
-    gridReviewWrong: "Wrong",
+    gridReviewWrong: "Not accepted",
     gridReviewEmpty: "Empty",
     gridSourcesSummary: (count) => (count === 1 ? "1 source" : `${count} sources`),
     gridSourceLocator: "Location in source:",
@@ -1111,7 +1117,7 @@ const catalogs: Record<Locale, Messages> = {
     gridRestart: "Play again",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 correct (${guesses} guesses)`,
     gridAxesHeader: "Rules",
-    gridCategoryDebut: "Debut",
+    gridCategoryFormation: "Formation",
     gridCategoryAgency: "Agency",
     gridCategoryMembers: "Members",
     gridCorrected: "This challenge was corrected. Progress from the previous version cannot be resumed. New guesses are saved in this corrected version.",

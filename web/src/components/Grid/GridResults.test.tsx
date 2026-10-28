@@ -219,10 +219,20 @@ describe("GridResults component", () => {
   });
 
   it("puts the verdict of the last guess before the summary", () => {
-    renderResults({ guessesUsed: 9, verdict: "Errada: SHINee." });
+    renderResults({ guessesUsed: 9, verdict: "Não aceita: SHINee." });
 
     const title = screen.getByRole("heading", { name: "Fim da partida" });
-    expect(title).toHaveAccessibleDescription("Errada: SHINee. 1 de 9 casas certas com 9 palpites");
+    expect(title).toHaveAccessibleDescription("Não aceita: SHINee. 1 de 9 casas certas com 9 palpites");
+  });
+
+  it("says in both languages that the list holds only what the catalog proves", () => {
+    for (const locale of ["pt-BR", "en"] as const) {
+      const messages = getMessages(locale);
+      const { unmount } = render(<GridReview grid={validGrid} cellStates={sampleCellStates()} locale={locale} messages={messages} />);
+      expect(screen.getByText(messages.gridReviewCatalogNote)).toBeInTheDocument();
+      expect(messages.gridReviewCatalogNote).toMatch(locale === "en" ? /proves with a source/ : /comprova com fonte/);
+      unmount();
+    }
   });
 
   it("marks each cell right, wrong or empty in the answers", () => {
@@ -235,7 +245,7 @@ describe("GridResults component", () => {
     expect(items[0]).toHaveTextContent("Certa");
     expect(items[0]).toHaveTextContent("Sua resposta: TWICE");
     expect(items[0]).toHaveClass("is-correct");
-    expect(items[1]).toHaveTextContent("Errada");
+    expect(items[1]).toHaveTextContent("Não aceita");
     expect(items[1]).toHaveTextContent("Sua resposta: SHINee");
     expect(items[1]).toHaveClass("is-wrong");
     expect(items[2]).toHaveTextContent("Vazia");

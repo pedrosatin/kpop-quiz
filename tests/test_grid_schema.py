@@ -38,16 +38,16 @@ def sample_intersection_grid() -> dict:
             "id": "row_formed_2010s",
             "category": "formed_on",
             "label": {
-                "pt-BR": "Estreou nos anos 2010",
-                "en": "Debuted in the 2010s",
+                "pt-BR": "Formado nos anos 2010",
+                "en": "Formed in the 2010s",
             },
         },
         {
             "id": "row_formed_2000s",
             "category": "formed_on",
             "label": {
-                "pt-BR": "Estreou nos anos 2000",
-                "en": "Debuted in the 2000s",
+                "pt-BR": "Formado nos anos 2000",
+                "en": "Formed in the 2000s",
             },
         },
         {

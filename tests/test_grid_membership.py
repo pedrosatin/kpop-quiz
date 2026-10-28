@@ -7,8 +7,10 @@ import unittest
 from datetime import date
 from pathlib import Path
 
+from kpop_scraping.evidence import INFOBOX_LABEL_FIELDS, WikipediaPage, infobox_evidence
 from kpop_scraping.grid_generator import evaluate_group_criteria
 from kpop_scraping.grid_membership import grid_member_facts
+from kpop_scraping.quiz_models import Entity, Evidence, Fact
 from kpop_scraping.quiz_repository import _load_entities, _load_facts
 from tests.test_grid_generator import build_grid_test_database
 
@@ -214,3 +216,132 @@ class GridMembershipTest(unittest.TestCase):
         self.assertEqual(higher, lower)
         self.assertEqual(higher, shifted)
         self.assertEqual({revision for _, evidence in higher for revision, _, _ in evidence}, {1381301828})
+
+
+MONSTAX = Path(__file__).parent / 'fixtures' / 'grid-monstax-roster.json'
+MONSTAX_INFOBOX = Path(__file__).parent / 'fixtures' / 'infobox-monstax-rev1375542648.json'
+MONSTAX_SENTENCE = (
+    'The group is currently composed of six members: Shownu, Minhyuk, Kihyun, Hyungwon, '
+    'Joohoney, and I.M, while former member Wonho left the group in October 2019.'
+)
+
+
+class ClosedRosterWithDepartureTest(unittest.TestCase):
+    """Monsta X, revision 1375542648: a closed roster that names who left.
+
+    Wonho's statement stays ``conflict`` (Wikidata gives the end on one side
+    only), so the count depends on the sentence being read as six members.
+    """
+
+    GROUP_ROW = 20000
+    REVISION_ROW = 349
+
+    def setUp(self) -> None:
+        self.db = build_grid_test_database()
+        self.addCleanup(self.db.close)
+        self.source = json.loads(MONSTAX.read_text())
+        self.db.execute("INSERT INTO entities VALUES (?, 'Q19855151', 'group', 'Monsta X')", (self.GROUP_ROW,))
+        self.db.execute("INSERT INTO source_pages VALUES (?, 'wikipedia', 'en', 45409264)", (self.REVISION_ROW,))
+        self.db.execute('INSERT INTO source_revisions VALUES (?, ?, 1375542648)', (self.REVISION_ROW, self.REVISION_ROW))
+        self.rows = {}
+        for index, member in enumerate(self.source['members'], self.GROUP_ROW + 1):
+            self.rows[member['name']] = index
+            self.db.execute('INSERT INTO entities VALUES (?, ?, ?, ?)',
+                            (index, member['qid'], 'person', member['name']))
+            for name in member['aliases']:
+                self.db.execute("INSERT OR IGNORE INTO entity_aliases VALUES (?, 'en', ?, 'alias')", (index, name))
+            cursor = self.db.execute("""
+                INSERT INTO facts(statement_id, subject_entity_id, predicate, value_entity_id,
+                                  status, quality_flags_json, status_reason)
+                VALUES (?, ?, 'has_member', ?, ?, ?, ?)
+            """, (member['statement_id'], self.GROUP_ROW, index, member['status'],
+                  json.dumps(member['flags']),
+                  None if member['status'] == 'accepted' else 'membership_period_unconfirmed'))
+            self.db.execute("""
+                INSERT INTO fact_evidence(fact_id, evidence_type, source_revision_id, source_key, locator, snippet)
+                VALUES (?, 'wikipedia_revision', ?, 'wikipedia:en', ?, ?)
+            """, (cursor.lastrowid, self.REVISION_ROW, member['locator'], member['snippet']))
+
+    def selected(self):
+        entities = _load_entities(self.db)
+        facts, _ = _load_facts(self.db, entities)
+        return grid_member_facts(self.db, facts, entities, date(2026, 10, 28))
+
+    def set_sentence(self, sentence):
+        self.db.execute('UPDATE fact_evidence SET snippet=?', (sentence,))
+
+    def test_the_recorded_sentence_is_the_one_fixture_evidence(self):
+        self.assertEqual({m['snippet'] for m in self.source['members']}, {MONSTAX_SENTENCE})
+
+    def test_six_current_members_count_and_wonho_is_not_one_of_them(self):
+        selected = self.selected()
+        self.assertEqual(
+            {f.value_entity.name('en') for f in selected},
+            {'Shownu', 'Minhyuk', 'Kihyun', 'Hyung-won', 'Lee Jooheon', 'I.M'},
+        )
+        self.assertTrue(all(e.revision_id == 1375542648 for f in selected for e in f.evidence))
+        criteria, evidence, _ = evaluate_group_criteria(
+            selected, {'Q19855151': selected[0].subject}, {'Q19855151'}
+        )
+        self.assertIn('members_6', criteria['Q19855151'])
+        self.assertIn('members_ge_6', criteria['Q19855151'])
+        self.assertNotIn('members_7', criteria['Q19855151'])
+        self.assertEqual(len(evidence[('Q19855151', 'members_6')]), 6)
+
+    def test_the_starship_by_six_cell_admits_the_group_with_both_proofs_from_the_revision(self):
+        infobox = json.loads(MONSTAX_INFOBOX.read_text())
+        page = WikipediaPage(
+            1, 'en', infobox['page_id'], infobox['revision_id'], MONSTAX_SENTENCE, 'Monsta X',
+            ' ' * infobox['excerpt_offset'] + infobox['wikitext_excerpt'],
+        )
+        item = infobox_evidence(page, INFOBOX_LABEL_FIELDS, ['Starship Entertainment'])
+        self.assertEqual(item.locator, 'wikipedia:en:pageid=45409264:revid=1375542648#wikitext[1156:1191]')
+        selected = self.selected()
+        group = selected[0].subject
+        starship = Entity('Q255363', 'organization', 'Starship Entertainment', {'en': 'Starship Entertainment'})
+        label = Fact(
+            'label-starship', group, 'record_label', starship, None, None, None, None, None, None, (),
+            (Evidence('label-starship', item.source_key, item.locator, infobox['source_url'], infobox['revision_id']),),
+        )
+        criteria, _, _ = evaluate_group_criteria(selected + [label], {group.wikidata_id: group}, {group.wikidata_id})
+        self.assertTrue({'label_starship', 'members_6'} <= criteria['Q19855151'])
+        self.assertFalse({'members_5', 'members_7'} & criteria['Q19855151'])
+
+    def test_the_departure_stays_in_the_database_and_never_enters_the_count(self):
+        self.selected()
+        status = self.db.execute(
+            'SELECT status FROM facts WHERE value_entity_id=?', (self.rows['Wonho'],)
+        ).fetchone()[0]
+        self.assertEqual(status, 'conflict')
+
+    def test_a_positive_current_claim_for_the_departed_member_blocks_the_count(self):
+        fact = self.db.execute(
+            'SELECT id FROM facts WHERE value_entity_id=?', (self.rows['Wonho'],)
+        ).fetchone()[0]
+        self.db.execute("""
+            INSERT INTO fact_evidence(fact_id, evidence_type, source_revision_id, source_key, locator, snippet)
+            VALUES (?, 'wikipedia_revision', ?, 'wikipedia:en', 'wikipedia:en:pageid=45409264:revid=1375542648#wikitext[1:2]',
+                    'current_members = [[Wonho]]')
+        """, (fact, self.REVISION_ROW))
+        self.assertEqual(self.selected(), [])
+
+    def test_departure_without_proof_in_the_cited_revision_blocks_the_count(self):
+        self.set_sentence(MONSTAX_SENTENCE.replace('Wonho left', 'Someone left'))
+        self.assertEqual(self.selected(), [])
+
+    def test_departure_clauses_that_are_not_a_plain_exit_fail_closed(self):
+        for sentence in (
+            MONSTAX_SENTENCE.replace('left the group', 'will leave the group'),
+            MONSTAX_SENTENCE.replace('left the group', 'rejoined the group'),
+            MONSTAX_SENTENCE.replace('while former member Wonho', 'while former member Joohoney'),
+            MONSTAX_SENTENCE.replace('six members', 'seven members'),
+            MONSTAX_SENTENCE.replace('2019.', '2019, and more may follow.'),
+            MONSTAX_SENTENCE.replace('I.M, while', 'I.M and Ghost, while'),
+        ):
+            with self.subTest(sentence=sentence):
+                self.set_sentence(sentence)
+                self.assertEqual(self.selected(), [])
+
+    def test_a_past_tense_roster_is_not_a_current_roster(self):
+        self.set_sentence(MONSTAX_SENTENCE.replace('is currently composed of', 'was composed of'))
+        self.assertEqual(self.selected(), [])

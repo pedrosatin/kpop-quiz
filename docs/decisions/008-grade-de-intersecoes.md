@@ -24,7 +24,7 @@ A grade de interseções é composta por uma matriz ortogonal de 3 linhas por 3 
 
 Os critérios associados às linhas e colunas pertencem a três categorias extraídas das tabelas de fatos aceitos:
 
-1. Décadas de formação ou estreia do grupo (`formed_on`).
+1. Décadas de formação do grupo (`formed_on`, a data de formação do Wikidata, P571). A estreia é outro fato e não sustenta este critério: um grupo pode se formar numa década e estrear em outra. Os rótulos dizem "Formado nos anos …" e "Formed in the …".
 2. Gravadora ou empresa responsável (`record_label`).
 3. Contagem de integrantes do grupo (`has_member`).
 
@@ -106,3 +106,13 @@ A rejeição é gravada na data original da grade antes de remover ou substituir
 O loader consulta os metadados da data de São Paulo sob o `BASE_URL`, com `cache: no-store`. Quando presentes, eles autorizam somente a identidade e a data indicadas. Uma publicação antiga sem metadados permanece compatível quando a resposta é 404 ou HTML de arquivo ausente. Metadados presentes mas inválidos, ou falha de rede ao consultá-los, não autorizam fallback. Ao reaproveitar um artefato de data anterior, o loader exige a admissão pelo registro da publicação e pelo registro da data original, quando presentes. Uma autorização posterior de reaproveitamento não revoga a rejeição da origem nem dispensa a consulta dessa origem. O vínculo entre hash e data é verificado nos dois registros, inclusive para bytes antigos servidos pelo host após a janela de publicação. O aviso de correção só aparece para a data atual. Isso afeta somente a Grade. O registro não contém URLs nem HTML de fonte; o aviso usa texto localizado da aplicação. Não há migração de saves entre identidades.
 
 O metadado é obrigatório para novas publicações pelo runner. Reverter apenas o código não restaura os artefatos nem torna saves de um gabarito antigo compatíveis. Uma recuperação de artefatos exige restaurar grade e registro juntos ou executar novamente a publicação validada.
+
+## Cobertura e limites do catálogo
+
+Adendo de 2026-10-28. Um grupo só entra num critério quando a revisão citada prova o valor; conhecimento externo, popularidade e ausência de data final não provam. Por isso um grupo real pode faltar numa casa, e a rejeição significa "sem prova no catálogo para as duas regras", não "associação falsa".
+
+- Comentários de wikitext antes ou depois de um template de lista da infobox não escondem a lista (ADR-019). O caso que expôs o defeito foi a revisão 1375560471 de aespa, com um comentário depois de `{{hlist|...}}` no campo `label`.
+- Uma lista fechada de integrantes pode terminar com uma única oração de saída, como "while former member Wonho left the group in October 2019". A oração não acrescenta integrante, não pode citar alguém da lista e a pessoa citada ainda precisa de prova de ex-integrante na mesma revisão.
+- Continuam sem critério: formação que a revisão não afirma (estreia não é formação), grupo dissolvido (não há elenco vigente na data de referência), integrante com afirmação em conflito e lista que o seletor não sabe ler. A ADR-004 não muda.
+- Durante a partida, o veredito de um palpite recusado diz "Não aceita" e que o catálogo só aceita fatos comprovados; o palpite continua consumido e nada revela o gabarito. Depois da partida, a revisão repete que a lista mostra só o que tem fonte.
+- A cobertura se mede regenerando uma cópia do banco, não pelo arquivo publicado. Ampliar fatos nunca invalida uma grade publicada, porque a verificação de compatibilidade só confere se as respostas continuam admitidas; datas novas podem sair com critérios diferentes.
