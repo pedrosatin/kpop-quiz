@@ -2,7 +2,7 @@ import type { RefObject } from "preact";
 import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { Locale, NameGuessPuzzle } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
-import { resolveDisplayLabel } from "../../lib/display-name";
+import { alignLoneLabel } from "../../lib/display-name";
 import type { GameStatus, LetterStatus, NameGuessTranslations } from "./types";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
@@ -86,7 +86,10 @@ export function NameGuessResults({
   const details = useRef<HTMLDivElement>(null);
   const won = status === "won";
   const target = puzzle.target;
-  const targetDisplayName = resolveDisplayLabel(target.labels[locale], target.canonical_name);
+  // The artifact label already went through the generator's catalog-wide
+  // homonym check; only the target is published, so the page cannot strip a
+  // suffix again without peers.
+  const targetDisplayName = alignLoneLabel(target.labels[locale], target.canonical_name);
   // The buttons appear where the keyboard was, so a second tap or a held key
   // meant for the last guess must not share or restart the game.
   const { guarded, ignoreRepeat } = useResultActionGuard();

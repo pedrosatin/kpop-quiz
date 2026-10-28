@@ -7,6 +7,8 @@
  * among labels shown together.
  */
 
+import type { Locale } from "./quiz-types";
+
 /** Wikipedia-style notes only; keeps f(x) and other intentional parentheses. */
 const TRAILING_DISAMBIG =
   /\s+\((?:grupo(?:\s+musical)?(?:\s+sul-coreano)?|banda|group(?:\s+sul-coreano)?|musical\s+group|band|girl\s+group|boy\s+band|south\s+korean\s+band|south\s+korean\s+group)\)$/i;
@@ -47,8 +49,13 @@ export function resolveDisplayLabels(
   });
 }
 
-export function resolveDisplayLabel(label: string | null | undefined, canonical: string): string {
-  return resolveDisplayLabels([{ label: label ?? null, canonical }])[0]!;
+/**
+ * Case-only alignment for a label shown without its peers. Stripping a
+ * disambiguator needs the other labels published together, so a lone label
+ * never loses its suffix here.
+ */
+export function alignLoneLabel(label: string | null | undefined, canonical: string): string {
+  return alignCaseToCanonical((label ?? "").trim() || canonical, canonical);
 }
 
 /** Build id → display name for a pool that publishes `names` or `labels`. */
@@ -56,10 +63,10 @@ export function buildLocalizedDisplayNames(
   items: ReadonlyArray<{
     id: string;
     canonical_name: string;
-    names?: Partial<Record<string, string>>;
-    labels?: Partial<Record<string, string>>;
+    names?: Partial<Record<Locale, string>>;
+    labels?: Partial<Record<Locale, string>>;
   }>,
-  locale: string,
+  locale: Locale,
 ): Map<string, string> {
   const resolved = resolveDisplayLabels(
     items.map((item) => ({

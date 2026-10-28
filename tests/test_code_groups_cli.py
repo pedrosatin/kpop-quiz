@@ -47,6 +47,28 @@ class CodeGroupsCliTests(unittest.TestCase):
         self.assertNotIn("Q8", [s["qid"] for s in p["symbols"]])
         self.assertEqual(self.run_cli("--verify", self.output).returncode, 0)
 
+    def test_wikipedia_notes_in_titles_do_not_change_identity_or_draw(self):
+        """Hiding a note is the page's job: it must not move the dataset hash or the RNG.
+
+        The values below come from the generator before display-name cleanup
+        existed. Cleaning titles in the generator changes dataset_version,
+        puzzle_id, the six symbols and the secret for the same catalog and date.
+        """
+        titles = {1: "Tempest (group)", 2: "Tempest (band)", 3: "Group 3 (band)"}
+        with sqlite3.connect(self.database) as c:
+            for source_id, title in titles.items():
+                c.execute("UPDATE source_pages SET title=? WHERE id=?", (title, source_id))
+        self.assertEqual(self.generate().returncode, 0)
+        puzzle = json.loads(self.output.read_text())
+        self.assertEqual(puzzle["puzzle_id"], "f58d5d1b6dedf9f44db21c515dd2ce7c59905bd2d8560aa989aa8226f484b68a")
+        self.assertEqual(puzzle["dataset_version"], "cb1bbf1cf2f24e0745402302dba4dbe427cdedecd4a2f259328ce11587480993")
+        self.assertEqual(puzzle["secret"], ["Q1", "Q3", "Q7", "Q2"])
+        names = {symbol["qid"]: symbol["name"] for symbol in puzzle["symbols"]}
+        self.assertEqual(names["Q1"], "Tempest (group)")
+        self.assertEqual(names["Q2"], "Tempest (band)")
+        self.assertEqual(names["Q3"], "Group 3 (band)")
+        self.assertEqual(self.run_cli("--verify", self.output, "--database", self.database).returncode, 0)
+
     def test_verifier_rejects_contract_violations(self):
         self.assertEqual(self.generate().returncode, 0)
         original = json.loads(self.output.read_text())

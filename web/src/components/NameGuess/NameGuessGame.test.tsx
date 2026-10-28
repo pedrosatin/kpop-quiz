@@ -813,3 +813,48 @@ describe("NameGuess share", () => {
     }
   });
 });
+
+describe("NameGuess revealed answer label", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  function revealed(locale: "pt-BR" | "en", labels: { "pt-BR": string; en: string }, canonical = puzzle.target.canonical_name) {
+    const withLabels: NameGuessPuzzle = {
+      ...puzzle,
+      target: { ...puzzle.target, canonical_name: canonical, labels },
+    };
+    const messages = getMessages(locale);
+    const view = render(<NameGuessGame locale={locale} puzzle={withLabels} />);
+    fireEvent.click(screen.getByRole("button", { name: messages.giveUp }));
+    fireEvent.click(screen.getByRole("button", { name: messages.giveUpConfirmAction }));
+    return { view, name: document.querySelector(".name-guess-target-name")?.textContent };
+  }
+
+  it("shows the note the generator kept because the catalog has a homonym", () => {
+    // Only the target is published, so the page cannot tell a kept note from a
+    // clutter note. Dropping it here would turn "Tempest (grupo)" into the
+    // name of its homonym.
+    expect(revealed("pt-BR", { "pt-BR": "Tempest (grupo)", en: "Tempest (group)" }, "Tempest").name).toBe(
+      "Tempest (grupo)",
+    );
+  });
+
+  it("shows the English label of the page's language", () => {
+    expect(revealed("en", { "pt-BR": "Tempest (grupo)", en: "Tempest (group)" }, "Tempest").name).toBe(
+      "Tempest (group)",
+    );
+  });
+
+  it("aligns the case of a label to the canonical name", () => {
+    expect(revealed("pt-BR", { "pt-BR": "shinee", en: "SHINee" }, "SHINee").name).toBe("SHINee");
+  });
+
+  it("falls back to the canonical name when the label is empty", () => {
+    expect(revealed("pt-BR", { "pt-BR": "", en: "" }, "TWICE").name).toBe("TWICE");
+  });
+});

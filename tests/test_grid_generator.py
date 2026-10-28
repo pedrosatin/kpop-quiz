@@ -385,6 +385,34 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         self.assertEqual(len(grid["col_criteria"]), 3)
         self.assertEqual(len(grid["candidate_pool"]), 15)
 
+    def test_wikipedia_notes_in_labels_stay_published_and_do_not_move_the_grid(self) -> None:
+        """Labels reach the artifact as collected; the page decides what to hide.
+
+        Stripping a note in the generator would change grid_id and could drop a
+        note two homonyms need. Only label text may differ between the runs.
+        """
+        baseline = generate_intersection_grid(self.connection, seed="labels-seed")
+        self.connection.execute(
+            "UPDATE entity_aliases SET name='Tempest (grupo)' WHERE language='pt' AND name='Test Group 101'"
+        )
+        self.connection.execute(
+            "UPDATE entity_aliases SET name='Tempest (banda)' WHERE language='pt' AND name='Test Group 102'"
+        )
+        renamed = generate_intersection_grid(self.connection, seed="labels-seed")
+
+        pool = {item["id"]: item for item in renamed["candidate_pool"]}
+        self.assertEqual(pool["Q101"]["names"]["pt-BR"], "Tempest (grupo)")
+        self.assertEqual(pool["Q102"]["names"]["pt-BR"], "Tempest (banda)")
+        self.assertEqual(pool["Q101"]["canonical_name"], "Test Group 101")
+        self.assertEqual(renamed["cells"], baseline["cells"])
+        self.assertEqual(renamed["row_criteria"], baseline["row_criteria"])
+        self.assertEqual(renamed["col_criteria"], baseline["col_criteria"])
+        self.assertEqual(
+            [item["id"] for item in renamed["candidate_pool"]],
+            [item["id"] for item in baseline["candidate_pool"]],
+        )
+        validate_intersection_grid(renamed)
+
     def test_mixed_axis_fallback_generates_evidenced_unique_grid(self) -> None:
         # Simulate a dataset for which none of the curated category partitions
         # are available. The broader search must still use accepted criteria,

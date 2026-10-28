@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, Iterable
 
-from .display_names import resolve_display_label
+from .display_names import resolve_display_labels
 from .name_guess_schema import (
     NAME_GUESS_SCHEMA_VERSION,
     normalize_name,
@@ -206,6 +206,27 @@ def _extract_clues_and_evidence(
     return clues, serialized_evidence
 
 
+def _target_labels(target: Entity, entities: dict[int, Entity]) -> dict[str, str]:
+    """Display labels for the target, checked against every catalog entity.
+
+    The page shows only the target, so the homonym guard cannot rely on labels
+    published together: a suffix like " (band)" is dropped only when no other
+    entity in the catalog would end up with the same short form.
+    """
+    ordered = sorted(entities.values(), key=lambda entity: entity.wikidata_id)
+    index = next(i for i, entity in enumerate(ordered) if entity.wikidata_id == target.wikidata_id)
+    pt_labels = resolve_display_labels(
+        [
+            (entity.names.get("pt") or entity.names.get("pt-BR"), entity.canonical_name)
+            for entity in ordered
+        ]
+    )
+    en_labels = resolve_display_labels(
+        [(entity.names.get("en"), entity.canonical_name) for entity in ordered]
+    )
+    return {"pt-BR": pt_labels[index], "en": en_labels[index]}
+
+
 def generate_name_guess_puzzle(
     connection: sqlite3.Connection,
     seed: str,
@@ -306,16 +327,7 @@ def generate_name_guess_puzzle(
         "id": target_entity.wikidata_id,
         "canonical_name": target_entity.canonical_name,
         "normalized_name": target_normalized,
-        "labels": {
-            "pt-BR": resolve_display_label(
-                target_entity.names.get("pt") or target_entity.names.get("pt-BR"),
-                target_entity.canonical_name,
-            ),
-            "en": resolve_display_label(
-                target_entity.names.get("en"),
-                target_entity.canonical_name,
-            ),
-        },
+        "labels": _target_labels(target_entity, entities),
         "entity_type": (
             target_entity.entity_type
             if target_entity.entity_type in {"group", "person"}

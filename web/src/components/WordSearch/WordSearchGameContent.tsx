@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
-import { resolveDisplayLabel } from "../../lib/display-name";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import { useWordSearchGame } from "./useWordSearchGame";
 import { WordSearchHeader } from "./WordSearchHeader";
 import { WordSearchGrid } from "./WordSearchGrid";
@@ -94,10 +94,10 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
     }
   }, [completed, puzzle, foundWordIds.length]);
 
-  const wordName = (id: string) => {
-    const word = puzzle.words.find((w) => w.id === id);
-    return word ? resolveDisplayLabel(word.labels[locale], word.canonical_name) : "";
-  };
+  // Names are resolved against the whole list, so two words that differ only
+  // by a disambiguator keep it.
+  const displayNames = buildLocalizedDisplayNames(puzzle.words, locale);
+  const wordName = (id: string) => displayNames.get(id) ?? "";
 
   // One message at a time, in two reserved lines: the selection in progress,
   // then the verdict of the last one, then the instructions.

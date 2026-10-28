@@ -72,8 +72,3 @@ def resolve_display_labels(
         )
         resolved.append(align_case_to_canonical(chosen, canonical))
     return resolved
-
-
-def resolve_display_label(label: str | None, canonical: str) -> str:
-    """Resolve one label with no peer context (safe strip when alone)."""
-    return resolve_display_labels([(label, canonical)])[0]

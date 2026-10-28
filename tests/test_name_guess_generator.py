@@ -425,6 +425,83 @@ class TestNameGuessGenerator(unittest.TestCase):
         self.assertGreater(len(lengths_seen), 1)
         self.assertTrue({4, 5, 8}.issubset(lengths_seen))
 
+    def _add_entity(
+        self,
+        qid: str,
+        canonical: str,
+        pt: str,
+        en: str,
+        *,
+        with_evidence: bool,
+    ) -> None:
+        cur = self.conn.execute(
+            "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, 'group', ?)",
+            (qid, canonical),
+        )
+        entity_id = cur.lastrowid
+        self.conn.execute("INSERT INTO entity_aliases VALUES (?, 'pt', ?, 'label')", (entity_id, pt))
+        self.conn.execute("INSERT INTO entity_aliases VALUES (?, 'en', ?, 'label')", (entity_id, en))
+        if with_evidence:
+            fact = self.conn.execute(
+                """
+                INSERT INTO facts(
+                    statement_id, subject_entity_id, predicate, property_id, rank,
+                    value_time, value_precision, status, quality_flags_json
+                ) VALUES (?, ?, 'formed_on', 'P571', 'normal', '2017-01-01', 9, 'accepted', '[]')
+                """,
+                (f"stmt-formed-{qid}", entity_id),
+            )
+            self.conn.execute(
+                """
+                INSERT INTO fact_evidence(fact_id, evidence_type, source_key, locator, wikidata_snapshot_id)
+                VALUES (?, 'claim', 'wikidata', ?, 1)
+                """,
+                (fact.lastrowid, f"claims/P571/{qid}"),
+            )
+        self.conn.commit()
+
+    def _target_labels(self) -> dict:
+        # Cravity is the only seven-letter candidate, so it is always the target.
+        puzzle = generate_name_guess_puzzle(
+            self.conn, seed="labels", reference_date=self.ref_date, word_length=7
+        )
+        validate_name_guess_puzzle(puzzle)
+        self.assertEqual(puzzle["target"]["id"], "Q30000001")
+        self.assertEqual(puzzle["target"]["canonical_name"], "Cravity")
+        self.assertEqual(puzzle["target"]["normalized_name"], "CRAVITY")
+        return puzzle["target"]["labels"]
+
+    def test_target_label_drops_unique_disambiguator(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        self.assertEqual(self._target_labels(), {"pt-BR": "Cravity", "en": "Cravity"})
+
+    def test_target_label_keeps_disambiguator_against_catalog_homonym(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        # Not a candidate (no evidence), but a catalog entity with the same short form.
+        self._add_entity("Q30000002", "Cravity (band)", "Cravity (banda)", "Cravity (band)", with_evidence=False)
+        self.assertEqual(
+            self._target_labels(),
+            {"pt-BR": "Cravity (grupo)", "en": "Cravity (group)"},
+        )
+
+    def test_target_label_keeps_disambiguator_against_bare_catalog_peer(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        self._add_entity("Q30000002", "Cravity", "Cravity", "Cravity", with_evidence=False)
+        self.assertEqual(
+            self._target_labels(),
+            {"pt-BR": "Cravity (grupo)", "en": "Cravity (group)"},
+        )
+
+    def test_target_label_cleanup_leaves_identity_and_answer_untouched(self):
+        self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
+        puzzle = generate_name_guess_puzzle(
+            self.conn, seed="labels", reference_date=self.ref_date, word_length=7
+        )
+        # Answer, QID and valid guesses come from the canonical name, never from labels.
+        self.assertEqual(puzzle["target"]["normalized_name"], "CRAVITY")
+        self.assertIn("CRAVITY", puzzle["valid_guesses"])
+        self.assertEqual(puzzle["word_length"], 7)
+
 
 if __name__ == "__main__":
     unittest.main()

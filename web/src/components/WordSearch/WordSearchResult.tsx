@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
-import { resolveDisplayLabel } from "../../lib/display-name";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import { formatTime, generateWordSearchShareSummary } from "./utils";
 import { useGameShareAction } from "../Results/use-game-share-action";
 
@@ -69,6 +69,7 @@ export function WordSearchResult({
 }: WordSearchResultProps) {
   const messages = getMessages(locale);
   const t = messages.wordSearch;
+  const displayNames = buildLocalizedDisplayNames(puzzle.words, locale);
   const [sourceOpen, setSourceOpen] = useState(false);
   const titleId = useId();
   const summaryId = useId();
@@ -140,7 +141,7 @@ export function WordSearchResult({
           const clue = word.clue?.[locale] || word.clue?.en;
           return (
             <div key={word.id} class="word-search-source-word">
-              <h3 class="word-search-source-title">{resolveDisplayLabel(word.labels[locale], word.canonical_name)}</h3>
+              <h3 class="word-search-source-title">{displayNames.get(word.id) ?? word.canonical_name}</h3>
               {clue && (
                 <p class="word-search-source-clue">
                   <strong>{t.evidenceClue}</strong> {clue}
