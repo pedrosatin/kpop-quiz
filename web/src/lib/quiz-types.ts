@@ -145,12 +145,14 @@ function isEvidence(value: unknown, factBaseIds: string[]): value is Evidence {
     && isHttpsUrl(value.source_url);
 }
 
-function isClue(value: unknown, questionFactIds: string[]): value is QuizClue {
+// A clue may cite another entity's accepted fact (such as the answer's date),
+// so its facts need not be among the question's own. Every fact it names must
+// still carry evidence.
+function isClue(value: unknown): value is QuizClue {
   if (!isRecord(value) || !hasExactKeys(value, ["evidence", "fact_base_ids", "id", "text", "type"])) return false;
   if (typeof value.id !== "string" || !HASH.test(value.id) || value.type !== "decade"
     || typeof value.text !== "string" || value.text.length === 0
     || !isStringArray(value.fact_base_ids, false)
-    || !(value.fact_base_ids as string[]).every((id) => questionFactIds.includes(id))
     || !Array.isArray(value.evidence)
     || !(value.evidence as unknown[]).every((item) => isEvidence(item, value.fact_base_ids as string[]))) return false;
   return new Set((value.evidence as Evidence[]).map((item) => item.fact_base_id)).size === (value.fact_base_ids as string[]).length;
@@ -242,7 +244,7 @@ export function isQuestion(value: unknown, locale: Locale): value is QuizQuestio
     || !isStringArray(value.fact_base_ids, false)
     || !isStringArray(value.group_ids)
     || !Array.isArray(value.clues_available)
-    || !(value.clues_available as unknown[]).every((clue) => isClue(clue, value.fact_base_ids as string[]))
+    || !(value.clues_available as unknown[]).every(isClue)
     || !isStringArray(value.clues_shown)) return false;
   const clueIds = (value.clues_available as QuizClue[]).map((clue) => clue.id);
   if (new Set(clueIds).size !== clueIds.length

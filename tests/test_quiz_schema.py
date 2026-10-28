@@ -4,6 +4,7 @@ from datetime import date
 from kpop_scraping.quiz_schema import (
     DATASET_SCHEMA_VERSION,
     SESSION_SCHEMA_VERSION,
+    QUESTION_TYPES,
     REPORT_SCHEMA_VERSION,
     validate_dataset,
     validate_session,
@@ -11,6 +12,7 @@ from kpop_scraping.quiz_schema import (
     _require,
     _require_hash,
     _require_date,
+    _validate_question_clues,
     mode_neutral_question
 )
 
@@ -168,6 +170,15 @@ class TestQuizSchema(unittest.TestCase):
             "accepted_by_type": {'birth_date_or_place': 0, 'earliest_release': 0, 'member_at_date': 0, 'release_for_group': 0, 'record_label_for_group': 0, 'age_on_date': 0, 'group_for_record_label': 0, 'group_for_release': 0, 'chronological_comparison': 0, 'formation_year': 0, 'release_year': 0, 'member_for_group': 0, 'group_for_member': 0},
             "accepted_distinct_fact_bases": 0,
             "accepted_logical": 0,
+            "clue_coverage": {
+                "by_type": {
+                    question_type: {"questions": 0, "with_clue": 0}
+                    for question_type in QUESTION_TYPES
+                },
+                "questions": 0,
+                "unavailable_by_reason": {},
+                "with_clue": 0,
+            },
             "clue_eligible_base_questions": 0,
             "language_variants": 0,
             "rejected_by_reason": {},
@@ -189,6 +200,35 @@ class TestQuizSchema(unittest.TestCase):
         report["schema_version"] = "invalid"
         with self.assertRaises(ValueError):
             validate_report(report)
+
+    def test_validate_report_clue_coverage_must_match_totals(self):
+        report = self._valid_report()
+        report["clue_coverage"]["by_type"]["formation_year"]["with_clue"] = 1
+        with self.assertRaises(ValueError):
+            validate_report(report)
+
+    def test_clue_may_cite_a_fact_outside_the_question_when_it_has_evidence(self):
+        question = self._valid_question()
+        clue = {
+            "evidence": [{
+                "fact_base_id": "other-fact", "locator": "claim:other-fact", "revision_id": 7,
+                "source_key": "wikidata", "source_url": "https://www.wikidata.org/wiki/Q9",
+            }],
+            "fact_base_ids": ["other-fact"],
+            "id": "c" * 64,
+            "text": "clue",
+            "type": "decade",
+        }
+        question["clues_available"] = [clue]
+        _validate_question_clues(question)
+        uncovered = copy.deepcopy(question)
+        uncovered["clues_available"][0]["fact_base_ids"] = ["other-fact", "third-fact"]
+        with self.assertRaises(ValueError):
+            _validate_question_clues(uncovered)
+        unsourced = copy.deepcopy(question)
+        unsourced["clues_available"][0]["evidence"] = []
+        with self.assertRaises(ValueError):
+            _validate_question_clues(unsourced)
 
     def test_validate_report_invalid_counts(self):
         report = self._valid_report()

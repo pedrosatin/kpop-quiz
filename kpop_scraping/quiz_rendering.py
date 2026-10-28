@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import date
 from typing import Any
 
@@ -124,6 +125,39 @@ def _render_draft(
     return base_question
 
 
+# Dated predicate, per entity kind, that can narrow a question whose answer is
+# an entity. The clue cites the answer entity's own accepted fact.
+_DATED_PREDICATE_BY_KIND = {
+    "group": "formed_on",
+    "person": "born_on",
+    "release": "released_on",
+}
+# Questions whose prompt or options already show dates get no related clue.
+_RELATED_CLUE_TYPES = frozenset({
+    "group_for_member",
+    "group_for_record_label",
+    "group_for_release",
+    "member_for_group",
+    "release_for_group",
+})
+
+DatedFacts = dict[tuple[str, str], tuple[Fact, ...]]
+
+
+def index_dated_facts(facts: list[Fact] | tuple[Fact, ...]) -> DatedFacts:
+    """Index accepted, evidenced facts with a year-or-finer date by predicate and subject."""
+    indexed: dict[tuple[str, str], list[Fact]] = {}
+    for fact in facts:
+        if (
+            fact.predicate in _DATED_PREDICATE_BY_KIND.values()
+            and fact.evidence
+            and (fact.value_time or "")[:4].isdigit()
+            and (fact.value_precision is None or fact.value_precision >= 9)
+        ):
+            indexed.setdefault((fact.predicate, fact.subject.wikidata_id), []).append(fact)
+    return {key: tuple(value) for key, value in indexed.items()}
+
+
 def render_play_mode_variants(
     draft: Draft,
     language: str,
@@ -131,10 +165,18 @@ def render_play_mode_variants(
     entities: dict[str, Entity],
     person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
     relevance_by_group: dict[str, int] | None = None,
+    dated_facts: DatedFacts | None = None,
+    clue_outcomes: Counter[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Render reproducible play modes without changing the underlying answer."""
+    """Render reproducible play modes without changing the underlying answer.
+
+    ``clue_outcomes`` receives one entry per call: ``available`` or the reason
+    the question has no safe clue.
+    """
     base = _render_draft(draft, language, reference_date, entities, relevance_by_group)
-    clues = _temporal_clues(draft, language, base)
+    clues, reason = _clues_for_draft(draft, language, base, dated_facts or {}, entities)
+    if clue_outcomes is not None:
+        clue_outcomes[reason or "available"] += 1
     variants = []
     for play_mode, points in (("assisted", 70), ("standard", 100), ("expert", 130)):
         question = dict(base)
@@ -232,24 +274,125 @@ def _assert_options_do_not_echo_prompt(
                 )
 
 
+NO_CLUE_RULE = "no_clue_rule_for_type"
+CLUE_NOT_NARROWING = "clue_does_not_narrow_options"
+CLUE_ISOLATES_ANSWER = "clue_would_isolate_answer"
+CLUE_NO_DECADE = "clue_answer_date_missing_or_ambiguous"
+CLUE_ECHOES_ANSWER = "clue_text_repeats_answer"
+
+
+def _clues_for_draft(
+    draft: Draft,
+    language: str,
+    question: dict[str, Any],
+    dated_facts: DatedFacts,
+    entities: dict[str, Entity],
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Return the safe clues of a question, or the reason there are none."""
+    if draft.answer[1] == "time" or draft.question_type == "age_on_date":
+        return _temporal_clues(draft, language, question)
+    if draft.question_type in _RELATED_CLUE_TYPES:
+        return _related_decade_clues(draft, language, question, dated_facts, entities)
+    return [], NO_CLUE_RULE
+
+
+def _decade_text(decade: str, language: str, subject: str) -> str:
+    label = f"{decade}0"
+    if language == "pt-BR":
+        return {
+            "group": f"O grupo correto foi formado na década de {label}.",
+            "person": f"A pessoa correta nasceu na década de {label}.",
+            "release": f"O lançamento correto é da década de {label}.",
+        }[subject]
+    return {
+        "group": f"The correct group formed in the {label}s.",
+        "person": f"The correct person was born in the {label}s.",
+        "release": f"The correct release came out in the {label}s.",
+    }[subject]
+
+
+def _fact_decades(facts: tuple[Fact, ...]) -> set[str]:
+    return {(fact.value_time or "")[:3] for fact in facts}
+
+
+def _related_decade_clues(
+    draft: Draft,
+    language: str,
+    question: dict[str, Any],
+    dated_facts: DatedFacts,
+    entities: dict[str, Entity],
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Build a decade clue from the answer entity's own dated fact.
+
+    Only options whose own accepted facts all name a different decade count as
+    ruled out; an option without a dated fact stays possible. The clue is kept
+    only when it rules out at least one option and leaves at least two.
+    """
+    answer_value, answer_kind = draft.answer
+    predicate = _DATED_PREDICATE_BY_KIND.get(answer_kind)
+    if predicate is None:
+        return [], NO_CLUE_RULE
+    answer_facts = dated_facts.get((predicate, answer_value), ())
+    answer_decades = _fact_decades(answer_facts)
+    if len(answer_decades) != 1:
+        return [], CLUE_NO_DECADE
+    answer_decade = next(iter(answer_decades))
+    ruled_out = 0
+    for option in draft.alternatives:
+        decades = _fact_decades(dated_facts.get((predicate, option[0]), ()))
+        if decades and answer_decade not in decades:
+            ruled_out += 1
+    remaining = len(draft.alternatives) - ruled_out
+    if ruled_out == 0:
+        return [], CLUE_NOT_NARROWING
+    if remaining < 2:
+        return [], CLUE_ISOLATES_ANSWER
+    text = _decade_text(answer_decade, language, answer_kind)
+    answer_label = _option_label(answer_value, answer_kind, language, entities)
+    if answer_label.casefold() in text.casefold():
+        return [], CLUE_ECHOES_ANSWER
+    evidence = _merge_clue_evidence(answer_facts)
+    fact_base_ids = sorted({item.fact_base_id for item in evidence})
+    clue_id = hash_payload(
+        {"fact_base_ids": fact_base_ids, "type": "decade", "value": f"{answer_decade}0s"}
+    )
+    return [{
+        "evidence": [item.payload() for item in evidence],
+        "fact_base_ids": fact_base_ids,
+        "id": clue_id,
+        "text": text,
+        "type": "decade",
+    }], None
+
+
+def _merge_clue_evidence(facts: tuple[Fact, ...]) -> tuple[Any, ...]:
+    unique = {
+        (item.fact_base_id, item.source_url, item.locator, item.source_key, item.revision_id): item
+        for fact in facts
+        for item in fact.evidence
+    }
+    return tuple(unique[key] for key in sorted(unique))
+
+
 def _temporal_clues(
     draft: Draft, language: str, question: dict[str, Any]
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], str | None]:
     raw_year: str | None = None
     if draft.answer[1] == "time" and len(draft.answer[0]) >= 4:
         raw_year = draft.answer[0][:4]
     elif draft.question_type == "age_on_date" and draft.values.get("born_on"):
         raw_year = str(draft.values["born_on"])[:4]
     if raw_year is None or not raw_year.isdigit():
-        return []
+        return [], NO_CLUE_RULE
     decade = f"{raw_year[:3]}0s"
     if draft.answer[1] == "time":
         matching_options = sum(
             option["value"][:3] == raw_year[:3]
             for option in question["options"]
         )
-        if matching_options < 2 or matching_options >= len(question["options"]):
-            return []
+        reason = _narrowing_reason(matching_options, len(question["options"]))
+        if reason:
+            return [], reason
     elif draft.question_type == "age_on_date":
         reference_year = int(str(draft.values["date"])[:4])
         matching_options = sum(
@@ -262,8 +405,9 @@ def _temporal_clues(
             )
             for option in question["options"]
         )
-        if matching_options < 2 or matching_options >= len(question["options"]):
-            return []
+        reason = _narrowing_reason(matching_options, len(question["options"]))
+        if reason:
+            return [], reason
     text = (
         f"O fato relacionado está na década de {raw_year[:3]}0."
         if language == "pt-BR"
@@ -278,7 +422,16 @@ def _temporal_clues(
         "id": clue_id,
         "text": text,
         "type": "decade",
-    }]
+    }], None
+
+
+def _narrowing_reason(matching_options: int, option_count: int) -> str | None:
+    """Reject a clue that isolates the answer or rules out no option."""
+    if matching_options < 2:
+        return CLUE_ISOLATES_ANSWER
+    if matching_options >= option_count:
+        return CLUE_NOT_NARROWING
+    return None
 
 
 def _option_label(value: str, kind: str, language: str, entities: dict[str, Entity]) -> str:

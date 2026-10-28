@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import date
 from typing import Any, Sequence
 
@@ -16,7 +16,7 @@ from .quiz_models import (
     InsufficientQuestionsError,
     QuizConfig,
 )
-from .quiz_rendering import _draft_predicate, render_play_mode_variants
+from .quiz_rendering import _draft_predicate, index_dated_facts, render_play_mode_variants
 from .quiz_repository import _dataset_version, _load_entities, _load_facts, _load_group_relevance
 from .quiz_schema import (
     DATASET_SCHEMA_VERSION,
@@ -69,16 +69,22 @@ def generate_dataset(
         and (fact.value_time or "")[:4].isdigit()
     }
     performers = _performers_by_release(facts)
+    dated_facts = index_dated_facts(facts)
     questions = []
     kept_drafts = []
+    clue_outcomes_by_type: dict[str, Counter[str]] = defaultdict(Counter)
     for draft in drafts:
         decades = _subject_decades(draft, group_decades, person_memberships, performers)
         try:
             rendered = []
+            outcomes: Counter[str] = Counter()
             for language in selected_languages:
+                # Clue eligibility does not depend on the language, so the
+                # first one is enough to count each logical question once.
                 for question in render_play_mode_variants(
                     draft, language, reference_date, entities_by_qid,
-                    person_memberships, relevance_by_group,
+                    person_memberships, relevance_by_group, dated_facts,
+                    outcomes if language == selected_languages[0] else None,
                 ):
                     question["decades"] = decades
                     rendered.append(question)
@@ -88,6 +94,7 @@ def generate_dataset(
             rejected["option_label_echoes_prompt"] += 1
             continue
         kept_drafts.append(draft)
+        clue_outcomes_by_type[draft.question_type].update(outcomes)
         questions.extend(rendered)
     drafts = kept_drafts
     questions.sort(
@@ -135,16 +142,37 @@ def generate_dataset(
             play_mode: len(drafts)
             for play_mode in ("assisted", "standard", "expert")
         },
+        "clue_coverage": _clue_coverage(clue_outcomes_by_type),
         "clue_eligible_base_questions": sum(
-            bool(render_play_mode_variants(
-                draft, "en", reference_date, entities_by_qid, person_memberships
-            )[0]["clues_available"])
-            for draft in drafts
+            outcomes["available"] for outcomes in clue_outcomes_by_type.values()
         ),
     }
     validate_dataset(payload)
     validate_report(report)
     return payload, report
+
+
+def _clue_coverage(
+    outcomes_by_type: dict[str, Counter[str]],
+) -> dict[str, Any]:
+    """Count logical questions with a safe clue, and why the others have none."""
+    by_type = {
+        question_type: {
+            "questions": sum(outcomes_by_type[question_type].values()),
+            "with_clue": outcomes_by_type[question_type]["available"],
+        }
+        for question_type in sorted(QUESTION_TYPES)
+    }
+    reasons: Counter[str] = Counter()
+    for outcomes in outcomes_by_type.values():
+        reasons.update(outcomes)
+    reasons.pop("available", None)
+    return {
+        "by_type": by_type,
+        "questions": sum(item["questions"] for item in by_type.values()),
+        "unavailable_by_reason": dict(sorted(reasons.items())),
+        "with_clue": sum(item["with_clue"] for item in by_type.values()),
+    }
 
 
 SESSION_DECADES = frozenset({1990, 2000, 2010, 2020})

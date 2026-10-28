@@ -144,6 +144,10 @@ export interface Messages {
   clue: string;
   revealClue: (cost: number) => string;
   clueRevealed: string;
+  /** Notice when an Assisted question has no clue. */
+  noClueAssisted: string;
+  /** Notice when a Standard question has no clue; opening one never applies. */
+  noClueStandard: string;
   time: string;
   seconds: string;
   check: string;
@@ -554,6 +558,8 @@ const catalogs: Record<Locale, Messages> = {
     clue: "Pista",
     revealClue: (cost) => `Ver pista (-${cost} pontos)`,
     clueRevealed: "Pista aberta",
+    noClueAssisted: "Esta pergunta não tem pista disponível.",
+    noClueStandard: "Esta pergunta não tem pista disponível. Nenhum ponto será descontado.",
     time: "Tempo",
     seconds: "s",
     check: "Responder",
@@ -1021,6 +1027,8 @@ const catalogs: Record<Locale, Messages> = {
     clue: "Clue",
     revealClue: (cost) => `Show clue (-${cost} points)`,
     clueRevealed: "Clue shown",
+    noClueAssisted: "This question has no clue available.",
+    noClueStandard: "This question has no clue available. No points will be deducted.",
     time: "Time",
     seconds: "s",
     check: "Submit answer",

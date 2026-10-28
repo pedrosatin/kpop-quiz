@@ -1,6 +1,6 @@
 import type { RefObject } from "preact";
 import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
-import type { QuizOption, QuizQuestion } from "../../lib/quiz-types";
+import type { QuizClue, QuizOption, QuizQuestion } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { AnswerFeedbackActions } from "./answer-feedback-actions";
 import {
@@ -25,6 +25,8 @@ export interface AnswerFeedbackProps {
   correctOption: QuizOption | null;
   explanation: string;
   evidence: QuizQuestion["evidence"];
+  /** Clues the player saw; their sources are listed beside the answer's. */
+  seenClues?: QuizClue[] | undefined;
   messages: Messages;
   isLastQuestion: boolean;
   onSubmit: () => void;
@@ -50,6 +52,7 @@ export function AnswerFeedback({
   correctOption,
   explanation,
   evidence,
+  seenClues = [],
   messages,
   isLastQuestion,
   onSubmit,
@@ -61,6 +64,9 @@ export function AnswerFeedback({
   const nextShownAt = useRef(0);
   const right = answered && isCorrect && !timedOut;
   const displayedEvidence = answered ? groupEvidence(evidence) : [];
+  const displayedClues = answered
+    ? seenClues.map((clue) => ({ text: clue.text, evidence: groupEvidence(clue.evidence) }))
+    : [];
 
   // Next replaces Submit in the same spot, so a second click or a held Enter
   // meant for Submit must not skip the verdict.
@@ -96,6 +102,7 @@ export function AnswerFeedback({
             answers={answers}
             explanation={explanation}
             evidence={displayedEvidence}
+            clues={displayedClues}
             messages={messages}
             onToggle={() => setSourceOpen((open) => !open)}
           />

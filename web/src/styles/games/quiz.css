@@ -209,6 +209,16 @@
   margin-bottom: var(--space-4);
 }
 
+/* The notice replaces the clue, so it stays one quiet line of text. */
+.quiz-clue--absent {
+  color: var(--color-text-muted);
+  margin-bottom: 0;
+}
+
+.quiz-source-clue {
+  margin-top: var(--space-2);
+}
+
 .options {
   display: grid;
   gap: var(--space-2);
