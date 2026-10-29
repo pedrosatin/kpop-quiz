@@ -52,6 +52,8 @@ A falha omite somente a cruzadinha; os outros jogos do dia saem normalmente.
   motivo `missing previous-day crossword history`. Esse registro é histórico
   real (nada foi publicado), então o dia seguinte volta a gerar.
 - Base ilegível ou erro do gerador: o dia registra `omitted` com o erro.
+  Nesses dois casos não há envelope, e a página lê o registro do dia para
+  dizer que a cruzadinha está indisponível.
 - Tentativas esgotadas: o envelope `status: omitted`, `puzzle: null` é
   publicado, e a página sabe que o dia foi omitido.
 - Nenhuma grade anterior é reaproveitada nem ganha identidade nova. Um arquivo
@@ -82,11 +84,29 @@ correspondência factual e a prova contra a base antes de gravar.
 ### Página
 
 `loadCrosswordPuzzle()` em `web/src/data/crossword.ts` lê `data/` e, se ali não
-houver o dia de hoje, `data/next/`. Só a grade datada de hoje joga. Sem ela, a
-página mostra "A cruzadinha de hoje ainda não foi publicada"; com o dia
-omitido, "Não há cruzadinha hoje"; com arquivo inválido, o erro de carga com
-nova tentativa. `validateCrosswordDaily()` espelha `validate_published()` e
-reaproveita as regras de domínio da grade de `validateCrosswordPuzzle()`.
+houver o dia de hoje, `data/next/`. Só a grade datada de hoje joga. Sem
+envelope de hoje, a página lê `crossword-publication.<hoje>.json` (primeiro em
+`data/`, depois em `data/next/`) para separar omissão confirmada de atraso:
+
+| O que foi publicado para hoje | Mensagem |
+|---|---|
+| Envelope `ready` | a grade joga |
+| Envelope `status: omitted` (tentativas esgotadas) | "Não há cruzadinha hoje" |
+| Só o registro `omitted` (histórico ausente ou erro de geração) | "A cruzadinha de hoje está indisponível" |
+| Nada (nem envelope nem registro de hoje) | "A cruzadinha de hoje ainda não foi publicada" |
+| Arquivo ilegível, registro `played` sem grade ou registro de outra data | erro de carga |
+
+Todas as mensagens oferecem nova tentativa, e nenhuma joga uma grade anterior.
+O motivo gravado no registro é interno e não aparece na página.
+
+`validateCrosswordDaily()` aplica a parte de `validate_published()` que cabe no
+navegador: campos, seed, checksum do envelope, histórico canônico da véspera
+(como `history_context()`: data esperada, QIDs ordenados e coerentes com o
+estado), orçamentos, contagem de tentativas e rejeições, forma da prova e
+exclusão da véspera, além das regras de domínio da grade de
+`validateCrosswordPuzzle()`. Não confere a ordem canônica das entradas
+(`canonical_board()`) nem nada que dependa da base: correspondência factual,
+contagens de elegíveis e a prova de unicidade ficam com o runner.
 
 ### Tabuleiro auditado
 
@@ -154,7 +174,8 @@ respostas, e o link usa `utm_campaign=crossword`.
 Os testes em `web/src/components/Crossword/CrosswordGame.test.tsx` cobrem
 digitação, verificação, vitória, revelação, retomada, registros inválidos,
 estatísticas, GA4, compartilhamento, fontes, reinício, erro de carga, dia
-omitido, grade de outro dia e grade publicada antes em `next/`.
+omitido, dia indisponível (histórico ausente e erro de geração), dia ainda não
+publicado, grade de outro dia e grade publicada antes em `next/`.
 `tests/test_daily_crossword_publication.py` cobre o runner: histórico,
 omissões, primeira execução, promoção e verificação.
 `web/e2e/crossword.spec.ts` e `web/e2e/pilot-visual-a11y.spec.ts` cobrem os

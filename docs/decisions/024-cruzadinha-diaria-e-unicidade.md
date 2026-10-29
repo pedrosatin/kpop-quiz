@@ -114,7 +114,9 @@ partida efetivamente publicada na véspera divergir.
   confirmado, ou omitida; `next/` acompanha.
 - A verificação de publicação recusa envelope sem registro correspondente e
   dois dias consecutivos jogados com grupo em comum, inclusive entre `data/` e
-  `next/`. A página só joga a grade datada de hoje e informa a omissão.
+  `next/`. A página só joga a grade datada de hoje e informa a omissão; sem
+  envelope, lê o registro do dia para dizer que a cruzadinha está
+  indisponível em vez de atrasada.
 
 ## Consequências
 

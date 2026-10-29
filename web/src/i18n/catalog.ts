@@ -380,6 +380,8 @@ export interface Messages {
   crosswordArtifactMissing: string;
   /** Today was published as omitted: no board passed verification. */
   crosswordOmitted: string;
+  /** Today's record says omitted without a board: generation failed. */
+  crosswordUnavailable: string;
   statsTitle: string;
   statsNavLabel: string;
   statsOpenButton: string;
@@ -814,6 +816,7 @@ const catalogs: Record<Locale, Messages> = {
     crosswordShareHeader: "Cruzadinha de K-pop",
     crosswordArtifactMissing: "A cruzadinha de hoje ainda não foi publicada. Tente mais tarde.",
     crosswordOmitted: "Não há cruzadinha hoje: nenhuma grade passou na verificação das pistas. Volte amanhã.",
+    crosswordUnavailable: "A cruzadinha de hoje está indisponível: não foi possível gerá-la. Volte amanhã.",
     timelineTitle: "Linha do Tempo do K-pop",
     timelineEyebrow: "Desafio diário",
     timelineIntro: "Ordene os acontecimentos do K-pop do mais antigo para o mais recente.",
@@ -1288,6 +1291,7 @@ const catalogs: Record<Locale, Messages> = {
     crosswordShareHeader: "K-pop Crossword",
     crosswordArtifactMissing: "Today's crossword has not been published yet. Try again later.",
     crosswordOmitted: "There is no crossword today: no grid passed the clue checks. Come back tomorrow.",
+    crosswordUnavailable: "Today's crossword is unavailable: it could not be generated. Come back tomorrow.",
     timelineTitle: "K-pop Timeline",
     timelineEyebrow: "Daily challenge",
     timelineIntro: "Order the K-pop events from earliest to latest.",

@@ -49,7 +49,8 @@ com a contagem de tentativas rejeitadas.
 
 `load_base(Path(...))` lê o universo factual; `read_base(conexão)` faz o mesmo
 numa conexão já aberta (a do runner). `validate_published(envelope)` aplica as
-regras que não dependem da base, usadas pelo publicador e espelhadas na página. `generate(base, data, seed,
+regras que não dependem da base, usadas pelo publicador; a página aplica as
+mesmas, exceto a ordem canônica das entradas (ver `docs/crossword-game.md`). `generate(base, data, seed,
 contexto, limits=None)` retorna o envelope, e `validate(envelope, base)` recalcula
 as correspondências e a prova. `next_context(envelope, base)` valida uma saída e
 produz o contexto da próxima data. As funções não escrevem arquivos nem fazem

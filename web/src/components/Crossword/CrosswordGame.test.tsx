@@ -10,7 +10,7 @@ import { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 import { CrosswordGame } from "./CrosswordGame";
 import { generateCrosswordShareText } from "./CrosswordResult";
 import { crosswordStorageKey } from "./crossword-save";
-import { buildCrosswordDaily, buildOmittedCrosswordDaily } from "../../test/crossword-daily-fixture";
+import { buildCrosswordDaily, buildCrosswordOmissionRecord, buildOmittedCrosswordDaily } from "../../test/crossword-daily-fixture";
 
 // The audited pilot board, published as today's crossword-daily-v1 envelope.
 const today = dailyReferenceDate();
@@ -24,10 +24,17 @@ const STORAGE_KEY = crosswordStorageKey(puzzle);
 
 let clock = 1000;
 
-/** Serves payload as data/crossword.daily.json; data/next/ answers next (404 by default). */
-function serve(payload: unknown = daily, next: unknown = null) {
+/**
+ * Serves payload as data/crossword.daily.json; data/next/ answers next (404
+ * by default). Today's publication record answers record from data/next/,
+ * where the runner publishes the day ahead, and 404 elsewhere.
+ */
+function serve(payload: unknown = daily, next: unknown = null, record: unknown = null) {
   vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
-    const body = String(url).includes("/next/") ? next : payload;
+    const path = String(url);
+    const body = path.includes("crossword-publication.")
+      ? (path.includes("/next/") ? record : null)
+      : path.includes("/next/") ? next : payload;
     return Promise.resolve(body === null ? new Response("", { status: 404 }) : new Response(JSON.stringify(body)));
   }));
 }
@@ -297,6 +304,30 @@ describe("CrosswordGame", () => {
     render(<CrosswordGame locale="en" />);
     expect(await screen.findByText(en.crosswordOmitted)).toBeInTheDocument();
     expect(screen.queryByTestId("game-board")).not.toBeInTheDocument();
+  });
+
+  it("says today's crossword is unavailable when its history was missing", async () => {
+    serve(await buildCrosswordDaily(puzzle, "2000-01-01"), null, buildCrosswordOmissionRecord(today));
+    render(<CrosswordGame locale="pt-BR" />);
+    expect(await screen.findByText(pt.crosswordUnavailable)).toBeInTheDocument();
+    expect(screen.queryByText(pt.crosswordArtifactMissing)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("game-board")).not.toBeInTheDocument();
+  });
+
+  it("says today's crossword is unavailable after a generation error, without the internal reason", async () => {
+    const reason = "generation failed: database disk image is malformed";
+    serve(null, null, buildCrosswordOmissionRecord(today, reason));
+    render(<CrosswordGame locale="en" />);
+    expect(await screen.findByText(en.crosswordUnavailable)).toBeInTheDocument();
+    expect(screen.getByTestId("game-missing")).not.toHaveTextContent(/generation failed|malformed/);
+    expect(screen.queryByTestId("game-board")).not.toBeInTheDocument();
+  });
+
+  it("still says not published yet when nothing for today exists", async () => {
+    serve(null, null, null);
+    render(<CrosswordGame locale="pt-BR" />);
+    expect(await screen.findByText(pt.crosswordArtifactMissing)).toBeInTheDocument();
+    expect(screen.queryByText(pt.crosswordUnavailable)).not.toBeInTheDocument();
   });
 
   it("does not play an earlier day's board as today's", async () => {

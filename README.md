@@ -296,11 +296,14 @@ sem fonte e revisões inconsistentes.
 
 A página só joga a grade datada de hoje (horário de São Paulo), lida de
 `data/` ou, publicada antes, de `data/next/`. Uma grade de outro dia nunca
-aparece no lugar da de hoje: sem arquivo do dia, a página diz que a cruzadinha
-ainda não foi publicada; com o dia publicado como omitido, diz que não há
-cruzadinha hoje. O navegador confere o checksum do envelope, a geometria, as
-fontes e a exclusão da véspera; a correspondência factual e a prova de
-unicidade são recalculadas pelo runner, que tem a base. O progresso fica no
+aparece no lugar da de hoje: sem envelope nem registro do dia, a página diz
+que a cruzadinha ainda não foi publicada; com o envelope omitido, diz que não
+há cruzadinha hoje; com só o registro `omitted` (histórico da véspera ausente
+ou erro de geração), diz que a cruzadinha de hoje está indisponível, sem
+mostrar o motivo interno. O navegador confere o checksum do envelope, o
+histórico, a contagem de tentativas, a geometria, as fontes e a exclusão da
+véspera; a correspondência factual e a prova de unicidade são recalculadas
+pelo runner, que tem a base. O progresso fica no
 `localStorage` em `kpop-crossword-<dataset_version>` (checksum do envelope,
 que cobre a data), a partida concluída conta uma vez nas estatísticas (aba
 "Cruzadinha" / "Crossword", no dia local em que terminou) e o texto

@@ -62,3 +62,25 @@ export async function buildOmittedCrosswordDaily(referenceDate: string): Promise
   envelope.dataset_version = await crosswordChecksum(envelope);
   return envelope;
 }
+
+/**
+ * The crossword-publication record of a day published without any envelope,
+ * as omission_record() in kpop_scraping/crossword_publication.py writes it
+ * when the history of the day before is missing or generation fails.
+ */
+export function buildCrosswordOmissionRecord(
+  referenceDate: string,
+  reason = "missing previous-day crossword history",
+): Record<string, unknown> {
+  return {
+    schema_version: "kpop-crossword-publication-v1",
+    reference_date: referenceDate,
+    source: "daily",
+    state: "omitted",
+    qids: [],
+    dataset_version: null,
+    base_id: null,
+    previous: null,
+    reason,
+  };
+}

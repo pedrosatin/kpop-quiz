@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { dailyReferenceDate } from "../src/data/daily-artifact";
-import { buildCrosswordDaily, buildOmittedCrosswordDaily } from "../src/test/crossword-daily-fixture";
+import { buildCrosswordDaily, buildCrosswordOmissionRecord, buildOmittedCrosswordDaily } from "../src/test/crossword-daily-fixture";
 import { crosswordDaily, pilotBoard, routeCrosswordDaily } from "./helpers/crossword-daily";
 import { delayPassiveEffects, settleEffects } from "./helpers/passive-effects";
 import { gamePlayed } from "./helpers/player-stats";
@@ -136,6 +136,25 @@ test("a day published as omitted says there is no crossword and plays no earlier
   await expect(page.getByTestId("game-missing")).toContainText("Não há cruzadinha hoje");
   await expect(page.locator("#crossword input")).toHaveCount(0);
 });
+
+for (const [cause, reason] of [
+  ["missing history of the day before", "missing previous-day crossword history"],
+  ["generation error", "generation failed: database disk image is malformed"],
+] as const) {
+  test(`a day omitted by a ${cause} says the crossword is unavailable, not late`, async ({ page, baseURL }) => {
+    // No envelope for today: only its record, published ahead in data/next/.
+    const today = dailyReferenceDate();
+    await page.route("**/data/crossword.daily.json", (route) => route.fulfill({ status: 404, body: "" }));
+    await page.route("**/data/next/crossword.daily.json", (route) => route.fulfill({ status: 404, body: "" }));
+    await page.route(`**/data/next/crossword-publication.${today}.json`, (route) => route.fulfill({ json: buildCrosswordOmissionRecord(today, reason) }));
+    await page.goto(joinBaseUrl(baseURL!, prefix + copy.en.path));
+    const state = page.getByTestId("game-missing");
+    await expect(state).toContainText("Today's crossword is unavailable");
+    await expect(state).not.toContainText("not been published yet");
+    await expect(state).not.toContainText(reason);
+    await expect(page.locator("#crossword input")).toHaveCount(0);
+  });
+}
 
 test("keyboard editing, crossed clues and digits remain playable", async ({ page, baseURL }) => {
   const numeric = structuredClone(puzzle);

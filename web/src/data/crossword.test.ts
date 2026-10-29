@@ -23,7 +23,7 @@ import {
   CROSSWORD_DAILY_SCHEMA_VERSION,
   type CrosswordPuzzle,
 } from "./crossword";
-import { buildCrosswordDaily, buildOmittedCrosswordDaily } from "../test/crossword-daily-fixture";
+import { buildCrosswordDaily, buildCrosswordOmissionRecord, buildOmittedCrosswordDaily } from "../test/crossword-daily-fixture";
 
 // The schema and the rejection cases are shared with the Python validator
 // (tests/test_crossword_schema.py), so both sides reject the same artifacts.
@@ -96,7 +96,7 @@ describe("crossword artifact contract", () => {
   });
 
   it("accepts a ready envelope and plays it under the envelope checksum", async () => {
-    const daily = await buildCrosswordDaily(board, TODAY, ["Q1"]);
+    const daily = await buildCrosswordDaily(board, TODAY, ["Q1", "Q2", "Q3"]);
     const result = await validateCrosswordDaily(daily);
     expect(result.status).toBe("ready");
     if (result.status !== "ready") return;
@@ -109,7 +109,8 @@ describe("crossword artifact contract", () => {
   it("rejects a tampered envelope, a repeated group of the eve and a bad board", async () => {
     const daily = await buildCrosswordDaily(board, TODAY);
     await expect(validateCrosswordDaily({ ...daily, seed: "other" })).rejects.toBeInstanceOf(CrosswordArtifactError);
-    const repeat = await buildCrosswordDaily(board, TODAY, [board.vocabulary[0]!]);
+    // A canonical history whose only fault is a group of the board.
+    const repeat = await buildCrosswordDaily(board, TODAY, [board.vocabulary[0]!, "Q1", "Q2"]);
     await expect(validateCrosswordDaily(repeat)).rejects.toBeInstanceOf(CrosswordArtifactError);
     const crossing = structuredClone(board);
     crossing.cells[0]!.answer = "Z";
@@ -126,7 +127,8 @@ describe("crossword artifact contract", () => {
     const yesterday = await buildCrosswordDaily(board, "2026-10-28");
     const serve = (main: unknown, next: unknown) => {
       const fetchMock = vi.fn().mockImplementation((url: string) => {
-        const body = String(url).includes("/next/") ? next : main;
+        // No publication record in these cases: see the record test below.
+        const body = String(url).includes("crossword-publication.") ? 404 : String(url).includes("/next/") ? next : main;
         if (body === 404) return Promise.resolve(new Response("", { status: 404 }));
         if (body === 500) return Promise.resolve(new Response("", { status: 500 }));
         return Promise.resolve(new Response(typeof body === "string" ? body : JSON.stringify(body)));
@@ -153,5 +155,70 @@ describe("crossword artifact contract", () => {
     // The pilot contract is not a daily envelope.
     serve(published, 404);
     await expect(loadCrosswordPuzzle("/", undefined, TODAY)).rejects.toMatchObject({ kind: "invalid" });
+  });
+
+  it("tells a day whose generation failed from one not published yet by today's record", async () => {
+    const yesterday = await buildCrosswordDaily(board, "2026-10-28");
+    const played = { ...buildCrosswordOmissionRecord(TODAY), state: "played", qids: [...board.vocabulary], reason: null };
+    const serve = (files: Record<string, unknown>) => {
+      const fetchMock = vi.fn().mockImplementation((url: string) => {
+        const body = files[String(url)];
+        if (body === undefined) return Promise.resolve(new Response("", { status: 404 }));
+        return Promise.resolve(new Response(typeof body === "string" ? body : JSON.stringify(body)));
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      return fetchMock;
+    };
+    const record = `crossword-publication.${TODAY}.json`;
+    // The history of the day before was missing: only the record was published.
+    serve({ "/data/crossword.daily.json": yesterday, [`/data/next/${record}`]: buildCrosswordOmissionRecord(TODAY) });
+    await expect(loadCrosswordPuzzle("/", undefined, TODAY)).rejects.toMatchObject({ kind: "unavailable" });
+    // A generation error, confirmed in data/ after promotion.
+    const failed = buildCrosswordOmissionRecord(TODAY, "generation failed: database is locked");
+    const fetchMock = serve({ [`/data/${record}`]: failed });
+    await expect(loadCrosswordPuzzle("/", undefined, TODAY)).rejects.toMatchObject({ kind: "unavailable" });
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(["/data/crossword.daily.json", "/data/next/crossword.daily.json", `/data/${record}`]);
+    // Nothing for today anywhere: not published yet.
+    serve({ "/data/crossword.daily.json": yesterday, "/data/crossword-publication.2026-10-28.json": played });
+    await expect(loadCrosswordPuzzle("/", undefined, TODAY)).rejects.toMatchObject({ kind: "missing" });
+    // A record that says played without its board, or a broken record, fails closed.
+    serve({ [`/data/next/${record}`]: played });
+    await expect(loadCrosswordPuzzle("/", undefined, TODAY)).rejects.toMatchObject({ kind: "invalid" });
+    serve({ [`/data/${record}`]: { ...failed, reference_date: "2026-10-28" } });
+    await expect(loadCrosswordPuzzle("/", undefined, TODAY)).rejects.toMatchObject({ kind: "invalid" });
+    serve({ [`/data/${record}`]: { ...failed, reason: null } });
+    await expect(loadCrosswordPuzzle("/", undefined, TODAY)).rejects.toMatchObject({ kind: "invalid" });
+    // An envelope of today, ready or omitted, wins over the record.
+    serve({ "/data/next/crossword.daily.json": await buildOmittedCrosswordDaily(TODAY), [`/data/${record}`]: failed });
+    await expect(loadCrosswordPuzzle("/", undefined, TODAY)).rejects.toMatchObject({ kind: "omitted" });
+  });
+
+  it("checks the history and the attempt accounting of the envelope like validate_published()", async () => {
+    const reseal = async (envelope: Record<string, unknown>) => ({ ...envelope, dataset_version: await crosswordChecksum(envelope) });
+    const daily = await buildCrosswordDaily(board, TODAY);
+    const omitted = await buildOmittedCrosswordDaily(TODAY);
+    const rejected = [
+      // History: wrong date, bootstrap dated the day before, unsorted QIDs, state and QIDs disagree.
+      { ...daily, previous: { state: "omitted", date: "2026-10-27", qids: [] } },
+      { ...daily, previous: { state: "bootstrap", date: "2026-10-28", qids: [] } },
+      { ...daily, previous: { state: "played", date: "2026-10-28", qids: ["Q9", "Q8", "Q7"] } },
+      { ...daily, previous: { state: "played", date: "2026-10-28", qids: ["Q7"] } },
+      { ...daily, previous: { state: "omitted", date: "2026-10-28", qids: ["Q7"] } },
+      // Accounting: a ready board after rejections it does not count, budgets, unknown rejection.
+      { ...daily, attempts: 2 },
+      { ...daily, attempts: 201, rejections: { placement: 200 } },
+      { ...daily, limits: { attempts: 0, placement_nodes: 5000, proof_nodes: 10000 } },
+      { ...daily, attempts: 2, rejections: { other: 1 } },
+      { ...daily, seed: "" },
+      { ...daily, status: "pending" },
+      // An omission that did not spend every attempt.
+      { ...omitted, attempts: 1, rejections: { placement: 1 } },
+      { ...omitted, rejections: { placement: 1 } },
+    ];
+    for (const envelope of rejected) {
+      await expect(validateCrosswordDaily(await reseal(envelope))).rejects.toBeInstanceOf(CrosswordArtifactError);
+    }
+    await expect(validateCrosswordDaily(await reseal({ ...daily, previous: { state: "bootstrap", date: TODAY, qids: [] } }))).resolves.toMatchObject({ status: "ready" });
+    await expect(validateCrosswordDaily(await reseal({ ...daily, attempts: 3, rejections: { placement: 1, validation: 1 } }))).resolves.toMatchObject({ status: "ready" });
   });
 });
