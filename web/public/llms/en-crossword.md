@@ -9,8 +9,9 @@ a member, and the names cross at shared letters. Leave out spaces, punctuation
 and accents, but keep numbers. Check your answers as often as you like, or
 reveal them.
 
-The crossword is a fixed puzzle, reviewed by hand: the same grid for every player, with
-no daily change. Progress is saved in the browser.
+A new grid comes out every day, the same for every player, with no group from
+the day before. On a day without a verified grid, there is no crossword.
+Progress is saved in the browser.
 
 ## Provenance and license
 

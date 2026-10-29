@@ -1,6 +1,6 @@
 """Unified daily puzzle generation and publishing runner.
 
-Deterministically generates and atomically publishes the 7 daily K-pop puzzle games:
+Deterministically generates and atomically publishes the 8 daily K-pop puzzle games:
 1. Daily bilingual quiz sessions (and session.pt-BR.json, session.en.json)
 2. Intersection grid (grid.daily.json)
 3. Connections puzzle (connections.daily.json)
@@ -8,6 +8,7 @@ Deterministically generates and atomically publishes the 7 daily K-pop puzzle ga
 5. Word search puzzle (word-search.daily.json)
 6. Timeline puzzle (timeline.daily.json)
 7. Group code pilot (code-groups.daily.json)
+8. Crossword (crossword.daily.json, with crossword-publication.<date>.json)
 
 Failure policy (partial publish): a generation failure of the group code
 pilot never blocks the daily batch. The other six games of the day still
@@ -20,6 +21,16 @@ The runner's verification passes ``require_code_groups=False`` so a day
 without the artifact still verifies, while a present file is always
 validated. Callers that must have the artifact pass the
 ``--require-code-groups`` flag of ``kpop_scraping.web_publish``.
+
+The crossword follows the same partial publish policy and never reuses an
+earlier board. It cannot repeat a group of the day before, so each set also
+carries a durable record of what its day published (see
+``crossword_publication``), and a day is generated from the confirmed record
+of the previous one. A day without that record, a fact base that cannot be
+read, or a generator that exhausts its attempts publishes no board: the
+record says ``omitted`` and the page tells the player there is no crossword
+that day. An exhausted generator still publishes its ``status: omitted``
+artifact, so the page knows the day was omitted rather than late.
 """
 
 from __future__ import annotations
@@ -36,6 +47,19 @@ from typing import Any
 
 from .code_groups_cli import generate as generate_code_groups_puzzle
 from .connections_generator import generate_connections_puzzle
+from .crossword_daily import generate as generate_daily_crossword
+from .crossword_daily import validate as validate_daily_crossword
+from .crossword_daily import validate_published as validate_published_crossword
+from .crossword_daily_repository import read_base as read_crossword_base
+from .crossword_publication import (
+    confirmed_record as confirmed_crossword_record,
+    context_for as crossword_context_for,
+    omission_record as crossword_omission_record,
+    read_record as read_crossword_record,
+    record_from_artifact as crossword_record_from_artifact,
+    verify_history as verify_crossword_history,
+    write_record as write_crossword_record,
+)
 from .grid_generator import generate_daily_grid, grid_incompatibility
 from .grid_publication import publication, read_publication, write_publication
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
@@ -55,6 +79,7 @@ from .timeline_generator import generate_timeline_puzzle
 from .web_publish import (
     CODE_GROUPS_DAILY_FILENAME,
     CONNECTIONS_DAILY_FILENAME,
+    CROSSWORD_DAILY_FILENAME,
     DIFFICULTIES,
     ENRICHED_MANIFEST_FILENAME,
     GRID_DAILY_FILENAME,
@@ -74,6 +99,9 @@ from .word_search_generator import generate_word_search_puzzle_with_fallback
 
 # Holds the next day's set, published ahead of time.
 NEXT_DIRNAME = "next"
+# The checksum of every crossword artifact already covers its date.
+CROSSWORD_SEED = "kpop-crossword-daily"
+MISSING_CROSSWORD_HISTORY = "missing previous-day crossword history"
 
 
 def get_reference_date(date_val: str | date | None = None) -> str:
@@ -110,8 +138,9 @@ def generate_daily_puzzles(
     base_seed: str = "web-launch-v1",
     timer_seconds: int | None = None,
     related_clues: bool = False,
+    crossword_previous: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Deterministically generate the 7 daily puzzles for reference_date.
+    """Deterministically generate the 8 daily puzzles for reference_date.
 
     The quiz sessions always come out without related decade clues: those are
     the ones the v2 manifest lists, and a client released before the clues
@@ -122,7 +151,11 @@ def generate_daily_puzzles(
     The group code pilot is best-effort: when its generation fails, the
     returned puzzles carry ``code_groups=None`` plus ``code_groups_error``
     and the day publishes without the artifact (partial publish policy, see
-    the module docstring). The other six games still raise on failure.
+    the module docstring). The crossword is generated from
+    ``crossword_previous``, the history context of the confirmed day before;
+    None means that history is missing, and the day omits its crossword. The
+    returned ``crossword_record`` always says what the day publishes. The
+    other six games still raise on failure.
     """
     iso_date = get_reference_date(reference_date)
     ref_date = date.fromisoformat(iso_date)
@@ -198,6 +231,9 @@ def generate_daily_puzzles(
             f"code-groups.daily.json: {exc}\n"
         )
 
+    # 8. Crossword. Partial publish policy too, and never an earlier board.
+    crossword, crossword_record = _generate_crossword(connection, iso_date, crossword_previous)
+
     return {
         "reference_date": iso_date,
         "dataset_version": dataset["dataset_version"],
@@ -219,7 +255,35 @@ def generate_daily_puzzles(
         "timeline": timeline,
         "code_groups": code_groups,
         "code_groups_error": code_groups_error,
+        "crossword": crossword,
+        "crossword_record": crossword_record,
     }
+
+
+def _generate_crossword(
+    connection: sqlite3.Connection, iso_date: str, previous: dict[str, Any] | None
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Crossword artifact of the day (None when there is none) and its record.
+
+    The artifact is validated against the same fact base before it is
+    returned, including the previous-day exclusion, so the publisher never
+    writes a board the generator could not prove.
+    """
+    if previous is None:
+        sys.stderr.write(
+            f"Daily crossword not generated for {iso_date}: {MISSING_CROSSWORD_HISTORY}\n"
+        )
+        return None, crossword_omission_record(iso_date, MISSING_CROSSWORD_HISTORY)
+    try:
+        base = read_crossword_base(connection)
+        artifact = generate_daily_crossword(base, iso_date, CROSSWORD_SEED, previous)
+        validate_daily_crossword(artifact, base)
+        if artifact["previous"] != previous:
+            raise ValueError("crossword history differs from the confirmed previous day")
+    except (ValueError, sqlite3.Error) as exc:
+        sys.stderr.write(f"Daily crossword generation failed for {iso_date}: {exc}\n")
+        return None, crossword_omission_record(iso_date, f"generation failed: {exc}")
+    return artifact, crossword_record_from_artifact(artifact)
 
 
 def publish_daily_puzzles(
@@ -262,7 +326,11 @@ def publish_daily_puzzles(
             timeline=puzzles["timeline"],
             code_groups=puzzles["code_groups"],
             enriched_sessions=puzzles.get("enriched_sessions"),
+            crossword=puzzles.get("crossword"),
         )
+        crossword_record = puzzles.get("crossword_record")
+        if crossword_record is not None:
+            write_crossword_record(staging_dir, crossword_record)
         grid_skipped = None
         if puzzles["grid"] is None:
             previous_invalid = _invalid_grid_reason(previous_grid, connection)
@@ -331,6 +399,7 @@ def publish_daily_puzzles(
                 puzzles["code_groups"]["puzzle_id"] if puzzles["code_groups"] is not None else None
             ),
             "code_groups_skipped": code_groups_skipped,
+            **_crossword_result(puzzles.get("crossword"), crossword_record),
             "related_clues": puzzles.get("enriched_sessions") is not None,
             "dry_run": dry_run,
             "output_dir": str(output_dir),
@@ -357,6 +426,9 @@ def publish_daily_puzzles(
                 (output_dir / CODE_GROUPS_DAILY_FILENAME).unlink()
             except FileNotFoundError:
                 pass
+        if puzzles.get("crossword") is None:
+            # An earlier day's board must not stand for this day.
+            (output_dir / CROSSWORD_DAILY_FILENAME).unlink(missing_ok=True)
 
         if puzzles.get("enriched_sessions") is None:
             # Like the grid: the directory installs without prune, and an
@@ -368,6 +440,26 @@ def publish_daily_puzzles(
         # artifact stay optional here too.
         verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
         return result
+
+
+def _crossword_result(
+    artifact: dict[str, Any] | None, record: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Crossword fields of a runner result; ``crossword_record`` feeds the next day."""
+    ready = artifact is not None and artifact["status"] == "ready"
+    return {
+        "crossword_id": artifact["dataset_version"] if ready else None,
+        # A pilot record has no reason: its set predates the daily crossword.
+        "crossword_skipped": (
+            None
+            if ready or record is None
+            else {
+                "reason": record["reason"] or "set published before the daily crossword",
+                "state": record["state"],
+            }
+        ),
+        "crossword_record": record,
+    }
 
 
 def _invalid_grid_reason(grid_path: Path, connection: sqlite3.Connection | None = None) -> str | None:
@@ -524,6 +616,10 @@ def _published_result(output_dir: Path, reference_date: str, **flags: Any) -> di
         if code_groups_path.is_file()
         else None
     )
+    crossword_path = output_dir / CROSSWORD_DAILY_FILENAME
+    crossword = (
+        json.loads(crossword_path.read_text(encoding="utf-8")) if crossword_path.is_file() else None
+    )
     return {
         "reference_date": reference_date,
         "dataset_version": read(MANIFEST_FILENAME)["dataset_version"],
@@ -538,6 +634,7 @@ def _published_result(output_dir: Path, reference_date: str, **flags: Any) -> di
         "code_groups_skipped": (
             {"published_without_code_groups": True} if code_groups is None else None
         ),
+        **_crossword_result(crossword, read_crossword_record(output_dir, reference_date)),
         "dry_run": False,
         "output_dir": str(output_dir),
         **flags,
@@ -566,8 +663,11 @@ def keep_or_promote_day(
         read_publication(output_dir, reference_date)
         verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
         revalidated = _revalidate_published_grid(output_dir, reference_date, connection) if connection else None
+        crossword = _confirm_crossword_day(output_dir, reference_date, connection)
+        verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
         return _published_result(
-            output_dir, reference_date, grid_revalidated=revalidated, already_published=True
+            output_dir, reference_date, grid_revalidated=revalidated,
+            crossword_confirmed=crossword, already_published=True,
         )
     next_dir = output_dir / NEXT_DIRNAME
     if _published_day(next_dir) != reference_date:
@@ -592,6 +692,12 @@ def keep_or_promote_day(
             (output_dir / CODE_GROUPS_DAILY_FILENAME).unlink()
         except FileNotFoundError:
             pass
+    if not (next_dir / CROSSWORD_DAILY_FILENAME).is_file():
+        # Same again: an earlier day's board never stands for this day.
+        (output_dir / CROSSWORD_DAILY_FILENAME).unlink(missing_ok=True)
+    crossword = _confirm_crossword_day(output_dir, reference_date, connection)
+    if crossword is not None and crossword["action"] != "recorded":
+        _copy_crossword_day(output_dir, next_dir, reference_date)
     revalidated = _revalidate_published_grid(output_dir, reference_date, connection) if connection else None
     if revalidated is not None:
         current = output_dir / GRID_DAILY_FILENAME
@@ -604,8 +710,64 @@ def keep_or_promote_day(
         write_publication(next_dir, read_publication(output_dir, reference_date))
     verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
     return _published_result(
-        output_dir, reference_date, grid_revalidated=revalidated, promoted_from_next=True
+        output_dir, reference_date, grid_revalidated=revalidated,
+        crossword_confirmed=crossword, promoted_from_next=True,
     )
+
+
+def _confirm_crossword_day(
+    output_dir: Path, reference_date: str, connection: sqlite3.Connection | None
+) -> dict[str, Any] | None:
+    """Make the crossword record of a kept or promoted day confirmed and consistent.
+
+    A set published before the daily integration has no record; it gets one
+    from what it publishes (the audited pilot board, before any record exists).
+    A daily board generated ahead from a history that no longer matches the
+    confirmed record of the day before (that day was published again) is
+    generated again from the confirmed history, or omitted when it cannot be.
+    Returns None when nothing changed.
+    """
+    record = read_crossword_record(output_dir, reference_date)
+    if record is None:
+        record = confirmed_crossword_record(output_dir, reference_date) or crossword_omission_record(
+            reference_date, "published set carries no crossword record"
+        )
+        write_crossword_record(output_dir, record)
+        return {"action": "recorded", "state": record["state"], "source": record["source"]}
+    if record["source"] != "daily" or connection is None:
+        return None
+    previous_day = (date.fromisoformat(reference_date) - timedelta(days=1)).isoformat()
+    expected = crossword_context_for(
+        reference_date, confirmed_crossword_record(output_dir, previous_day)
+    )
+    if expected == record["previous"]:
+        return None
+    artifact, replacement = _generate_crossword(connection, reference_date, expected)
+    if artifact is None:
+        (output_dir / CROSSWORD_DAILY_FILENAME).unlink(missing_ok=True)
+    else:
+        # _generate_crossword already validated it against the fact base.
+        write_json_atomic(output_dir / CROSSWORD_DAILY_FILENAME, artifact, validate_published_crossword)
+    write_crossword_record(output_dir, replacement)
+    return {
+        "action": "regenerated" if artifact is not None and artifact["status"] == "ready" else "omitted",
+        "previous_dataset_version": record["dataset_version"],
+        "reason": replacement["reason"],
+    }
+
+
+def _copy_crossword_day(source: Path, target: Path, reference_date: str) -> None:
+    """Keep next/ in step with a promoted day whose crossword was replaced."""
+    artifact = source / CROSSWORD_DAILY_FILENAME
+    if artifact.is_file():
+        write_json_atomic(
+            target / CROSSWORD_DAILY_FILENAME,
+            json.loads(artifact.read_text(encoding="utf-8")),
+            validate_published_crossword,
+        )
+    else:
+        (target / CROSSWORD_DAILY_FILENAME).unlink(missing_ok=True)
+    write_crossword_record(target, read_crossword_record(source, reference_date))
 
 
 def run_daily_puzzles(
@@ -641,6 +803,7 @@ def run_daily_puzzles(
         next_dir = output_dir_path / NEXT_DIRNAME
         if (next_dir / MANIFEST_FILENAME).is_file():
             verify_artifacts(next_dir, require_grid=False, require_code_groups=False)
+        verify_crossword_history(output_dir_path, next_dir)
         return {
             "status": "verified",
             "output_dir": str(output_dir_path),
@@ -661,22 +824,29 @@ def run_daily_puzzles(
     try:
         result = None if dry_run or regenerate else keep_or_promote_day(output_dir_path, iso_date, connection)
         if result is None:
+            previous_day = (date.fromisoformat(iso_date) - timedelta(days=1)).isoformat()
             puzzles = generate_daily_puzzles(
                 connection,
                 reference_date=iso_date,
                 base_seed=base_seed,
                 timer_seconds=timer_seconds,
                 related_clues=related_clues,
+                crossword_previous=crossword_context_for(
+                    iso_date, confirmed_crossword_record(output_dir_path, previous_day)
+                ),
             )
             result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run, connection=connection)
         if ahead:
             next_date = (date.fromisoformat(iso_date) + timedelta(days=1)).isoformat()
+            # The day just published or kept is the history of the next one,
+            # also in a dry run, where nothing reached the main directory.
             next_puzzles = generate_daily_puzzles(
                 connection,
                 reference_date=next_date,
                 base_seed=base_seed,
                 timer_seconds=timer_seconds,
                 related_clues=related_clues,
+                crossword_previous=crossword_context_for(next_date, result["crossword_record"]),
             )
             result["next"] = publish_daily_puzzles(
                 output_dir_path / NEXT_DIRNAME,
@@ -686,6 +856,8 @@ def run_daily_puzzles(
                 prune=True,
                 connection=connection,
             )
+            if not dry_run:
+                verify_crossword_history(output_dir_path, output_dir_path / NEXT_DIRNAME)
         # Prefer today's dataset when both exist: the catalog lives in the main
         # directory beside today's sessions. Fall back to next/ or regenerate.
         result["catalog"] = _publish_run_catalog(
