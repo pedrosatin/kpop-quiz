@@ -17,7 +17,8 @@ import { clearCatalogCache } from "../../data/catalog-loader";
 import {
   buildQuizProgressEnvelope,
   buildQuizProgressSave,
-  QUIZ_PROGRESS_STORAGE_KEY,
+  QUIZ_PROGRESS_LEGACY_STORAGE_KEY,
+  quizProgressStorageKey,
   saveQuizProgress,
 } from "./storage";
 import type { QuizSession } from "../../lib/quiz-types";
@@ -962,7 +963,7 @@ describe("Quiz", () => {
     const option = question.options[0]!;
     fireEvent.click(screen.getByRole("radio", { name: option.label }));
     await vi.waitFor(() => {
-      const raw = window.localStorage.getItem(QUIZ_PROGRESS_STORAGE_KEY);
+      const raw = window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }));
       expect(raw).toBeTruthy();
       expect(JSON.parse(raw!).selected_id).toBe(option.id);
     });
@@ -1089,8 +1090,8 @@ describe("Quiz", () => {
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     // Persist happens for question.ready; confirm open is not part of the save.
-    await vi.waitFor(() => expect(window.localStorage.getItem(QUIZ_PROGRESS_STORAGE_KEY)).toBeTruthy());
-    const parsed = JSON.parse(window.localStorage.getItem(QUIZ_PROGRESS_STORAGE_KEY)!);
+    await vi.waitFor(() => expect(window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }))).toBeTruthy());
+    const parsed = JSON.parse(window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }))!);
     expect(parsed).not.toHaveProperty("confirm_give_up_open");
 
     document.body.innerHTML = "";
@@ -1101,9 +1102,9 @@ describe("Quiz", () => {
     expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
   });
 
-  it("warns and stays usable when the saved schema is incompatible (en)", async () => {
+  it("warns and stays usable when the saved schema is invalid (en)", async () => {
     window.localStorage.setItem(
-      QUIZ_PROGRESS_STORAGE_KEY,
+      quizProgressStorageKey({ locale: "en", playMode: "standard", theme: "history", decades: [] }),
       JSON.stringify({ schema_version: "kpop-quiz-progress-v0", session_id: "x" }),
     );
     mockSessionFetch();
@@ -1145,6 +1146,126 @@ describe("Quiz", () => {
     render(<Quiz locale="pt-BR" />);
     expect(await screen.findByText(/não combina com os dados atuais/i)).toBeInTheDocument();
     expect(screen.getByTestId("game-start")).toBeEnabled();
+  });
+
+  it("migrates a legacy single-slot save into the current config slot", async () => {
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    const save = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: option.id,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now() - 5_000,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    window.localStorage.setItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY, JSON.stringify(save));
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: question.prompt })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: option.label })).toBeChecked();
+    expect(window.localStorage.getItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }))).toBeTruthy();
+  });
+
+  it("keeps a pt-BR in-progress save when opening the English quiz", async () => {
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    const ptSave = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: option.id,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now() - 5_000,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    saveQuizProgress(ptSave);
+    const ptKey = quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] });
+    const before = window.localStorage.getItem(ptKey);
+    mockSessionFetch();
+    render(<Quiz locale="en" />);
+    await waitForSetupReady("Set up your game");
+    expect(screen.getByTestId("game-start")).toBeEnabled();
+    expect(window.localStorage.getItem(ptKey)).toBe(before);
+    expect(screen.queryByRole("heading", { name: question.prompt })).not.toBeInTheDocument();
+  });
+
+  it("leaves an incompatible legacy save alone when the current locale differs", async () => {
+    const ptSave = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now(),
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: null,
+    });
+    window.localStorage.setItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY, JSON.stringify(ptSave));
+    mockSessionFetch();
+    render(<Quiz locale="en" />);
+    expect(await screen.findByText(/does not match the current data/i)).toBeInTheDocument();
+    expect(window.localStorage.getItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY)).toBeTruthy();
+    await waitForSetupReady("Set up your game");
+  });
+
+  it("autosaves and restores a radio selection made with the keyboard", async () => {
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    const radio = screen.getByRole("radio", { name: option.label });
+    radio.focus();
+    fireEvent.keyDown(radio, { key: " ", code: "Space" });
+    fireEvent.click(radio);
+    const ptKey = quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] });
+    await vi.waitFor(() => {
+      const raw = window.localStorage.getItem(ptKey);
+      expect(raw).toBeTruthy();
+      expect(JSON.parse(raw!).selected_id).toBe(option.id);
+    });
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: question.prompt })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: option.label })).toBeChecked();
   });
 });
 

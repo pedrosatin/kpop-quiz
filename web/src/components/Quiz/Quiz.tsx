@@ -25,6 +25,7 @@ import {
   saveQuizProgress,
   saveStoredPlayMode,
   saveStoredTimerEnabled,
+  type QuizProgressConfigIdentity,
   type QuizProgressSave,
 } from "./storage";
 import { computeAwardedPoints } from "./scoring";
@@ -96,6 +97,12 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const timerSeconds = timerEnabled ? 20 : session?.config.timer_seconds ?? null;
   const decadeKey = decades.join(",");
   const requestKey = `${locale}|${playMode}|${theme}|${decadeKey}`;
+  const progressConfig = (): QuizProgressConfigIdentity => ({
+    locale,
+    playMode,
+    theme,
+    decades,
+  });
 
   const closeGiveUpConfirm = useCallback(() => {
     confirmGiveUpOpenRef.current = false;
@@ -213,7 +220,12 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   ) => {
     const expanded = expandHistory(save.history, save.session);
     if (!expanded) {
-      clearQuizProgress();
+      clearQuizProgress({
+        locale: save.locale,
+        playMode: save.play_mode,
+        theme: save.theme,
+        decades: save.decades,
+      });
       setResumeNotice("invalid");
       return false;
     }
@@ -288,7 +300,13 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     source: SessionSource,
     status: ReplayNotice,
   ): boolean => {
-    const loaded = loadQuizProgressSave();
+    const config: QuizProgressConfigIdentity = {
+      locale,
+      playMode,
+      theme,
+      decades: loadedDecades,
+    };
+    const loaded = loadQuizProgressSave(config);
     if (loaded.status === "unavailable") {
       setResumeNotice("storage-unavailable");
       applyRound(value, available, loadedDecades, source, status);
@@ -298,8 +316,14 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       applyRound(value, available, loadedDecades, source, status);
       return true;
     }
+    if (loaded.status === "legacy-elsewhere") {
+      // Legacy single-slot belongs to another config: warn, keep it, clean setup.
+      setResumeNotice("incompatible");
+      applyRound(value, available, loadedDecades, source, status);
+      return true;
+    }
     if (loaded.status === "invalid") {
-      clearQuizProgress();
+      clearQuizProgress(config);
       setResumeNotice("invalid");
       applyRound(value, available, loadedDecades, source, status);
       return true;
@@ -316,7 +340,8 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       setResumeNotice(null);
       return applyRestoredSave(loaded.save, available, source);
     }
-    clearQuizProgress();
+    // Own-slot drift against the live artifact: drop only this config's slot.
+    clearQuizProgress(config);
     setResumeNotice(compat === "invalid" ? "invalid" : "incompatible");
     applyRound(value, available, loadedDecades, source, status);
     return true;
@@ -343,26 +368,34 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       });
 
   const tryResumeCatalog = async (request: number): Promise<boolean> => {
-    const loaded = loadQuizProgressSave();
+    const config = progressConfig();
+    const loaded = loadQuizProgressSave(config);
     if (loaded.status === "unavailable") {
       setResumeNotice("storage-unavailable");
       return false;
     }
     if (loaded.status === "missing") return false;
+    if (loaded.status === "legacy-elsewhere") {
+      // Another config still owns the legacy slot; do not delete it.
+      setResumeNotice("incompatible");
+      return false;
+    }
     if (loaded.status === "invalid") {
-      clearQuizProgress();
+      clearQuizProgress(config);
       setResumeNotice("invalid");
       return false;
     }
     const save = loaded.save;
     if (save.session_source !== "catalog" || save.theme === "daily") return false;
+    // Slot is already keyed by this config; a mismatch here is corrupt identity.
     if (
       save.locale !== locale
       || save.play_mode !== playMode
       || save.theme !== theme
       || save.decades.join(",") !== decadeKey
     ) {
-      // Different setup: leave the save for when the player returns to that config.
+      clearQuizProgress(config);
+      setResumeNotice("invalid");
       return false;
     }
     try {
@@ -378,7 +411,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
         catalogVersion: catalog.catalogVersion,
       });
       if (compat !== "ok") {
-        clearQuizProgress();
+        clearQuizProgress(config);
         setResumeNotice(compat === "invalid" ? "invalid" : "incompatible");
         return false;
       }
@@ -388,7 +421,8 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     } catch (error) {
       if (request !== loadRequestRef.current) return true;
       if (isCatalogMissing(error)) {
-        clearQuizProgress();
+        // Catalog gone: this config's save cannot be validated; clear only it.
+        clearQuizProgress(config);
         setResumeNotice("incompatible");
         return false;
       }
@@ -412,18 +446,13 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
         return selectCatalogRound({ locale, playMode, decades, avoidPrevious: false })
           .then((round) => {
             if (request !== loadRequestRef.current) return;
-            // Fresh catalog draw: drop a stale published save for this config.
-            const existing = loadQuizProgressSave();
+            // Fresh catalog draw for setup only. Leave other configs alone; keep
+            // this config's slot until the player starts (Start overwrites it).
+            const existing = loadQuizProgressSave(progressConfig());
             if (existing.status === "ok") {
-              clearQuizProgress();
-              if (
-                existing.save.locale === locale
-                && existing.save.play_mode === playMode
-                && existing.save.theme === theme
-                && existing.save.decades.join(",") === decadeKey
-              ) {
-                setResumeNotice("incompatible");
-              }
+              setResumeNotice("incompatible");
+            } else if (existing.status === "legacy-elsewhere") {
+              setResumeNotice("incompatible");
             }
             applyRound(
               round.session,
@@ -639,7 +668,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   };
 
   const restart = () => {
-    clearQuizProgress();
+    clearQuizProgress(progressConfig());
     setResumeNotice(null);
     // Daily keeps the published day session. Legacy published rounds (catalog
     // absent) reset the same ten with the legacy repeat notice. Catalog-backed

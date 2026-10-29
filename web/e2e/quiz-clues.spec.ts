@@ -237,17 +237,33 @@ test.describe("a published session keeps its clue state after a reload", () => {
     test(`quiz ${locale.id}: the same artifact gives the same clue state after reload`, async ({ page, baseURL }) => {
       const firstLoad = await openSession(page, baseURL!, locale.path, "standard", "decade=2000");
       const first = await startAndMatch(page, firstLoad);
+      const hasClue = first.questions[0]!.clues_available.length > 0;
+      await expect(page.getByTestId("quiz-no-clue")).toHaveCount(hasClue ? 0 : 1);
+
+      // Q04 restores the in-progress round; the published artifact and clue state must match.
       await page.reload();
-      await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
+      await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId("game-board").getByRole("heading", { level: 2 })).toHaveText(first.questions[0]!.prompt);
+      await expect(page.getByTestId("quiz-no-clue")).toHaveCount(hasClue ? 0 : 1);
+
+      // Drop this config's progress and start again: the published session stays deterministic.
+      await page.evaluate(() => {
+        for (const key of Object.keys(window.localStorage)) {
+          if (key === "kpop-quiz-progress" || key.startsWith("kpop-quiz-progress:")) {
+            window.localStorage.removeItem(key);
+          }
+        }
+      });
       const secondLoad: QuizSession[] = [];
       page.on("response", async (response) => {
-        if (/\/data\/(?:next\/)?session\.[^/]+\.json$/.test(response.url()) && response.ok()) secondLoad.push((await response.json()) as QuizSession);
+        if (/\/data\/(?:next\/)?session\.[^/]+\.json$/.test(response.url()) && response.ok()) {
+          secondLoad.push((await response.json()) as QuizSession);
+        }
       });
-      await page.reload();
+      await page.goto(`${joinBaseUrl(baseURL!, locale.path)}?mode=standard&decade=2000`);
       await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
       const second = await startAndMatch(page, secondLoad.length ? secondLoad : firstLoad);
       expect(second.session_id).toBe(first.session_id);
-      const hasClue = second.questions[0]!.clues_available.length > 0;
       await expect(page.getByTestId("quiz-no-clue")).toHaveCount(hasClue ? 0 : 1);
     });
   }
