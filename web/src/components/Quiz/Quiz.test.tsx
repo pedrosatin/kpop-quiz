@@ -14,7 +14,15 @@ import expertSession from "../../tests/fixtures/session.pt-BR.expert.987d0b408eb
 import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c1ff312324883f8b724318e6bf7c132293eb9ee53ff8f8e0e5c2072562738f4.json";
 import manifest from "../../tests/fixtures/manifest-v2.json";
 import { clearCatalogCache } from "../../data/catalog-loader";
-import { buildQuizProgressEnvelope } from "./storage";
+import {
+  buildQuizProgressEnvelope,
+  buildQuizProgressSave,
+  QUIZ_PROGRESS_LEGACY_STORAGE_KEY,
+  quizProgressStorageKey,
+  saveQuizProgress,
+} from "./storage";
+import type { QuizSession } from "../../lib/quiz-types";
+import { isGameMatchRecorded, PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
 
 const CATALOG_DIR = path.resolve(__dirname, "../../tests/fixtures/catalog");
 const catalogManifest = JSON.parse(fs.readFileSync(path.join(CATALOG_DIR, "catalog-manifest-v1.json"), "utf-8"));
@@ -947,6 +955,317 @@ describe("Quiz", () => {
     window.history.replaceState(null, "", "/?decade=1990");
     render(<Quiz locale="pt-BR" />);
     expect(await screen.findByText(/Não há perguntas suficientes/)).toBeInTheDocument();
+  });
+
+  it("saves and restores an unanswered question with pending selection (pt-BR)", async () => {
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    fireEvent.click(screen.getByRole("radio", { name: option.label }));
+    await vi.waitFor(() => {
+      const raw = window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }));
+      expect(raw).toBeTruthy();
+      expect(JSON.parse(raw!).selected_id).toBe(option.id);
+    });
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: question.prompt })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: option.label })).toBeChecked();
+    expect(screen.queryByRole("heading", { name: "Monte sua partida" })).not.toBeInTheDocument();
+  });
+
+  it("restores answered feedback and used clues without duplicating stats", async () => {
+    window.localStorage.setItem("kpop-quiz-consent", "rejected");
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const answer = question.options.find((option) => option.id === question.answer_option_id)!;
+    fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    expect(await screen.findByText("Você acertou.")).toBeInTheDocument();
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByText("Você acertou.")).toBeInTheDocument();
+
+    clickNext();
+    // Finish remaining questions quickly through give-up to reach results twice.
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    const matchId = `session-${ptSession.session_id}`;
+    expect(isGameMatchRecorded("quiz", matchId)).toBe(true);
+    const statsAfterFirst = window.localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    expect(window.localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(statsAfterFirst);
+  });
+
+  it("restores a revealed clue from the embedded session save", async () => {
+    const base = structuredClone(ptSession) as QuizSession;
+    const evidence = base.questions[0]!.evidence[0]!;
+    const clue = {
+      id: "c".repeat(64),
+      type: "decade" as const,
+      text: "Pista salva para retomada.",
+      fact_base_ids: [base.questions[0]!.fact_base_ids[0]!],
+      evidence: [{
+        fact_base_id: base.questions[0]!.fact_base_ids[0]!,
+        source_key: evidence.source_key,
+        source_url: evidence.source_url,
+        revision_id: evidence.revision_id,
+        locator: evidence.locator,
+      }],
+    };
+    base.questions[0]!.clues_available = [clue];
+    const save = buildQuizProgressSave({
+      session: base,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [clue.id],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now() - 10_000,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    saveQuizProgress(save);
+    mockSessionFetch(base);
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: base.questions[0]!.prompt })).toBeInTheDocument();
+    expect(screen.getByText("Pista salva para retomada.")).toBeInTheDocument();
+  });
+
+  it("restores an already-elapsed deadline and expires once without skipping ahead", async () => {
+    const startedAt = Date.now() - 30_000;
+    const save = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: true,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: Date.now() - 1_000,
+      startedAtMs: startedAt,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    saveQuizProgress(save);
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByText("Acabou o tempo.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+    // Still the first question's feedback — did not auto-advance several times.
+    expect(screen.getByRole("button", { name: "Próxima pergunta" })).toBeInTheDocument();
+  });
+
+  it("does not authorize give-up from a confirmation that was open before reload", async () => {
+    await renderReady();
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    // Persist happens for question.ready; confirm open is not part of the save.
+    await vi.waitFor(() => expect(window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }))).toBeTruthy());
+    const parsed = JSON.parse(window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }))!);
+    expect(parsed).not.toHaveProperty("confirm_give_up_open");
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+  });
+
+  it("warns and stays usable when the saved schema is invalid (en)", async () => {
+    window.localStorage.setItem(
+      quizProgressStorageKey({ locale: "en", playMode: "standard", theme: "history", decades: [] }),
+      JSON.stringify({ schema_version: "kpop-quiz-progress-v0", session_id: "x" }),
+    );
+    mockSessionFetch();
+    render(<Quiz locale="en" />);
+    expect(await screen.findByText(/saved progress is invalid/i)).toBeInTheDocument();
+    await waitForSetupReady("Set up your game");
+    fireEvent.click(screen.getByRole("button", { name: "Start game" }));
+    expect(await screen.findByRole("heading", { name: enSession.questions[0]!.prompt })).toBeInTheDocument();
+  });
+
+  it("warns when session identity drifts and still allows a new round", async () => {
+    const foreign = {
+      ...(ptSession as QuizSession),
+      session_id: "d".repeat(64),
+    };
+    const save = buildQuizProgressSave({
+      session: foreign,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now(),
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: null,
+    });
+    saveQuizProgress(save);
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByText(/não combina com os dados atuais/i)).toBeInTheDocument();
+    expect(screen.getByTestId("game-start")).toBeEnabled();
+  });
+
+  it("migrates a legacy single-slot save into the current config slot", async () => {
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    const save = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: option.id,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now() - 5_000,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    window.localStorage.setItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY, JSON.stringify(save));
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: question.prompt })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: option.label })).toBeChecked();
+    expect(window.localStorage.getItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }))).toBeTruthy();
+  });
+
+  it("keeps a pt-BR in-progress save when opening the English quiz", async () => {
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    const ptSave = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: option.id,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now() - 5_000,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    saveQuizProgress(ptSave);
+    const ptKey = quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] });
+    const before = window.localStorage.getItem(ptKey);
+    mockSessionFetch();
+    render(<Quiz locale="en" />);
+    await waitForSetupReady("Set up your game");
+    expect(screen.getByTestId("game-start")).toBeEnabled();
+    expect(window.localStorage.getItem(ptKey)).toBe(before);
+    expect(screen.queryByRole("heading", { name: question.prompt })).not.toBeInTheDocument();
+  });
+
+  it("leaves an incompatible legacy save alone when the current locale differs", async () => {
+    const ptSave = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now(),
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: null,
+    });
+    window.localStorage.setItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY, JSON.stringify(ptSave));
+    mockSessionFetch();
+    render(<Quiz locale="en" />);
+    expect(await screen.findByText(/does not match the current data/i)).toBeInTheDocument();
+    expect(window.localStorage.getItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY)).toBeTruthy();
+    await waitForSetupReady("Set up your game");
+  });
+
+  it("autosaves and restores a radio selection made with the keyboard", async () => {
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    const radio = screen.getByRole("radio", { name: option.label });
+    radio.focus();
+    fireEvent.keyDown(radio, { key: " ", code: "Space" });
+    fireEvent.click(radio);
+    const ptKey = quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] });
+    await vi.waitFor(() => {
+      const raw = window.localStorage.getItem(ptKey);
+      expect(raw).toBeTruthy();
+      expect(JSON.parse(raw!).selected_id).toBe(option.id);
+    });
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: question.prompt })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: option.label })).toBeChecked();
   });
 });
 
