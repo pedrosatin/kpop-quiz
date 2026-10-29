@@ -1,14 +1,15 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { joinBaseUrl } from '../src/lib/join-base-url';
 import { reloadPersisted, settleEffects } from './helpers/passive-effects';
 import { gamePlayed } from './helpers/player-stats';
 import { RESULT_GUARD_MS } from '../src/components/Results/use-result-action-guard';
+import { pilotBoard, routeCrosswordDaily } from './helpers/crossword-daily';
 
 const evidence = process.env.CROSSWORD_EVIDENCE;
 const phase = process.env.CROSSWORD_PHASE ?? 'after';
 const prefix = process.env.ASTRO_BASE?.replace(/\/$/, '') ?? '';
-const puzzle = JSON.parse(readFileSync(new URL('../public/data/crossword-pilot.json', import.meta.url), 'utf8'));
+const puzzle = pilotBoard;
 const locales = {
   pt: { path: '/pt-br/cruzadinha/', down: 'Vertical', across: 'Horizontal', reject: 'Recusar Google Analytics' },
   en: { path: '/en/crossword/', down: 'Down', across: 'Across', reject: 'Reject Google Analytics' },
@@ -43,6 +44,7 @@ for (const [locale, t] of Object.entries(locales)) {
       test(`${locale} ${width}x${height} ${consent}: active square stays above overlays`, async ({ browser, baseURL }) => {
         const context = await browser.newContext({ viewport: { width: width!, height: height! }, hasTouch: width! < 600 });
         await context.route('**/*', route => new URL(route.request().url()).origin === new URL(baseURL!).origin ? route.continue() : route.abort());
+        await routeCrosswordDaily(context);
         await context.addInitScript(() => {
           Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
           Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
@@ -114,6 +116,7 @@ for (const [locale, t] of Object.entries(locales)) {
 
   test(`${locale}: Backspace follows only the selected word, preserving crossings and focus`, async ({ page, baseURL }) => {
     await page.route('**/*', route => new URL(route.request().url()).origin === new URL(baseURL!).origin ? route.continue() : route.abort());
+    await routeCrosswordDaily(page);
     await page.goto(joinBaseUrl(baseURL!, prefix + t.path));
     await expect(page.locator('#crossword input')).toHaveCount(11);
     if (await page.locator('.consent-banner').isVisible()) await page.getByRole('button', { name: t.reject, exact: true }).click();
@@ -177,6 +180,7 @@ for (const [locale, t] of Object.entries(locales)) {
   test(`${locale}: revealing still ends and restores the round only once`, async ({ page, baseURL }) => {
     await page.setViewportSize({ width: 360, height: 800 });
     await page.route('**/*', route => new URL(route.request().url()).origin === new URL(baseURL!).origin ? route.continue() : route.abort());
+    await routeCrosswordDaily(page);
     await page.goto(joinBaseUrl(baseURL!, prefix + t.path));
     const board = page.locator('#crossword');
     await expect(board.locator('input')).toHaveCount(11);

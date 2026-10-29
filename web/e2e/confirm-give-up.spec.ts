@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures/consent";
+import { routeCrosswordDaily } from "./helpers/crossword-daily";
 
 const base = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
 
@@ -71,6 +72,8 @@ async function openBoard(
   await page.route("**/*", (route) =>
     new URL(route.request().url()).origin === origin ? route.continue() : route.abort()
   );
+  // The build publishes no daily crossword; the audited board stands in as today's.
+  await routeCrosswordDaily(page);
   await page.setViewportSize(viewport);
   await page.goto(`${base}${path}`);
 }

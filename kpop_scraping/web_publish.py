@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Any
 
 from .code_groups_cli import validate as validate_code_groups_puzzle
+from .crossword_daily import validate_published as validate_crossword_daily
+from .crossword_publication import read_record as read_crossword_record
+from .crossword_publication import verify_history as verify_crossword_history
 from .connections_schema import validate_connections_puzzle, write_connections_puzzle_atomic
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
@@ -53,6 +56,7 @@ NAME_GUESS_DAILY_FILENAME = "name-guess.daily.json"
 WORD_SEARCH_DAILY_FILENAME = "word-search.daily.json"
 TIMELINE_DAILY_FILENAME = "timeline.daily.json"
 CODE_GROUPS_DAILY_FILENAME = "code-groups.daily.json"
+CROSSWORD_DAILY_FILENAME = "crossword.daily.json"
 LOCALES = ("pt-BR", "en")
 DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
@@ -148,6 +152,34 @@ def _read_code_groups(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"cannot read code-groups artifact {path}: {exc}") from exc
     validate_code_groups_puzzle(payload)
+    return payload
+
+
+def _read_crossword(path: Path) -> dict[str, Any]:
+    """Read crossword.daily.json and check it against the record of its day.
+
+    The factual matching and the proof search need the fact base, which a
+    published directory does not carry; the daily runner recomputes them
+    before writing. Here the artifact must pass every rule that needs no
+    base and agree with the durable record published beside it.
+    """
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read crossword artifact {path}: {exc}") from exc
+    validate_crossword_daily(payload)
+    record = read_crossword_record(path.parent, payload["reference_date"])
+    if record is None:
+        raise ValueError(f"crossword artifact {path} has no publication record")
+    published = payload["puzzle"]["vocabulary"] if payload["puzzle"] else []
+    if (
+        record["source"] != "daily"
+        or record["dataset_version"] != payload["dataset_version"]
+        or record["base_id"] != payload["base_id"]
+        or record["previous"] != payload["previous"]
+        or record["qids"] != published
+    ):
+        raise ValueError(f"crossword artifact {path} disagrees with its publication record")
     return payload
 
 
@@ -347,6 +379,7 @@ def publish(
     timeline: dict[str, Any] | None = None,
     code_groups: dict[str, Any] | None = None,
     enriched_sessions: dict[str, dict[str, Any]] | None = None,
+    crossword: dict[str, Any] | None = None,
 ) -> None:
     """Publish static quiz sessions, optional daily grid, connections, name-guess, word-search, timeline, and group code puzzles.
 
@@ -377,6 +410,10 @@ def publish(
             When provided, validated against the code groups contract before writing.
             When None, code_groups artifact is omitted; the daily runner treats
             this as a partial publish and lets the other games of the day out.
+        crossword: Optional ``crossword-daily-v1`` artifact, ready or omitted
+            (written to crossword.daily.json). The caller validates it against
+            the fact base and writes its publication record; here it passes the
+            rules that need no base. When None, the artifact is omitted.
     """
     for session in sessions.values():
         validate_session(session)
@@ -397,6 +434,8 @@ def publish(
         validate_timeline_puzzle(timeline)
     if code_groups is not None:
         validate_code_groups_puzzle(code_groups)
+    if crossword is not None:
+        validate_crossword_daily(crossword)
     manifest = build_manifest(sessions)
     enriched_manifest = (
         build_manifest(enriched_sessions, ENRICHED_MANIFEST_VERSION)
@@ -420,6 +459,8 @@ def publish(
         write_json_atomic(
             output_dir / CODE_GROUPS_DAILY_FILENAME, code_groups, validate_code_groups_puzzle
         )
+    if crossword is not None:
+        write_json_atomic(output_dir / CROSSWORD_DAILY_FILENAME, crossword, validate_crossword_daily)
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
@@ -446,6 +487,7 @@ def verify(
     require_timeline: bool = False,
     require_code_groups: bool = False,
     require_catalog: bool = False,
+    require_crossword: bool = False,
 ) -> None:
     """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, word-search, timeline, and group code.
 
@@ -491,6 +533,13 @@ def verify(
             only when the daily run asks for it; one that is present must verify
             completely (hashes, schema, identity, language, version).
             When True: the catalog is mandatory.
+        require_crossword: Verification policy flag for the daily crossword
+            (crossword.daily.json). When False (default) the artifact is
+            optional: a day whose generation failed publishes without it. A
+            present file must pass every rule that needs no fact base and agree
+            with its ``crossword-publication.<date>.json`` record. When True the
+            file is mandatory. Every record in the directory is validated, and
+            two consecutive played days may not share a group.
     """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
@@ -541,6 +590,12 @@ def verify(
         _read_code_groups(code_groups_path)
     elif require_code_groups:
         raise ValueError(f"missing required code-groups artifact: {code_groups_path}")
+    crossword_path = output_dir / CROSSWORD_DAILY_FILENAME
+    if crossword_path.is_file():
+        _read_crossword(crossword_path)
+    elif require_crossword:
+        raise ValueError(f"missing required crossword artifact: {crossword_path}")
+    verify_crossword_history(output_dir)
     session_pt_br_path = output_dir / "session.pt-BR.json"
     if session_pt_br_path.is_file():
         _read_session(session_pt_br_path)
@@ -599,6 +654,7 @@ def verify_artifacts(
     require_timeline: bool = True,
     require_code_groups: bool = True,
     require_catalog: bool = False,
+    require_crossword: bool = False,
 ) -> None:
     """Verify published static quiz artifacts and daily puzzle files.
 
@@ -615,6 +671,7 @@ def verify_artifacts(
         require_timeline=require_timeline,
         require_code_groups=require_code_groups,
         require_catalog=require_catalog,
+        require_crossword=require_crossword,
     )
 
 
@@ -657,6 +714,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Require code-groups.daily.json to exist and pass contract validation during --verify",
     )
     parser.add_argument(
+        "--require-crossword",
+        action="store_true",
+        help="Require crossword.daily.json to exist and agree with its publication record during --verify",
+    )
+    parser.add_argument(
         "--require-catalog",
         action="store_true",
         help="Require the question catalog to exist and verify completely during --verify",
@@ -687,6 +749,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--require-timeline can only be used with --verify")
         if args.require_code_groups and not args.verify:
             raise ValueError("--require-code-groups can only be used with --verify")
+        if args.require_crossword and not args.verify:
+            raise ValueError("--require-crossword can only be used with --verify")
         if args.require_catalog and not args.verify:
             raise ValueError("--require-catalog can only be used with --verify")
         if args.catalog and args.verify:
@@ -706,7 +770,10 @@ def main(argv: list[str] | None = None) -> int:
                     require_timeline=args.require_timeline,
                     require_code_groups=args.require_code_groups,
                     require_catalog=args.require_catalog and directory is args.output_dir,
+                    require_crossword=args.require_crossword,
                 )
+            # The next day's record follows the main directory's last one.
+            verify_crossword_history(args.output_dir, next_dir)
         elif args.database:
             if not args.database.is_file():
                 raise ValueError(f"database does not exist: {args.database}")

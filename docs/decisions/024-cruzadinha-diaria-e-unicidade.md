@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita para geração offline. Integração de publicação pendente.
+Aceita. Geração offline desde 2026-10-22; integrada ao runner diário, à publicação e à página em 2026-10-29.
 
 ## Data
 
@@ -77,7 +77,7 @@ tentativas produz `omitted`, com `puzzle: null`. A integração futura omitirá
 **somente Cruzadinha** naquele dia. Não há garantia de evitar repetição em outras
 janelas nem de gerar uma grade para toda base possível.
 
-## Plano de integração e histórico (não implementado nesta etapa)
+## Integração e histórico
 
 O runner hoje preserva apenas `current/next`. Antes de integrar, a publicação
 precisa manter um registro durável e datado por jogo, com estado, QIDs publicados,
@@ -94,9 +94,33 @@ limitado por política de retenção futura; o algoritmo exige somente a vésper
 A publicação precisa impedir que um contexto preparado seja promovido se a
 partida efetivamente publicada na véspera divergir.
 
+### Implementação (2026-10-29)
+
+- Cada conjunto publicado leva `crossword.daily.json` (quando há envelope) e
+  `crossword-publication.<data>.json` (`kpop-crossword-publication-v1`), com
+  estado, QIDs, checksum, identidade da base, contexto consumido e motivo da
+  omissão. Os registros ficam em `web/public/data/`, versionados pelo cron como
+  os demais dados, e não são podados; em `next/` vai só o registro do dia
+  preparado, instalado no diretório principal na promoção.
+- D é gerado do registro confirmado de D−1 no diretório principal; D+1, do
+  registro de D produzido na mesma execução (inclusive em `--dry-run`).
+- Registro ausente omite a cruzadinha do dia com motivo explícito. Não há
+  bootstrap automático. A única derivação é para conjuntos anteriores à
+  integração: enquanto o diretório não tem nenhum registro, um
+  `crossword-pilot.json` válido vale como a partida jogada na véspera
+  (`source: pilot`), porque era o tabuleiro servido todos os dias.
+- Na promoção (e num dia mantido), se o contexto do registro diverge do
+  registro confirmado de D−1, a grade é gerada de novo com o contexto
+  confirmado, ou omitida; `next/` acompanha.
+- A verificação de publicação recusa envelope sem registro correspondente e
+  dois dias consecutivos jogados com grupo em comum, inclusive entre `data/` e
+  `next/`. A página só joga a grade datada de hoje e informa a omissão; sem
+  envelope, lê o registro do dia para dizer que a cruzadinha está
+  indisponível em vez de atrasada.
+
 ## Consequências
 
-O piloto, o publicador e o web permanecem com seu contrato existente. O benchmark
+O contrato `crossword-pilot-v1` continua válido para o tabuleiro auditado, que a página deixou de carregar. O benchmark
 é uma medição offline, sem coleta. Metas iniciais de engenharia são pelo menos
 50 grupos no maior componente por caracteres após a exclusão anterior e no
 máximo três omissões entre 366 datas. Conectividade por caracteres é uma condição

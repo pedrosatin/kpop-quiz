@@ -9,8 +9,9 @@ integrante, e os nomes se cruzam nas letras em comum. Escreva sem espaços,
 pontuação ou acentos e mantenha os números. Verifique a grade quantas vezes
 quiser ou revele as respostas.
 
-A cruzadinha é uma partida fixa, revisada à mão: a mesma grade para todos os
-jogadores, sem troca diária. O progresso fica salvo no navegador.
+Uma grade nova sai a cada dia, a mesma para todos os jogadores, sem repetir
+nenhum grupo da véspera. Em um dia sem grade verificada, não há cruzadinha.
+O progresso fica salvo no navegador.
 
 ## Proveniência e licença
 

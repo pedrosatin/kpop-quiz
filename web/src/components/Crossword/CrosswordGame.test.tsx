@@ -1,7 +1,8 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import publishedJson from "../../../public/data/crossword-pilot.json";
-import { entryCellKeys, type CrosswordPuzzle } from "../../data/crossword";
+import { entryCellKeys, validateCrosswordDaily, type CrosswordPuzzle } from "../../data/crossword";
+import { dailyReferenceDate } from "../../data/daily-artifact";
 import { getMessages } from "../../i18n/catalog";
 import * as analytics from "../../lib/game-analytics";
 import { loadPlayerStats } from "../../lib/player-stats";
@@ -9,18 +10,33 @@ import { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 import { CrosswordGame } from "./CrosswordGame";
 import { generateCrosswordShareText } from "./CrosswordResult";
 import { crosswordStorageKey } from "./crossword-save";
+import { buildCrosswordDaily, buildCrosswordOmissionRecord, buildOmittedCrosswordDaily } from "../../test/crossword-daily-fixture";
 
-// The committed board is the fixed match and carries a valid checksum, so it
-// doubles as the fixture of these tests.
-const puzzle = publishedJson as unknown as CrosswordPuzzle;
+// The audited pilot board, published as today's crossword-daily-v1 envelope.
+const today = dailyReferenceDate();
+const daily = await buildCrosswordDaily(publishedJson as unknown as CrosswordPuzzle, today);
+const validated = await validateCrosswordDaily(daily);
+if (validated.status !== "ready") throw new Error("fixture must be ready");
+const puzzle = validated.puzzle;
 const pt = getMessages("pt-BR");
 const en = getMessages("en");
 const STORAGE_KEY = crosswordStorageKey(puzzle);
 
 let clock = 1000;
 
-function serve(payload: unknown = puzzle) {
-  vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(payload)))));
+/**
+ * Serves payload as data/crossword.daily.json; data/next/ answers next (404
+ * by default). Today's publication record answers record from data/next/,
+ * where the runner publishes the day ahead, and 404 elsewhere.
+ */
+function serve(payload: unknown = daily, next: unknown = null, record: unknown = null) {
+  vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
+    const path = String(url);
+    const body = path.includes("crossword-publication.")
+      ? (path.includes("/next/") ? record : null)
+      : path.includes("/next/") ? next : payload;
+    return Promise.resolve(body === null ? new Response("", { status: 404 }) : new Response(JSON.stringify(body)));
+  }));
 }
 
 async function renderGame(locale: "pt-BR" | "en" = "pt-BR") {
@@ -207,7 +223,7 @@ describe("CrosswordGame", () => {
     analytics.setGameAnalyticsConsent("", false);
   });
 
-  it("shares a spoiler-free text without a date and falls back to a text field", async () => {
+  it("shares a spoiler-free text with the board's date and falls back to a text field", async () => {
     serve();
     await renderGame();
     solveAll();
@@ -219,7 +235,7 @@ describe("CrosswordGame", () => {
     const field = screen.getByRole("textbox", { name: pt.shareTextLabel }) as HTMLTextAreaElement;
     expect(field.value).toContain("Cruzadinha de K-pop");
     expect(field.value).toContain("utm_campaign=crossword");
-    expect(field.value).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(field.value).toContain(`Cruzadinha de K-pop ${today}`);
     for (const entry of puzzle.entries) expect(field.value).not.toContain(entry.answer);
   });
 
@@ -262,21 +278,74 @@ describe("CrosswordGame", () => {
   });
 
   it("offers a retry for a missing board and rejects a tampered one", async () => {
-    let calls = 0;
+    let phase = 0;
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(() => {
-        calls += 1;
-        if (calls === 1) return Promise.resolve(new Response("", { status: 404 }));
-        if (calls === 2) return Promise.resolve(new Response(JSON.stringify({ ...puzzle, rows: 7 })));
-        return Promise.resolve(new Response(JSON.stringify(puzzle)));
+      vi.fn().mockImplementation((url: string) => {
+        if (String(url).includes("/next/") || phase === 0) return Promise.resolve(new Response("", { status: 404 }));
+        if (phase === 1) return Promise.resolve(new Response(JSON.stringify({ ...daily, attempts: 2 })));
+        return Promise.resolve(new Response(JSON.stringify(daily)));
       }),
     );
     render(<CrosswordGame locale="pt-BR" />);
     expect(await screen.findByText(pt.crosswordArtifactMissing)).toBeInTheDocument();
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "missing");
+    phase = 1;
     fireEvent.click(screen.getByTestId("game-retry"));
     expect(await screen.findByText(pt.loadError)).toBeInTheDocument();
+    // The boot smoke accepts an empty day but must still fail on this kind.
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "invalid");
+    phase = 2;
     fireEvent.click(screen.getByTestId("game-retry"));
     expect(await screen.findByTestId("game-board")).toBeInTheDocument();
+  });
+
+  it("says there is no crossword today when the day was published as omitted", async () => {
+    // Yesterday's board is still in data/, but it never stands for today.
+    const yesterday = await buildCrosswordDaily(puzzle, "2000-01-01");
+    serve(yesterday, await buildOmittedCrosswordDaily(today));
+    render(<CrosswordGame locale="en" />);
+    expect(await screen.findByText(en.crosswordOmitted)).toBeInTheDocument();
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "omitted");
+    expect(screen.queryByTestId("game-board")).not.toBeInTheDocument();
+  });
+
+  it("says today's crossword is unavailable when its history was missing", async () => {
+    serve(await buildCrosswordDaily(puzzle, "2000-01-01"), null, buildCrosswordOmissionRecord(today));
+    render(<CrosswordGame locale="pt-BR" />);
+    expect(await screen.findByText(pt.crosswordUnavailable)).toBeInTheDocument();
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "unavailable");
+    expect(screen.queryByText(pt.crosswordArtifactMissing)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("game-board")).not.toBeInTheDocument();
+  });
+
+  it("says today's crossword is unavailable after a generation error, without the internal reason", async () => {
+    const reason = "generation failed: database disk image is malformed";
+    serve(null, null, buildCrosswordOmissionRecord(today, reason));
+    render(<CrosswordGame locale="en" />);
+    expect(await screen.findByText(en.crosswordUnavailable)).toBeInTheDocument();
+    expect(screen.getByTestId("game-missing")).not.toHaveTextContent(/generation failed|malformed/);
+    expect(screen.queryByTestId("game-board")).not.toBeInTheDocument();
+  });
+
+  it("still says not published yet when nothing for today exists", async () => {
+    serve(null, null, null);
+    render(<CrosswordGame locale="pt-BR" />);
+    expect(await screen.findByText(pt.crosswordArtifactMissing)).toBeInTheDocument();
+    expect(screen.queryByText(pt.crosswordUnavailable)).not.toBeInTheDocument();
+  });
+
+  it("does not play an earlier day's board as today's", async () => {
+    serve(await buildCrosswordDaily(puzzle, "2000-01-01"));
+    render(<CrosswordGame locale="pt-BR" />);
+    expect(await screen.findByText(pt.crosswordArtifactMissing)).toBeInTheDocument();
+    expect(screen.queryByTestId("game-board")).not.toBeInTheDocument();
+  });
+
+  it("plays today's board published ahead in data/next/", async () => {
+    serve(await buildCrosswordDaily(puzzle, "2000-01-01"), daily);
+    await renderGame();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(screen.getAllByRole("textbox")).toHaveLength(puzzle.cells.length);
   });
 });

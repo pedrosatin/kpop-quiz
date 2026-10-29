@@ -378,6 +378,10 @@ export interface Messages {
   crosswordSourceClue: string;
   crosswordShareHeader: string;
   crosswordArtifactMissing: string;
+  /** Today was published as omitted: no board passed verification. */
+  crosswordOmitted: string;
+  /** Today's record says omitted without a board: generation failed. */
+  crosswordUnavailable: string;
   statsTitle: string;
   statsNavLabel: string;
   statsOpenButton: string;
@@ -791,7 +795,7 @@ const catalogs: Record<Locale, Messages> = {
     codeShareAttemptsLine: (attempts) => `${attempts === 1 ? "Tentativa" : "Tentativas"}: ${attempts}`,
     codeArtifactMissing: "O código de hoje ainda não foi publicado. Tente mais tarde.",
     crosswordTitle: "Cruzadinha de K-pop",
-    crosswordEyebrow: "Partida fixa · pistas com fonte",
+    crosswordEyebrow: "1 grade por dia · pistas com fonte",
     crosswordIntro: "Use as pistas para escrever os nomes dos grupos na grade.",
     crosswordBoardLabel: "Grade da cruzadinha",
     crosswordCluesHeading: "Pistas",
@@ -810,7 +814,9 @@ const catalogs: Record<Locale, Messages> = {
     crosswordSummaryRevealed: (correct, total) => `${correct} de ${total} palavras certas antes de encerrar.`,
     crosswordSourceClue: "Pista:",
     crosswordShareHeader: "Cruzadinha de K-pop",
-    crosswordArtifactMissing: "A cruzadinha não está disponível agora. Tente mais tarde.",
+    crosswordArtifactMissing: "A cruzadinha de hoje ainda não foi publicada. Tente mais tarde.",
+    crosswordOmitted: "Não há cruzadinha hoje: nenhuma grade passou na verificação das pistas. Volte amanhã.",
+    crosswordUnavailable: "A cruzadinha de hoje está indisponível: não foi possível gerá-la. Volte amanhã.",
     timelineTitle: "Linha do Tempo do K-pop",
     timelineEyebrow: "Desafio diário",
     timelineIntro: "Ordene os acontecimentos do K-pop do mais antigo para o mais recente.",
@@ -1265,7 +1271,7 @@ const catalogs: Record<Locale, Messages> = {
     codeShareAttemptsLine: (attempts) => `Attempts: ${attempts}`,
     codeArtifactMissing: "Today's code has not been published yet. Try again later.",
     crosswordTitle: "K-pop Crossword",
-    crosswordEyebrow: "Fixed puzzle · cited clues",
+    crosswordEyebrow: "1 grid a day · cited clues",
     crosswordIntro: "Use the clues to write the group names in the grid.",
     crosswordBoardLabel: "Crossword grid",
     crosswordCluesHeading: "Clues",
@@ -1283,7 +1289,9 @@ const catalogs: Record<Locale, Messages> = {
     crosswordSummaryRevealed: (correct, total) => `${correct} of ${total} words right before finishing.`,
     crosswordSourceClue: "Clue:",
     crosswordShareHeader: "K-pop Crossword",
-    crosswordArtifactMissing: "The crossword is not available right now. Try again later.",
+    crosswordArtifactMissing: "Today's crossword has not been published yet. Try again later.",
+    crosswordOmitted: "There is no crossword today: no grid passed the clue checks. Come back tomorrow.",
+    crosswordUnavailable: "Today's crossword is unavailable: it could not be generated. Come back tomorrow.",
     timelineTitle: "K-pop Timeline",
     timelineEyebrow: "Daily challenge",
     timelineIntro: "Order the K-pop events from earliest to latest.",

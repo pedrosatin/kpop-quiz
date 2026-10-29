@@ -14,6 +14,11 @@ export type SmokeRoute =
        * region + retry CTA instead of game-board.
        */
       optionalArtifact?: boolean;
+      /**
+       * With optionalArtifact, the only data-error-kind values the missing
+       * state may carry. Any other kind (e.g. "invalid") fails the boot.
+       */
+      missingKinds?: readonly string[];
     }
   | {
       name: string;
@@ -36,6 +41,7 @@ type SmokePairDef =
       ptPath: string;
       enPath: string;
       optionalArtifact?: boolean;
+      missingKinds?: readonly string[];
     }
   | {
       id: string;
@@ -98,6 +104,10 @@ const SMOKE_PAIRS: readonly SmokePairDef[] = [
     kind: "board-direct",
     ptPath: "/pt-br/cruzadinha/",
     enPath: "/en/crossword/",
+    // Daily envelope: the build ships none until the first publication, and a
+    // day may be omitted. An invalid artifact must still fail the boot.
+    optionalArtifact: true,
+    missingKinds: ["missing", "omitted", "unavailable"],
   },
   {
     id: "privacy",
@@ -114,9 +124,10 @@ function smokeRoute(
 ): SmokeRoute {
   const name = `${def.id} ${locale}`;
   if (def.kind === "board-direct") {
-    return def.optionalArtifact
-      ? { name, path, kind: "board-direct", optionalArtifact: true }
-      : { name, path, kind: "board-direct" };
+    if (!def.optionalArtifact) return { name, path, kind: "board-direct" };
+    return def.missingKinds
+      ? { name, path, kind: "board-direct", optionalArtifact: true, missingKinds: def.missingKinds }
+      : { name, path, kind: "board-direct", optionalArtifact: true };
   }
   return { name, path, kind: def.kind };
 }

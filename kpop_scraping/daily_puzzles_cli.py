@@ -151,6 +151,26 @@ def report_skipped_code_groups(code_groups_skipped: dict[str, Any] | None) -> No
         print(f"::warning title=Daily group code missing::{message}")
 
 
+def report_skipped_crossword(
+    crossword_skipped: dict[str, Any] | None, crossword_confirmed: dict[str, Any] | None = None
+) -> None:
+    """Make a day without a crossword board, or one replaced on promotion, visible."""
+    if crossword_confirmed and crossword_confirmed["action"] != "recorded":
+        message = (
+            f"Crossword {crossword_confirmed['previous_dataset_version']} was prepared from a "
+            f"history the confirmed previous day no longer matches; {crossword_confirmed['action']}"
+        )
+        sys.stderr.write(f"WARNING: {message}\n")
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print(f"::warning title=Daily crossword replaced::{message}")
+    if not crossword_skipped:
+        return
+    message = f"Day published without a crossword board ({crossword_skipped['reason']})"
+    sys.stderr.write(f"WARNING: {message}\n")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=Daily crossword omitted::{message}")
+
+
 def report_word_search_fallback(fallback: dict[str, Any] | None) -> None:
     """Make a word search published with a theme other than the drawn one visible."""
     if not fallback:
@@ -227,6 +247,7 @@ def main(argv: list[str] | None = None) -> int:
         report_revalidated_grid(result.get("grid_revalidated"))
         report_skipped_grid(result.get("grid_skipped"))
         report_skipped_code_groups(result.get("code_groups_skipped"))
+        report_skipped_crossword(result.get("crossword_skipped"), result.get("crossword_confirmed"))
         report_word_search_fallback(result.get("word_search_fallback"))
         mode_str = "[dry-run] " if result.get("dry_run") else ""
         action = (
@@ -245,6 +266,7 @@ def main(argv: list[str] | None = None) -> int:
             report_reused_grid(result["next"].get("grid_reused"))
             report_skipped_grid(result["next"].get("grid_skipped"))
             report_skipped_code_groups(result["next"].get("code_groups_skipped"))
+            report_skipped_crossword(result["next"].get("crossword_skipped"))
             report_word_search_fallback(result["next"].get("word_search_fallback"))
             print(f"{mode_str}Daily puzzles for {result['next']['reference_date']} published ahead in {result['next']['output_dir']}")
             report_clue_coverage(result["next"]["output_dir"], mode_str)

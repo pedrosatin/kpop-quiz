@@ -14,7 +14,7 @@ import {
   verifyCodeGroupsIdentity,
   type CodeGroupsPuzzle,
 } from "../data/code-groups";
-import { validateCrosswordPuzzle } from "../data/crossword";
+import { validateCrosswordDaily, validateCrosswordPuzzle } from "../data/crossword";
 import publishedConnections from "../../public/data/connections.daily.json";
 import publishedCrossword from "../../public/data/crossword-pilot.json";
 import publishedCodePilot from "../../public/data/code-groups.pilot.json";
@@ -33,6 +33,14 @@ describe("published daily artifacts", () => {
 
   it("publishes the audited crossword board", async () => {
     await expect(validateCrosswordPuzzle(structuredClone(publishedCrossword))).resolves.toBeTruthy();
+  });
+
+  it("publishes a valid daily crossword in data/ and data/next/ when the day has one", async () => {
+    for (const path of [join(DATA_DIR, "crossword.daily.json"), join(DATA_DIR, "next", "crossword.daily.json")]) {
+      // Partial publish: a day without a crossword record publishes no file.
+      if (!existsSync(path)) continue;
+      await expect(validateCrosswordDaily(JSON.parse(readFileSync(path, "utf-8")))).resolves.toBeTruthy();
+    }
   });
 
   it("publishes a schema-compliant group code pilot artifact", () => {

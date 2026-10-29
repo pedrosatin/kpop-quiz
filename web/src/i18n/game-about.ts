@@ -246,13 +246,13 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         ],
         dataSources: [
           "As pistas saem de fatos aceitos no banco do projeto, como o ano de formação, a gravadora e os integrantes de cada grupo. Cada fato tem evidência numa revisão da Wikipédia, com o identificador da página, o número da revisão e a posição do trecho citado. Antes de publicar, a seleção compara cada pista com todos os grupos do catálogo coletado e recusa a pista que sirva para mais de um grupo. Essa prova vale para o catálogo coletado, não para todos os grupos de K-pop que existem.",
-          "A cruzadinha é uma partida fixa, revisada à mão: os mesmos grupos e as mesmas pistas para todos os jogadores, sem troca diária. Antes de mostrar a grade, o navegador recalcula a impressão SHA-256 do arquivo e confere cruzamentos, numeração e fontes. Os textos da Wikipédia seguem a licença CC BY-SA 4.0 e os dados do Wikidata são CC0.",
+          "A grade muda todo dia, sem repetir grupos da véspera, e só sai quando o gerador prova um único encaixe dos grupos nas pistas; senão, o dia fica sem cruzadinha. Antes de mostrar a grade, o navegador recalcula a impressão SHA-256 do arquivo e confere cruzamentos, numeração e fontes. Os textos da Wikipédia seguem a licença CC BY-SA 4.0 e os dados do Wikidata são CC0.",
         ],
         faq: [
           {
             question: "A cruzadinha muda todo dia?",
             answer:
-              "Ainda não. Por enquanto a cruzadinha é uma partida fixa, revisada à mão, e a grade é a mesma em todas as visitas. O progresso fica salvo neste navegador, e a partida concluída entra uma única vez nas suas estatísticas.",
+              "Sim, à meia-noite de Brasília, com a mesma grade para todos no dia. O progresso fica salvo neste navegador, e a partida concluída entra uma única vez nas suas estatísticas.",
           },
           {
             question: "Por que a grade aceita só um jeito de escrever o nome?",
@@ -468,13 +468,13 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         ],
         dataSources: [
           "The clues come from accepted facts in the project database, such as each group's formation year, record label and members. Every fact has evidence in a Wikipedia revision, with the page ID, the revision number and the position of the quoted passage. Before publishing, the selection compares each clue with every group in the collected catalog and rejects a clue that fits more than one group. That check covers the collected catalog, not every K-pop group in existence.",
-          "The crossword is a fixed puzzle, reviewed by hand: the same groups and the same clues for every player, with no daily change. Before showing the grid, the browser recomputes the file's SHA-256 fingerprint and checks crossings, numbering and sources. Wikipedia text is licensed CC BY-SA 4.0 and Wikidata data is CC0.",
+          "The grid changes every day, with no group from the day before, and comes out only when the generator proves a single fit of the groups to the clues; otherwise the day has no crossword. Before showing the grid, the browser recomputes the file's SHA-256 fingerprint and checks crossings, numbering and sources. Wikipedia text is licensed CC BY-SA 4.0 and Wikidata data is CC0.",
         ],
         faq: [
           {
             question: "Does the crossword change every day?",
             answer:
-              "Not yet. For now the crossword is a fixed puzzle reviewed by hand, and the grid is the same on every visit. Your progress is saved in this browser, and a finished round counts once in your stats.",
+              "Yes, at midnight Brasília time, with the same grid for everyone that day. Your progress is saved in this browser, and a finished round counts once in your stats.",
           },
           {
             question: "Why does the grid accept only one spelling?",

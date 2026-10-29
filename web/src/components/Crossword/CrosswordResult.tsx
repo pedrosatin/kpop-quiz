@@ -11,8 +11,8 @@ import { isEntrySolved, type CrosswordStatus } from "./crossword-save";
 
 /**
  * Spoiler-free result: the game name, the verdict and one square per word in
- * clue order (green when the word was right, white otherwise). The board is a
- * fixed match, so the text carries no date or day number.
+ * clue order (green when the word was right, white otherwise). The header
+ * carries the board's date, since each day has its own board.
  */
 export function generateCrosswordShareText(
   puzzle: CrosswordPuzzle,
@@ -28,7 +28,7 @@ export function generateCrosswordShareText(
     : messages.crosswordSummaryRevealed(solved.filter(Boolean).length, puzzle.entries.length);
   const squares = solved.map((ok) => (ok ? "🟩" : "⬜")).join("");
   return withShareUrl(
-    `${messages.crosswordShareHeader}\n${verdict}\n${squares}`,
+    `${messages.crosswordShareHeader} ${puzzle.reference_date}\n${verdict}\n${squares}`,
     seoShareUrl("crossword", locale),
   );
 }

@@ -63,7 +63,8 @@ def domains_for(entries, base):
              for q in base.matching(e['sources'])] for e in entries]
 
 
-def validate_board(board, reference_date, base, proof_nodes):
+def check_board(board, reference_date):
+    """Board rules that need no fact base: shape, geometry, numbering and proof form."""
     if not isinstance(board, dict) or set(board) != {
             'rows', 'cols', 'entries', 'vocabulary', 'cells', 'audited_group_count', 'proof'}:
         raise ValueError('unexpected board fields')
@@ -76,6 +77,15 @@ def validate_board(board, reference_date, base, proof_nodes):
     canonical = canonical_board(board['entries'])
     if any(board[k] != v for k, v in canonical.items()):
         raise ValueError('noncanonical board')
+    stored_proof = board['proof']
+    if (not isinstance(stored_proof, dict) or set(stored_proof) != {'solutions', 'complete', 'nodes'}
+            or type(stored_proof['solutions']) is not int or type(stored_proof['nodes']) is not int
+            or stored_proof['complete'] is not True or stored_proof['solutions'] != 1):
+        raise ValueError('invalid proof')
+
+
+def validate_board(board, reference_date, base, proof_nodes):
+    check_board(board, reference_date)
     if board['audited_group_count'] != len(base.groups):
         raise ValueError('factual universe mismatch')
     for e in board['entries']:
@@ -86,24 +96,24 @@ def validate_board(board, reference_date, base, proof_nodes):
             raise ValueError('unverified source')
         if e['clue'] != clue_text(e['sources']) or e['matching_qids'] != base.matching(e['sources']):
             raise ValueError('factual clue mismatch')
-    stored_proof = board['proof']
-    if (not isinstance(stored_proof, dict) or set(stored_proof) != {'solutions', 'complete', 'nodes'}
-            or type(stored_proof['solutions']) is not int or type(stored_proof['nodes']) is not int
-            or stored_proof['complete'] is not True):
-        raise ValueError('invalid proof')
     proof = count_assignments(board['entries'], domains_for(board['entries'], base), proof_nodes)
     if proof['solutions'] != 1 or board['proof'] != proof:
         raise ValueError('unique assignment not proven')
 
 
-def validate(p: dict, base: FactBase) -> None:
-    """Recompute factual matching and bounded proof; checksum alone is insufficient."""
+def validate_published(p: dict) -> None:
+    """Rules a publisher can check without the fact base.
+
+    Checksum, history, budgets, attempt accounting, board geometry and the
+    previous-day exclusion. The factual matching and the proof search need the
+    base and stay in ``validate``; the daily runner runs both before writing.
+    """
     if not isinstance(p, dict) or set(p) != ROOT_KEYS or p['schema_version'] != SCHEMA:
         raise ValueError('unsupported daily crossword')
     valid_date(p['reference_date'])
     if not isinstance(p['seed'], str) or not p['seed']:
         raise ValueError('missing seed')
-    if p['base_id'] != base.identity:
+    if not isinstance(p['base_id'], str) or not re.fullmatch(r'[0-9a-f]{64}', p['base_id']):
         raise ValueError('fact base mismatch')
     if p['dataset_version'] != digest({k: v for k, v in p.items() if k != 'dataset_version'}):
         raise ValueError('dataset checksum mismatch')
@@ -111,10 +121,7 @@ def validate(p: dict, base: FactBase) -> None:
     if previous != p['previous']:
         raise ValueError('noncanonical history')
     limits = limits_checked(p['limits'])
-    eligible = base.eligible(previous['qids'])
-    if (type(p['eligible_group_count']) is not int or p['eligible_group_count'] != len(eligible)
-            or type(p['connected_group_count']) is not int
-            or p['connected_group_count'] != connected_count(eligible)):
+    if type(p['eligible_group_count']) is not int or type(p['connected_group_count']) is not int:
         raise ValueError('eligibility counts mismatch')
     if type(p['attempts']) is not int or not 1 <= p['attempts'] <= limits['attempts']:
         raise ValueError('invalid attempt count')
@@ -128,11 +135,26 @@ def validate(p: dict, base: FactBase) -> None:
     elif p['status'] == 'ready':
         if sum(p['rejections'].values()) != p['attempts'] - 1:
             raise ValueError('attempt accounting')
-        validate_board(p['puzzle'], p['reference_date'], base, limits['proof_nodes'])
-        if set(p['puzzle']['vocabulary']) - set(eligible):
+        check_board(p['puzzle'], p['reference_date'])
+        if set(p['puzzle']['vocabulary']) & set(previous['qids']):
             raise ValueError('ineligible or consecutive group')
     else:
         raise ValueError('unknown daily status')
+
+
+def validate(p: dict, base: FactBase) -> None:
+    """Recompute factual matching and bounded proof; checksum alone is insufficient."""
+    validate_published(p)
+    if p['base_id'] != base.identity:
+        raise ValueError('fact base mismatch')
+    eligible = base.eligible(p['previous']['qids'])
+    if (p['eligible_group_count'] != len(eligible)
+            or p['connected_group_count'] != connected_count(eligible)):
+        raise ValueError('eligibility counts mismatch')
+    if p['status'] == 'ready':
+        validate_board(p['puzzle'], p['reference_date'], base, p['limits']['proof_nodes'])
+        if set(p['puzzle']['vocabulary']) - set(eligible):
+            raise ValueError('ineligible or consecutive group')
 
 
 def generate(base: FactBase, reference_date: str, seed: str, previous: dict,

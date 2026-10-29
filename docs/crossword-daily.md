@@ -1,9 +1,12 @@
-# Gerador offline de Cruzadinha diária
+# Gerador de Cruzadinha diária
 
-`crossword-daily-v1` é independente de `crossword-pilot-v1`. O tabuleiro fixo
-publicado continua em uso. O novo gerador não chama rede, migra banco, publica
-arquivos web nem atualiza manifest. Regras e plano de integração estão na
-[ADR 024](decisions/024-cruzadinha-diaria-e-unicidade.md).
+`crossword-daily-v1` é independente de `crossword-pilot-v1`. O gerador não chama
+rede nem migra banco. O runner diário o chama para publicar
+`crossword.daily.json` e o registro `crossword-publication.<data>.json`
+(seed `kpop-crossword-daily`); a política de falha e o histórico durável estão
+em [Cruzadinha](crossword-game.md). Regras na
+[ADR 024](decisions/024-cruzadinha-diaria-e-unicidade.md). A CLI abaixo continua
+servindo para gerar, verificar e medir fora do runner.
 
 ## CLI
 
@@ -44,7 +47,10 @@ com a contagem de tentativas rejeitadas.
 
 ## API
 
-`load_base(Path(...))` lê o universo factual. `generate(base, data, seed,
+`load_base(Path(...))` lê o universo factual; `read_base(conexão)` faz o mesmo
+numa conexão já aberta (a do runner). `validate_published(envelope)` aplica as
+regras que não dependem da base, usadas pelo publicador; a página aplica as
+mesmas, exceto a ordem canônica das entradas (ver `docs/crossword-game.md`). `generate(base, data, seed,
 contexto, limits=None)` retorna o envelope, e `validate(envelope, base)` recalcula
 as correspondências e a prova. `next_context(envelope, base)` valida uma saída e
 produz o contexto da próxima data. As funções não escrevem arquivos nem fazem
