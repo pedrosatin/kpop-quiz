@@ -77,10 +77,24 @@ async function firstPrompt(page: Page): Promise<string> {
   return (await page.getByTestId("game-board").getByRole("heading", { level: 2 }).textContent())!;
 }
 
-async function waitForProgressSave(page: Page, locale: Locale) {
+type SavedProgress = { selected_id: string | null; machine_state: string };
+
+/**
+ * Waits for the save of the action just performed. start() already writes a
+ * save with no selection, so "a save exists" is true before the selection (or
+ * answer) is persisted; pass `isPersisted` to wait for the state under test.
+ */
+async function waitForProgressSave(page: Page, locale: Locale, isPersisted: (save: SavedProgress) => boolean = () => true) {
   const key = progressKey(locale);
-  await expect.poll(async () => page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key)).not.toBeNull();
+  await expect
+    .poll(async () => {
+      const raw = await page.evaluate((storageKey) => window.localStorage.getItem(storageKey), key);
+      return raw !== null && isPersisted(JSON.parse(raw) as SavedProgress);
+    })
+    .toBe(true);
 }
+
+const selectionSaved = (save: SavedProgress) => save.selected_id !== null;
 
 for (const locale of locales) {
   for (const viewport of viewports) {
@@ -91,7 +105,7 @@ for (const locale of locales) {
       const option = page.getByTestId("game-board").locator("label.option").first();
       const optionText = (await option.textContent())!.trim();
       await option.click();
-      await waitForProgressSave(page, locale.locale);
+      await waitForProgressSave(page, locale.locale, selectionSaved);
 
       await page.reload();
       await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
@@ -108,7 +122,7 @@ test("resumes answered feedback after reload (pt, desktop)", async ({ page, base
   await page.getByTestId("game-board").locator("label.option").first().click();
   await page.getByRole("button", { name: locales[0].submit }).click();
   await expect(page.getByTestId("game-board").getByRole("status").first()).toBeVisible();
-  await waitForProgressSave(page, "pt-BR");
+  await waitForProgressSave(page, "pt-BR", (save) => save.machine_state === "question.answered");
 
   await page.reload();
   await expect(page.getByTestId("game-board").getByRole("heading", { level: 2 })).toHaveText(prompt);
@@ -175,7 +189,7 @@ test("restores results without duplicating the recorded match (en, desktop)", as
   await page.getByRole("button", { name: locales[1].confirmGiveUp }).click();
   await expect(page.getByTestId("game-result")).toBeVisible();
   await expect(page.getByRole("heading", { name: locales[1].result })).toBeVisible();
-  await waitForProgressSave(page, "en");
+  await waitForProgressSave(page, "en", (save) => save.machine_state === "results");
 
   const statsBefore = await page.evaluate(() => window.localStorage.getItem("kpop-player-stats-v1"));
   await page.reload();
@@ -262,7 +276,7 @@ test("switching locale keeps the other config's in-progress save (pt→en, deskt
   const option = page.getByTestId("game-board").locator("label.option").first();
   const optionText = (await option.textContent())!.trim();
   await option.click();
-  await waitForProgressSave(page, "pt-BR");
+  await waitForProgressSave(page, "pt-BR", selectionSaved);
   const ptRaw = await page.evaluate((key) => window.localStorage.getItem(key), progressKey("pt-BR"));
   expect(ptRaw).toBeTruthy();
 
@@ -332,7 +346,7 @@ test("keyboard selection autosaves and restores after reload (pt, desktop)", asy
   await radio.focus();
   await page.keyboard.press("Space");
   await expect(radio).toBeChecked();
-  await waitForProgressSave(page, "pt-BR");
+  await waitForProgressSave(page, "pt-BR", selectionSaved);
 
   await page.reload();
   await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
