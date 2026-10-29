@@ -289,9 +289,12 @@ describe("CrosswordGame", () => {
     );
     render(<CrosswordGame locale="pt-BR" />);
     expect(await screen.findByText(pt.crosswordArtifactMissing)).toBeInTheDocument();
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "missing");
     phase = 1;
     fireEvent.click(screen.getByTestId("game-retry"));
     expect(await screen.findByText(pt.loadError)).toBeInTheDocument();
+    // The boot smoke accepts an empty day but must still fail on this kind.
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "invalid");
     phase = 2;
     fireEvent.click(screen.getByTestId("game-retry"));
     expect(await screen.findByTestId("game-board")).toBeInTheDocument();
@@ -303,6 +306,7 @@ describe("CrosswordGame", () => {
     serve(yesterday, await buildOmittedCrosswordDaily(today));
     render(<CrosswordGame locale="en" />);
     expect(await screen.findByText(en.crosswordOmitted)).toBeInTheDocument();
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "omitted");
     expect(screen.queryByTestId("game-board")).not.toBeInTheDocument();
   });
 
@@ -310,6 +314,7 @@ describe("CrosswordGame", () => {
     serve(await buildCrosswordDaily(puzzle, "2000-01-01"), null, buildCrosswordOmissionRecord(today));
     render(<CrosswordGame locale="pt-BR" />);
     expect(await screen.findByText(pt.crosswordUnavailable)).toBeInTheDocument();
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "unavailable");
     expect(screen.queryByText(pt.crosswordArtifactMissing)).not.toBeInTheDocument();
     expect(screen.queryByTestId("game-board")).not.toBeInTheDocument();
   });

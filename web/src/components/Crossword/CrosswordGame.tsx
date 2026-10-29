@@ -39,14 +39,16 @@ export function CrosswordGame({ locale, baseUrl }: { locale: Locale; baseUrl?: s
   if (status === "error" || !puzzle) {
     // No fallback board: a missing, omitted, unavailable or invalid day never
     // plays an earlier board in its place.
+    const kind = errorKind ?? "invalid";
     const errorMsg = {
       omitted: messages.crosswordOmitted,
       unavailable: messages.crosswordUnavailable,
       missing: messages.crosswordArtifactMissing,
       invalid: messages.loadError,
-    }[errorKind ?? "invalid"];
+    }[kind];
+    // data-error-kind lets the boot smoke tell an expected empty day from a broken artifact.
     return (
-      <section id="crossword" tabIndex={-1} class="game-card game-card--wide state" data-testid="game-missing" aria-live="polite">
+      <section id="crossword" tabIndex={-1} class="game-card game-card--wide state" data-testid="game-missing" data-error-kind={kind} aria-live="polite">
         <p class="state-error">{errorMsg}</p>
         <button type="button" class="btn btn-primary" data-testid="game-retry" onClick={() => { void loadData(); }}>
           {messages.retry}
