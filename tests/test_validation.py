@@ -749,6 +749,141 @@ class SourcePolicyTest(unittest.TestCase):
         self.assertEqual(assessment.evidence, ())
         self.assertEqual(assessment.rejection_reason, "unreviewed_reference_source")
 
+def person_wikitext(**fields):
+    body = "\n".join(f"| {name} = {value}" for name, value in fields.items())
+    return "{{Infobox person\n| name = Someone\n" + body + "\n}}\nSomeone is a singer."
+
+
+def person_page(qid, wikitext, **options):
+    return WikipediaPage(
+        90, "en", 5000, 6000, "", "Someone", wikitext, options.get("wikidata_id", qid),
+        options.get("is_redirect", False),
+    )
+
+
+class PersonInfoboxValidationTest(unittest.TestCase):
+    """born_on and born_in may be proved by the person's own page (ADR 027)."""
+
+    def setUp(self):
+        self.fixture = load_fixture()
+        self.subjects = self.fixture["subject_profile"]
+
+    def decide(self, qid, pages, predicate, names=None, group_pages=None):
+        types = {qid: "person", "Q50412": "place", "Q8684": "place", RED_VELVET: "group"}
+        context = ValidationContext(
+            names={key: tuple(value) for key, value in (names or {}).items()},
+            entity_types=types,
+            group_pages=group_pages or {},
+            person_pages=pages,
+        )
+        extracted = person_fact_candidates(qid, self.subjects[qid], {RED_VELVET})
+        return decisions_by_predicate(validate_facts(extracted.candidates, context))[predicate]
+
+    def test_infobox_date_proves_a_birth_date_without_a_reliable_reference(self):
+        # Wendy's birth date cites only an unreliable source.
+        pages = {WENDY: person_page(WENDY, person_wikitext(birth_date="{{birth date and age|1994|2|21}}"))}
+        born = self.decide(WENDY, pages, "born_on")[0]
+        self.assertEqual((born.status, born.reason), ("accepted", None))
+        self.assertEqual(born.evidence[0].evidence_type, "wikipedia_revision")
+        self.assertEqual(born.evidence[0].snippet, "birth_date = {{birth date and age|1994|2|21}}")
+        self.assertTrue(born.evidence[0].locator.startswith("wikipedia:en:pageid=5000:revid=6000#wikitext["))
+        self.assertEqual(born.evidence[0].source_revision_id, 90)
+        self.assertIsNone(born.observed)
+
+    def test_infobox_place_proves_a_birth_place_and_coarse_values_are_flagged(self):
+        names = {"Q50412": ["Seongbuk District"]}
+        exact = {WENDY: person_page(WENDY, person_wikitext(birth_place="[[Seongbuk District]], [[Seoul]]"))}
+        born = self.decide(WENDY, exact, "born_in", names)[0]
+        self.assertEqual((born.status, born.reason, born.flags), ("accepted", None, ()))
+        coarse = {WENDY: person_page(WENDY, person_wikitext(birth_place="[[Jongno District]], [[Seongbuk District]]"))}
+        born = self.decide(WENDY, coarse, "born_in", names)[0]
+        self.assertEqual((born.status, born.flags), ("accepted", ("coarse_place",)))
+
+    def test_a_divergence_is_rejected_with_its_reason_and_keeps_what_the_page_says(self):
+        pages = {WENDY: person_page(WENDY, person_wikitext(birth_date="{{birth date and age|1994|2|22}}", birth_place="[[Seoul]], South Korea"))}
+        names = {"Q50412": ["Seongbuk District"]}
+        born_on = self.decide(WENDY, pages, "born_on")[0]
+        self.assertEqual((born_on.status, born_on.reason), ("rejected", "wikipedia_value_differs"))
+        self.assertEqual(born_on.evidence, ())
+        self.assertEqual(born_on.observed.snippet, "birth_date = {{birth date and age|1994|2|22}}")
+        born_in = self.decide(WENDY, pages, "born_in", names)[0]
+        self.assertEqual((born_in.status, born_in.reason), ("rejected", "wikipedia_value_differs"))
+        self.assertIn("[[Seoul]]", born_in.observed.snippet)
+
+    def test_an_unreadable_field_is_rejected_as_ambiguous(self):
+        pages = {WENDY: person_page(WENDY, person_wikitext(birth_date="February 1994"))}
+        born = self.decide(WENDY, pages, "born_on")[0]
+        self.assertEqual((born.status, born.reason), ("rejected", "wikipedia_value_ambiguous"))
+        self.assertEqual(born.evidence, ())
+
+    def test_without_a_usable_page_the_previous_reason_stays(self):
+        wikitext = person_wikitext(birth_date="{{birth date and age|1994|2|21}}")
+        cases = (
+            ({}, "unreliable_reference_source"),
+            ({WENDY: person_page(WENDY, person_wikitext(birth_date=""))}, "unreliable_reference_source"),
+            ({WENDY: person_page(WENDY, wikitext, wikidata_id="Q999")}, "unreliable_reference_source"),
+            ({WENDY: person_page(WENDY, wikitext, is_redirect=True)}, "unreliable_reference_source"),
+            ({WENDY: person_page(WENDY, "{{Infobox album\n| birth_date = {{birth date|1994|2|21}}\n}}")}, "unreliable_reference_source"),
+        )
+        for pages, reason in cases:
+            with self.subTest(pages):
+                born = self.decide(WENDY, pages, "born_on")[0]
+                self.assertEqual((born.status, born.reason, born.evidence), ("rejected", reason, ()))
+        # Yeri's date has no usable reference at all.
+        yeri = self.decide(YERI, {}, "born_on")[0]
+        self.assertEqual((yeri.status, yeri.reason), ("rejected", "missing_evidence"))
+
+    def test_a_reliable_reference_stays_ahead_of_a_divergent_infobox(self):
+        # Nayeon's birth date cites a reliable source, so the page is not consulted.
+        pages = {NAYEON: person_page(NAYEON, person_wikitext(birth_date="{{birth date and age|1990|1|1}}"))}
+        born = self.decide(NAYEON, pages, "born_on")[0]
+        self.assertEqual((born.status, born.reason), ("accepted", None))
+        self.assertEqual(born.evidence[0].evidence_type, "wikidata_reference")
+        self.assertIsNone(born.observed)
+
+    def test_person_pages_serve_only_the_statements_the_context_allows(self):
+        pages = {WENDY: person_page(WENDY, person_wikitext(birth_date="{{birth date and age|1994|2|21}}"))}
+        extracted = person_fact_candidates(WENDY, self.subjects[WENDY], {RED_VELVET})
+        statement_id = next(c for c in extracted.candidates if c.predicate == "born_on").statement.statement_id
+
+        def born(allowed):
+            context = ValidationContext(
+                names={}, entity_types={WENDY: "person"}, group_pages={}, person_pages=pages,
+                person_evidence_statements=allowed,
+            )
+            return decisions_by_predicate(validate_facts(extracted.candidates, context))["born_on"][0]
+
+        self.assertEqual(born(None).status, "accepted")
+        self.assertEqual(born(frozenset({statement_id})).status, "accepted")
+        denied = born(frozenset())
+        self.assertEqual((denied.status, denied.reason), ("rejected", "unreliable_reference_source"))
+        self.assertEqual(denied.evidence, ())
+        self.assertIsNone(denied.observed)
+
+    def test_group_page_never_proves_a_person_attribute(self):
+        group_page = WikipediaPage(
+            1, "en", 10, 20, "Yeri (born March 5, 1999) was born in Seoul.", "Red Velvet",
+            person_wikitext(birth_date="{{birth date and age|1999|3|5}}", birth_place="[[Seoul]]"),
+            RED_VELVET,
+        )
+        born = self.decide(YERI, {}, "born_on", group_pages={YERI: group_page, RED_VELVET: group_page})[0]
+        self.assertEqual((born.status, born.reason), ("rejected", "missing_evidence"))
+
+    def test_a_divergence_is_not_kept_when_the_fact_is_not_rejected_for_it(self):
+        entity = copy.deepcopy(self.subjects[WENDY])
+        second = copy.deepcopy(statement(entity, "P569"))
+        second["id"] = f"{WENDY}$other-birth-date"
+        second["mainsnak"]["datavalue"]["value"]["time"] = "+1994-02-23T00:00:00Z"
+        entity["claims"]["P569"].append(second)
+        pages = {WENDY: person_page(WENDY, person_wikitext(birth_date="{{birth date and age|1994|2|21}}"))}
+        context = ValidationContext(
+            names={}, entity_types={WENDY: "person"}, group_pages={}, person_pages=pages
+        )
+        extracted = person_fact_candidates(WENDY, entity, {RED_VELVET})
+        born = decisions_by_predicate(validate_facts(extracted.candidates, context))["born_on"]
+        self.assertEqual([(d.status, d.reason) for d in born], [("conflict", "same_rank_values_differ")] * 2)
+        self.assertEqual([d.observed for d in born], [None, None])
+
 
 if __name__ == "__main__":
     unittest.main()

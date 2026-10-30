@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from kpop_scraping.infobox import field_items, infobox_fields
+from kpop_scraping.infobox import field_items, first_infobox_fields, infobox_fields
 
 AESPA = json.loads(
     (Path(__file__).parent / "fixtures" / "infobox-aespa-rev1375560471.json").read_text(encoding="utf-8")
@@ -171,3 +171,50 @@ class AespaRevisionFixtureTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FirstInfoboxTest(unittest.TestCase):
+    ACCEPTED = frozenset({"person", "musical artist"})
+
+    def test_reads_person_and_musical_artist_infoboxes(self):
+        for kind in ("person", "Person", "musical artist", "Musical_artist"):
+            wikitext = f"{{{{Infobox {kind}\n| name = A\n| birth_place = [[Seoul]]\n}}}}"
+            fields = first_infobox_fields(wikitext, self.ACCEPTED)
+            self.assertEqual(set(fields), {"name", "birth_place"}, kind)
+            start, end = fields["birth_place"]
+            self.assertEqual(wikitext[start:end].strip(), "[[Seoul]]")
+
+    def test_the_first_infobox_decides_even_when_a_later_one_is_accepted(self):
+        wikitext = (
+            "{{Infobox television\n| name = A\n}}\n"
+            "{{Infobox person\n| birth_place = [[Seoul]]\n}}"
+        )
+        self.assertEqual(first_infobox_fields(wikitext, self.ACCEPTED), {})
+
+    def test_nested_infoboxes_belong_to_the_outer_one(self):
+        wikitext = (
+            "{{Infobox person\n| name = A\n| module = {{Infobox Korean name | hangul = 가}}\n"
+            "| birth_place = [[Seoul]]\n}}"
+        )
+        self.assertEqual(set(first_infobox_fields(wikitext, self.ACCEPTED)), {"name", "module", "birth_place"})
+
+    def test_comments_and_nowiki_are_not_infoboxes(self):
+        wikitext = (
+            "<!-- {{Infobox person | name = Old}} -->\n<nowiki>{{Infobox person|name=X}}</nowiki>\n"
+            "{{Infobox person\n| name = New\n}}"
+        )
+        fields = first_infobox_fields(wikitext, self.ACCEPTED)
+        start, end = fields["name"]
+        self.assertEqual(wikitext[start:end].strip(), "New")
+
+    def test_templates_that_only_start_with_the_name_do_not_count(self):
+        for name in ("Infobox person/doc", "Infobox personality", "Infobox"):
+            wikitext = f"{{{{{name}\n| name = A\n}}}}"
+            self.assertEqual(first_infobox_fields(wikitext, self.ACCEPTED), {}, name)
+
+    def test_unreadable_items_can_be_kept(self):
+        wikitext = "{{Infobox person\n| birth_place = [[Seoul]] and [[Busan]], Daegu\n}}"
+        span = first_infobox_fields(wikitext, self.ACCEPTED)["birth_place"]
+        self.assertEqual([item.names for item in field_items(wikitext, span)], [("Daegu",)])
+        kept = field_items(wikitext, span, include_unreadable=True)
+        self.assertEqual([item.names for item in kept], [(), ("Daegu",)])

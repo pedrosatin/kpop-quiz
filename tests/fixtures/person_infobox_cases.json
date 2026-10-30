@@ -1,0 +1,721 @@
+{
+ "_source": {
+  "description": "Casos reais de infobox de página própria de pessoa na Wikipedia em inglês (ADR 027), com o valor do Wikidata que cada caso compara. Os casos \"derived\" mudam só a precisão do valor do Wikidata.",
+  "retrieved_at": "2026-10-20T02:46:05+00:00",
+  "api": "https://en.wikipedia.org/w/api.php: action=query&titles=...&redirects=1&prop=extracts|info|pageprops|revisions&rvprop=ids (revid e wikibase_item); revids=...&rvprop=ids|content&rvslots=main (wikitext)",
+  "user_agent": "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz; medicao evidencia-pessoa 01)",
+  "wikidata": "statement_id e valor lidos dos snapshots subject-v1 de data/kpop.db (fatos born_on e born_in rejeitados por missing_evidence) na medição da fatia 01; names são os nomes de matching_names do lugar",
+  "reduction": "wikitext_prefix é o começo da revisão até o fim da primeira infobox. Os deslocamentos dos localizadores continuam os da revisão inteira. O texto depois da infobox foi descartado.",
+  "license": "O wikitext é conteúdo da Wikipedia sob CC BY-SA 4.0. Cada trecho vem de uma revisão identificada por pageid e revid (permalink), e o histórico da página lista os autores.",
+  "redirect_pages": "EunB e Kyujin têm título que redireciona para a página do grupo; a página guardada nesses casos é a do grupo (is_redirect = true, wikibase_item do grupo)."
+ },
+ "pages": [
+  {
+   "qid": "Q15111667",
+   "requested_title": "Doh Kyung-soo",
+   "title": "Doh Kyung-soo",
+   "pageid": 35486929,
+   "revid": 1379400275,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=35486929&oldid=1379400275",
+   "wikidata_id": "Q15111667",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer and actor (born 1993)}}\n{{Family name hatnote|Doh|lang=Korean}}\n{{Use mdy dates|date=June 2026}}\n{{Infobox person\n| name              = Doh Kyung-soo\n| image             = D.O. at the press conference of the film Underdog in January 2019.png\n| alt               = Photograph of Doh Kyung-soo at a press conference for his film, Underdog.\n| caption           = Doh in 2019\n| other_names       = D.O.\n| birth_date        = {{Birth date and age|1993|1|12}}\n| birth_place       = [[Seoul]], South Korea\n| education         = [[Kyung Hee Cyber University]]\n| occupation        = {{hlist|Singer|actor}}\n| signature         = DO signature.png\n| signature_alt     = Signature of D.O.\n| module            = {{Infobox musical artist\n| embed             = yes\n| genre             = {{Hlist|[[K-pop]]|[[Contemporary R&B|R&B]]|[[Folk-pop]]<ref>{{cite magazine|title=EXO Vocalist D.O. Releases Romantic Solo Album 'Empathy'|url=https://www.billboard.com/music/music-news/exo-d-o-solo-album-empathy-9610981/|magazine=[[Billboard (magazine)|Billboard]]|author=Oak, Jessica|date=August 5, 2021|access-date=December 15, 2021|archive-date=December 15, 2021|archive-url=https://web.archive.org/web/20211215220058/https://www.billboard.com/music/music-news/exo-d-o-solo-album-empathy-9610981/|url-status=live}}</ref>}}\n| instrument        = Vocals\n| years_active      = 2012–present\n| label             = {{Hlist|[[SM Entertainment|SM]]|Company SooSoo|Blitzway Entertainment}}\n| current_member_of = {{Hlist|[[Exo]]|[[Exo|Exo-K]]}}\n| past_member_of    = [[SM Town]]\n| website           = {{Official website|1=https://companysoosoo.com}}\n}}\n| module2           = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul            = %도경수\n}}\n}}"
+  },
+  {
+   "qid": "Q19603930",
+   "requested_title": "Wheein",
+   "title": "Wheein",
+   "pageid": 53575972,
+   "revid": 1364987307,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=53575972&oldid=1364987307",
+   "wikidata_id": "Q19603930",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer}}\n{{Family name hatnote|Jung|lang=Korean}}\n{{Use mdy dates|date=February 2025}}\n{{Infobox person\n| name              = Whee In\n| image             = Wheein 2023.jpg\n| landscape         = \n| alt               = \n| caption           = Whee In in 2024\n| birth_name        = Jung Whee-in\n| birth_date        = {{Birth date and age|1995|04|17}}\n| birth_place       = [[Jeonju]], [[North Jeolla Province|North Jeolla]], South Korea\n| occupation        = {{Hlist|Singer|dancer|songwriter}}\n| signature         = Mamamoo wheein signature.webp\n| signature_alt     = Signature of Wheein\n| module            = {{Infobox musical artist|embed=yes\n| genre             = [[Contemporary R&B|R&B]], [[K-pop]] \n| instrument        = Vocals\n| years_active      = 2014–present\n| label             = {{Hlist|[[RBW (company)|RBW]]|The L1ve|With Us Entertainment}}\n| current_member_of = [[Mamamoo]]\n| website           = \n}}\n| module2           = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul            = %정휘인\n| hanja             = 丁輝人\n}}\n}}"
+  },
+  {
+   "qid": "Q27477017",
+   "requested_title": "Jisung",
+   "title": "Jisung",
+   "pageid": 68185739,
+   "revid": 1380435895,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=68185739&oldid=1380435895",
+   "wikidata_id": "Q27477017",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean rapper and singer-songwriter (born 2002)}}\n{{Hatnote group|\n{{Distinguish|Ji Sung}}\n{{Other people||Ji-sung}}\n}}\n{{Family name hatnote|Park|lang=Korean}}\n{{Use mdy dates|date=September 2024}}\n{{Infobox person\n| name               = Jisung\n| image              = ParkJisung-NCTDream-DREAM()SCAPE Press Conference 25Mar2024.png\n| caption            = Jisung in 2024\n| birth_name         = Park Ji-sung\n| birth_date         = {{birth date and age|mf=yes|2002|2|5}}\n| birth_place        = [[Seoul]], South Korea\n| other_names        = Andy Park<ref name=\":12\">{{Cite web|title=\"START\"...NCT 지성, 데뷔 7년만 개인 인스타그램 개설|url=https://www.topstarnews.net/news/articleView.html?idxno=15362540|website=Top Star News|language=ko|date=July 5, 2023|access-date=August 9, 2023|archive-date=August 7, 2023|archive-url=https://web.archive.org/web/20230807085028/https://www.topstarnews.net/news/articleView.html?idxno=15362540|url-status=live}}</ref>\n| occupation         = {{hlist|Rapper|singer|songwriter|dancer|actor|}}\n| years_active       = {{Start date|2010}}–present\n| module             = {{Infobox musical artist|embed=yes\n| genre             = [[K-pop]]\n| instrument        = Vocals\n| label             = [[SM Entertainment|SM]]<!-- DO NOT addition other label that do not signed contract with him personally Thank you! -->\n| current_member_of = {{hlist|[[NCT (group)|NCT]]|[[NCT Dream]]|[[SM Town]]}}<!--Do not add NCT U as it is not a permanent unit cause the members can change depending on the song's concept. Thank you! -->\n| past_member_of    = [[SM Rookies]]\n| website           = {{Official website|1=https://www.smtown.com/artists/10601}}\n}}\n| module2            = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul            = %박지성\n}}\n| signature          = NCT's Jisung signature.png\n}}"
+  },
+  {
+   "qid": "Q496501",
+   "requested_title": "Sulli",
+   "title": "Sulli",
+   "pageid": 24124743,
+   "revid": 1380569416,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=24124743&oldid=1380569416",
+   "wikidata_id": "Q496501",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer and actress (1994–2019)}}\n{{Other uses}}\n{{Family name hatnote|Choi|lang=Korean}}\n{{Use mdy dates|date=May 2023}}\n{{Infobox person\n| name               = Sulli\n| image              = Sulli-2019 (derived).jpg\n| image_upright      = \n| caption            = Sulli in September 2019\n| birth_name         = Choi Jin-ri<ref>{{Cite web|title = Fans cash in with celebrity products|work = [[The Korea Times]]|date=February 2, 2016|access-date=April 12, 2016|url=https://www.koreatimes.co.kr/www/news/culture/2016/02/201_197106.html|archive-url=https://web.archive.org/web/20160322054357/http://koreatimes.co.kr/www/news/culture/2016/02/201_197106.html|archive-date=March 22, 2016|url-status=live}}</ref><ref>{{Cite web|url=http://sh.piao.com.cn/view/images/shanghai/smt/querenhan.html|script-title=zh:SMTownLive' 2010年上海演唱会 艺人演出确认函|publisher=sh.piao.com.cn (中國票務在綫)|language=zh|access-date=January 7, 2020|archive-url=https://web.archive.org/web/20150824061116/http://sh.piao.com.cn/view/images/shanghai/smt/querenhan.html|archive-date=August 24, 2015|url-status=dead }}</ref>\n| birth_date         = {{Birth date|1994|03|29}}\n| birth_place        = [[Busan]], South Korea\n| death_date         = {{death date|2019|10|13|1994|3|29}} or<br/>{{death date and age|2019|10|14|1994|3|29}}<ref name=13_or_14/>\n| death_place        = [[Seongnam]], South Korea\n| death_cause        = [[Suicide by hanging]]\n| burial_place       = Yangsu-ri, Seoul, South Korea\n| occupation         = {{hlist|Singer|actress}}\n| years_active       = 2005–2019\n| signature          = Sulli's signature.png\n| module             = {{Infobox musical artist| embed=yes\n| genre          = [[K-pop]]\n| instrument     = Vocals\n| years_active   = {{hlist|2009–2015|2018–2019}}\n| label          = [[SM Entertainment|SM]]\n| past_member_of = [[f(x) (group)|f(x)]]\n}}\n| module2            = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul         = %최진리\n| hanjastage     = 雪梨\n| hanja          = 崔真理\n| hangulstage    = %_설리\n| ipa      = {{ipa|t͡ɕʰwe̞ t͡ɕiɭ.ɭi}}\n| ipastage = {{ipa|sʰʌɭ.ɭi}}\n}}\n}}"
+  },
+  {
+   "qid": "Q11346187",
+   "requested_title": "Jo Young-min",
+   "title": "Jo Young-min",
+   "pageid": 63638032,
+   "revid": 1377199423,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=63638032&oldid=1377199423",
+   "wikidata_id": "Q11346187",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer}}\n{{Use mdy dates|date=April 2026}}\n{{Family name hatnote|Jo||lang=Korean}}\n{{Infobox person\n| name               = Jo Young-min\n| image              = 150516 보이프렌드 03.jpg\n| caption            = Jo at the 2015 Yangsan Awards Festival\n| birth_date         = {{birth date and age|1995|4|24|df=y}}\n| birth_place        = [[Seoul]], South Korea\n| native_name        = 조영민\n| native_name_lang   = ko\n| education          = [[School of Performing Arts Seoul]]\n| occupation         = {{hlist|Actor|model|singer}}\n| years_active       = 2002–present\n| agent              = Starship Entertainment\n| family             = [[Jo Kwang-min]] (twin brother)\n| known_for          = ''[[Boyfriend (band)]]'' <br /> ''[[High Kick!]]'' <br /> ''[[Save the Family]]'' <br /> ''[[All My Love For You]]''\n| height_m           = 1.8\n}}"
+  },
+  {
+   "qid": "Q24276424",
+   "requested_title": "Jin (singer)",
+   "title": "Jin (singer)",
+   "pageid": 58611524,
+   "revid": 1377686442,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=58611524&oldid=1377686442",
+   "wikidata_id": "Q24276424",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer (born 1992)}}\n{{For|similarly-named people|Jin (disambiguation)#People{{!}}Jin § People}}\n{{family name hatnote|Kim||lang=Korean}}\n{{protection padlock|reason=Persistent [[WP:Disruptive editing|disruptive editing]]|small=yes}}\n{{Use American English|date=October 2023}}\n{{Use mdy dates|date=July 2020}}\n{{Infobox person\n| name         = Jin\n| image        = BTS Jin at Maison Fred, 13 March 2025 04.png\n| caption      = Jin in March 2025\n| birth_name   = Kim Seok-jin\n| birth_date   = {{birth date and age|1992|12|04}} <!-- Age will update automatically. DO NOT ADD HIS AGE HERE. -->\n| birth_place  = [[Anyang, Gyeonggi]], South Korea\n| education    = [[Konkuk University]]<!-- Universities he's GRADUATED from. And don't mention what he studied here; put that in the body. -->\n| occupation   = {{hlist|Singer}}\n| years_active = 2013–present\n| signature    = Signature of BTS' Jin.svg\n| module       = {{Infobox musical artist\n| embed             = yes\n| genre             = {{hlist|[[K-pop]]|[[pop rock]]}}<!-- Genres for his solo songs. -->\n| instrument        = Vocals <!-- Only for what he's known for, not for what he's capable of! -->\n| label             = [[Big Hit Music|Big Hit]]\n| current_member_of = [[BTS]]\n}}\n| honours      = [[File:ROK Order of Cultural Merit Hwa-gwan (5th Class) ribbon.PNG|border|23px]] [[Order of Cultural Merit (South Korea)|Hwagwan Order of Cultural Merit]] (2018)\n| website      = \n| module2      = {{Infobox Korean name/auto\n| child       = yes\n| headercolor = transparent\n| hangul      = %김석진\n| hanja       = 金碩珍\n| hanjaref    = <ref name=\"thestarprofile\" />\n}}\n}}"
+  },
+  {
+   "qid": "Q26689986",
+   "requested_title": "Mark (rapper)",
+   "title": "Mark (rapper)",
+   "pageid": 53700355,
+   "revid": 1380285178,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=53700355&oldid=1380285178",
+   "wikidata_id": "Q26689986",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|Canadian rapper (born 1999)}}\n{{Use Canadian English|date=April 2026}}\n{{Use mdy dates|date=August 2026}}\n{{Infobox person\n| name             = Mark\n| native_name      = 마크\n| native_name_lang = ko\n| image            = 241025 Mark Lee.jpg\n| caption          = Mark in 2024\n| birth_name       = Mark Lee\n| birth_date       = {{birth date and age|1999|8|2}}<ref>{{cite web|script-title=ko:[HAPPY B하인드] 8월 2일 오늘의 아이돌은? NCT(엔씨티) '마크' {{!}} 기사상세|url=https://enews.imbc.com/M/Detail/239398|website=iMBC 연예|language=ko|last=Lee|first=Mi-hwa|access-date=April 16, 2025|archive-date=September 13, 2025|archive-url=https://web.archive.org/web/20250913012823/https://enews.imbc.com/M/Detail/239398|url-status=live}}</ref>\n| birth_place      = [[Toronto]], Ontario, Canada<ref>{{cite web|title=Mark Shares How His NCT Solo Music Refuels His Passion Within K-Pop 'Chaos'|url=https://www.billboard.com/music/pop/nct-mark-solo-singles-golden-hour-child-interview-1235299996/|website=[[Billboard (magazine)|Billboard]]|last=Benjamin|first=Jeff|date=April 11, 2023|access-date=April 16, 2025|archive-date=March 8, 2025|archive-url=https://web.archive.org/web/20250308112312/https://www.billboard.com/music/pop/nct-mark-solo-singles-golden-hour-child-interview-1235299996/|url-status=live}}</ref>\n| education        = [[School of Performing Arts Seoul]]\n| occupation       = {{hlist|Rapper|dancer|singer|songwriter}}\n| years_active     = 2013–present\n| signature        = Mark Lee's signature.png\n| module           = {{Infobox musical artist|embed=yes\n| origin           = South Korea\n| genre            = {{hlist|[[K-pop]]|[[hip hop music|hip hop]]}}\n| instrument       = Vocals\n| label            = {{hlist|[[SM Entertainment|SM]]|Upper Room}}\n| past_member_of   = {{hlist|[[NCT (group)|NCT]]|[[NCT 127]]|[[NCT Dream]]|[[SuperM]]|[[SM Town]]|[[SM Rookies]]}}<!--Do Not added NCT U, are not a permanent unit cause the members can change depending on the song's concept. Thank you! -->\n}}\n| module2          = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul           = %이민형\n| hangulref        = <ref>{{cite web|script-title=ko:NCT 마크 첫 솔로 데뷔, 앨범 TMI - STYLE 읽을거리 {{!}} 에스콰이어 코리아 {{!}} 패션 매거진, 패션 잡지, 남성지|url=https://www.esquirekorea.co.kr/article/1864940|website=Esquire|language=ko|last=Park|first=Seo-hyun|access-date=April 16, 2025|archive-date=September 13, 2025|archive-url=https://web.archive.org/web/20250913010540/https://www.esquirekorea.co.kr/article/1864940|url-status=live}}</ref>\n}}\n}}"
+  },
+  {
+   "qid": "Q186601",
+   "requested_title": "Lee Min-woo",
+   "title": "Lee Min-woo",
+   "pageid": 3164706,
+   "revid": 1378949482,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=3164706&oldid=1378949482",
+   "wikidata_id": "Q186601",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer (born 1979)}}\n{{About|the Shinhwa member|the actor|Lee Min-woo (actor)|the Australian golfer|Min Woo Lee}}\n{{family name hatnote|Lee||lang=Korean}}\n{{BLP sources|date=November 2008}}\n{{Use mdy dates|date=January 2022}}\n{{Infobox person\n| name        = Lee Min-woo\n| image       = 141116 상하이 공연 - 이민우&신혜성 09 (cropped).jpg\n| caption     = Lee in 2014\n| native_name = 이민우\n| other_names = M\n| birth_date  = {{birth date and age|1979|9|19}}\n| birth_place = [[Jeonju]], [[North Jeolla Province|North Jeolla]], South Korea\n| occupation  = {{flatlist|\n* Singer\n* actor\n* entrepreneur}}\n| spouse      = {{marriage|Lee A-mi|2025}}\n| children    = 1\n| module      = {{Infobox musical artist\n| embed             = yes\n| genre             = {{flatlist|\n* [[K-pop]]\n* [[J-pop]]\n* [[Dance music|Dance]]}}\n| instrument        = \n| years_active      = 1998–present\n| label             = {{hlist|[[SM Entertainment|SM]]|Good|M Rising|Shinhwa Company|Liveworks Company|LeanBranding}}\n| current_member_of = [[Shinhwa]]\n| website           = [https://www.instagram.com/mstyle79/ Mstyle79] <br>\n[https://www.leanbranding.co.kr/leeminwoo Leanbranding] <br> [http://www.shinhwacompany.co.kr/ Shinhwa Company]\n}}\n| module2     = {{Infobox Korean name/auto\n| child = yes\n| headercolor=transparent\n| hangul = %이민우\n| hanja  = 李玟雨\n}}\n}}"
+  },
+  {
+   "qid": "Q48700376",
+   "requested_title": "Boi B",
+   "title": "Boi B",
+   "pageid": 55134664,
+   "revid": 1361803139,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=55134664&oldid=1361803139",
+   "wikidata_id": "Q48700376",
+   "is_redirect": false,
+   "wikitext_prefix": "{{short description|South Korean rapper}}\n{{Infobox musical artist\n| name            = Boi B\n| image           =\n| caption         =\n| native_name     =\n| birth_name      =\n| birth_date      =\n| birth_place     =\n| occupation      = {{hlist|[[Rapper]]}}\n| genre           = {{hlist|[[Hip hop music|Hip hop]]|[[Grime (music genre)|Grime]]}}<ref>{{cite web|url=https://www.allkpop.com/article/2017/02/hip-hop-trio-rhythm-power-drop-some-beats-in-new-bangsaneung-mv|title=\"Hip-hop trio Rhythm Power drop some beats in new 'Bangsaneung' MV\"|access-date=2019-08-27|archive-date=2019-08-27|archive-url=https://web.archive.org/web/20190827153542/https://www.allkpop.com/article/2017/02/hip-hop-trio-rhythm-power-drop-some-beats-in-new-bangsaneung-mv|url-status=live}}</ref>{{Unreliable source?|reason=See unreliable sources list on [[WP:KO/RS]]|date=November 2024}}\n| instrument      = Vocals\n| years_active    = 2010–present\n| label           = [[Amoeba Culture]]\n| associated_acts = \n}}"
+  },
+  {
+   "qid": "Q63967134",
+   "requested_title": "Kim Tae-rin",
+   "title": "Kim Tae-rin",
+   "pageid": 77805758,
+   "revid": 1371735255,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=77805758&oldid=1371735255",
+   "wikidata_id": "Q63967134",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean actress (born 1998)}}\n{{Distinguish|Kim Tae-ri}}\n{{Family name hatnote|Kim|lang=Korean}}\n{{Infobox person\n| name               = Kim Tae-rin\n| image              = 180826 베리굿 롯데몰 김포공항점 팬싸인회 다예.jpg\n| caption            = Kim in 2018\n| birth_name         = Kim Hyun-jung\n| birth_date         = {{birth date and age|1998|2|25}}\n| birth_place        = [[Seoul]], South Korea\n| occupation         = {{hlist|Actress|singer}}\n| years_active       = 2015–present\n| education          = [[Dongduk Women's University]] – Department of Broadcasting and Entertainment\n| alma_mater         = [[School of Performing Arts Seoul]]\n| agent              = SAA Company\n| module             = {{Infobox musical artist|embed=yes\n| genre             = {{hlist|[[K-pop]]}}\n| instrument        = Vocals\n| label             = JTG\n| years_active      = 2015–2019\n| current_member_of = \n| past_member_of    = [[Berry Good]]\n}}\n| module2            = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul            = %김현정\n| hangulstage       = %김태린\n}}\n}}"
+  },
+  {
+   "qid": "Q10852064",
+   "requested_title": "P.O",
+   "title": "P.O",
+   "pageid": 43355625,
+   "revid": 1380255032,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=43355625&oldid=1380255032",
+   "wikidata_id": "Q10852064",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Use mdy dates|date=September 2020}}\n{{unreliable sources|date=December 2014}}\n\n{{family name hatnote|Pyo||lang=Korean}}\n{{Infobox person\n| name               = P.O\n| image              = 2024-07-10 Good Partner event 01 (cropped).jpg\n| image_size         = \n| caption            = P.O in 2024\n| native_name        = \n| birth_name         = Pyo Ji-hoon\n| alias              = \n| birth_date         = {{birth date and age|1993|2|2}}\n| birth_place        = [[Mapo District]], [[Seoul]], South Korea<ref name=\"P.O\">{{cite web|url=https://cinefox.com/actor/view?isb=Y&movieman_seq=102987|title=P.O|website=Cinefox (씨네폭스)|access-date=2023-12-14|language=ko}}</ref>\n| education          = \n| occupation         = {{hlist|Rapper|singer|actor}}\n| agent              = [[Artist Company]]\n| module             = {{Infobox musical artist|embed=yes\n| genre           = {{hlist|[[K-pop]]|[[hip hop music|hip hop]]}}\n| instrument      = Vocals\n| years_active    = 2011–present\n| label           = \n| website         =\n| module       = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul          = %표지훈\n}}\n}}\n}}"
+  },
+  {
+   "qid": "Q8261971",
+   "requested_title": "Elkie Chong",
+   "title": "Elkie Chong",
+   "pageid": 50985711,
+   "revid": 1375656092,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=50985711&oldid=1375656092",
+   "wikidata_id": "Q8261971",
+   "is_redirect": false,
+   "wikitext_prefix": "{{short description|Hong Kong singer and actress (born 1998)}}\n{{Use dmy dates|date=July 2026}}\n{{Family name hatnote|[[Zhuang (surname)|Chong]]|Elkie Chong|Chong Ting-yan|lang=Hong Kong}}\n{{Infobox person\n| name         = Elkie Chong\n| image        = 180223 뮤직뱅크 출근길 CLC (2).jpg\n| alt          = \n| caption      = Chong in February 2018\n| birth_name   = Chong Ting-yan\n| birth_place  = [[Tai Po District|Tai Po]], [[Hong Kong]]\n| other_names  = Elkie\n| birth_date   = {{birth date and age|1998|11|02|df=yes}}\n| occupation   = {{hlist|Singer|actress}}\n| years_active = 2009–present\n| module       = {{Infobox musical artist\n| embed             = yes\n| instrument        = Vocals\n| genre             = [[K-pop]]\n| label             = [[Cube Entertainment|Cube]]\n| current_member_of = [[CLC (group)|CLC]]\n| past_member_of    = {{hlist|Honey Bees|[[Cube Entertainment#Artists|United Cube]]}}\n| module            = {{Infobox Chinese\n| child = yes\n| hide  = no\n| s     = {{linktext|庄|锭|欣}}\n| t     = {{linktext|莊|錠|欣}}\n| p     = Zhuāng Dìngxīn\n| j     = Zong1 Ding3-jan1\n| y     = Jōng Ding-yān\n}}\n{{Infobox Korean name/auto\n| child  = yes\n| title  = Korean stage name\n| hangul = %_엘키\n}}\n}}\n}}"
+  },
+  {
+   "qid": "Q47087172",
+   "requested_title": "Hangzoo",
+   "title": "Hangzoo",
+   "pageid": 55134663,
+   "revid": 1298660137,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=55134663&oldid=1298660137",
+   "wikidata_id": "Q47087172",
+   "is_redirect": false,
+   "wikitext_prefix": "{{short description|South Korean rapper}}\n{{Use dmy dates|date=February 2021}}\n\n{{Infobox musical artist\n| name            = Hangzoo\n| image           =\n| caption         =\n| native_name     =\n| birth_name      =\n| birth_date      = {{birth date and age|df=yes|1986|12|10}}\n| birth_place     = [[Incheon]], South Korea\n| occupation      = {{hlist|[[Rapper]]}}\n| genre           = {{hlist|[[Hip hop music|Hip hop]]}}\n| instrument      = Vocals\n| years_active    = 2010–present\n| label           = [[Amoeba Culture]]\n| associated_acts = \n| module          = {{Infobox Korean name/auto\n|hangul = %윤형준\n|child=yes\n}}\n}}"
+  },
+  {
+   "qid": "Q12611724",
+   "requested_title": "Lee Seok-hoon (singer)",
+   "title": "Lee Seok-hoon (singer)",
+   "pageid": 67530630,
+   "revid": 1353442189,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=67530630&oldid=1353442189",
+   "wikidata_id": "Q12611724",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer}}\n{{about|the singer|the film director and screenwriter|Lee Seok-hoon}}\n{{use mdy dates|date=August 2022}}\n{{Infobox person\n| name               = Lee Seok-hoon\n| image              = 2009 SG워너비.png\n| caption            = Lee Seok-hoon performing in 2016.\n| native_name        = \n| birth_name         = \n| alias              = \n| birth_date         = {{birth date and age|1984|2|21}}\n| birth_place        = [[Pohang]], [[South Korea]]\n| occupation         = Singer · Musical actor · DJ\n| agent              = [[C9 Entertainment]]<ref>{{cite news|title=SG워너비 이석훈, C9엔터와 전속계약..윤하배진영과 한솥밥[공식입장]|url=https://www.chosun.com/site/data/html_dir/2019/01/02/2019010200739.html|work=[[The Chosun Ilbo]]|date=January 2, 2019|language=ko|archive-date=November 24, 2023|access-date=May 15, 2021|archive-url=https://web.archive.org/web/20231124044023/https://www.chosun.com/site/data/html_dir/2019/01/02/2019010200739.html|url-status=live}}</ref><ref>{{cite news|title=SG워너비 이석훈, C9엔터테인먼트와 재계약|url=https://www.yna.co.kr/view/AKR20210706038500005|work=[[Yonhap News Agency]]|date=July 6, 2021|language=ko|archive-date=November 24, 2023|access-date=July 14, 2021|archive-url=https://web.archive.org/web/20231124093714/https://www.yna.co.kr/view/AKR20210706038500005|url-status=live}}</ref>\n| education          = [[Dong-ah Institute of Media and Arts]]\n| spouse             = {{marriage|Choi Sun-a|2014}}\n| children           = 1\n| module             = {{Infobox musical artist|embed=yes\n| genre            = {{hlist|Pop|[[Contemporary R&B|R&B]]}}\n| instrument       = Vocals, piano\n| years_active     = 2006–present\n| label            = [[Stone Music Entertainment]]\n| current_member_of = [[SG Wannabe]]\n| website          = \n}}\n}}"
+  },
+  {
+   "qid": "Q55287305",
+   "requested_title": "Shuhua",
+   "title": "Shuhua",
+   "pageid": 77060615,
+   "revid": 1377032164,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=77060615&oldid=1377032164",
+   "wikidata_id": "Q55287305",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|Taiwanese singer and actress (born 2000)}}\n{{Family name hatnote|[[Ye (surname)|Yeh]]|lang=Taiwanese}}\n{{Use mdy dates|date=September 2025}}\n{{Infobox person\n| name               = Shuhua\n| image              = Shuhua Yeh portrait at TIFF 2026.jpg\n| caption            = Shuhua in 2026\n| birth_name         = Yeh Shu-hua\n| birth_date         = {{Birth date and age|2000|01|06}}\n| birth_place        = [[Taoyuan, Taiwan|Taoyuan]], Taiwan\n| education          = Hwa Kang Arts School\n| occupation         = {{hlist|Singer|actress}}\n| signature          = Yeh Shuhua signature.svg\n| module             = {{Infobox musical artist|embed=yes\n| origin            = [[Seoul]], South Korea\n| genre             = {{hlist|[[Dance-pop]]|[[K-pop]]|[[C-pop]]}}\n| instrument        = Vocals\n| label             = {{flatlist|\n* [[Cube Entertainment|Cube]]\n* Hot Idol<ref>{{cite web|script-title=zh:賴冠霖同門「台灣女孩」舒華爆赴陸發展官方微博「個人照」公開|url=https://star.ettoday.net/news/1353144|website=[[ETtoday]]|language=zh|author=蕭采薇|date=January 10, 2019|access-date=May 14, 2021|archive-date=April 18, 2021|archive-url=https://web.archive.org/web/20210418171450/https://star.ettoday.net/news/1353144|url-status=live}}</ref>\n}}\n| years_active      = 2018–present\n| current_member_of = [[I-dle]]\n}}\n| module2            = {{Infobox Chinese|child=yes|headercolor=transparent|hide=no\n| t                 = {{linktext|葉|舒|華}}\n| s                 = {{linktext|叶|舒|华}}\n| p                 = Yè Shūhuá\n| w                 = Yeh Shu-hua\n}}\n}}"
+  },
+  {
+   "qid": "Q13428840",
+   "requested_title": "Yoo Ji-ae",
+   "title": "Yoo Ji-ae",
+   "pageid": 84053101,
+   "revid": 1380613362,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=84053101&oldid=1380613362",
+   "wikidata_id": "Q13428840",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer and actress (born 1993)}}\n{{family name hatnote|Yoo||lang=Korean}}\n{{Use mdy dates|date=August 2026}}\n{{Infobox person\n| name               = Yoo Ji-ae\n| image              = 151023 러블리즈 뮤직뱅크 미니팬미팅 - 01 (4).jpg\n| caption            = Yoo in October 2015\n| birth_date         = {{birth date and age|1993|5|21}}\n| birth_place        = South Korea\n| occupation         = {{hlist|Singer|actress}}\n| module             = {{Infobox musical artist|embed=yes\n| genre             = [[K-pop]]\n| instrument        = Vocals\n| years_active      = 2013–present\n| label             = {{hlist|[[Woollim Entertainment|Woollim]]|[[KPlus]]}}\n| current_member_of = [[Lovelyz]]\n}}\n| module2            = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul          = %유지애\n}}\n}}"
+  },
+  {
+   "qid": "Q97352001",
+   "requested_title": "Jihoon",
+   "title": "Jihoon",
+   "pageid": 70522685,
+   "revid": 1350661760,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=70522685&oldid=1350661760",
+   "wikidata_id": "Q97352001",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer (born 2000)}}\n{{About|the singer|other people with similar names|Ji-hoon}}\n{{family name hatnote|Park||lang=Korean}}\n{{Use mdy dates|date=April 2022}}\n{{Infobox person\n| name               = Jihoon\n| image              = 20230805 TREASURE (트레저) 지훈.jpg\n| image_size         = \n| caption            = Jihoon in August 2023\n| birth_date         = {{birth date and age|mf=yes|2000|03|14}}\n| birth_place        = [[Nam District, Busan]], South Korea\n| birth_name         = Park Ji-hoon\n| education          = \n| alma_mater         = \n| occupation         = {{hlist|Singer|dancer}}\n| years_active       = 2020–present\n| website            = \n| signature          = Jihoon's Signature.svg\n| module             = {{Infobox musical artist\n| embed           = yes\n| instrument      = {{hlist|Vocals}}\n| genre           = {{hlist|[[K-pop]]}}\n| label           = [[YG Entertainment|YG]]\n| current_member_of  = {{hlist|[[Treasure (band)|Treasure]]|T5}} \n| website         = \n| module2         = {{Infobox Korean name/auto\n| child  = yes\n| hangul = %박지훈\n| hanja  = 朴志焄\n}}}}\n}}"
+  },
+  {
+   "qid": "Q11271396",
+   "requested_title": "Jo Eun-byul",
+   "title": "Jo Eun-byul",
+   "pageid": 25085845,
+   "revid": 1306003592,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=25085845&oldid=1306003592",
+   "wikidata_id": "Q11271396",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer (born 1982)}}\n{{Use mdy dates|date=February 2020}}\n{{family name hatnote|[[Cho (Korean surname)|Jo]]||lang=Korean}}\n{{Infobox musical artist  <!-- See Wikipedia:WikiProject Musicians -->\n| name                = Jo Eun-byul\n| image               = \n| caption             = \n| image_size          = <!-- Only for images narrower than 220 pixels -->\n| birth_name          = Jo Eun-byul\n| alias               = Evie Cho\n| birth_date          = {{Birth date and age|1982|6|23}}\n| origin              = [[Seoul]], South Korea\n| genre               = [[K-pop]], [[Contemporary R&B|R&B]]\n| occupation          = Singer, actress\n| years_active        = 2002–present\n| label               = Coo Entertainment\n| past_member_of      = [[LUV (South Korean band)|LUV]]\n| website             = \n}}"
+  },
+  {
+   "qid": "Q16173535",
+   "requested_title": "EunB",
+   "title": "Ladies' Code",
+   "pageid": 38789740,
+   "revid": 1370389698,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=38789740&oldid=1370389698",
+   "wikidata_id": "Q11588897",
+   "is_redirect": true,
+   "wikitext_prefix": "{{short description|South Korean girl group}}\n{{Use mdy dates|date=April 2022}}\n{{Infobox musical artist\n| name              = Ladies' Code\n| image             = Ladies' Code at a showcase on October 10, 2019.png\n| caption           = Ladies' Code in October 2019<br />From left to right: Zuny, Sojung, and Ashley\n| image_size        = \n| landscape         = yes\n| origin            = [[Seoul]], South Korea\n| genre             = {{hlist|[[K-pop]]|[[electropop]]|[[Contemporary R&B|R&B]]}}\n| years_active      = {{start date|2013}}–2020{{efn|Indefinite hiatus}}\n| label             = [[Polaris Entertainment|Polaris]]\n| current_members   = {{unbulleted list|Ashley|[[Lee So-jung|Sojung]]|Zuny}}\n| past_members      = {{unbulleted list|EunB|[[Kwon Ri-se|Rise]]}} <!-- This field is for names only. Do not add \"deceased\" or any other words (or symbols) here. -->\n}}"
+  },
+  {
+   "qid": "Q109308262",
+   "requested_title": "Kyujin (singer)",
+   "title": "Nmixx",
+   "pageid": 69883490,
+   "revid": 1381033955,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=69883490&oldid=1381033955",
+   "wikidata_id": "Q109307762",
+   "is_redirect": true,
+   "wikitext_prefix": "{{Short description|South Korean girl group}}\n{{Use mdy dates|date=November 2024}}\n{{Infobox musical artist\n| name            = Nmixx\n| image           = Nmixx in Frankfurt 20260324 (1).jpg\n| image_upright   = \n| landscape       = yes\n| caption         = Nmixx in March 2026<br />L-R: Jiwoo, Sullyoon, Bae, Kyujin, Haewon, and Lily\n| origin          = [[Seoul]], South Korea\n| genre           = [[K-pop]]\n| years_active    = 2022–present\n| label           = {{hlist|[[JYP Entertainment|JYP]]|[[Republic Records|Republic]]}}\n| current_members = \n* [[Lily (singer, born 2002)|Lily]]\n* [[Haewon (singer)|Haewon]]\n* Sullyoon\n* Bae\n* Jiwoo\n* Kyujin\n| past_members    = [[Jini (singer)|Jinni]] <!-- DO NOT move and/or remove otherwise it will be considered as DISRUPTIVE EDITING -->\n| website         = {{URL|nmixx.jype.com}}\n}}"
+  }
+ ],
+ "cases": [
+  {
+   "id": "on-doh-template",
+   "qid": "Q15111667",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "Birth date and age com dia, mês e ano",
+   "wikidata": {
+    "statement_id": "Q15111667$C5C850A0-D717-4CD7-B236-37773EAC06CF",
+    "time": "1993-01-12",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{Birth date and age|1993|1|12}}",
+    "locator": "wikitext[461:493]"
+   }
+  },
+  {
+   "id": "on-wheein-zero-padded",
+   "qid": "Q19603930",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "mês e dia com zero à esquerda",
+   "wikidata": {
+    "statement_id": "Q19603930$C1410748-0D76-4E62-9651-D4919A38052F",
+    "time": "1995-04-17",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{Birth date and age|1995|04|17}}",
+    "locator": "wikitext[346:379]"
+   }
+  },
+  {
+   "id": "on-park-mf-option",
+   "qid": "Q27477017",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "opção mf=yes antes dos números",
+   "wikidata": {
+    "statement_id": "Q27477017$F100FF7B-7B33-4E88-BAF3-3E6E2F7F7247",
+    "time": "2002-02-05",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{birth date and age|mf=yes|2002|2|5}}",
+    "locator": "wikitext[456:494]"
+   }
+  },
+  {
+   "id": "on-sulli-birth-date",
+   "qid": "Q496501",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "template Birth date de pessoa falecida",
+   "wikidata": {
+    "statement_id": "Q496501$DE43B66A-10B8-47E5-A212-3598F151C714",
+    "time": "1994-03-29",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{Birth date|1994|03|29}}",
+    "locator": "wikitext[1132:1157]"
+   }
+  },
+  {
+   "id": "on-jo-df-after",
+   "qid": "Q11346187",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "opção df=y depois dos números",
+   "wikidata": {
+    "statement_id": "Q11346187$C85A1394-18A0-47BF-BFF6-418E04F19A4A",
+    "time": "1995-04-24",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{birth date and age|1995|4|24|df=y}}",
+    "locator": "wikitext[297:334]"
+   }
+  },
+  {
+   "id": "on-kim-comment-after",
+   "qid": "Q24276424",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "comentário HTML depois do template",
+   "wikidata": {
+    "statement_id": "Q24276424$5A5F7B96-D859-40A5-A0D4-D751EC8C833F",
+    "time": "1992-12-04",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{birth date and age|1992|12|04}}",
+    "locator": "wikitext[525:558]"
+   }
+  },
+  {
+   "id": "on-mark-ref-after",
+   "qid": "Q26689986",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "referência depois do template fica fora do localizador",
+   "wikidata": {
+    "statement_id": "Q26689986$53EF188B-C657-47D7-A244-81736FC5058B",
+    "time": "1999-08-02",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{birth date and age|1999|8|2}}",
+    "locator": "wikitext[343:374]"
+   }
+  },
+  {
+   "id": "on-doh-year-precision",
+   "qid": "Q15111667",
+   "predicate": "born_on",
+   "origin": "derived",
+   "note": "valor do Wikidata reduzido à precisão de ano (9): vale só o ano",
+   "wikidata": {
+    "statement_id": "Q15111667$C5C850A0-D717-4CD7-B236-37773EAC06CF",
+    "time": "1993",
+    "precision": 9
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{Birth date and age|1993|1|12}}",
+    "locator": "wikitext[461:493]"
+   }
+  },
+  {
+   "id": "on-doh-year-differs",
+   "qid": "Q15111667",
+   "predicate": "born_on",
+   "origin": "derived",
+   "note": "precisão de ano com ano diferente da infobox",
+   "wikidata": {
+    "statement_id": "Q15111667$C5C850A0-D717-4CD7-B236-37773EAC06CF",
+    "time": "1994",
+    "precision": 9
+   },
+   "expect": {
+    "outcome": "differs",
+    "snippet": "birth_date = {{Birth date and age|1993|1|12}}",
+    "locator": "wikitext[461:493]"
+   }
+  },
+  {
+   "id": "on-doh-month-precision",
+   "qid": "Q15111667",
+   "predicate": "born_on",
+   "origin": "derived",
+   "note": "precisão de mês está fora do gate: sem veredito",
+   "wikidata": {
+    "statement_id": "Q15111667$C5C850A0-D717-4CD7-B236-37773EAC06CF",
+    "time": "1993-01",
+    "precision": 10
+   },
+   "expect": {
+    "outcome": "none"
+   }
+  },
+  {
+   "id": "on-lee-min-woo-differs",
+   "qid": "Q186601",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "infobox traz 1979-09-19; Wikidata 1979-07-28",
+   "wikidata": {
+    "statement_id": "Q186601$F907EBFD-7288-4A1E-8C6E-97621D3BD9DC",
+    "time": "1979-07-28",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "differs",
+    "snippet": "birth_date = {{birth date and age|1979|9|19}}",
+    "locator": "wikitext[443:475]"
+   }
+  },
+  {
+   "id": "on-boi-b-empty-field",
+   "qid": "Q48700376",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "campo birth_date vazio na infobox",
+   "wikidata": {
+    "statement_id": "Q48700376$21812397-c556-4aa1-bc40-bc5236f6c860",
+    "time": "1986",
+    "precision": 9
+   },
+   "expect": {
+    "outcome": "none"
+   }
+  },
+  {
+   "id": "in-kim-tae-rin",
+   "qid": "Q63967134",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "primeiro item é o lugar",
+   "wikidata": {
+    "statement_id": "Q63967134$0ff983bf-4168-707f-1343-b07c6d785186",
+    "value_id": "Q8684",
+    "names": [
+     "Gyeongseong",
+     "Hanseong",
+     "Hanyang",
+     "Keijou",
+     "Keijō",
+     "Namgyeong",
+     "Seoul",
+     "Seoul Special City",
+     "Sŏul T'ŭkpyŏlsi",
+     "Wiryeseong"
+    ]
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_place = [[Seoul]]",
+    "locator": "wikitext[381:390]"
+   }
+  },
+  {
+   "id": "in-po-second-item",
+   "qid": "Q10852064",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "Wikidata traz a cidade; a infobox traz distrito, cidade e país",
+   "wikidata": {
+    "statement_id": "Q10852064$41d152f6-4145-e320-f99a-0d2268e684e5",
+    "value_id": "Q8684",
+    "names": [
+     "Gyeongseong",
+     "Hanseong",
+     "Hanyang",
+     "Keijou",
+     "Keijō",
+     "Namgyeong",
+     "Seoul",
+     "Seoul Special City",
+     "Sŏul T'ŭkpyŏlsi",
+     "Wiryeseong"
+    ]
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_place = [[Seoul]]",
+    "locator": "wikitext[475:484]",
+    "flags": [
+     "coarse_place"
+    ]
+   }
+  },
+  {
+   "id": "in-mark-ref-trim",
+   "qid": "Q26689986",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "referência depois do item fica fora do localizador",
+   "wikidata": {
+    "statement_id": "Q26689986$ee58c939-46a6-48d4-12e5-908513ec339d",
+    "value_id": "Q172",
+    "names": [
+     "City of Toronto",
+     "Hogtown",
+     "T-O",
+     "The 416",
+     "The Six",
+     "Toronto",
+     "Toronto, Canada",
+     "Toronto, ON",
+     "Toronto, Ontario"
+    ]
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_place = [[Toronto]]",
+    "locator": "wikitext[751:762]"
+   }
+  },
+  {
+   "id": "in-elkie-district",
+   "qid": "Q8261971",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "Wikidata traz Hong Kong; a infobox traz o distrito antes",
+   "wikidata": {
+    "statement_id": "Q8261971$f91161ce-25a3-40da-bef5-6f79f81025b4",
+    "value_id": "Q8646",
+    "names": [
+     "HKSAR",
+     "Hong Kong",
+     "Hong Kong SAR",
+     "Hong Kong SAR, China",
+     "Hong Kong Special Administrative Region",
+     "Hong Kong Special Administrative Region of the People's Republic of China",
+     "Hong Kong, China",
+     "Hongkong"
+    ]
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_place = [[Hong Kong]]",
+    "locator": "wikitext[415:428]",
+    "flags": [
+     "coarse_place"
+    ]
+   }
+  },
+  {
+   "id": "in-hangzoo-country",
+   "qid": "Q47087172",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "Wikidata traz o país; a infobox traz a cidade e o país",
+   "wikidata": {
+    "statement_id": "Q47087172$D7D30DFA-FB75-4B3A-A69F-F8F03501D045",
+    "value_id": "Q884",
+    "names": [
+     "Choson",
+     "Daehan Minguk",
+     "Daehanminguk",
+     "Hanguk",
+     "Korea (South)",
+     "Korea Republic",
+     "Rep. Korea",
+     "Republic of Korea",
+     "S. Korea",
+     "Silla",
+     "South Korea"
+    ]
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_place = South Korea",
+    "locator": "wikitext[307:318]",
+    "flags": [
+     "coarse_place"
+    ]
+   }
+  },
+  {
+   "id": "in-doh-grew-up",
+   "qid": "Q15111667",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "Wikidata traz Goyang (onde cresceu); a infobox traz Seoul",
+   "wikidata": {
+    "statement_id": "Q15111667$5456696E-24EC-461F-843B-95ACB0F23A3B",
+    "value_id": "Q42061",
+    "names": [
+     "Goyang",
+     "Goyang-si"
+    ]
+   },
+   "expect": {
+    "outcome": "differs",
+    "snippet": "birth_place = [[Seoul]], South Korea",
+    "locator": "wikitext[516:538]"
+   }
+  },
+  {
+   "id": "in-lee-seok-hoon-raised",
+   "qid": "Q12611724",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "Wikidata traz Incheon (onde cresceu); a infobox traz Pohang",
+   "wikidata": {
+    "statement_id": "Q12611724$c795e320-b602-4f2b-95a0-391c340de829",
+    "value_id": "Q20934",
+    "names": [
+     "Chemulpo",
+     "Inch'on",
+     "Incheon",
+     "Inchon",
+     "Jemulpo"
+    ]
+   },
+   "expect": {
+    "outcome": "differs",
+    "snippet": "birth_place = [[Pohang]], [[South Korea]]",
+    "locator": "wikitext[447:474]"
+   }
+  },
+  {
+   "id": "in-shuhua-finer",
+   "qid": "Q55287305",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "Wikidata mais fino (Yangmei District) que a infobox (Taoyuan)",
+   "wikidata": {
+    "statement_id": "Q55287305$071130d5-40f2-dec8-eca7-4c41a6625c68",
+    "value_id": "Q211505",
+    "names": [
+     "Yangmei",
+     "Yangmei District"
+    ]
+   },
+   "expect": {
+    "outcome": "differs",
+    "snippet": "birth_place = [[Taoyuan, Taiwan|Taoyuan]], Taiwan",
+    "locator": "wikitext[421:456]"
+   }
+  },
+  {
+   "id": "in-yoo-ji-ae-country-only",
+   "qid": "Q13428840",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "infobox traz só o país; Wikidata traz Seoul",
+   "wikidata": {
+    "statement_id": "Q13428840$E2BFD6B0-98D4-408D-B5CD-88F769076DD0",
+    "value_id": "Q8684",
+    "names": [
+     "Gyeongseong",
+     "Hanseong",
+     "Hanyang",
+     "Keijou",
+     "Keijō",
+     "Namgyeong",
+     "Seoul",
+     "Seoul Special City",
+     "Sŏul T'ŭkpyŏlsi",
+     "Wiryeseong"
+    ]
+   },
+   "expect": {
+    "outcome": "differs",
+    "snippet": "birth_place = South Korea",
+    "locator": "wikitext[373:384]"
+   }
+  },
+  {
+   "id": "in-jihoon-qualified",
+   "qid": "Q97352001",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "infobox traz Nam District, Busan; o Wikidata não diz qual Nam District",
+   "wikidata": {
+    "statement_id": "Q97352001$FAD3232D-19F1-4070-8D2C-3FFD48DDB3B5",
+    "value_id": "Q50363",
+    "names": [
+     "Nam District",
+     "Nam-gu"
+    ]
+   },
+   "expect": {
+    "outcome": "ambiguous",
+    "snippet": "birth_place = [[Nam District, Busan]], South Korea",
+    "locator": "wikitext[448:484]"
+   }
+  },
+  {
+   "id": "in-jo-eun-byul-absent",
+   "qid": "Q11271396",
+   "predicate": "born_in",
+   "origin": "real",
+   "note": "infobox sem o campo birth_place",
+   "wikidata": {
+    "statement_id": "Q11271396$6ce0771c-480d-c229-cf62-0bdaedf2f2c3",
+    "value_id": "Q884",
+    "names": [
+     "Choson",
+     "Daehan Minguk",
+     "Daehanminguk",
+     "Hanguk",
+     "Korea (South)",
+     "Korea Republic",
+     "Rep. Korea",
+     "Republic of Korea",
+     "S. Korea",
+     "Silla",
+     "South Korea"
+    ]
+   },
+   "expect": {
+    "outcome": "none"
+   }
+  }
+ ]
+}
