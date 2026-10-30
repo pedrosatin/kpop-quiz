@@ -94,3 +94,7 @@ infobox da página da própria pessoa na Wikipedia em inglês como evidência de
   `wikipedia_value_ambiguous`.
 - **Prioridade**: uma referência confiável do Wikidata continua valendo antes da
   infobox e não é rebaixada por ela.
+- **Ativação**: a fonte vem desligada. Só `python main.py --person-evidence`, numa
+  cópia do banco, a coleta e a aceita. O cron diário não a usa, e uma execução sem
+  a opção preserva os fatos já aceitos sem aceitar fato novo (ADR-027, seções
+  Ativação e Preservação sem a opção).

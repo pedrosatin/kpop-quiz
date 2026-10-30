@@ -49,13 +49,36 @@ Nos dois casos o texto lido na infobox e o localizador ficam em `fact_issues` (c
 
 ### Coleta
 
-Na extração de fatos, para cada pessoa com `born_on` ou `born_in` sem referência confiável e com sitelink `enwiki`, o pipeline resolve o título (lotes de 20, em sequência, com `maxlag`), guarda a revisão como snapshot imutável (ADR-002) em `source_pages` e `source_revisions` sem criar entrada de catálogo, e baixa o wikitext em lotes de 50 para `source_revision_wikitext` (ADR-019). Revisões já guardadas não são baixadas de novo. A migração 10 cria `person_source_pages`, uma linha por pessoa com a revisão mantida ou o motivo da recusa (`page_missing`, `page_redirect`, `page_disambiguation`, `page_wikidata_mismatch`, `wikitext_unavailable`). A execução só coleta quando recebe um cliente de pessoa; `python main.py --facts` passa a fornecê-lo. O resumo da página é guardado pelo snapshot da revisão, mas o validador recebe a página sem resumo.
+Na extração de fatos, para cada pessoa com `born_on` ou `born_in` sem referência confiável e com sitelink `enwiki`, o pipeline resolve o título (lotes de 20, em sequência, com `maxlag`), guarda a revisão como snapshot imutável (ADR-002) em `source_pages` e `source_revisions` sem criar entrada de catálogo, e baixa o wikitext em lotes de 50 para `source_revision_wikitext` (ADR-019). Revisões já guardadas não são baixadas de novo. A migração 10 cria `person_source_pages`, uma linha por pessoa com a revisão mantida ou o motivo da recusa (`page_missing`, `page_redirect`, `page_disambiguation`, `page_wikidata_mismatch`, `wikitext_unavailable`). A execução só coleta quando recebe um cliente de pessoa, e a CLI só o fornece com `--person-evidence` (seção Ativação). O resumo da página é guardado pelo snapshot da revisão, mas o validador recebe a página sem resumo.
 
 `EVIDENCE_RULES_VERSION` passa a `text-evidence-v7` e `EXTRACTOR_VERSION` a `wikidata-facts-v3`. `SOURCE_POLICY_VERSION` não muda: nenhuma origem de referência foi reclassificada.
 
 ### Rastro
 
 Coleta (`collection_runs`, `person_source_pages`, `source_revisions`) → fato (`facts.status`, `status_reason`, `quality_flags_json`; `fact_issues` para divergência e ambiguidade) → evidência (`fact_evidence` com `source_revision_id` e `#wikitext[...]`) → consumo (`quiz_repository` monta a URL `curid=<pageid>&oldid=<revid>` da revisão da pessoa) → artefato (`evidence` e a versão do conjunto de dados). Uma nova revisão da página cria outro snapshot e a evidência passa a apontar para ela; os snapshots anteriores permanecem.
+
+### Ativação
+
+A regra é opt-in e vem desligada. Nada a liga por conta própria: `--facts`, `--facts-limit`, `--facts-report` e `--releases` (que implica a etapa de fatos) não a ativam, e nenhuma variável de ambiente, arquivo de configuração ou workflow a ativa. A única entrada é `python main.py --person-evidence`, que:
+
+- exige a etapa de fatos (`--facts`, `--facts-limit`, `--facts-report` ou `--releases`; a flag vale também com `--releases`);
+- recusa o banco padrão (`data/kpop.db`) e o diretório `data/raw` padrão, que o cron diário usa. A execução só roda numa cópia explícita: copie `data/kpop.db` e `data/raw` juntos para um diretório em disco (nunca `/tmp`, que é RAM) e passe `--database <cópia>/kpop.db` (o `--raw-dir` padrão é `raw` ao lado do banco);
+- imprime a cobertura de `born_on` e `born_in` antes e depois da execução (aceitos, aceitos pela página da pessoa, rejeitados por falta de evidência e rejeitados pela página).
+
+O cron (`daily-puzzles-cron.yml`) continua com `python main.py --facts --releases`, sem a flag, no banco que restaurou do cache. Esse banco nunca recebe a regra, então não aceita nem publica fato novo dessa fonte. Um teste de regressão lê todos os workflows e falha se algum citar a flag.
+
+### Preservação sem a opção
+
+Todo fato é regravado a cada execução. Sem tratamento, uma execução sem a opção sobre um banco que já tem fatos aceitos pela infobox os regravaria como `missing_evidence`: um rebaixamento causado só por desligar a opção. A decisão:
+
+- Com a opção desligada, a execução não busca página nenhuma (nenhuma requisição). Ela reaplica a regra apenas aos fatos que já guardam como evidência uma revisão da página da pessoa (`fact_evidence` do tipo `wikipedia_revision` em `born_on` ou `born_in`), lendo a revisão e o wikitext já gravados. A identidade vem de `source_pages` (QID declarado e redirecionamento) e é conferida de novo pelo validador.
+- O conjunto de afirmações que a página pode servir é fechado nessas mesmas afirmações. Uma afirmação nova do Wikidata nunca é aceita por uma página já guardada: sem a opção, a regra não aceita fato novo.
+- A decisão não mexe em `person_source_pages`: ela guarda só a última coleta de cada pessoa, e a preservação usa a revisão que de fato evidenciou o fato.
+- Falha fechada. Se a revisão, o wikitext ou o snapshot não puderem ser lidos, se uma pessoa tiver fatos evidenciados por duas revisões, ou se um fato preservado com o mesmo valor do Wikidata terminar rejeitado por falta de evidência ou por divergência da página, a execução inteira falha com `PersonEvidenceUnavailable`, nenhum fato é alterado e a execução fica registrada como `failed`. O operador decide: corrigir os snapshots ou rodar com `--person-evidence` numa cópia.
+- Não é rebaixamento: valor alterado no Wikidata (outro fato, que a página pode contradizer), afirmação removida do Wikidata, conflito ou substituição por outra afirmação, e execução com a opção ligada, em que a validação continua sendo refeita contra a revisão atual da página.
+- Fatos que a página rejeitou (`wikipedia_value_differs` e `wikipedia_value_ambiguous`) voltam ao motivo que tinham antes da regra quando a opção está desligada. Continuam rejeitados e o trecho lido permanece em `fact_issues`.
+
+A cobertura antes e depois sai no resumo de cada execução de fatos, inclusive sem a opção, e permite conferir que `aceitos pela página da pessoa` não diminui.
 
 ## Alternativas consideradas
 
@@ -85,7 +108,8 @@ Fora do escopo. A kowiki usa outra infobox e outro formato de data, e 455 das 1.
 
 ## Consequências
 
-- Esta ADR e a mudança de código não reprocessam o banco nem publicam dados. A próxima extração completa coleta cerca de 45 requisições para as pessoas com `enwiki` e muda o estado de fatos já gravados. A auditoria editorial por amostra e o reprocessamento ficam para a fatia seguinte, antes de qualquer fato novo chegar a um puzzle publicado.
+- Esta ADR e a mudança de código não reprocessam o banco nem publicam dados. A regra só roda quando o operador passa `--person-evidence` numa cópia do banco; o cron e qualquer `--facts` ou `--releases` sem a flag seguem como antes. A extração com a opção coleta cerca de 45 requisições para as pessoas com `enwiki` e muda o estado de fatos da cópia. A auditoria editorial por amostra e o reprocessamento ficam para a fatia seguinte, antes de qualquer fato novo chegar a um puzzle publicado.
 - O critério de aceite do reprocessamento: pelo menos 50% dos `born_on` e `born_in` hoje rejeitados de pessoas com `enwiki` passam a aceitos; a auditoria de 30 fatos aceitos por predicado aceita zero erros em `born_on` e no máximo um em `born_in`; todo fato rejeitado por divergência aparece com o trecho da infobox.
-- Fatos aceitos pela infobox deixam de ser aceitos se uma revisão posterior da página mudar o campo, porque a validação é refeita a cada execução. A revisão antiga permanece guardada.
+- Com a opção ligada, fatos aceitos pela infobox deixam de ser aceitos se uma revisão posterior da página mudar o campo, porque a validação é refeita a cada execução. A revisão antiga permanece guardada. Com a opção desligada, a revisão guardada continua valendo e nenhum fato aceito é rebaixado (seção Preservação sem a opção).
+- Levar a regra ao banco de produção exige uma mudança posterior e explícita (a auditoria do C-03 e a retirada da recusa do banco padrão), não um merge desta fatia.
 - `born_in` ainda não é predicado do gerador de quizzes; `born_on` é, e perguntas de idade exigem a precisão de dia.

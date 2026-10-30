@@ -841,6 +841,25 @@ class PersonInfoboxValidationTest(unittest.TestCase):
         self.assertEqual(born.evidence[0].evidence_type, "wikidata_reference")
         self.assertIsNone(born.observed)
 
+    def test_person_pages_serve_only_the_statements_the_context_allows(self):
+        pages = {WENDY: person_page(WENDY, person_wikitext(birth_date="{{birth date and age|1994|2|21}}"))}
+        extracted = person_fact_candidates(WENDY, self.subjects[WENDY], {RED_VELVET})
+        statement_id = next(c for c in extracted.candidates if c.predicate == "born_on").statement.statement_id
+
+        def born(allowed):
+            context = ValidationContext(
+                names={}, entity_types={WENDY: "person"}, group_pages={}, person_pages=pages,
+                person_evidence_statements=allowed,
+            )
+            return decisions_by_predicate(validate_facts(extracted.candidates, context))["born_on"][0]
+
+        self.assertEqual(born(None).status, "accepted")
+        self.assertEqual(born(frozenset({statement_id})).status, "accepted")
+        denied = born(frozenset())
+        self.assertEqual((denied.status, denied.reason), ("rejected", "unreliable_reference_source"))
+        self.assertEqual(denied.evidence, ())
+        self.assertIsNone(denied.observed)
+
     def test_group_page_never_proves_a_person_attribute(self):
         group_page = WikipediaPage(
             1, "en", 10, 20, "Yeri (born March 5, 1999) was born in Seoul.", "Red Velvet",

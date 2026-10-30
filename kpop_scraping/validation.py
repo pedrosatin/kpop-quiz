@@ -33,6 +33,11 @@ class ValidationContext:
     countries: frozenset[str] = field(default_factory=frozenset)
     # Pages of people keyed by their Wikidata QID; only identity-checked pages.
     person_pages: Mapping[str, WikipediaPage] = field(default_factory=dict)
+    # Statements the person pages may serve. None leaves them unrestricted;
+    # a run that did not collect person pages passes only the statements the
+    # infobox rule had already accepted, so it can keep them without ever
+    # accepting a new fact from this source.
+    person_evidence_statements: frozenset[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -100,6 +105,9 @@ def _person_search(
     context: ValidationContext,
     reason: str,
 ) -> EvidenceSearch:
+    allowed = context.person_evidence_statements
+    if allowed is not None and candidate.statement.statement_id not in allowed:
+        return EvidenceSearch((), reason)
     page = context.person_pages.get(candidate.subject_id)
     if page is None:
         return EvidenceSearch((), reason)

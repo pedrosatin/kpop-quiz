@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from itertools import islice
 
 from .catalog import MUSICAL_GROUP_CLASSES
@@ -21,6 +21,13 @@ from .facts import (
 from .mediawiki import MAX_REVISIONS_PER_REQUEST, MediaWikiClient
 from .person_evidence import PERSON_BIRTH_FIELDS
 from .person_pages import PersonPageRequest, collect_person_pages
+from .person_preservation import (
+    PreservedFact,
+    assert_none_downgraded,
+    facts_with_person_evidence,
+    load_preserved_pages,
+    restrict_to,
+)
 from .storage import Repository
 from .validation import FactDecision, ValidationContext, validate_facts
 from .wikidata import (
@@ -94,18 +101,25 @@ def extract_facts(
     once so the infobox rules can serve as evidence. With ``person_client``,
     the English Wikipedia page of each person whose birth date or place lacks a
     reliable reference is collected so the infobox of that page can serve as
-    evidence for ``born_on`` and ``born_in`` (ADR 027).
+    evidence for ``born_on`` and ``born_in`` (ADR 027). Without it no page is
+    collected and no new fact is accepted from that source; the facts it had
+    already accepted are kept from the stored revision, and the run fails if
+    one of them cannot be.
     """
     if group_limit is not None and group_limit < 1:
         raise ValueError("group_limit must be greater than zero")
     if not 1 <= batch_size <= MAX_ENTITIES_PER_REQUEST:
         raise ValueError(f"batch_size must be between 1 and {MAX_ENTITIES_PER_REQUEST}")
     store = FactStore(repository)
+    birth_before = store.birth_coverage()
     run_id = store.start_run(EXTRACTOR_VERSION, group_limit)
     try:
         totals = _Run(
             store, client, run_id, batch_size, wikitext_client, person_client
         ).execute(group_limit)
+        totals = replace(
+            totals, birth_before=birth_before, birth_after=store.birth_coverage()
+        )
         missing_evidence = store.accepted_facts_without_evidence()
         if missing_evidence:
             raise RuntimeError(f"{missing_evidence} accepted facts have no evidence")
@@ -153,7 +167,7 @@ class _Run:
         )
         countries = self._resolve_values(all_candidates)
         pages = self._pages(processed_groups, all_candidates)
-        person_pages = self._person_pages(all_candidates)
+        person_pages, person_statements, preserved = self._person_evidence(all_candidates)
 
         context = ValidationContext(
             names=state.names,
@@ -161,10 +175,13 @@ class _Run:
             group_pages=pages,
             countries=frozenset(countries),
             person_pages=person_pages,
+            person_evidence_statements=person_statements,
         )
         decisions = validate_facts(all_candidates, context, reference_candidates)
         self._record_observed_pages(decisions)
         by_statement = {d.candidate.statement.statement_id: d for d in decisions}
+        if self.person_client is None:
+            assert_none_downgraded(preserved, by_statement)
         for subject in state.subjects:
             self.store.save_facts(
                 self.run_id,
@@ -432,10 +449,23 @@ class _Run:
                 pages.setdefault(page_keys[catalog_id], page)
         return pages
 
-    def _person_pages(self, candidates: list[FactCandidate]) -> dict[str, WikipediaPage]:
-        """Collect the own page of each person whose birth facts have no reliable reference."""
+    def _person_evidence(
+        self, candidates: list[FactCandidate]
+    ) -> tuple[dict[str, WikipediaPage], frozenset[str] | None, list[PreservedFact]]:
+        """Return the person pages, the statements they may serve and the facts to keep.
+
+        With a person client the pages are collected for every person whose
+        birth facts lack a reliable reference. Without one nothing is fetched:
+        the pages come from the revisions that already evidence accepted
+        facts, and they may serve only those statements.
+        """
         if self.person_client is None:
-            return {}
+            subjects = {candidate.subject_id for candidate in candidates}
+            preserved = restrict_to(
+                facts_with_person_evidence(self.store.connection), subjects
+            )
+            pages = load_preserved_pages(self.store, preserved)
+            return pages, frozenset(fact.statement_id for fact in preserved), preserved
         needing = {
             candidate.subject_id
             for candidate in candidates
@@ -448,7 +478,7 @@ class _Run:
             for qid, request in self.state.person_pages.items()
             if qid in needing
         ]
-        return collect_person_pages(self.store, self.person_client, requests)
+        return collect_person_pages(self.store, self.person_client, requests), None, []
 
     def _record_observed_pages(self, decisions: list[FactDecision]) -> None:
         """Keep what a person page said when it contradicted or could not prove a fact."""

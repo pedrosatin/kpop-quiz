@@ -5,13 +5,22 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .entities import Alias, canonical_name, extract_aliases
 from .evidence import WikipediaPage
 from .sources import SOURCE_POLICY_VERSION, classify_source
 from .storage import Repository, SnapshotIntegrityError, canonical_json, utc_now
-from .validation import ACCEPTED, CONFLICT, REJECTED, STALE, SUPERSEDED, FactDecision
+from .validation import (
+    ACCEPTED,
+    CONFLICT,
+    EVIDENCE_REASONS,
+    PAGE_CONTRADICTION_REASONS,
+    REJECTED,
+    STALE,
+    SUPERSEDED,
+    FactDecision,
+)
 from .wikidata import SUBJECT_PROFILE, EntityDocument
 
 SUBJECT_ENTITY_TYPES = frozenset({"group", "person", "release", "album"})
@@ -26,6 +35,19 @@ class CatalogGroup:
 
 
 @dataclass(frozen=True)
+class BirthCoverage:
+    """How many facts of one birth predicate the database holds, by outcome."""
+
+    predicate: str
+    total: int = 0
+    accepted: int = 0
+    # Accepted facts whose evidence is a Wikipedia revision (the person's own page).
+    accepted_by_person_page: int = 0
+    rejected_for_evidence: int = 0
+    rejected_by_person_page: int = 0
+
+
+@dataclass(frozen=True)
 class FactRunTotals:
     groups: int
     entities: int
@@ -36,6 +58,9 @@ class FactRunTotals:
     superseded: int
     ignored: int
     stale: int = 0
+    # Birth facts before and after the run (ADR 027), one entry per predicate.
+    birth_before: tuple[BirthCoverage, ...] = field(default=(), compare=False)
+    birth_after: tuple[BirthCoverage, ...] = field(default=(), compare=False)
 
 
 class FactStore:
@@ -701,6 +726,53 @@ class FactStore:
             (STALE, run_id, ACCEPTED, *page_ids, run_id),
         )
         return cursor.rowcount
+
+    def birth_coverage(self) -> tuple[BirthCoverage, ...]:
+        """Count ``born_on`` and ``born_in`` facts by outcome, for the before/after report."""
+        evidence_reasons = ",".join("?" * len(EVIDENCE_REASONS))
+        page_reasons = ",".join("?" * len(PAGE_CONTRADICTION_REASONS))
+        rows = self.connection.execute(
+            f"""
+            SELECT f.predicate,
+                   COUNT(*) AS total,
+                   SUM(f.status = ?) AS accepted,
+                   SUM(f.status = ? AND EXISTS (
+                       SELECT 1 FROM fact_evidence fe
+                       WHERE fe.fact_id = f.id AND fe.evidence_type = 'wikipedia_revision'
+                         AND fe.source_revision_id IS NOT NULL
+                   )) AS accepted_by_person_page,
+                   SUM(f.status = ? AND f.status_reason IN ({evidence_reasons}))
+                       AS rejected_for_evidence,
+                   SUM(f.status = ? AND f.status_reason IN ({page_reasons}))
+                       AS rejected_by_person_page
+            FROM facts f
+            WHERE f.predicate IN ('born_on', 'born_in')
+            GROUP BY f.predicate
+            """,
+            (
+                ACCEPTED,
+                ACCEPTED,
+                REJECTED,
+                *sorted(EVIDENCE_REASONS),
+                REJECTED,
+                *sorted(PAGE_CONTRADICTION_REASONS),
+            ),
+        ).fetchall()
+        found = {
+            row["predicate"]: BirthCoverage(
+                row["predicate"],
+                int(row["total"]),
+                int(row["accepted"] or 0),
+                int(row["accepted_by_person_page"] or 0),
+                int(row["rejected_for_evidence"] or 0),
+                int(row["rejected_by_person_page"] or 0),
+            )
+            for row in rows
+        }
+        return tuple(
+            found.get(predicate, BirthCoverage(predicate))
+            for predicate in ("born_on", "born_in")
+        )
 
     def accepted_facts_without_evidence(self) -> int:
         return int(
