@@ -361,7 +361,7 @@ class CliActivationTest(unittest.TestCase):
             with self.subTest(arguments=arguments), patch(
                 "kpop_scraping.cli.Repository"
             ) as repository, patch("kpop_scraping.cli.extract_facts") as extract:
-                with self.assertRaisesRegex(SystemExit, "only on a copy"):
+                with self.assertRaisesRegex(SystemExit, "refuses the default paths"):
                     main(arguments)
                 repository.assert_not_called()
                 extract.assert_not_called()

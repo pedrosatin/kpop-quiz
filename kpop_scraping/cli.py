@@ -72,7 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _check_person_evidence_target(run_facts: bool, database: Path, raw_dir: Path) -> None:
-    """Refuse --person-evidence unless it runs on a copy of the database."""
+    """Reject the default database and raw directory for --person-evidence."""
     if not run_facts:
         raise SystemExit(
             "--person-evidence needs the fact stage: add --facts, --facts-limit, "
@@ -81,7 +81,7 @@ def _check_person_evidence_target(run_facts: bool, database: Path, raw_dir: Path
     default_raw = DEFAULT_DATABASE.parent / "raw"
     if database.resolve() == DEFAULT_DATABASE.resolve() or raw_dir.resolve() == default_raw.resolve():
         raise SystemExit(
-            "--person-evidence runs only on a copy: pass --database (and --raw-dir) pointing "
+            "--person-evidence refuses the default paths: pass --database (and --raw-dir) pointing "
             "at a copy of data/kpop.db and data/raw, never the default database or its raw directory"
         )
 
