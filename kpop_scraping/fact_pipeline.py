@@ -8,7 +8,7 @@ from itertools import islice
 
 from .catalog import MUSICAL_GROUP_CLASSES
 from .entities import extract_aliases, instance_of, matching_names
-from .evidence import WikipediaPage
+from .evidence import WikipediaPage, assess_references
 from .fact_store import CatalogGroup, FactRunTotals, FactStore, count_statuses
 from .facts import (
     ExtractedFacts,
@@ -19,8 +19,10 @@ from .facts import (
     person_fact_candidates,
 )
 from .mediawiki import MAX_REVISIONS_PER_REQUEST, MediaWikiClient
+from .person_evidence import PERSON_BIRTH_FIELDS
+from .person_pages import PersonPageRequest, collect_person_pages
 from .storage import Repository
-from .validation import ValidationContext, validate_facts
+from .validation import FactDecision, ValidationContext, validate_facts
 from .wikidata import (
     COUNTRY_PROFILE,
     LABEL_PROFILE,
@@ -32,7 +34,7 @@ from .wikidata import (
 )
 
 
-EXTRACTOR_VERSION = "wikidata-facts-v2"
+EXTRACTOR_VERSION = "wikidata-facts-v3"
 HUMAN = "Q5"
 COUNTRY_CLASSES = frozenset(
     {
@@ -59,9 +61,17 @@ class _RunState:
     entity_ids: dict[str, int] = field(default_factory=dict)
     entity_types: dict[str, str] = field(default_factory=dict)
     names: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    person_pages: dict[str, PersonPageRequest] = field(default_factory=dict)
     subjects: list[_Subject] = field(default_factory=list)
     batches: int = 0
     ignored: int = 0
+
+
+def _enwiki_title(payload: Mapping[str, object]) -> str | None:
+    sitelinks = payload.get("sitelinks")
+    link = sitelinks.get("enwiki") if isinstance(sitelinks, Mapping) else None
+    title = link.get("title") if isinstance(link, Mapping) else None
+    return title.strip() if isinstance(title, str) and title.strip() else None
 
 
 def _batched(values: Iterable[str], size: int) -> Iterator[list[str]]:
@@ -76,11 +86,15 @@ def extract_facts(
     group_limit: int | None = None,
     batch_size: int = MAX_ENTITIES_PER_REQUEST,
     wikitext_client: MediaWikiClient | None = None,
+    person_client: MediaWikiClient | None = None,
 ) -> FactRunTotals:
     """Extract facts for accepted catalog groups and commit them atomically.
 
     With ``wikitext_client``, the wikitext of each group revision is collected
-    once so the infobox rules can serve as evidence.
+    once so the infobox rules can serve as evidence. With ``person_client``,
+    the English Wikipedia page of each person whose birth date or place lacks a
+    reliable reference is collected so the infobox of that page can serve as
+    evidence for ``born_on`` and ``born_in`` (ADR 027).
     """
     if group_limit is not None and group_limit < 1:
         raise ValueError("group_limit must be greater than zero")
@@ -89,7 +103,9 @@ def extract_facts(
     store = FactStore(repository)
     run_id = store.start_run(EXTRACTOR_VERSION, group_limit)
     try:
-        totals = _Run(store, client, run_id, batch_size, wikitext_client).execute(group_limit)
+        totals = _Run(
+            store, client, run_id, batch_size, wikitext_client, person_client
+        ).execute(group_limit)
         missing_evidence = store.accepted_facts_without_evidence()
         if missing_evidence:
             raise RuntimeError(f"{missing_evidence} accepted facts have no evidence")
@@ -108,12 +124,14 @@ class _Run:
         run_id: int,
         batch_size: int,
         wikitext_client: MediaWikiClient | None = None,
+        person_client: MediaWikiClient | None = None,
     ) -> None:
         self.store = store
         self.client = client
         self.run_id = run_id
         self.batch_size = batch_size
         self.wikitext_client = wikitext_client
+        self.person_client = person_client
         self.state = _RunState()
 
     def execute(self, group_limit: int | None) -> FactRunTotals:
@@ -135,14 +153,17 @@ class _Run:
         )
         countries = self._resolve_values(all_candidates)
         pages = self._pages(processed_groups, all_candidates)
+        person_pages = self._person_pages(all_candidates)
 
         context = ValidationContext(
             names=state.names,
             entity_types=state.entity_types,
             group_pages=pages,
             countries=frozenset(countries),
+            person_pages=person_pages,
         )
         decisions = validate_facts(all_candidates, context, reference_candidates)
+        self._record_observed_pages(decisions)
         by_statement = {d.candidate.statement.statement_id: d for d in decisions}
         for subject in state.subjects:
             self.store.save_facts(
@@ -302,6 +323,11 @@ class _Run:
             classes = instance_of(document.payload)
             if HUMAN in classes:
                 entity_id = self._register(qid, document, snapshot_id, SUBJECT_PROFILE, "person")
+                title = _enwiki_title(document.payload)
+                if title:
+                    self.state.person_pages[document.wikidata_id] = PersonPageRequest(
+                        document.wikidata_id, entity_id, snapshot_id, title
+                    )
                 self._add_subject(
                     document,
                     entity_id,
@@ -405,6 +431,38 @@ class _Run:
                 pages[catalog_id] = page
                 pages.setdefault(page_keys[catalog_id], page)
         return pages
+
+    def _person_pages(self, candidates: list[FactCandidate]) -> dict[str, WikipediaPage]:
+        """Collect the own page of each person whose birth facts have no reliable reference."""
+        if self.person_client is None:
+            return {}
+        needing = {
+            candidate.subject_id
+            for candidate in candidates
+            if candidate.predicate in PERSON_BIRTH_FIELDS
+            and candidate.error is None
+            and not assess_references(candidate.statement).evidence
+        }
+        requests = [
+            request
+            for qid, request in self.state.person_pages.items()
+            if qid in needing
+        ]
+        return collect_person_pages(self.store, self.person_client, requests)
+
+    def _record_observed_pages(self, decisions: list[FactDecision]) -> None:
+        """Keep what a person page said when it contradicted or could not prove a fact."""
+        for decision in decisions:
+            observed = decision.observed
+            if observed is None or decision.reason is None:
+                continue
+            self.store.record_issue(
+                self.run_id,
+                decision.candidate.subject_id,
+                decision.reason,
+                f"{decision.candidate.statement.statement_id}: "
+                f"{observed.snippet} [{observed.locator}]",
+            )
 
     def _collect_wikitext(self, page_keys: Mapping[str, str]) -> None:
         client = self.wikitext_client

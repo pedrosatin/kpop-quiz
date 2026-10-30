@@ -161,6 +161,20 @@ class FactStore:
             wikitext=wikitext,
         )
 
+    def revision_wikitext(self, source_revision_id: int) -> str | None:
+        """Read the stored wikitext of a collected revision, or None when it has none."""
+        row = self.connection.execute(
+            "SELECT snapshot_path, content_sha256 FROM source_revision_wikitext WHERE source_revision_id=?",
+            (source_revision_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        source = json.loads(
+            self.repository.snapshots.read(row["snapshot_path"], row["content_sha256"])
+        )
+        text = source.get("wikitext")
+        return text if isinstance(text, str) else None
+
     def group_revisions_without_wikitext(
         self,
         wikidata_ids: Iterable[str],

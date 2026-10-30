@@ -91,11 +91,13 @@ def main(argv: list[str] | None = None) -> int:
             report_rows = repository.export_catalog_csv(catalog_report)
             fact_totals = fact_rows = None
             if run_facts:
+                wikipedia = MediaWikiClient(user_agent=args.user_agent)
                 fact_totals = extract_facts(
                     repository,
                     WikidataEntityClient(user_agent=args.user_agent),
                     group_limit=args.facts_limit,
-                    wikitext_client=MediaWikiClient(user_agent=args.user_agent),
+                    wikitext_client=wikipedia,
+                    person_client=wikipedia,
                 )
                 fact_rows = export_fact_coverage_csv(repository.connection, facts_report)
             release_totals = release_rows = None

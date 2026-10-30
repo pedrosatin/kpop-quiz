@@ -74,6 +74,8 @@ wikidata_type_check
 
 `facts` tem uma linha por ID de afirmação do Wikidata. O valor ocupa `value_wikidata_id` e `value_entity_id` ou `value_time`, `value_precision` e `value_calendar`. `value_raw_json` preserva o valor original, inclusive quando a validação o rejeita. `valid_from` e `valid_to` vêm de `P580` e `P582`, cada um com sua precisão. `status` aceita `accepted`, `rejected`, `conflict` e `superseded`. Estados diferentes de `accepted` exigem `status_reason`. `quality_flags_json` lista marcas como `precision_below_day`, `insufficient_precision_for_age`, `membership_start_unknown`, `end_date_unknown` e `validity_not_evidenced`.
 
+`person_source_pages` guarda, por pessoa, a revisão da página própria na Wikipedia em inglês usada como evidência de `born_on` e `born_in` (`source_page_id`, `source_revision_id`, `page_wikidata_id`) ou o motivo da recusa (`page_missing`, `page_redirect`, `page_disambiguation`, `page_wikidata_mismatch`, `wikitext_unavailable`), com a execução de coleta e o snapshot do Wikidata que indicou o título.
+
 `fact_evidence` liga um fato a uma referência do Wikidata (`wikidata_snapshot_id` e `reference_hash`) ou a uma revisão da Wikipedia (`source_revision_id` e `snippet`). Na revisão, o `locator` termina em `#extract[início:fim]` para um trecho do resumo ou em `#wikitext[início:fim]` para um item da infobox, em pontos de código Unicode. `source_key` identifica o QID de `P248` ou o domínio registrável de `P854`. `locator` indica o local dentro da fonte. O extrator só grava `accepted` quando existe ao menos uma evidência aceita pela política de fontes.
 
 ### Predicados implementados

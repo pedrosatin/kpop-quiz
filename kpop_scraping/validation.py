@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
+from typing import NamedTuple
 
 from .evidence import EvidenceItem, WikipediaPage, assess_references, text_evidence
 from .facts import FactCandidate
+from .person_evidence import PERSON_BIRTH_FIELDS, VALUE_AMBIGUOUS, VALUE_DIFFERS, person_infobox_check
 
 
 ACCEPTED = "accepted"
@@ -14,6 +16,8 @@ REJECTED = "rejected"
 CONFLICT = "conflict"
 SUPERSEDED = "superseded"
 STALE = "stale"
+# A fact rejected with one of these reasons keeps the infobox text in ``observed``.
+PAGE_CONTRADICTION_REASONS = frozenset({VALUE_DIFFERS, VALUE_AMBIGUOUS})
 EVIDENCE_REASONS = frozenset(
     {"missing_evidence", "unreliable_reference_source", "unreviewed_reference_source"}
 )
@@ -27,6 +31,8 @@ class ValidationContext:
     release_pages: Mapping[str, tuple[WikipediaPage, ...]] = field(default_factory=dict)
     release_performers: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     countries: frozenset[str] = field(default_factory=frozenset)
+    # Pages of people keyed by their Wikidata QID; only identity-checked pages.
+    person_pages: Mapping[str, WikipediaPage] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -36,21 +42,35 @@ class FactDecision:
     reason: str | None
     flags: tuple[str, ...]
     evidence: tuple[EvidenceItem, ...]
+    # What the page says when it contradicts the fact or cannot be read; it
+    # supports nothing and is kept only for the reviewer.
+    observed: EvidenceItem | None = None
+
+
+class EvidenceSearch(NamedTuple):
+    evidence: tuple[EvidenceItem, ...]
+    reason: str
+    observed: EvidenceItem | None = None
 
 
 def find_evidence(
     candidate: FactCandidate,
     context: ValidationContext,
-) -> tuple[tuple[EvidenceItem, ...], str]:
+) -> EvidenceSearch:
     """Return evidence and, when there is none, the rejection reason.
 
     Reliable Wikidata references come first. Group facts and memberships may
-    fall back to the collected Wikipedia revision of the group.
+    fall back to the collected Wikipedia revision of the group. ``born_on`` and
+    ``born_in`` may fall back to the infobox of the person's own page.
     """
     assessment = assess_references(candidate.statement)
     reason = assessment.rejection_reason or "missing_evidence"
-    if assessment.evidence or not candidate.spec.wikipedia_evidence:
-        return assessment.evidence, reason
+    if assessment.evidence:
+        return EvidenceSearch(assessment.evidence, reason)
+    if candidate.predicate in PERSON_BIRTH_FIELDS:
+        return _person_search(candidate, context, reason)
+    if not candidate.spec.wikipedia_evidence:
+        return EvidenceSearch(assessment.evidence, reason)
     predicate = candidate.predicate
     group_id = candidate.value_id if predicate == "member_of" else candidate.subject_id
     if candidate.spec.subject_type == "release":
@@ -59,7 +79,7 @@ def find_evidence(
         page = context.group_pages.get(group_id or "")
         pages = (page,) if page else ()
     if not pages:
-        return (), reason
+        return EvidenceSearch((), reason)
     person_or_value = candidate.subject_id if predicate == "member_of" else candidate.value_id
     for page in pages:
         item = text_evidence(
@@ -71,8 +91,28 @@ def find_evidence(
             context.release_performers.get(group_id or "", ()),
         )
         if item:
-            return (item,), reason
-    return (), reason
+            return EvidenceSearch((item,), reason)
+    return EvidenceSearch((), reason)
+
+
+def _person_search(
+    candidate: FactCandidate,
+    context: ValidationContext,
+    reason: str,
+) -> EvidenceSearch:
+    page = context.person_pages.get(candidate.subject_id)
+    if page is None:
+        return EvidenceSearch((), reason)
+    check = person_infobox_check(
+        candidate.predicate,
+        page,
+        candidate.subject_id,
+        candidate.time,
+        context.names.get(candidate.value_id or "", ()),
+    )
+    if check.evidence:
+        return EvidenceSearch((check.evidence,), reason)
+    return EvidenceSearch((), check.rejection_reason or reason, check.observed)
 
 
 def validate_facts(
@@ -106,14 +146,23 @@ def _validate_group(
     results: dict[str, FactDecision] = {}
     evidence: dict[str, tuple[EvidenceItem, ...]] = {}
     evidence_reason: dict[str, str] = {}
+    observed: dict[str, EvidenceItem | None] = {}
 
     def decide(candidate: FactCandidate, status: str, reason: str | None) -> None:
-        found = evidence.get(candidate.statement.statement_id, ())
+        statement_id = candidate.statement.statement_id
+        found = evidence.get(statement_id, ())
         flags = set(candidate.flags)
         if found and (candidate.valid_from or candidate.valid_to):
             flags.add("validity_not_evidenced")
-        results[candidate.statement.statement_id] = FactDecision(
-            candidate, status, reason, tuple(sorted(flags)), found
+        for item in found:
+            flags.update(item.flags)
+        results[statement_id] = FactDecision(
+            candidate,
+            status,
+            reason,
+            tuple(sorted(flags)),
+            found,
+            observed.get(statement_id) if reason in PAGE_CONTRADICTION_REASONS else None,
         )
 
     preferred_properties = _preferred_properties(group)
@@ -137,9 +186,10 @@ def _validate_group(
             active.append(candidate)
 
     for candidate in active:
-        found, reason = find_evidence(candidate, context)
+        found, reason, seen = find_evidence(candidate, context)
         evidence[candidate.statement.statement_id] = found
         evidence_reason[candidate.statement.statement_id] = reason
+        observed[candidate.statement.statement_id] = seen
 
     def preference(candidate: FactCandidate) -> tuple:
         precision = candidate.time.precision if candidate.time else 0
