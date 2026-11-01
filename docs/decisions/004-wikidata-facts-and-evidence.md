@@ -57,7 +57,7 @@ A fixture editorial contém 273 casos extraídos da amostra real. Após a revis�
 
 O localizador registra `pageid`, `revid` e o intervalo em pontos de código Unicode dentro de `extract`. `fact_evidence.snippet` guarda a frase, com até 300 caracteres.
 
-Atributos de pessoa (`born_on`, `born_in`, `citizenship`, `speaks_language`, `plays_instrument`) só aceitam referência do Wikidata. O projeto ainda não coleta páginas de integrantes, e a página do grupo não comprova esses atributos.
+Atributos de pessoa (`born_on`, `born_in`, `citizenship`, `speaks_language`, `plays_instrument`) só aceitam referência do Wikidata. O projeto ainda não coleta páginas de integrantes, e a página do grupo não comprova esses atributos. Desde a [ADR-027](027-evidencia-de-pessoa-pela-infobox.md), `born_on` e `born_in` também podem ser provados pela infobox da página da própria pessoa; os demais atributos continuam como acima.
 
 ## Alternativas consideradas
 

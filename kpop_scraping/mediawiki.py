@@ -223,52 +223,90 @@ class MediaWikiClient:
 
     def get_pages_by_titles(self, titles: Sequence[str]) -> list[Page]:
         """Resolve titles and return the current fixed revisions and intro text."""
-        clean = tuple(dict.fromkeys(title.strip() for title in titles if title.strip()))
+        clean = self._clean_titles(titles)
         if not clean:
             return []
-        if len(clean) > MAX_EXTRACTS_PER_REQUEST:
-            raise ValueError(
-                f"get_pages_by_titles accepts at most {MAX_EXTRACTS_PER_REQUEST} titles"
-            )
-        payload = self._get({
-            "action": "query",
-            "titles": "|".join(clean),
-            "redirects": "1",
-            "prop": "extracts|info|pageprops|revisions",
-            "exintro": "1",
-            "exlimit": len(clean),
-            "explaintext": "1",
-            "inprop": "url",
-            "ppprop": "wikibase_item|disambiguation",
-            "rvprop": "ids",
-        })
+        payload = self._title_query(clean)
         redirects = {
             item.get("to")
             for item in payload.get("query", {}).get("redirects", ())
             if isinstance(item, dict)
         }
         try:
-            response_pages = payload["query"]["pages"]
-            pages = []
-            for item in response_pages:
-                revisions = item.get("revisions", [])
-                pageprops = item.get("pageprops", {})
-                missing = bool(item.get("missing", False))
-                pages.append(Page(
-                    page_id=int(item.get("pageid", -1)),
-                    title=item["title"],
-                    canonical_url=item.get("canonicalurl", ""),
-                    extract=item.get("extract", "").strip(),
-                    revision_id=revisions[0]["revid"] if revisions else None,
-                    source_payload={key: value for key, value in item.items() if key != "pageprops"},
-                    wikidata_id=pageprops.get("wikibase_item"),
-                    is_redirect=item["title"] in redirects,
-                    is_disambiguation="disambiguation" in pageprops,
-                    is_missing=missing,
-                ))
+            return [
+                self._title_page(item, item["title"] in redirects)
+                for item in payload["query"]["pages"]
+            ]
         except (KeyError, TypeError, ValueError, IndexError) as exc:
             raise MediaWikiError("MediaWiki title response has an unexpected shape") from exc
-        return pages
+
+    def resolve_titles(self, titles: Sequence[str]) -> dict[str, Page]:
+        """Map each requested title to the page it resolves to.
+
+        ``is_redirect`` is true only for a title that reached its page through
+        a redirect, so two titles that land on the same page are told apart.
+        A title with no page comes back with ``is_missing`` set.
+        """
+        clean = self._clean_titles(titles)
+        if not clean:
+            return {}
+        payload = self._title_query(clean)
+        query = payload.get("query", {})
+        try:
+            normalized = {item["from"]: item["to"] for item in query.get("normalized", ())}
+            redirected = {item["from"]: item["to"] for item in query.get("redirects", ())}
+            by_title = {item["title"]: item for item in query["pages"]}
+            result: dict[str, Page] = {}
+            for requested in clean:
+                title = normalized.get(requested, requested)
+                resolved, hops = title, 0
+                while resolved in redirected and hops <= len(redirected):
+                    resolved, hops = redirected[resolved], hops + 1
+                if resolved in by_title:
+                    result[requested] = self._title_page(by_title[resolved], hops > 0)
+            return result
+        except (KeyError, TypeError, ValueError, IndexError) as exc:
+            raise MediaWikiError("MediaWiki title response has an unexpected shape") from exc
+
+    @staticmethod
+    def _clean_titles(titles: Sequence[str]) -> tuple[str, ...]:
+        clean = tuple(dict.fromkeys(title.strip() for title in titles if title.strip()))
+        if len(clean) > MAX_EXTRACTS_PER_REQUEST:
+            raise ValueError(
+                f"title queries accept at most {MAX_EXTRACTS_PER_REQUEST} titles"
+            )
+        return clean
+
+    def _title_query(self, titles: Sequence[str]) -> dict[str, Any]:
+        return self._get({
+            "action": "query",
+            "titles": "|".join(titles),
+            "redirects": "1",
+            "prop": "extracts|info|pageprops|revisions",
+            "exintro": "1",
+            "exlimit": len(titles),
+            "explaintext": "1",
+            "inprop": "url",
+            "ppprop": "wikibase_item|disambiguation",
+            "rvprop": "ids",
+        })
+
+    @staticmethod
+    def _title_page(item: dict[str, Any], is_redirect: bool) -> Page:
+        revisions = item.get("revisions", [])
+        pageprops = item.get("pageprops", {})
+        return Page(
+            page_id=int(item.get("pageid", -1)),
+            title=item["title"],
+            canonical_url=item.get("canonicalurl", ""),
+            extract=item.get("extract", "").strip(),
+            revision_id=revisions[0]["revid"] if revisions else None,
+            source_payload={key: value for key, value in item.items() if key != "pageprops"},
+            wikidata_id=pageprops.get("wikibase_item"),
+            is_redirect=is_redirect,
+            is_disambiguation="disambiguation" in pageprops,
+            is_missing=bool(item.get("missing", False)),
+        )
 
     def get_revision_wikitext(self, revision_ids: Sequence[int]) -> dict[int, dict[str, Any]]:
         """Return the main-slot wikitext of fixed revisions, keyed by revid.

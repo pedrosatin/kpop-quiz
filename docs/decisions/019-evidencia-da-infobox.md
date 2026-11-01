@@ -31,7 +31,7 @@ A regra do resumo continua tendo prioridade. A infobox só é consultada quando 
 
 ### Fora desta decisão
 
-`years_active` não prova `formed_on`. O campo marca o início das atividades, não a formação, e prova só o ano. A linha do tempo usa a data completa de formação, então um ano da infobox não sustenta a data do Wikidata. No levantamento, 20 grupos tinham o primeiro ano de `years_active` diferente do ano de formação, 3 deles em outra década. Gênero, origem e atributos de pessoa continuam como na ADR-004.
+`years_active` não prova `formed_on`. O campo marca o início das atividades, não a formação, e prova só o ano. A linha do tempo usa a data completa de formação, então um ano da infobox não sustenta a data do Wikidata. No levantamento, 20 grupos tinham o primeiro ano de `years_active` diferente do ano de formação, 3 deles em outra década. Gênero, origem e atributos de pessoa continuam como na ADR-004, exceto `born_on` e `born_in`, que a [ADR-027](027-evidencia-de-pessoa-pela-infobox.md) passou a aceitar pela infobox da página da própria pessoa.
 
 ## Alternativas consideradas
 

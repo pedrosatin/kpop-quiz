@@ -665,6 +665,34 @@ MIGRATIONS: tuple[Migration, ...] = (
             """,
         ),
     ),
+    (
+        10,
+        "person_source_pages",
+        (
+            """
+            CREATE TABLE person_source_pages (
+                person_entity_id INTEGER NOT NULL REFERENCES entities(id),
+                language TEXT NOT NULL CHECK(language = 'en'),
+                requested_title TEXT NOT NULL,
+                source_page_id INTEGER REFERENCES source_pages(id),
+                source_revision_id INTEGER REFERENCES source_revisions(id),
+                page_wikidata_id TEXT,
+                wikidata_snapshot_id INTEGER NOT NULL REFERENCES wikidata_entity_snapshots(id),
+                collection_run_id INTEGER NOT NULL REFERENCES collection_runs(id),
+                state TEXT NOT NULL CHECK(state IN ('accepted', 'rejected')),
+                reason TEXT,
+                checked_at TEXT NOT NULL,
+                PRIMARY KEY(person_entity_id, language),
+                CHECK(
+                    (state = 'accepted' AND source_page_id IS NOT NULL
+                     AND source_revision_id IS NOT NULL AND reason IS NULL)
+                    OR (state = 'rejected' AND reason IS NOT NULL)
+                )
+            )
+            """,
+            "CREATE INDEX person_source_pages_revision_idx ON person_source_pages(source_revision_id)",
+        ),
+    ),
 )
 
 
