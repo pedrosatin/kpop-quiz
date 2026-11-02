@@ -17,7 +17,7 @@ The map-game pilot at `/pt-br/mapa/` and `/en/map/` asks in which country the of
 ## Requirements
 
 - Python 3.11 or newer
-- Node.js 22 or newer for the web interface
+- Node.js 24.15 or newer within the 24.x release line for the web interface
 - Internet access to run the collector
 
 The collector uses only the Python standard library.
