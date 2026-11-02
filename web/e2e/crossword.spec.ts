@@ -107,6 +107,11 @@ test("missing and invalid boards offer retry without a fallback", async ({ page,
   invalid.entries[0].sources[0].locator = invalid.entries[0].sources[0].locator.replace(/\[\d+:\d+\]$/, "[20:10]");
   const daily = await crosswordDaily();
   const invalidDaily = await crosswordDaily(invalid);
+  const today = dailyReferenceDate();
+  // Without today's record, empty envelopes are "missing". A played record in
+  // the dist (published ahead) would otherwise fail closed as "invalid".
+  await page.route(`**/data/crossword-publication.${today}.json`, (route) => route.fulfill({ status: 404, body: "" }));
+  await page.route(`**/data/next/crossword-publication.${today}.json`, (route) => route.fulfill({ status: 404, body: "" }));
   await page.route("**/data/crossword.daily.json", (route) => {
     attempt++;
     if (attempt === 1) return route.fulfill({ status: 404, body: "" });
@@ -115,9 +120,12 @@ test("missing and invalid boards offer retry without a fallback", async ({ page,
     return route.fulfill({ json: daily });
   });
   await page.goto(joinBaseUrl(baseURL!, prefix + copy.en.path));
-  await expect(page.getByTestId("game-missing")).toContainText("not been published yet");
+  const missing = page.getByTestId("game-missing");
+  await expect(missing).toHaveAttribute("data-error-kind", "missing");
+  await expect(missing).toContainText("not been published yet");
   for (let i = 0; i < 2; i++) {
     await page.getByTestId("game-retry").click();
+    await expect(page.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "invalid");
     await expect(page.getByTestId("game-missing")).toContainText("could not be loaded");
   }
   await page.getByTestId("game-retry").click();
