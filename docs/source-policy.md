@@ -69,3 +69,32 @@ pergunta leva o link da agenda. Um evento só entra no jogo depois do cruzamento
 com o MusicBrainz e com o `P17` do Wikidata, descrito na
 [ADR-015](decisions/015-contrato-de-dados-do-jogo-de-mapas.md) e em
 [Piloto do jogo de mapas](map-game-pilot.md).
+
+## Infobox da página da própria pessoa
+
+A [ADR-027](decisions/027-evidencia-de-pessoa-pela-infobox.md) aceita a primeira
+infobox da página da própria pessoa na Wikipedia em inglês como evidência de
+`born_on` (`birth_date`) e `born_in` (`birth_place`), e só deles.
+
+- **Responsável e tipo de dado**: a comunidade editora da Wikipedia. A infobox
+  comprova data e local de nascimento da pessoa cuja página é; não comprova
+  nacionalidade, idioma, instrumento nem vínculo com grupo.
+- **Identidade**: `pageprops.wikibase_item` igual ao QID da pessoa, sem
+  redirecionamento e sem desambiguação. Resumo, corpo, categorias e página de
+  grupo não servem.
+- **Licença e atribuição**: o wikitext é CC BY-SA 4.0. O projeto guarda o
+  trecho, o `pageid` e o `revid`; quem exibir o trecho mantém o link da revisão
+  (`oldid`), que leva ao histórico de autores.
+- **Limites de uso**: leitura por API com `maxlag`, em sequência, timeout e
+  `User-Agent` identificável. O sistema não copia o texto da página além do
+  trecho citado (até 300 caracteres).
+- **Cobertura**: pessoas com sitelink `enwiki`. Na amostra de 100 pessoas, 88
+  tinham página própria; a infobox confirmou 50 de 52 datas e 68 de 80 locais.
+  Divergências viram `wikipedia_value_differs`, e campos ilegíveis viram
+  `wikipedia_value_ambiguous`.
+- **Prioridade**: uma referência confiável do Wikidata continua valendo antes da
+  infobox e não é rebaixada por ela.
+- **Ativação**: a fonte vem desligada. Só `python main.py --person-evidence`, numa
+  cópia do banco, a coleta e a aceita. O cron diário não a usa, e uma execução sem
+  a opção preserva os fatos já aceitos sem aceitar fato novo (ADR-027, seções
+  Ativação e Preservação sem a opção).

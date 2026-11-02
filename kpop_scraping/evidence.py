@@ -11,7 +11,7 @@ from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
 
-EVIDENCE_RULES_VERSION = "text-evidence-v6"
+EVIDENCE_RULES_VERSION = "text-evidence-v7"
 MIN_NAME_LENGTH = 4
 MAX_SNIPPET_LENGTH = 300
 MONTHS = (
@@ -184,6 +184,7 @@ class EvidenceItem:
     source_revision_id: int | None = None
     snippet: str | None = None
     source_key: str | None = None
+    flags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -200,7 +201,9 @@ class WikipediaPage:
     """Revision already collected for a catalog group, with its intro extract.
 
     ``wikitext`` is the source of the same revision when it was collected;
-    only the infobox rules read it.
+    only the infobox rules read it. The page of a person also records the
+    Wikidata item the page declares and whether the title was a redirect, so
+    the person rule can check the identity again before it trusts the page.
     """
 
     source_revision_id: int
@@ -210,6 +213,8 @@ class WikipediaPage:
     extract: str
     title: str = ""
     wikitext: str = ""
+    wikidata_id: str = ""
+    is_redirect: bool = False
 
 
 def assess_references(statement: Statement) -> ReferenceAssessment:
@@ -758,11 +763,11 @@ def infobox_evidence(
             continue
         for item in field_items(page.wikitext, span):
             if any(" ".join(name.split()).casefold() in wanted for name in item.names):
-                return _infobox_evidence(page, field, item.start, item.end)
+                return infobox_item_evidence(page, field, item.start, item.end)
     return None
 
 
-def _infobox_evidence(page: WikipediaPage, field: str, start: int, end: int) -> EvidenceItem:
+def infobox_item_evidence(page: WikipediaPage, field: str, start: int, end: int) -> EvidenceItem:
     snippet = f"{field} = {page.wikitext[start:end].strip()}"
     if len(snippet) > MAX_SNIPPET_LENGTH:
         snippet = snippet[: MAX_SNIPPET_LENGTH - 3].rstrip() + "..."
