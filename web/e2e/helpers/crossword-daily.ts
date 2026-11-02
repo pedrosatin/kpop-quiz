@@ -14,9 +14,16 @@ export function crosswordDaily(board = pilotBoard): Promise<Record<string, unkno
   return buildCrosswordDaily(board, dailyReferenceDate());
 }
 
-/** Serves board as today's data/crossword.daily.json; data/next/ answers 404. */
+/**
+ * Serves board as today's data/crossword.daily.json. data/next/ and today's
+ * publication records answer 404 so a published-ahead day in the dist cannot
+ * turn a missing-envelope scenario into "played without board" (invalid).
+ */
 export async function routeCrosswordDaily(target: Page | BrowserContext, board = pilotBoard): Promise<void> {
   const daily = await crosswordDaily(board);
+  const today = dailyReferenceDate();
   await target.route("**/data/next/crossword.daily.json", (route) => route.fulfill({ status: 404, body: "" }));
+  await target.route(`**/data/crossword-publication.${today}.json`, (route) => route.fulfill({ status: 404, body: "" }));
+  await target.route(`**/data/next/crossword-publication.${today}.json`, (route) => route.fulfill({ status: 404, body: "" }));
   await target.route("**/data/crossword.daily.json", (route) => route.fulfill({ json: daily }));
 }

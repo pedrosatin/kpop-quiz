@@ -55,8 +55,52 @@ def build_parser() -> argparse.ArgumentParser:
             "Defaults to facts-coverage.csv beside the database"
         ),
     )
+    parser.add_argument(
+        "--person-evidence",
+        action="store_true",
+        help=(
+            "Collect the Wikipedia page of each person and let its infobox prove born_on "
+            "and born_in (ADR 027). Off by default, and never implied by --facts or "
+            "--releases. Without it, facts this rule already accepted are kept from the "
+            "stored revisions and no new fact is accepted from it. Requires --facts, "
+            "--facts-limit, --facts-report or --releases, and a copy of the database: "
+            "the default database and its raw directory are refused"
+        ),
+    )
     parser.add_argument("--user-agent", default="kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)")
     return parser
+
+
+def _check_person_evidence_target(run_facts: bool, database: Path, raw_dir: Path) -> None:
+    """Reject the default database and raw directory for --person-evidence."""
+    if not run_facts:
+        raise SystemExit(
+            "--person-evidence needs the fact stage: add --facts, --facts-limit, "
+            "--facts-report or --releases"
+        )
+    default_raw = DEFAULT_DATABASE.parent / "raw"
+    if database.resolve() == DEFAULT_DATABASE.resolve() or raw_dir.resolve() == default_raw.resolve():
+        raise SystemExit(
+            "--person-evidence refuses the default paths: pass --database (and --raw-dir) pointing "
+            "at a copy of data/kpop.db and data/raw, never the default database or its raw directory"
+        )
+
+
+def _print_birth_coverage(totals) -> None:
+    """Print the born_on/born_in outcome counts before and after the fact run."""
+    for before, after in zip(totals.birth_before, totals.birth_after):
+        print(
+            f"Birth coverage {before.predicate}: "
+            f"{_coverage(before)} -> {_coverage(after)}"
+        )
+
+
+def _coverage(row) -> str:
+    return (
+        f"{row.accepted}/{row.total} accepted ({row.accepted_by_person_page} by person page), "
+        f"{row.rejected_for_evidence} rejected for evidence, "
+        f"{row.rejected_by_person_page} rejected by person page"
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -75,6 +119,8 @@ def main(argv: list[str] | None = None) -> int:
     run_facts = args.facts or args.facts_limit is not None or args.facts_report is not None or run_releases
     facts_report = args.facts_report or args.database.parent / "facts-coverage.csv"
     raw_dir = args.raw_dir or args.database.parent / "raw"
+    if args.person_evidence:
+        _check_person_evidence_target(run_facts, args.database, raw_dir)
     catalog_report = args.catalog_report or args.database.parent / "catalog-report.csv"
     try:
         with Repository(args.database, raw_dir=raw_dir) as repository:
@@ -91,11 +137,13 @@ def main(argv: list[str] | None = None) -> int:
             report_rows = repository.export_catalog_csv(catalog_report)
             fact_totals = fact_rows = None
             if run_facts:
+                wikipedia = MediaWikiClient(user_agent=args.user_agent)
                 fact_totals = extract_facts(
                     repository,
                     WikidataEntityClient(user_agent=args.user_agent),
                     group_limit=args.facts_limit,
-                    wikitext_client=MediaWikiClient(user_agent=args.user_agent),
+                    wikitext_client=wikipedia,
+                    person_client=wikipedia if args.person_evidence else None,
                 )
                 fact_rows = export_fact_coverage_csv(repository.connection, facts_report)
             release_totals = release_rows = None
@@ -137,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
             f"{fact_totals.superseded} superseded, {fact_totals.stale} stale; "
             f"{fact_rows} rows in {facts_report}"
         )
+        _print_birth_coverage(fact_totals)
     if release_totals is not None:
         print(
             f"Releases: {release_totals.groups} discovery groups, "
