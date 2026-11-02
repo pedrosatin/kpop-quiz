@@ -44,8 +44,14 @@ function liveRegion(container: Element): HTMLElement {
 
 type View = ReturnType<typeof render>;
 
+function answerButton(view: View): HTMLElement {
+  return view.queryByRole("button", { name: "Responder" })
+    ?? view.getByRole("button", { name: "Answer" });
+}
+
 function answer(view: View, iso: string) {
   fireEvent.click(view.getByTestId(`answer-country-${iso}`));
+  fireEvent.click(answerButton(view));
 }
 
 function next(view: View, name = "Próxima data") {
@@ -124,7 +130,7 @@ describe("map pilot game", () => {
 
   it("keeps the next action in the action bar and focuses it after an answer", () => {
     const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
-    expect(view.getByRole("status").textContent).toContain("Escolha um país destacado");
+    expect(view.getByRole("status").textContent).toContain("Selecione um país");
     answer(view, round[0]!.country_iso_3166_1);
     const nextButton = view.getByRole("button", { name: "Próxima data" });
     const status = view.getByRole("status");
@@ -134,7 +140,7 @@ describe("map pilot game", () => {
     expect(nextButton.closest(".game-actions")).toBe(status.closest(".game-actions"));
     expect(document.activeElement).toBe(nextButton);
     next(view);
-    expect(view.getByRole("status").textContent).toContain("Escolha um país destacado");
+    expect(view.getByRole("status").textContent).toContain("Selecione um país");
     expect(view.getByText("Pergunta 2 de 10")).toBeTruthy();
   });
 
@@ -173,14 +179,18 @@ describe("map pilot game", () => {
     expect(notice).toHaveTextContent("Estar na agenda oficial não confirma que o show aconteceu.");
   });
 
-  it("answers from the map with Enter on a highlighted country", () => {
+  it("selects from the map with Enter and answers only after Responder", () => {
     const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     const path = view.container.querySelector(`path[aria-label="${label(round[0]!.country_iso_3166_1)}"]`) as SVGPathElement;
     expect(path.getAttribute("role")).toBe("button");
     expect(path.getAttribute("tabindex")).toBe("0");
     fireEvent.keyDown(path, { key: "Enter" });
-    expect(view.getByRole("status").textContent).toContain("Resposta correta.");
+    expect(view.getByRole("status").textContent).toContain("Selecione um país");
     expect(path.getAttribute("aria-pressed")).toBe("true");
+    expect(path.getAttribute("tabindex")).toBe("0");
+    expect(stored()).toBeNull();
+    fireEvent.click(answerButton(view));
+    expect(view.getByRole("status").textContent).toContain("Resposta correta.");
     expect(path.getAttribute("tabindex")).toBe("-1");
   });
 });
@@ -228,7 +238,7 @@ describe("map pilot country list and select", () => {
     expect(submit).toHaveAttribute("aria-disabled", "true");
     const wrong = wrongFor(round[0]!);
     fireEvent.change(select, { target: { value: wrong.map_feature_id } });
-    expect(view.getByRole("status").textContent).toContain("Choose a highlighted country");
+    expect(view.getByRole("status").textContent).toContain("Select a country");
     expect(submit).not.toHaveAttribute("aria-disabled");
     fireEvent.click(submit);
     expect(view.getByRole("status").textContent).toContain(`Your answer: ${label(wrong.country_iso_3166_1, "en")}`);
@@ -262,7 +272,7 @@ describe("map pilot country list and select", () => {
     expect(stored()).toBeNull();
     // Picking a country brings the instructions back.
     fireEvent.change(view.getByRole("combobox"), { target: { value: round[0]!.map_feature_id } });
-    expect(view.getByRole("status")).toHaveTextContent("Escolha um país destacado");
+    expect(view.getByRole("status")).toHaveTextContent("Selecione um país");
   });
 
   it("says to pick a country in English and on Enter in the empty select", () => {
@@ -270,6 +280,52 @@ describe("map pilot country list and select", () => {
     const form = view.container.querySelector(".map-pilot-pick") as HTMLFormElement;
     fireEvent.submit(form);
     expect(view.getByRole("status")).toHaveTextContent("Pick a country first.");
+  });
+
+  it("selects from the list without consuming an attempt until Responder", () => {
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    const wrong = wrongFor(round[0]!);
+    fireEvent.click(view.getByTestId(`answer-country-${wrong.country_iso_3166_1}`));
+    expect(view.getByRole("status").textContent).toContain("Selecione um país");
+    expect(view.getByTestId(`answer-country-${wrong.country_iso_3166_1}`)).toHaveClass("is-selected");
+    expect(view.getByTestId(`answer-country-${wrong.country_iso_3166_1}`)).toBeEnabled();
+    expect(stored()).toBeNull();
+    expect(view.getByText("Pergunta 1 de 10")).toBeTruthy();
+  });
+
+  it("keeps map and list on the same pending selection and allows a swap before submit", () => {
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    const first = wrongFor(round[0]!);
+    const second = round[0]!;
+    fireEvent.click(view.getByTestId(`answer-country-${first.country_iso_3166_1}`));
+    const firstPath = view.container.querySelector(`path[aria-label="${label(first.country_iso_3166_1)}"]`) as SVGPathElement;
+    expect(firstPath.getAttribute("aria-pressed")).toBe("true");
+    expect((view.getByRole("combobox") as HTMLSelectElement).value).toBe(first.map_feature_id);
+
+    fireEvent.click(view.getByTestId(`answer-country-${second.country_iso_3166_1}`));
+    expect(view.getByTestId(`answer-country-${first.country_iso_3166_1}`)).not.toHaveClass("is-selected");
+    expect(view.getByTestId(`answer-country-${second.country_iso_3166_1}`)).toHaveClass("is-selected");
+    expect((view.getByRole("combobox") as HTMLSelectElement).value).toBe(second.map_feature_id);
+    const secondPath = view.container.querySelector(`path[aria-label="${label(second.country_iso_3166_1)}"]`) as SVGPathElement;
+    expect(secondPath.getAttribute("aria-pressed")).toBe("true");
+    expect(stored()).toBeNull();
+
+    fireEvent.click(answerButton(view));
+    expect(view.getByRole("status").textContent).toContain("Resposta correta.");
+    expect(view.getByTestId(`answer-country-${second.country_iso_3166_1}`)).toBeDisabled();
+    expect(view.queryByRole("button", { name: "Responder" })).toBeNull();
+  });
+
+  it("lists Singapore for keyboard and select access", () => {
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(view.getByTestId("answer-country-SG")).toHaveTextContent("Singapura");
+    expect(view.getByRole("heading", { name: "Países desta rodada" })).toBeTruthy();
+    const select = view.getByRole("combobox") as HTMLSelectElement;
+    const singapore = Array.from(select.options).find((option) => option.value && option.textContent === "Singapura");
+    expect(singapore).toBeTruthy();
+    fireEvent.change(select, { target: { value: singapore!.value } });
+    expect(view.getByTestId("answer-country-SG")).toHaveClass("is-selected");
+    expect(stored()).toBeNull();
   });
 });
 
@@ -297,6 +353,7 @@ describe("map pilot saved progress", () => {
   it("keeps the result after giving up before the first answer and reloading", () => {
     const first = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     fireEvent.click(first.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(first.getByRole("button", { name: "Sim, desistir" }));
     expect(first.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
     expect(stored()).toEqual({ events: eventIds, answers: [], index: round.length });
     first.unmount();
@@ -330,8 +387,21 @@ describe("map pilot saved progress", () => {
     save({ events: eventIds, answers: rightAnswers.slice(0, 4), index: 4 });
     const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     expect(view.getByText("Pergunta 5 de 10")).toBeTruthy();
-    expect(view.getByRole("status").textContent).toContain("Escolha um país destacado");
+    expect(view.getByRole("status").textContent).toContain("Selecione um país");
     expect(view.getByTestId(`answer-country-${round[4]!.country_iso_3166_1}`)).toBeEnabled();
+  });
+
+  it("does not keep a pending selection across reload", () => {
+    const first = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    fireEvent.click(first.getByTestId(`answer-country-${round[0]!.country_iso_3166_1}`));
+    expect(first.getByTestId(`answer-country-${round[0]!.country_iso_3166_1}`)).toHaveClass("is-selected");
+    expect(stored()).toBeNull();
+    first.unmount();
+
+    const second = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(second.getByRole("status").textContent).toContain("Selecione um país");
+    expect(second.getByTestId(`answer-country-${round[0]!.country_iso_3166_1}`)).not.toHaveClass("is-selected");
+    expect(answerButton(second)).toHaveAttribute("aria-disabled", "true");
   });
 
   it("restores a finished round's result without taking focus or touching the stats", () => {
@@ -368,7 +438,7 @@ describe("map pilot saved progress", () => {
       write();
       const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
       expect(view.getByText("Pergunta 1 de 10")).toBeTruthy();
-      expect(view.getByRole("status").textContent).toContain("Escolha um país destacado");
+      expect(view.getByRole("status").textContent).toContain("Selecione um país");
     });
   }
 
@@ -467,7 +537,7 @@ describe("map pilot result", () => {
 
   it("builds a short share text with the round date and the game link", () => {
     expect(mapShareText(DATE, round, oneWrong, "pt-BR")).toBe(
-      `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
+      `Mapa de K-pop ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
     );
     expect(mapShareText(DATE, round, rightAnswers, "en")).toBe(
       `K-pop Map ${DATE}\n10/10 dates right\n${"🟩".repeat(10)}\n${EN_URL}`,
@@ -495,7 +565,7 @@ describe("map pilot result", () => {
     const view = finished();
     await share(view);
     expect(shareFn).toHaveBeenCalledWith({
-      text: `K-pop Map ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
+      text: `Mapa de K-pop ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
     });
     expect(writeText).not.toHaveBeenCalled();
   });
@@ -565,6 +635,7 @@ describe("map pilot result", () => {
   it("completes the round on give-up and reviews every correct country", () => {
     const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     fireEvent.click(view.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(view.getByRole("button", { name: "Sim, desistir" }));
 
     const title = view.getByRole("heading", { name: "Rodada concluída" });
     expect(title).toHaveAccessibleDescription("0 de 10 certas.");
@@ -584,6 +655,32 @@ describe("map pilot result", () => {
       expect(items[index]).toHaveTextContent(`País correto: ${label(event.country_iso_3166_1)}`);
       expect(items[index]).toHaveTextContent("Sua resposta: Sem resposta");
     }
+  });
+
+  it("asks for confirmation before giving up and keeps the round on cancel or Escape", () => {
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    fireEvent.click(view.getByRole("button", { name: "Desistir" }));
+    expect(view.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(view.queryByRole("heading", { name: "Rodada concluída" })).toBeNull();
+
+    fireEvent.click(view.getByRole("button", { name: "Cancelar" }));
+    expect(view.queryByRole("dialog", { name: "Desistir da partida?" })).toBeNull();
+    expect(view.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+
+    fireEvent.click(view.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(view.queryByRole("dialog", { name: "Desistir da partida?" })).toBeNull();
+    expect(view.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
+
+  it("shows English give-up confirmation copy on map pilot", () => {
+    const view = render(<MapPilotGame locale="en" seedDate={DATE} />);
+    fireEvent.click(view.getByRole("button", { name: "Give up" }));
+    expect(view.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(view.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(view.getByRole("button", { name: "Cancel" }));
+    expect(view.queryByRole("dialog")).toBeNull();
+    expect(view.getByRole("button", { name: "Give up" })).toBeInTheDocument();
   });
 
   it("lists every date with both answers and its sources behind Ver fonte", () => {

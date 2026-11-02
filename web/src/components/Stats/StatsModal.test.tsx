@@ -171,6 +171,17 @@ describe("StatsModal component", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("wraps keyboard focus between the first and last controls", () => {
+    render(<StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />);
+    const first = screen.getByRole("button", { name: "Fechar estatísticas" });
+    const last = screen.getByRole("button", { name: "Apagar dados" });
+    first.focus();
+    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    expect(last).toHaveFocus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(first).toHaveFocus();
+  });
+
   it("triggers onClose when clicking backdrop", () => {
     const onClose = vi.fn();
     const { container } = render(

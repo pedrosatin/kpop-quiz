@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import { useWordSearchGame } from "./useWordSearchGame";
 import { WordSearchHeader } from "./WordSearchHeader";
 import { WordSearchGrid } from "./WordSearchGrid";
@@ -15,6 +16,7 @@ import {
   recordGameFinish,
 } from "../../lib/player-stats";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 interface WordSearchGameContentProps {
   puzzle: WordSearchPuzzle;
@@ -58,6 +60,25 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   const [shareNote, setShareNote] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
   const shares = useRef(0);
 
+  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
+  const confirmGiveUpOpenRef = useRef(false);
+
+  const closeGiveUpConfirm = useCallback(() => {
+    confirmGiveUpOpenRef.current = false;
+    setConfirmGiveUpOpen(false);
+  }, []);
+
+  const requestGiveUp = useCallback(() => {
+    confirmGiveUpOpenRef.current = true;
+    setConfirmGiveUpOpen(true);
+  }, []);
+
+  const confirmGiveUp = useCallback(() => {
+    if (!confirmGiveUpOpenRef.current) return;
+    closeGiveUpConfirm();
+    giveUp();
+  }, [closeGiveUpConfirm, giveUp]);
+
   const recordedMatchRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -73,10 +94,10 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
     }
   }, [completed, puzzle, foundWordIds.length]);
 
-  const wordName = (id: string) => {
-    const word = puzzle.words.find((w) => w.id === id);
-    return word ? word.labels[locale] || word.canonical_name : "";
-  };
+  // Names are resolved against the whole list, so two words that differ only
+  // by a disambiguator keep it.
+  const displayNames = buildLocalizedDisplayNames(puzzle.words, locale);
+  const wordName = (id: string) => displayNames.get(id) ?? "";
 
   // One message at a time, in two reserved lines: the selection in progress,
   // then the verdict of the last one, then the instructions.
@@ -194,12 +215,22 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
                 <dd class="timer-display" data-testid="timer-display">{formatTime(elapsedSeconds)}</dd>
               </div>
             </dl>
-            <button type="button" class="btn btn-secondary" onClick={giveUp}>
+            <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
               {messages.giveUp}
             </button>
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmGiveUpOpen}
+        title={messages.giveUpConfirmTitle}
+        body={messages.giveUpConfirmBody}
+        confirmLabel={messages.giveUpConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmGiveUp}
+        onCancel={closeGiveUpConfirm}
+      />
     </section>
   );
 }

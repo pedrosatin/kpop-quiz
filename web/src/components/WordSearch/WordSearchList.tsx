@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
 import { getMessages } from "../../i18n/catalog";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import type { Locale } from "../../lib/quiz-types";
 
 interface WordSearchListProps {
@@ -63,6 +64,7 @@ export function WordSearchList({
   completed = false,
 }: WordSearchListProps) {
   const t = getMessages(locale).wordSearch;
+  const displayNames = buildLocalizedDisplayNames(puzzle.words, locale);
   const headingId = useId();
   const list = useRef<HTMLUListElement>(null);
   const edges = useStripEdges(list);
@@ -85,7 +87,7 @@ export function WordSearchList({
       >
         {puzzle.words.map((word, index) => {
           const isFound = foundWordIds.includes(word.id);
-          const localizedName = word.labels[locale] || word.canonical_name;
+          const localizedName = displayNames.get(word.id) ?? word.canonical_name;
           const localizedClue = cluesAreIdentical ? "" : clueFor(word);
           const pendingHint = localizedClue
             ? `${localizedClue} (${t.lettersCount(word.word.length)})`

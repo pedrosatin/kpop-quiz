@@ -355,6 +355,32 @@ class ConnectionsGeneratorTest(unittest.TestCase):
         pool_ids = {item["id"] for item in puzzle["items"]}
         self.assertEqual(seen_cat_items, pool_ids)
 
+    def test_wikipedia_notes_in_labels_stay_published_and_do_not_move_the_puzzle(self):
+        """Labels reach the artifact as collected; the page decides what to hide.
+
+        The shuffle and the categories come from the seed, so renaming two
+        homonyms changes label text and nothing else the player could resume.
+        """
+        baseline = generate_connections_puzzle(self.conn, seed="labels-seed")
+        first, second = sorted(item["canonical_name"] for item in baseline["items"])[:2]
+        self.conn.execute(
+            "UPDATE entity_aliases SET name='Tempest (grupo)' WHERE language='pt' AND name=?", (first,)
+        )
+        self.conn.execute(
+            "UPDATE entity_aliases SET name='Tempest (banda)' WHERE language='pt' AND name=?", (second,)
+        )
+        renamed = generate_connections_puzzle(self.conn, seed="labels-seed")
+
+        labels = {item["canonical_name"]: item["labels"]["pt-BR"] for item in renamed["items"]}
+        self.assertEqual(labels[first], "Tempest (grupo)")
+        self.assertEqual(labels[second], "Tempest (banda)")
+        self.assertEqual(renamed["categories"], baseline["categories"])
+        self.assertEqual(
+            [item["id"] for item in renamed["items"]],
+            [item["id"] for item in baseline["items"]],
+        )
+        validate_connections_puzzle(renamed)
+
     def test_determinism_same_seed(self):
         """Verify identical seed produces identical puzzle_id and content."""
         puzzle1 = generate_connections_puzzle(self.conn, seed="deterministic-seed")

@@ -11,13 +11,30 @@ from pathlib import Path
 from typing import Any
 
 from .code_groups_cli import validate as validate_code_groups_puzzle
+from .crossword_daily import validate_published as validate_crossword_daily
+from .crossword_publication import read_record as read_crossword_record
+from .crossword_publication import verify_history as verify_crossword_history
 from .connections_schema import validate_connections_puzzle, write_connections_puzzle_atomic
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
 from .quiz_generator import QuizConfig, generate_dataset
 from .quiz_session import create_session
+from .quiz_clue_coverage import published_clue_coverage_lines
 from .quiz_models import InsufficientQuestionsError
-from .quiz_schema import mode_neutral_question, validate_session, write_json_atomic
+from .quiz_catalog import (
+    CATALOG_MANIFEST_FILENAME,
+    build_catalog,
+    publish_catalog,
+    published_catalog_coverage_lines,
+    read_catalog,
+    validate_sessions_in_catalog,
+)
+from .quiz_schema import (
+    mode_neutral_question,
+    validate_legacy_clues,
+    validate_session,
+    write_json_atomic,
+)
 from .storage import canonical_json
 from .timeline_schema import validate_timeline_puzzle, write_timeline_puzzle_atomic
 from .word_search_schema import (
@@ -27,12 +44,19 @@ from .word_search_schema import (
 
 MANIFEST_VERSION = "kpop-quiz-web-manifest-v2"
 MANIFEST_FILENAME = "manifest-v2.json"
+# Same shape as the v2 manifest, but it names the sessions that carry related
+# decade clues. Clients released before those clues existed only ever read the
+# v2 manifest, so they never meet a session they would reject; clients that
+# accept them read this one first and fall back to v2 when it is absent.
+ENRICHED_MANIFEST_VERSION = "kpop-quiz-web-manifest-v3"
+ENRICHED_MANIFEST_FILENAME = "manifest-v3.json"
 GRID_DAILY_FILENAME = "grid.daily.json"
 CONNECTIONS_DAILY_FILENAME = "connections.daily.json"
 NAME_GUESS_DAILY_FILENAME = "name-guess.daily.json"
 WORD_SEARCH_DAILY_FILENAME = "word-search.daily.json"
 TIMELINE_DAILY_FILENAME = "timeline.daily.json"
 CODE_GROUPS_DAILY_FILENAME = "code-groups.daily.json"
+CROSSWORD_DAILY_FILENAME = "crossword.daily.json"
 LOCALES = ("pt-BR", "en")
 DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
@@ -131,6 +155,34 @@ def _read_code_groups(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _read_crossword(path: Path) -> dict[str, Any]:
+    """Read crossword.daily.json and check it against the record of its day.
+
+    The factual matching and the proof search need the fact base, which a
+    published directory does not carry; the daily runner recomputes them
+    before writing. Here the artifact must pass every rule that needs no
+    base and agree with the durable record published beside it.
+    """
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read crossword artifact {path}: {exc}") from exc
+    validate_crossword_daily(payload)
+    record = read_crossword_record(path.parent, payload["reference_date"])
+    if record is None:
+        raise ValueError(f"crossword artifact {path} has no publication record")
+    published = payload["puzzle"]["vocabulary"] if payload["puzzle"] else []
+    if (
+        record["source"] != "daily"
+        or record["dataset_version"] != payload["dataset_version"]
+        or record["base_id"] != payload["base_id"]
+        or record["previous"] != payload["previous"]
+        or record["qids"] != published
+    ):
+        raise ValueError(f"crossword artifact {path} disagrees with its publication record")
+    return payload
+
+
 def parse_daily_date(date_str: str | None) -> str:
     """Validate ISO YYYY-MM-DD date or return current UTC date."""
     if date_str is None:
@@ -181,7 +233,9 @@ def create_decade_sessions(dataset: dict[str, Any], seed: str, timer_seconds: in
     return sessions
 
 
-def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def build_manifest(
+    sessions: dict[str, dict[str, Any]], schema_version: str = MANIFEST_VERSION
+) -> dict[str, Any]:
     """Describe validated locale sessions with hashes for deployment checks."""
     versions = {session["dataset_version"] for session in sessions.values()}
     if not _valid_session_keys(set(sessions)) or len(versions) != 1:
@@ -217,7 +271,7 @@ def build_manifest(sessions: dict[str, dict[str, Any]]) -> dict[str, Any]:
                     {mode: sessions[f"decade.{decade}.{locale}.{mode}"] for mode in DIFFICULTIES}
                 )
     manifest = {
-        "schema_version": MANIFEST_VERSION,
+        "schema_version": schema_version,
         "dataset_version": versions.pop(),
         "sessions": {},
     }
@@ -257,10 +311,10 @@ def _validate_mode_sessions(sessions: dict[str, dict[str, Any]]) -> None:
                 raise ValueError(f"session questions do not match standard mode for {mode}")
 
 
-def validate_manifest(payload: dict[str, Any]) -> None:
+def validate_manifest(payload: dict[str, Any], schema_version: str = MANIFEST_VERSION) -> None:
     if set(payload) != {"schema_version", "dataset_version", "sessions"}:
         raise ValueError("invalid web manifest fields")
-    if payload["schema_version"] != MANIFEST_VERSION:
+    if payload["schema_version"] != schema_version:
         raise ValueError("invalid web manifest schema_version")
     dataset_version = payload["dataset_version"]
     if not isinstance(dataset_version, str) or len(dataset_version) != 64 or any(c not in "0123456789abcdef" for c in dataset_version):
@@ -280,6 +334,41 @@ def validate_manifest(payload: dict[str, Any]) -> None:
             raise ValueError(f"invalid web manifest path {key}")
 
 
+def validate_enrichment(
+    legacy: dict[str, dict[str, Any]], enriched: dict[str, dict[str, Any]]
+) -> None:
+    """Require the enriched sessions to differ from the legacy ones only by clues.
+
+    Identity stays put: the same sessions, in the same order, with the same
+    question ids, answers, options and evidence. The saved games and the daily
+    result of a player key on those ids, so a clue added to a question must
+    never move them. A question that already had a clue keeps it unchanged,
+    and the expert sessions, which never offer clues, stay byte-identical.
+    """
+    if set(legacy) != set(enriched):
+        raise ValueError("enriched sessions must cover the same keys as the legacy ones")
+    clue_fields = {"clues_available", "clues_shown"}
+    for key in sorted(legacy):
+        old, new = legacy[key], enriched[key]
+        if old["config"]["play_mode"] == "expert" and old != new:
+            raise ValueError(f"expert session {key} must not change")
+        for field in ("config", "dataset_version", "schema_version", "session_id"):
+            if old[field] != new[field]:
+                raise ValueError(f"enriched session {key} changes {field}")
+        if [q["id"] for q in old["questions"]] != [q["id"] for q in new["questions"]]:
+            raise ValueError(f"enriched session {key} changes the questions")
+        for before, after in zip(old["questions"], new["questions"]):
+            if {k: v for k, v in before.items() if k not in clue_fields} != {
+                k: v for k, v in after.items() if k not in clue_fields
+            }:
+                raise ValueError(f"enriched session {key} changes more than clues")
+            if before["clues_available"] and (
+                before["clues_available"] != after["clues_available"]
+                or before["clues_shown"] != after["clues_shown"]
+            ):
+                raise ValueError(f"enriched session {key} changes an existing clue")
+
+
 def publish(
     output_dir: Path,
     sessions: dict[str, dict[str, Any]],
@@ -289,12 +378,19 @@ def publish(
     word_search: dict[str, Any] | None = None,
     timeline: dict[str, Any] | None = None,
     code_groups: dict[str, Any] | None = None,
+    enriched_sessions: dict[str, dict[str, Any]] | None = None,
+    crossword: dict[str, Any] | None = None,
 ) -> None:
     """Publish static quiz sessions, optional daily grid, connections, name-guess, word-search, timeline, and group code puzzles.
 
     Args:
         output_dir: Target directory where artifacts and manifest are written.
-        sessions: Validated locale and difficulty quiz sessions mapping.
+        sessions: Validated locale and difficulty quiz sessions mapping. The
+            v2 manifest lists them, so none may carry a clue outside its own
+            question's facts (see ``validate_legacy_clues``).
+        enriched_sessions: Optional copy of ``sessions`` whose questions may
+            carry related decade clues (see ``validate_enrichment``). Written
+            with ``manifest-v3.json``; when None, no v3 manifest is written.
         grid: Optional intersection grid payload (written to grid.daily.json).
             When provided, validated against intersection grid schema before writing.
             When None, grid artifact is omitted.
@@ -314,9 +410,18 @@ def publish(
             When provided, validated against the code groups contract before writing.
             When None, code_groups artifact is omitted; the daily runner treats
             this as a partial publish and lets the other games of the day out.
+        crossword: Optional ``crossword-daily-v1`` artifact, ready or omitted
+            (written to crossword.daily.json). The caller validates it against
+            the fact base and writes its publication record; here it passes the
+            rules that need no base. When None, the artifact is omitted.
     """
     for session in sessions.values():
         validate_session(session)
+        validate_legacy_clues(session)
+    if enriched_sessions is not None:
+        for session in enriched_sessions.values():
+            validate_session(session)
+        validate_enrichment(sessions, enriched_sessions)
     if grid is not None:
         validate_intersection_grid(grid)
     if connections is not None:
@@ -329,7 +434,14 @@ def publish(
         validate_timeline_puzzle(timeline)
     if code_groups is not None:
         validate_code_groups_puzzle(code_groups)
+    if crossword is not None:
+        validate_crossword_daily(crossword)
     manifest = build_manifest(sessions)
+    enriched_manifest = (
+        build_manifest(enriched_sessions, ENRICHED_MANIFEST_VERSION)
+        if enriched_sessions is not None
+        else None
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
         write_intersection_grid_atomic(output_dir / GRID_DAILY_FILENAME, grid)
@@ -347,9 +459,22 @@ def publish(
         write_json_atomic(
             output_dir / CODE_GROUPS_DAILY_FILENAME, code_groups, validate_code_groups_puzzle
         )
+    if crossword is not None:
+        write_json_atomic(output_dir / CROSSWORD_DAILY_FILENAME, crossword, validate_crossword_daily)
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
+    if enriched_sessions is not None and enriched_manifest is not None:
+        for key in sorted(enriched_sessions):
+            filename = enriched_manifest["sessions"][key]["path"]
+            write_json_atomic(output_dir / filename, enriched_sessions[key], validate_session)
+        # The v2 manifest goes last of the two: a reader that finds either
+        # one finds every session it names.
+        write_json_atomic(
+            output_dir / ENRICHED_MANIFEST_FILENAME,
+            enriched_manifest,
+            lambda payload: validate_manifest(payload, ENRICHED_MANIFEST_VERSION),
+        )
     write_json_atomic(output_dir / MANIFEST_FILENAME, manifest, validate_manifest)
 
 
@@ -361,6 +486,8 @@ def verify(
     require_word_search: bool = False,
     require_timeline: bool = False,
     require_code_groups: bool = False,
+    require_catalog: bool = False,
+    require_crossword: bool = False,
 ) -> None:
     """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, word-search, timeline, and group code.
 
@@ -400,6 +527,19 @@ def verify(
             under the partial publish policy (generation failure), verifiable.
             When True: code-groups.daily.json is mandatory and must exist and
             satisfy contract validation, raising ValueError if missing or invalid.
+        require_catalog: Verification policy flag for the question catalog
+            (catalog-manifest-v1.json and its shards).
+            When False (default): the catalog is optional, as it is published
+            only when the daily run asks for it; one that is present must verify
+            completely (hashes, schema, identity, language, version).
+            When True: the catalog is mandatory.
+        require_crossword: Verification policy flag for the daily crossword
+            (crossword.daily.json). When False (default) the artifact is
+            optional: a day whose generation failed publishes without it. A
+            present file must pass every rule that needs no fact base and agree
+            with its ``crossword-publication.<date>.json`` record. When True the
+            file is mandatory. Every record in the directory is validated, and
+            two consecutive played days may not share a group.
     """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
@@ -414,6 +554,10 @@ def verify(
     expected = build_manifest(sessions)
     if manifest != expected:
         raise ValueError("web artifacts do not match manifest")
+    for session in sessions.values():
+        validate_legacy_clues(session)
+    verify_enriched_manifest(output_dir, sessions)
+    verify_question_catalog(output_dir, manifest, sessions, require_catalog)
     grid_path = output_dir / GRID_DAILY_FILENAME
     if grid_path.is_file():
         _read_grid(grid_path)
@@ -421,7 +565,9 @@ def verify(
         raise ValueError(f"missing required grid artifact: {grid_path}")
     connections_path = output_dir / CONNECTIONS_DAILY_FILENAME
     if connections_path.is_file():
-        _read_connections(connections_path)
+        from .grid_publication import read_publication
+        connections = _read_connections(connections_path)
+        read_publication(output_dir, connections["reference_date"])
     elif require_connections:
         raise ValueError(f"missing required connections artifact: {connections_path}")
     name_guess_path = output_dir / NAME_GUESS_DAILY_FILENAME
@@ -444,12 +590,59 @@ def verify(
         _read_code_groups(code_groups_path)
     elif require_code_groups:
         raise ValueError(f"missing required code-groups artifact: {code_groups_path}")
+    crossword_path = output_dir / CROSSWORD_DAILY_FILENAME
+    if crossword_path.is_file():
+        _read_crossword(crossword_path)
+    elif require_crossword:
+        raise ValueError(f"missing required crossword artifact: {crossword_path}")
+    verify_crossword_history(output_dir)
     session_pt_br_path = output_dir / "session.pt-BR.json"
     if session_pt_br_path.is_file():
         _read_session(session_pt_br_path)
     session_en_path = output_dir / "session.en.json"
     if session_en_path.is_file():
         _read_session(session_en_path)
+
+
+def verify_enriched_manifest(output_dir: Path, legacy: dict[str, dict[str, Any]]) -> None:
+    """Verify manifest-v3.json, when present, against the legacy sessions."""
+    path = output_dir / ENRICHED_MANIFEST_FILENAME
+    if not path.is_file():
+        return
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read enriched web manifest: {exc}") from exc
+    validate_manifest(manifest, ENRICHED_MANIFEST_VERSION)
+    sessions = {
+        key: _read_session(output_dir / manifest["sessions"][key]["path"])
+        for key in sorted(manifest["sessions"])
+    }
+    if manifest != build_manifest(sessions, ENRICHED_MANIFEST_VERSION):
+        raise ValueError("web artifacts do not match enriched manifest")
+    validate_enrichment(legacy, sessions)
+
+
+def verify_question_catalog(
+    output_dir: Path,
+    manifest: dict[str, Any],
+    sessions: dict[str, dict[str, Any]],
+    required: bool = False,
+) -> None:
+    """Verify the question catalog, when present, and its agreement with the sessions.
+
+    The catalog is refreshed on every run while a day's sessions may be kept or
+    promoted from ``next/``, so the two can come from different datasets. Only
+    when they share one does every session question have to be an eligible
+    question of the catalog.
+    """
+    if not (output_dir / CATALOG_MANIFEST_FILENAME).is_file():
+        if required:
+            raise ValueError(f"missing required catalog manifest: {output_dir / CATALOG_MANIFEST_FILENAME}")
+        return
+    catalog_manifest, shards = read_catalog(output_dir)
+    if catalog_manifest["dataset_version"] == manifest["dataset_version"]:
+        validate_sessions_in_catalog(sessions, shards)
 
 
 def verify_artifacts(
@@ -460,6 +653,8 @@ def verify_artifacts(
     require_word_search: bool = True,
     require_timeline: bool = True,
     require_code_groups: bool = True,
+    require_catalog: bool = False,
+    require_crossword: bool = False,
 ) -> None:
     """Verify published static quiz artifacts and daily puzzle files.
 
@@ -475,8 +670,9 @@ def verify_artifacts(
         require_word_search=require_word_search,
         require_timeline=require_timeline,
         require_code_groups=require_code_groups,
+        require_catalog=require_catalog,
+        require_crossword=require_crossword,
     )
-
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -517,6 +713,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Require code-groups.daily.json to exist and pass contract validation during --verify",
     )
+    parser.add_argument(
+        "--require-crossword",
+        action="store_true",
+        help="Require crossword.daily.json to exist and agree with its publication record during --verify",
+    )
+    parser.add_argument(
+        "--require-catalog",
+        action="store_true",
+        help="Require the question catalog to exist and verify completely during --verify",
+    )
+    parser.add_argument(
+        "--catalog",
+        action="store_true",
+        help=(
+            "Also publish the static question catalog (catalog-manifest-v1.json and "
+            "its shards) built from the same dataset as the sessions"
+        ),
+    )
     return parser
 
 
@@ -535,6 +749,12 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--require-timeline can only be used with --verify")
         if args.require_code_groups and not args.verify:
             raise ValueError("--require-code-groups can only be used with --verify")
+        if args.require_crossword and not args.verify:
+            raise ValueError("--require-crossword can only be used with --verify")
+        if args.require_catalog and not args.verify:
+            raise ValueError("--require-catalog can only be used with --verify")
+        if args.catalog and args.verify:
+            raise ValueError("--catalog publishes; it cannot be used with --verify")
         if args.verify:
             # next/ holds the following day's set when the daily run publishes ahead.
             next_dir = args.output_dir / "next"
@@ -549,7 +769,11 @@ def main(argv: list[str] | None = None) -> int:
                     require_word_search=args.require_word_search,
                     require_timeline=args.require_timeline,
                     require_code_groups=args.require_code_groups,
+                    require_catalog=args.require_catalog and directory is args.output_dir,
+                    require_crossword=args.require_crossword,
                 )
+            # The next day's record follows the main directory's last one.
+            verify_crossword_history(args.output_dir, next_dir)
         elif args.database:
             if not args.database.is_file():
                 raise ValueError(f"database does not exist: {args.database}")
@@ -570,12 +794,19 @@ def main(argv: list[str] | None = None) -> int:
             decade_sessions = create_decade_sessions(dataset, args.seed, args.timer_seconds)
             sessions = {**base_sessions, **daily_sessions, **decade_sessions}
             publish(args.output_dir, sessions)
+            if args.catalog:
+                publish_catalog(args.output_dir, build_catalog(dataset))
         else:
             raise ValueError("provide --database or --verify")
     except (OSError, sqlite3.Error, ValueError) as exc:
         print(f"Web publication failed: {exc}")
         return 1
     print(f"Web artifacts {'verified' if args.verify else 'published'} in {args.output_dir}")
+    for line in published_clue_coverage_lines(args.output_dir, "Quiz clues"):
+        print(line)
+    if (args.output_dir / CATALOG_MANIFEST_FILENAME).is_file():
+        for line in published_catalog_coverage_lines(args.output_dir, "Quiz catalog"):
+            print(line)
     return 0
 
 

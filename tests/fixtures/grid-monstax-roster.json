@@ -1,0 +1,156 @@
+{
+  "source_url": "https://en.wikipedia.org/w/index.php?curid=45409264&oldid=1375542648",
+  "revision_id": 1375542648,
+  "page_id": 45409264,
+  "group": {
+    "qid": "Q19855151",
+    "name": "Monsta X"
+  },
+  "members": [
+    {
+      "qid": "Q23008017",
+      "name": "Lee Jooheon",
+      "aliases": [
+        "Jooheon",
+        "Joohoney",
+        "Lee Jooheon"
+      ],
+      "statement_id": "Q19855151$204e398d-45b2-85ad-9abd-8358d2b574ab",
+      "status": "accepted",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group is currently composed of six members: Shownu, Minhyuk, Kihyun, Hyungwon, Joohoney, and I.M, while former member Wonho left the group in October 2019.",
+      "locator": "wikipedia:en:pageid=45409264:revid=1375542648#extract[241:249]"
+    },
+    {
+      "qid": "Q24834621",
+      "name": "Shownu",
+      "aliases": [
+        "Shownu",
+        "Shownu",
+        "Son Hyunwoo"
+      ],
+      "statement_id": "Q19855151$64f975ea-4860-7bd8-0d6f-5125f8bf6578",
+      "status": "accepted",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group is currently composed of six members: Shownu, Minhyuk, Kihyun, Hyungwon, Joohoney, and I.M, while former member Wonho left the group in October 2019.",
+      "locator": "wikipedia:en:pageid=45409264:revid=1375542648#extract[206:212]"
+    },
+    {
+      "qid": "Q27951584",
+      "name": "Kihyun",
+      "aliases": [
+        "Kee Hyun",
+        "Kihyun",
+        "Kihyun",
+        "Yoo Kihyun"
+      ],
+      "statement_id": "Q19855151$289338a8-4088-e54d-b10c-b7a6f558eeb4",
+      "status": "accepted",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group is currently composed of six members: Shownu, Minhyuk, Kihyun, Hyungwon, Joohoney, and I.M, while former member Wonho left the group in October 2019.",
+      "locator": "wikipedia:en:pageid=45409264:revid=1375542648#extract[223:229]"
+    },
+    {
+      "qid": "Q28549782",
+      "name": "I.M",
+      "aliases": [
+        "I.M",
+        "I.M",
+        "Im Changkyun",
+        "Im Changkyun"
+      ],
+      "statement_id": "Q19855151$a6c494da-45d1-a448-bb10-0fee49d637d3",
+      "status": "accepted",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group is currently composed of six members: Shownu, Minhyuk, Kihyun, Hyungwon, Joohoney, and I.M, while former member Wonho left the group in October 2019.",
+      "locator": "wikipedia:en:pageid=45409264:revid=1375542648#extract[255:258]"
+    },
+    {
+      "qid": "Q28549791",
+      "name": "Hyung-won",
+      "aliases": [
+        "Category:Chae Hyung-won",
+        "Chae Hyung-won",
+        "Chae Hyungwon",
+        "Hyung-won",
+        "Hyungwon"
+      ],
+      "statement_id": "Q19855151$a1df56a2-475f-92ad-4f27-cc5cc111fc82",
+      "status": "accepted",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group is currently composed of six members: Shownu, Minhyuk, Kihyun, Hyungwon, Joohoney, and I.M, while former member Wonho left the group in October 2019.",
+      "locator": "wikipedia:en:pageid=45409264:revid=1375542648#extract[231:239]"
+    },
+    {
+      "qid": "Q28549863",
+      "name": "Wonho",
+      "aliases": [
+        "Lee Ho-seok",
+        "Shin Ho-seok",
+        "Wonho",
+        "Wonho"
+      ],
+      "statement_id": "Q19855151$563d8ff8-4609-53f6-88ee-96b461ac0104",
+      "status": "conflict",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group is currently composed of six members: Shownu, Minhyuk, Kihyun, Hyungwon, Joohoney, and I.M, while former member Wonho left the group in October 2019.",
+      "locator": "wikipedia:en:pageid=45409264:revid=1375542648#extract[280:285]"
+    },
+    {
+      "qid": "Q28746303",
+      "name": "Minhyuk",
+      "aliases": [
+        "Lee Min-hyuk",
+        "Lee Min-hyuk (cantor, nascido em 1993)",
+        "Minhyuk"
+      ],
+      "statement_id": "Q19855151$1ca7198a-443e-3efb-75d8-86c5cf895cc2",
+      "status": "accepted",
+      "valid_from": null,
+      "valid_from_precision": null,
+      "valid_to": null,
+      "valid_to_precision": null,
+      "flags": [
+        "membership_start_unknown"
+      ],
+      "snippet": "The group is currently composed of six members: Shownu, Minhyuk, Kihyun, Hyungwon, Joohoney, and I.M, while former member Wonho left the group in October 2019.",
+      "locator": "wikipedia:en:pageid=45409264:revid=1375542648#extract[214:221]"
+    }
+  ]
+}

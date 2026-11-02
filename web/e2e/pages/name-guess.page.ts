@@ -3,6 +3,7 @@ import { expect } from "@playwright/test";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
 import { loadPreferNextDaily } from "../helpers/daily-artifact";
+import { aloneLabel, type PublishedName } from "../helpers/visible-names";
 
 const NAME_GUESS_PATH = "/pt-br/adivinhe/";
 
@@ -10,7 +11,7 @@ interface NameGuessDaily {
   reference_date: string;
   max_attempts: number;
   word_length: number;
-  target: { normalized_name: string };
+  target: PublishedName & { normalized_name: string };
   valid_guesses: string[];
 }
 
@@ -58,6 +59,22 @@ export class NameGuessPage {
     }
 
     await expect(this.page.getByTestId("game-result")).toBeVisible({ timeout: 30_000 });
+  }
+
+  /**
+   * The revealed answer reads exactly as the artifact publishes it: the page
+   * shows one target, so no Wikipedia note is hidden, and the artifact's id
+   * (the save key) is the one the page saved under.
+   */
+  async expectRevealedLabel(locale: "pt-BR" | "en" = "pt-BR"): Promise<void> {
+    const puzzle = await loadPreferNextDaily<NameGuessDaily & { puzzle_id: string }>(
+      this.page.request,
+      this.baseURL,
+      "name-guess.daily.json",
+    );
+    await expect(this.page.locator(".name-guess-target-name")).toHaveText(aloneLabel(puzzle.target, locale));
+    const savedKeys = await this.page.evaluate(() => Object.keys(localStorage));
+    expect(savedKeys).toContain(`kpop_guess_state_${puzzle.puzzle_id}`);
   }
 
   async expectResult(): Promise<void> {

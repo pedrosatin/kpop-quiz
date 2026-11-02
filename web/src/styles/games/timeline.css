@@ -164,6 +164,7 @@
 .timeline-evidence-panel { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-3); }
 .timeline-evidence-event-title { margin: 0 0 var(--space-1); font-family: var(--font-title); font-size: 0.9375rem; color: var(--color-text); }
 .timeline-evidence-list { margin: 0; padding-left: var(--space-4); font-size: 0.875rem; color: var(--color-text-muted); }
+.timeline-evidence-item { overflow-wrap: anywhere; }
 .timeline-evidence-link { color: var(--color-link); text-decoration: underline; }
 .timeline-evidence-link:hover { color: var(--color-action-hover); }
 .timeline-share-live {

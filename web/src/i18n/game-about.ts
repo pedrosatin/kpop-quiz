@@ -54,7 +54,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "De onde vêm os dados da Grade de interseções de K-pop",
         faqHeading: "Perguntas sobre a Grade de interseções de K-pop",
         howToPlay: [
-          "A grade tem 3 linhas e 3 colunas. Cada linha e cada coluna traz um critério sobre grupos de K-pop, como a agência, a década de estreia ou o número de integrantes. Em cada uma das 9 casas, o grupo escolhido precisa atender ao critério da linha e ao da coluna.",
+          "A grade tem 3 linhas e 3 colunas. Cada linha e cada coluna traz um critério sobre grupos de K-pop, como a agência, a década de formação ou o número de integrantes. Em cada uma das 9 casas, o grupo escolhido precisa atender ao critério da linha e ao da coluna.",
           "São 9 palpites para as 9 casas, e um palpite errado também conta. Cada grupo vale para uma casa só. Quando um nome serve em mais de um cruzamento, guarde-o para a casa com menos opções. A busca lista apenas os grupos do catálogo do jogo, então a grafia ou a romanização do nome não atrapalha.",
           "No fim, a tela de respostas mostra os grupos aceitos em cada casa e a fonte de cada critério.",
         ],
@@ -160,8 +160,8 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "De onde vêm os dados do Quiz de mapa de K-pop",
         faqHeading: "Perguntas sobre o Quiz de mapa de K-pop",
         howToPlay: [
-          "O quiz de mapa usa a turnê DEADLINE de BLACKPINK. Cada rodada traz 10 datas da agenda oficial. Para cada data, escolha o país do show no mapa ou na lista de países. Em telas menores, a lista fica num seletor na barra de baixo.",
-          "Depois da resposta, a barra mostra o país correto e os links da agenda oficial e do MusicBrainz para aquela data. No fim, você vê quantas acertou, e Ver fonte lista as 10 datas com a sua resposta. No teclado, Tab chega a um país e Enter escolhe.",
+          "O quiz de mapa usa a turnê DEADLINE de BLACKPINK. Cada rodada traz 10 datas da agenda oficial. Para cada data, selecione o país do show no mapa ou na lista e toque em Responder. Em telas menores, a lista fica num seletor na barra de baixo. Países pequenos, como Singapura, ficam mais fáceis pela lista.",
+          "Depois da resposta, a barra mostra o país correto e os links da agenda oficial e do MusicBrainz para aquela data. No fim, você vê quantas acertou, e Ver fonte lista as 10 datas com a sua resposta. No teclado, Tab chega a um país, Enter seleciona e Responder envia.",
         ],
         dataSources: [
           "Uma data só entra no jogo quando três fontes concordam. A agenda oficial da YG lista a data e a cidade. O MusicBrainz registra o show em um local. O país do local no Wikidata bate com o país que o MusicBrainz registra para ele. Depois, o identificador do Wikidata liga o país ao contorno correspondente no mapa do Natural Earth.",
@@ -242,17 +242,17 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         howToPlay: [
           "A grade tem nomes de grupos de K-pop que se cruzam nas letras em comum. Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. A cada letra, o jogo passa para o quadrado seguinte da palavra escolhida. No teclado, Tab troca de quadrado e as setas movem pela grade.",
           "Escreva o nome sem espaços, pontuação ou acentos e mantenha os números: um dígito do nome ocupa um quadrado. Uma letra escrita num cruzamento vale para as duas palavras, então acertar uma palavra ajuda a preencher a outra.",
-          "Use Verificar respostas quantas vezes quiser. Enquanto houver quadrado vazio ou errado, a grade continua aberta para edição; quando todos estão certos, a partida termina como resolvida. Revelar respostas termina a partida na hora e mostra os nomes. No fim, Ver fonte lista cada pista com o trecho citado e o link da revisão da Wikipédia.",
+          "Use Verificar respostas quantas vezes quiser. Enquanto houver quadrado vazio ou errado, a grade continua aberta para edição; quando todos estão certos, a partida termina como resolvida. Ao confirmar Revelar respostas, a partida termina e mostra os nomes. No fim, Ver fonte lista cada pista com o trecho citado e o link da revisão da Wikipédia.",
         ],
         dataSources: [
           "As pistas saem de fatos aceitos no banco do projeto, como o ano de formação, a gravadora e os integrantes de cada grupo. Cada fato tem evidência numa revisão da Wikipédia, com o identificador da página, o número da revisão e a posição do trecho citado. Antes de publicar, a seleção compara cada pista com todos os grupos do catálogo coletado e recusa a pista que sirva para mais de um grupo. Essa prova vale para o catálogo coletado, não para todos os grupos de K-pop que existem.",
-          "A cruzadinha é uma partida fixa, revisada à mão: os mesmos grupos e as mesmas pistas para todos os jogadores, sem troca diária. Antes de mostrar a grade, o navegador recalcula a impressão SHA-256 do arquivo e confere cruzamentos, numeração e fontes. Os textos da Wikipédia seguem a licença CC BY-SA 4.0 e os dados do Wikidata são CC0.",
+          "A grade muda todo dia, sem repetir grupos da véspera, e só sai quando o gerador prova um único encaixe dos grupos nas pistas; senão, o dia fica sem cruzadinha. Antes de mostrar a grade, o navegador recalcula a impressão SHA-256 do arquivo e confere cruzamentos, numeração e fontes. Os textos da Wikipédia seguem a licença CC BY-SA 4.0 e os dados do Wikidata são CC0.",
         ],
         faq: [
           {
             question: "A cruzadinha muda todo dia?",
             answer:
-              "Ainda não. Por enquanto a cruzadinha é uma partida fixa, revisada à mão, e a grade é a mesma em todas as visitas. O progresso fica salvo neste navegador, e a partida concluída entra uma única vez nas suas estatísticas.",
+              "Sim, à meia-noite de Brasília, com a mesma grade para todos no dia. O progresso fica salvo neste navegador, e a partida concluída entra uma única vez nas suas estatísticas.",
           },
           {
             question: "Por que a grade aceita só um jeito de escrever o nome?",
@@ -276,7 +276,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "Where the K-pop Intersection Grid data comes from",
         faqHeading: "K-pop Intersection Grid FAQ",
         howToPlay: [
-          "The grid has 3 rows and 3 columns. Each row and each column carries a rule about K-pop groups, such as the agency, the debut decade or the number of members. For each of the 9 squares, pick a group that matches both its row and its column.",
+          "The grid has 3 rows and 3 columns. Each row and each column carries a rule about K-pop groups, such as the agency, the formation decade or the number of members. For each of the 9 squares, pick a group that matches both its row and its column.",
           "You get 9 guesses for 9 squares, and a wrong guess still uses one up. A group can fill only one square, so if a name fits several crossings, save it for the square with the fewest options. The search box only lists groups from the game's catalog, so spelling and romanization won't trip you up.",
           "When the game ends, the answers screen lists every group that would have counted in each square, along with the source behind each rule.",
         ],
@@ -382,8 +382,8 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "Where the K-pop Map Quiz data comes from",
         faqHeading: "K-pop Map Quiz FAQ",
         howToPlay: [
-          "The map quiz is built on BLACKPINK's DEADLINE world tour. Each round has 10 dates from the official schedule. For each date, pick the country of the show on the map or from the list of countries. On smaller screens the list sits in a menu in the bottom bar.",
-          "After you answer, the bar shows the correct country with links to the official schedule and to MusicBrainz for that date. At the end you see your score, and Show source lists all 10 dates with your answer. With a keyboard, Tab moves between countries and Enter picks one.",
+          "The map quiz is built on BLACKPINK's DEADLINE world tour. Each round has 10 dates from the official schedule. For each date, select the country of the show on the map or from the list, then press Answer. On smaller screens the list sits in a menu in the bottom bar. Small countries such as Singapore are easier to pick from the list.",
+          "After you answer, the bar shows the correct country with links to the official schedule and to MusicBrainz for that date. At the end you see your score, and Show source lists all 10 dates with your answer. With a keyboard, Tab moves between countries, Enter selects one, and Answer submits.",
         ],
         dataSources: [
           "A date makes it into the game only when three sources agree. YG's official schedule lists the date and city, MusicBrainz records the concert at a venue, and the venue's country on Wikidata matches the one MusicBrainz records. The country's Wikidata ID then links it to the matching shape on the Natural Earth map.",
@@ -464,17 +464,17 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         howToPlay: [
           "The grid holds K-pop group names that cross at shared letters. Tap or click a clue to pick its word, then type the group's name. After each letter the game moves to the next square of the chosen word. With a keyboard, Tab switches squares and the arrow keys move around the grid.",
           "Type the name without spaces, punctuation or accents, and keep any digits: a digit in the name takes one square. A letter typed where two words cross counts for both, so solving one word helps you fill the other.",
-          "Check your answers as often as you like. While any square is empty or wrong, the grid stays open for editing; once every square is right, the round ends as solved. Reveal answers ends the round at once and shows the names. At the end, Show source lists each clue with the quoted passage and a link to the Wikipedia revision.",
+          "Check your answers as often as you like. While any square is empty or wrong, the grid stays open for editing; once every square is right, the round ends as solved. Confirming Reveal answers ends the round and shows the names. At the end, Show source lists each clue with the quoted passage and a link to the Wikipedia revision.",
         ],
         dataSources: [
           "The clues come from accepted facts in the project database, such as each group's formation year, record label and members. Every fact has evidence in a Wikipedia revision, with the page ID, the revision number and the position of the quoted passage. Before publishing, the selection compares each clue with every group in the collected catalog and rejects a clue that fits more than one group. That check covers the collected catalog, not every K-pop group in existence.",
-          "The crossword is a fixed puzzle, reviewed by hand: the same groups and the same clues for every player, with no daily change. Before showing the grid, the browser recomputes the file's SHA-256 fingerprint and checks crossings, numbering and sources. Wikipedia text is licensed CC BY-SA 4.0 and Wikidata data is CC0.",
+          "The grid changes every day, with no group from the day before, and comes out only when the generator proves a single fit of the groups to the clues; otherwise the day has no crossword. Before showing the grid, the browser recomputes the file's SHA-256 fingerprint and checks crossings, numbering and sources. Wikipedia text is licensed CC BY-SA 4.0 and Wikidata data is CC0.",
         ],
         faq: [
           {
             question: "Does the crossword change every day?",
             answer:
-              "Not yet. For now the crossword is a fixed puzzle reviewed by hand, and the grid is the same on every visit. Your progress is saved in this browser, and a finished round counts once in your stats.",
+              "Yes, at midnight Brasília time, with the same grid for everyone that day. Your progress is saved in this browser, and a finished round counts once in your stats.",
           },
           {
             question: "Why does the grid accept only one spelling?",

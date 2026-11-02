@@ -17,12 +17,14 @@ from kpop_scraping.name_guess_schema import (
     NAME_GUESS_SCHEMA_VERSION,
     compute_guess_feedback,
     generate_share_summary,
+    name_guess_puzzle_id,
     normalize_name,
     validate_name_guess_puzzle,
     write_name_guess_puzzle_atomic,
 )
 
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schemas" / "name-guess-v1.json"
+PUBLISHED_TAHITI = Path(__file__).resolve().parent / "fixtures" / "name_guess_published_tahiti_banda.json"
 
 
 def sample_evidence(fact_id: str = "fb-1") -> dict:
@@ -37,9 +39,15 @@ def sample_evidence(fact_id: str = "fb-1") -> dict:
 
 def sample_name_guess_puzzle() -> dict:
     """Return a complete, valid sample name guess puzzle matching schemas/name-guess-v1.json."""
+    puzzle = _unsealed_sample_puzzle()
+    puzzle["puzzle_id"] = name_guess_puzzle_id(puzzle)
+    return puzzle
+
+
+def _unsealed_sample_puzzle() -> dict:
     return {
         "schema_version": NAME_GUESS_SCHEMA_VERSION,
-        "puzzle_id": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "puzzle_id": "0" * 64,
         "dataset_version": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
         "reference_date": "2026-09-18",
         "word_length": 5,
@@ -94,6 +102,7 @@ class TestNameGuessSchemaValidation(unittest.TestCase):
     def test_sample_puzzle_without_optional_clues_is_valid(self):
         puzzle = sample_name_guess_puzzle()
         del puzzle["target"]["clues"]
+        puzzle["puzzle_id"] = name_guess_puzzle_id(puzzle)
         validate_name_guess_puzzle(puzzle)
         if JSON_VALIDATOR:
             JSON_VALIDATOR(puzzle)
@@ -107,9 +116,59 @@ class TestNameGuessSchemaValidation(unittest.TestCase):
                 "en": "JYP Entertainment",
             },
         }
+        puzzle["puzzle_id"] = name_guess_puzzle_id(puzzle)
         validate_name_guess_puzzle(puzzle)
         if JSON_VALIDATOR:
             JSON_VALIDATOR(puzzle)
+
+    def test_puzzle_id_must_be_the_hash_of_the_published_payload(self):
+        # Every published field is part of the identity: changing one without
+        # re-sealing the id is a mutation the validator must report.
+        mutations = {
+            "target label pt-BR": lambda p: p["target"]["labels"].update({"pt-BR": "Twice (grupo)"}),
+            "target label en": lambda p: p["target"]["labels"].update({"en": "Twice"}),
+            "canonical name": lambda p: p["target"].update({"canonical_name": "Twice"}),
+            "clue description": lambda p: p["target"]["clues"]["description"].update({"en": "Edited."}),
+            "clue debut year": lambda p: p["target"]["clues"].update({"debut_year": 2016}),
+            "evidence locator": lambda p: p["target"]["evidence"][0].update({"locator": "claims/P571/other"}),
+            "valid guesses": lambda p: p["valid_guesses"].append("ALPHA"),
+            "reference date": lambda p: p.update({"reference_date": "2026-09-19"}),
+            "max attempts": lambda p: p.update({"max_attempts": 7}),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(mutation=name):
+                puzzle = sample_name_guess_puzzle()
+                mutate(puzzle)
+                with self.assertRaises(ValueError) as ctx:
+                    validate_name_guess_puzzle(puzzle)
+                self.assertIn("puzzle_id does not match", str(ctx.exception))
+
+    def test_resealed_mutation_is_a_different_puzzle_not_a_tampered_one(self):
+        puzzle = sample_name_guess_puzzle()
+        original_id = puzzle["puzzle_id"]
+        puzzle["target"]["labels"]["pt-BR"] = "Twice (grupo)"
+        puzzle["puzzle_id"] = name_guess_puzzle_id(puzzle)
+        validate_name_guess_puzzle(puzzle)
+        self.assertNotEqual(puzzle["puzzle_id"], original_id)
+
+    def test_puzzle_id_field_itself_is_excluded_from_the_hash(self):
+        puzzle = sample_name_guess_puzzle()
+        other = deepcopy(puzzle)
+        other["puzzle_id"] = "f" * 64
+        self.assertEqual(name_guess_puzzle_id(puzzle), name_guess_puzzle_id(other))
+
+    def test_previously_published_artifact_still_validates(self):
+        # Published on 2026-10-24 (commit e34f133), before any label cleanup:
+        # its pt-BR label carries the Wikipedia note and its id covers it.
+        artifact = json.loads(PUBLISHED_TAHITI.read_text(encoding="utf-8"))
+        self.assertEqual(artifact["target"]["labels"]["pt-BR"], "Tahiti (banda)")
+        validate_name_guess_puzzle(artifact)
+        if JSON_VALIDATOR:
+            JSON_VALIDATOR(artifact)
+        artifact["target"]["labels"]["pt-BR"] = "Tahiti"
+        with self.assertRaises(ValueError) as ctx:
+            validate_name_guess_puzzle(artifact)
+        self.assertIn("puzzle_id does not match", str(ctx.exception))
 
     def test_missing_root_field_fails(self):
         puzzle = sample_name_guess_puzzle()

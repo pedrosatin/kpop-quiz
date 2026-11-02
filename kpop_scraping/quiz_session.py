@@ -22,20 +22,7 @@ def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any
         raise ValueError("timer_seconds must be greater than zero")
     if config.decade is not None and config.decade not in {1990, 2000, 2010, 2020}:
         raise ValueError("unsupported decade")
-    eligible = [
-        question
-        for question in dataset["questions"]
-        if question["language"] == config.language
-        and (config.theme is None or question["theme"] == config.theme)
-        and (config.group_id is None or config.group_id in question["group_ids"])
-        and (config.decade is None or config.decade in question["decades"])
-        and question["play_mode"] == config.play_mode
-    ]
-    relevance_filtered = _filter_by_group_relevance(eligible, config.play_mode)
-    # A partial measurement keeps the previous pool. A filtered pool smaller
-    # than ten questions also falls back, so a threshold cannot block publication.
-    if len(relevance_filtered) >= 10:
-        eligible = relevance_filtered
+    eligible = eligible_questions(dataset, config)
     if len(eligible) < 10:
         raise InsufficientQuestionsError(
             f"filters matched {len(eligible)} questions; a session requires 10"
@@ -72,6 +59,28 @@ def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any
     }
     validate_session(payload)
     return payload
+
+
+def eligible_questions(dataset: dict[str, Any], config: QuizConfig) -> list[dict[str, Any]]:
+    """Questions a session of ``config`` may draw from, in dataset order.
+
+    The static catalog publishes the same pools, so both read one definition of
+    eligibility: language, play mode and the optional theme, group and decade
+    filters, then the group relevance threshold of the play mode.
+    """
+    eligible = [
+        question
+        for question in dataset["questions"]
+        if question["language"] == config.language
+        and (config.theme is None or question["theme"] == config.theme)
+        and (config.group_id is None or config.group_id in question["group_ids"])
+        and (config.decade is None or config.decade in question["decades"])
+        and question["play_mode"] == config.play_mode
+    ]
+    relevance_filtered = _filter_by_group_relevance(eligible, config.play_mode)
+    # A partial measurement keeps the previous pool. A filtered pool smaller
+    # than ten questions also falls back, so a threshold cannot block publication.
+    return relevance_filtered if len(relevance_filtered) >= 10 else eligible
 
 
 def _session_question(question: dict[str, Any], seed: str) -> dict[str, Any]:

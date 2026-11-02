@@ -184,8 +184,9 @@ describe("TimelineGame", () => {
   it("submits on give-up and reveals the canonical order", async () => {
     render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
 
-    const heading = await screen.findByRole("heading", { name: /Pontuação:/ });
+    const heading = await screen.findByRole("heading", { name: "Você desistiu" });
     expect(heading).toBeInTheDocument();
     expect(document.activeElement).toBe(heading);
     expect(screen.queryByRole("button", { name: "Desistir" })).not.toBeInTheDocument();
@@ -198,19 +199,72 @@ describe("TimelineGame", () => {
     }
   });
 
-  it("records a give-up on the canonical order as played without a win", async () => {
-    const shuffled = [...puzzle.events].reverse();
-    const sortedPuzzle = {
-      ...puzzle,
-      events: getCanonicalChronologicalOrder(shuffled),
-    } as TimelinePuzzle;
-    render(<TimelineGame locale="pt-BR" puzzle={sortedPuzzle} />);
+  it("asks for confirmation before giving up and keeps the board on cancel or Escape", () => {
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Você desistiu" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
-    await screen.findByRole("heading", { name: /Pontuação:/ });
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
 
-    expect(loadPlayerStats().games.timeline?.played).toBe(1);
-    expect(loadPlayerStats().games.timeline?.won ?? 0).toBe(0);
+  it("shows English give-up confirmation copy on timeline", () => {
+    render(<TimelineGame locale="en" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Give up" }));
+    expect(screen.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(screen.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Give up" })).toBeInTheDocument();
+  });
+
+  it("restores a persisted give-up as a loss when the stats marker is absent", async () => {
+    localStorage.setItem(`kpop-timeline-${puzzle.puzzle_id}`, JSON.stringify({
+      puzzleId: puzzle.puzzle_id, referenceDate: puzzle.reference_date,
+      orderedEventIds: getCanonicalChronologicalOrder(puzzle.events).map(event => event.id),
+      submitted: true, gaveUp: true, score: 5, results: [true, true, true, true, true],
+    }));
+    const { unmount } = render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    await screen.findByRole("heading", { name: "Você desistiu" });
+    expect(loadPlayerStats().games.timeline).toMatchObject({ played: 1, won: 0 });
+    unmount();
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    await screen.findByRole("heading", { name: "Você desistiu" });
+    expect(loadPlayerStats().games.timeline).toMatchObject({ played: 1, won: 0 });
+  });
+
+  it.each(["pt-BR", "en"] as const)("persists a correct-order give-up as a loss with explicit share text (%s)", async (locale) => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share });
+    const { unmount } = render(<TimelineGame locale={locale} puzzle={puzzle} />);
+    const canonical = getCanonicalChronologicalOrder(puzzle.events);
+    for (const [target, event] of canonical.entries()) {
+      let current = screen.getAllByRole("listitem").findIndex(card => card.dataset.testid === `timeline-card-${event.id}`);
+      while (current > target) {
+        fireEvent.click(document.getElementById(`timeline-move-up-${event.id}`)!);
+        current--;
+      }
+    }
+    fireEvent.click(screen.getByRole("button", { name: locale === "pt-BR" ? "Desistir" : "Give up" }));
+    fireEvent.click(screen.getByRole("button", { name: locale === "pt-BR" ? "Sim, desistir" : "Yes, give up" }));
+    const heading = locale === "pt-BR" ? "Você desistiu" : "You gave up";
+    await screen.findByRole("heading", { name: heading });
+    expect(screen.getByText(locale === "pt-BR" ? "Pontuação da sequência: 5/5" : "Sequence score: 5/5")).toBeInTheDocument();
+    expect(loadPlayerStats().games.timeline).toMatchObject({ played: 1, won: 0 });
+    vi.mocked(performance.now).mockReturnValue(2000);
+    fireEvent.click(screen.getByRole("button", { name: locale === "pt-BR" ? "Compartilhar" : "Share" }));
+    expect(share).toHaveBeenCalledWith({ text: expect.stringContaining(locale === "pt-BR" ? "Desistência · Pontuação da sequência: 5/5" : "Gave up · Sequence score: 5/5") });
+    unmount();
+    render(<TimelineGame locale={locale} puzzle={puzzle} />);
+    await screen.findByRole("heading", { name: heading });
+    expect(loadPlayerStats().games.timeline).toMatchObject({ played: 1, won: 0 });
   });
 
   it("has zero accessibility violations with axe-core in playing and submitted states", async () => {

@@ -1,6 +1,6 @@
 import type { RefObject } from "preact";
 import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
-import type { QuizOption, QuizQuestion } from "../../lib/quiz-types";
+import type { QuizClue, QuizOption, QuizQuestion } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { AnswerFeedbackActions } from "./answer-feedback-actions";
 import {
@@ -25,6 +25,8 @@ export interface AnswerFeedbackProps {
   correctOption: QuizOption | null;
   explanation: string;
   evidence: QuizQuestion["evidence"];
+  /** Clues the player saw; their sources are listed beside the answer's. */
+  seenClues?: QuizClue[] | undefined;
   messages: Messages;
   isLastQuestion: boolean;
   onSubmit: () => void;
@@ -36,8 +38,8 @@ export interface AnswerFeedbackProps {
  * The quiz action bar. Before an answer it holds the hint and Submit; after
  * it, the verdict, a toggle for the explanation and sources, and Next.
  * Only the message is a live region, so buttons and links are not announced.
- * The sources panel sits between the toggle and Next in the DOM, so Tab from
- * the open toggle reaches its links first.
+ * The message and the sources panel are keyboard-focusable scroll regions in
+ * DOM order, so Tab reaches each region before the controls that follow it.
  * Mount it with a key per question so the sources start closed.
  */
 export function AnswerFeedback({
@@ -50,6 +52,7 @@ export function AnswerFeedback({
   correctOption,
   explanation,
   evidence,
+  seenClues = [],
   messages,
   isLastQuestion,
   onSubmit,
@@ -61,6 +64,9 @@ export function AnswerFeedback({
   const nextShownAt = useRef(0);
   const right = answered && isCorrect && !timedOut;
   const displayedEvidence = answered ? groupEvidence(evidence) : [];
+  const displayedClues = answered
+    ? seenClues.map((clue) => ({ text: clue.text, evidence: groupEvidence(clue.evidence) }))
+    : [];
 
   // Next replaces Submit in the same spot, so a second click or a held Enter
   // meant for Submit must not skip the verdict.
@@ -79,7 +85,7 @@ export function AnswerFeedback({
 
   return (
     <div class={`game-actions quiz-actions${quizBarState(answered, right)}`}>
-      <div class="game-actions-message" role="status" aria-live="polite">
+      <div class="game-actions-message" role="status" aria-live="polite" tabIndex={0}>
         <AnswerFeedbackMessage
           answered={answered}
           right={right}
@@ -96,6 +102,7 @@ export function AnswerFeedback({
             answers={answers}
             explanation={explanation}
             evidence={displayedEvidence}
+            clues={displayedClues}
             messages={messages}
             onToggle={() => setSourceOpen((open) => !open)}
           />

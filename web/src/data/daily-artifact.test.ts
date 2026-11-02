@@ -97,6 +97,39 @@ describe("daily quiz session published ahead", () => {
     expect(session.config.seed).toBe("kpop-daily-2026-09-25");
   });
 
+  it("reads the enriched manifest of next/ even when the main directory has none", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T04:00:00Z"));
+    const main = await dailyArtifacts("2026-09-24");
+    const next = await dailyArtifacts("2026-09-25");
+    const enriched = { ...next.manifest, schema_version: "kpop-quiz-web-manifest-v3" };
+    const fetch = routeFetch({
+      "/data/manifest-v2.json": main.manifest,
+      [`/data/${main.path}`]: main.bytes,
+      "/data/next/manifest-v3.json": enriched,
+      [`/data/next/${next.path}`]: next.bytes,
+    });
+    vi.stubGlobal("fetch", fetch);
+    const session = await loadQuizSession("pt-BR", "standard", "daily", "/");
+    expect(session.config.seed).toBe("kpop-daily-2026-09-25");
+    expect(fetch).not.toHaveBeenCalledWith("/data/next/manifest-v2.json");
+  });
+
+  it("falls back to the legacy manifest of next/ when it has no enriched one", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T04:00:00Z"));
+    const main = await dailyArtifacts("2026-09-24");
+    const next = await dailyArtifacts("2026-09-25");
+    vi.stubGlobal("fetch", routeFetch({
+      "/data/manifest-v2.json": main.manifest,
+      [`/data/${main.path}`]: main.bytes,
+      "/data/next/manifest-v2.json": next.manifest,
+      [`/data/next/${next.path}`]: next.bytes,
+    }));
+    const session = await loadQuizSession("pt-BR", "standard", "daily", "/");
+    expect(session.config.seed).toBe("kpop-daily-2026-09-25");
+  });
+
   it("keeps today's session and ignores next/ for other themes", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-09-25T02:00:00Z"));

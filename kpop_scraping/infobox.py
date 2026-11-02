@@ -1,7 +1,10 @@
-"""Read list fields of ``Infobox musical artist`` from a revision's wikitext.
+"""Read fields of an infobox from a revision's wikitext.
 
-The parser keeps every item as a span of the original wikitext, so evidence
-can point to the exact characters that name a label or a member.
+Groups use the first ``Infobox musical artist``. A person's own page uses its
+first infobox of any kind, accepted only when it is ``Infobox person`` or
+``Infobox musical artist``. The parser keeps every item as a span of the
+original wikitext, so evidence can point to the exact characters that name a
+label, a member, a date or a place.
 """
 
 from __future__ import annotations
@@ -10,6 +13,9 @@ import re
 from dataclasses import dataclass
 
 INFOBOX_START = re.compile(r"\{\{\s*Infobox[ _]+musical[ _]+artist\s*(?=[|}<\n])", re.I)
+# Any infobox opening; the name ends at a parameter, the closing braces or a break.
+_ANY_INFOBOX_START = re.compile(r"\{\{\s*Infobox(?:[ _]+([^|{}<\n]*?))?\s*(?=[|}<\n])", re.I)
+_INERT_TEXT = re.compile(r"<!--.*?-->|<nowiki\b[^>]*>.*?</nowiki\s*>", re.I | re.S)
 # Templates that only wrap a list; their arguments are the list items.
 LIST_TEMPLATES = frozenset({
     "hlist", "flatlist", "plainlist", "ubl", "unbulleted list", "ublist",
@@ -35,15 +41,40 @@ class InfoboxItem:
 
 
 def infobox_fields(wikitext: str) -> dict[str, tuple[int, int]]:
-    """Return the value span of each named parameter of the first infobox."""
+    """Return the value span of each named parameter of the first musical artist infobox."""
     match = INFOBOX_START.search(wikitext)
     if match is None:
         return {}
-    end = _closing_braces(wikitext, match.start())
+    return _fields_of(wikitext, match.start(), match.end())
+
+
+def first_infobox_fields(
+    wikitext: str,
+    accepted_types: frozenset[str],
+) -> dict[str, tuple[int, int]]:
+    """Return the fields of the page's first infobox, if its type is accepted.
+
+    Only the first infobox of the page counts, whatever its type: when it is
+    not one of ``accepted_types`` (lowercase, single spaces) the page has no
+    fields, instead of falling through to a later infobox. Commented-out and
+    ``<nowiki>`` infoboxes are ignored.
+    """
+    inert = _INERT_TEXT.sub(lambda found: " " * len(found.group(0)), wikitext)
+    match = _ANY_INFOBOX_START.search(inert)
+    if match is None:
+        return {}
+    kind = " ".join((match.group(1) or "").replace("_", " ").split()).lower()
+    if kind not in accepted_types:
+        return {}
+    return _fields_of(wikitext, match.start(), match.end())
+
+
+def _fields_of(wikitext: str, template_start: int, parameters_start: int) -> dict[str, tuple[int, int]]:
+    end = _closing_braces(wikitext, template_start)
     if end is None:
         return {}
     fields: dict[str, tuple[int, int]] = {}
-    for start, stop in _split_top_level(wikitext, match.end(), end - 2, "|"):
+    for start, stop in _split_top_level(wikitext, parameters_start, end - 2, "|"):
         equals = wikitext.find("=", start, stop)
         if equals < 0 or _depth_before(wikitext, start, equals):
             continue
@@ -53,12 +84,20 @@ def infobox_fields(wikitext: str) -> dict[str, tuple[int, int]]:
     return fields
 
 
-def field_items(wikitext: str, span: tuple[int, int]) -> list[InfoboxItem]:
-    """Split a field value into items, unwrapping list templates."""
+def field_items(
+    wikitext: str,
+    span: tuple[int, int],
+    include_unreadable: bool = False,
+) -> list[InfoboxItem]:
+    """Split a field value into items, unwrapping list templates.
+
+    An item that names nothing, such as one with extra text around its link,
+    is left out unless ``include_unreadable`` asks for it with empty ``names``.
+    """
     items: list[InfoboxItem] = []
     for start, end in _item_spans(wikitext, *span):
         names = _item_names(wikitext[start:end])
-        if names:
+        if names or include_unreadable:
             items.append(InfoboxItem(names, start, end, wikitext[start:end].strip()))
     return items
 
@@ -67,17 +106,15 @@ def _item_spans(text: str, start: int, end: int) -> list[tuple[int, int]]:
     start, end = _trim(text, start, end)
     if start >= end:
         return []
-    name = _TEMPLATE_NAME.match(text, start)
-    if name and name.group(1).strip().lower() in LIST_TEMPLATES:
-        closing = _closing_braces(text, start)
-        if closing == end:
-            spans: list[tuple[int, int]] = []
-            arguments = _split_top_level(text, name.end(), end - 2, "|")
-            for arg_start, arg_end in arguments:
-                if _is_named_argument(text, arg_start, arg_end):
-                    continue
-                spans.extend(_item_spans(text, arg_start, arg_end))
-            return spans
+    wrapper = _list_wrapper(text, start, end)
+    if wrapper is not None:
+        name_end, close = wrapper
+        spans: list[tuple[int, int]] = []
+        for arg_start, arg_end in _split_top_level(text, name_end, close - 2, "|"):
+            if _is_named_argument(text, arg_start, arg_end):
+                continue
+            spans.extend(_item_spans(text, arg_start, arg_end))
+        return spans
     spans = []
     for piece_start, piece_end in _split_top_level(text, start, end, _ITEM_BREAK):
         piece_start, piece_end = _trim(text, piece_start, piece_end)
@@ -86,16 +123,38 @@ def _item_spans(text: str, start: int, end: int) -> list[tuple[int, int]]:
         piece_start, piece_end = _trim(text, piece_start, piece_end)
         if piece_start >= piece_end:
             continue
-        inner = _TEMPLATE_NAME.match(text, piece_start)
-        if (
-            inner
-            and inner.group(1).strip().lower() in LIST_TEMPLATES
-            and _closing_braces(text, piece_start) == piece_end
-        ):
+        if _list_wrapper(text, piece_start, piece_end) is not None:
             spans.extend(_item_spans(text, piece_start, piece_end))
         else:
             spans.append((piece_start, piece_end))
     return spans
+
+
+def _list_wrapper(text: str, start: int, end: int) -> tuple[int, int] | None:
+    """Return where the arguments begin and the template closes, if the span is a list template.
+
+    Comments around the template are not part of the list, so ``{{hlist|...}}
+    <!-- note -->`` still counts as a whole list. Both positions stay offsets
+    of the original text, which evidence locators rely on.
+    """
+    start, end = _skip_comments(text, start, end)
+    name = _TEMPLATE_NAME.match(text, start, end)
+    if name is None or name.group(1).strip().lower() not in LIST_TEMPLATES:
+        return None
+    close = _closing_braces(text, start)
+    return (name.end(), close) if close == end else None
+
+
+def _skip_comments(text: str, start: int, end: int) -> tuple[int, int]:
+    """Narrow ``text[start:end]`` past comments at either edge, and the space between."""
+    while True:
+        start, end = _trim(text, start, end)
+        if text.startswith("<!--", start) and (close := text.find("-->", start, end)) >= 0:
+            start = close + 3
+        elif text.endswith("-->", start, end) and (open_ := text.rfind("<!--", start, end - 3)) >= 0:
+            end = open_
+        else:
+            return start, end
 
 
 def _item_names(raw: str) -> tuple[str, ...]:

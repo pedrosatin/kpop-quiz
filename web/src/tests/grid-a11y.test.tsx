@@ -123,7 +123,7 @@ describe("Automated accessibility audits with axe-core for Intersection Grid", (
       <EntityPicker
         candidatePool={validGrid.candidate_pool}
         usedEntityIds={new Set(["Q21461452"])}
-        rowLabel="Estreou nos anos 2010"
+        rowLabel="Formado nos anos 2010"
         colLabel="JYP Entertainment"
         onSelectCandidate={vi.fn()}
         onClose={vi.fn()}
@@ -182,7 +182,7 @@ describe("Automated accessibility audits with axe-core for Intersection Grid", (
   it("validates IntersectionGrid orchestrator in ready state", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(new Response(JSON.stringify(validGridJson)))
+      vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(validGridJson)))
     );
 
     const { container, findByRole } = render(

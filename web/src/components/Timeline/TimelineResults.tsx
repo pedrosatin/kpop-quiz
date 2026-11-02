@@ -1,11 +1,14 @@
 import { useId, useMemo } from "preact/hooks";
+import type { Locale, TimelineEvent } from "../../lib/quiz-types";
 import type { TimelineResultsProps } from "./types";
 import { DEFAULT_TIMELINE_MESSAGES } from "./types";
 import { getCanonicalChronologicalOrder } from "./timeline-utils";
+import { TimelineEvidenceList } from "./TimelineEvidenceList";
 import { TimelineShare } from "./TimelineShare";
 
 export function TimelineResults({
   score,
+  gaveUp = false,
   totalEvents,
   results,
   canonicalEvents,
@@ -47,47 +50,18 @@ export function TimelineResults({
           tabIndex={-1}
           class="timeline-results-score"
         >
-          {scoreBanner}
+          {gaveUp ? (messages?.gaveUp ?? defaultMsgs.gaveUp) : scoreBanner}
         </h2>
+        {gaveUp && <p>{(messages?.sequenceScore ?? defaultMsgs.sequenceScore)(score, total)}</p>}
       </div>
 
       <div class="timeline-results-summary">
         <h3 class="timeline-results-summary-heading">{summaryHeading}</h3>
         <ol class="timeline-results-list" role="list">
-          {chronologicalEvents.map((event, index) => {
-            const isCorrect = results[index] ?? false;
-            const indicatorLabel = isCorrect ? correctLabel : incorrectLabel;
-            const displayDate =
-              event.display_date[locale] ?? event.display_date["pt-BR"];
-            const title =
-              event.title[locale] || event.title["pt-BR"] || event.entity_name;
-
-            return (
-              <li
-                key={event.id}
-                class={`timeline-results-item ${isCorrect ? "is-correct" : "is-incorrect"}`}
-              >
-                <div class="timeline-results-item-header">
-                  <span
-                    role="img"
-                    class={`timeline-accuracy-badge ${isCorrect ? "is-correct" : "is-incorrect"}`}
-                    aria-label={`${indicatorLabel}: ${index + 1}`}
-                  >
-                    <span class="timeline-accuracy-emoji">
-                      {isCorrect ? "🟩" : "🟥"}
-                    </span>
-                    <span class="timeline-accuracy-symbol">
-                      {isCorrect ? " ✓" : " ✗"}
-                    </span>
-                  </span>
-                  <span class="timeline-revealed-date">{displayDate}</span>
-                </div>
-                <div class="timeline-results-item-body">
-                  <span class="timeline-results-item-title">{title}</span>
-                </div>
-              </li>
-            );
-          })}
+          {chronologicalEvents.map((event, index) => (
+            <TimelineResultItem key={event.id} event={event} index={index} locale={locale}
+              isCorrect={results[index] ?? false} correctLabel={correctLabel} incorrectLabel={incorrectLabel} />
+          ))}
         </ol>
       </div>
 
@@ -100,46 +74,7 @@ export function TimelineResults({
             return (
               <div key={event.id} class="timeline-evidence-event">
                 <h4 class="timeline-evidence-event-title">{eventTitle}</h4>
-                <ul class="timeline-evidence-list">
-                  {event.evidence.map((ev, evIndex) => {
-                    const isSafeUrl =
-                      typeof ev.source_url === "string" &&
-                      (ev.source_url.startsWith("https://") ||
-                        ev.source_url.startsWith("http://"));
-
-                    return (
-                      <li
-                        key={`${event.id}-${ev.source_key}-${ev.revision_id}-${evIndex}`}
-                        class="timeline-evidence-item"
-                      >
-                        {isSafeUrl ? (
-                          <a
-                            href={ev.source_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="timeline-evidence-link"
-                          >
-                            {ev.source_key}
-                          </a>
-                        ) : (
-                          <span class="timeline-evidence-source">
-                            {ev.source_key}
-                          </span>
-                        )}
-                        <span class="timeline-evidence-meta">
-                          {" · "}
-                          <span class="timeline-evidence-locator">
-                            {ev.locator}
-                          </span>
-                          {" · "}
-                          <span class="timeline-evidence-revision">
-                            {revisionLabel} {ev.revision_id}
-                          </span>
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <TimelineEvidenceList evidence={event.evidence} locale={locale} revisionLabel={revisionLabel} />
               </div>
             );
           })}
@@ -154,5 +89,33 @@ export function TimelineResults({
         onShareError={onShareError ?? onShareFailed}
       />
     </section>
+  );
+}
+
+function TimelineResultItem({ event, index, locale, isCorrect, correctLabel, incorrectLabel }: {
+  event: TimelineEvent;
+  index: number;
+  locale: Locale;
+  isCorrect: boolean;
+  correctLabel: string;
+  incorrectLabel: string;
+}) {
+  const accuracyClass = isCorrect ? "is-correct" : "is-incorrect";
+  const indicatorLabel = isCorrect ? correctLabel : incorrectLabel;
+  const displayDate = event.display_date[locale] ?? event.display_date["pt-BR"];
+  const title = event.title[locale] || event.title["pt-BR"] || event.entity_name;
+  return (
+    <li class={`timeline-results-item ${accuracyClass}`}>
+      <div class="timeline-results-item-header">
+        <span role="img" class={`timeline-accuracy-badge ${accuracyClass}`} aria-label={`${indicatorLabel}: ${index + 1}`}>
+          <span class="timeline-accuracy-emoji">{isCorrect ? "🟩" : "🟥"}</span>
+          <span class="timeline-accuracy-symbol">{isCorrect ? " ✓" : " ✗"}</span>
+        </span>
+        <span class="timeline-revealed-date">{displayDate}</span>
+      </div>
+      <div class="timeline-results-item-body">
+        <span class="timeline-results-item-title">{title}</span>
+      </div>
+    </li>
   );
 }

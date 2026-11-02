@@ -151,3 +151,60 @@ class MediaWikiClientTest(unittest.TestCase):
     def test_rejects_incomplete_category_response(self, _get):
         with self.assertRaisesRegex(Exception, "unexpected shape"):
             list(MediaWikiClient().iter_category_members("Category:Test"))
+
+    @patch.object(MediaWikiClient, "_get")
+    def test_resolve_titles_tells_apart_titles_that_land_on_one_page(self, get):
+        def page(pageid, title, item):
+            return {
+                "pageid": pageid, "title": title, "canonicalurl": f"https://example.test/{pageid}",
+                "extract": "Intro.", "revisions": [{"revid": pageid * 10}],
+                "pageprops": {"wikibase_item": item},
+            }
+
+        get.return_value = {
+            "query": {
+                "normalized": [{"from": "kyujin_(singer)", "to": "Kyujin (singer)"}],
+                "redirects": [{"from": "Kyujin (singer)", "to": "Nmixx"}, {"from": "Lily", "to": "Nmixx"}],
+                "pages": [
+                    page(1, "Nmixx", "Q10"),
+                    page(2, "Nayeon", "Q20"),
+                    {"title": "Nobody", "missing": True},
+                ],
+            }
+        }
+        result = MediaWikiClient().resolve_titles(
+            ["kyujin_(singer)", " Nayeon ", "Nmixx", "Lily", "Nobody", "Nayeon"]
+        )
+        self.assertEqual(
+            {title: (item.title, item.is_redirect, item.wikidata_id) for title, item in result.items()},
+            {
+                "kyujin_(singer)": ("Nmixx", True, "Q10"),
+                "Nayeon": ("Nayeon", False, "Q20"),
+                "Nmixx": ("Nmixx", False, "Q10"),
+                "Lily": ("Nmixx", True, "Q10"),
+                "Nobody": ("Nobody", False, None),
+            },
+        )
+        self.assertTrue(result["Nobody"].is_missing)
+        self.assertEqual(result["Nayeon"].revision_id, 20)
+        self.assertEqual(get.call_args.args[0]["redirects"], "1")
+        self.assertEqual(get.call_args.args[0]["titles"].count("|"), 4)
+
+    @patch.object(MediaWikiClient, "_get")
+    def test_resolve_titles_survives_a_redirect_loop_and_checks_the_batch_size(self, get):
+        get.return_value = {
+            "query": {
+                "redirects": [{"from": "A", "to": "B"}, {"from": "B", "to": "A"}],
+                "pages": [{"pageid": 1, "title": "A"}],
+            }
+        }
+        # A loop never reaches a page, so the title stays unresolved.
+        self.assertEqual(MediaWikiClient().resolve_titles(["A"]), {})
+        with self.assertRaises(ValueError):
+            MediaWikiClient().resolve_titles([f"T{index}" for index in range(21)])
+        self.assertEqual(MediaWikiClient().resolve_titles([" "]), {})
+
+    @patch.object(MediaWikiClient, "_get", return_value={"query": {}})
+    def test_resolve_titles_rejects_a_response_without_pages(self, _get):
+        with self.assertRaisesRegex(MediaWikiError, "unexpected shape"):
+            MediaWikiClient().resolve_titles(["A"])

@@ -8,7 +8,9 @@ export type QuizMachineState =
   | "results"
   | "missing"
   | "invalid"
-  | "empty";
+  | "empty"
+  /** General quiz filter has fewer than ten eligible catalog questions. */
+  | "unavailable";
 
 export interface QuestionResult {
   question: QuizQuestion;

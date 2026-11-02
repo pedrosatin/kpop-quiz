@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "preact/hooks";
 import type { CandidateEntity, Locale } from "../../lib/quiz-types";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import type { Messages } from "../../i18n/catalog";
 import { normalizeSearch } from "./types";
 
@@ -62,15 +63,21 @@ export function EntityPicker({
     };
   }, []);
 
+  const displayNames = useMemo(
+    () => buildLocalizedDisplayNames(candidatePool, locale),
+    [candidatePool, locale],
+  );
+
   const filtered = useMemo(() => {
     const norm = normalizeSearch(query);
     if (!norm) return candidatePool;
     return candidatePool.filter((c) => {
       const canonical = normalizeSearch(c.canonical_name);
       const localized = normalizeSearch(c.names[locale] || "");
-      return canonical.includes(norm) || localized.includes(norm);
+      const displayed = normalizeSearch(displayNames.get(c.id) || "");
+      return canonical.includes(norm) || localized.includes(norm) || displayed.includes(norm);
     });
-  }, [candidatePool, query, locale]);
+  }, [candidatePool, query, locale, displayNames]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -210,7 +217,7 @@ export function EntityPicker({
           ) : (
             filtered.map((candidate, idx) => {
               const isUsed = usedEntityIds.has(candidate.id);
-              const displayName = candidate.names[locale] || candidate.canonical_name;
+              const displayName = displayNames.get(candidate.id) || candidate.canonical_name;
               const isItemActive = idx === activeIndex;
 
               return (

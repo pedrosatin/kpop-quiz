@@ -1,4 +1,5 @@
 import type { Locale } from "../lib/quiz-types";
+import { dailyReferenceDate, nextDataUrl } from "./daily-artifact";
 
 export type CrosswordDirection = "across" | "down";
 
@@ -45,8 +46,18 @@ export interface CrosswordPuzzle {
   cells: CrosswordCell[];
 }
 
+/**
+ * "missing": nothing published for today yet (no board and no record, or
+ * only an earlier day's board). "omitted": today's crossword was published as
+ * omitted, the generator found no board it could prove. "unavailable": the
+ * record of today says omitted without any envelope, so the board could not
+ * be generated (no confirmed history of the day before, or a generation
+ * error). "invalid": anything else.
+ */
+export type CrosswordErrorKind = "missing" | "invalid" | "omitted" | "unavailable";
+
 export class CrosswordArtifactError extends Error {
-  constructor(public readonly kind: "missing" | "invalid") {
+  constructor(public readonly kind: CrosswordErrorKind) {
     super(`Crossword artifact ${kind}`);
   }
 }
@@ -64,8 +75,24 @@ export const CROSSWORD_ENTRY_KEYS = ["qid", "canonical_name", "aliases", "answer
 export const CROSSWORD_SOURCE_KEYS = ["url", "locator", "snippet", "statement_id", "predicate", "value"] as const;
 export const CROSSWORD_CELL_KEYS = ["row", "col", "answer"] as const;
 
-/** Data file of the audited board, a fixed match (no daily cadence yet). */
-export const CROSSWORD_DATA_FILE = "crossword-pilot.json";
+// Constants and field sets of schemas/crossword-daily-v1.json, the envelope
+// kpop_scraping/crossword_daily.py generates and the daily runner publishes.
+export const CROSSWORD_DAILY_SCHEMA_VERSION = "crossword-daily-v1";
+export const CROSSWORD_DAILY_ROOT_KEYS = ["schema_version", "reference_date", "seed", "base_id", "previous", "limits", "status", "attempts", "rejections", "eligible_group_count", "connected_group_count", "puzzle", "dataset_version"] as const;
+export const CROSSWORD_DAILY_BOARD_KEYS = ["rows", "cols", "entries", "vocabulary", "cells", "audited_group_count", "proof"] as const;
+
+/** Data file of the day's crossword, in data/ and, published ahead, in data/next/. */
+export const CROSSWORD_DATA_FILE = "crossword.daily.json";
+
+// Constants and fields of kpop-crossword-publication-v1, the durable record
+// kpop_scraping/crossword_publication.py writes beside each published day.
+export const CROSSWORD_PUBLICATION_VERSION = "kpop-crossword-publication-v1";
+export const CROSSWORD_PUBLICATION_KEYS = ["schema_version", "reference_date", "source", "state", "qids", "dataset_version", "base_id", "previous", "reason"] as const;
+
+/** Record of referenceDate, in data/ (confirmed days) and data/next/ (the day ahead). */
+export function crosswordPublicationFile(referenceDate: string): string {
+  return `crossword-publication.${referenceDate}.json`;
+}
 
 /** Upper case, no accents, spaces or punctuation; digits stay. Same as normalize() in Python. */
 export function normalizeCrosswordText(value: string): string {
@@ -107,8 +134,8 @@ function canonical(value: unknown): unknown {
   return value;
 }
 
-export async function crosswordChecksum(puzzle: Omit<CrosswordPuzzle, "dataset_version"> | CrosswordPuzzle): Promise<string> {
-  const { dataset_version: _ignored, ...content } = puzzle as CrosswordPuzzle;
+export async function crosswordChecksum(puzzle: object): Promise<string> {
+  const { dataset_version: _ignored, ...content } = puzzle as { dataset_version?: unknown };
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(canonical(content))));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -258,6 +285,11 @@ function checkDerivedLists(p: CrosswordPuzzle, expected: Map<string, string>, id
  */
 export async function validateCrosswordPuzzle(value: unknown): Promise<CrosswordPuzzle> {
   const p = await checkIdentity(value);
+  checkBoard(p);
+  return p;
+}
+
+function checkBoard(p: CrosswordPuzzle): void {
   checkBoardShape(p);
   const placement: Placement = { expected: new Map(), owners: new Map() };
   const names = new Map<string, string>();
@@ -273,7 +305,114 @@ export async function validateCrosswordPuzzle(value: unknown): Promise<Crossword
   checkNumbering(p);
   checkConnected(p, placement.owners, ids);
   checkDerivedLists(p, placement.expected, ids);
-  return p;
+}
+
+export type CrosswordDaily =
+  | { status: "ready"; reference_date: string; puzzle: CrosswordPuzzle }
+  | { status: "omitted"; reference_date: string };
+
+const QID = /^Q[1-9][0-9]*$/;
+
+function isQidList(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((q) => typeof q === "string" && QID.test(q)) && new Set(value).size === value.length;
+}
+
+function isIsoDate(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && isRealDate(value);
+}
+
+function dayBefore(value: string): string {
+  const day = new Date(`${value}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() - 1);
+  return day.toISOString().slice(0, 10);
+}
+
+function isInt(value: unknown, min = -Infinity, max = Infinity): value is number {
+  return Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
+}
+
+/**
+ * Canonical previous-day history, as history_context() in
+ * kpop_scraping/crossword_daily.py: a bootstrap is dated the same day, any
+ * other state the day before; QIDs sorted and unique, 3 to 5 for a played
+ * day and none otherwise.
+ */
+function checkHistory(referenceDate: string, value: unknown): { qids: string[] } {
+  ensure(hasKeys(value, ["state", "date", "qids"]));
+  const { state, date, qids } = value;
+  ensure(state === "bootstrap" || state === "played" || state === "omitted");
+  ensure(date === (state === "bootstrap" ? referenceDate : dayBefore(referenceDate)));
+  ensure(isQidList(qids) && JSON.stringify(qids) === JSON.stringify([...qids].sort()));
+  ensure(state === "played" ? qids.length >= 3 && qids.length <= 5 : qids.length === 0);
+  return { qids };
+}
+
+/** Generation budgets, attempt count and rejection counts, as in validate_published(). */
+function checkAccounting(a: Record<string, unknown>): void {
+  ensure(hasKeys(a.limits, ["attempts", "placement_nodes", "proof_nodes"]));
+  const limits = a.limits as Record<"attempts" | "placement_nodes" | "proof_nodes", unknown>;
+  ensure(Object.values(limits).every((v) => isInt(v, 1, 1000000)));
+  ensure(isInt(a.eligible_group_count) && isInt(a.connected_group_count));
+  ensure(isInt(a.attempts, 1, limits.attempts as number));
+  const rejections = a.rejections;
+  ensure(rejections && typeof rejections === "object" && !Array.isArray(rejections));
+  const counts = Object.entries(rejections);
+  ensure(counts.every(([k, v]) => ["placement", "budget", "validation"].includes(k) && isInt(v, 1)));
+  const rejected = counts.reduce((sum, [, v]) => sum + (v as number), 0);
+  // An omission spent every attempt; a ready board succeeded on the last one.
+  if (a.status === "omitted") ensure(a.attempts === limits.attempts && rejected === a.attempts);
+  else ensure(rejected === (a.attempts as number) - 1);
+}
+
+/**
+ * Rules of crossword-daily-v1 that need no fact base, mirroring
+ * validate_published() in kpop_scraping/crossword_daily.py: fields, seed,
+ * checksum over the whole envelope, the canonical previous-day history and
+ * its exclusion, budgets and attempt accounting, the proof form and the
+ * domain rules of the board shared with crossword-pilot-v1. Not mirrored:
+ * the canonical order of the entries (canonical_board() in Python) and
+ * everything that needs the fact base (factual matching, eligibility counts,
+ * the uniqueness proof), which the publisher recomputes before writing. A
+ * ready board plays under its envelope checksum.
+ */
+export async function validateCrosswordDaily(value: unknown): Promise<CrosswordDaily> {
+  ensure(hasKeys(value, CROSSWORD_DAILY_ROOT_KEYS));
+  const a = value as Record<(typeof CROSSWORD_DAILY_ROOT_KEYS)[number], unknown>;
+  ensure(a.schema_version === CROSSWORD_DAILY_SCHEMA_VERSION);
+  ensure(isIsoDate(a.reference_date));
+  ensure(isText(a.seed));
+  ensure(typeof a.base_id === "string" && /^[a-f0-9]{64}$/.test(a.base_id));
+  ensure(typeof a.dataset_version === "string" && /^[a-f0-9]{64}$/.test(a.dataset_version));
+  ensure((await crosswordChecksum(a)) === a.dataset_version);
+  const referenceDate = a.reference_date;
+  const previous = checkHistory(referenceDate, a.previous);
+  ensure(a.status === "omitted" || a.status === "ready");
+  checkAccounting(a);
+  if (a.status === "omitted") {
+    ensure(a.puzzle === null);
+    return { status: "omitted", reference_date: referenceDate };
+  }
+  ensure(hasKeys(a.puzzle, CROSSWORD_DAILY_BOARD_KEYS));
+  const board = a.puzzle as Record<(typeof CROSSWORD_DAILY_BOARD_KEYS)[number], unknown>;
+  const proof = board.proof as { solutions?: unknown; complete?: unknown; nodes?: unknown };
+  ensure(hasKeys(proof, ["solutions", "complete", "nodes"]) && proof.solutions === 1 && proof.complete === true && Number.isInteger(proof.nodes));
+  const puzzle = {
+    schema_version: CROSSWORD_DAILY_SCHEMA_VERSION,
+    mode: "daily",
+    puzzle_id: a.dataset_version,
+    dataset_version: a.dataset_version,
+    reference_date: referenceDate,
+    rows: board.rows,
+    cols: board.cols,
+    vocabulary: board.vocabulary,
+    audited_group_count: board.audited_group_count,
+    entries: board.entries,
+    cells: board.cells,
+  } as CrosswordPuzzle;
+  checkBoard(puzzle);
+  // No group of the day before comes back.
+  ensure(puzzle.vocabulary.every((q) => !previous.qids.includes(q)));
+  return { status: "ready", reference_date: referenceDate, puzzle };
 }
 
 function dataUrl(baseUrl: string): string {
@@ -281,22 +420,72 @@ function dataUrl(baseUrl: string): string {
   return `${base}data/${CROSSWORD_DATA_FILE}`;
 }
 
-/** Loads and validates the audited board. A 404 is "missing", anything else "invalid". */
-export async function loadCrosswordPuzzle(baseUrl?: string, signal?: AbortSignal): Promise<CrosswordPuzzle> {
-  let response: Response;
+/** One copy of a data file: null for a 404, "invalid" for any other failure. */
+async function fetchValidated<T>(url: string, validate: (value: unknown) => T | Promise<T>, signal?: AbortSignal): Promise<T | null | "invalid"> {
   try {
-    response = await fetch(dataUrl(baseUrl ?? import.meta.env.BASE_URL), signal ? { signal } : undefined);
+    const response = await fetch(url, signal ? { signal } : undefined);
+    if (response.status === 404) return null;
+    if (!response.ok) return "invalid";
+    return await validate(await response.json());
   } catch (error) {
     if ((error as { name?: unknown } | null)?.name === "AbortError") throw error;
-    throw new CrosswordArtifactError("invalid");
+    return "invalid";
   }
-  if (response.status === 404) throw new CrosswordArtifactError("missing");
-  if (!response.ok) throw new CrosswordArtifactError("invalid");
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new CrosswordArtifactError("invalid");
+}
+
+/**
+ * State of a kpop-crossword-publication-v1 record dated referenceDate. Only
+ * the fields the page acts on are checked in depth; the reason is internal
+ * and never shown.
+ */
+function validateCrosswordRecord(value: unknown, referenceDate: string): "played" | "omitted" {
+  ensure(hasKeys(value, CROSSWORD_PUBLICATION_KEYS));
+  ensure(value.schema_version === CROSSWORD_PUBLICATION_VERSION && value.reference_date === referenceDate);
+  ensure(value.source === "daily" || value.source === "pilot");
+  const { state, qids } = value;
+  ensure(isQidList(qids));
+  if (state === "played") ensure(qids.length >= 3 && qids.length <= 5);
+  else ensure(state === "omitted" && qids.length === 0 && isText(value.reason));
+  return state as "played" | "omitted";
+}
+
+/**
+ * Loads today's board from data/ or, published ahead, from data/next/.
+ *
+ * Only a board dated today plays: an earlier day's board is never shown as
+ * today's (the daily runner never reuses one either), and a day published as
+ * omitted is "omitted". When both copies carry today, data/ wins, since a
+ * promoted day is confirmed there. Without any envelope for today, the
+ * publication record of today tells a day whose generation failed
+ * ("unavailable") from one not published yet ("missing"). A record that says
+ * played without its board, or any unreadable file, is "invalid".
+ */
+export async function loadCrosswordPuzzle(
+  baseUrl?: string,
+  signal?: AbortSignal,
+  today: string = dailyReferenceDate(),
+): Promise<CrosswordPuzzle> {
+  const base = baseUrl ?? import.meta.env.BASE_URL;
+  const isToday = (c: CrosswordDaily | null | "invalid"): c is CrosswordDaily => !!c && c !== "invalid" && c.reference_date === today;
+  const copies = [await fetchValidated(dataUrl(base), validateCrosswordDaily, signal)];
+  if (!isToday(copies[0]!)) {
+    copies.push(await fetchValidated(nextDataUrl(CROSSWORD_DATA_FILE, base), validateCrosswordDaily, signal));
   }
-  return validateCrosswordPuzzle(payload);
+  const found = copies.find(isToday);
+  if (found?.status === "ready") return found.puzzle;
+  if (found) throw new CrosswordArtifactError("omitted");
+  if (copies.includes("invalid")) throw new CrosswordArtifactError("invalid");
+  const record = await loadRecord(base, today, signal);
+  if (record === "omitted") throw new CrosswordArtifactError("unavailable");
+  throw new CrosswordArtifactError(record === null ? "missing" : "invalid");
+}
+
+/** Today's record from data/ or, published ahead, data/next/; data/ wins. */
+async function loadRecord(base: string, today: string, signal?: AbortSignal): Promise<"played" | "omitted" | null | "invalid"> {
+  const validate = (value: unknown) => validateCrosswordRecord(value, today);
+  const file = crosswordPublicationFile(today);
+  const prefix = base.endsWith("/") ? base : `${base}/`;
+  const current = await fetchValidated(`${prefix}data/${file}`, validate, signal);
+  if (current !== null) return current;
+  return fetchValidated(nextDataUrl(file, base), validate, signal);
 }

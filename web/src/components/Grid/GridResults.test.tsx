@@ -73,10 +73,10 @@ describe("GridResults component", () => {
     const states = sampleCellStates([[0, 0]]);
     const url = "https://kpopquiz.online/pt-br/grid/?utm_source=share&utm_medium=social&utm_campaign=grid";
     expect(gridShareText(validGrid, states, 1, false, ptMessages, "pt-BR")).toBe(
-      `K-pop Grid 2026-09-17\n1/9 acertos (1 palpites)\n🟩🟥🟥\n🟥🟥🟥\n🟥🟥🟥\n${url}`,
+      `Grade de K-pop 2026-09-17\n1/9 acertos (1 palpites)\n🟩🟥🟥\n🟥🟥🟥\n🟥🟥🟥\n${url}`,
     );
     expect(gridShareText(validGrid, states, 1, true, ptMessages, "pt-BR")).toBe(
-      `K-pop Grid 2026-09-17\n1/9 acertos (1 palpites)\n■□□\n□□□\n□□□\n${url}`,
+      `Grade de K-pop 2026-09-17\n1/9 acertos (1 palpites)\n■□□\n□□□\n□□□\n${url}`,
     );
     expect(gridShareText(validGrid, states, 1, false, getMessages("en"), "en")).toContain(
       "\nhttps://kpopquiz.online/en/grid/?utm_source=share&utm_medium=social&utm_campaign=grid",
@@ -107,7 +107,7 @@ describe("GridResults component", () => {
 
     await waitFor(() => expect(props.onCopied).toHaveBeenCalledTimes(1));
     const copiedContent = writeText.mock.calls[0]![0] as string;
-    expect(copiedContent).toContain("K-pop Grid 2026-09-17");
+    expect(copiedContent).toContain("Grade de K-pop 2026-09-17");
     expect(copiedContent).toContain("1/9 acertos (3 palpites)");
     expect(screen.getByRole("button", { name: "Resultado copiado." })).toBeInTheDocument();
   });
@@ -123,7 +123,7 @@ describe("GridResults component", () => {
     await waitFor(() => expect(shareMock).toHaveBeenCalledTimes(1));
     expect(shareMock).toHaveBeenCalledWith({
       text: expect.stringMatching(
-        /^K-pop Grid 2026-09-17[\s\S]*\nhttps:\/\/kpopquiz\.online\/pt-br\/grid\/\?utm_source=share&utm_medium=social&utm_campaign=grid$/,
+        /^Grade de K-pop 2026-09-17[\s\S]*\nhttps:\/\/kpopquiz\.online\/pt-br\/grid\/\?utm_source=share&utm_medium=social&utm_campaign=grid$/,
       ),
     });
     expect(writeText).not.toHaveBeenCalled();
@@ -154,7 +154,7 @@ describe("GridResults component", () => {
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(props.onShareFailed).toHaveBeenCalledTimes(1);
     expect(field).toHaveAttribute("readonly");
-    expect((field as HTMLTextAreaElement).value).toContain("K-pop Grid 2026-09-17");
+    expect((field as HTMLTextAreaElement).value).toContain("Grade de K-pop 2026-09-17");
     expect(field).toHaveAccessibleDescription(ptMessages.shareFailed);
   });
 
@@ -219,10 +219,20 @@ describe("GridResults component", () => {
   });
 
   it("puts the verdict of the last guess before the summary", () => {
-    renderResults({ guessesUsed: 9, verdict: "Errada: SHINee." });
+    renderResults({ guessesUsed: 9, verdict: "Não aceita: SHINee." });
 
     const title = screen.getByRole("heading", { name: "Fim da partida" });
-    expect(title).toHaveAccessibleDescription("Errada: SHINee. 1 de 9 casas certas com 9 palpites");
+    expect(title).toHaveAccessibleDescription("Não aceita: SHINee. 1 de 9 casas certas com 9 palpites");
+  });
+
+  it("says in both languages that the list holds only what the catalog proves", () => {
+    for (const locale of ["pt-BR", "en"] as const) {
+      const messages = getMessages(locale);
+      const { unmount } = render(<GridReview grid={validGrid} cellStates={sampleCellStates()} locale={locale} messages={messages} />);
+      expect(screen.getByText(messages.gridReviewCatalogNote)).toBeInTheDocument();
+      expect(messages.gridReviewCatalogNote).toMatch(locale === "en" ? /proves with a source/ : /comprova com fonte/);
+      unmount();
+    }
   });
 
   it("marks each cell right, wrong or empty in the answers", () => {
@@ -235,7 +245,7 @@ describe("GridResults component", () => {
     expect(items[0]).toHaveTextContent("Certa");
     expect(items[0]).toHaveTextContent("Sua resposta: TWICE");
     expect(items[0]).toHaveClass("is-correct");
-    expect(items[1]).toHaveTextContent("Errada");
+    expect(items[1]).toHaveTextContent("Não aceita");
     expect(items[1]).toHaveTextContent("Sua resposta: SHINee");
     expect(items[1]).toHaveClass("is-wrong");
     expect(items[2]).toHaveTextContent("Vazia");

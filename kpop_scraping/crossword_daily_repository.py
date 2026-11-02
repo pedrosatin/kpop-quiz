@@ -66,53 +66,70 @@ class FactBase:
 def load_base(database: Path) -> FactBase:
     """Read a consistent SQLite snapshot; no migrations or network calls."""
     with closing(sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True)) as c:
-        c.row_factory = sqlite3.Row
         c.execute('PRAGMA query_only=ON')
         c.execute('BEGIN')
-        groups = {}
+        return read_base(c)
 
-        aliases_by_id = defaultdict(set)
-        for entity_id, name in c.execute('''
-            SELECT a.entity_id, a.name
-            FROM entity_aliases a
-            JOIN entities e ON e.id = a.entity_id
-            WHERE e.entity_type='group'
-        ''').fetchall():
-            aliases_by_id[entity_id].add(name)
 
-        for r in c.execute("SELECT * FROM entities WHERE entity_type='group' ORDER BY wikidata_id").fetchall():
-            groups[r['wikidata_id']] = {
-                'canonical_name': r['canonical_name'],
-                'aliases': sorted(aliases_by_id[r['id']])
-            }
-        conflicts = c.execute("SELECT * FROM facts WHERE status='conflict'").fetchall()
-        matches, sources = defaultdict(set), defaultdict(list)
-        rows = c.execute("""SELECT f.*,e.wikidata_id,coalesce(f.value_time,v.canonical_name) value
-            FROM facts f JOIN entities e ON e.id=f.subject_entity_id
-            LEFT JOIN entities v ON v.id=f.value_entity_id ORDER BY f.statement_id""").fetchall()
-        for r in rows:
-            qid = r['wikidata_id']
-            if (qid not in groups or r['predicate'] not in PREDICATES or r['status'] != 'accepted'
-                    or _has_open_conflict(r, conflicts) or not isinstance(r['value'], str)):
+def read_base(c: sqlite3.Connection) -> FactBase:
+    """Read the factual universe from an open connection, which it only queries.
+
+    ``load_base`` wraps it in a read-only snapshot; the daily runner passes the
+    connection it already holds open in ``mode=ro``.
+    """
+    factory = c.row_factory
+    c.row_factory = sqlite3.Row
+    try:
+        return _read_base(c)
+    finally:
+        c.row_factory = factory
+
+
+def _read_base(c: sqlite3.Connection) -> FactBase:
+    groups = {}
+
+    aliases_by_id = defaultdict(set)
+    for entity_id, name in c.execute('''
+        SELECT a.entity_id, a.name
+        FROM entity_aliases a
+        JOIN entities e ON e.id = a.entity_id
+        WHERE e.entity_type='group'
+    ''').fetchall():
+        aliases_by_id[entity_id].add(name)
+
+    for r in c.execute("SELECT * FROM entities WHERE entity_type='group' ORDER BY wikidata_id").fetchall():
+        groups[r['wikidata_id']] = {
+            'canonical_name': r['canonical_name'],
+            'aliases': sorted(aliases_by_id[r['id']])
+        }
+    conflicts = c.execute("SELECT * FROM facts WHERE status='conflict'").fetchall()
+    matches, sources = defaultdict(set), defaultdict(list)
+    rows = c.execute("""SELECT f.*,e.wikidata_id,coalesce(f.value_time,v.canonical_name) value
+        FROM facts f JOIN entities e ON e.id=f.subject_entity_id
+        LEFT JOIN entities v ON v.id=f.value_entity_id ORDER BY f.statement_id""").fetchall()
+    for r in rows:
+        qid = r['wikidata_id']
+        if (qid not in groups or r['predicate'] not in PREDICATES or r['status'] != 'accepted'
+                or _has_open_conflict(r, conflicts) or not isinstance(r['value'], str)):
+            continue
+        if not c.execute('SELECT 1 FROM fact_evidence WHERE fact_id=? LIMIT 1', (r['id'],)).fetchone():
+            continue
+        matches[r['predicate'], r['value']].add(qid)
+        evidence = c.execute("""SELECT fe.*,sr.external_revision_id,sp.language,sp.external_page_id
+            FROM fact_evidence fe JOIN source_revisions sr ON sr.id=fe.source_revision_id
+            JOIN source_pages sp ON sp.id=sr.source_page_id
+            WHERE fe.fact_id=? AND fe.evidence_type='wikipedia_revision'
+            ORDER BY fe.locator,fe.snippet,sr.external_revision_id,sp.external_page_id""", (r['id'],))
+        for ev in evidence:
+            source = {'url': f"https://{ev['language']}.wikipedia.org/w/index.php?curid={ev['external_page_id']}&oldid={ev['external_revision_id']}",
+                      'locator': ev['locator'], 'snippet': ev['snippet'], 'statement_id': r['statement_id'],
+                      'predicate': r['predicate'], 'value': r['value']}
+            try:
+                validate_source(source, qid)
+            except ValueError:
                 continue
-            if not c.execute('SELECT 1 FROM fact_evidence WHERE fact_id=? LIMIT 1', (r['id'],)).fetchone():
-                continue
-            matches[r['predicate'], r['value']].add(qid)
-            evidence = c.execute("""SELECT fe.*,sr.external_revision_id,sp.language,sp.external_page_id
-                FROM fact_evidence fe JOIN source_revisions sr ON sr.id=fe.source_revision_id
-                JOIN source_pages sp ON sp.id=sr.source_page_id
-                WHERE fe.fact_id=? AND fe.evidence_type='wikipedia_revision'
-                ORDER BY fe.locator,fe.snippet,sr.external_revision_id,sp.external_page_id""", (r['id'],))
-            for ev in evidence:
-                source = {'url': f"https://{ev['language']}.wikipedia.org/w/index.php?curid={ev['external_page_id']}&oldid={ev['external_revision_id']}",
-                          'locator': ev['locator'], 'snippet': ev['snippet'], 'statement_id': r['statement_id'],
-                          'predicate': r['predicate'], 'value': r['value']}
-                try:
-                    validate_source(source, qid)
-                except ValueError:
-                    continue
-                sources[qid].append(source)
-        # Canonical order and deduplication make database insertion order irrelevant.
-        ordered = {q: sorted({canonical_json(s): s for s in ss}.values(), key=canonical_json)
-                   for q, ss in sorted(sources.items())}
-        return FactBase(groups, dict(matches), ordered)
+            sources[qid].append(source)
+    # Canonical order and deduplication make database insertion order irrelevant.
+    ordered = {q: sorted({canonical_json(s): s for s in ss}.values(), key=canonical_json)
+               for q, ss in sorted(sources.items())}
+    return FactBase(groups, dict(matches), ordered)

@@ -20,7 +20,7 @@ A extração de fatos baixa o wikitext da revisão do grupo que o catálogo já 
 
 ### Regra da infobox
 
-O parser lê só a primeira `Infobox musical artist` da página. Um item de lista é um argumento de `hlist`, `flatlist`, `plainlist`, `ubl` e equivalentes, ou um trecho separado por `<br>`, quebra de linha, marcador ou vírgula fora de links e templates. Referências, comentários, tags e outros templates saem do item antes da comparação, assim como uma nota final entre parênteses, como `(2015–2020)`.
+O parser lê só a primeira `Infobox musical artist` da página. Um item de lista é um argumento de `hlist`, `flatlist`, `plainlist`, `ubl` e equivalentes, ou um trecho separado por `<br>`, quebra de linha, marcador ou vírgula fora de links e templates. Referências, comentários, tags e outros templates saem do item antes da comparação, assim como uma nota final entre parênteses, como `(2015–2020)`. Um comentário antes ou depois de um template de lista, como em `{{hlist|...}} <!-- nota -->`, também não faz parte da lista: ela continua valendo, e os intervalos dos itens seguem sendo os do texto original. Outro texto fora do template continua impedindo que os itens provem algo.
 
 O item prova o valor quando é o próprio valor: o alvo de um link, o texto de um link ou texto simples, comparados por igualdade com o nome canônico ou um alias da entidade, sem diferenciar maiúsculas. Um item com texto além do link, ou com dois links, não prova nada. Um nome contido num item maior não prova nada.
 
@@ -31,7 +31,7 @@ A regra do resumo continua tendo prioridade. A infobox só é consultada quando 
 
 ### Fora desta decisão
 
-`years_active` não prova `formed_on`. O campo marca o início das atividades, não a formação, e prova só o ano. A linha do tempo usa a data completa de formação, então um ano da infobox não sustenta a data do Wikidata. No levantamento, 20 grupos tinham o primeiro ano de `years_active` diferente do ano de formação, 3 deles em outra década. Gênero, origem e atributos de pessoa continuam como na ADR-004.
+`years_active` não prova `formed_on`. O campo marca o início das atividades, não a formação, e prova só o ano. A linha do tempo usa a data completa de formação, então um ano da infobox não sustenta a data do Wikidata. No levantamento, 20 grupos tinham o primeiro ano de `years_active` diferente do ano de formação, 3 deles em outra década. Gênero, origem e atributos de pessoa continuam como na ADR-004, exceto `born_on` e `born_in`, que a [ADR-027](027-evidencia-de-pessoa-pela-infobox.md) passou a aceitar pela infobox da página da própria pessoa.
 
 ## Alternativas consideradas
 

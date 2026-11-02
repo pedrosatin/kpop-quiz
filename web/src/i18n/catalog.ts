@@ -112,6 +112,21 @@ export interface Messages {
   retry: string;
   reload: string;
   empty: string;
+  /** General quiz: the filter has fewer than ten eligible questions. */
+  quizReplayUnavailable: string;
+  /** General quiz: exactly ten eligible questions, so replay repeats the set. */
+  quizReplayRepeats: string;
+  /**
+   * General quiz: catalog absent, so the round uses the published legacy
+   * session and "Play again" repeats those same questions.
+   */
+  quizReplayLegacyRepeats: string;
+  /** Saved progress exists but does not match the current artifact or config. */
+  quizResumeIncompatible: string;
+  /** Saved progress is corrupt or fails schema checks. */
+  quizResumeInvalid: string;
+  /** localStorage is unavailable; the round continues without persistence. */
+  quizStorageUnavailable: string;
   consentLabel: string;
   consentText: string;
   consentAccept: string;
@@ -144,6 +159,10 @@ export interface Messages {
   clue: string;
   revealClue: (cost: number) => string;
   clueRevealed: string;
+  /** Notice when an Assisted question has no clue. */
+  noClueAssisted: string;
+  /** Notice when a Standard question has no clue; opening one never applies. */
+  noClueStandard: string;
   time: string;
   seconds: string;
   check: string;
@@ -163,6 +182,20 @@ export interface Messages {
   resultText: (score: number) => string;
   restart: string;
   giveUp: string;
+  /** Title of the give-up confirmation dialog. */
+  giveUpConfirmTitle: string;
+  /** Body of the give-up confirmation dialog. */
+  giveUpConfirmBody: string;
+  /** Confirm button inside the give-up dialog (distinct from the trigger). */
+  giveUpConfirmAction: string;
+  /** Title of the terminal reveal confirmation dialog (crossword). */
+  revealConfirmTitle: string;
+  /** Body of the terminal reveal confirmation dialog. */
+  revealConfirmBody: string;
+  /** Confirm button inside the reveal dialog. */
+  revealConfirmAction: string;
+  /** Generic cancel label for confirmation dialogs. */
+  cancel: string;
   chooseAnswer: string;
   submitHint: string;
   themeLabel: string;
@@ -218,6 +251,8 @@ export interface Messages {
   gridHint: string;
   gridGuessRight: (groupName: string) => string;
   gridGuessWrong: (groupName: string) => string;
+  gridCatalogLimit: string;
+  gridReviewCatalogNote: string;
   gridReviewTitle: string;
   gridReviewCorrect: string;
   gridReviewWrong: string;
@@ -232,10 +267,11 @@ export interface Messages {
   gridRestart: string;
   gridShareHeader: (date: string, correct: number, guesses: number) => string;
   gridAxesHeader: string;
-  gridCategoryDebut: string;
+  gridCategoryFormation: string;
   gridCategoryAgency: string;
   gridCategoryMembers: string;
   gridDailyMissing: string;
+  gridCorrected: string;
   connectionsTitle: string;
   connectionsEyebrow: string;
   connectionsIntro: string;
@@ -249,6 +285,7 @@ export interface Messages {
   connectionsGameOverLost: string;
   connectionsResultSummaryWon: (mistakes: number) => string;
   connectionsResultSummaryLost: string;
+  connectionsShareHeader: (date: string) => string;
   connectionsShareResultLine: (solved: number) => string;
   connectionsShareGuessesLine: (guesses: number, mistakes: number) => string;
   connectionsShareButton: string;
@@ -271,9 +308,12 @@ export interface Messages {
   wordSearchTitle: string;
   wordSearchEyebrow: string;
   wordSearchIntro: string;
+  wordSearchShareHeader: (date: string, found: number, total: number, time: string) => string;
   mapEyebrow: string;
   mapTitle: string;
   mapIntro: string;
+  mapShareHeader: (date: string) => string;
+  nameGuessShareHeader: (date: string, score: string) => string;
   timelineTitle: string;
   timelineEyebrow: string;
   timelineIntro: string;
@@ -297,7 +337,7 @@ export interface Messages {
   gameCode: string;
   gameCrossword: string;
   codeSequenceNote: string;
-  codeAttemptsLeft: string;
+  codeAttemptsLeft: (remaining: number) => string;
   codeYourGuess: string;
   codePosition: string;
   codeChooseGroup: string;
@@ -313,6 +353,7 @@ export interface Messages {
   codeAttemptsUsed: string;
   codeAboutGroups: string;
   codeShareButton: string;
+  codeShareHeader: (date: string) => string;
   codeShareWon: (attempts: number) => string;
   codeShareLost: string;
   codeShareAttemptsLine: (attempts: number) => string;
@@ -335,7 +376,12 @@ export interface Messages {
   crosswordSummaryWon: (checks: number) => string;
   crosswordSummaryRevealed: (correct: number, total: number) => string;
   crosswordSourceClue: string;
+  crosswordShareHeader: string;
   crosswordArtifactMissing: string;
+  /** Today was published as omitted: no board passed verification. */
+  crosswordOmitted: string;
+  /** Today's record says omitted without a board: generation failed. */
+  crosswordUnavailable: string;
   statsTitle: string;
   statsNavLabel: string;
   statsOpenButton: string;
@@ -419,7 +465,7 @@ const catalogs: Record<Locale, Messages> = {
       modesBody: "Cada jogo tem regras próprias. Veja qual desafio você quer jogar:",
       games: {
         quiz: { title: "Quiz de K-pop", description: "Responda 10 perguntas de múltipla escolha sobre grupos, integrantes e datas, com a fonte de cada resposta." },
-        grid: { title: "Grade de interseções de K-pop", description: "Encontre grupos que atendam às regras de cada linha e coluna, como agência, estreia e número de integrantes. São 9 casas e 9 palpites." },
+        grid: { title: "Grade de interseções de K-pop", description: "Encontre grupos que atendam às regras de cada linha e coluna, como agência, década de formação e número de integrantes. São 9 casas e 9 palpites." },
         connections: { title: "Conexões de K-pop", description: "Separe 16 nomes em 4 categorias de 4. Descubra o que os nomes têm em comum antes de cometer 4 erros." },
         nameGuess: { title: "Wordle de K-pop", description: "Descubra o artista ou grupo do dia em até 6 palpites. As cores indicam quais letras estão no nome e na posição certa." },
         wordSearch: { title: "Caça-palavras de K-pop", description: "Procure nomes de K-pop na horizontal, vertical ou diagonal. Se precisar de ajuda, revele a lista de palavras." },
@@ -450,6 +496,12 @@ const catalogs: Record<Locale, Messages> = {
     retry: "Tentar novamente",
     reload: "Tentar novamente",
     empty: "Este quiz ainda não tem perguntas.",
+    quizReplayUnavailable: "Não há perguntas suficientes para esta combinação de idioma, modo e filtros.",
+    quizReplayRepeats: "Só há dez perguntas elegíveis nesta combinação; jogar novamente repete o mesmo conjunto.",
+    quizReplayLegacyRepeats: "O catálogo de perguntas novas ainda não está disponível; jogar novamente usa as mesmas perguntas publicadas.",
+    quizResumeIncompatible: "Não foi possível retomar a partida salva: ela não combina com os dados atuais. Comece uma nova.",
+    quizResumeInvalid: "O progresso salvo está inválido e foi descartado. Comece uma nova partida.",
+    quizStorageUnavailable: "O armazenamento local está indisponível; o progresso desta partida não será guardado.",
     consentLabel: "Preferências de privacidade",
     consentText:
       "Usamos o Cloudflare Web Analytics para medir o uso do site sem cookies. Se você aceitar, o Google Analytics também vai usar cookies e identificadores para gerar estatísticas de audiência.",
@@ -466,7 +518,7 @@ const catalogs: Record<Locale, Messages> = {
       "Depois de cada resposta, você vê a resposta correta e a fonte.",
     ],
     gridHowToPlay: [
-      "Cada casa cruza o critério da linha com o da coluna, como agência, ano de estreia ou número de integrantes.",
+      "Cada casa cruza o critério da linha com o da coluna, como agência, década de formação ou número de integrantes.",
       "Escolha uma casa e busque um grupo que atenda aos dois critérios.",
       "Você tem 9 palpites para as 9 casas. Palpite errado também conta.",
       "Cada grupo vale para uma casa só. Depois de acertar com um grupo, você não pode usá-lo de novo.",
@@ -490,8 +542,8 @@ const catalogs: Record<Locale, Messages> = {
       "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\". No fim, \"Ver fonte\" lista a revisão da Wikipédia ou do Wikidata que confirma cada nome.",
     ],
     mapHowToPlay: [
-      "Leia a data da turnê e escolha o país destacado no mapa ou o nome dele na lista. Em telas largas, a lista fica ao lado do mapa. Em telas menores, os países ficam num seletor na barra de baixo, com o botão \"Responder\".",
-      "No teclado, use Tab para chegar a um país e Enter para escolher.",
+      "Leia a data da turnê, selecione o país destacado no mapa ou o nome dele na lista e toque em \"Responder\". Em telas largas, a lista fica ao lado do mapa. Em telas menores, os países ficam num seletor na barra de baixo. Países pequenos, como Singapura, ficam mais fáceis pela lista.",
+      "No teclado, use Tab para chegar a um país, Enter para selecionar e \"Responder\" para enviar.",
       "Depois da resposta, a barra na parte de baixo da tela mostra o país correto e os links da agenda oficial e do MusicBrainz. Aperte Enter ou \"Próxima data\" para seguir. Na última pergunta, o botão vira \"Ver resultado\".",
       "No fim, \"Ver fonte\" lista as datas da rodada com a sua resposta e as fontes de cada uma. Uma data na agenda não confirma que o show aconteceu.",
     ],
@@ -531,6 +583,8 @@ const catalogs: Record<Locale, Messages> = {
     clue: "Pista",
     revealClue: (cost) => `Ver pista (-${cost} pontos)`,
     clueRevealed: "Pista aberta",
+    noClueAssisted: "Esta pergunta não tem pista disponível.",
+    noClueStandard: "Esta pergunta não tem pista disponível. Nenhum ponto será descontado.",
     time: "Tempo",
     seconds: "s",
     check: "Responder",
@@ -551,6 +605,13 @@ const catalogs: Record<Locale, Messages> = {
     resultText: (score) => `Você fez ${score} pontos.`,
     restart: "Jogar novamente",
     giveUp: "Desistir",
+    giveUpConfirmTitle: "Desistir da partida?",
+    giveUpConfirmBody: "Você perde o progresso desta partida.",
+    giveUpConfirmAction: "Sim, desistir",
+    revealConfirmTitle: "Revelar as respostas?",
+    revealConfirmBody: "Você encerra a partida e vê todas as respostas.",
+    revealConfirmAction: "Sim, revelar",
+    cancel: "Cancelar",
     chooseAnswer: "Escolha uma resposta para continuar.",
     submitHint: "Escolha uma alternativa e confirme em Responder.",
     themeLabel: "Tema",
@@ -589,7 +650,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCellEmpty: "Vazia. Escolha um grupo",
     gridCellRevealed: (groupName) => `Revelada: ${groupName}`,
     gridCellSolved: (groupName) => `Certa: ${groupName}`,
-    gridCellFailed: (lastAttempt) => (lastAttempt ? `Errada: você tentou ${lastAttempt}` : "Errada"),
+    gridCellFailed: (lastAttempt) => (lastAttempt ? `Não aceita: você tentou ${lastAttempt}` : "Não aceita"),
     gridPickerTitle: "Escolha um grupo",
     gridPickerSearchPlaceholder: "Buscar grupo...",
     gridPickerSearchLabel: "Buscar grupo pelo nome",
@@ -604,10 +665,12 @@ const catalogs: Record<Locale, Messages> = {
     gridHighContrastShare: "Versão sem cores (alto contraste)",
     gridHint: "Escolha uma casa e um grupo para ela.",
     gridGuessRight: (groupName) => `Certa: ${groupName}.`,
-    gridGuessWrong: (groupName) => `Errada: ${groupName}.`,
+    gridGuessWrong: (groupName) => `Não aceita: ${groupName}.`,
+    gridCatalogLimit: "O catálogo só aceita fatos comprovados.",
+    gridReviewCatalogNote: "A lista mostra só o que o catálogo comprova com fonte. Um grupo real pode ficar de fora quando falta prova de uma das regras.",
     gridReviewTitle: "Respostas e fontes",
     gridReviewCorrect: "Certa",
-    gridReviewWrong: "Errada",
+    gridReviewWrong: "Não aceita",
     gridReviewEmpty: "Vazia",
     gridSourcesSummary: (count) => (count === 1 ? "1 fonte" : `${count} fontes`),
     gridSourceLocator: "Local na fonte:",
@@ -617,11 +680,12 @@ const catalogs: Record<Locale, Messages> = {
     gridReviewCellHeader: (row, col) => `Linha ${row + 1}, coluna ${col + 1}`,
     gridAcceptedAnswers: "Respostas aceitas:",
     gridRestart: "Jogar novamente",
-    gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 acertos (${guesses} palpites)`,
+    gridShareHeader: (date, correct, guesses) => `Grade de K-pop ${date}\n${correct}/9 acertos (${guesses} palpites)`,
     gridAxesHeader: "Critérios",
-    gridCategoryDebut: "Estreia",
+    gridCategoryFormation: "Formação",
     gridCategoryAgency: "Agência",
     gridCategoryMembers: "Integrantes",
+    gridCorrected: "Este desafio foi corrigido. O progresso da versão anterior não pode ser retomado. Os novos palpites são salvos nesta versão corrigida.",
     gridDailyMissing: "A grade de hoje não pôde ser gerada ou está temporariamente indisponível.",
     connectionsTitle: "Conexões de K-pop",
     connectionsEyebrow: "4 categorias · 16 nomes",
@@ -637,6 +701,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsResultSummaryWon: (mistakes) =>
       mistakes === 0 ? "Você não errou nenhuma vez." : `Você errou ${mistakes} ${mistakes === 1 ? "vez" : "vezes"}.`,
     connectionsResultSummaryLost: "Você usou os 4 erros permitidos.",
+    connectionsShareHeader: (date) => `Conexões de K-pop ${date}`,
     connectionsShareResultLine: (solved) => `Resultado: ${solved}/4 categorias`,
     connectionsShareGuessesLine: (guesses, mistakes) =>
       `Palpites: ${guesses} (${mistakes} ${mistakes === 1 ? "erro" : "erros"})`,
@@ -696,14 +761,18 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchTitle: "Caça-palavras de K-pop",
     wordSearchEyebrow: "1 tema por dia · 8 direções",
     wordSearchIntro: "Encontre os nomes do tema escondidos na grade, em qualquer direção.",
+    wordSearchShareHeader: (date, found, total, time) =>
+      `Caça-palavras de K-pop ${date} ${found}/${total} (${time})`,
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
     mapTitle: "Quiz de mapa de K-pop: BLACKPINK",
     mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou.",
+    mapShareHeader: (date) => `Mapa de K-pop ${date}`,
+    nameGuessShareHeader: (date, score) => `Adivinhe o nome ${date} ${score}`,
     codeTitle: "Código de grupos de K-pop",
     codeEyebrow: "10 tentativas · 4 posições",
     codeIntro: "Descubra quatro grupos diferentes do catálogo na ordem secreta do dia.",
     codeSequenceNote: "A sequência é a mesma em todas as partidas do dia.",
-    codeAttemptsLeft: "Tentativas restantes",
+    codeAttemptsLeft: (remaining) => remaining === 1 ? "Tentativa restante" : "Tentativas restantes",
     codeYourGuess: "Seu palpite",
     codePosition: "Posição",
     codeChooseGroup: "Escolha um grupo",
@@ -711,8 +780,8 @@ const catalogs: Record<Locale, Messages> = {
     codeChooseAll: "Escolha os quatro grupos. Nenhuma tentativa usada.",
     codeChooseDistinct: "Escolha quatro grupos diferentes. Nenhuma tentativa usada.",
     codeAttemptFeedback: (attempt, exact, misplaced, remaining) =>
-      `Tentativa ${attempt}: ${exact} exatos, ${misplaced} deslocados. ${remaining} tentativas restantes.`,
-    codeGuessSummary: (exact, misplaced) => `${exact} exatos · ${misplaced} deslocados`,
+      `Tentativa ${attempt}: ${exact} ${exact === 1 ? "exato" : "exatos"}, ${misplaced} ${misplaced === 1 ? "deslocado" : "deslocados"}. ${remaining} ${remaining === 1 ? "tentativa restante" : "tentativas restantes"}.`,
+    codeGuessSummary: (exact, misplaced) => `${exact} ${exact === 1 ? "exato" : "exatos"} · ${misplaced} ${misplaced === 1 ? "deslocado" : "deslocados"}`,
     codeHistoryHeading: "Histórico de palpites",
     codeResultWon: "Código descoberto!",
     codeResultLost: "Tentativas esgotadas",
@@ -720,12 +789,13 @@ const catalogs: Record<Locale, Messages> = {
     codeAttemptsUsed: "Tentativas usadas",
     codeAboutGroups: "Sobre os grupos",
     codeShareButton: "Compartilhar resultado",
-    codeShareWon: (attempts) => `Código descoberto em ${attempts} tentativas.`,
+    codeShareHeader: (date) => `Código de grupos de K-pop ${date}`,
+    codeShareWon: (attempts) => `Código descoberto em ${attempts} ${attempts === 1 ? "tentativa" : "tentativas"}.`,
     codeShareLost: "Código não descoberto nas 10 tentativas.",
-    codeShareAttemptsLine: (attempts) => `Tentativas: ${attempts}`,
+    codeShareAttemptsLine: (attempts) => `${attempts === 1 ? "Tentativa" : "Tentativas"}: ${attempts}`,
     codeArtifactMissing: "O código de hoje ainda não foi publicado. Tente mais tarde.",
     crosswordTitle: "Cruzadinha de K-pop",
-    crosswordEyebrow: "Partida fixa · pistas com fonte",
+    crosswordEyebrow: "1 grade por dia · pistas com fonte",
     crosswordIntro: "Use as pistas para escrever os nomes dos grupos na grade.",
     crosswordBoardLabel: "Grade da cruzadinha",
     crosswordCluesHeading: "Pistas",
@@ -743,7 +813,10 @@ const catalogs: Record<Locale, Messages> = {
       checks === 1 ? "Resolvida na primeira verificação." : `Resolvida em ${checks} verificações.`,
     crosswordSummaryRevealed: (correct, total) => `${correct} de ${total} palavras certas antes de encerrar.`,
     crosswordSourceClue: "Pista:",
-    crosswordArtifactMissing: "A cruzadinha não está disponível agora. Tente mais tarde.",
+    crosswordShareHeader: "Cruzadinha de K-pop",
+    crosswordArtifactMissing: "A cruzadinha de hoje ainda não foi publicada. Tente mais tarde.",
+    crosswordOmitted: "Não há cruzadinha hoje: nenhuma grade passou na verificação das pistas. Volte amanhã.",
+    crosswordUnavailable: "A cruzadinha de hoje está indisponível: não foi possível gerá-la. Volte amanhã.",
     timelineTitle: "Linha do Tempo do K-pop",
     timelineEyebrow: "Desafio diário",
     timelineIntro: "Ordene os acontecimentos do K-pop do mais antigo para o mais recente.",
@@ -869,7 +942,7 @@ const catalogs: Record<Locale, Messages> = {
       modesBody: "Each game has its own rules. Pick the challenge you want to play:",
       games: {
         quiz: { title: "K-pop quiz", description: "Answer 10 multiple-choice questions about groups, members and dates, with a source for every answer." },
-        grid: { title: "K-pop Grid", description: "Find groups that match each row and column rule, such as agency, debut and member count. You have 9 squares and 9 guesses." },
+        grid: { title: "K-pop Grid", description: "Find groups that match each row and column rule, such as agency, formation decade and member count. You have 9 squares and 9 guesses." },
         connections: { title: "K-pop Connections", description: "Sort 16 names into 4 categories of 4. Find what the names have in common before making 4 mistakes." },
         nameGuess: { title: "K-pop Wordle", description: "Find today's artist or group in up to 6 guesses. Colors show which letters belong in the name and which are in the right position." },
         wordSearch: { title: "K-pop Word Search", description: "Find K-pop names across, down or diagonally. Reveal the word list if you need help." },
@@ -900,6 +973,12 @@ const catalogs: Record<Locale, Messages> = {
     retry: "Try again",
     reload: "Try again",
     empty: "This quiz has no questions yet.",
+    quizReplayUnavailable: "There are not enough questions for this language, mode and filter combination.",
+    quizReplayRepeats: "Only ten eligible questions exist for this combination; playing again repeats the same set.",
+    quizReplayLegacyRepeats: "The new-question catalog is not available yet; playing again uses the same published questions.",
+    quizResumeIncompatible: "Could not resume the saved game: it does not match the current data. Start a new round.",
+    quizResumeInvalid: "The saved progress is invalid and was discarded. Start a new game.",
+    quizStorageUnavailable: "Local storage is unavailable; progress for this round will not be saved.",
     consentLabel: "Privacy preferences",
     consentText:
       "We use Cloudflare Web Analytics to measure site usage without cookies. If you accept, Google Analytics will also use cookies and identifiers to produce audience statistics.",
@@ -916,7 +995,7 @@ const catalogs: Record<Locale, Messages> = {
       "After each answer, you see the correct answer and its source.",
     ],
     gridHowToPlay: [
-      "Each square crosses a row rule with a column rule, such as agency, debut year or number of members.",
+      "Each square crosses a row rule with a column rule, such as agency, formation decade or number of members.",
       "Pick a square and search for a group that fits both rules.",
       "You have 9 guesses for 9 squares. Wrong guesses count too.",
       "Each group fits one square only. Once a group is placed correctly, you can't use it again.",
@@ -940,8 +1019,8 @@ const catalogs: Record<Locale, Messages> = {
       "The list shows how many letters each name has. If you get stuck, use \"Show words\". At the end, \"Show source\" lists the Wikipedia or Wikidata revision behind each name.",
     ],
     mapHowToPlay: [
-      "Read the tour date and pick the highlighted country on the map or its name in the list. On wide screens the list sits beside the map. On smaller screens the countries are in a menu in the bar at the bottom, with the \"Answer\" button.",
-      "With a keyboard, press Tab to reach a country and Enter to choose it.",
+      "Read the tour date, select the highlighted country on the map or its name in the list, then press \"Answer\". On wide screens the list sits beside the map. On smaller screens the countries are in a menu in the bar at the bottom. Small countries such as Singapore are easier to pick from the list.",
+      "With a keyboard, press Tab to reach a country, Enter to select it, and \"Answer\" to submit.",
       "After you answer, the bar at the bottom of the screen shows the correct country and links to the official schedule and MusicBrainz. Press Enter or \"Next date\" to continue. On the last question, the button reads \"See result\".",
       "At the end, \"Show source\" lists the round's dates with your answer and the sources for each. A date on the schedule does not confirm that the show took place.",
     ],
@@ -981,6 +1060,8 @@ const catalogs: Record<Locale, Messages> = {
     clue: "Clue",
     revealClue: (cost) => `Show clue (-${cost} points)`,
     clueRevealed: "Clue shown",
+    noClueAssisted: "This question has no clue available.",
+    noClueStandard: "This question has no clue available. No points will be deducted.",
     time: "Time",
     seconds: "s",
     check: "Submit answer",
@@ -1000,6 +1081,13 @@ const catalogs: Record<Locale, Messages> = {
     resultText: (score) => `You scored ${score} points.`,
     restart: "Play again",
     giveUp: "Give up",
+    giveUpConfirmTitle: "Give up this game?",
+    giveUpConfirmBody: "You will lose your progress in this game.",
+    giveUpConfirmAction: "Yes, give up",
+    revealConfirmTitle: "Reveal the answers?",
+    revealConfirmBody: "You will end this game and see every answer.",
+    revealConfirmAction: "Yes, reveal",
+    cancel: "Cancel",
     chooseAnswer: "Choose an answer to continue.",
     submitHint: "Pick an option and confirm with Submit answer.",
     themeLabel: "Theme",
@@ -1038,7 +1126,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCellEmpty: "Empty. Pick a group",
     gridCellRevealed: (groupName) => `Revealed: ${groupName}`,
     gridCellSolved: (groupName) => `Correct: ${groupName}`,
-    gridCellFailed: (lastAttempt) => (lastAttempt ? `Wrong: you tried ${lastAttempt}` : "Wrong"),
+    gridCellFailed: (lastAttempt) => (lastAttempt ? `Not accepted: you tried ${lastAttempt}` : "Not accepted"),
     gridPickerTitle: "Pick a group",
     gridPickerSearchPlaceholder: "Search groups...",
     gridPickerSearchLabel: "Search groups by name",
@@ -1053,10 +1141,12 @@ const catalogs: Record<Locale, Messages> = {
     gridHighContrastShare: "No-color version (high contrast)",
     gridHint: "Pick a square, then a group for it.",
     gridGuessRight: (groupName) => `Correct: ${groupName}.`,
-    gridGuessWrong: (groupName) => `Wrong: ${groupName}.`,
+    gridGuessWrong: (groupName) => `Not accepted: ${groupName}.`,
+    gridCatalogLimit: "The catalog only accepts proven facts.",
+    gridReviewCatalogNote: "The list shows only what the catalog proves with a source. A real group can be left out when one of the rules lacks proof.",
     gridReviewTitle: "Answers and sources",
     gridReviewCorrect: "Correct",
-    gridReviewWrong: "Wrong",
+    gridReviewWrong: "Not accepted",
     gridReviewEmpty: "Empty",
     gridSourcesSummary: (count) => (count === 1 ? "1 source" : `${count} sources`),
     gridSourceLocator: "Location in source:",
@@ -1068,9 +1158,10 @@ const catalogs: Record<Locale, Messages> = {
     gridRestart: "Play again",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 correct (${guesses} guesses)`,
     gridAxesHeader: "Rules",
-    gridCategoryDebut: "Debut",
+    gridCategoryFormation: "Formation",
     gridCategoryAgency: "Agency",
     gridCategoryMembers: "Members",
+    gridCorrected: "This challenge was corrected. Progress from the previous version cannot be resumed. New guesses are saved in this corrected version.",
     gridDailyMissing: "Today's grid could not be generated or is temporarily unavailable.",
     connectionsTitle: "K-pop Connections",
     connectionsEyebrow: "4 categories · 16 names",
@@ -1086,6 +1177,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsResultSummaryWon: (mistakes) =>
       mistakes === 0 ? "No mistakes." : `${mistakes} ${mistakes === 1 ? "mistake" : "mistakes"}.`,
     connectionsResultSummaryLost: "You used all 4 mistakes.",
+    connectionsShareHeader: (date) => `K-pop Connections ${date}`,
     connectionsShareResultLine: (solved) => `Result: ${solved}/4 categories`,
     connectionsShareGuessesLine: (guesses, mistakes) =>
       `Guesses: ${guesses} (${mistakes} ${mistakes === 1 ? "mistake" : "mistakes"})`,
@@ -1145,14 +1237,18 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchTitle: "K-pop Word Search",
     wordSearchEyebrow: "1 theme a day · 8 directions",
     wordSearchIntro: "Find the theme's names hidden in the grid, in any direction.",
+    wordSearchShareHeader: (date, found, total, time) =>
+      `K-pop Word Search ${date} ${found}/${total} (${time})`,
     mapEyebrow: "10 dates per round · DEADLINE tour",
     mapTitle: "K-pop Map Quiz: BLACKPINK",
     mapIntro: "For each tour date, pick on the map the country the official schedule listed.",
+    mapShareHeader: (date) => `K-pop Map ${date}`,
+    nameGuessShareHeader: (date, score) => `K-pop Guess ${date} ${score}`,
     codeTitle: "K-pop Group Code",
     codeEyebrow: "10 guesses · 4 positions",
     codeIntro: "Find four different catalog groups in the day's secret order.",
     codeSequenceNote: "The sequence is the same in every game you play that day.",
-    codeAttemptsLeft: "Guesses left",
+    codeAttemptsLeft: () => "Guesses left",
     codeYourGuess: "Your guess",
     codePosition: "Position",
     codeChooseGroup: "Choose a group",
@@ -1160,7 +1256,7 @@ const catalogs: Record<Locale, Messages> = {
     codeChooseAll: "Choose all four groups. No attempt used.",
     codeChooseDistinct: "Choose four different groups. No attempt used.",
     codeAttemptFeedback: (attempt, exact, misplaced, remaining) =>
-      `Attempt ${attempt}: ${exact} exact, ${misplaced} misplaced. ${remaining} attempts remaining.`,
+      `Attempt ${attempt}: ${exact} exact, ${misplaced} misplaced. ${remaining} ${remaining === 1 ? "attempt" : "attempts"} remaining.`,
     codeGuessSummary: (exact, misplaced) => `${exact} exact · ${misplaced} misplaced`,
     codeHistoryHeading: "Guess history",
     codeResultWon: "Code solved!",
@@ -1169,12 +1265,13 @@ const catalogs: Record<Locale, Messages> = {
     codeAttemptsUsed: "Attempts used",
     codeAboutGroups: "About the groups",
     codeShareButton: "Share result",
-    codeShareWon: (attempts) => `Code solved in ${attempts} attempts.`,
+    codeShareHeader: (date) => `K-pop Code ${date}`,
+    codeShareWon: (attempts) => `Code solved in ${attempts} ${attempts === 1 ? "attempt" : "attempts"}.`,
     codeShareLost: "Code not found in 10 attempts.",
     codeShareAttemptsLine: (attempts) => `Attempts: ${attempts}`,
     codeArtifactMissing: "Today's code has not been published yet. Try again later.",
     crosswordTitle: "K-pop Crossword",
-    crosswordEyebrow: "Fixed puzzle · cited clues",
+    crosswordEyebrow: "1 grid a day · cited clues",
     crosswordIntro: "Use the clues to write the group names in the grid.",
     crosswordBoardLabel: "Crossword grid",
     crosswordCluesHeading: "Clues",
@@ -1191,7 +1288,10 @@ const catalogs: Record<Locale, Messages> = {
     crosswordSummaryWon: (checks) => (checks === 1 ? "Solved on the first check." : `Solved in ${checks} checks.`),
     crosswordSummaryRevealed: (correct, total) => `${correct} of ${total} words right before finishing.`,
     crosswordSourceClue: "Clue:",
-    crosswordArtifactMissing: "The crossword is not available right now. Try again later.",
+    crosswordShareHeader: "K-pop Crossword",
+    crosswordArtifactMissing: "Today's crossword has not been published yet. Try again later.",
+    crosswordOmitted: "There is no crossword today: no grid passed the clue checks. Come back tomorrow.",
+    crosswordUnavailable: "Today's crossword is unavailable: it could not be generated. Come back tomorrow.",
     timelineTitle: "K-pop Timeline",
     timelineEyebrow: "Daily challenge",
     timelineIntro: "Order the K-pop events from earliest to latest.",

@@ -1,3 +1,4 @@
+import { Feedback } from "../Feedback/Feedback";
 import type { RefObject } from "preact";
 import type { Locale, PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
@@ -19,6 +20,9 @@ export interface QuizResultProps {
   playMode?: PlayMode;
   history?: QuestionResult[];
   dailyDate?: string | null | undefined;
+  feedbackEligible?: boolean;
+  /** Notice above the actions (e.g. replay will repeat the only ten questions). */
+  notice?: string | undefined;
 }
 
 export function QuizResult({
@@ -34,6 +38,8 @@ export function QuizResult({
   playMode = "standard",
   history = [],
   dailyDate,
+  feedbackEligible = true,
+  notice,
 }: QuizResultProps) {
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
   const correct = correctCount ?? history.filter((h) => h.isCorrect).length;
@@ -56,6 +62,7 @@ export function QuizResult({
           cluesUsedCount={clues}
           messages={messages}
         />
+        {notice && <p class="game-actions-message" role="status" data-testid="quiz-replay-notice">{notice}</p>}
         <div class="btn-row">
           <ShareResult
             correctCount={correct}
@@ -73,6 +80,7 @@ export function QuizResult({
           </button>
         </div>
       </div>
+      {feedbackEligible && <Feedback locale={locale} />}
       <ReviewAnswers items={history} messages={messages} />
     </section>
   );

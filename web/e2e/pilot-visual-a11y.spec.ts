@@ -1,13 +1,13 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { pilotBoard as crossword, routeCrosswordDaily } from "./helpers/crossword-daily";
 
 test.use({ bypassCSP: true });
 
 const prefix = (process.env.ASTRO_BASE ?? new URL(process.env.BASE_URL ?? "http://127.0.0.1:4321").pathname).replace(/\/$/, "");
 const evidenceDir = process.env.PILOT_EVIDENCE_DIR;
 const axeScript = readFileSync(new URL("../node_modules/axe-core/axe.min.js", import.meta.url), "utf8");
-const crossword = JSON.parse(readFileSync(new URL("../public/data/crossword-pilot.json", import.meta.url), "utf8"));
 const code = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
 const games = [
   { id: "crossword", pt: "/pt-br/cruzadinha/", en: "/en/crossword/", controls: "#crossword input" },
@@ -60,6 +60,7 @@ for (const game of games) for (const locale of ["pt", "en"] as const)
         const errors: string[] = [];
         page.on("pageerror", e => errors.push(e.message));
         if (game.id === "code") await serveCodeArtifact(page);
+        else await routeCrosswordDaily(page);
         await page.goto(prefix + game[locale]);
         await expect(page.locator(game.controls)).toHaveCount(game.id === "code" ? 4 : crossword.cells.length);
         await page.evaluate(() => document.fonts.ready);
@@ -88,6 +89,7 @@ for (const game of games) for (const locale of ["pt", "en"] as const)
 for (const game of games) test(`${game.id}: 200 percent text reflow and keyboard entry`, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   if (game.id === "code") await serveCodeArtifact(page);
+  else await routeCrosswordDaily(page);
   await page.goto(prefix + game.en);
   await expect(page.locator(game.controls)).not.toHaveCount(0);
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
@@ -111,6 +113,7 @@ for (const game of games) test(`${game.id}: 200 percent text reflow and keyboard
 test("crossword: keyboard completion announces and focuses cited results", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: "dark" });
+  await routeCrosswordDaily(page);
   await page.goto(prefix + games[0].pt);
   await expect(page.locator("#crossword input")).toHaveCount(crossword.cells.length);
   for (const entry of crossword.entries) {
@@ -151,8 +154,9 @@ test("code: feedback, keyboard victory and cited result", async ({ page }) => {
 for (const game of games) test(`${game.id}: unavailable artifact keeps keyboard retry and skip target`, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: "light" });
-  await page.route(game.id === "code" ? "**/data/code-groups.daily.json" : "**/data/crossword-pilot.json", route => route.fulfill({ status: 404, body: "" }));
-  if (game.id === "code") await page.route("**/data/next/code-groups.daily.json", route => route.fulfill({ status: 404, body: "" }));
+  const file = game.id === "code" ? "code-groups.daily.json" : "crossword.daily.json";
+  await page.route(`**/data/${file}`, route => route.fulfill({ status: 404, body: "" }));
+  await page.route(`**/data/next/${file}`, route => route.fulfill({ status: 404, body: "" }));
   await page.goto(prefix + game.pt);
   if (game.id === "code") await expect(page.getByTestId("game-missing")).toBeVisible();
   else await expect(page.getByTestId("game-missing")).toBeVisible();

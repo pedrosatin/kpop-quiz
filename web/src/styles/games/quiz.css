@@ -124,6 +124,62 @@
 
 /* Question round */
 
+/* Keep the reading area above the actions, including when consent or source
+   details change height. The question scrolls without passing under the bar. */
+@media (max-width: 59.999rem) {
+  .quiz-round {
+    display: grid;
+    grid-template-rows: auto minmax(4rem, 1fr) auto;
+    max-height: calc(100dvh - var(--consent-banner-height, 0px) - 2 * var(--space-4));
+    scroll-margin-top: var(--space-4);
+    scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-4));
+  }
+
+  /* The grid already pins the bar as the last row of the capped round. The
+     shared sticky offset lets the bar ride up over the question scrollport
+     when the consent banner grows after the round was positioned, so the
+     round keeps the bar in flow and lets scroll margin keep it reachable. */
+  .quiz-round .quiz-actions {
+    position: static;
+  }
+
+  .quiz-round .quiz-actions .btn {
+    scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-4));
+  }
+
+  .quiz-round .quiz-question-card {
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    padding: var(--space-1);
+    margin: calc(-1 * var(--space-1));
+  }
+
+  .quiz-round .option {
+    position: relative;
+  }
+
+  .quiz-round .quiz-actions .game-actions-message {
+    min-height: 0;
+    max-height: 8dvh;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    display: block;
+  }
+
+  .quiz-round .quiz-verdict {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+  }
+
+  .quiz-round .quiz-source {
+    max-height: 8dvh;
+    overscroll-behavior-y: contain;
+  }
+}
+
 .quiz-hud {
   margin-bottom: 0;
   padding-bottom: 0;
@@ -151,6 +207,16 @@
 
 .quiz-hint-tray {
   margin-bottom: var(--space-4);
+}
+
+/* The notice replaces the clue, so it stays one quiet line of text. */
+.quiz-clue--absent {
+  color: var(--color-text-muted);
+  margin-bottom: 0;
+}
+
+.quiz-source-clue {
+  margin-top: var(--space-2);
 }
 
 .options {
@@ -282,8 +348,8 @@
   min-height: calc(2lh + 0.2rem);
 }
 
-/* A long pair of answers is cut at two lines on screen only: the live region
-   still announces the whole text, and the sources panel repeats it. */
+/* Desktop keeps the compact verdict; mobile uses the scrollable message
+   above. The sources panel repeats the full answers at every width. */
 .quiz-verdict {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -513,3 +579,13 @@
 .review-item .media-image {
   max-height: 12rem;
 }
+
+.feedback {
+  grid-column: 1 / -1;
+  margin-block: 1.5rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border, currentColor);
+  border-radius: 0.75rem;
+}
+.feedback textarea { display: block; width: 100%; min-height: 6rem; margin-block: 0.5rem; }
+.feedback .btn-row { margin-top: 0.75rem; }

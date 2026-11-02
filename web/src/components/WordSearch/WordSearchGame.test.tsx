@@ -362,6 +362,7 @@ describe("WordSearch end of puzzle", () => {
     select(found);
 
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
 
     expect(screen.getByRole("heading", { level: 2, name: pt.resultTitle })).toBeInTheDocument();
     expect(screen.queryByTestId("found-counter")).not.toBeInTheDocument();
@@ -384,6 +385,33 @@ describe("WordSearch end of puzzle", () => {
       expect(hrefs).toContain(`https://www.wikidata.org/wiki/${word.id}`);
       for (const evidence of word.evidence) expect(hrefs).toContain(evidence.source_url);
     }
+  });
+
+  it("asks for confirmation before giving up and keeps the board on cancel or Escape", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 2, name: pt.resultTitle })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+    expect(screen.getByTestId("found-counter")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
+
+  it("shows English give-up confirmation copy on word search", () => {
+    render(<WordSearchGame locale="en" puzzle={puzzle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Give up" }));
+    expect(screen.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(screen.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Give up" })).toBeInTheDocument();
   });
 
   it("restores a finished puzzle without moving focus", () => {
@@ -679,5 +707,96 @@ describe("WordSearch chip row", () => {
     fireEvent.scroll(list());
     expect(list()).toHaveClass("has-more-start");
     expect(list()).not.toHaveClass("has-more-end");
+  });
+});
+
+describe("WordSearchGame display names", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    cleanup();
+  });
+
+  // A published word search names a word with the same text in both languages.
+  // The grid keeps its letters here, so the words stay findable; the browser
+  // check uses an artifact whose grid spells the long names.
+  function withLabels(labels: string[], canonical: Record<number, string> = {}): WordSearchPuzzle {
+    return {
+      ...puzzle,
+      words: puzzle.words.map((word, index) => {
+        const label = labels[index];
+        if (!label) return word;
+        return {
+          ...word,
+          canonical_name: canonical[index] ?? word.canonical_name,
+          labels: { "pt-BR": label, en: label },
+        };
+      }),
+    };
+  }
+
+  // Easy mode lists every name, so the chips show what the labels resolve to.
+  function renderEasy(locale: "pt-BR" | "en", puzzleUnderTest: WordSearchPuzzle) {
+    localStorage.setItem(
+      `kpop-word-search-${puzzleUnderTest.puzzle_id}`,
+      JSON.stringify({ foundWordIds: [], elapsedSeconds: 5, status: "in_progress", easyMode: true }),
+    );
+    return render(<WordSearchGame locale={locale} puzzle={puzzleUnderTest} />);
+  }
+
+  function chipName(puzzleUnderTest: WordSearchPuzzle, index: number): string {
+    const id = puzzleUnderTest.words[index]!.id;
+    return document.querySelector(`[data-word-id="${id}"] .text-pending, [data-word-id="${id}"] .text-found`)?.textContent ?? "";
+  }
+
+  it("keeps the note of two words that would read the same once cleaned", () => {
+    const homonyms = withLabels(["Tempest (group)", "Tempest (band)"]);
+    const { container } = renderEasy("pt-BR", homonyms);
+
+    expect(chipName(homonyms, 0)).toBe("Tempest (group)");
+    expect(chipName(homonyms, 1)).toBe("Tempest (band)");
+
+    select(homonyms.words[0]!);
+    expect(liveRegion(container)).toHaveTextContent(tPt.foundFeedback("Tempest (group)"));
+    select(homonyms.words[0]!);
+    expect(liveRegion(container)).toHaveTextContent(tPt.repeatFeedback("Tempest (group)"));
+  });
+
+  it("keeps the note of a word whose cleaned form is another word's whole name", () => {
+    const bare = withLabels(["Tempest (group)", "Tempest"]);
+    renderEasy("pt-BR", bare);
+
+    expect(chipName(bare, 0)).toBe("Tempest (group)");
+    expect(chipName(bare, 1)).toBe("Tempest");
+  });
+
+  it("drops the note of a word that no other word shares, and keeps the published case", () => {
+    const unique = withLabels(["Uniq (band)", "Luv (group)"], { 1: "LUV" });
+    renderEasy("pt-BR", unique);
+
+    expect(chipName(unique, 0)).toBe("Uniq");
+    expect(chipName(unique, 1)).toBe("Luv");
+    // Identity does not follow the label.
+    expect(unique.words[0]!.id).toBe(puzzle.words[0]!.id);
+  });
+
+  it("applies the same rule in the revealed sources and in English", () => {
+    const homonyms = withLabels(["Tempest (group)", "Tempest (band)", "Uniq (band)"]);
+    renderEasy("en", homonyms);
+    const en = getMessages("en");
+
+    expect(chipName(homonyms, 0)).toBe("Tempest (group)");
+    expect(chipName(homonyms, 1)).toBe("Tempest (band)");
+    expect(chipName(homonyms, 2)).toBe("Uniq");
+
+    fireEvent.click(screen.getByRole("button", { name: en.giveUp }));
+    fireEvent.click(screen.getByRole("button", { name: en.giveUpConfirmAction }));
+    fireEvent.click(screen.getByRole("button", { name: en.showSource }));
+    const panel = document.querySelector<HTMLElement>(".word-search-source")!;
+    const titles = within(panel).getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(titles.slice(0, 3)).toEqual(["Tempest (group)", "Tempest (band)", "Uniq"]);
   });
 });

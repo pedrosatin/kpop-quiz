@@ -1,5 +1,5 @@
 import type { JSX } from "preact";
-import { useRef, useState } from "preact/hooks";
+import { useCallback, useRef, useState } from "preact/hooks";
 import { entryCellKey, type CrosswordPuzzle } from "../../data/crossword";
 import type { Messages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
@@ -9,6 +9,7 @@ import { CrosswordClues, clueText } from "./CrosswordClues";
 import { CrosswordGrid, type CrosswordInputs } from "./CrosswordGrid";
 import { CrosswordResult } from "./CrosswordResult";
 import { useCrosswordGame } from "./useCrosswordGame";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 export interface CrosswordGameContentProps {
   puzzle: CrosswordPuzzle;
@@ -55,6 +56,25 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
 
   const [shareNote, setShareNote] = useState<ShareNote>(null);
   const shares = useRef(0);
+  const [confirmRevealOpen, setConfirmRevealOpen] = useState(false);
+  const confirmRevealOpenRef = useRef(false);
+
+  const closeRevealConfirm = useCallback(() => {
+    confirmRevealOpenRef.current = false;
+    setConfirmRevealOpen(false);
+  }, []);
+
+  const requestReveal = useCallback(() => {
+    confirmRevealOpenRef.current = true;
+    setConfirmRevealOpen(true);
+  }, []);
+
+  const confirmReveal = useCallback(() => {
+    if (!confirmRevealOpenRef.current) return;
+    closeRevealConfirm();
+    playedHere.current = true;
+    game.reveal();
+  }, [closeRevealConfirm, game.reveal]);
 
   const selected = puzzle.entries[active] ?? puzzle.entries[0]!;
   const select = (index: number) => {
@@ -140,7 +160,7 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
                 <button type="button" class="btn btn-primary" onClick={endHere(game.check)}>
                   {messages.crosswordCheck}
                 </button>
-                <button type="button" class="btn btn-secondary" onClick={endHere(game.reveal)}>
+                <button type="button" class="btn btn-secondary" onClick={requestReveal}>
                   {messages.crosswordReveal}
                 </button>
               </div>
@@ -148,6 +168,16 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmRevealOpen}
+        title={messages.revealConfirmTitle}
+        body={messages.revealConfirmBody}
+        confirmLabel={messages.revealConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmReveal}
+        onCancel={closeRevealConfirm}
+      />
     </section>
   );
 }

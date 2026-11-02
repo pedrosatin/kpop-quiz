@@ -37,9 +37,13 @@ export function GridFeedbackMessage({
   }
 
   if (feedback?.kind === "right" || feedback?.kind === "wrong") {
+    const wrong = feedback.kind === "wrong";
     return (
-      <p key={feedback.n} class="game-actions-title">
-        {feedback.kind === "right" ? messages.gridGuessRight(feedback.name) : messages.gridGuessWrong(feedback.name)}
+      <p key={feedback.n} class={`game-actions-title${wrong ? " grid-refused" : ""}`}>
+        <span class="grid-verdict">
+          {wrong ? messages.gridGuessWrong(feedback.name) : messages.gridGuessRight(feedback.name)}
+        </span>
+        {wrong && <span class="grid-catalog-limit"> {messages.gridCatalogLimit}</span>}
         <span class="visually-hidden">
           {" "}
           {messages.gridGuessesLeft(guessesLeft)}. {messages.gridCorrectCount(solvedCount, 9)}.

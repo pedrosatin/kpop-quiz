@@ -1,7 +1,8 @@
-import { useId, useRef, useState } from "preact/hooks";
+import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { CodeGroupsPuzzle } from "../../data/code-groups";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages, type Messages } from "../../i18n/catalog";
+import { resolveDisplayLabels } from "../../lib/display-name";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
@@ -28,7 +29,7 @@ export function generateShareText(
   locale: Locale,
 ): string {
   const messages = getMessages(locale);
-  const header = `K-pop Code ${puzzle.reference_date}`;
+  const header = messages.codeShareHeader(puzzle.reference_date);
   const verdict = history.at(-1)?.exact === 4
     ? messages.codeShareWon(history.length)
     : messages.codeShareLost;
@@ -57,9 +58,24 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
   };
 
   const resultRef = useRef<HTMLElement>(null);
+  const feedbackRef = useRef<HTMLParagraphElement>(null);
   // Only a game finished in this visit moves focus to the result; a finished
   // game restored from storage leaves focus where the page put it.
   useFocusOnChange(resultRef, finished && playedHere.current);
+  useLayoutEffect(() => {
+    if (!feedback || !playedHere.current) return;
+    if (finished) {
+      resultRef.current?.scrollIntoView?.({ block: "start" });
+      return;
+    }
+    const target = feedbackRef.current;
+    if (!target) return;
+    const bounds = target.getBoundingClientRect();
+    const bannerHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--consent-banner-height")) || 0;
+    const visibleBottom = window.innerHeight - bannerHeight - 12;
+    if (bounds.bottom > visibleBottom) window.scrollBy(0, bounds.bottom - visibleBottom);
+    else if (bounds.top < 12) window.scrollBy(0, bounds.top - 12);
+  }, [feedback, finished]);
 
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({
@@ -75,7 +91,11 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
   const [shareFeedback, setShareFeedback] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
   const shares = useRef(0);
 
-  const label = (id: string) => puzzle.symbols.find((s) => s.qid === id)?.name ?? id;
+  const symbolNames = resolveDisplayLabels(
+    puzzle.symbols.map((s) => ({ label: s.name, canonical: s.name })),
+  );
+  const nameByQid = new Map(puzzle.symbols.map((s, index) => [s.qid, symbolNames[index]!] as const));
+  const label = (id: string) => nameByQid.get(id) ?? id;
   const shareText = generateShareText(puzzle, history, locale);
   const attemptsLeft = puzzle.max_attempts - history.length;
 
@@ -91,7 +111,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
     <section id="code-groups" tabIndex={-1} aria-label={messages.codeTitle} class="game-card game-card--wide code-groups" data-testid="game-board">
       <p class="code-sequence-note">{messages.codeSequenceNote}</p>
       <p class="code-hud" data-testid="code-remaining">
-        {messages.codeAttemptsLeft}: {attemptsLeft}/{puzzle.max_attempts}
+        {messages.codeAttemptsLeft(attemptsLeft)}: {attemptsLeft}/{puzzle.max_attempts}
       </p>
       <form
         onSubmit={(event) => {
@@ -113,7 +133,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
                   <option value="">{messages.codeChooseGroup}</option>
                   {puzzle.symbols.map((s) => (
                     <option value={s.qid} key={s.qid}>
-                      {s.name}
+                      {nameByQid.get(s.qid) ?? s.name}
                     </option>
                   ))}
                 </select>
@@ -125,7 +145,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
           </button>
         </fieldset>
       </form>
-      <p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">
+      <p ref={feedbackRef} role="status" aria-live="polite" aria-atomic="true" class="code-feedback">
         {feedbackText}
       </p>
       <h2>{messages.codeHistoryHeading}</h2>
@@ -204,7 +224,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
           <ul>
             {puzzle.symbols.map((s) => (
               <li key={s.qid}>
-                <a href={s.source.url}>{`${s.name} · Wikidata`}</a> ·{" "}
+                <a href={s.source.url}>{`${nameByQid.get(s.qid) ?? s.name} · Wikidata`}</a> ·{" "}
                 {`${messages.revision} ${s.source.revision_id}`}
               </li>
             ))}

@@ -9,6 +9,7 @@ export interface TimelineStoredState {
   referenceDate: string;
   orderedEventIds: string[];
   submitted: boolean;
+  gaveUp?: boolean;
   score: number;
   results: boolean[];
 }
@@ -35,6 +36,8 @@ export interface TimelineShareMessages {
 }
 
 export interface TimelineResultsMessages extends TimelineShareMessages {
+  gaveUp: string;
+  sequenceScore: (score: number, totalEvents: number) => string;
   scoreBanner: (score: number, totalEvents: number) => string;
   summaryHeading: string;
   correctPosition: string;
@@ -56,6 +59,8 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     giveUp: "Desistir",
     positionBadge: (pos: number) => `Posição ${pos}`,
     dragHandle: (title: string) => `Arrastar "${title}" para reordenar`,
+    gaveUp: "Você desistiu",
+    sequenceScore: (score: number, total: number) => `Pontuação da sequência: ${score}/${total}`,
     scoreBanner: (score: number, total: number) => `Pontuação: ${score}/${total}`,
     summaryHeading: "Ordem cronológica correta",
     correctPosition: "Posição correta",
@@ -77,6 +82,8 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     giveUp: "Give up",
     positionBadge: (pos: number) => `Position ${pos}`,
     dragHandle: (title: string) => `Drag "${title}" to reorder`,
+    gaveUp: "You gave up",
+    sequenceScore: (score: number, total: number) => `Sequence score: ${score}/${total}`,
     scoreBanner: (score: number, total: number) => `Score: ${score}/${total}`,
     summaryHeading: "Correct chronological order",
     correctPosition: "Correct position",
@@ -143,6 +150,7 @@ export interface TimelineShareProps {
 }
 
 export interface TimelineResultsProps {
+  gaveUp?: boolean | undefined;
   score: number;
   totalEvents?: number | undefined;
   results: boolean[];

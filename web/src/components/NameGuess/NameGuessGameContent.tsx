@@ -12,6 +12,8 @@ import {
   recordGameFinish,
 } from "../../lib/player-stats";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { getMessages } from "../../i18n/catalog";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 function isTextEntry(el: HTMLElement): boolean {
   return (
@@ -36,6 +38,7 @@ export interface NameGuessGameContentProps {
 }
 
 export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGuessGameContentProps) {
+  const messages = getMessages(locale);
   const {
     guesses,
     feedbacks,
@@ -129,10 +132,25 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
     errorDisplay = t.alreadyGuessed;
   }
 
-  const handleGiveUp = useCallback(() => {
+  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
+  const confirmGiveUpOpenRef = useRef(false);
+
+  const closeGiveUpConfirm = useCallback(() => {
+    confirmGiveUpOpenRef.current = false;
+    setConfirmGiveUpOpen(false);
+  }, []);
+
+  const requestGiveUp = useCallback(() => {
+    confirmGiveUpOpenRef.current = true;
+    setConfirmGiveUpOpen(true);
+  }, []);
+
+  const confirmGiveUp = useCallback(() => {
+    if (!confirmGiveUpOpenRef.current) return;
+    closeGiveUpConfirm();
     playedHere.current = true;
     giveUp();
-  }, [giveUp]);
+  }, [closeGiveUpConfirm, giveUp]);
 
   let shareMessage = null;
   if (isGameOver && shareFeedback) {
@@ -226,7 +244,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
             {!isGameOver && (
               <button
                 type="button"
-                onClick={handleGiveUp}
+                onClick={requestGiveUp}
                 class="btn btn-secondary btn-sm"
               >
                 {giveUpLabel}
@@ -243,6 +261,16 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmGiveUpOpen}
+        title={messages.giveUpConfirmTitle}
+        body={messages.giveUpConfirmBody}
+        confirmLabel={messages.giveUpConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmGiveUp}
+        onCancel={closeGiveUpConfirm}
+      />
     </section>
   );
 }

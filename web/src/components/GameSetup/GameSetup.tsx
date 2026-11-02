@@ -24,6 +24,8 @@ export interface GameSetupProps {
   busy?: boolean;
   /** Announced through a visually hidden status while busy. */
   busyLabel?: string;
+  /** Visible notice above Start (e.g. replay will repeat the only ten questions). */
+  notice?: string | undefined;
 }
 
 export function GameSetup({
@@ -40,6 +42,7 @@ export function GameSetup({
   disabled = false,
   busy = false,
   busyLabel,
+  notice,
 }: GameSetupProps) {
   // Without a theme or decade picker the left column would be empty.
   const hasPoolGroup = Boolean(onSelectTheme || onSelectDecades);
@@ -82,6 +85,7 @@ export function GameSetup({
         </div>
       </div>
       {busy && busyLabel && <p class="visually-hidden" role="status">{busyLabel}</p>}
+      {notice && <p class="game-actions-message" role="status" data-testid="quiz-replay-notice">{notice}</p>}
       <div class="game-actions setup-actions">
         <p class="game-actions-message game-actions-hint setup-rules">{messages.roundRules}</p>
         <button

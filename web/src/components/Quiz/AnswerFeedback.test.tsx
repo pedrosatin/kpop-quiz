@@ -125,8 +125,22 @@ describe("AnswerFeedback", () => {
     renderBar();
     const toggle = screen.getByRole("button", { name: "Ver fonte" });
     fireEvent.click(toggle);
-    const focusable = [...document.querySelectorAll<HTMLElement>("a[href], button:not([disabled])")];
-    expect(focusable[focusable.indexOf(toggle) + 1]).toBe(screen.getByRole("link", { name: "Abrir a revisão no Wikidata" }));
+    const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    const focusable = [...document.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex="0"]')];
+    expect(focusable[focusable.indexOf(toggle) + 1]).toBe(panel);
+    expect(focusable[focusable.indexOf(panel) + 1]).toBe(screen.getByRole("link", { name: "Abrir a revisão no Wikidata" }));
+  });
+
+  it("makes the scrollable feedback and source regions reachable by Tab without moving focus on render", () => {
+    renderBar();
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("tabindex", "0");
+    expect(document.activeElement).not.toBe(status);
+    const toggle = screen.getByRole("button", { name: "Ver fonte" });
+    fireEvent.click(toggle);
+    const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(panel).toHaveAttribute("tabindex", "0");
+    expect(document.activeElement).not.toBe(panel);
   });
 
   it("repeats both answers in the sources panel, since the bar clamps them", () => {

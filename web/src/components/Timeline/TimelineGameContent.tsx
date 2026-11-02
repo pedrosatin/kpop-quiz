@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { Locale, TimelinePuzzle } from "../../lib/quiz-types";
 import {
   getTodayDateString,
@@ -10,6 +10,8 @@ import { useTimelineGame } from "./useTimelineGame";
 import { TimelineBoard } from "./TimelineBoard";
 import { TimelineResults } from "./TimelineResults";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { getMessages } from "../../i18n/catalog";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 export interface TimelineGameContentProps {
   puzzle: TimelinePuzzle;
@@ -24,6 +26,7 @@ export function TimelineGameContent({
     orderedEvents,
     orderedEventIds,
     gameStatus,
+    gaveUp,
     score,
     results,
     canonicalOrder,
@@ -72,18 +75,32 @@ export function TimelineGameContent({
     [orderedEventIds, setOrder]
   );
 
+  const messages = getMessages(locale);
+
   const handleSubmit = useCallback(() => {
     playedHere.current = true;
     submit();
   }, [submit]);
 
-  const gaveUpRef = useRef(false);
+  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
+  const confirmGiveUpOpenRef = useRef(false);
 
-  const handleGiveUp = useCallback(() => {
+  const closeGiveUpConfirm = useCallback(() => {
+    confirmGiveUpOpenRef.current = false;
+    setConfirmGiveUpOpen(false);
+  }, []);
+
+  const requestGiveUp = useCallback(() => {
+    confirmGiveUpOpenRef.current = true;
+    setConfirmGiveUpOpen(true);
+  }, []);
+
+  const confirmGiveUp = useCallback(() => {
+    if (!confirmGiveUpOpenRef.current) return;
+    closeGiveUpConfirm();
     playedHere.current = true;
-    gaveUpRef.current = true;
-    submit();
-  }, [submit]);
+    submit(true);
+  }, [closeGiveUpConfirm, submit]);
 
   const recordedMatchRef = useRef<string | null>(null);
 
@@ -93,21 +110,21 @@ export function TimelineGameContent({
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("timeline", matchId)) {
         // A give-up reveals the canonical order, so a correct board after
         // one still counts as played without a win.
-        const isWin = !gaveUpRef.current && score === puzzle.events.length;
+        const isWin = !gaveUp && score === puzzle.events.length;
         recordGameFinish("timeline", isWin, puzzle.reference_date || getTodayDateString());
         markGameMatchRecorded("timeline", matchId);
         recordedMatchRef.current = matchId;
       }
     } else {
       recordedMatchRef.current = null;
-      gaveUpRef.current = false;
     }
-  }, [gameStatus, puzzle, score]);
+  }, [gameStatus, puzzle, score, gaveUp]);
 
   return (
     <section id="timeline" class="timeline-game" data-testid="game-board" aria-labelledby="timeline-board-heading">
       {gameStatus === "submitted" ? (
         <TimelineResults
+          gaveUp={gaveUp}
           score={score}
           totalEvents={puzzle.events.length}
           results={results}
@@ -126,9 +143,19 @@ export function TimelineGameContent({
           onMoveDown={handleMoveDown}
           onReorder={handleReorder}
           onSubmit={handleSubmit}
-          onGiveUp={handleGiveUp}
+          onGiveUp={requestGiveUp}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={confirmGiveUpOpen}
+        title={messages.giveUpConfirmTitle}
+        body={messages.giveUpConfirmBody}
+        confirmLabel={messages.giveUpConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmGiveUp}
+        onCancel={closeGiveUpConfirm}
+      />
     </section>
   );
 }

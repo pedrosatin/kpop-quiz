@@ -14,6 +14,7 @@ import {
 import { useConnectionsGame } from "./useConnectionsGame";
 import { useRecordConnectionsMatch } from "./useRecordConnectionsMatch";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 export interface ConnectionsGameContentProps {
   puzzle: ConnectionsPuzzle;
@@ -94,17 +95,33 @@ export function ConnectionsGameContent({
     if (next.kind === "solved") setSolvedHere((n) => n + 1);
   }, [submitGuess]);
 
-  const handleGiveUp = useCallback(() => {
+  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
+  const confirmGiveUpOpenRef = useRef(false);
+
+  const closeGiveUpConfirm = useCallback(() => {
+    confirmGiveUpOpenRef.current = false;
+    setConfirmGiveUpOpen(false);
+  }, []);
+
+  const requestGiveUp = useCallback(() => {
+    confirmGiveUpOpenRef.current = true;
+    setConfirmGiveUpOpen(true);
+  }, []);
+
+  const confirmGiveUp = useCallback(() => {
+    if (!confirmGiveUpOpenRef.current) return;
+    closeGiveUpConfirm();
     playedHere.current = true;
     setFeedback(null);
     giveUp();
-  }, [giveUp]);
+  }, [closeGiveUpConfirm, giveUp]);
 
   const restart = useCallback(() => {
+    closeGiveUpConfirm();
     setFeedback(null);
     restartGame();
     setRestarts((n) => n + 1);
-  }, [restartGame]);
+  }, [closeGiveUpConfirm, restartGame]);
 
   // A solved group takes its four tiles and disables Submit, so focus moves
   // to the first tile left instead of falling to the page. Play again does
@@ -186,12 +203,22 @@ export function ConnectionsGameContent({
               onShuffle={shuffleItems}
               onClear={clear}
               onSubmit={submit}
-              onGiveUp={handleGiveUp}
+              onGiveUp={requestGiveUp}
               messages={messages}
             />
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmGiveUpOpen}
+        title={messages.giveUpConfirmTitle}
+        body={messages.giveUpConfirmBody}
+        confirmLabel={messages.giveUpConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmGiveUp}
+        onCancel={closeGiveUpConfirm}
+      />
     </section>
   );
 }

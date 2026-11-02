@@ -77,6 +77,9 @@ jobs:
       - name: Run Playwright boot and playthrough against local dist
         env:
           CI: true
+          ASTRO_BASE: ${{ steps.pages.outputs.base_path }}
+          BASE_URL: http://127.0.0.1:4321${{ steps.pages.outputs.base_path }}/
+          CODE_FEEDBACK_ENV: staging
         run: npm run test:e2e:ci
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
@@ -133,6 +136,7 @@ jobs:
       - name: Run Playwright boot and playthrough against staging
         env:
           CI: true
+          CODE_FEEDBACK_ENV: staging
           STAGING_BASE_URL: ${{ needs.deploy.outputs.page_url || 'https://pedrosatin.github.io/kpop-quiz/' }}
         run: npm run test:e2e:staging
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

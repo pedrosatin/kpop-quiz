@@ -4,9 +4,9 @@ export type CrosswordStatus = "playing" | "won" | "revealed";
 
 /**
  * What localStorage keeps of the crossword, under
- * `kpop-crossword-<dataset_version>`. The board is a fixed match, not a daily
- * round, so the key is the SHA-256 of the board content instead of a date: a
- * save survives across days and a new board (another hash) starts clean.
+ * `kpop-crossword-<dataset_version>`, the SHA-256 of the day's envelope. It
+ * covers the date, so each day's board has its own key and a new board starts
+ * clean.
  * `values` maps "row:col" to the letter the player typed, `checks` counts the
  * presses of Check answers and `status` says how the round ended. A revealed
  * round keeps the player's letters, so the result can still count the words

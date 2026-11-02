@@ -6,15 +6,14 @@ export function CategoryBanner({
   items,
   locale,
   messages,
+  displayNames,
 }: CategoryBannerProps) {
   const itemsList = allItems ?? items ?? [];
   const itemNames = category.item_ids
-    .map(
-      (id) =>
-        itemsList.find((i) => i.id === id)?.labels[locale] ||
-        itemsList.find((i) => i.id === id)?.canonical_name ||
-        id
-    )
+    .map((id) => {
+      const item = itemsList.find((i) => i.id === id);
+      return displayNames?.get(id) || item?.labels[locale] || item?.canonical_name || id;
+    })
     .join(", ");
 
   const categoryLabel = category.label[locale] || category.label["pt-BR"];

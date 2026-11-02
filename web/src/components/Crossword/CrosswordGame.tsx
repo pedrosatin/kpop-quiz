@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
-import { CrosswordArtifactError, loadCrosswordPuzzle, type CrosswordPuzzle } from "../../data/crossword";
+import { CrosswordArtifactError, loadCrosswordPuzzle, type CrosswordErrorKind, type CrosswordPuzzle } from "../../data/crossword";
 import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
 import { CrosswordGameContent } from "./CrosswordGameContent";
 
-/** Loads the audited board and shows the loading and error states around it. */
+/** Loads today's board and shows the loading, missing, omitted, unavailable and error states around it. */
 export function CrosswordGame({ locale, baseUrl }: { locale: Locale; baseUrl?: string }) {
   const messages = getMessages(locale);
   const [puzzle, setPuzzle] = useState<CrosswordPuzzle | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [errorKind, setErrorKind] = useState<"missing" | "invalid" | undefined>();
+  const [errorKind, setErrorKind] = useState<CrosswordErrorKind | undefined>();
 
   const loadData = useCallback(async () => {
     setStatus("loading");
@@ -37,10 +37,18 @@ export function CrosswordGame({ locale, baseUrl }: { locale: Locale; baseUrl?: s
   }
 
   if (status === "error" || !puzzle) {
-    // No fallback board: a missing or invalid artifact never plays.
-    const errorMsg = errorKind === "missing" ? messages.crosswordArtifactMissing : messages.loadError;
+    // No fallback board: a missing, omitted, unavailable or invalid day never
+    // plays an earlier board in its place.
+    const kind = errorKind ?? "invalid";
+    const errorMsg = {
+      omitted: messages.crosswordOmitted,
+      unavailable: messages.crosswordUnavailable,
+      missing: messages.crosswordArtifactMissing,
+      invalid: messages.loadError,
+    }[kind];
+    // data-error-kind lets the boot smoke tell an expected empty day from a broken artifact.
     return (
-      <section id="crossword" tabIndex={-1} class="game-card game-card--wide state" data-testid="game-missing" aria-live="polite">
+      <section id="crossword" tabIndex={-1} class="game-card game-card--wide state" data-testid="game-missing" data-error-kind={kind} aria-live="polite">
         <p class="state-error">{errorMsg}</p>
         <button type="button" class="btn btn-primary" data-testid="game-retry" onClick={() => { void loadData(); }}>
           {messages.retry}

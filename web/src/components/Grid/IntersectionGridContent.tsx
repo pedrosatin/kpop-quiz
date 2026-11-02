@@ -15,6 +15,7 @@ import { useRecordGridMatch } from "./useRecordGridMatch";
 import { useGridGame } from "./useGridGame";
 import type { CellCoordinates, GridCellState, GridGameStatus } from "./types";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 type GridGameApi = ReturnType<typeof useGridGame>;
 
@@ -120,19 +121,35 @@ export function IntersectionGridContent({
     }
   }, [makeGuess, messages]);
 
-  const handleGiveUp = useCallback(() => {
+  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
+  const confirmGiveUpOpenRef = useRef(false);
+
+  const closeGiveUpConfirm = useCallback(() => {
+    confirmGiveUpOpenRef.current = false;
+    setConfirmGiveUpOpen(false);
+  }, []);
+
+  const requestGiveUp = useCallback(() => {
+    confirmGiveUpOpenRef.current = true;
+    setConfirmGiveUpOpen(true);
+  }, []);
+
+  const confirmGiveUp = useCallback(() => {
+    if (!confirmGiveUpOpenRef.current) return;
+    closeGiveUpConfirm();
     playedHere.current = true;
     setFeedback(null);
     setFinalVerdict(null);
     giveUp();
-  }, [giveUp]);
+  }, [closeGiveUpConfirm, giveUp]);
 
   const restart = useCallback(() => {
+    closeGiveUpConfirm();
     setFeedback(null);
     setFinalVerdict(null);
     restartGame();
     setFocusCell({ row: 0, col: 0, n: ++announcements.current });
-  }, [restartGame]);
+  }, [closeGiveUpConfirm, restartGame]);
 
   const selectedRowCrit = selectedCell ? grid.row_criteria[selectedCell.row]?.label[locale] : undefined;
   const selectedColCrit = selectedCell ? grid.col_criteria[selectedCell.col]?.label[locale] : undefined;
@@ -194,7 +211,7 @@ export function IntersectionGridContent({
           ) : (
             <>
               <GridProgress guessesLeft={guessesLeft} solvedCount={solvedCount} messages={messages} />
-              <button type="button" class="btn btn-secondary" onClick={handleGiveUp}>
+              <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
                 {messages.giveUp}
               </button>
             </>
@@ -215,6 +232,16 @@ export function IntersectionGridContent({
           messages={messages}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={confirmGiveUpOpen}
+        title={messages.giveUpConfirmTitle}
+        body={messages.giveUpConfirmBody}
+        confirmLabel={messages.giveUpConfirmAction}
+        cancelLabel={messages.cancel}
+        onConfirm={confirmGiveUp}
+        onCancel={closeGiveUpConfirm}
+      />
     </section>
   );
 }

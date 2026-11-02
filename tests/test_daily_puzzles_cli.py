@@ -1,15 +1,22 @@
 """Unit tests for the daily puzzles CLI."""
 
 import io
+import json
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import daily_puzzles_cli
+
+
+def _is_file_except_enriched_manifest(path: Path) -> bool:
+    """Everything is a file, as these tests assume, but manifest-v3.json only when it is on disk."""
+    return os.path.isfile(path) if path.name == "manifest-v3.json" else True
 
 
 class TestDailyPuzzlesCLI(unittest.TestCase):
@@ -47,6 +54,25 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
 
         self.assertIn("WARNING: Day published without a grid because generation failed: some error (previous grid rejected: invalid reasons)", stderr.getvalue())
 
+    def test_report_revalidated_grid_regenerated_and_removed(self):
+        base = {"reason": "cell (0,0) a x b no longer admits ['Q1']", "previous_grid_id": "old"}
+        for extra, expected in (
+            ({"action": "regenerated", "grid_id": "new"}, "replaced by grid new"),
+            ({"action": "removed", "error": "no 3x3"}, "removed because a new one could not be generated: no 3x3"),
+        ):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr), patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
+                daily_puzzles_cli.report_revalidated_grid({**base, **extra})
+            self.assertIn("Published grid old no longer meets the eligibility policy", stderr.getvalue())
+            self.assertIn(expected, stderr.getvalue())
+            self.assertIn("::warning title=Daily grid revalidated::", stdout.getvalue())
+
+    def test_report_revalidated_grid_none(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            daily_puzzles_cli.report_revalidated_grid(None)
+        self.assertEqual(stdout.getvalue() + stderr.getvalue(), "")
+
     def test_report_reused_grid_none(self):
         stdout, stderr = io.StringIO(), io.StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):
@@ -76,6 +102,22 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
         mock_run.assert_called_once_with(output_dir=Path("dummy_out"), verify_only=True)
 
     @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
+    def test_related_clues_are_off_unless_asked_for(self, mock_run):
+        mock_run.return_value = {"reference_date": "2023-01-01", "output_dir": Path("out")}
+        for argv, expected in (([], False), (["--related-clues"], True)):
+            with patch("pathlib.Path.is_file", return_value=True), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(daily_puzzles_cli.main(argv), 0)
+            self.assertIs(mock_run.call_args.kwargs["related_clues"], expected)
+
+    @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
+    def test_catalog_is_off_unless_asked_for(self, mock_run):
+        mock_run.return_value = {"reference_date": "2023-01-01", "output_dir": Path("out")}
+        for argv, expected in (([], False), (["--catalog"], True)):
+            with patch("pathlib.Path.is_file", return_value=True), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(daily_puzzles_cli.main(argv), 0)
+            self.assertIs(mock_run.call_args.kwargs["catalog"], expected)
+
+    @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
     def test_main_with_next_output(self, mock_run):
         mock_run.return_value = {
             "reference_date": "2023-01-01",
@@ -100,6 +142,46 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
         self.assertIn("Daily puzzles for 2023-01-02 published ahead in out/next", out_str)
         self.assertIn("WARNING: Grid kept from 2023-01-01 because generation failed: err", err_str)
         self.assertIn("WARNING: Day published without a grid because generation failed: skipped err (no previous grid available)", err_str)
+
+    @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
+    def test_main_reports_clue_coverage_of_the_published_day(self, mock_run):
+        with tempfile.TemporaryDirectory() as raw:
+            out = Path(raw)
+            (out / "s.json").write_text(json.dumps({
+                "config": {"play_mode": "standard"},
+                "questions": [{"clues_available": [{"id": "c"}]}, {"clues_available": []}],
+            }))
+            (out / "manifest-v2.json").write_text(
+                json.dumps({"sessions": {"daily.en.standard": {"path": "s.json"}}})
+            )
+            mock_run.return_value = {"reference_date": "2023-01-01", "output_dir": out}
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch("pathlib.Path.is_file", _is_file_except_enriched_manifest), redirect_stdout(stdout), redirect_stderr(stderr):
+                code = daily_puzzles_cli.main([])
+        self.assertEqual(code, 0)
+        self.assertIn("[manifest-v2, clients without related clues] standard: 1/2 questions with a clue, 1/1 sessions with at least one", stdout.getvalue())
+        self.assertIn("[manifest-v3]: not published, every client reads manifest-v2", stdout.getvalue())
+
+    @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
+    def test_main_reports_clue_coverage_for_both_manifests(self, mock_run):
+        with tempfile.TemporaryDirectory() as raw:
+            out = Path(raw)
+            for name, clues in (("legacy", []), ("enriched", [{"id": "c"}])):
+                (out / f"{name}.json").write_text(json.dumps({
+                    "config": {"play_mode": "standard"},
+                    "questions": [{"clues_available": clues}, {"clues_available": []}],
+                }))
+                (out / f"manifest-v{2 if name == 'legacy' else 3}.json").write_text(
+                    json.dumps({"sessions": {"daily.en.standard": {"path": f"{name}.json"}}})
+                )
+            mock_run.return_value = {"reference_date": "2023-01-01", "output_dir": out}
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch("pathlib.Path.is_file", _is_file_except_enriched_manifest), redirect_stdout(stdout), redirect_stderr(stderr):
+                code = daily_puzzles_cli.main([])
+        self.assertEqual(code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("[manifest-v2, clients without related clues] standard: 0/2 questions with a clue, 0/1 sessions with at least one", stdout.getvalue())
+        self.assertIn("[manifest-v3, current clients] standard: 1/2 questions with a clue, 1/1 sessions with at least one", stdout.getvalue())
 
     @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
     def test_main_already_published(self, mock_run):

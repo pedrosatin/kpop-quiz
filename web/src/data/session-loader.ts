@@ -10,19 +10,28 @@ export class QuizArtifactError extends Error {
 }
 
 type ManifestEntry = { path: string; sha256: string; session_id: string };
+// manifest-v2.json lists sessions every released client accepts. manifest-v3.json
+// has the same shape and lists the same sessions with the decade clues that cite
+// another fact of the answer; a client released before those clues rejects such
+// a session, so it only ever reads v2. This client prefers v3 and falls back to
+// v2 whenever v3 is absent or cannot be used.
+type ManifestSchema = "kpop-quiz-web-manifest-v2" | "kpop-quiz-web-manifest-v3";
 type Manifest = {
-  schema_version: "kpop-quiz-web-manifest-v2";
+  schema_version: ManifestSchema;
   dataset_version: string;
   sessions: Record<string, ManifestEntry>;
 };
 
+const ENRICHED_MANIFEST = { filename: "manifest-v3.json", schema: "kpop-quiz-web-manifest-v3" } as const;
+const LEGACY_MANIFEST = { filename: "manifest-v2.json", schema: "kpop-quiz-web-manifest-v2" } as const;
+
 const HASH = /^[0-9a-f]{64}$/;
 
-function isManifest(value: unknown): value is Manifest {
+function isManifest(value: unknown, schema: ManifestSchema = LEGACY_MANIFEST.schema): value is Manifest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const manifest = value as Record<string, unknown>;
   if (Object.keys(manifest).sort().join() !== "dataset_version,schema_version,sessions"
-    || manifest.schema_version !== "kpop-quiz-web-manifest-v2"
+    || manifest.schema_version !== schema
     || typeof manifest.dataset_version !== "string" || !HASH.test(manifest.dataset_version)
     || typeof manifest.sessions !== "object" || manifest.sessions === null || Array.isArray(manifest.sessions)) return false;
   const sessions = manifest.sessions as Record<string, unknown>;
@@ -104,18 +113,45 @@ async function nextDailySession(current: QuizSession, sessionKey: string, locale
   const currentDate = dailySessionDate(current);
   if (currentDate === null || currentDate >= today) return null;
   try {
-    const response = await fetch(dataUrl("next/manifest-v2.json", baseUrl));
-    if (!response.ok) return null;
-    const manifest: unknown = await response.json();
-    if (!isManifest(manifest)) return null;
-    const entry = manifest.sessions[sessionKey];
-    if (!entry) return null;
-    const session = await readSession(entry, manifest, locale, playMode, null, baseUrl, "next/");
-    const nextDate = dailySessionDate(session);
-    return nextDate !== null && nextDate > currentDate && nextDate <= today ? session : null;
+    return await withManifest(baseUrl, "next/", async (manifest) => {
+      const entry = manifest.sessions[sessionKey];
+      if (!entry) throw new QuizArtifactError("missing");
+      const session = await readSession(entry, manifest, locale, playMode, null, baseUrl, "next/");
+      const nextDate = dailySessionDate(session);
+      return nextDate !== null && nextDate > currentDate && nextDate <= today ? session : null;
+    });
   } catch {
     return null;
   }
+}
+
+/**
+ * Runs `read` against the manifest of `dir`, preferring the one with the
+ * enriched sessions. Anything that goes wrong with it (absent, malformed, a
+ * session it names that cannot be used) only costs the enrichment: the same
+ * read then runs against the v2 manifest, whose errors are the ones reported.
+ */
+async function withManifest<T>(baseUrl: string, dir: string, read: (manifest: Manifest) => Promise<T>): Promise<T> {
+  try {
+    const response = await fetch(dataUrl(`${dir}${ENRICHED_MANIFEST.filename}`, baseUrl));
+    if (response.ok) {
+      const manifest: unknown = await response.json();
+      if (isManifest(manifest, ENRICHED_MANIFEST.schema)) return await read(manifest);
+    }
+  } catch {
+    // Fall through to the manifest every client can read.
+  }
+  const response = await fetch(dataUrl(`${dir}${LEGACY_MANIFEST.filename}`, baseUrl));
+  if (response.status === 404) throw new QuizArtifactError("missing");
+  if (!response.ok) throw new QuizArtifactError("invalid");
+  let manifest: unknown;
+  try {
+    manifest = await response.json();
+  } catch {
+    throw new QuizArtifactError("invalid");
+  }
+  if (!isManifest(manifest, LEGACY_MANIFEST.schema)) throw new QuizArtifactError("invalid");
+  return read(manifest);
 }
 
 async function combineSessions(sessions: QuizSession[], decades: QuizDecadeValue[]): Promise<QuizSession> {
@@ -156,17 +192,14 @@ export async function loadQuizSessionWithAvailability(
   theme: QuizTheme = "history", baseUrl?: string, decades: readonly QuizDecadeValue[] = [],
 ): Promise<LoadedQuizSession> {
   const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
+  return withManifest(effectiveBaseUrl, "", (manifest) =>
+    loadFromManifest(manifest, locale, playMode, theme, effectiveBaseUrl, decades));
+}
 
-  const manifestResponse = await fetch(dataUrl("manifest-v2.json", effectiveBaseUrl));
-  if (manifestResponse.status === 404) throw new QuizArtifactError("missing");
-  if (!manifestResponse.ok) throw new QuizArtifactError("invalid");
-  let manifest: unknown;
-  try {
-    manifest = await manifestResponse.json();
-  } catch {
-    throw new QuizArtifactError("invalid");
-  }
-  if (!isManifest(manifest)) throw new QuizArtifactError("invalid");
+async function loadFromManifest(
+  manifest: Manifest, locale: Locale, playMode: PlayMode, theme: QuizTheme, effectiveBaseUrl: string,
+  decades: readonly QuizDecadeValue[],
+): Promise<LoadedQuizSession> {
   const selected = [...new Set(decades)].filter((decade) => DECADES.includes(decade)).sort((a, b) => a - b);
   const available = availableDecades(manifest);
   if (selected.length) {

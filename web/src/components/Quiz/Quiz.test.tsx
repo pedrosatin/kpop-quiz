@@ -5,12 +5,83 @@ import { renderToString } from "preact-render-to-string";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { groupEvidence, Quiz } from "./Quiz";
 import { NEXT_GUARD_MS } from "./AnswerFeedback";
+import fs from "node:fs";
+import path from "node:path";
 import ptSession from "../../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import enSession from "../../tests/fixtures/session.en.standard.9c44914efa4be2eee52cf11ea63f542c8e913e01b5a58dc63d3627ed003e8c0e.json";
 import assistedSession from "../../tests/fixtures/session.pt-BR.assisted.fa5f191cdb87584a302ac221ddc4c4520c49c5cc9ef79f1242b4219558f7a56e.json";
 import expertSession from "../../tests/fixtures/session.pt-BR.expert.987d0b408ebba093fcebd95e04199ff967a4af740d1a2a82e1307b8ba4cba591.json";
 import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c1ff312324883f8b724318e6bf7c132293eb9ee53ff8f8e0e5c2072562738f4.json";
 import manifest from "../../tests/fixtures/manifest-v2.json";
+import { clearCatalogCache } from "../../data/catalog-loader";
+import {
+  buildQuizProgressEnvelope,
+  buildQuizProgressSave,
+  QUIZ_PROGRESS_LEGACY_STORAGE_KEY,
+  quizProgressStorageKey,
+  saveQuizProgress,
+} from "./storage";
+import type { QuizSession } from "../../lib/quiz-types";
+import { isGameMatchRecorded, PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
+
+const CATALOG_DIR = path.resolve(__dirname, "../../tests/fixtures/catalog");
+const catalogManifest = JSON.parse(fs.readFileSync(path.join(CATALOG_DIR, "catalog-manifest-v1.json"), "utf-8"));
+
+async function sha256Hex(bytes: Uint8Array | string): Promise<string> {
+  const data = typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes;
+  const digest = await crypto.subtle.digest("SHA-256", data as BufferSource);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** Serve a catalog whose pt-BR.standard pool has exactly ten questions (repeats). */
+async function mockCatalogFetchWithTenEligible() {
+  const files = new Map<string, Uint8Array | string>();
+  for (const name of fs.readdirSync(CATALOG_DIR)) {
+    files.set(name, fs.readFileSync(path.join(CATALOG_DIR, name)));
+  }
+  const catalogMan = structuredClone(catalogManifest) as Record<string, any>;
+  const key = "pt-BR.standard";
+  const entry = catalogMan.shards[key];
+  const shard = JSON.parse(Buffer.from(files.get(entry.path) as Buffer).toString("utf-8"));
+  shard.questions = shard.questions.slice(0, 10);
+  shard.pools = {
+    all: shard.questions.map((_: unknown, index: number) => index),
+    "decade.1990": [],
+    "decade.2000": shard.questions.map((_: unknown, index: number) => index),
+    "decade.2010": [],
+    "decade.2020": [],
+  };
+  const bytes = new TextEncoder().encode(`${JSON.stringify(shard)}\n`);
+  entry.sha256 = await sha256Hex(bytes);
+  entry.path = `catalog.${key}.${entry.sha256}.json`;
+  entry.questions = 10;
+  entry.pools = {
+    all: 10, "decade.1990": 0, "decade.2000": 10, "decade.2010": 0, "decade.2020": 0,
+  };
+  files.set(entry.path, bytes);
+  const versionLines = [
+    "kpop-quiz-catalog-manifest-v1",
+    catalogMan.dataset_version,
+    ...Object.keys(catalogMan.shards).sort().map((shardKey) => `${shardKey}:${catalogMan.shards[shardKey].sha256}`),
+  ];
+  catalogMan.catalog_version = await sha256Hex(versionLines.join("\n"));
+  const legacyManifest = structuredClone(manifest) as Record<string, any>;
+
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    const name = url.split("/data/")[1] ?? "";
+    if (name === "catalog-manifest-v1.json") return new Response(JSON.stringify(catalogMan));
+    if (files.has(name)) {
+      const body = files.get(name)!;
+      return new Response(typeof body === "string" ? body : new Uint8Array(body));
+    }
+    if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
+    if (url.endsWith("manifest-v2.json")) return new Response(JSON.stringify(legacyManifest));
+    if (url.includes("pt-BR.assisted")) return new Response(`${JSON.stringify(assistedSession)}\n`);
+    if (url.includes("pt-BR.expert")) return new Response(`${JSON.stringify(expertSession)}\n`);
+    if (url.includes("pt-BR")) return new Response(`${JSON.stringify(ptSession)}\n`);
+    return new Response(`${JSON.stringify(enSession)}\n`);
+  }));
+}
 
 function mockSessionFetch(customPtSession?: any) {
   const testManifest = structuredClone(manifest) as Record<string, any>;
@@ -33,6 +104,10 @@ function mockSessionFetch(customPtSession?: any) {
     }
   }
   vi.stubGlobal("fetch", vi.fn((url: string) => {
+    // QUIZ_CATALOG off: no catalog published. A 404 keeps the legacy session path.
+    if (url.includes("catalog-manifest") || url.includes("/catalog.")) {
+      return Promise.resolve(new Response(null, { status: 404 }));
+    }
     const payload = url.endsWith("manifest-v2.json") ? testManifest
       : url.includes("pt-BR.assisted") ? assistedSession
       : url.includes("pt-BR.expert") ? expertSession
@@ -80,9 +155,46 @@ function pressEnter(target: HTMLElement) {
   }
 }
 
+function mockCatalogFetch() {
+  const files = new Map<string, Buffer>();
+  for (const name of fs.readdirSync(CATALOG_DIR)) {
+    files.set(name, fs.readFileSync(path.join(CATALOG_DIR, name)));
+  }
+  const testManifest = structuredClone(manifest) as Record<string, any>;
+  // Point daily entries at the fixture daily session bytes, matching mockSessionFetch.
+  const dailyRaw = `${JSON.stringify(dailyPtSession)}\n`;
+  const dailyHash = createHash("sha256").update(dailyRaw).digest("hex");
+  for (const locale of ["pt-BR", "en"]) {
+    for (const mode of ["assisted", "standard", "expert"]) {
+      testManifest.sessions[`daily.${locale}.${mode}`] = {
+        path: `session.daily.${locale}.${mode}.${dailyHash}.json`,
+        sha256: dailyHash,
+        session_id: dailyPtSession.session_id,
+      };
+    }
+  }
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    const name = url.split("/data/")[1] ?? "";
+    if (name === "catalog-manifest-v1.json") {
+      return new Response(JSON.stringify(catalogManifest));
+    }
+    if (files.has(name)) return new Response(new Uint8Array(files.get(name)!));
+    if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
+    if (url.endsWith("manifest-v2.json")) return new Response(JSON.stringify(testManifest));
+    if (url.includes("session.daily")) {
+      return new Response(dailyRaw);
+    }
+    if (url.includes("pt-BR.assisted")) return new Response(`${JSON.stringify(assistedSession)}\n`);
+    if (url.includes("pt-BR.expert")) return new Response(`${JSON.stringify(expertSession)}\n`);
+    if (url.includes("pt-BR")) return new Response(`${JSON.stringify(ptSession)}\n`);
+    return new Response(`${JSON.stringify(enSession)}\n`);
+  }));
+}
+
 describe("Quiz", () => {
   beforeEach(() => {
     vi.spyOn(performance, "now").mockImplementation(() => now);
+    clearCatalogCache();
   });
 
   afterEach(() => {
@@ -90,7 +202,9 @@ describe("Quiz", () => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     window.localStorage.clear();
+    window.sessionStorage.clear();
     window.history.replaceState(null, "", "/");
+    clearCatalogCache();
   });
 
   it("groups visually identical evidence without changing the session", () => {
@@ -132,6 +246,58 @@ describe("Quiz", () => {
     expect(screen.getAllByRole("link", { name: /Abrir a revisão/ })[0]).toHaveAttribute("href", question.evidence[0]!.source_url);
   });
 
+  it("falls back to published sessions when the question catalog is not published", async () => {
+    await renderReady("pt-BR");
+    const requested = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map(([url]) => url);
+    expect(requested.some((url) => url.includes("catalog-manifest"))).toBe(true);
+    expect(requested.some((url) => url.includes("manifest-v2.json") || url.includes("session."))).toBe(true);
+  });
+
+  it("shows the legacy repeat notice when the catalog is absent", async () => {
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await waitForSetupReady();
+    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
+      /catálogo de perguntas novas ainda não está disponível/,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    for (let index = 0; index < ptSession.questions.length; index += 1) {
+      fireEvent.click(screen.getAllByRole("radio")[0]!);
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      const isLast = index === ptSession.questions.length - 1;
+      advanceClock();
+      fireEvent.click(screen.getByRole("button", { name: isLast ? "Ver resultado" : "Próxima pergunta" }));
+    }
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
+      /catálogo de perguntas novas ainda não está disponível/,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+    await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
+    // Restart on the legacy path keeps the same published set with the notice.
+  });
+
+  it("shows the catalog repeat notice when exactly ten questions are eligible", async () => {
+    await mockCatalogFetchWithTenEligible();
+    render(<Quiz locale="pt-BR" />);
+    await waitForSetupReady();
+    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
+      /Só há dez perguntas elegíveis/,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    for (let index = 0; index < 10; index += 1) {
+      fireEvent.click(screen.getAllByRole("radio")[0]!);
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      const isLast = index === 9;
+      advanceClock();
+      fireEvent.click(screen.getByRole("button", { name: isLast ? "Ver resultado" : "Próxima pergunta" }));
+    }
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
+      /Só há dez perguntas elegíveis/,
+    );
+  });
+
   it("charges the declared cost when standard mode reveals a clue", async () => {
     await renderReady("pt-BR", dailyPtSession);
     const clueIndex = dailyPtSession.questions.findIndex((question) => question.clues_available.length > 0);
@@ -159,6 +325,44 @@ describe("Quiz", () => {
     );
   });
 
+  it("tells the player a question has no clue and charges nothing", async () => {
+    await renderReady("pt-BR", dailyPtSession);
+    const first = dailyPtSession.questions[0]!;
+    expect(first.clues_available).toHaveLength(0);
+    expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent(
+      "Esta pergunta não tem pista disponível. Nenhum ponto será descontado.",
+    );
+    expect(screen.queryByRole("button", { name: /Ver pista/ })).not.toBeInTheDocument();
+    const answer = first.options.find((option) => option.id === first.answer_option_id)!;
+    fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    expect(screen.queryByTestId("quiz-no-clue")).not.toBeInTheDocument();
+    clickNext();
+    expect(screen.getByText("Pontos:").parentElement).toHaveTextContent(String(first.base_points));
+  });
+
+  it("lists the source of a clue the player opened next to the answer's", async () => {
+    await renderReady("pt-BR", dailyPtSession);
+    const clueIndex = dailyPtSession.questions.findIndex((question) => question.clues_available.length > 0);
+    for (let index = 0; index < clueIndex; index += 1) {
+      const current = dailyPtSession.questions[index]!;
+      const answer = current.options.find((option) => option.id === current.answer_option_id)!;
+      fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      clickNext();
+    }
+    const question = dailyPtSession.questions[clueIndex]!;
+    expect(screen.queryByTestId("quiz-no-clue")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: `Ver pista (-${question.hint_cost} pontos)` }));
+    const answer = question.options.find((option) => option.id === question.answer_option_id)!;
+    fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver fonte" }));
+    const source = screen.getByTestId("quiz-clue-source");
+    expect(source).toHaveTextContent(question.clues_available[0]!.text);
+    expect(source.querySelector("a")).toHaveAttribute("href", question.clues_available[0]!.evidence[0]!.source_url);
+  });
+
   it("chooses a mode before starting and keeps expert free of clues", async () => {
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
@@ -170,16 +374,23 @@ describe("Quiz", () => {
     const heading = await screen.findByRole("heading", { name: expertSession.questions[0]!.prompt });
     await vi.waitFor(() => expect(heading).toHaveFocus());
     expect(screen.queryByRole("button", { name: /pista/i })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("quiz-no-clue")).not.toBeInTheDocument();
   });
 
   it("ignores a stale session response after the locale changes", async () => {
-    let releasePtManifest!: (response: Response) => void;
-    const delayedPtManifest = new Promise<Response>((resolve) => { releasePtManifest = resolve; });
+    let releasePtSession!: (response: Response) => void;
+    const delayedPtSession = new Promise<Response>((resolve) => { releasePtSession = resolve; });
     const fetch = vi.fn((url: string) => {
-      if (url.includes("pt-BR")) return Promise.resolve(new Response(`${JSON.stringify(ptSession)}\n`));
-      if (url.includes("session.en")) return Promise.resolve(new Response(`${JSON.stringify(enSession)}\n`));
-      if (fetch.mock.calls.length === 1) return delayedPtManifest;
-      return Promise.resolve(new Response(JSON.stringify(manifest)));
+      if (url.includes("catalog-manifest") || url.includes("/catalog.")) {
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }
+      if (url.endsWith("manifest-v3.json")) return Promise.resolve(new Response(null, { status: 404 }));
+      if (url.endsWith("manifest-v2.json")) return Promise.resolve(new Response(JSON.stringify(manifest)));
+      if (url.includes("session") && url.includes("pt-BR")) return delayedPtSession;
+      if (url.includes("session") && url.includes(".en.")) {
+        return Promise.resolve(new Response(`${JSON.stringify(enSession)}\n`));
+      }
+      return Promise.resolve(new Response(`${JSON.stringify(enSession)}\n`));
     });
     vi.stubGlobal("fetch", fetch);
     const view = render(<Quiz locale="pt-BR" />);
@@ -187,7 +398,7 @@ describe("Quiz", () => {
     await waitForSetupReady("Set up your game");
     fireEvent.click(screen.getByRole("button", { name: "Start game" }));
     expect(await screen.findByRole("heading", { name: enSession.questions[0]!.prompt })).toBeInTheDocument();
-    releasePtManifest(new Response(JSON.stringify(manifest)));
+    releasePtSession(new Response(`${JSON.stringify(ptSession)}\n`));
     await act(async () => { await Promise.resolve(); });
     await act(async () => { await Promise.resolve(); });
     expect(screen.getByRole("heading", { name: enSession.questions[0]!.prompt })).toBeInTheDocument();
@@ -377,10 +588,19 @@ describe("Quiz", () => {
   });
 
   it("shows the missing state and retries the publication", async () => {
-    const fetch = vi.fn()
-      .mockResolvedValueOnce(new Response(null, { status: 404 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(manifest)))
-      .mockResolvedValueOnce(new Response(`${JSON.stringify(ptSession)}\n`));
+    // Catalog absent; only manifest-v2.json is published, and its first request is a 404.
+    let legacyManifestRequests = 0;
+    const fetch = vi.fn(async (url: string) => {
+      if (url.includes("catalog-manifest") || url.includes("/catalog.")) {
+        return new Response(null, { status: 404 });
+      }
+      if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
+      if (url.endsWith("manifest-v2.json")) {
+        legacyManifestRequests += 1;
+        return legacyManifestRequests === 1 ? new Response(null, { status: 404 }) : new Response(JSON.stringify(manifest));
+      }
+      return new Response(`${JSON.stringify(ptSession)}\n`);
+    });
     vi.stubGlobal("fetch", fetch);
     render(<Quiz locale="pt-BR" />);
     expect(await screen.findByText("Este jogo ainda não está disponível em português.")).toBeInTheDocument();
@@ -388,7 +608,9 @@ describe("Quiz", () => {
     await waitForSetupReady();
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     expect(await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(legacyManifestRequests).toBe(2);
+    // catalog probe + v3 + v2 (miss), then retry: catalog + v3 + v2 + session = 7
+    expect(fetch).toHaveBeenCalledTimes(7);
   });
 
   it("completes all questions, displays results, and restarts the round", async () => {
@@ -421,6 +643,7 @@ describe("Quiz", () => {
 
     // Unanswered: give up on the first question.
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
     await screen.findByRole("heading", { name: "Fim da partida" });
     expect(document.querySelectorAll(".review-item")).toHaveLength(total);
 
@@ -431,19 +654,76 @@ describe("Quiz", () => {
     fireEvent.click(screen.getByRole("radio", { name: question.options[0]!.label }));
     fireEvent.click(screen.getByRole("button", { name: "Responder" }));
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
     await screen.findByRole("heading", { name: "Fim da partida" });
     expect(document.querySelectorAll(".review-item")).toHaveLength(total);
 
-    // Double activation in the same tick records nothing twice.
+    // Double confirm in the same tick records nothing twice.
     fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
     await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
-    const giveUp = screen.getByRole("button", { name: "Desistir" });
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    const confirm = screen.getByRole("button", { name: "Sim, desistir" });
     act(() => {
-      giveUp.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      giveUp.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      confirm.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      confirm.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await screen.findByRole("heading", { name: "Fim da partida" });
     expect(document.querySelectorAll(".review-item")).toHaveLength(total);
+  });
+
+  it("asks for confirmation before giving up and keeps the round on cancel or Escape", async () => {
+    await renderReady();
+    const prompt = ptSession.questions[0]!.prompt;
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: prompt })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: prompt })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: prompt })).toBeInTheDocument();
+  });
+
+  it("closes a pending give-up confirm when the timer expires and ignores a delayed confirm", async () => {
+    vi.useFakeTimers();
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
+    fireEvent.click(screen.getByRole("checkbox", { name: "Limitar cada pergunta a 20 segundos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    await vi.waitFor(() => expect(screen.queryByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+
+    for (let second = 0; second < 20; second += 1) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    }
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Acabou o tempo.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+
+    // After timeout the round stays on the verdict; give-up still needs a fresh confirm.
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByText("Acabou o tempo.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+  });
+
+  it("shows English give-up confirmation copy", async () => {
+    await renderReady("en");
+    fireEvent.click(screen.getByRole("button", { name: "Give up" }));
+    expect(screen.getByRole("dialog", { name: "Give up this game?" })).toBeInTheDocument();
+    expect(screen.getByText("You will lose your progress in this game.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("persists play-mode and timer preferences in localStorage", async () => {
@@ -512,6 +792,9 @@ describe("Quiz", () => {
   it("initializes playMode lazily from localStorage avoiding double session fetch", async () => {
     window.localStorage.setItem("kpop-quiz-play-mode", "expert");
     const fetch = vi.fn((url: string) => {
+      if (url.includes("catalog-manifest") || url.includes("/catalog.")) {
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }
       const payload = url.endsWith("manifest-v2.json") ? manifest : expertSession;
       return Promise.resolve(new Response(`${JSON.stringify(payload)}\n`));
     });
@@ -521,7 +804,7 @@ describe("Quiz", () => {
     await waitForSetupReady();
 
     const fetchedUrls = fetch.mock.calls.map((call) => call[0] as string);
-    expect(fetchedUrls.some((url) => url.includes("standard"))).toBe(false);
+    expect(fetchedUrls.some((url) => url.includes("session") && url.includes("standard"))).toBe(false);
     expect(fetchedUrls.some((url) => url.includes("expert"))).toBe(true);
   });
 
@@ -583,6 +866,406 @@ describe("Quiz", () => {
     expect(langLink.search).toContain("theme=daily");
 
     document.body.removeChild(langLink);
+  });
+
+  it("draws the general quiz from the catalog and changes the set on replay", async () => {
+    mockCatalogFetch();
+    render(<Quiz locale="pt-BR" />);
+    await waitForSetupReady();
+    const requested = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map(([url]) => url);
+    expect(requested.some((url) => url.includes("catalog-manifest"))).toBe(true);
+    expect(requested.some((url) => url.includes("catalog.pt-BR.standard"))).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    const firstPrompt = (await screen.findByRole("heading", { level: 2 })).textContent!;
+    for (let index = 0; index < 10; index += 1) {
+      fireEvent.click(screen.getAllByRole("radio")[0]!);
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      const isLast = index === 9;
+      advanceClock();
+      fireEvent.click(screen.getByRole("button", { name: isLast ? "Ver resultado" : "Próxima pergunta" }));
+    }
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+    const replayPrompt = await screen.findByRole("heading", { level: 2 });
+    await vi.waitFor(() => expect(replayPrompt.textContent).not.toBe(firstPrompt));
+    await act(async () => { await Promise.resolve(); });
+  });
+
+  it("keeps the daily quiz on the published session without reading catalog shards", async () => {
+    window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+    const dailyRaw = `${JSON.stringify(dailyPtSession)}\n`;
+    const dailyHash = createHash("sha256").update(dailyRaw).digest("hex");
+    const testManifest = structuredClone(manifest) as Record<string, any>;
+    for (const locale of ["pt-BR", "en"]) {
+      for (const mode of ["assisted", "standard", "expert"]) {
+        testManifest.sessions[`daily.${locale}.${mode}`] = {
+          path: `session.daily.${locale}.${mode}.${dailyHash}.json`,
+          sha256: dailyHash,
+          session_id: dailyPtSession.session_id,
+        };
+      }
+    }
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes("catalog-manifest") || /\/catalog\./.test(url)) {
+        return new Response(null, { status: 404 });
+      }
+      if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
+      if (url.endsWith("manifest-v2.json")) return new Response(JSON.stringify(testManifest));
+      if (url.includes("session.daily")) return new Response(dailyRaw);
+      return new Response(`${JSON.stringify(ptSession)}\n`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    // Absorb orphan catalog shard requests still resolving from the previous
+    // catalog case (manifest already done; shard fetch can land after unstub).
+    for (let quiet = 0; quiet < 3; ) {
+      const before = fetchMock.mock.calls.length;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      quiet = fetchMock.mock.calls.length === before ? quiet + 1 : 0;
+    }
+    fetchMock.mockClear();
+    render(<Quiz locale="pt-BR" />);
+    await waitForSetupReady();
+    const requested = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requested.some((url) => url.includes("catalog-manifest") || /\/catalog\./.test(url))).toBe(false);
+    expect(requested.some((url) => url.includes("session.daily"))).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    expect(await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt })).toBeInTheDocument();
+  });
+
+  it("includes catalog_version in the Q04 progress envelope for catalog rounds", async () => {
+    mockCatalogFetch();
+    const { selectCatalogRound } = await import("../../data/catalog-session");
+    const round = await selectCatalogRound({
+      locale: "pt-BR", playMode: "standard", avoidPrevious: false, baseUrl: "/",
+    });
+    const envelope = buildQuizProgressEnvelope(round.session, "catalog");
+    expect(envelope.catalog_version).toBe(round.catalogVersion);
+    expect(envelope.session_source).toBe("catalog");
+    expect(envelope.session_id).toBe(round.session.session_id);
+    const publishedEnvelope = buildQuizProgressEnvelope(ptSession as typeof round.session, "published");
+    expect(publishedEnvelope.catalog_version).toBeUndefined();
+    expect(publishedEnvelope.session_source).toBe("published");
+  });
+
+  it("shows unavailability for a decade filter with fewer than ten catalog questions", async () => {
+    mockCatalogFetch();
+    window.history.replaceState(null, "", "/?decade=1990");
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByText(/Não há perguntas suficientes/)).toBeInTheDocument();
+  });
+
+  it("saves and restores an unanswered question with pending selection (pt-BR)", async () => {
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    fireEvent.click(screen.getByRole("radio", { name: option.label }));
+    await vi.waitFor(() => {
+      const raw = window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }));
+      expect(raw).toBeTruthy();
+      expect(JSON.parse(raw!).selected_id).toBe(option.id);
+    });
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: question.prompt })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: option.label })).toBeChecked();
+    expect(screen.queryByRole("heading", { name: "Monte sua partida" })).not.toBeInTheDocument();
+  });
+
+  it("restores answered feedback and used clues without duplicating stats", async () => {
+    window.localStorage.setItem("kpop-quiz-consent", "rejected");
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const answer = question.options.find((option) => option.id === question.answer_option_id)!;
+    fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    expect(await screen.findByText("Você acertou.")).toBeInTheDocument();
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByText("Você acertou.")).toBeInTheDocument();
+
+    clickNext();
+    // Finish remaining questions quickly through give-up to reach results twice.
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    const matchId = `session-${ptSession.session_id}`;
+    expect(isGameMatchRecorded("quiz", matchId)).toBe(true);
+    const statsAfterFirst = window.localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await screen.findByRole("heading", { name: "Fim da partida" });
+    expect(window.localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(statsAfterFirst);
+  });
+
+  it("restores a revealed clue from the embedded session save", async () => {
+    const base = structuredClone(ptSession) as QuizSession;
+    const evidence = base.questions[0]!.evidence[0]!;
+    const clue = {
+      id: "c".repeat(64),
+      type: "decade" as const,
+      text: "Pista salva para retomada.",
+      fact_base_ids: [base.questions[0]!.fact_base_ids[0]!],
+      evidence: [{
+        fact_base_id: base.questions[0]!.fact_base_ids[0]!,
+        source_key: evidence.source_key,
+        source_url: evidence.source_url,
+        revision_id: evidence.revision_id,
+        locator: evidence.locator,
+      }],
+    };
+    base.questions[0]!.clues_available = [clue];
+    const save = buildQuizProgressSave({
+      session: base,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [clue.id],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now() - 10_000,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    saveQuizProgress(save);
+    mockSessionFetch(base);
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: base.questions[0]!.prompt })).toBeInTheDocument();
+    expect(screen.getByText("Pista salva para retomada.")).toBeInTheDocument();
+  });
+
+  it("restores an already-elapsed deadline and expires once without skipping ahead", async () => {
+    const startedAt = Date.now() - 30_000;
+    const save = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: true,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: Date.now() - 1_000,
+      startedAtMs: startedAt,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    saveQuizProgress(save);
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByText("Acabou o tempo.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+    // Still the first question's feedback — did not auto-advance several times.
+    expect(screen.getByRole("button", { name: "Próxima pergunta" })).toBeInTheDocument();
+  });
+
+  it("does not authorize give-up from a confirmation that was open before reload", async () => {
+    await renderReady();
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    // Persist happens for question.ready; confirm open is not part of the save.
+    await vi.waitFor(() => expect(window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }))).toBeTruthy());
+    const parsed = JSON.parse(window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }))!);
+    expect(parsed).not.toHaveProperty("confirm_give_up_open");
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+  });
+
+  it("warns and stays usable when the saved schema is invalid (en)", async () => {
+    window.localStorage.setItem(
+      quizProgressStorageKey({ locale: "en", playMode: "standard", theme: "history", decades: [] }),
+      JSON.stringify({ schema_version: "kpop-quiz-progress-v0", session_id: "x" }),
+    );
+    mockSessionFetch();
+    render(<Quiz locale="en" />);
+    expect(await screen.findByText(/saved progress is invalid/i)).toBeInTheDocument();
+    await waitForSetupReady("Set up your game");
+    fireEvent.click(screen.getByRole("button", { name: "Start game" }));
+    expect(await screen.findByRole("heading", { name: enSession.questions[0]!.prompt })).toBeInTheDocument();
+  });
+
+  it("warns when session identity drifts and still allows a new round", async () => {
+    const foreign = {
+      ...(ptSession as QuizSession),
+      session_id: "d".repeat(64),
+    };
+    const save = buildQuizProgressSave({
+      session: foreign,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now(),
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: null,
+    });
+    saveQuizProgress(save);
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByText(/não combina com os dados atuais/i)).toBeInTheDocument();
+    expect(screen.getByTestId("game-start")).toBeEnabled();
+  });
+
+  it("migrates a legacy single-slot save into the current config slot", async () => {
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    const save = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: option.id,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now() - 5_000,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    window.localStorage.setItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY, JSON.stringify(save));
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: question.prompt })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: option.label })).toBeChecked();
+    expect(window.localStorage.getItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] }))).toBeTruthy();
+  });
+
+  it("keeps a pt-BR in-progress save when opening the English quiz", async () => {
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    const ptSave = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: option.id,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now() - 5_000,
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: "legacy-repeats",
+    });
+    saveQuizProgress(ptSave);
+    const ptKey = quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] });
+    const before = window.localStorage.getItem(ptKey);
+    mockSessionFetch();
+    render(<Quiz locale="en" />);
+    await waitForSetupReady("Set up your game");
+    expect(screen.getByTestId("game-start")).toBeEnabled();
+    expect(window.localStorage.getItem(ptKey)).toBe(before);
+    expect(screen.queryByRole("heading", { name: question.prompt })).not.toBeInTheDocument();
+  });
+
+  it("leaves an incompatible legacy save alone when the current locale differs", async () => {
+    const ptSave = buildQuizProgressSave({
+      session: ptSession as QuizSession,
+      sessionSource: "published",
+      locale: "pt-BR",
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 0,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: [],
+      questionDeadlineMs: null,
+      startedAtMs: Date.now(),
+      elapsedSeconds: 0,
+      gaveUp: false,
+      replayNotice: null,
+    });
+    window.localStorage.setItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY, JSON.stringify(ptSave));
+    mockSessionFetch();
+    render(<Quiz locale="en" />);
+    expect(await screen.findByText(/does not match the current data/i)).toBeInTheDocument();
+    expect(window.localStorage.getItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY)).toBeTruthy();
+    await waitForSetupReady("Set up your game");
+  });
+
+  it("autosaves and restores a radio selection made with the keyboard", async () => {
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const option = question.options[0]!;
+    const radio = screen.getByRole("radio", { name: option.label });
+    radio.focus();
+    fireEvent.keyDown(radio, { key: " ", code: "Space" });
+    fireEvent.click(radio);
+    const ptKey = quizProgressStorageKey({ locale: "pt-BR", playMode: "standard", theme: "history", decades: [] });
+    await vi.waitFor(() => {
+      const raw = window.localStorage.getItem(ptKey);
+      expect(raw).toBeTruthy();
+      expect(JSON.parse(raw!).selected_id).toBe(option.id);
+    });
+
+    document.body.innerHTML = "";
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    expect(await screen.findByRole("heading", { name: question.prompt })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: option.label })).toBeChecked();
   });
 });
 

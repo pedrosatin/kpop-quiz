@@ -23,11 +23,12 @@ export async function expectQuizBoardVisible(page: Page): Promise<void> {
 
 /**
  * Daily games that mount the board without a Start click.
- * When optionalArtifact is set, a missing-artifact region + retry CTA is OK.
+ * When optionalArtifact is set, a missing-artifact region + retry CTA is OK;
+ * missingKinds further restricts which data-error-kind that region may carry.
  */
 export async function expectBoardDirectReady(
   page: Page,
-  options: { optionalArtifact?: boolean } = {},
+  options: { optionalArtifact?: boolean; missingKinds?: readonly string[] } = {},
 ): Promise<void> {
   await expectShellVisible(page);
   const board = page.getByTestId("game-board");
@@ -48,6 +49,10 @@ export async function expectBoardDirectReady(
   }
 
   await expect(missing).toBeVisible();
+  if (options.missingKinds) {
+    const kind = await missing.getAttribute("data-error-kind");
+    expect(options.missingKinds, `unexpected missing state "${kind}"`).toContain(kind);
+  }
   await expect(page.getByTestId("game-retry")).toBeVisible();
 }
 
@@ -65,10 +70,10 @@ export async function bootRoute(page: Page, route: SmokeRoute): Promise<void> {
       await expectQuizBoardVisible(page);
       break;
     case "board-direct":
-      await expectBoardDirectReady(
-        page,
-        route.optionalArtifact ? { optionalArtifact: true } : {},
-      );
+      await expectBoardDirectReady(page, {
+        ...(route.optionalArtifact ? { optionalArtifact: true } : {}),
+        ...(route.missingKinds ? { missingKinds: route.missingKinds } : {}),
+      });
       break;
     case "privacy":
       await expectPrivacyReady(page);

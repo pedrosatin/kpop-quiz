@@ -38,6 +38,24 @@ class QuizGeneratorTest(unittest.TestCase):
             generate_dataset(self.connection)
         load_relevance.assert_called_once_with(self.connection)
 
+    def test_default_dataset_keeps_every_clue_inside_its_questions_facts(self):
+        # The invariant a client released before related clues enforces.
+        dataset, report = generate_dataset(self.connection, date(2026, 9, 13))
+        for question in dataset["questions"]:
+            for clue in question["clues_available"]:
+                self.assertLessEqual(set(clue["fact_base_ids"]), set(question["fact_base_ids"]))
+        self.assertIn("related_clues_not_enabled", report["clue_coverage"]["unavailable_by_reason"])
+
+    def test_related_clues_only_appear_when_enabled(self):
+        enabled, _ = generate_dataset(self.connection, date(2026, 9, 13), related_clues=True)
+        default, _ = generate_dataset(self.connection, date(2026, 9, 13))
+        outside = [
+            clue for question in enabled["questions"] for clue in question["clues_available"]
+            if not set(clue["fact_base_ids"]) <= set(question["fact_base_ids"])
+        ]
+        self.assertTrue(outside)
+        self.assertEqual(len(enabled["questions"]), len(default["questions"]))
+
     def test_generates_supported_types_with_four_distinct_typed_options(self):
         dataset, report = generate_dataset(self.connection, date(2026, 9, 13))
         self.assertEqual(

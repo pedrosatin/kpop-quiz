@@ -1,6 +1,12 @@
+import json
 import unittest
+from pathlib import Path
 
-from kpop_scraping.infobox import field_items, infobox_fields
+from kpop_scraping.infobox import field_items, first_infobox_fields, infobox_fields
+
+AESPA = json.loads(
+    (Path(__file__).parent / "fixtures" / "infobox-aespa-rev1375560471.json").read_text(encoding="utf-8")
+)
 
 
 def items(wikitext, field):
@@ -95,5 +101,120 @@ class InfoboxItemsTest(unittest.TestCase):
         self.assertEqual(items(wikitext, "label"), [("Hybe",)])
 
 
+class InfoboxCommentAroundListTest(unittest.TestCase):
+    def test_comment_after_a_list_template_keeps_its_items(self):
+        wikitext = (
+            "{{Infobox musical artist\n"
+            "| label = {{hlist|[[SM Entertainment|SM]]|[[Warner Records|Warner]]}} <!-- CAA is not a label -->\n"
+            "}}"
+        )
+        found = field_items(wikitext, infobox_fields(wikitext)["label"])
+        self.assertEqual([i.names for i in found], [("SM Entertainment", "SM"), ("Warner Records", "Warner")])
+        self.assertEqual(
+            [wikitext[i.start:i.end] for i in found],
+            ["[[SM Entertainment|SM]]", "[[Warner Records|Warner]]"],
+        )
+
+    def test_comment_before_a_list_template_keeps_its_items(self):
+        wikitext = "{{Infobox musical artist\n| label = <!-- note --> {{hlist|JYP|Studio J}}\n}}"
+        self.assertEqual(items(wikitext, "label"), [("JYP",), ("Studio J",)])
+
+    def test_comment_around_a_nested_list_template_keeps_its_items(self):
+        wikitext = "{{Infobox musical artist\n| label = {{hlist|{{hlist|A|B}} <!-- x -->|C}}\n}}"
+        self.assertEqual(items(wikitext, "label"), [("A",), ("B",), ("C",)])
+
+    def test_text_after_the_template_does_not_prove_the_list_items(self):
+        # Only comments are ignored. Other text means the value is not just a list.
+        wikitext = "{{Infobox musical artist\n| label = {{hlist|A|B}} and Ghost <!-- x -->\n}}"
+        self.assertEqual(items(wikitext, "label"), [("and Ghost",)])
+
+    def test_unclosed_comment_does_not_prove_the_list_items(self):
+        wikitext = "{{Infobox musical artist\n| label = {{hlist|A|B}} <!-- no end\n}}"
+        names = {name for item in items(wikitext, "label") for name in item}
+        self.assertFalse({"A", "B"} & names)
+
+
+class AespaRevisionFixtureTest(unittest.TestCase):
+    """Infobox of Aespa in revision 1375560471, with offsets of the full page."""
+
+    def setUp(self):
+        self.text = AESPA["wikitext_excerpt"]
+        self.offset = AESPA["excerpt_offset"]
+        self.fields = infobox_fields(self.text)
+
+    def absolute(self, field):
+        return [
+            (i.names, self.offset + i.start, self.offset + i.end, i.text)
+            for i in field_items(self.text, self.fields[field])
+        ]
+
+    def test_label_lists_the_three_labels_before_the_comment(self):
+        self.assertEqual(self.absolute("label"), [
+            (("SM Entertainment", "SM"), 1254, 1277, "[[SM Entertainment|SM]]"),
+            (("Warner Records", "Warner"), 1278, 1303, "[[Warner Records|Warner]]"),
+            (("Capitol Records", "Capitol"), 1304, 1331, "[[Capitol Records|Capitol]]"),
+        ])
+
+    def test_comment_text_never_becomes_an_item(self):
+        items_found = self.absolute("label")
+        names = {name for item in items_found for name in item[0]}
+        self.assertFalse({"Creative Artists Agency", "CAA"} & names)
+        self.assertNotIn("Creative Artists Agency", " ".join(item[3] for item in items_found))
+
+    def test_bulleted_member_list_is_unchanged(self):
+        self.assertEqual(
+            [item[0] for item in self.absolute("current_members")],
+            [("Karina (South Korean singer)", "Karina"), ("Giselle (singer)", "Giselle"),
+             ("Winter (singer)", "Winter"), ("Ningning",)],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+class FirstInfoboxTest(unittest.TestCase):
+    ACCEPTED = frozenset({"person", "musical artist"})
+
+    def test_reads_person_and_musical_artist_infoboxes(self):
+        for kind in ("person", "Person", "musical artist", "Musical_artist"):
+            wikitext = f"{{{{Infobox {kind}\n| name = A\n| birth_place = [[Seoul]]\n}}}}"
+            fields = first_infobox_fields(wikitext, self.ACCEPTED)
+            self.assertEqual(set(fields), {"name", "birth_place"}, kind)
+            start, end = fields["birth_place"]
+            self.assertEqual(wikitext[start:end].strip(), "[[Seoul]]")
+
+    def test_the_first_infobox_decides_even_when_a_later_one_is_accepted(self):
+        wikitext = (
+            "{{Infobox television\n| name = A\n}}\n"
+            "{{Infobox person\n| birth_place = [[Seoul]]\n}}"
+        )
+        self.assertEqual(first_infobox_fields(wikitext, self.ACCEPTED), {})
+
+    def test_nested_infoboxes_belong_to_the_outer_one(self):
+        wikitext = (
+            "{{Infobox person\n| name = A\n| module = {{Infobox Korean name | hangul = 가}}\n"
+            "| birth_place = [[Seoul]]\n}}"
+        )
+        self.assertEqual(set(first_infobox_fields(wikitext, self.ACCEPTED)), {"name", "module", "birth_place"})
+
+    def test_comments_and_nowiki_are_not_infoboxes(self):
+        wikitext = (
+            "<!-- {{Infobox person | name = Old}} -->\n<nowiki>{{Infobox person|name=X}}</nowiki>\n"
+            "{{Infobox person\n| name = New\n}}"
+        )
+        fields = first_infobox_fields(wikitext, self.ACCEPTED)
+        start, end = fields["name"]
+        self.assertEqual(wikitext[start:end].strip(), "New")
+
+    def test_templates_that_only_start_with_the_name_do_not_count(self):
+        for name in ("Infobox person/doc", "Infobox personality", "Infobox"):
+            wikitext = f"{{{{{name}\n| name = A\n}}}}"
+            self.assertEqual(first_infobox_fields(wikitext, self.ACCEPTED), {}, name)
+
+    def test_unreadable_items_can_be_kept(self):
+        wikitext = "{{Infobox person\n| birth_place = [[Seoul]] and [[Busan]], Daegu\n}}"
+        span = first_infobox_fields(wikitext, self.ACCEPTED)["birth_place"]
+        self.assertEqual([item.names for item in field_items(wikitext, span)], [("Daegu",)])
+        kept = field_items(wikitext, span, include_unreadable=True)
+        self.assertEqual([item.names for item in kept], [(), ("Daegu",)])

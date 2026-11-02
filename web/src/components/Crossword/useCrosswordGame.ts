@@ -33,9 +33,9 @@ export interface UseCrosswordGame {
 }
 
 /**
- * The stats id of the board. A fixed match counts once per board content, on
- * the local day the player finished it, so it joins the overall streak like
- * any other game played that day.
+ * The stats id of the board. Each day's board counts once, by its envelope
+ * checksum, on the local day the player finished it, so it joins the overall
+ * streak like any other game played that day.
  */
 export function crosswordMatchId(puzzle: CrosswordPuzzle): string {
   return `crossword-${puzzle.dataset_version}`;

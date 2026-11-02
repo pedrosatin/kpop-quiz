@@ -585,10 +585,22 @@
   margin: 0;
 }
 
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
 .modal-subtitle {
   margin: var(--space-1) 0 0;
   color: var(--color-text-muted);
   font-size: 0.875rem;
+}
+
+.confirm-dialog-card {
+  max-width: 24rem;
 }
 
 @media (forced-colors: active) {
