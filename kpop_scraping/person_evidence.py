@@ -205,13 +205,19 @@ def _mask(text: str) -> str:
 
 def _stated_date(wikitext: str, start: int, end: int) -> tuple[int, ...] | None:
     """Read the one date a ``birth_date`` value states, or None when it is not clear."""
-    body = _mask(wikitext[start:end])
-    body = _TRAILING_NOTE.sub("", body).strip()
+    raw = wikitext[start:end]
+    masked = _mask(raw)
+    body = _TRAILING_NOTE.sub("", masked).strip()
     if body.startswith("{{"):
         close = _closing_braces(body, 0)
         if close != len(body):
             return None
-        return _template_date(body)
+        unwrapped = _unwrapped_nowrap(body)
+        if unwrapped != body:
+            offset = masked.find(body)
+            if raw[offset : offset + len(body)] != body:
+                return None
+        return _template_date(unwrapped)
     unlinked = _PIPED_LINK.sub(r"\1", body)
     for pattern in _WRITTEN_DATES:
         found = pattern.fullmatch(unlinked.strip())
@@ -220,6 +226,27 @@ def _stated_date(wikitext: str, start: int, end: int) -> tuple[int, ...] | None:
             number = int(month) if month.isdigit() else _MONTH_NUMBER[month.lower()]
             return _calendar_date(int(found.group("year")), number, int(found.group("day")))
     return None
+
+
+def _unwrapped_nowrap(template: str) -> str:
+    """Return the birth date template inside ``{{nowrap|...}}``, else ``template``.
+
+    Only a wrapper with exactly one positional argument that is itself one whole
+    birth date template is removed. Text, notes or other templates inside the
+    wrapper keep it as it is, and ``_template_date`` then reads it as ambiguous.
+    """
+    pieces = _split_top_level(template, 2, len(template) - 2, "|")
+    name = " ".join(template[pieces[0][0] : pieces[0][1]].replace("_", " ").split()).lower()
+    if name != "nowrap" or len(pieces) != 2:
+        return template
+    inner = template[pieces[1][0] : pieces[1][1]].strip()
+    if not inner.startswith("{{") or _closing_braces(inner, 0) != len(inner):
+        return template
+    inner_pieces = _split_top_level(inner, 2, len(inner) - 2, "|")
+    inner_name = " ".join(
+        inner[inner_pieces[0][0] : inner_pieces[0][1]].replace("_", " ").split()
+    ).lower()
+    return inner if inner_name in _BIRTH_TEMPLATES else template
 
 
 def _template_date(template: str) -> tuple[int, ...] | None:
