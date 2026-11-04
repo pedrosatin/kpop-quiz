@@ -1,13 +1,31 @@
 {
  "_source": {
-  "description": "Casos reais de infobox de página própria de pessoa na Wikipedia em inglês (ADR 027), com o valor do Wikidata que cada caso compara. Os casos \"derived\" mudam só a precisão do valor do Wikidata.",
+  "description": "Casos reais de infobox de página própria de pessoa na Wikipedia em inglês (ADR 027), com o valor do Wikidata que cada caso compara. Os casos \"derived\" mudam só a precisão do valor do Wikidata. Casos on-*-nowrap: revisões da cópia person-evidence-audit/depois (conflitos.csv wikipedia_value_ambiguous com {{nowrap|{{birth date…}}}}); wikitext_prefix cortado no fim da primeira Infobox person|musical artist; localizadores nos offsets da revisão completa.",
   "retrieved_at": "2026-10-20T02:46:05+00:00",
   "api": "https://en.wikipedia.org/w/api.php: action=query&titles=...&redirects=1&prop=extracts|info|pageprops|revisions&rvprop=ids (revid e wikibase_item); revids=...&rvprop=ids|content&rvslots=main (wikitext)",
   "user_agent": "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz; medicao evidencia-pessoa 01)",
   "wikidata": "statement_id e valor lidos dos snapshots subject-v1 de data/kpop.db (fatos born_on e born_in rejeitados por missing_evidence) na medição da fatia 01; names são os nomes de matching_names do lugar",
   "reduction": "wikitext_prefix é o começo da revisão até o fim da primeira infobox. Os deslocamentos dos localizadores continuam os da revisão inteira. O texto depois da infobox foi descartado.",
   "license": "O wikitext é conteúdo da Wikipedia sob CC BY-SA 4.0. Cada trecho vem de uma revisão identificada por pageid e revid (permalink), e o histórico da página lista os autores.",
-  "redirect_pages": "EunB e Kyujin têm título que redireciona para a página do grupo; a página guardada nesses casos é a do grupo (is_redirect = true, wikibase_item do grupo)."
+  "redirect_pages": "EunB e Kyujin têm título que redireciona para a página do grupo; a página guardada nesses casos é a do grupo (is_redirect = true, wikibase_item do grupo).",
+  "nowrap_audit": {
+   "source": "person-evidence-audit conflicts.csv (wikipedia_value_ambiguous with nowrap birth date templates)",
+   "research_note": ".scratch/research/adr027-gate-literal-faltantes.md",
+   "case_ids": [
+    "on-kim-jung-mo-nowrap",
+    "on-choi-min-ho-nowrap",
+    "on-choi-young-jae-nowrap",
+    "on-ferlyn-wong-nowrap",
+    "on-kris-wu-nowrap"
+   ],
+   "revids": {
+    "Q12588546": 1377939049,
+    "Q134575": 1380163351,
+    "Q17500581": 1377048312,
+    "Q18355110": 1380141980,
+    "Q6437313": 1378780578
+   }
+  }
  },
  "pages": [
   {
@@ -229,6 +247,61 @@
    "wikidata_id": "Q109307762",
    "is_redirect": true,
    "wikitext_prefix": "{{Short description|South Korean girl group}}\n{{Use mdy dates|date=November 2024}}\n{{Infobox musical artist\n| name            = Nmixx\n| image           = Nmixx in Frankfurt 20260324 (1).jpg\n| image_upright   = \n| landscape       = yes\n| caption         = Nmixx in March 2026<br />L-R: Jiwoo, Sullyoon, Bae, Kyujin, Haewon, and Lily\n| origin          = [[Seoul]], South Korea\n| genre           = [[K-pop]]\n| years_active    = 2022–present\n| label           = {{hlist|[[JYP Entertainment|JYP]]|[[Republic Records|Republic]]}}\n| current_members = \n* [[Lily (singer, born 2002)|Lily]]\n* [[Haewon (singer)|Haewon]]\n* Sullyoon\n* Bae\n* Jiwoo\n* Kyujin\n| past_members    = [[Jini (singer)|Jinni]] <!-- DO NOT move and/or remove otherwise it will be considered as DISRUPTIVE EDITING -->\n| website         = {{URL|nmixx.jype.com}}\n}}"
+  },
+  {
+   "qid": "Q12588546",
+   "requested_title": "Kim Jung-mo",
+   "title": "Kim Jung-mo",
+   "pageid": 51565054,
+   "revid": 1377939049,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=51565054&oldid=1377939049",
+   "wikidata_id": "Q12588546",
+   "is_redirect": false,
+   "wikitext_prefix": "{{short description|South Korean musician}}\n{{for|the South Korean cyclist|Kim Jung-mo (cyclist)}}\n{{Infobox musical artist\n| name            = Jungmo\n| image           = Kim Jung-mo 20150506.png\n| caption         = Jungmo in 2015\n| birth_name      = Kim Jung-mo\n| birth_date      = {{nowrap|{{birth date and age|1985|3|26}}}}\n| birth_place     = [[Seoul]], South Korea\n| occupation      = Musician\n| genre           = {{hlist|\t\n[[Pop rock]]|[[alternative rock]]}} \n| instrument      = {{hlist|Guitar|bass|vocals}}\n| years_active    = 2004–present\n| label           = {{hlist|[[SM Entertainment|SM]]|PA}}\n| current_member_of = {{hlist|[[TRAX (band)|TRAX]]}}\n| past_member_of = {{hlist|\n[[M&D]]|[[SM Town]]}}\n| website         = \n| module         = {{Infobox Korean name/auto|child=yes\n| hangul          = %김정모\n| hanja           =\n}}\n}}"
+  },
+  {
+   "qid": "Q134575",
+   "requested_title": "Choi Min-ho",
+   "title": "Choi Min-ho",
+   "pageid": 30058713,
+   "revid": 1380163351,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=30058713&oldid=1380163351",
+   "wikidata_id": "Q134575",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean entertainer (born 1991)}}\n{{other people}}\n{{Use mdy dates|date=August 2014}}\n{{family name hatnote|Choi||lang=Korean}}\n{{Infobox person\n| name              = Choi Min-ho\n| image             = 2025-09-26 Choi Min-ho for Marie Claire Korea 02 (cropped).jpg\n| caption           = Choi in 2025\n| birth_date        = {{nowrap|{{birth date and age|1991|12|09}}}}\n| birth_place       = [[Incheon]], South Korea\n| occupation        = {{hlist|Singer|rapper|songwriter|actor}}\n| father            = [[Choi Yun-kyum]]\n| module            = {{Infobox musical artist|embed=yes\n| genre             = [[K-pop]]\n| instrument        = Vocals\n| years_active      = 2008–present\n| label             = [[SM Entertainment|SM]]\n| current_member_of = [[Shinee]]\n| website           = {{URL|https://www.smtown.com/artist/musician/8|\nOfficial website}}\n}}\n| module2           = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul            = %최민호\n| hanja             = 崔珉豪\n}}\n| signature         = Choi Minho signature.png\n}}"
+  },
+  {
+   "qid": "Q17500581",
+   "requested_title": "Choi Young-jae",
+   "title": "Choi Young-jae",
+   "pageid": 57965607,
+   "revid": 1377048312,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=57965607&oldid=1377048312",
+   "wikidata_id": "Q17500581",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|South Korean singer (born 1996)}}\n{{Family name hatnote|Choi|lang=Korean}}\n{{Use dmy dates|date=February 2021}}\n{{Infobox person\n| name               = Choi Young-jae\n| image              = Choi Youngjae at Incheon airport, 16 June 2025 01.png\n| caption            = Youngjae in June 2025\n| birth_date         = {{nowrap|{{birth date and age|1996|09|17|df=y}}}}\n| birth_place        = [[Mokpo]], South Korea\n| education          = [[Daekyeung University]]\n| occupation         = {{hlist|Singer|songwriter|actor|DJ}}\n| agent              = AndBut Company\n| module             = {{Infobox musical artist|embed=yes\n| genre             = {{hlist|[[K-pop]]|[[J-pop]]|[[Contemporary R&B|R&B]]}}\n| instrument        = Vocals\n| years_active      = 2014–present\n| label = {{flatlist|\n*[[JYP Entertainment|JYP]]\n*[[Sony Music Entertainment Japan|Sony Japan]]}}\n| alias             = Ars<ref>{{Cite web|url=http://www.jyppub.com/creators2?schDisplay=&schType=&schString=&pageNo=1&creator_cd=CR00052&creator_pm=Ars|title=JYP Creators list|website=JYP Entertainment|access-date=10 July 2018|archive-date=20 January 2021|archive-url=https://web.archive.org/web/20210120183804/http://www.jyppub.com/creators2?schDisplay=&schType=&schString=&pageNo=1&creator_cd=CR00052&creator_pm=Ars|url-status=dead}}</ref>\n| current_member_of = [[Got7]]\n| website           = {{Official website|https://youngjaexars.com/}}\n}}\n| module2            = {{Infobox Korean name/auto|child=yes|headercolor=transparent\n| hangul            = %최영재\n| hanja             = 崔榮宰\n}}\n| signature          = Choi Youngjae's signature.png\n}}"
+  },
+  {
+   "qid": "Q18355110",
+   "requested_title": "Ferlyn Wong",
+   "title": "Ferlyn Wong",
+   "pageid": 44097415,
+   "revid": 1380141980,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=44097415&oldid=1380141980",
+   "wikidata_id": "Q18355110",
+   "is_redirect": false,
+   "wikitext_prefix": "{{short description|Singaporean singer and actress (born 1992)}}\n{{family name hatnote|[[Wong (surname)|Wong]]|lang=Chinese}}\n{{Use dmy dates|date=May 2025}}\n\n{{Unreliable sources|date=May 2025}}{{Infobox person\n| name        = Ferlyn G Wong\n| image       = Ferlyn Wong - Wah!Banana skit 2022.jpg\n| caption     = Wong in a ''Wah!Banana'' skit in January 2022\n| birth_name  = Ferlyn Gilleen Wong Jing Ling<ref>{{cite news|title=Local Actress Ferlyn G On Why She Gave Up Her Career As A K-Pop Idol|url= https://www.8days.sg/entertainment/local/ferlyn-g-k-pop-idol-mum-scolded-over-phone-809956 |access-date=14 December 2024|newspaper=8days|date=26 July 2023|archive-date=|archive-url=|url-status=}}</ref>\n| other_names = Ferlyn G\n| birth_date  = {{nowrap|{{birth date and age|df=y|1992|02|01}}}}\n| birth_place = [[Singapore]]\n| occupation  = {{hlist|Singer|actress|model|dancer}}\n| education   = [[Temasek Polytechnic]]\n| module      = {{Infobox musical artist\n| embed               = yes\n| genre               = {{hlist|[[K-pop]]|[[Mandopop]]|dance}}\n| instruments         = Vocals\n| years_active        = 2012–present\n| label               = {{hlist|[[CJ E&M Music Performance Division|CJ E&M]]| Alpha Entertainment|GIF Music}}\n| past_member_of      = [[Skarf]]\n| website             = \n| notable_instruments = \n}}\n| module2     = {{Infobox Chinese\n| child       = yes\n| hide        = no\n| headercolor = transparent\n| s           = 黄晶玲\n| p           = Huáng Jīnglíng\n| hangul      = 페린\n}}\n}}"
+  },
+  {
+   "qid": "Q6437313",
+   "requested_title": "Kris Wu",
+   "title": "Kris Wu",
+   "pageid": 43430636,
+   "revid": 1378780578,
+   "permalink": "https://en.wikipedia.org/w/index.php?curid=43430636&oldid=1378780578",
+   "wikidata_id": "Q6437313",
+   "is_redirect": false,
+   "wikitext_prefix": "{{Short description|Canadian former rapper (born 1990)}}\n{{Distinguish|Chris Wu}}\n{{pp-semi-indef|small=yes}}\n{{Use Canadian English|date=January 2024}}\n{{Use mdy dates|date=December 2023}}\n{{Infobox person\n| name               = Kris Wu\n| image              = 咪咕音乐盛典 (24).jpg\n| caption            = Wu in 2017\n| birth_name         = Li Jiaheng\n| birth_date         = {{nowrap|{{Birth date and age|1990|11|6}}}}\n| birth_place        = [[Guangzhou]], [[Guangdong]], China\n| other_names        = {{plainlist|\n* Wu Yi Fan\n}}\n| citizenship        = China (1990–2000s)<br />Canada (2000s–present){{Citation needed|date=December 2024|reason=Source on the 2000s?}}\n| education          = [[Sir Winston Churchill Secondary School (Vancouver)|Sir Winston Churchill Secondary School]]\n| occupation         = {{flatlist|\n* Rapper\n* actor\n* model\n}}\n| module             = {{Infobox musical artist|embed=yes\n | alias           = \n| years_active       = 2012–2021<ref>{{Cite web|title=封杀！在吴亦凡事件中造谣、诱导集资、恶意洗地的账号…微博、微信同时出手|url=https://m.nbd.com.cn/articles/2021-08-02/1860555.html|access-date=August 2, 2021}}</ref><ref>{{cite news |author1=|title=吳亦凡遭除名「變神秘數字 |url=https://star.ettoday.net/news/2045790 |work=ETtoday |date=August 2, 2021 |language=zh-tw |accessdate=August 2, 2021 |archive-date=August 2, 2021 |archive-url=https://web.archive.org/web/20210802134922/https://star.ettoday.net/news/2045790 |url-status=live }}</ref>\n| website            = {{URL|www.kriswuofficial.com|kriswuofficial.com}}\n | origin          = [[Seoul]], South Korea\n | genre           = {{hlist|[[Hip hop music|Hip hop]]|[[Contemporary R&B|R&B]]}}\n | instrument      = Vocals\n | label           = {{flatlist|\n* Ace Unit Culture\n* [[Interscope Records|Interscope]]\n* [[Universal Music Group|Universal China]]\n* Go East\n* [[SM Entertainment|SM]]\n}}\n| past_member_of  = {{flatlist|\n* [[Exo]]\n* [[Exo|Exo-M]]\n* [[SM Town]]\n}}}}\n| module2            = {{Infobox criminal\n| child           = yes\n| convictions     = [[Rape in China#Law|Rape]], [[Group sex|assembling a crowd to engage in promiscuous activities]]<ref name=cnn>{{Cite web|url=https://www.cnn.com/2022/11/25/china/china-pop-star-sentenced-rape-intl/index.html|title=Chinese-Canadian pop star Kris Wu sentenced to 13 years of prison for rape in China|website=CNN|date=November 25, 2022 }}</ref><ref name=rape />\n| penalty         = 13 years in prison plus [[deportation]]<ref name=rape>{{Cite news|url=https://apnews.com/article/entertainment-music-china-crime-672445977ddeae81c51c233d84a6de03|title=China sentences Chinese-Canadian star Kris Wu to 13 years|publisher=AP News|access-date=November 25, 2022}}</ref>\n| criminal_status = Incarcerated\n| apprehended     = July 31, 2021\n| victims         = 3+<ref name=cnn/>\n| date            = [[Kris Wu rape case|November — December 2020]]\n}}\n| module3            = {{Infobox Chinese|child=yes\n | order   = st\n | name1   = Wu Yi Fan\n | s       = {{linktext|吴|亦|凡}}\n | t       = {{linktext|吳|亦|凡}}\n | p       = Wú Yìfán\n | altname = Li Jiaheng\n | s2      = {{linktext|李|嘉|恒}}\n | t2      = {{linktext|李|嘉|恆}}\n | p2      = Lǐ Jiāhéng\n}}\n| signature          = Kris Wu's signature.png\n}}"
   }
  ],
  "cases": [
@@ -715,6 +788,91 @@
    },
    "expect": {
     "outcome": "none"
+   }
+  },
+  {
+   "id": "on-kim-jung-mo-nowrap",
+   "qid": "Q12588546",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "nowrap wrapping birth date and age (Kim Jung-mo); from person-evidence-audit conflicts.csv",
+   "wikidata": {
+    "statement_id": "Q12588546$247B2621-43C8-485C-9020-36C4A61CCCC6",
+    "time": "1985-03-26",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{nowrap|{{birth date and age|1985|3|26}}}}",
+    "locator": "wikitext[283:326]"
+   }
+  },
+  {
+   "id": "on-choi-min-ho-nowrap",
+   "qid": "Q134575",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "nowrap wrapping birth date and age (Choi Min-ho); from person-evidence-audit conflicts.csv",
+   "wikidata": {
+    "statement_id": "Q134575$D5BF9D28-D6F7-43D7-8581-E1C800A7672E",
+    "time": "1991-12-09",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{nowrap|{{birth date and age|1991|12|09}}}}",
+    "locator": "wikitext[346:390]"
+   }
+  },
+  {
+   "id": "on-choi-young-jae-nowrap",
+   "qid": "Q17500581",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "nowrap wrapping birth date and age (Choi Young-jae); from person-evidence-audit conflicts.csv",
+   "wikidata": {
+    "statement_id": "Q17500581$e77dca83-415f-beb5-75d1-fa45880fd54c",
+    "time": "1996-09-17",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{nowrap|{{birth date and age|1996|09|17|df=y}}}}",
+    "locator": "wikitext[332:381]"
+   }
+  },
+  {
+   "id": "on-ferlyn-wong-nowrap",
+   "qid": "Q18355110",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "nowrap wrapping birth date and age (Ferlyn Wong); from person-evidence-audit conflicts.csv",
+   "wikidata": {
+    "statement_id": "Q18355110$1A0E2B80-DF4E-4FCC-9024-E43A9FB03391",
+    "time": "1992-02-01",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{nowrap|{{birth date and age|df=y|1992|02|01}}}}",
+    "locator": "wikitext[744:793]"
+   }
+  },
+  {
+   "id": "on-kris-wu-nowrap",
+   "qid": "Q6437313",
+   "predicate": "born_on",
+   "origin": "real",
+   "note": "nowrap wrapping birth date and age (Kris Wu); from person-evidence-audit conflicts.csv",
+   "wikidata": {
+    "statement_id": "Q6437313$ADADB934-60FD-4C85-82EC-0CE8A7C81D53",
+    "time": "1990-11-06",
+    "precision": 11
+   },
+   "expect": {
+    "outcome": "accepted",
+    "snippet": "birth_date = {{nowrap|{{Birth date and age|1990|11|6}}}}",
+    "locator": "wikitext[368:411]"
    }
   }
  ]

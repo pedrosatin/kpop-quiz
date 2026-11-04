@@ -209,6 +209,11 @@ class BirthDateTest(unittest.TestCase):
             "{{birth date and age|1993|1|12}} (age 33)",
             "{{birth date and age|1993|1|12}}<ref>{{cite web|url=https://example.test|title=A|B}}</ref>",
             "{{birth date and age|1993|1|12}} <!-- updates itself -->",
+            "{{nowrap|{{birth date and age|1993|1|12}}}}",
+            "{{Nowrap|{{Birth date and age|df=y|1993|1|12}}}}",
+            "{{ nowrap | {{bda|1993|1|12}} }}",
+            "{{nowrap|{{birth date and age|1993|1|12}}}} (age 33)",
+            "{{nowrap|{{birth date and age|1993|1|12}}}}<ref>x</ref> <!-- y -->",
         )
         for form in forms:
             with self.subTest(form):
@@ -231,6 +236,25 @@ class BirthDateTest(unittest.TestCase):
         check = born_on(wikitext)
         start, end = (int(n) for n in check.evidence.locator.rsplit("[", 1)[1][:-1].split(":"))
         self.assertEqual(wikitext[start:end], "{{birth date and age|1993|1|12}}")
+
+    def test_locator_of_a_nowrap_date_holds_the_whole_wrapper_as_the_page_wrote_it(self):
+        value = "{{nowrap|{{birth date and age|1993|1|12}}}}"
+        wikitext = infobox(birth_date=f"{value}<ref>x</ref> <!-- y -->")
+        check = born_on(wikitext)
+        start, end = (int(n) for n in check.evidence.locator.rsplit("[", 1)[1][:-1].split(":"))
+        self.assertEqual(wikitext[start:end], value)
+        self.assertEqual(check.evidence.snippet, f"birth_date = {value}")
+        self.assertEqual(check.evidence.locator.split("#")[0], "wikipedia:en:pageid=10:revid=20")
+
+    def test_a_nowrap_date_that_differs_is_a_divergence_and_year_precision_still_applies(self):
+        wikitext = infobox(birth_date="{{nowrap|{{birth date and age|1993|1|13}}}}")
+        check = born_on(wikitext)
+        self.assertEqual((check.evidence, check.rejection_reason), (None, VALUE_DIFFERS))
+        self.assertEqual(
+            check.observed.snippet, "birth_date = {{nowrap|{{birth date and age|1993|1|13}}}}"
+        )
+        self.assertIsNotNone(born_on(wikitext, "1993", 9).evidence)
+        self.assertEqual(born_on(wikitext, "1994", 9).rejection_reason, VALUE_DIFFERS)
 
     def test_a_different_date_is_a_divergence_with_the_page_text(self):
         for form in (
@@ -282,6 +306,26 @@ class BirthDateTest(unittest.TestCase):
             "1993",
             "unknown",
             "{{nowrap|January 12, 1993}}",
+            "{{nowrap|{{birth date and age|1993|1|12}} (official)}}",
+            "{{nowrap|{{birth date and age|1993|1|12}}<!-- note -->}}",
+            "{{nowrap|<!-- note -->{{birth date and age|1993|1|12}}}}",
+            "{{nowrap|{{birth date and age|1993|1|12}}<ref>x</ref>}}",
+            "{{nowrap|<br />{{birth date and age|1993|1|12}}}}",
+            "{{nowrap|{{birth date and age|1993|1|12}}|{{birth date and age|1994|1|12}}}}",
+            "{{nowrap|{{birth date and age|1993|1|12}} and {{birth date and age|1994|1|12}}}}",
+            "{{nowrap|1={{birth date and age|1993|1|12}}}}",
+            "{{nowrap|{{birth date and age|1993|1}}}}",
+            "{{nowrap|{{birth date and age|1993|2|30}}}}",
+            "{{nowrap|{{birth date and age2|2026|1|1|1993|1|12}}}}",
+            "{{nowrap|{{small|{{birth date and age|1993|1|12}}}}}}",
+            "{{nowrap|{{nowrap|{{birth date and age|1993|1|12}}}}}}",
+            "{{nowrap}}",
+            "{{nowrap|}}",
+            "{{nobr|{{birth date and age|1993|1|12}}}}",
+            "{{nowrap|{{birth date and age|1993|1|12}}}}{{small|(official)}}",
+            "{{birth date and age|1993|1|12}}{{efn|Registered date differs.}}",
+            "{{birth date and age|1993|1|12}}{{efn-ua|name=dob|Note}}",
+            "{{nowrap|{{birth date and age|1993|1|12}}}}{{efn|Registered date differs.}}",
         )
         for form in forms:
             with self.subTest(form):
