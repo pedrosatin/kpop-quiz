@@ -8,6 +8,7 @@ from collections import Counter, defaultdict
 from datetime import date
 
 from .group_relevance_scoring import load_latest_relevance_scores
+from .person_evidence import is_coarse_birth_place
 from .quiz_models import Entity, Evidence, Fact, GENERATOR_VERSION
 from .quiz_schema import DATASET_SCHEMA_VERSION
 from .quiz_templates import TEMPLATE_VERSION, TEMPLATES
@@ -72,6 +73,9 @@ def _load_facts(
         if row["status"] != "accepted":
             reason = row["status_reason"] or "no_reason"
             rejected[f"fact_{row['status']}__{reason}"] += 1
+            continue
+        if is_coarse_birth_place(row["predicate"], json.loads(row["quality_flags_json"])):
+            rejected["coarse_birth_place_excluded"] += 1
             continue
         if row["predicate"] not in supported:
             rejected["unsupported_predicate"] += 1
