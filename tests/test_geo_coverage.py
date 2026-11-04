@@ -23,7 +23,8 @@ def build_test_database(path: Path) -> None:
         );
         CREATE TABLE facts (
             subject_entity_id INTEGER, predicate TEXT, value_entity_id INTEGER,
-            value_wikidata_id TEXT, status TEXT
+            value_wikidata_id TEXT, status TEXT,
+            quality_flags_json TEXT NOT NULL DEFAULT '[]'
         );
         INSERT INTO source_pages VALUES
             (1, 'wikipedia', 'en', 1), (2, 'wikipedia', 'en', 2),
@@ -39,7 +40,9 @@ def build_test_database(path: Path) -> None:
             (5, 'QKOREA', 'place', 'South Korea', 1),
             (6, 'QCITY', 'place', 'Seoul', 1),
             (7, 'QMYANMAR', 'place', 'Myanmar', 1);
-        INSERT INTO facts VALUES
+        INSERT INTO facts(
+            subject_entity_id, predicate, value_entity_id, value_wikidata_id, status
+        ) VALUES
             (1, 'origin_country', 5, 'QKOREA', 'accepted'),
             (2, 'origin_country', 7, 'QMYANMAR', 'rejected'),
             (1, 'has_member', 3, 'QPERSON1', 'accepted'),
@@ -84,6 +87,33 @@ class GeoCoverageTest(unittest.TestCase):
         self.assertEqual(report["born_in"]["subjects_with_accepted_fact"], 1)
         self.assertEqual(report["born_in"]["geographic_resolution"], "not_performed")
 
+    def test_coarse_birthplaces_stay_accepted_facts_but_are_not_candidates(self):
+        connection = sqlite3.connect(self.database)
+        connection.row_factory = sqlite3.Row
+        connection.executescript(
+            """
+            INSERT INTO entities VALUES (8, 'QPERSON3', 'person', 'Person Three', 1);
+            INSERT INTO facts VALUES
+                (1, 'has_member', 8, 'QPERSON3', 'accepted', '[]'),
+                (8, 'born_in', 5, 'QKOREA', 'accepted', '["coarse_place"]'),
+                (8, 'born_in', 7, 'QMYANMAR', 'stale', '["coarse_place"]');
+            """
+        )
+        report = build_geo_coverage_report(connection)
+        connection.close()
+
+        born = report["born_in"]
+        self.assertEqual(born["facts_by_status"]["accepted"], 2)
+        self.assertEqual(born["accepted_facts"], 2)
+        self.assertEqual(born["excluded_coarse_place_facts"], 1)
+        self.assertEqual(born["subjects_with_accepted_fact"], 1)
+        self.assertEqual(born["distinct_accepted_values"], 1)
+        self.assertEqual(
+            born["accepted_value_distribution"],
+            [{"wikidata_id": "QCITY", "name": "Seoul", "facts": 1}],
+        )
+        self.assertNotIn("excluded_coarse_place_facts", report["origin_country"])
+
     def test_cli_reads_database_without_modifying_it(self):
         before = self.database.read_bytes()
         output = self.root / "reports" / "geo.json"
@@ -93,7 +123,7 @@ class GeoCoverageTest(unittest.TestCase):
         self.assertEqual(self.database.read_bytes(), before)
         self.assertEqual(
             json.loads(output.read_text(encoding="utf-8"))["report_version"],
-            "geo-coverage-v1",
+            "geo-coverage-v2",
         )
 
 
