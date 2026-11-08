@@ -129,8 +129,12 @@ export interface Messages {
   quizStorageUnavailable: string;
   consentLabel: string;
   consentText: string;
+  /** Verb on the accept button; the button reads "<verb> <consentTool>". */
   consentAccept: string;
+  /** Verb on the reject button; the button reads "<verb> <consentTool>". */
   consentReject: string;
+  /** The optional tool both consent buttons name. */
+  consentTool: string;
   consentPreferences: string;
   consentPrivacyLink: string;
   privacyLink: string;
@@ -503,12 +507,12 @@ const catalogs: Record<Locale, Messages> = {
     quizResumeInvalid: "O progresso salvo está inválido e foi descartado. Comece uma nova partida.",
     quizStorageUnavailable: "O armazenamento local está indisponível; o progresso desta partida não será guardado.",
     consentLabel: "Preferências de privacidade",
-    consentText:
-      "Usamos o Cloudflare Web Analytics para medir o uso do site sem cookies. Se você aceitar, o Google Analytics também vai usar cookies e identificadores para gerar estatísticas de audiência.",
-    consentAccept: "Aceitar Google Analytics",
-    consentReject: "Recusar Google Analytics",
+    consentText: "A Cloudflare mede visitas sem cookies. Aceita cookies e identificadores do Google Analytics para estatísticas de audiência?",
+    consentAccept: "Aceitar",
+    consentReject: "Recusar",
+    consentTool: "Google Analytics",
     consentPreferences: "Preferências de privacidade",
-    consentPrivacyLink: "Ler a política de privacidade",
+    consentPrivacyLink: "Política de privacidade",
     privacyLink: "Privacidade",
     howToPlayTitle: "Como jogar",
     quizHowToPlay: [
@@ -980,12 +984,12 @@ const catalogs: Record<Locale, Messages> = {
     quizResumeInvalid: "The saved progress is invalid and was discarded. Start a new game.",
     quizStorageUnavailable: "Local storage is unavailable; progress for this round will not be saved.",
     consentLabel: "Privacy preferences",
-    consentText:
-      "We use Cloudflare Web Analytics to measure site usage without cookies. If you accept, Google Analytics will also use cookies and identifiers to produce audience statistics.",
-    consentAccept: "Accept Google Analytics",
-    consentReject: "Reject Google Analytics",
+    consentText: "Cloudflare measures visits without cookies. Accept Google Analytics cookies and identifiers for audience statistics?",
+    consentAccept: "Accept",
+    consentReject: "Reject",
+    consentTool: "Google Analytics",
     consentPreferences: "Privacy preferences",
-    consentPrivacyLink: "Read the privacy policy",
+    consentPrivacyLink: "Privacy policy",
     privacyLink: "Privacy",
     howToPlayTitle: "How to play",
     quizHowToPlay: [

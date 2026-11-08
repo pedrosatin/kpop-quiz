@@ -35,12 +35,16 @@ html {
   color: var(--color-text);
   background: var(--color-canvas);
   overflow-x: hidden;
+  /* Keyboard focus and in-page jumps stop above the open consent banner. */
+  scroll-padding-bottom: var(--consent-banner-height, 0px);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   min-height: 100dvh;
+  /* The end of the page, footer included, scrolls clear of the open consent banner. */
+  padding-bottom: var(--consent-banner-height, 0px);
   display: flex;
   flex-direction: column;
   background: var(--color-canvas);
@@ -568,7 +572,15 @@ footer p {
   color: var(--color-text-muted);
 }
 
-/* Consent banner */
+/*
+  Consent banner. It stays fixed at the bottom, and ConsentBanner publishes its
+  height as --consent-banner-height so the sticky action bars ride above it and
+  the boards leave room for it. At the phone sizes the e2e spec covers it takes
+  at most 130px: the sentence with the policy link inline, then Reject and
+  Accept side by side with the tool name on a second line. Wider screens keep
+  the labels on one line, and from about 1280px the text and the buttons share
+  one row.
+*/
 
 .consent-banner {
   position: fixed;
@@ -579,8 +591,8 @@ footer p {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3) var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-4);
   background: var(--color-surface);
   border-top: 2px solid var(--color-border);
   box-shadow: var(--shadow-overlay);
@@ -589,15 +601,35 @@ footer p {
 .consent-banner-text {
   margin: 0;
   max-width: 44rem;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
 }
 
 .consent-banner-link {
-  font-size: 0.875rem;
+  /* Vertical padding on an inline link grows the tap area without moving the lines. */
+  padding-block: var(--space-1);
+  white-space: nowrap;
 }
 
 .consent-banner-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+@media (max-width: 30rem) {
+  .consent-banner-actions {
+    flex: 1 1 100%;
+  }
+
+  .consent-banner-actions > .btn {
+    flex: 1 1 0;
+    min-height: var(--control-height);
+    padding-inline: var(--space-2);
+    line-height: 1.15;
+  }
+
+  .consent-banner-tool {
+    display: block;
+    font-size: 0.75rem;
+  }
 }
