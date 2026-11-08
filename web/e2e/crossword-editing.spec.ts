@@ -79,7 +79,7 @@ for (const [locale, t] of Object.entries(locales)) {
         await expect(page.locator('#crossword input').nth(9)).toBeFocused();
         await expect(page.locator('#crossword input').nth(9)).toHaveValue('');
         expect((await geometry(page.locator('#crossword input').nth(9))).visible).toBe(true);
-        await expect(page.locator('.crossword-actions')).toHaveCSS('position', width! >= 960 ? 'relative' : consent === 'open' && hasBanner ? 'static' : 'sticky');
+        await expect(page.locator('.crossword-actions')).toHaveCSS('position', width! >= 960 ? 'relative' : 'sticky');
         if (consent === 'open' && hasBanner) await expect(page.locator('.consent-banner')).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await expect.poll(() => page.evaluate(() => {

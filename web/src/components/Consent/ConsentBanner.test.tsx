@@ -12,6 +12,8 @@ import { getMessages } from "../../i18n/catalog";
 const GA_ID = "G-TEST123456";
 const PRIVACY_URL = "/pt-br/privacidade/";
 const messages = getMessages("pt-BR");
+const ACCEPT = `${messages.consentAccept} ${messages.consentTool}`;
+const REJECT = `${messages.consentReject} ${messages.consentTool}`;
 
 function gaScripts(): HTMLScriptElement[] {
   return Array.from(document.head.querySelectorAll("script")).filter((s) =>
@@ -45,7 +47,7 @@ describe("ConsentBanner", () => {
     });
     act(() => game.result.current.start());
     expect(gaScripts()).toHaveLength(0);
-    fireEvent.click(await screen.findByRole("button", { name: messages.consentAccept }));
+    fireEvent.click(await screen.findByRole("button", { name: ACCEPT }));
     const dataLayer = (window as unknown as { dataLayer: ArrayLike<unknown>[] }).dataLayer;
     const events = () => dataLayer.map((entry) => Array.from(entry)).filter((entry) => entry[0] === "event");
     act(() => game.result.current.start());
@@ -56,10 +58,10 @@ describe("ConsentBanner", () => {
     game.rerender({ finished: false });
     act(() => game.result.current.start());
     openPreferences();
-    fireEvent.click(screen.getByRole("button", { name: messages.consentReject }));
+    fireEvent.click(screen.getByRole("button", { name: REJECT }));
     game.rerender({ finished: true });
     openPreferences();
-    fireEvent.click(screen.getByRole("button", { name: messages.consentAccept }));
+    fireEvent.click(screen.getByRole("button", { name: ACCEPT }));
     game.rerender({ finished: true });
     expect(events().map((entry) => entry[1])).toEqual(["game_complete", "game_start"]);
     expect(Array.from(dataLayer.at(-1)!)).toEqual(["consent", "update", {
@@ -72,15 +74,28 @@ describe("ConsentBanner", () => {
     await waitFor(() => {
       expect(screen.getByText(messages.consentText)).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: messages.consentAccept })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: messages.consentReject })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: ACCEPT })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: REJECT })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: messages.consentPrivacyLink })).toHaveAttribute("href", PRIVACY_URL);
     expect(gaScripts()).toHaveLength(0);
   });
 
+  it.each(["pt-BR", "en"] as const)("names Google Analytics on both buttons in %s", async (locale) => {
+    const names = locale === "pt-BR"
+      ? ["Recusar Google Analytics", "Aceitar Google Analytics"]
+      : ["Reject Google Analytics", "Accept Google Analytics"];
+    render(<ConsentBanner locale={locale} ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    const region = await screen.findByRole("region", { name: getMessages(locale).consentLabel });
+    const buttons = Array.from(region.querySelectorAll("button"));
+    expect(buttons.map((button) => button.textContent)).toEqual(names);
+    expect(buttons.map((button) => button.className)).toEqual([buttons[0]!.className, buttons[0]!.className]);
+    // The policy link sits inside the sentence, so the phone banner keeps two rows.
+    expect(region.querySelector(".consent-banner-text a")).toHaveAttribute("href", PRIVACY_URL);
+  });
+
   it("loads Google Analytics and stores the choice on accept", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
-    const accept = await screen.findByRole("button", { name: messages.consentAccept });
+    const accept = await screen.findByRole("button", { name: ACCEPT });
     fireEvent.click(accept);
     expect(window.localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("accepted");
     await waitFor(() => {
@@ -93,7 +108,7 @@ describe("ConsentBanner", () => {
 
   it("queues gtag commands as arguments objects, the only shape gtag.js reads", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
-    fireEvent.click(await screen.findByRole("button", { name: messages.consentAccept }));
+    fireEvent.click(await screen.findByRole("button", { name: ACCEPT }));
     const dataLayer = (window as unknown as { dataLayer: unknown[] }).dataLayer;
     expect(dataLayer.length).toBeGreaterThan(0);
     for (const entry of dataLayer) {
@@ -105,7 +120,7 @@ describe("ConsentBanner", () => {
 
   it("stores rejection and never loads Google Analytics", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
-    const reject = await screen.findByRole("button", { name: messages.consentReject });
+    const reject = await screen.findByRole("button", { name: REJECT });
     fireEvent.click(reject);
     expect(window.localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("rejected");
     expect(gaScripts()).toHaveLength(0);
@@ -123,12 +138,12 @@ describe("ConsentBanner", () => {
 
   it("lets a visitor revoke acceptance and disables future GA4 measurement", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
-    fireEvent.click(await screen.findByRole("button", { name: messages.consentAccept }));
+    fireEvent.click(await screen.findByRole("button", { name: ACCEPT }));
     await waitFor(() => {
       expect(gaScripts()).toHaveLength(1);
     });
     openPreferences();
-    fireEvent.click(await screen.findByRole("button", { name: messages.consentReject }));
+    fireEvent.click(await screen.findByRole("button", { name: REJECT }));
 
     expect(window.localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("rejected");
     expect((window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`]).toBe(true);
@@ -137,11 +152,11 @@ describe("ConsentBanner", () => {
 
   it("reenables GA4 when a visitor accepts again after revoking consent", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
-    fireEvent.click(await screen.findByRole("button", { name: messages.consentAccept }));
+    fireEvent.click(await screen.findByRole("button", { name: ACCEPT }));
     openPreferences();
-    fireEvent.click(screen.getByRole("button", { name: messages.consentReject }));
+    fireEvent.click(screen.getByRole("button", { name: REJECT }));
     openPreferences();
-    fireEvent.click(screen.getByRole("button", { name: messages.consentAccept }));
+    fireEvent.click(screen.getByRole("button", { name: ACCEPT }));
 
     expect(window.localStorage.getItem(CONSENT_STORAGE_KEY)).toBe("accepted");
     expect((window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`]).toBe(false);
@@ -154,7 +169,7 @@ describe("ConsentBanner", () => {
       expect(root.getPropertyValue(CONSENT_BANNER_HEIGHT_VAR)).toMatch(/px$/);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: messages.consentReject }));
+    fireEvent.click(screen.getByRole("button", { name: REJECT }));
     expect(root.getPropertyValue(CONSENT_BANNER_HEIGHT_VAR)).toBe("");
   });
 });

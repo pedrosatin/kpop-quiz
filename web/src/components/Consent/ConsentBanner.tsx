@@ -136,16 +136,31 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
 
   return (
     <div ref={bannerRef} class="consent-banner" role="region" aria-label={messages.consentLabel} aria-live="polite">
-      <p class="consent-banner-text">{messages.consentText}</p>
-      <a class="consent-banner-link" href={privacyUrl}>{messages.consentPrivacyLink}</a>
+      <p class="consent-banner-text">
+        {messages.consentText}{" "}
+        <a class="consent-banner-link" href={privacyUrl}>{messages.consentPrivacyLink}</a>
+      </p>
       <div class="consent-banner-actions">
         <button type="button" class="btn btn-secondary btn-sm" onClick={() => decide("rejected")}>
-          {messages.consentReject}
+          <ChoiceLabel verb={messages.consentReject} tool={messages.consentTool} />
         </button>
         <button type="button" class="btn btn-secondary btn-sm" onClick={() => decide("accepted")}>
-          {messages.consentAccept}
+          <ChoiceLabel verb={messages.consentAccept} tool={messages.consentTool} />
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Both buttons name the tool, so the accessible name is "Reject Google
+ * Analytics". On phones the tool drops to a second line and the two buttons
+ * fit side by side.
+ */
+function ChoiceLabel({ verb, tool }: { verb: string; tool: string }) {
+  return (
+    <span class="consent-banner-choice">
+      {verb} <span class="consent-banner-tool">{tool}</span>
+    </span>
   );
 }
