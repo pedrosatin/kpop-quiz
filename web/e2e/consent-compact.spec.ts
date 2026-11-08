@@ -51,7 +51,7 @@ const locales = [
   {
     id: "pt",
     quiz: "/pt-br/",
-    games: { guess: "/pt-br/adivinhe/", grid: "/pt-br/grid/", connections: "/pt-br/conexoes/" },
+    games: { guess: "/pt-br/adivinhe/", grid: "/pt-br/grid/", connections: "/pt-br/conexoes/", crossword: "/pt-br/cruzadinha/" },
     reject: /^Recusar Google Analytics$/,
     accept: /^Aceitar Google Analytics$/,
     purpose: "cookies e identificadores do Google Analytics para estatísticas de audiência",
@@ -61,7 +61,7 @@ const locales = [
   {
     id: "en",
     quiz: "/en/",
-    games: { guess: "/en/guess/", grid: "/en/grid/", connections: "/en/connections/" },
+    games: { guess: "/en/guess/", grid: "/en/grid/", connections: "/en/connections/", crossword: "/en/crossword/" },
     reject: /^Reject Google Analytics$/,
     accept: /^Accept Google Analytics$/,
     purpose: "Google Analytics cookies and identifiers for audience statistics",
@@ -80,6 +80,7 @@ const boards = {
   guess: ".name-guess-board",
   grid: ".grid-board-table",
   connections: ".connections-grid",
+  crossword: ".crossword-grid",
 } as const;
 
 /** The tallest phone banner the layout budgets for. */
@@ -192,7 +193,7 @@ for (const locale of locales) {
 
   test(`consent ${locale.id} 360x740: boards start in view and their bars stay above the banner`, async ({ page, consentURL }) => {
     await page.setViewportSize({ width: 360, height: 740 });
-    for (const game of ["guess", "grid", "connections"] as const) {
+    for (const game of ["guess", "grid", "connections", "crossword"] as const) {
       await openWithBanner(page, consentURL + locale.games[game]);
       await expect(page.locator(boards[game])).toBeVisible({ timeout: 30_000 });
       expect((await bannerBox(page)).height).toBeLessThanOrEqual(PHONE_BANNER_MAX);
