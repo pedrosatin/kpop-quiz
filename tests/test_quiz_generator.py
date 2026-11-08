@@ -159,6 +159,22 @@ class QuizGeneratorTest(unittest.TestCase):
         self.assertTrue(comparison_labels)
         self.assertTrue(all(label.endswith(")") for label in comparison_labels))
 
+    def test_person_prompts_name_the_persons_groups(self):
+        # Regression: "How old was Hyunjin on ...?" did not say whether it
+        # asked about Hyunjin of Stray Kids or of LOONA, and both ages were
+        # options. Age and birth prompts carry the sourced groups.
+        dataset, _report = generate_dataset(self.connection, date(2026, 9, 13))
+        prompts = {
+            (question["language"], question["type"]): question["prompt"]
+            for question in dataset["questions"]
+            if question["type"] in {"age_on_date", "birth_date_or_place"}
+            and question["evidence"][0]["fact_base_id"] == "born-1"
+        }
+        self.assertEqual(prompts[("en", "age_on_date")], "How old was Person 1 (Group 1) on 13 September 2026?")
+        self.assertEqual(prompts[("pt-BR", "age_on_date")], "Quantos anos Person 1 (Group 1) tinha em 13 de setembro de 2026?")
+        self.assertEqual(prompts[("en", "birth_date_or_place")], "When was Person 1 (Group 1) born?")
+        self.assertEqual(prompts[("pt-BR", "birth_date_or_place")], "Em que data Person 1 (Group 1) nasceu?")
+
     def test_member_at_date_options_carry_no_group_labels(self):
         self._set_membership_interval("1", "2010-01-01", "2012-01-01")
         self._add_membership("QG1", "QP2", "late", "2018-01-01", "2020-01-01")
