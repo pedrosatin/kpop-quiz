@@ -1,0 +1,246 @@
+{
+ "audited_group_count": 556,
+ "cells": [
+  {
+   "answer": "V",
+   "col": 0,
+   "row": 0
+  },
+  {
+   "answer": "I",
+   "col": 1,
+   "row": 0
+  },
+  {
+   "answer": "C",
+   "col": 2,
+   "row": 0
+  },
+  {
+   "answer": "T",
+   "col": 3,
+   "row": 0
+  },
+  {
+   "answer": "O",
+   "col": 4,
+   "row": 0
+  },
+  {
+   "answer": "N",
+   "col": 5,
+   "row": 0
+  },
+  {
+   "answer": "N",
+   "col": 4,
+   "row": 1
+  },
+  {
+   "answer": "E",
+   "col": 4,
+   "row": 2
+  },
+  {
+   "answer": "P",
+   "col": 4,
+   "row": 3
+  },
+  {
+   "answer": "Z",
+   "col": 2,
+   "row": 4
+  },
+  {
+   "answer": "E",
+   "col": 3,
+   "row": 4
+  },
+  {
+   "answer": "A",
+   "col": 4,
+   "row": 4
+  },
+  {
+   "answer": "C",
+   "col": 4,
+   "row": 5
+  },
+  {
+   "answer": "P",
+   "col": 0,
+   "row": 6
+  },
+  {
+   "answer": "R",
+   "col": 1,
+   "row": 6
+  },
+  {
+   "answer": "I",
+   "col": 2,
+   "row": 6
+  },
+  {
+   "answer": "S",
+   "col": 3,
+   "row": 6
+  },
+  {
+   "answer": "T",
+   "col": 4,
+   "row": 6
+  },
+  {
+   "answer": "I",
+   "col": 5,
+   "row": 6
+  },
+  {
+   "answer": "N",
+   "col": 6,
+   "row": 6
+  },
+  {
+   "answer": "V",
+   "col": 7,
+   "row": 6
+  }
+ ],
+ "cols": 8,
+ "entries": [
+  {
+   "aliases": [
+    "VICTON",
+    "Victon",
+    "빅톤"
+   ],
+   "answer": "VICTON",
+   "canonical_name": "Victon",
+   "clue": {
+    "en": "Group with documented membership of Lim Se-jun.",
+    "pt-BR": "Grupo com participação documentada de Lim Se-jun."
+   },
+   "col": 0,
+   "direction": "across",
+   "matching_qids": [
+    "Q27861498"
+   ],
+   "number": 1,
+   "qid": "Q27861498",
+   "row": 0,
+   "sources": [
+    {
+     "locator": "wikipedia:en:pageid=52202697:revid=1377756401#extract[278:283]",
+     "predicate": "has_member",
+     "snippet": "The group is composed of six members: Seungwoo, Seungsik, Sejun, Hanse, Byungchan and Subin.",
+     "statement_id": "Q27861498$1f059c33-44e0-dadd-0719-f03ea1b4910c",
+     "url": "https://en.wikipedia.org/w/index.php?curid=52202697&oldid=1377756401",
+     "value": "Lim Se-jun"
+    }
+   ]
+  },
+  {
+   "aliases": [
+    "ONE PACT",
+    "One Pact",
+    "원팩트"
+   ],
+   "answer": "ONEPACT",
+   "canonical_name": "One Pact",
+   "clue": {
+    "en": "Group with documented membership of Jay Chang.",
+    "pt-BR": "Grupo com participação documentada de Jay Chang."
+   },
+   "col": 4,
+   "direction": "down",
+   "matching_qids": [
+    "Q123256080"
+   ],
+   "number": 2,
+   "qid": "Q123256080",
+   "row": 0,
+   "sources": [
+    {
+     "locator": "wikipedia:en:pageid=75662563:revid=1366276885#extract[165:174]",
+     "predicate": "has_member",
+     "snippet": "The group consists of 5 members: Jongwoo, Jay Chang, Seongmin, Tag, and Yedam.",
+     "statement_id": "Q123256080$db59576f-493d-8486-ab0e-3716ae21f944",
+     "url": "https://en.wikipedia.org/w/index.php?curid=75662563&oldid=1366276885",
+     "value": "Jay Chang"
+    }
+   ]
+  },
+  {
+   "aliases": [
+    "Child of Empire",
+    "Children of Empire",
+    "ZE-A",
+    "ZE:A",
+    "ZEA",
+    "제국의아이들"
+   ],
+   "answer": "ZEA",
+   "canonical_name": "ZE:A",
+   "clue": {
+    "en": "Group with documented membership of Kevin.",
+    "pt-BR": "Grupo com participação documentada de Kevin."
+   },
+   "col": 2,
+   "direction": "across",
+   "matching_qids": [
+    "Q483626"
+   ],
+   "number": 3,
+   "qid": "Q483626",
+   "row": 4,
+   "sources": [
+    {
+     "locator": "wikipedia:en:pageid=25885437:revid=1383804262#extract[169:174]",
+     "predicate": "has_member",
+     "snippet": "The group is composed of nine members: Kevin, Hwang Kwang-hee, Yim Si-wan, Moon Joon-young, Kim Tae-heon, Jung Hee-chul, Ha Min-woo, Kim Dong-jun and Park Hyung-sik.",
+     "statement_id": "Q483626$ba5e02d6-4ef3-a7b3-42ba-b60f66cd6c2c",
+     "url": "https://en.wikipedia.org/w/index.php?curid=25885437&oldid=1383804262",
+     "value": "Kevin"
+    }
+   ]
+  },
+  {
+   "aliases": [
+    "Pristin V",
+    "프리스틴 V"
+   ],
+   "answer": "PRISTINV",
+   "canonical_name": "Pristin V",
+   "clue": {
+    "en": "Group with documented membership of Lim Na-young.",
+    "pt-BR": "Grupo com participação documentada de Lim Na-young."
+   },
+   "col": 0,
+   "direction": "across",
+   "matching_qids": [
+    "Q54033722"
+   ],
+   "number": 4,
+   "qid": "Q54033722",
+   "row": 6,
+   "sources": [
+    {
+     "locator": "wikipedia:en:pageid=57488034:revid=1375736744#wikitext[597:621]",
+     "predicate": "has_member",
+     "snippet": "past_members = [[Lim Na-young|Nayoung]]",
+     "statement_id": "Q54033722$4a8b3507-47c4-aa69-6cca-6c38995a9510",
+     "url": "https://en.wikipedia.org/w/index.php?curid=57488034&oldid=1375736744",
+     "value": "Lim Na-young"
+    }
+   ]
+  }
+ ],
+ "rows": 7,
+ "vocabulary": [
+  "Q123256080",
+  "Q27861498",
+  "Q483626",
+  "Q54033722"
+ ]
+}

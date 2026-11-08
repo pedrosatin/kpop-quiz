@@ -32,6 +32,11 @@ def _group_relevance_score(
     return max(scores)
 
 
+# Questions about one person whose options never name a group, so naming the
+# person's groups in the prompt identifies them without giving the answer away.
+_PERSON_SUBJECT_TYPES = frozenset({"age_on_date", "birth_date_or_place"})
+
+
 def _render_draft(
     draft: Draft,
     language: str,
@@ -50,6 +55,11 @@ def _render_draft(
     for key in ("group_id", "person_id", "release_id"):
         if key in values:
             values[key.removesuffix("_id")] = entities[values[key]].name(language)
+    if draft.question_type in _PERSON_SUBJECT_TYPES and draft.group_ids:
+        # Stage names repeat across groups (Hyunjin of Stray Kids and of
+        # LOONA). The sourced groups say which person the prompt asks about.
+        groups = " · ".join(entities[group_id].name(language) for group_id in draft.group_ids)
+        values["person"] = f"{values['person']} ({groups})"
     if "record_label_id" in values:
         values["record_label"] = entities[values["record_label_id"]].name(language)
     if "date" in values:

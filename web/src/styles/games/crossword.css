@@ -11,9 +11,12 @@
 
 /* Phones keep the 3rem square (a 44px input inside the border), so the
    clues and the sticky bar fit under the grid. Beside the side panel the
-   square grows with --play-max-h, up to 3.5rem. */
+   square grows with --play-max-h, up to 3.5rem. A grid wider than the board
+   (8 columns on a 360px phone) shrinks its squares to fit instead of pushing
+   the page sideways: the board is the size container the grid measures. */
 .crossword-board {
   --crossword-cell: 3rem;
+  container-type: inline-size;
   display: grid;
   justify-items: center;
   gap: var(--space-2);
@@ -28,20 +31,25 @@
 }
 
 .crossword-grid {
+  --crossword-gap: 0.25rem;
+  --crossword-square: min(
+    var(--crossword-cell),
+    (100cqi - (var(--crossword-cols, 3) - 1) * var(--crossword-gap)) / var(--crossword-cols, 3)
+  );
   display: grid;
-  grid-template-columns: repeat(var(--crossword-cols, 3), var(--crossword-cell));
-  gap: 0.25rem;
+  grid-template-columns: repeat(var(--crossword-cols, 3), var(--crossword-square));
+  gap: var(--crossword-gap);
 }
 
 .crossword-block {
-  width: var(--crossword-cell);
-  height: var(--crossword-cell);
+  width: var(--crossword-square);
+  height: var(--crossword-square);
 }
 
 .crossword-cell {
   position: relative;
-  width: var(--crossword-cell);
-  height: var(--crossword-cell);
+  width: var(--crossword-square);
+  height: var(--crossword-square);
   border: 2px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -68,7 +76,7 @@
   border-radius: 0;
   background: transparent;
   color: inherit;
-  font-size: 1.5rem;
+  font-size: min(1.5rem, var(--crossword-square) * 0.5);
   text-align: center;
   text-transform: uppercase;
 }

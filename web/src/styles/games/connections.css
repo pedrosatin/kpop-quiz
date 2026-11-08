@@ -313,6 +313,14 @@
   }
 }
 
+/* Four buttons in one row overflow a 360px phone: two rows of two there. */
+@media (max-width: 24rem) {
+  .connections-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .connections-result {
   display: flex;
   flex: 1 1 100%;
