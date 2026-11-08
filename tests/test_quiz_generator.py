@@ -175,6 +175,97 @@ class QuizGeneratorTest(unittest.TestCase):
         self.assertEqual(prompts[("en", "birth_date_or_place")], "When was Person 1 (Group 1) born?")
         self.assertEqual(prompts[("pt-BR", "birth_date_or_place")], "Em que data Person 1 (Group 1) nasceu?")
 
+    def _person_one_questions(self, dataset):
+        return [
+            question for question in dataset["questions"]
+            if question["type"] in {"age_on_date", "birth_date_or_place"}
+            and question["fact_base_ids"][0] == "born-1"
+        ]
+
+    def test_person_prompts_cite_the_memberships_they_name(self):
+        # The "(Group 1)" suffix states a membership, so the question cites
+        # both sides of it after the birth fact. Clues keep to the birth fact.
+        dataset, _report = generate_dataset(self.connection, date(2026, 9, 13))
+        questions = self._person_one_questions(dataset)
+        self.assertEqual(len(questions), 2 * 2 * 3)
+        for question in questions:
+            self.assertEqual(question["fact_base_ids"], ["born-1", "has-1", "member-1"])
+            self.assertEqual(
+                [item["fact_base_id"] for item in question["evidence"]],
+                ["born-1", "has-1", "member-1"],
+            )
+            for clue in question["clues_available"]:
+                self.assertEqual(clue["fact_base_ids"], ["born-1"])
+        explanations = {
+            (question["language"], question["type"]): question["explanation"]
+            for question in questions
+        }
+        self.assertEqual(
+            explanations[("en", "age_on_date")],
+            "Person 1 (Group 1) was born on 11 January 1991 and was 35 years old on 13 September 2026.",
+        )
+        self.assertEqual(
+            explanations[("pt-BR", "birth_date_or_place")],
+            "A fonte registra o nascimento de Person 1 (Group 1) em 11 de janeiro de 1991.",
+        )
+
+    def test_person_prompts_keep_the_semantic_id_of_the_birth_fact(self):
+        # Citing the groups must not make the same birth fact a new question.
+        dataset, _report = generate_dataset(self.connection, date(2026, 9, 13))
+        before = {question["id"]: question["semantic_id"] for question in self._person_one_questions(dataset)}
+        self.connection.execute(
+            "UPDATE facts SET status='rejected', status_reason='test' "
+            "WHERE statement_id IN ('has-1', 'member-1')"
+        )
+        self.connection.commit()
+        dataset, _report = generate_dataset(self.connection, date(2026, 9, 13))
+        after = {question["id"]: question["semantic_id"] for question in self._person_one_questions(dataset)}
+        self.assertEqual(after, before)
+
+    def test_person_prompts_without_an_accepted_membership_name_no_group(self):
+        # One side of the pair is not enough: a membership needs both.
+        self.connection.execute(
+            "UPDATE facts SET status='rejected', status_reason='test' WHERE statement_id='member-1'"
+        )
+        self.connection.commit()
+        dataset, _report = generate_dataset(self.connection, date(2026, 9, 13))
+        questions = self._person_one_questions(dataset)
+        self.assertEqual(len(questions), 2 * 2 * 3)
+        prompts = {(question["language"], question["type"]): question["prompt"] for question in questions}
+        self.assertEqual(prompts[("en", "age_on_date")], "How old was Person 1 on 13 September 2026?")
+        self.assertEqual(prompts[("pt-BR", "birth_date_or_place")], "Em que data Person 1 nasceu?")
+        for question in questions:
+            self.assertNotIn("(", question["explanation"])
+            self.assertEqual(question["fact_base_ids"], ["born-1"])
+            self.assertEqual([item["fact_base_id"] for item in question["evidence"]], ["born-1"])
+            self.assertEqual(question["group_ids"], [])
+
+    def test_person_prompts_join_several_groups_in_qid_order(self):
+        # "Alpha" sorts before "Group 1" by name, but QG2 comes after QG1.
+        self.connection.execute("UPDATE entities SET canonical_name='Alpha' WHERE wikidata_id='QG2'")
+        self.connection.execute("UPDATE entity_aliases SET name='Alpha' WHERE name='Group 2'")
+        self._add_membership("QG2", "QP1", "second", "2021-01-01", "2022-01-01")
+        self.connection.commit()
+        dataset, _report = generate_dataset(self.connection, date(2026, 9, 13))
+        questions = self._person_one_questions(dataset)
+        prompts = {(question["language"], question["type"]): question["prompt"] for question in questions}
+        self.assertEqual(prompts[("en", "birth_date_or_place")], "When was Person 1 (Group 1 · Alpha) born?")
+        self.assertEqual(
+            prompts[("pt-BR", "age_on_date")],
+            "Quantos anos Person 1 (Group 1 · Alpha) tinha em 13 de setembro de 2026?",
+        )
+        for question in questions:
+            self.assertIn("Person 1 (Group 1 · Alpha)", question["explanation"])
+            self.assertEqual(question["group_ids"], ["QG1", "QG2"])
+            self.assertEqual(
+                question["fact_base_ids"],
+                ["born-1", "has-1", "member-1", "has-second", "member-second"],
+            )
+            self.assertEqual(
+                {item["fact_base_id"] for item in question["evidence"]},
+                set(question["fact_base_ids"]),
+            )
+
     def test_member_at_date_options_carry_no_group_labels(self):
         self._set_membership_interval("1", "2010-01-01", "2012-01-01")
         self._add_membership("QG1", "QP2", "late", "2018-01-01", "2020-01-01")

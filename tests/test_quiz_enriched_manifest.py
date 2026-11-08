@@ -112,8 +112,13 @@ class EnrichmentContractTest(unittest.TestCase):
 
     def test_rejects_a_clue_in_expert_mode(self):
         def change(sessions):
+            # Any clue will do; which session holds one depends on the ids.
             donor = next(
-                q for q in sessions["daily.en.standard"]["questions"] if q["clues_available"]
+                q
+                for session in sessions.values()
+                if session["config"]["play_mode"] == "standard"
+                for q in session["questions"]
+                if q["clues_available"]
             )
             sessions["daily.en.expert"]["questions"][0]["clues_available"] = donor["clues_available"]
         with self.assertRaisesRegex(ValueError, "expert"):

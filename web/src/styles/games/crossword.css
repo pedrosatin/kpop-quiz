@@ -9,11 +9,12 @@
   --game-side-width: 22rem;
 }
 
-/* Phones keep the 3rem square (a 44px input inside the border), so the
-   clues and the sticky bar fit under the grid. Beside the side panel the
-   square grows with --play-max-h, up to 3.5rem. A grid wider than the board
-   (8 columns on a 360px phone) shrinks its squares to fit instead of pushing
-   the page sideways: the board is the size container the grid measures. */
+/* On a phone a square is at most 3rem (a 44px input inside the border), so
+   the clues and the sticky bar fit under the grid. A grid wider than the
+   board (8 or 9 columns on a phone: 28px squares at 8 columns and 25px at 9
+   on a 320px screen) shrinks its squares to fit instead of pushing the page
+   sideways: the board is the size container the grid measures. Beside the
+   side panel the square grows with --play-max-h, up to 3.5rem. */
 .crossword-board {
   --crossword-cell: 3rem;
   container-type: inline-size;
@@ -47,6 +48,13 @@
 }
 
 .crossword-cell {
+  /* The clue number keeps 0.7rem from a 2.8rem square up and shrinks with
+     the square below that, down to 0.4rem. Its right edge counts a digit as
+     0.6em plus 0.5px: Noto Sans draws one 0.572em wide, and a browser that
+     rounds glyph advances to whole pixels can add up to half a pixel. */
+  --crossword-number-size: clamp(0.4rem, var(--crossword-square) * 0.25, 0.7rem);
+  --crossword-number-left: min(0.15rem, var(--crossword-square) * 0.05);
+  --crossword-number-end: calc(var(--crossword-number-left) + var(--crossword-number-size) * 0.6 + 0.5px);
   position: relative;
   width: var(--crossword-square);
   height: var(--crossword-square);
@@ -63,22 +71,52 @@
 .crossword-cell span {
   position: absolute;
   top: 0;
-  left: 0.15rem;
-  font-size: 0.7rem;
+  left: var(--crossword-number-left);
+  font-size: var(--crossword-number-size);
   pointer-events: none;
 }
 
+/* The letter is half the square, but never under 16px: iOS Safari zooms
+   into an input with a smaller font when it takes focus. Under a 2.4rem
+   square the paddings shrink, the top one first, until the line of text
+   and the widest letter fit inside the border (--crossword-room is the
+   inner width left beside a W, 0.94em). The input is a block so it sits at
+   the top of the square instead of on the label's baseline, which pushed
+   it past the bottom border of a 25px square. */
 .crossword-cell input {
+  --crossword-room: calc(var(--crossword-square) - 4px - 0.94em);
+  --crossword-inline-padding: clamp(0px, var(--crossword-room) / 2, 0.2rem);
+  --crossword-free-height: calc(var(--crossword-square) - 4px - 1.2em);
+  display: block;
   width: 100%;
   height: 100%;
-  padding: 0.6rem 0.2rem 0.1rem;
+  padding: clamp(0px, var(--crossword-free-height) - 0.1rem, 0.6rem) var(--crossword-inline-padding)
+    clamp(0px, var(--crossword-free-height), 0.1rem);
   border: 0;
   border-radius: 0;
   background: transparent;
   color: inherit;
-  font-size: min(1.5rem, var(--crossword-square) * 0.5);
+  font-size: max(1rem, min(1.5rem, var(--crossword-square) * 0.5));
+  line-height: 1.2;
   text-align: center;
   text-transform: uppercase;
+}
+
+/* In a numbered square the letter clears the number sideways: in a small
+   square a 16px line of text and the number do not fit one above the
+   other. A centered glyph starts at (inner width + left padding - right
+   padding - glyph) / 2, so under about a 2.4rem square the left padding
+   grows, and the right one shrinks, until a W starts past
+   --crossword-number-end. The letter then sits up to 2.8px right of center
+   (in a 25px square), still inside the border. */
+.crossword-cell:has(> span) input {
+  --crossword-number-right: clamp(0px, var(--crossword-room) - var(--crossword-number-end), 0.2rem);
+  padding-right: var(--crossword-number-right);
+  padding-left: clamp(
+    var(--crossword-inline-padding),
+    2 * var(--crossword-number-end) + var(--crossword-number-right) - var(--crossword-room),
+    var(--crossword-room) - var(--crossword-number-right)
+  );
 }
 
 .crossword-cell input:focus {

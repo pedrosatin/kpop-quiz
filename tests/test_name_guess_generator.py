@@ -477,6 +477,10 @@ class TestNameGuessGenerator(unittest.TestCase):
         return hash_payload({k: v for k, v in puzzle.items() if k != "puzzle_id"})
 
     # Ids the pre-cleanup generator (master) produced for the same database.
+    # They were recorded under quiz-generator-v11. dataset_version, and so the
+    # id, includes that version; these tests pin it because a quiz generator
+    # bump is not what they guard.
+    RECORDED_GENERATOR_VERSION = "quiz-generator-v11"
     MASTER_ID_SUFFIXED = "9c331257c24ad9ca5b3050e50b40390625b89d1088616d05b37689fb9fcf38ba"
     MASTER_ID_SUFFIXED_WITH_HOMONYM = "8ad656c689a699d37b21389a3c1fab60b343a2fd08e32340603a2e2db32b772f"
     MASTER_ID_CASE_DIFFERS = "7c064c71d4722c7b80812f191403e5b79917b975d5d9f5a51164e7dc0b9f8a72"
@@ -524,10 +528,12 @@ class TestNameGuessGenerator(unittest.TestCase):
                     validate_name_guess_puzzle(tampered)
                 self.assertIn("puzzle_id does not match", str(ctx.exception))
 
+    @patch("kpop_scraping.quiz_repository.GENERATOR_VERSION", RECORDED_GENERATOR_VERSION)
     def test_puzzle_id_matches_the_one_published_before_the_cleanup_work(self):
         self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
         self.assertEqual(self._generate()["puzzle_id"], self.MASTER_ID_SUFFIXED)
 
+    @patch("kpop_scraping.quiz_repository.GENERATOR_VERSION", RECORDED_GENERATOR_VERSION)
     def test_catalog_homonym_does_not_move_the_id_or_the_labels(self):
         self._add_entity("Q30000001", "Cravity", "Cravity (grupo)", "Cravity (group)", with_evidence=True)
         alone = self._generate()
@@ -540,6 +546,7 @@ class TestNameGuessGenerator(unittest.TestCase):
         self.assertEqual(with_homonym["puzzle_id"], self.MASTER_ID_SUFFIXED_WITH_HOMONYM)
         self.assertNotEqual(alone["puzzle_id"], with_homonym["puzzle_id"])
 
+    @patch("kpop_scraping.quiz_repository.GENERATOR_VERSION", RECORDED_GENERATOR_VERSION)
     def test_case_differing_from_canonical_is_published_and_identified_as_is(self):
         self._add_entity("Q30000001", "CRAVITY", "Cravity", "CRAVITY", with_evidence=True)
         puzzle = self._generate()
