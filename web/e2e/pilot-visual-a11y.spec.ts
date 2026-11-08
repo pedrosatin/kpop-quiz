@@ -37,7 +37,7 @@ async function rejectMobileCrosswordConsent(page: Page) {
   const banner = page.locator(".consent-banner");
   if (await banner.count() === 0) return;
   await expect(banner).toBeVisible();
-  await expect(page.locator(".crossword-actions")).toHaveCSS("position", "static");
+  await expect(page.locator(".crossword-actions")).toHaveCSS("position", "sticky");
   await banner.getByRole("button", { name: /^(Recusar|Reject) Google Analytics$/ }).click();
   await expect(banner).toHaveCount(0);
   await expect(page.locator(".crossword-actions")).toHaveCSS("position", "sticky");
