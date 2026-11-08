@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-GENERATOR_VERSION = "quiz-generator-v11"
+GENERATOR_VERSION = "quiz-generator-v12"
 DEFAULT_REFERENCE_DATE = date(2026, 9, 13)
 
 
@@ -93,3 +93,8 @@ class Draft:
     values: dict[str, Any]
     evidence: tuple[Evidence, ...]
     fact_base_ids: tuple[str, ...]
+    # Facts that identify the person the prompt asks about (their groups).
+    # Rendering cites them after the answer facts; the semantic id and the
+    # clues ignore them.
+    identity_evidence: tuple[Evidence, ...] = ()
+    identity_fact_base_ids: tuple[str, ...] = ()

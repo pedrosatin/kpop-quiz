@@ -57,7 +57,8 @@ def _render_draft(
             values[key.removesuffix("_id")] = entities[values[key]].name(language)
     if draft.question_type in _PERSON_SUBJECT_TYPES and draft.group_ids:
         # Stage names repeat across groups (Hyunjin of Stray Kids and of
-        # LOONA). The sourced groups say which person the prompt asks about.
+        # LOONA). The sourced groups say which person the prompt asks about;
+        # the draft's identity facts cite those memberships.
         groups = " · ".join(entities[group_id].name(language) for group_id in draft.group_ids)
         values["person"] = f"{values['person']} ({groups})"
     if "record_label_id" in values:
@@ -108,11 +109,13 @@ def _render_draft(
         "answer_option_id": answer_option_id,
         "base_logical_id": logical_id,
         "challenge_rating": draft.difficulty,
-        "evidence": [item.payload() for item in draft.evidence],
+        "evidence": [
+            item.payload() for item in (*draft.evidence, *draft.identity_evidence)
+        ],
         "explanation": render(
             draft.question_type, language, explanation_field, **values
         ),
-        "fact_base_ids": list(draft.fact_base_ids),
+        "fact_base_ids": [*draft.fact_base_ids, *draft.identity_fact_base_ids],
         "group_ids": list(draft.group_ids),
         # The generator replaces this placeholder with decades derived from
         # cited group formation facts.

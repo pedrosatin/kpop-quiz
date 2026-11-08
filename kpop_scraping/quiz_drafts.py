@@ -104,6 +104,10 @@ def _build_drafts(
         )
 
     for fact in born:
+        person_groups = _groups_for_person(fact.subject.wikidata_id, memberships)
+        group_fact_ids, group_evidence = _membership_citation(
+            fact.subject.wikidata_id, memberships
+        )
         alternatives = _time_alternatives(fact, born)
         if alternatives is None:
             rejected["insufficient_birth_date_distractors"] += 1
@@ -112,10 +116,11 @@ def _build_drafts(
                 Draft(
                     ("birth_date_or_place", fact.statement_id),
                     "birth_date_or_place", "people", "easy",
-                    _groups_for_person(fact.subject.wikidata_id, memberships),
+                    person_groups,
                     (fact.value_time or "", "time"), alternatives,
                     {"person_id": fact.subject.wikidata_id}, fact.evidence,
                     (fact.statement_id,),
+                    group_evidence, group_fact_ids,
                 )
             )
         if fact.value_precision != 11 or "insufficient_precision_for_age" in fact.flags:
@@ -141,7 +146,7 @@ def _build_drafts(
             Draft(
                 ("age_on_date", fact.statement_id, reference_date.isoformat()),
                 "age_on_date", "people", "medium",
-                _groups_for_person(fact.subject.wikidata_id, memberships),
+                person_groups,
                 (str(age), "number"), alternatives,
                 {
                     "person_id": fact.subject.wikidata_id,
@@ -150,6 +155,7 @@ def _build_drafts(
                 },
                 fact.evidence,
                 (fact.statement_id,),
+                group_evidence, group_fact_ids,
             )
         )
 
@@ -514,6 +520,34 @@ def _groups_for_person(
     return tuple(
         sorted(group.wikidata_id for group, person, _facts in memberships if person.wikidata_id == person_id)
     )
+
+
+def _membership_citation(
+    person_id: str,
+    memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
+) -> tuple[tuple[str, ...], tuple[Evidence, ...]]:
+    """Return the facts and evidence behind the groups a prompt names for a person.
+
+    Groups come in the order of ``_groups_for_person`` (QID order), so the
+    citation follows the "(Group A · Group B)" suffix of the prompt.
+    """
+    pairs = sorted(
+        (
+            (group.wikidata_id, pair_facts)
+            for group, person, pair_facts in memberships
+            if person.wikidata_id == person_id
+        ),
+        key=lambda item: item[0],
+    )
+    fact_ids = tuple(
+        statement_id
+        for _group_id, pair_facts in pairs
+        for statement_id in sorted(fact.statement_id for fact in pair_facts)
+    )
+    evidence = tuple(
+        item for _group_id, pair_facts in pairs for item in _merge_evidence(pair_facts)
+    )
+    return fact_ids, evidence
 
 
 def _age_on(born_on: str, reference_date: date) -> int:

@@ -724,6 +724,10 @@ class TestWordSearchThemeFallback(unittest.TestCase):
     REFERENCE = date(2026, 10, 28)
     # puzzle_id values produced by the generator before the fallback existed,
     # for the fixture below. A day whose first theme succeeds must keep them.
+    # They were recorded under quiz-generator-v11. dataset_version, and so the
+    # id, includes that version; the test pins it because a quiz generator
+    # bump is not what it guards.
+    RECORDED_GENERATOR_VERSION = "quiz-generator-v11"
     UNCHANGED_PUZZLE_IDS = (
         ("golden-0", "fe593a57c0b803248f2e83807dff4e65e4c572c84e82fa694ac6de93a7cd296d"),
         ("golden-1", "bfa240892f07cf4deb94c22f7c9ac5288e900fee2b680adc882faa3424d30138"),
@@ -771,6 +775,7 @@ class TestWordSearchThemeFallback(unittest.TestCase):
         facts, _rejected = _load_facts(self.conn, entities)
         return extract_viable_themes(entities, facts, 12, 12)
 
+    @patch("kpop_scraping.quiz_repository.GENERATOR_VERSION", RECORDED_GENERATOR_VERSION)
     def test_days_whose_first_theme_succeeds_keep_their_bytes(self) -> None:
         for seed, expected_id in self.UNCHANGED_PUZZLE_IDS:
             with self.subTest(seed=seed):

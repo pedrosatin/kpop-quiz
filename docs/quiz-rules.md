@@ -6,7 +6,7 @@ Uma pergunta publicável contém template e versão, entidade alvo, afirmação 
 
 O gerador produz o mesmo resultado quando recebe a mesma semente, versão do template e versão dos dados. Perguntas afetadas por uma nova revisão voltam para validação.
 
-Cada pergunta declara um `semantic_id` e os `fact_base_ids` que sustentam a resposta. O dataset contém no máximo uma pergunta de cada tipo para a mesma base factual. A sessão rejeita identidades semânticas repetidas.
+Cada pergunta declara um `semantic_id` e os `fact_base_ids` que sustentam a resposta. Perguntas de idade e de nascimento também citam, depois do fato de nascimento, os fatos de filiação dos grupos que o enunciado nomeia; o `semantic_id` continua derivado só do fato de nascimento. O dataset contém no máximo uma pergunta de cada tipo para a mesma base factual. A sessão rejeita identidades semânticas repetidas.
 
 ## Critérios de aceitação
 

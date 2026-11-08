@@ -14,7 +14,7 @@ from kpop_scraping.quiz_models import (
 
 class TestQuizModels(unittest.TestCase):
     def test_constants(self):
-        self.assertEqual(GENERATOR_VERSION, "quiz-generator-v11")
+        self.assertEqual(GENERATOR_VERSION, "quiz-generator-v12")
         self.assertEqual(DEFAULT_REFERENCE_DATE, date(2026, 9, 13))
 
     def test_insufficient_questions_error(self):
