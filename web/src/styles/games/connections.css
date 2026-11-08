@@ -32,8 +32,9 @@
     a phone.
     Board top: 279px at 390x844 on a touch screen, 276px at 768x1024 on a
     touch screen (8px of it --intro-coarse-extra), 277px at 1362x940 and
-    1440x900 with a fine pointer. Bar: 151px at 390x844 and 167px at
-    768x1024 while playing; the result bar is measured below.
+    1440x900 with a fine pointer. Bar while playing: 203px at 390x844,
+    where the controls take two rows (see the 26.5rem block), and 167px at
+    768x1024; the result bar is measured below.
   */
   --cx-above: calc(17.5rem + var(--intro-coarse-extra));
   --cx-actions: 10.5rem;
@@ -285,7 +286,8 @@
   font-weight: 800;
 }
 
-/* Shuffle and Clear on the left, Submit on the right, one row on phones. */
+/* Shuffle and Clear on the left, Submit on the right, in one row where the
+   four fit and in two rows of two on narrow phones (below). */
 .connections-controls {
   display: flex;
   flex: 1 1 100%;
@@ -313,8 +315,17 @@
   }
 }
 
-/* Four buttons in one row overflow a 360px phone: two rows of two there. */
-@media (max-width: 24rem) {
+/*
+  The Portuguese labels need about 352px of bar in one row, which a
+  viewport narrower than about 418px does not give: two rows of two up to
+  26.5rem, in both languages. The bar is one row of buttons taller, so the
+  height budget grows by that row (see --cx-actions above).
+*/
+@media (max-width: 26.5rem) {
+  .connections-game {
+    --cx-actions: 13.75rem;
+  }
+
   .connections-controls {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
