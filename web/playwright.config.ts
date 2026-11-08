@@ -60,7 +60,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        // The deploy gate and the production smoke run builds that carry the real
+        // beacon token. Without this, every run is counted as a visit in Web Analytics.
+        launchOptions: { args: ["--host-resolver-rules=MAP static.cloudflareinsights.com ~NOTFOUND"] },
+      },
     },
     {
       name: "firefox",
