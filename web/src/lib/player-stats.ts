@@ -194,7 +194,9 @@ export function calculateNewStreak(
 
   const diff = getDaysDifference(lastPlayedDate, currentDate);
 
-  if (diff === 0) {
+  // Um dia para trás mantém a sequência: partidas antigas gravaram o calendário do
+  // aparelho, que pode estar um dia à frente de São Paulo.
+  if (diff === 0 || diff === -1) {
     // Se foi hoje, mantém a sequência do dia
     return prevStreak;
   }
@@ -204,7 +206,7 @@ export function calculateNewStreak(
     return isWin ? prevStreak + 1 : 0;
   }
 
-  // Se foi anterior a ontem (diff > 1) ou relógio retroativo (diff < 0)
+  // Se foi anterior a ontem (diff > 1) ou relógio retroativo (diff < -1)
   return isWin ? 1 : 0;
 }
 

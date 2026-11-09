@@ -103,6 +103,15 @@ describe("player-stats module", () => {
   });
 
   describe("calculateNewStreak pure helper", () => {
+    it("keeps the streak one day back, from a date saved on a calendar ahead of Sao Paulo", () => {
+      expect(calculateNewStreak(5, "2026-11-09", "2026-11-08", true)).toBe(5);
+      expect(calculateNewStreak(5, "2026-11-09", "2026-11-08", false)).toBe(5);
+    });
+
+    it("still resets when the clock moved back more than one day", () => {
+      expect(calculateNewStreak(5, "2026-11-10", "2026-11-08", true)).toBe(1);
+    });
+
     it("starts streak at 1 on win without previous date", () => {
       expect(calculateNewStreak(0, undefined, "2026-09-18", true)).toBe(1);
     });
