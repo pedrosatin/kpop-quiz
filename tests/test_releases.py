@@ -533,6 +533,88 @@ class ReleaseFactTest(unittest.TestCase):
             release_performer_evidence(numeric, ("2PM",), ("Alpha",), ("2PM",))
         )
 
+    def test_short_group_name_is_accepted_in_real_credits(self):
+        for index, (extract, subject) in enumerate((
+            ('"Life Goes On" is a song recorded by South Korean boy band BTS.', "Life Goes On"),
+            ('"Permission to Dance" is a song by South Korean boy band BTS.', "Permission to Dance"),
+            (
+                "Face Yourself is the third Japanese and fifth overall studio album by "
+                "South Korean boy band BTS.",
+                "Face Yourself",
+            ),
+            (
+                "Love Yourself: Her (stylized as LOVE YOURSELF 承 'Her') is the fifth extended "
+                "play by South Korean boy group BTS.",
+                "Love Yourself: Her",
+            ),
+            (
+                '"Dynamite" is a song recorded by South Korean boy band BTS, released on '
+                "August 21, 2020, through Big Hit Entertainment and Sony Music Entertainment.",
+                "Dynamite",
+            ),
+        )):
+            with self.subTest(extract=extract):
+                page = WikipediaPage(1, "en", index + 1, 10, extract, subject)
+                evidence = release_performer_evidence(page, ("BTS", "Bangtan"), (subject,))
+                self.assertIsNotNone(evidence)
+                start, end = map(int, evidence.locator.split("#extract[")[1].rstrip("]").split(":"))
+                self.assertEqual(extract[start:end], "BTS")
+
+    def test_short_group_name_needs_its_exact_spelling_in_the_credit(self):
+        for extract, name in (
+            ("Alpha is an album by can.", "Can"),
+            ("Alpha is an album by CAN.", "Can"),
+            ("Alpha is a song by toy.", "Toy"),
+            ("Alpha is a song by TOY.", "Toy"),
+            ("Alpha is an album by un.", "UN"),
+            ("Alpha is an album by Un.", "UN"),
+            ("Alpha is an album by bts.", "BTS"),
+            ("Alpha is an album by Bts.", "BTS"),
+            ("Alpha is an album by South Korean duo can.", "Can"),
+        ):
+            with self.subTest(extract=extract):
+                page = WikipediaPage(1, "en", 1, 10, extract, "Alpha")
+                self.assertIsNone(release_performer_evidence(page, (name,), ("Alpha",)))
+        for name in ("Can", "Toy", "UN"):
+            with self.subTest(name=name):
+                page = WikipediaPage(1, "en", 1, 10, f"Alpha is an album by {name}.", "Alpha")
+                self.assertIsNotNone(release_performer_evidence(page, (name,), ("Alpha",)))
+
+    def test_short_group_name_is_not_a_part_of_a_longer_credit(self):
+        for extract, name in (
+            ("Alpha is an album by Can Bonomo.", "Can"),
+            ("Alpha is an album by Toy Story.", "Toy"),
+            ("Alpha is an album by UN Women.", "UN"),
+            ("Alpha is a song by Can's producer.", "Can"),
+            ("Alpha is an album produced by Can.", "Can"),
+            ("Alpha is an album with a song by Can.", "Can"),
+            ("Alpha is a film by Can.", "Can"),
+            ("Alpha is an album by BTS and Halsey.", "BTS"),
+            ("Alpha is an album by NCT 127, a sub-unit.", "NCT"),
+            ("Alpha is an album by BTS-inspired artists.", "BTS"),
+        ):
+            with self.subTest(extract=extract):
+                page = WikipediaPage(1, "en", 1, 10, extract, "Alpha")
+                self.assertIsNone(release_performer_evidence(page, (name,), ("Alpha",)))
+
+    def test_credit_never_uses_one_letter_lowercase_or_hangul_short_names(self):
+        for extract, name in (
+            ("Alpha is an album by V.", "V"),
+            ("Alpha is an album by can.", "can"),
+            ("Alpha is an album by 엑소.", "엑소"),
+        ):
+            with self.subTest(name=name):
+                page = WikipediaPage(1, "en", 1, 10, extract, "Alpha")
+                self.assertIsNone(release_performer_evidence(page, (name,), ("Alpha",)))
+
+    def test_short_group_names_in_a_joint_credit(self):
+        peers = ("BTS", "Bangtan", "EXO")
+        page = WikipediaPage(1, "en", 1, 10, "Alpha is an album by BTS and EXO.", "Alpha")
+        self.assertIsNotNone(release_performer_evidence(page, ("BTS", "Bangtan"), ("Alpha",), peers))
+        self.assertIsNotNone(release_performer_evidence(page, ("EXO",), ("Alpha",), peers))
+        wrong_case = WikipediaPage(1, "en", 2, 10, "Alpha is an album by BTS and exo.", "Alpha")
+        self.assertIsNone(release_performer_evidence(wrong_case, ("BTS",), ("Alpha",), peers))
+
     def test_release_page_policy_rejects_unsafe_sources(self):
         base = Page(1, "Alpha", "https://example.test", "Alpha is an album.", 2, wikidata_id="Q1")
         self.assertIsNone(_page_rejection(base, "Q1"))
@@ -910,6 +992,75 @@ class ReleasePipelineScopeTest(unittest.TestCase):
                 WHERE cr.category='release-wikipedia-evidence'"""
             ).fetchone()[0],
             0,
+        )
+
+    def _performer_status_for_group_page(self, group_title, alias, extract):
+        run_id = self._run(groups=(1,))
+        self.connection.execute(
+            "UPDATE source_pages SET title=? WHERE id=1", (group_title,)
+        )
+        self.connection.execute(
+            "INSERT INTO entity_aliases(entity_id,name,language,alias_type,snapshot_id) VALUES (1,?,'en','label',1)",
+            (alias,),
+        )
+        self.connection.execute(
+            "INSERT INTO release_candidates(run_id,group_entity_id,requested_wikidata_id,state) VALUES (?,1,'Q101','candidate')",
+            (run_id,),
+        )
+        self.connection.commit()
+        payload = {
+            "id": "Q101", "lastrevid": 2,
+            "labels": {"en": {"language": "en", "value": "Alpha"}},
+            "aliases": {},
+            "sitelinks": {"enwiki": {"title": "Alpha (album)"}},
+            "claims": {
+                "P31": [item_statement("Q101$class", "P31", "Q482994")],
+                "P175": [item_statement("Q101$performer", "P175", "QG1")],
+            },
+        }
+
+        class EntityClient:
+            def get_entities(self, qids, _profile):
+                return EntityBatch(
+                    tuple(EntityDocument(qid, qid, 2, payload) for qid in qids), ()
+                )
+
+        class WikiClient:
+            def get_pages_by_titles(self, _titles):
+                return [Page(
+                    77, "Alpha (album)", "https://en.wikipedia.org/wiki/Alpha",
+                    extract, 88, wikidata_id="Q101",
+                )]
+
+        collect_release_facts(
+            self.repository, EntityClient(), run_id, wikipedia_clients={"en": WikiClient()},
+        )
+        return self.connection.execute(
+            "SELECT status FROM facts WHERE predicate='performed_by'"
+        ).fetchone()[0]
+
+    def test_group_page_title_supplies_the_spelling_of_a_known_alias(self):
+        self.assertEqual(
+            self._performer_status_for_group_page(
+                "Exo (group)", "EXO", "Alpha is an album by South Korean boy band Exo."
+            ),
+            "accepted",
+        )
+
+    def test_group_page_title_does_not_add_a_different_name(self):
+        self.assertEqual(
+            self._performer_status_for_group_page(
+                "Exo (group)", "XOX", "Alpha is an album by South Korean boy band Exo."
+            ),
+            "rejected",
+        )
+
+    def test_group_alias_case_variant_needs_the_page_title_to_confirm_it(self):
+        self.assertEqual(
+            self._performer_status_for_group_page(
+                "Unrelated Title", "EXO", "Alpha is an album by South Korean boy band Exo."
+            ),
+            "rejected",
         )
 
     def test_wikipedia_revision_accepts_release_artist_and_date(self):
