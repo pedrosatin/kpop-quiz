@@ -3,7 +3,7 @@ import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 import { buildLocalizedDisplayNames } from "../../lib/display-name";
-import { useWordSearchGame } from "./useWordSearchGame";
+import { useWordSearchGame, wordSearchMatchId } from "./useWordSearchGame";
 import { WordSearchHeader } from "./WordSearchHeader";
 import { WordSearchGrid } from "./WordSearchGrid";
 import { WordSearchList } from "./WordSearchList";
@@ -83,7 +83,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
 
   useEffect(() => {
     if (completed && puzzle) {
-      const matchId = `word-search-${puzzle.puzzle_id}`;
+      const matchId = wordSearchMatchId(puzzle);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("word-search", matchId)) {
         recordGameFinish("word-search", foundWordIds.length >= puzzle.words.length, puzzle.reference_date || getTodayDateString());
         markGameMatchRecorded("word-search", matchId);

@@ -6,7 +6,7 @@ import {
   markGameMatchRecorded,
   recordGameFinish,
 } from "../../lib/player-stats";
-import { useTimelineGame } from "./useTimelineGame";
+import { timelineMatchId, useTimelineGame } from "./useTimelineGame";
 import { TimelineBoard } from "./TimelineBoard";
 import { TimelineResults } from "./TimelineResults";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
@@ -106,7 +106,7 @@ export function TimelineGameContent({
 
   useEffect(() => {
     if (gameStatus === "submitted") {
-      const matchId = `timeline-${puzzle.puzzle_id}`;
+      const matchId = timelineMatchId(puzzle);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("timeline", matchId)) {
         // A give-up reveals the canonical order, so a correct board after
         // one still counts as played without a win.

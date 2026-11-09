@@ -418,8 +418,29 @@ these events:
 All events include `game` with one of the eight keys above and `locale` with
 `pt-BR` or `en`. Quiz also includes `mode`, either `assisted`, `standard` or
 `expert`. Events contain no answers, artist names, shared text, user IDs or
-puzzle IDs. Register `game`, `locale` and `mode` as event-scoped dimensions in
-GA4 to compare games, languages and Quiz modes.
+puzzle IDs.
+
+`game_start` and `game_complete` also include `daily`: `yes` for the day's
+challenge, `no` for the general Quiz and for a replay of a board already
+finished. `game_complete` also includes:
+
+- `outcome`: `win`, `loss` or `give_up`. A give-up counts as `give_up` even with
+  a winning score. Word Search and Crossword have no loss and Code has no
+  give-up. The other games use the win rule of their stats; Map, which has none,
+  counts a round with at least half the dates right as a win.
+- `days_since_last`: `first`, `0` (another round the same day), `1`, `2-7` or
+  `8+`. It compares the game's last recorded date, read before this round is
+  saved, with the current day in Sao Paulo. A stored date ahead of that day
+  sends no value.
+- `streak_bucket`: `0` (no active streak), `1`, `2-3`, `4-7` or `8+`, from the
+  game's streak after this round is saved.
+
+Both bands are computed in the browser from `player-stats`. Map keeps no stats
+and sends neither. A change to the streak or last-date rules in `player-stats`
+changes what the bands mean from that release on.
+
+Register `game`, `locale`, `mode`, `daily`, `outcome`, `days_since_last` and
+`streak_bucket` as event-scoped dimensions in GA4 to compare them.
 
 Restored partial games with saved attempts or progress consume the start without
 sending it again. Finishing one during the current visit can emit completion.

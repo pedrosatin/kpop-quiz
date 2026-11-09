@@ -8,6 +8,14 @@ import {
 } from "../../lib/player-stats";
 import type { GridGameStatus } from "./types";
 
+export function gridMatchId(grid: IntersectionGrid): string {
+  return `grid-${grid.reference_date || grid.grid_id}`;
+}
+
+export function isGridWin(solvedCount: number): boolean {
+  return solvedCount >= 5;
+}
+
 /** Records one finished match in player stats; ignores restored or restarted boards. */
 export function useRecordGridMatch(
   grid: IntersectionGrid | null,
@@ -18,9 +26,9 @@ export function useRecordGridMatch(
 
   useEffect(() => {
     if (status === "complete" && grid) {
-      const matchId = `grid-${grid.reference_date || grid.grid_id}`;
+      const matchId = gridMatchId(grid);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("grid", matchId)) {
-        const isWin = solvedCount >= 5;
+        const isWin = isGridWin(solvedCount);
         recordGameFinish("grid", isWin, grid.reference_date || getTodayDateString());
         markGameMatchRecorded("grid", matchId);
         recordedMatchRef.current = matchId;

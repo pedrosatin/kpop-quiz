@@ -6,6 +6,10 @@ import {
   recordGameFinish,
 } from "../../lib/player-stats";
 
+export function codeGroupsMatchId(puzzle: CodeGroupsPuzzle): string {
+  return `code-${puzzle.puzzle_id}`;
+}
+
 /**
  * Records one finished match in player stats; ignores restored or restarted
  * boards. A finished game restored from storage is counted once, on the
@@ -20,7 +24,7 @@ export function useRecordCodeGroupsMatch(
 
   useEffect(() => {
     if (isFinished && puzzle) {
-      const matchId = `code-${puzzle.puzzle_id}`;
+      const matchId = codeGroupsMatchId(puzzle);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("code", matchId)) {
         recordGameFinish("code", isWin, puzzle.reference_date);
         markGameMatchRecorded("code", matchId);

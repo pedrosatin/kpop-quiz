@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/preact";
+import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import publishedJson from "../../../public/data/crossword-pilot.json";
 import { entryCellKeys, validateCrosswordDaily, type CrosswordPuzzle } from "../../data/crossword";
@@ -10,6 +10,7 @@ import { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 import { CrosswordGame } from "./CrosswordGame";
 import { generateCrosswordShareText } from "./CrosswordResult";
 import { crosswordStorageKey } from "./crossword-save";
+import { useCrosswordGame } from "./useCrosswordGame";
 import { buildCrosswordDaily, buildCrosswordOmissionRecord, buildOmittedCrosswordDaily } from "../../test/crossword-daily-fixture";
 
 // The audited pilot board, published as today's crossword-daily-v1 envelope.
@@ -197,6 +198,17 @@ describe("CrosswordGame", () => {
     expect(localStorage.getItem(`kpop-crossword-${"0".repeat(64)}`)).toBeNull();
   });
 
+  it("reports revealing the board as a give-up", () => {
+    const gtag = vi.fn();
+    vi.stubGlobal("gtag", gtag);
+    analytics.setGameAnalyticsConsent("G-TEST", true);
+    const { result } = renderHook(() => useCrosswordGame(puzzle, "en"));
+    act(() => result.current.reveal());
+    expect(gtag.mock.calls.map((call) => call[1])).toEqual(["game_start", "game_complete"]);
+    expect(gtag.mock.calls[1]![2]).toMatchObject({ daily: "yes", outcome: "give_up" });
+    analytics.setGameAnalyticsConsent("", false);
+  });
+
   it("does not trust a saved win the letters do not solve", async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ values: {}, status: "won", checks: 1 }));
     serve();
@@ -214,7 +226,10 @@ describe("CrosswordGame", () => {
     fireEvent.click(screen.getByRole("button", { name: en.crosswordCheck }));
     await act(async () => {});
     expect(gtag.mock.calls.map((call) => call[1])).toEqual(["game_start", "game_complete"]);
-    expect(gtag.mock.calls[0]![2]).toMatchObject({ game: "crossword", locale: "en" });
+    expect(gtag.mock.calls[0]![2]).toMatchObject({ game: "crossword", locale: "en", daily: "yes" });
+    expect(gtag.mock.calls[1]![2]).toMatchObject({
+      game: "crossword", locale: "en", daily: "yes", outcome: "win", days_since_last: "first", streak_bucket: "1",
+    });
 
     // A restored finished round replays nothing.
     cleanup();

@@ -1,4 +1,6 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
+import { isGameMatchRecorded } from "../../lib/player-stats";
+import { gridMatchId, isGridWin } from "./useRecordGridMatch";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { CandidateEntity, IntersectionGrid, Locale } from "../../lib/quiz-types";
 import { buildLocalizedDisplayNames } from "../../lib/display-name";
@@ -137,7 +139,16 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   const [usedEntityIds, setUsedEntityIds] = useState<Set<string>>(new Set());
   const [uniquenessError, setUniquenessError] = useState<string | null>(null);
 
-  const analytics = useGameAnalytics({ game: "grid", locale }, status === "complete", guessesUsed > 0);
+  const analytics = useGameAnalytics(
+    {
+      game: "grid",
+      locale,
+      isDaily: () => grid !== null && !isGameMatchRecorded("grid", gridMatchId(grid)),
+      outcome: status !== "complete" ? null : gaveUp ? "give_up" : isGridWin(countSolved(storedCells)) ? "win" : "loss",
+    },
+    status === "complete",
+    guessesUsed > 0,
+  );
 
   const loadData = useCallback(async () => {
     setStatus("loading");

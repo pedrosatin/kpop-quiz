@@ -50,7 +50,17 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
 
   const finished = status !== "playing";
   const resumed = initialSave !== null;
-  const analytics = useGameAnalytics({ game: "crossword", locale }, finished, resumed);
+  const analytics = useGameAnalytics(
+    {
+      game: "crossword",
+      locale,
+      isDaily: () => !isGameMatchRecorded("crossword", crosswordMatchId(puzzle)),
+      // Revealing the board is how the player gives up; the round has no loss.
+      outcome: status === "won" ? "win" : status === "revealed" ? "give_up" : null,
+    },
+    finished,
+    resumed,
+  );
 
   useEffect(() => {
     const touched = checks > 0 || finished || Object.values(values).some(Boolean);

@@ -1,4 +1,4 @@
-import { useGameAnalytics } from "../../lib/game-analytics";
+import { useGameAnalytics, type GameOutcome } from "../../lib/game-analytics";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   mapPilotCountries,
@@ -45,6 +45,13 @@ export interface MapPilotGameContentProps {
   countryByFeature: Map<string, MapPilotCountry>;
 }
 
+/** The Map shows only a score, so a win follows the Quiz rule: at least half right. */
+function mapRoundOutcome(round: MapPilotEvent[], answers: string[], gaveUp: boolean): GameOutcome {
+  if (gaveUp || answers.length < round.length) return "give_up";
+  const correct = round.filter((event, index) => answers[index] === event.map_feature_id).length;
+  return correct >= Math.ceil(round.length / 2) ? "win" : "loss";
+}
+
 export function MapPilotGameContent({
   locale,
   copy,
@@ -75,7 +82,17 @@ export function MapPilotGameContent({
   const questionIndex = game.index;
   const answers = game.answers;
   const isComplete = round.length > 0 && questionIndex >= round.length;
-  const analytics = useGameAnalytics({ game: "map", locale }, isComplete, answers.length > 0);
+  const analytics = useGameAnalytics(
+    {
+      game: "map",
+      locale,
+      // The pilot keeps no stats, so a replay is only known within the visit.
+      isDaily: () => restarts === 0,
+      outcome: isComplete ? mapRoundOutcome(round, answers, gaveUpRound) : null,
+    },
+    isComplete,
+    answers.length > 0,
+  );
   const current = isComplete ? undefined : (round[questionIndex] as MapPilotEvent | undefined);
   const selectedFeature = answers.length > questionIndex ? answers[questionIndex]! : null;
   // Pending pick from map/list/select; only Responder commits it into answers.

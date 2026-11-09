@@ -22,6 +22,7 @@ import {
   saveQuizProgress,
 } from "./storage";
 import type { QuizSession } from "../../lib/quiz-types";
+import { setGameAnalyticsConsent } from "../../lib/game-analytics";
 import { isGameMatchRecorded, PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
 
 const CATALOG_DIR = path.resolve(__dirname, "../../tests/fixtures/catalog");
@@ -198,6 +199,7 @@ describe("Quiz", () => {
   });
 
   afterEach(() => {
+    setGameAnalyticsConsent("", false);
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -635,6 +637,132 @@ describe("Quiz", () => {
     const firstHeading = await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
     expect(firstHeading).toBeInTheDocument();
     expect(firstHeading).toHaveFocus();
+  });
+
+  describe("measurement", () => {
+    function measure() {
+      const gtag = vi.fn();
+      vi.stubGlobal("gtag", gtag);
+      setGameAnalyticsConsent("G-TEST", true);
+      return gtag;
+    }
+
+    /** Answers the whole round, right or wrong, until the result. */
+    async function playToResult(right: boolean) {
+      for (let index = 0; index < ptSession.questions.length; index += 1) {
+        const question = ptSession.questions[index]!;
+        const option = question.options.find((candidate) => (candidate.id === question.answer_option_id) === right)!;
+        fireEvent.click(screen.getByRole("radio", { name: option.label }));
+        fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+        clickNext(index === ptSession.questions.length - 1 ? "Ver resultado" : "Próxima pergunta");
+      }
+      await screen.findByRole("heading", { name: "Fim da partida" });
+    }
+
+    const giveUp = async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+      fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
+      await screen.findByRole("heading", { name: "Fim da partida" });
+    };
+
+    const playAgain = async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+      await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
+    };
+
+    it("sends the general quiz as free play and tells a win from a loss and a give-up", async () => {
+      const gtag = measure();
+      await renderReady();
+      await playToResult(true);
+      await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(2));
+      expect(gtag.mock.calls[0]![2]).toMatchObject({ game: "quiz", mode: "standard", daily: "no" });
+      expect(gtag.mock.calls[1]![2]).toMatchObject({
+        game: "quiz", daily: "no", outcome: "win", days_since_last: "first", streak_bucket: "1",
+      });
+
+      await playAgain();
+      await giveUp();
+      await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(4));
+      expect(gtag.mock.calls[3]![2]).toMatchObject({ daily: "no", outcome: "give_up", days_since_last: "0" });
+
+      await playAgain();
+      await playToResult(false);
+      await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(6));
+      expect(gtag.mock.calls[5]![2]).toMatchObject({ daily: "no", outcome: "loss" });
+    });
+
+    const answerRight = (index: number) => {
+      const question = ptSession.questions[index]!;
+      const option = question.options.find((candidate) => candidate.id === question.answer_option_id)!;
+      fireEvent.click(screen.getByRole("radio", { name: option.label }));
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    };
+
+    const reload = () => {
+      document.body.innerHTML = "";
+      mockSessionFetch();
+      render(<Quiz locale="pt-BR" />);
+    };
+
+    it("sends the result of a resumed round that ends in a give-up, without a second start", async () => {
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      const gtag = measure();
+      await renderReady();
+      answerRight(0);
+      await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(1));
+
+      reload();
+      await screen.findByRole("button", { name: "Desistir" });
+      await giveUp();
+
+      await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(2));
+      expect(gtag.mock.calls[1]![1]).toBe("game_complete");
+      expect(gtag.mock.calls[1]![2]).toMatchObject({ daily: "yes", outcome: "give_up", days_since_last: "first" });
+    });
+
+    it("sends the result of a resumed round that only needs the final click", async () => {
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      const gtag = measure();
+      await renderReady();
+      const last = ptSession.questions.length - 1;
+      for (let index = 0; index <= last; index += 1) {
+        answerRight(index);
+        if (index < last) clickNext("Próxima pergunta");
+      }
+
+      reload();
+      await screen.findByRole("button", { name: "Ver resultado" });
+      clickNext("Ver resultado");
+      await screen.findByRole("heading", { name: "Fim da partida" });
+
+      await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(2));
+      expect(gtag.mock.calls[1]![1]).toBe("game_complete");
+      expect(gtag.mock.calls[1]![2]).toMatchObject({ daily: "yes", outcome: "win" });
+    });
+
+    it("sends the day's quiz as daily, its replay as free play, and nothing on reload", async () => {
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      const gtag = measure();
+      await renderReady();
+      await playToResult(true);
+      await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(2));
+      expect(gtag.mock.calls[0]![2]).toMatchObject({ daily: "yes" });
+      expect(gtag.mock.calls[1]![2]).toMatchObject({ daily: "yes", outcome: "win", days_since_last: "first" });
+
+      await playAgain();
+      expect(gtag.mock.calls[2]![1]).toBe("game_start");
+      expect(gtag.mock.calls[2]![2]).toMatchObject({ daily: "no" });
+      await giveUp();
+      await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(4));
+      expect(gtag.mock.calls[3]![2]).toMatchObject({ daily: "no", outcome: "give_up" });
+
+      document.body.innerHTML = "";
+      mockSessionFetch();
+      render(<Quiz locale="pt-BR" />);
+      await screen.findByRole("heading", { name: "Fim da partida" });
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
+      expect(gtag).toHaveBeenCalledTimes(4);
+    });
   });
 
   it("records every question exactly once when giving up, answered or not", async () => {

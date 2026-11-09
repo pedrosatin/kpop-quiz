@@ -340,9 +340,28 @@ describe("map pilot saved progress", () => {
     fireEvent.click(view.getByRole("button", { name: "Ver resultado" }));
     expect(view.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
     expect(gtag.mock.calls.map((call) => call[1])).toEqual(["game_complete"]);
+    expect(gtag.mock.calls[0]![2]).toMatchObject({ game: "map", daily: "yes", outcome: "win" });
+    expect(gtag.mock.calls[0]![2]).not.toHaveProperty("days_since_last");
+    expect(gtag.mock.calls[0]![2]).not.toHaveProperty("streak_bucket");
     view.unmount();
     render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     expect(gtag.mock.calls.map((call) => call[1])).toEqual(["game_complete"]);
+  });
+
+  it("measures a loss, a give-up and a replay as free play", () => {
+    const gtag = vi.fn();
+    vi.stubGlobal("gtag", gtag);
+    setGameAnalyticsConsent("G-TEST", true);
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    playRound(view, round.map((_, index) => index));
+    expect(gtag.mock.calls[1]![2]).toMatchObject({ daily: "yes", outcome: "loss" });
+    advanceClock();
+    fireEvent.click(view.getByRole("button", { name: "Jogar novamente" }));
+    fireEvent.click(view.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(view.getByRole("button", { name: "Sim, desistir" }));
+    expect(gtag.mock.calls.map((call) => call[1])).toEqual(["game_start", "game_complete", "game_start", "game_complete"]);
+    expect(gtag.mock.calls[2]![2]).toMatchObject({ daily: "no" });
+    expect(gtag.mock.calls[3]![2]).toMatchObject({ daily: "no", outcome: "give_up" });
   });
 
   it("does not save an untouched round", () => {

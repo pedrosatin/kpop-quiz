@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { CodeGroupsGuess, CodeGroupsPuzzle } from "../../data/code-groups";
 import { scoreGuess } from "../../data/code-groups";
 import { useGameAnalytics } from "../../lib/game-analytics";
+import { isGameMatchRecorded } from "../../lib/player-stats";
+import { codeGroupsMatchId } from "./useRecordCodeGroupsMatch";
 import type { Locale } from "../../lib/quiz-types";
 
 /**
@@ -110,7 +112,17 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
 
   const won = history.at(-1)?.exact === 4;
   const finished = won || history.length === puzzle.max_attempts;
-  const analytics = useGameAnalytics({ game: "code", locale }, finished, history.length > 0);
+  const analytics = useGameAnalytics(
+    {
+      game: "code",
+      locale,
+      isDaily: () => !isGameMatchRecorded("code", codeGroupsMatchId(puzzle)),
+      // The round has no give-up: it ends with the code or out of attempts.
+      outcome: finished ? (won ? "win" : "loss") : null,
+    },
+    finished,
+    history.length > 0,
+  );
 
   useEffect(() => {
     if (history.length === 0 && selection.every((id) => id === "")) return;

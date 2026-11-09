@@ -4,7 +4,7 @@ import { NameGuessBoard } from "./NameGuessBoard";
 import { NameGuessResults } from "./NameGuessResults";
 import { VirtualKeyboard } from "./VirtualKeyboard";
 import type { NameGuessTranslations } from "./types";
-import { useNameGuessGame } from "./useNameGuessGame";
+import { nameGuessMatchId, useNameGuessGame } from "./useNameGuessGame";
 import {
   getTodayDateString,
   isGameMatchRecorded,
@@ -110,7 +110,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
 
   useEffect(() => {
     if (isGameOver && puzzle) {
-      const matchId = `name-guess-${puzzle.puzzle_id}`;
+      const matchId = nameGuessMatchId(puzzle);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("name-guess", matchId)) {
         const isWin = status === "won";
         const guessCount = guesses.length;

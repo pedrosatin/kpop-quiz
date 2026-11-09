@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { dailyReferenceDate } from "../data/daily-artifact";
+import { getDaysDifference, loadPlayerStats } from "./player-stats";
 import type { Locale, PlayMode } from "./quiz-types";
 
 export type AnalyticsGame = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "map" | "code" | "crossword";
@@ -8,6 +10,17 @@ export interface GameAnalyticsContext {
   mode?: PlayMode;
 }
 export type ShareMethod = "native" | "clipboard";
+export type GameOutcome = "win" | "loss" | "give_up";
+
+/** The shared context plus what only a round knows. */
+export interface GameRoundContext extends GameAnalyticsContext {
+  /** True for the day's challenge, false for free play or a replay. Read once, when the round begins. */
+  isDaily: () => boolean;
+  /** How the round ended; null while it is being played. */
+  outcome: GameOutcome | null;
+}
+
+type EventDetails = Record<string, string | undefined>;
 
 // Only ConsentBanner enables measurement, and only when it is mounted on a
 // production page with a measurement ID. Saved consent alone cannot enable it.
@@ -18,10 +31,10 @@ export function setGameAnalyticsConsent(id: string, consent: boolean): void {
   accepted = consent && id.length > 0;
 }
 
-export function trackGameEvent(
+function sendGameEvent(
   event: "game_start" | "game_complete" | "share",
   context: GameAnalyticsContext,
-  method?: ShareMethod,
+  details: EventDetails = {},
 ): void {
   if (typeof window === "undefined" || !accepted || !measurementId) return;
   try {
@@ -36,7 +49,7 @@ export function trackGameEvent(
       game: context.game,
       locale: context.locale,
       ...(context.mode ? { mode: context.mode } : {}),
-      ...(event === "share" ? { method, content_type: "game_result", item_id: context.game } : {}),
+      ...Object.fromEntries(Object.entries(details).filter(([, value]) => value !== undefined)),
       send_to: measurementId,
     };
     (w.gtag as (...args: unknown[]) => void)("event", event, params);
@@ -45,8 +58,58 @@ export function trackGameEvent(
   }
 }
 
+export function trackGameEvent(
+  event: "game_start" | "game_complete" | "share",
+  context: GameAnalyticsContext,
+  method?: ShareMethod,
+): void {
+  sendGameEvent(event, context, event === "share" ? { method, content_type: "game_result", item_id: context.game } : {});
+}
+
+/**
+ * Days since the game's last recorded day, in bands. "0" is another round on
+ * the same day. A date ahead of today (clock moved back) has no band.
+ */
+export function daysSinceLastBucket(lastPlayedDate: string | undefined, today: string): string | undefined {
+  if (!lastPlayedDate) return "first";
+  const days = getDaysDifference(lastPlayedDate, today);
+  if (days < 0) return undefined;
+  if (days <= 1) return String(days);
+  return days <= 7 ? "2-7" : "8+";
+}
+
+/** The game's stored streak, in bands. "0" means no active streak. */
+export function streakBucket(streak: number): string {
+  if (streak <= 1) return String(Math.max(streak, 0));
+  if (streak <= 3) return "2-3";
+  return streak <= 7 ? "4-7" : "8+";
+}
+
+// The Map pilot keeps no player stats, so it has no return bands to send.
+function gameStats(game: AnalyticsGame) {
+  return game === "map" ? null : loadPlayerStats().games[game];
+}
+
+interface RoundSnapshot {
+  daily: "yes" | "no";
+  daysSinceLast: string | undefined;
+}
+
+function readRoundSnapshot(context: GameRoundContext): RoundSnapshot {
+  try {
+    const stats = gameStats(context.game);
+    return {
+      daily: context.isDaily() ? "yes" : "no",
+      // The day turns in Sao Paulo, like the daily boards whose dates are stored.
+      daysSinceLast: stats ? daysSinceLastBucket(stats.lastPlayedDate, dailyReferenceDate()) : undefined,
+    };
+  } catch {
+    return { daily: "no", daysSinceLast: undefined };
+  }
+}
+
 /** Lifecycle deduplication is independent of consent: activity is never replayed. */
-export function useGameAnalytics(context: GameAnalyticsContext, finished: boolean, resumed = false) {
+export function useGameAnalytics(context: GameRoundContext, finished: boolean, resumed = false) {
   const started = useRef(resumed);
   const playedHere = useRef(false);
   const completed = useRef(false);
@@ -56,24 +119,45 @@ export function useGameAnalytics(context: GameAnalyticsContext, finished: boolea
   if (resumed && !playedHere.current && !restartedHere.current) started.current = true;
   const contextRef = useRef(context);
   contextRef.current = context;
+  // Taken when the round begins, because saving its result overwrites the
+  // last played date and marks the day's board as already played.
+  const round = useRef<RoundSnapshot | null>(null);
+  const [completions, setCompletions] = useState(0);
 
   useEffect(() => {
     if (!finished || !playedHere.current || completed.current) return;
     completed.current = true;
-    trackGameEvent("game_complete", contextRef.current);
+    // The game saves its stats in an effect of this same commit, before or
+    // after this one depending on the game. The next commit follows both.
+    setCompletions((n) => n + 1);
   }, [finished]);
+
+  useEffect(() => {
+    if (completions === 0 || !round.current) return;
+    const current = contextRef.current;
+    const stats = gameStats(current.game);
+    sendGameEvent("game_complete", current, {
+      daily: round.current.daily,
+      outcome: current.outcome ?? undefined,
+      days_since_last: round.current.daysSinceLast,
+      // Whatever streak rule player-stats applies; a change there shifts this band.
+      streak_bucket: stats ? streakBucket(stats.currentStreak) : undefined,
+    });
+  }, [completions]);
 
   const start = () => {
     playedHere.current = true;
+    round.current ??= readRoundSnapshot(contextRef.current);
     if (started.current) return;
     started.current = true;
-    trackGameEvent("game_start", contextRef.current);
+    sendGameEvent("game_start", contextRef.current, { daily: round.current.daily });
   };
   const reset = () => {
     restartedHere.current = true;
     started.current = false;
     playedHere.current = false;
     completed.current = false;
+    round.current = null;
   };
   return { start, reset };
 }
