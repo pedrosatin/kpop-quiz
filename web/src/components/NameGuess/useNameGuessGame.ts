@@ -1,5 +1,6 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useEffect, useMemo, useReducer } from "preact/hooks";
+import { isGameMatchRecorded } from "../../lib/player-stats";
 import type { NameGuessPuzzle, Locale } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus } from "./types";
 
@@ -140,13 +141,27 @@ function nameGuessReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
+export function nameGuessMatchId(puzzle: NameGuessPuzzle): string {
+  return `name-guess-${puzzle.puzzle_id}`;
+}
+
 export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-BR") {
   const storageKey = `kpop_guess_state_${puzzle.puzzle_id}`;
 
   const [state, dispatch] = useReducer(nameGuessReducer, INITIAL_STATE);
   const { guesses, feedbacks, currentInput, status, errorMessage, highContrast } = state;
 
-  const analytics = useGameAnalytics({ game: "name-guess", locale }, status !== "playing", guesses.length > 0);
+  const analytics = useGameAnalytics(
+    {
+      game: "name-guess",
+      locale,
+      isDaily: () => !isGameMatchRecorded("name-guess", nameGuessMatchId(puzzle)),
+      // Only a give-up ends the game with attempts left.
+      outcome: status === "won" ? "win" : status === "lost" ? (guesses.length < puzzle.max_attempts ? "give_up" : "loss") : null,
+    },
+    status !== "playing",
+    guesses.length > 0,
+  );
 
   // Restore saved state
   useEffect(() => {

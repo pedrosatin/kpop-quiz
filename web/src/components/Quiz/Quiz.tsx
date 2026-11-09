@@ -34,11 +34,11 @@ import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getInitialUrlParams, updateUrlParams, type QuizDecadeSelection, type QuizTheme } from "./url-params";
 import type { QuestionResult, QuizMachineState } from "./types";
 import {
-  getTodayDateString,
   isGameMatchRecorded,
   markGameMatchRecorded,
   recordGameFinish,
 } from "../../lib/player-stats";
+import { dailyReferenceDate } from "../../data/daily-artifact";
 
 type SessionSource = "catalog" | "published";
 /** UI notice for the next replay: catalog pool of exactly ten, or legacy fallback. */
@@ -46,6 +46,18 @@ type ReplayNotice = "ok" | "repeats" | "legacy-repeats" | null;
 type ResumeNotice = "incompatible" | "invalid" | "storage-unavailable" | null;
 
 export { groupEvidence };
+
+function quizDailyDate(session: QuizSession, theme: QuizTheme): string | undefined {
+  if (theme !== "daily") return undefined;
+  return session.config.seed?.startsWith("kpop-daily-")
+    ? session.config.seed.replace("kpop-daily-", "")
+    : dailyReferenceDate();
+}
+
+function isQuizWin(session: QuizSession, history: QuestionResult[]): boolean {
+  const total = session.questions.length || 10;
+  return history.filter((h) => h.isCorrect).length >= Math.ceil(total / 2);
+}
 
 export function Quiz({ locale, initialAvailableDecades = [] }: {
   locale: Locale;
@@ -76,8 +88,20 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
   const [restoredVisit, setRestoredVisit] = useState(false);
 
+  const gaveUpRef = useRef(false);
   const analytics = useGameAnalytics(
-    { game: "quiz", locale, mode: playMode },
+    {
+      game: "quiz",
+      locale,
+      mode: playMode,
+      isDaily: () => {
+        const dailyDate = session ? quizDailyDate(session, theme) : undefined;
+        return dailyDate !== undefined && !isGameMatchRecorded("quiz", `daily-${dailyDate}`);
+      },
+      outcome: state !== "results" || !session
+        ? null
+        : gaveUpRef.current ? "give_up" : isQuizWin(session, history) ? "win" : "loss",
+    },
     state === "results",
     restoredVisit,
   );
@@ -91,7 +115,6 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const startTimeRef = useRef<number | null>(null);
   const recordedMatchRef = useRef<string | null>(null);
   const confirmGiveUpOpenRef = useRef(false);
-  const gaveUpRef = useRef(false);
   const persistReadyRef = useRef(false);
   const question = session?.questions[questionIndex];
   const timerSeconds = timerEnabled ? 20 : session?.config.timer_seconds ?? null;
@@ -512,16 +535,11 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
 
   useEffect(() => {
     if (state === "results" && session) {
-      const dailyDate = theme === "daily" && session.config.seed?.startsWith("kpop-daily-")
-        ? session.config.seed.replace("kpop-daily-", "")
-        : (theme === "daily" ? getTodayDateString() : undefined);
+      const dailyDate = quizDailyDate(session, theme);
       const matchId = dailyDate ? `daily-${dailyDate}` : `session-${session.session_id || "default"}`;
 
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("quiz", matchId)) {
-        const correctCount = history.filter((h) => h.isCorrect).length;
-        const total = session.questions.length || 10;
-        const isWin = correctCount >= Math.ceil(total / 2);
-        recordGameFinish("quiz", isWin, dailyDate || getTodayDateString());
+        recordGameFinish("quiz", isQuizWin(session, history), dailyDate || dailyReferenceDate());
         markGameMatchRecorded("quiz", matchId);
         recordedMatchRef.current = matchId;
       }
@@ -562,6 +580,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
 
   const submit = () => {
     if (!question || !selectedId || answerLockedRef.current) return;
+    analytics.start();
     answerLockedRef.current = true;
     setDeadlineMs(null);
     const isCorrect = selectedId === question.answer_option_id;
@@ -588,6 +607,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
 
   const advance = () => {
     if (!session) return;
+    analytics.start();
     if (questionIndex === session.questions.length - 1) {
       let nextElapsed = elapsedSeconds;
       if (elapsedSeconds === 0 && startTimeRef.current) {
@@ -623,6 +643,8 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
 
   const giveUp = () => {
     if (!session || state === "results" || gaveUpRef.current) return;
+    // A restored round never passes through start(), so its result would go unsent.
+    analytics.start();
     gaveUpRef.current = true;
     setDeadlineMs(null);
     answerLockedRef.current = true;

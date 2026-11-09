@@ -1,7 +1,9 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
+import { isGameMatchRecorded } from "../../lib/player-stats";
 import type { ConnectionsGameStatus, ConnectionsStoredState, GuessResult } from "./types";
+import { connectionsMatchId } from "./useRecordConnectionsMatch";
 
 const MAX_MISTAKES = 4;
 
@@ -66,7 +68,17 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
   const [proximityFeedback, setProximityFeedback] = useState<boolean>(false);
   const [alreadyGuessedFeedback, setAlreadyGuessedFeedback] = useState<boolean>(false);
 
-  const analytics = useGameAnalytics({ game: "connections", locale: _locale }, gameStatus !== "in_progress", guessHistory.length > 0);
+  const analytics = useGameAnalytics(
+    {
+      game: "connections",
+      locale: _locale,
+      isDaily: () => puzzle !== null && !isGameMatchRecorded("connections", connectionsMatchId(puzzle)),
+      // Only a give-up ends the game with mistakes left.
+      outcome: gameStatus === "won" ? "win" : gameStatus === "lost" ? (mistakesRemaining > 0 ? "give_up" : "loss") : null,
+    },
+    gameStatus !== "in_progress",
+    guessHistory.length > 0,
+  );
 
   // Sync to localStorage
   useEffect(() => {

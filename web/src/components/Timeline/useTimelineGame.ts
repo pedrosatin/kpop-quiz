@@ -1,4 +1,5 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
+import { isGameMatchRecorded } from "../../lib/player-stats";
 import { useCallback, useMemo, useState } from "preact/hooks";
 import type { Locale, TimelineEvent, TimelinePuzzle } from "../../lib/quiz-types";
 import type { TimelineGameStatus } from "./types";
@@ -10,6 +11,10 @@ import {
   loadTimelineSavedState,
   saveTimelineState,
 } from "./timeline-utils";
+
+export function timelineMatchId(puzzle: TimelinePuzzle): string {
+  return `timeline-${puzzle.puzzle_id}`;
+}
 
 export function useTimelineGame(
   puzzle: TimelinePuzzle,
@@ -32,7 +37,16 @@ export function useTimelineGame(
   const [score, setScore] = useState<number>(() => initialSaved?.score ?? 0);
   const [results, setResults] = useState<boolean[]>(() => initialSaved?.results ?? []);
 
-  const analytics = useGameAnalytics({ game: "timeline", locale }, gameStatus === "submitted", Boolean(initialSaved));
+  const analytics = useGameAnalytics(
+    {
+      game: "timeline",
+      locale,
+      isDaily: () => !isGameMatchRecorded("timeline", timelineMatchId(puzzle)),
+      outcome: gameStatus !== "submitted" ? null : gaveUp ? "give_up" : score === puzzle.events.length ? "win" : "loss",
+    },
+    gameStatus === "submitted",
+    Boolean(initialSaved),
+  );
 
   const eventMap = useMemo(() => {
     const map = new Map<string, TimelineEvent>();

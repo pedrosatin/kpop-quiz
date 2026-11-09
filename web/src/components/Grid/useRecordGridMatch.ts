@@ -1,12 +1,20 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { IntersectionGrid } from "../../lib/quiz-types";
 import {
-  getTodayDateString,
   isGameMatchRecorded,
   markGameMatchRecorded,
   recordGameFinish,
 } from "../../lib/player-stats";
+import { dailyReferenceDate } from "../../data/daily-artifact";
 import type { GridGameStatus } from "./types";
+
+export function gridMatchId(grid: IntersectionGrid): string {
+  return `grid-${grid.reference_date || grid.grid_id}`;
+}
+
+export function isGridWin(solvedCount: number): boolean {
+  return solvedCount >= 5;
+}
 
 /** Records one finished match in player stats; ignores restored or restarted boards. */
 export function useRecordGridMatch(
@@ -18,10 +26,10 @@ export function useRecordGridMatch(
 
   useEffect(() => {
     if (status === "complete" && grid) {
-      const matchId = `grid-${grid.reference_date || grid.grid_id}`;
+      const matchId = gridMatchId(grid);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("grid", matchId)) {
-        const isWin = solvedCount >= 5;
-        recordGameFinish("grid", isWin, grid.reference_date || getTodayDateString());
+        const isWin = isGridWin(solvedCount);
+        recordGameFinish("grid", isWin, grid.reference_date || dailyReferenceDate());
         markGameMatchRecorded("grid", matchId);
         recordedMatchRef.current = matchId;
       }

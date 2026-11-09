@@ -4,7 +4,8 @@ import { CELL_GUARD_MS, IntersectionGrid, nextCellAfterGuess } from "./Intersect
 import { RESULT_GUARD_MS } from "./GridResults";
 import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
-import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
+import { setGameAnalyticsConsent } from "../../lib/game-analytics";
+import { createInitialPlayerStats, loadPlayerStats, markGameMatchRecorded, savePlayerStats } from "../../lib/player-stats";
 import validGridJson from "../../tests/fixtures/grid.daily.json";
 import legacyGridJson from "../../tests/fixtures/grid.published-legacy-20261026.json";
 import { cellKey, type GridCellState } from "./types";
@@ -73,6 +74,8 @@ describe("IntersectionGrid orchestrator component", () => {
 
   afterEach(() => {
     localStorage.clear();
+    setGameAnalyticsConsent("", false);
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -506,6 +509,51 @@ describe("IntersectionGrid orchestrator component", () => {
 
     expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
     expect(within(screen.getByRole("grid")).queryByText("BLACKPINK")).not.toBeInTheDocument();
+  });
+
+  describe("measurement", () => {
+    // Grid saves its stats in a child component, whose effects run before the
+    // measurement in its parent: the last played date is already overwritten.
+    function measure() {
+      const gtag = vi.fn();
+      vi.stubGlobal("gtag", gtag);
+      setGameAnalyticsConsent("G-TEST", true);
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(`${validGridJson.reference_date}T15:00:00Z`));
+      const stats = createInitialPlayerStats();
+      stats.games.grid = { played: 4, won: 4, maxStreak: 9, currentStreak: 1, lastPlayedDate: "2026-09-16" };
+      savePlayerStats(stats);
+      return gtag;
+    }
+
+    it("reports a win with the gap from before its own result", async () => {
+      const gtag = measure();
+      await renderReady();
+      WIN_PATH.forEach(([row, col, name]) => pick(row, col, name));
+      await waitFor(() => expect(gtag).toHaveBeenCalledTimes(2));
+      expect(gtag.mock.calls[1]![1]).toBe("game_complete");
+      expect(gtag.mock.calls[1]![2]).toMatchObject({
+        game: "grid", daily: "yes", outcome: "win", days_since_last: "1", streak_bucket: "2-3",
+      });
+    });
+
+    it("reports a give-up and a loss, and a replay as free play", async () => {
+      const gtag = measure();
+      await renderReady();
+      pick(0, 0, "TWICE");
+      fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+      fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
+      await waitFor(() => expect(gtag).toHaveBeenCalledTimes(2));
+      expect(gtag.mock.calls[1]![2]).toMatchObject({ daily: "yes", outcome: "give_up" });
+
+      clock += RESULT_GUARD_MS + 1;
+      fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+      await screen.findByRole("grid");
+      for (let guess = 0; guess < 9; guess += 1) pick(0, 0, "SHINee");
+      await waitFor(() => expect(gtag).toHaveBeenCalledTimes(4));
+      expect(gtag.mock.calls[2]![2]).toMatchObject({ daily: "no" });
+      expect(gtag.mock.calls[3]![2]).toMatchObject({ daily: "no", outcome: "loss", days_since_last: "0" });
+    });
   });
 
   it("reveals the answers when the player gives up", async () => {

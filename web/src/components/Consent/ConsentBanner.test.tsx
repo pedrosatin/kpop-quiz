@@ -42,7 +42,7 @@ afterEach(() => {
 describe("ConsentBanner", () => {
   it("gates real game lifecycle on acceptance and revocation without replay", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
-    const game = renderHook(({ finished }) => useGameAnalytics({ game: "quiz", locale: "pt-BR" }, finished), {
+    const game = renderHook(({ finished }) => useGameAnalytics({ game: "quiz", locale: "pt-BR", isDaily: () => false, outcome: null }, finished), {
       initialProps: { finished: false },
     });
     act(() => game.result.current.start());

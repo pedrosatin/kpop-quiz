@@ -30,7 +30,7 @@ export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
     if (game !== null) return;
     const date = seedDate ?? dailyReferenceDate();
     const saved = loadMapPilotSave(date, selectMapPilotRound(mapPilotEvents, date), playableFeatures);
-    setGame({ date, answers: saved?.answers ?? [], index: saved?.index ?? 0 });
+    setGame({ date, answers: saved?.answers ?? [], index: saved?.index ?? 0, replay: saved?.replay === true });
   }, [game, seedDate]);
   const roundDate = game?.date ?? null;
   const round = useMemo(
