@@ -315,6 +315,54 @@ class WikipediaEvidenceTest(unittest.TestCase):
         prose = page("2NE1 is a group. CL released a solo album that year.")
         self.assertIsNone(membership_evidence(prose, ["Lee Chae-lin", "CL"], ["2NE1"]))
 
+    def test_one_letter_stage_name_is_accepted_as_an_item_of_a_member_list(self):
+        for sentence, letter, subject in (
+            # The BTS lead, revision 1376754986.
+            (
+                "The band consists of Jin, Suga, J-Hope, RM, Jimin, V, and Jung Kook, "
+                "who co-write or co-produce much of their material.",
+                "V",
+                "BTS",
+            ),
+            (
+                "The group consists of nine members: Sangyeon, Jacob, Younghoon, Hyunjae, "
+                "Juyeon, Kevin, Q, Sunwoo, and Eric.",
+                "Q",
+                "The Boyz",
+            ),
+            ("The group is composed of six members: Sumin, Sieun, Isa, Seeun, Yoon, and J.", "J", "STAYC"),
+        ):
+            with self.subTest(letter=letter):
+                listed = page(sentence)
+                evidence = membership_evidence(listed, ["Full Name", letter], [subject])
+                self.assertIsNotNone(evidence)
+                start, end = map(int, evidence.locator.split("#extract[")[1].rstrip("]").split(":"))
+                self.assertEqual(listed.extract[start:end], letter)
+
+    def test_one_letter_stage_name_is_not_evidence_outside_an_explicit_list(self):
+        for text in (
+            "V joined the group in 2013.",
+            "BTS member V left the group.",
+            "BTS is a band. V released a solo album that year.",
+            "The group announced the addition of V and Jin.",
+            # Not a whole item, or the only item.
+            "The band consists of V.",
+            "The band consists of Jin, Suga, and v.",
+            "The band consists of Jin, V Lee, and RM.",
+            "The band consists of Jin, V. Lee and RM.",
+            # Letters that start a longer stage name.
+            "The group consists of Minhyuk, Kihyun, and V.M, while Wonho left.",
+            "The band has eight members: Bang Chan, Felix, Seungmin, and V.N. Woojin left in 2019.",
+            "The group consists of Moos, Buffy and V.O. Their debut album was released in 2014.",
+            "The quartet consists of members E:V, Sihyeon, Onda, and Aisha.",
+        ):
+            with self.subTest(text=text):
+                self.assertIsNone(membership_evidence(page(text), ["V"], ["BTS", "The band"]))
+
+    def test_one_letter_name_must_be_declared_for_the_person(self):
+        listed = page("The band consists of Jin, Suga, J-Hope, RM, Jimin, V, and Jung Kook.")
+        self.assertIsNone(membership_evidence(listed, ["Kim Tae-hyung"], ["BTS"]))
+
     def test_formed_by_does_not_prove_record_label(self):
         formed = page("Twice was formed by JYP Entertainment in 2015.")
         self.assertIsNone(

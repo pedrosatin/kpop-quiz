@@ -11,8 +11,10 @@ from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
 
-EVIDENCE_RULES_VERSION = "text-evidence-v7"
+EVIDENCE_RULES_VERSION = "text-evidence-v8"
 MIN_NAME_LENGTH = 4
+# Shorter performer names count in a credit only when spelled exactly.
+MIN_CREDIT_NAME_LENGTH = 2
 MAX_SNIPPET_LENGTH = 300
 MONTHS = (
     "January", "February", "March", "April", "May", "June", "July",
@@ -393,6 +395,7 @@ def membership_evidence(
 
     The forms "member <name> joined|left|departed", "<name> joined|left the
     group" and lists after "addition of" or "graduations of" are also accepted.
+    A one-letter stage name only counts as an item of the first kind of list.
     """
     patterns = _name_patterns(names)
     # Stage names are often mononyms ("CL", "Bom", "Uee"). Inside an explicit
@@ -404,7 +407,9 @@ def membership_evidence(
         for listing in _MEMBER_LIST.finditer(sentence):
             if _membership_owner_shifted(sentence, listing.start(), subject_names):
                 continue
-            found = _list_item(sentence, listing.end(), list_patterns, _PERSON_LIST_BEFORE, True)
+            found = _list_item(
+                sentence, listing.end(), list_patterns, _PERSON_LIST_BEFORE, True
+            ) or _one_letter_list_item(sentence, listing.end(), names)
             if found:
                 return _text_evidence(page, start + found[0], start + found[1])
     for start, sentence in _subject_sentences(page, subject_names):
@@ -631,14 +636,10 @@ def _performer_list_item(
     known = tuple(
         sorted(set(peer_names) | set(targets), key=lambda item: (-len(item), item))
     )
-    usable = [
-        name
-        for name in known
-        if len(name) >= MIN_NAME_LENGTH or " " in name or any(char.isdigit() for char in name)
-    ]
+    usable = [pattern for name in known if (pattern := _credit_name_pattern(name))]
     if not usable:
         return None
-    item = rf"(?:{'|'.join(re.escape(name) for name in usable)})"
+    item = rf"(?:{'|'.join(usable)})"
     separator = r"(?:\s*,\s*(?:(?:and|e)\s+)?|\s+(?:and|e|&)\s+)"
     listing = re.compile(rf"(?P<artists>{item}(?:{separator}{item})*)", _I).match(
         sentence, position
@@ -651,13 +652,30 @@ def _performer_list_item(
     ):
         return None
     for target in targets:
+        pattern = _credit_name_pattern(target)
+        if pattern is None:
+            continue
         match = re.search(
-            rf"(?<![\w-]){re.escape(target)}(?![\w-])",
+            rf"(?<![\w-]){pattern}(?![\w-])",
             listing.group("artists"),
             _I,
         )
         if match:
             return listing.start("artists") + match.start(), listing.start("artists") + match.end()
+    return None
+
+
+def _credit_name_pattern(name: str) -> str | None:
+    """Return the pattern of one performer name in a credit, or None if unusable.
+
+    A short name ("BTS", "Can", "UN") identifies the performer only when the
+    credit writes it exactly, so it is matched case-sensitively and needs a
+    capital letter: a common word in another case is not the performer.
+    """
+    if len(name) >= MIN_NAME_LENGTH or " " in name or any(char.isdigit() for char in name):
+        return re.escape(name)
+    if len(name) >= MIN_CREDIT_NAME_LENGTH and re.search(r"[A-Z]", name):
+        return rf"(?-i:{re.escape(name)})"
     return None
 
 
@@ -783,8 +801,13 @@ def infobox_item_evidence(page: WikipediaPage, field: str, start: int, end: int)
     )
 
 
+def page_title_name(title: str) -> str:
+    """Drop a final disambiguator, as in "Exo (group)", from a page title."""
+    return re.sub(r"\s+\([^)]*\)$", "", title).strip()
+
+
 def subject_names_for(page: WikipediaPage, names: Iterable[str]) -> tuple[str, ...]:
-    title = re.sub(r"\s+\([^)]*\)$", "", page.title).strip()
+    title = page_title_name(page.title)
     values = {name.strip() for name in names if name.strip()}
     if title:
         values.add(title)
@@ -876,6 +899,32 @@ def _list_item(
             # avoid a capitalized continuation such as "Warner Music Japan".
             if _clean_boundaries(sentence, match.start(), match.end(), proper_noun, False):
                 return match.start(), match.end()
+    return None
+
+
+def _one_letter_list_item(
+    sentence: str,
+    position: int,
+    names: Iterable[str],
+) -> tuple[int, int] | None:
+    """Find a one-letter stage name ("V") that is a whole item of a longer list.
+
+    One letter identifies a person only as an item spelled exactly, next to at
+    least one other item of the list. "V." can start an initial and "I.M" a
+    longer name, so a period counts only when it ends the sentence and "and"
+    closes the list before the letter.
+    """
+    letters = sorted({name.strip() for name in names if re.fullmatch(r"[A-Z]", name.strip())})
+    patterns = [re.compile(rf"(?<!\S){letter}(?![\w'’&:-])") for letter in letters]
+    found = _list_item(sentence, position, patterns, _PERSON_LIST_BEFORE, True)
+    if found is None:
+        return None
+    before = sentence[position : found[0]]
+    after = sentence[found[1] :]
+    if after.startswith(".") and not (after.strip() == "." and re.search(r"\band\s+$", before)):
+        return None
+    if re.search(rf"{_LIST_SEPARATOR}$", before) or re.match(rf"{_LIST_SEPARATOR}[A-Z0-9(]", after):
+        return found
     return None
 
 

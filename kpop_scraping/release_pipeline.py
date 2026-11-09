@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from .catalog import MUSICAL_GROUP_CLASSES
 from .entities import extract_aliases, instance_of, matching_names
+from .evidence import page_title_name
 from .fact_store import FactRunTotals, FactStore, count_statuses
 from .release_facts import EXTRACTOR_VERSION, release_entity_type, release_fact_candidates
 from .release_evidence import collect_release_pages
@@ -102,13 +103,7 @@ def _collect(
     entity_ids = dict(accepted_groups)
     entity_types = {qid: "group" for qid in accepted_groups}
     names: dict[str, tuple[str, ...]] = {
-        qid: tuple(
-            row["name"]
-            for row in repository.connection.execute(
-                "SELECT name FROM entity_aliases WHERE entity_id=? ORDER BY name",
-                (entity_id,),
-            )
-        )
+        qid: _catalog_group_names(repository.connection, entity_id)
         for qid, entity_id in accepted_groups.items()
     }
     subjects_by_entity = {}
@@ -248,6 +243,35 @@ def _collect(
         counts["superseded"],
         ignored,
     )
+
+
+def _catalog_group_names(connection, entity_id: int) -> tuple[str, ...]:
+    """Return a catalog group's aliases plus the spelling of its own page title.
+
+    Wikipedia may write a name in another case than Wikidata ("Exo", "EXO").
+    The title of the page the catalog accepted for this group only adds that
+    spelling of a known alias, never a different name.
+    """
+    aliases = [
+        row["name"]
+        for row in connection.execute(
+            "SELECT name FROM entity_aliases WHERE entity_id=? ORDER BY name",
+            (entity_id,),
+        )
+    ]
+    known = {alias.casefold() for alias in aliases}
+    titles = connection.execute(
+        """SELECT DISTINCT sp.title FROM catalog_entity_links cel
+        JOIN catalog_entries ce ON ce.source_page_id=cel.source_page_id
+        JOIN source_pages sp ON sp.id=ce.source_page_id
+        WHERE cel.entity_id=? AND ce.state='accepted' ORDER BY sp.title""",
+        (entity_id,),
+    )
+    for row in titles:
+        spelling = page_title_name(row["title"])
+        if spelling.casefold() in known and spelling not in aliases:
+            aliases.append(spelling)
+    return tuple(aliases)
 
 
 def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) -> None:
