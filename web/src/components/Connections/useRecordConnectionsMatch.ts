@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { ConnectionsPuzzle } from "../../lib/quiz-types";
 import {
-  getTodayDateString,
   isGameMatchRecorded,
   markGameMatchRecorded,
   recordGameFinish,
 } from "../../lib/player-stats";
+import { dailyReferenceDate } from "../../data/daily-artifact";
 import type { ConnectionsGameStatus } from "./types";
 
 export function connectionsMatchId(puzzle: ConnectionsPuzzle): string {
@@ -25,7 +25,7 @@ export function useRecordConnectionsMatch(
       const matchId = connectionsMatchId(puzzle);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("connections", matchId)) {
         const isWin = gameStatus === "won";
-        recordGameFinish("connections", isWin, puzzle.reference_date || getTodayDateString());
+        recordGameFinish("connections", isWin, puzzle.reference_date || dailyReferenceDate());
         markGameMatchRecorded("connections", matchId);
         recordedMatchRef.current = matchId;
       }

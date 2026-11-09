@@ -30,6 +30,7 @@ export const NEXT_GUARD_MS = 300;
 const MAP_VIEW_BOX = "0 20 1200 480";
 
 export interface RoundState {
+  replay?: boolean;
   date: string;
   answers: string[];
   index: number;
@@ -86,8 +87,8 @@ export function MapPilotGameContent({
     {
       game: "map",
       locale,
-      // The pilot keeps no stats, so a replay is only known within the visit.
-      isDaily: () => restarts === 0,
+      // The pilot keeps no stats, so the save is what remembers a replay.
+      isDaily: () => !game.replay,
       outcome: isComplete ? mapRoundOutcome(round, answers, gaveUpRound) : null,
     },
     isComplete,
@@ -108,13 +109,15 @@ export function MapPilotGameContent({
 
   // Save after every answer and every Next, so a reload resumes the date on
   // screen or the result. An untouched round is not saved, but a finished
-  // one is, even with zero answers after a give-up.
+  // one is, even with zero answers after a give-up. So is a replay, or a reload
+  // would turn it back into the day's round.
   useEffect(() => {
-    if (round.length === 0 || (game.answers.length === 0 && !isComplete)) return;
+    if (round.length === 0 || (game.answers.length === 0 && !isComplete && !game.replay)) return;
     storeMapPilotSave(game.date, {
       events: round.map((event) => event.event_mbid),
       answers: game.answers,
       index: game.index,
+      ...(game.replay ? { replay: true } : {}),
     });
   }, [game, round]);
 
@@ -192,7 +195,7 @@ export function MapPilotGameContent({
     setPickPrompt(0);
     setNotice(null);
     closeGiveUpConfirm();
-    setGame({ date: game.date, answers: [], index: 0 });
+    setGame({ date: game.date, answers: [], index: 0, replay: true });
     setGaveUpRound(false);
     setRestarts((value) => value + 1);
   }

@@ -34,11 +34,11 @@ import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getInitialUrlParams, updateUrlParams, type QuizDecadeSelection, type QuizTheme } from "./url-params";
 import type { QuestionResult, QuizMachineState } from "./types";
 import {
-  getTodayDateString,
   isGameMatchRecorded,
   markGameMatchRecorded,
   recordGameFinish,
 } from "../../lib/player-stats";
+import { dailyReferenceDate } from "../../data/daily-artifact";
 
 type SessionSource = "catalog" | "published";
 /** UI notice for the next replay: catalog pool of exactly ten, or legacy fallback. */
@@ -51,7 +51,7 @@ function quizDailyDate(session: QuizSession, theme: QuizTheme): string | undefin
   if (theme !== "daily") return undefined;
   return session.config.seed?.startsWith("kpop-daily-")
     ? session.config.seed.replace("kpop-daily-", "")
-    : getTodayDateString();
+    : dailyReferenceDate();
 }
 
 function isQuizWin(session: QuizSession, history: QuestionResult[]): boolean {
@@ -539,7 +539,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       const matchId = dailyDate ? `daily-${dailyDate}` : `session-${session.session_id || "default"}`;
 
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("quiz", matchId)) {
-        recordGameFinish("quiz", isQuizWin(session, history), dailyDate || getTodayDateString());
+        recordGameFinish("quiz", isQuizWin(session, history), dailyDate || dailyReferenceDate());
         markGameMatchRecorded("quiz", matchId);
         recordedMatchRef.current = matchId;
       }

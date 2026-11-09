@@ -6,11 +6,11 @@ import { VirtualKeyboard } from "./VirtualKeyboard";
 import type { NameGuessTranslations } from "./types";
 import { nameGuessMatchId, useNameGuessGame } from "./useNameGuessGame";
 import {
-  getTodayDateString,
   isGameMatchRecorded,
   markGameMatchRecorded,
   recordGameFinish,
 } from "../../lib/player-stats";
+import { dailyReferenceDate } from "../../data/daily-artifact";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getMessages } from "../../i18n/catalog";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
@@ -114,7 +114,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("name-guess", matchId)) {
         const isWin = status === "won";
         const guessCount = guesses.length;
-        recordGameFinish("name-guess", isWin, puzzle.reference_date || getTodayDateString(), guessCount);
+        recordGameFinish("name-guess", isWin, puzzle.reference_date || dailyReferenceDate(), guessCount);
         markGameMatchRecorded("name-guess", matchId);
         recordedMatchRef.current = matchId;
       }

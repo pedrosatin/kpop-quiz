@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { CrosswordPuzzle } from "../../data/crossword";
 import { useGameAnalytics } from "../../lib/game-analytics";
 import {
-  getTodayDateString,
   isGameMatchRecorded,
   markGameMatchRecorded,
   recordGameFinish,
@@ -77,7 +76,7 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
     }
     const matchId = crosswordMatchId(puzzle);
     if (recorded.current === matchId || isGameMatchRecorded("crossword", matchId)) return;
-    recordGameFinish("crossword", status === "won", getTodayDateString());
+    recordGameFinish("crossword", status === "won", puzzle.reference_date);
     markGameMatchRecorded("crossword", matchId);
     recorded.current = matchId;
   }, [finished, status, puzzle]);

@@ -111,6 +111,26 @@ describe("CrosswordGame", () => {
     expect(loadPlayerStats().games.crossword.played).toBe(0);
   });
 
+  it("records the board's date, whatever the visitor's time zone", async () => {
+    const zone = process.env.TZ;
+    process.env.TZ = "Asia/Tokyo";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    // 17:00 in Sao Paulo, already the next day in Tokyo.
+    vi.setSystemTime(new Date(`${today}T20:00:00Z`));
+    try {
+      serve();
+      await renderGame();
+      solveAll();
+      fireEvent.click(screen.getByRole("button", { name: pt.crosswordCheck }));
+      await act(async () => {});
+      expect(loadPlayerStats().games.crossword.lastPlayedDate).toBe(puzzle.reference_date);
+    } finally {
+      vi.useRealTimers();
+      if (zone === undefined) delete process.env.TZ;
+      else process.env.TZ = zone;
+    }
+  });
+
   it("solves the board, records one win and focuses the result title", async () => {
     serve();
     await renderGame();
@@ -123,6 +143,7 @@ describe("CrosswordGame", () => {
     const stats = loadPlayerStats().games.crossword;
     expect(stats.played).toBe(1);
     expect(stats.won).toBe(1);
+    expect(stats.lastPlayedDate).toBe(puzzle.reference_date);
 
     // A reload of the finished round restores it without counting it again.
     cleanup();

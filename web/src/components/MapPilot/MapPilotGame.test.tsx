@@ -364,6 +364,42 @@ describe("map pilot saved progress", () => {
     expect(gtag.mock.calls[3]![2]).toMatchObject({ daily: "no", outcome: "give_up" });
   });
 
+  it("keeps a replay as free play after a reload mid-round", () => {
+    const gtag = vi.fn();
+    vi.stubGlobal("gtag", gtag);
+    setGameAnalyticsConsent("G-TEST", true);
+    const first = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    playRound(first, round.map((_, index) => index));
+    advanceClock();
+    fireEvent.click(first.getByRole("button", { name: "Jogar novamente" }));
+    answer(first, wrongFor(round[0]!).country_iso_3166_1);
+    expect(stored()).toMatchObject({ replay: true });
+    first.unmount();
+
+    const second = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    fireEvent.click(second.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(second.getByRole("button", { name: "Sim, desistir" }));
+    expect(gtag.mock.calls.at(-1)![1]).toBe("game_complete");
+    expect(gtag.mock.calls.at(-1)![2]).toMatchObject({ daily: "no", outcome: "give_up" });
+  });
+
+  it("keeps a replay as free play after a reload before the first answer", () => {
+    const gtag = vi.fn();
+    vi.stubGlobal("gtag", gtag);
+    setGameAnalyticsConsent("G-TEST", true);
+    const first = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    playRound(first, round.map((_, index) => index));
+    advanceClock();
+    fireEvent.click(first.getByRole("button", { name: "Jogar novamente" }));
+    first.unmount();
+
+    const second = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    fireEvent.click(second.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(second.getByRole("button", { name: "Sim, desistir" }));
+    expect(gtag.mock.calls.at(-2)![2]).toMatchObject({ daily: "no" });
+    expect(gtag.mock.calls.at(-1)![2]).toMatchObject({ daily: "no", outcome: "give_up" });
+  });
+
   it("does not save an untouched round", () => {
     render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     expect(stored()).toBeNull();
@@ -640,12 +676,12 @@ describe("map pilot result", () => {
     expect(view.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
   });
 
-  it("starts the round again, clears the save and focuses the first question", () => {
+  it("starts the round again, clears the answers and focuses the first question", () => {
     const view = finished();
     advanceClock();
     fireEvent.click(view.getByRole("button", { name: "Jogar novamente" }));
     expect(view.getByText("Pergunta 1 de 10")).toBeTruthy();
-    expect(stored()).toBeNull();
+    expect(stored()).toEqual({ events: eventIds, answers: [], index: 0, replay: true });
     const question = view.getByRole("heading", { level: 2 });
     expect(question.textContent).toContain("Em qual país");
     expect(document.activeElement).toBe(question);

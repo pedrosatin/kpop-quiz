@@ -23,7 +23,7 @@ import {
 } from "./storage";
 import type { QuizSession } from "../../lib/quiz-types";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
-import { isGameMatchRecorded, PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
+import { isGameMatchRecorded, loadPlayerStats, PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
 
 const CATALOG_DIR = path.resolve(__dirname, "../../tests/fixtures/catalog");
 const catalogManifest = JSON.parse(fs.readFileSync(path.join(CATALOG_DIR, "catalog-manifest-v1.json"), "utf-8"));
@@ -669,6 +669,23 @@ describe("Quiz", () => {
       fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
       await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
     };
+
+    it("records a free round on the Sao Paulo day, whatever the visitor's time zone", async () => {
+      const zone = process.env.TZ;
+      process.env.TZ = "Asia/Tokyo";
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-11-09T01:00:00Z"));
+      try {
+        measure();
+        await renderReady();
+        await playToResult(true);
+        await vi.waitFor(() => expect(loadPlayerStats().games.quiz.lastPlayedDate).toBe("2026-11-08"));
+      } finally {
+        vi.useRealTimers();
+        if (zone === undefined) delete process.env.TZ;
+        else process.env.TZ = zone;
+      }
+    });
 
     it("sends the general quiz as free play and tells a win from a loss and a give-up", async () => {
       const gtag = measure();
