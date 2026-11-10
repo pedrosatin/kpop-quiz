@@ -16,7 +16,10 @@ export const isCatalogMissing = (error: unknown): boolean =>
   (error instanceof CatalogSelectionError && error.kind === "missing")
   || (error instanceof CatalogArtifactError && error.kind === "missing");
 
-/** Warns about a save that cannot be resumed and clears it; a legacy save for another config stays in place. */
+/**
+ * Unavailable storage and a legacy save for another config only set a notice.
+ * An invalid payload is deleted and sets the invalid notice. A missing save does nothing.
+ */
 function noteUnusableSave(
   match: QuizMatch,
   status: Exclude<QuizProgressLoadResult["status"], "ok">,
@@ -65,7 +68,11 @@ export function tryResumePublished(ctx: QuizLoadContext, round: LoadedRound): vo
   applyRound(ctx, round);
 }
 
-/** Checks a catalog save against the live artifact, and clears the save when it no longer applies. */
+/**
+ * Accepts a catalog save whose locale, mode, theme and decades match this slot.
+ * A mismatch clears the slot and sets the invalid notice. A non-catalog or daily
+ * save returns false and stays on disk.
+ */
 function isResumableCatalogSave(
   { locale, settings, match }: QuizLoadContext,
   save: QuizProgressSave,
