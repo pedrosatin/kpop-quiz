@@ -13,15 +13,19 @@ export interface StoredProgress {
   clueMode?: boolean;
 }
 
-export function loadStoredProgress(key: string): StoredProgress {
+export function loadStoredProgress(key: string, validWordIds?: ReadonlySet<string>): StoredProgress {
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") throw new Error("Invalid progress");
+      if (!Array.isArray(parsed.foundWordIds) || parsed.foundWordIds.some((id: unknown) =>
+        typeof id !== "string" || (validWordIds !== undefined && !validWordIds.has(id)))) throw new Error("Invalid words");
+      if (new Set(parsed.foundWordIds).size !== parsed.foundWordIds.length) throw new Error("Repeated words");
       const isEasy = Boolean(parsed.easyMode ?? parsed.clueMode);
       return {
         foundWordIds: Array.isArray(parsed.foundWordIds) ? parsed.foundWordIds : [],
-        elapsedSeconds: typeof parsed.elapsedSeconds === "number" ? parsed.elapsedSeconds : 0,
+        elapsedSeconds: Number.isFinite(parsed.elapsedSeconds) && parsed.elapsedSeconds >= 0 ? parsed.elapsedSeconds : 0,
         status: parsed.status === "completed" ? "completed" : "in_progress",
         easyMode: isEasy,
         clueMode: isEasy,
