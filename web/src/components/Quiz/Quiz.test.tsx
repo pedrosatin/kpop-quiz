@@ -616,6 +616,25 @@ describe("Quiz", () => {
     expect(fetch).toHaveBeenCalledTimes(7);
   });
 
+  it("never saves the previous answer on the next question", async () => {
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const answer = question.options.find((option) => option.id === question.answer_option_id)!;
+    fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    advanceClock();
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }));
+    const progress = writes.mock.calls.filter(([key]) => key.startsWith("kpop-quiz-progress"))
+      .map(([, value]) => JSON.parse(value));
+    expect(progress.length).toBeGreaterThan(0);
+    expect(progress.some((saved) => saved.question_index === 1)).toBe(true);
+    for (const saved of progress) {
+      if (saved.question_index === 1) expect(saved.selected_id).toBeNull();
+    }
+    writes.mockRestore();
+  });
+
   it("completes all questions, displays results, and restarts the round", async () => {
     await renderReady();
     for (let index = 0; index < ptSession.questions.length; index += 1) {
