@@ -114,6 +114,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
         {messages.codeAttemptsLeft(attemptsLeft)}: {attemptsLeft}/{puzzle.max_attempts}
       </p>
       <form
+        onKeyDown={ignoreRepeat}
         onSubmit={(event) => {
           event.preventDefault();
           submitHere();

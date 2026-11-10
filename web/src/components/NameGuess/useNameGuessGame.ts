@@ -169,7 +169,8 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-B
       const raw = localStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as SavedGameState;
-        if (Array.isArray(parsed.guesses) && Array.isArray(parsed.feedbacks)) {
+        if (Array.isArray(parsed.guesses) && Array.isArray(parsed.feedbacks)
+          && ["playing", "won", "lost"].includes(parsed.status)) {
           dispatch({ type: "restore", saved: parsed });
         }
       }
