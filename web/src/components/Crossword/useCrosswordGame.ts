@@ -3,8 +3,7 @@ import type { CrosswordPuzzle } from "../../data/crossword";
 import { useGameAnalytics } from "../../lib/game-analytics";
 import {
   isGameMatchRecorded,
-  markGameMatchRecorded,
-  recordGameFinish,
+  recordMatchOnce,
 } from "../../lib/player-stats";
 import type { Locale } from "../../lib/quiz-types";
 import {
@@ -76,8 +75,7 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
     }
     const matchId = crosswordMatchId(puzzle);
     if (recorded.current === matchId || isGameMatchRecorded("crossword", matchId)) return;
-    recordGameFinish("crossword", status === "won", puzzle.reference_date);
-    markGameMatchRecorded("crossword", matchId);
+    recordMatchOnce("crossword", matchId, status === "won", puzzle.reference_date);
     recorded.current = matchId;
   }, [finished, status, puzzle]);
 

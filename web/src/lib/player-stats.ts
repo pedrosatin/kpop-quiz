@@ -394,19 +394,7 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
 
 export function resetPlayerStats(): void {
   savePlayerStats(createInitialPlayerStats());
-  if (typeof window === "undefined" || typeof localStorage === "undefined") {
-    return;
-  }
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key !== null && key.startsWith(MATCH_RECORD_KEY_PREFIX)) keys.push(key);
-    }
-    for (const key of keys) localStorage.removeItem(key);
-  } catch {
-    // Fail silently when storage is unavailable
-  }
+
 }
 
 export function getMatchRecordKey(gameId: GameId, matchId: string): string {
@@ -433,4 +421,18 @@ export function markGameMatchRecorded(gameId: GameId, matchId: string): void {
   } catch {
     // Fail silently
   }
+}
+
+/** Counts a match once; reset keeps its marker while the saved board still exists. */
+export function recordMatchOnce(
+  gameId: GameId,
+  matchId: string,
+  isWin: boolean,
+  dateStr?: string,
+  guessCount?: number,
+): boolean {
+  if (isGameMatchRecorded(gameId, matchId)) return false;
+  recordGameFinish(gameId, isWin, dateStr, guessCount);
+  markGameMatchRecorded(gameId, matchId);
+  return true;
 }

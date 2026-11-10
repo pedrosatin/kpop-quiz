@@ -13,6 +13,7 @@ import {
   PLAYER_STATS_STORAGE_KEY,
   recordGameFinish,
   resetPlayerStats,
+  recordMatchOnce,
   savePlayerStats,
 } from "./player-stats";
 
@@ -543,7 +544,7 @@ describe("player-stats module", () => {
   });
 
   describe("resetPlayerStats", () => {
-    it("restores defaults and clears dedup keys", () => {
+    it("restores defaults while keeping completed matches excluded", () => {
       recordGameFinish("quiz", true, "2026-09-18");
       markGameMatchRecorded("quiz", "daily-2026-09-18");
       expect(isGameMatchRecorded("quiz", "daily-2026-09-18")).toBe(true);
@@ -551,8 +552,12 @@ describe("player-stats module", () => {
       resetPlayerStats();
 
       expect(loadPlayerStats()).toEqual(createInitialPlayerStats());
-      expect(isGameMatchRecorded("quiz", "daily-2026-09-18")).toBe(false);
-      const stats = recordGameFinish("quiz", true, "2026-09-18");
+      expect(isGameMatchRecorded("quiz", "daily-2026-09-18")).toBe(true);
+      expect(recordMatchOnce("quiz", "daily-2026-09-18", true, "2026-09-18")).toBe(false);
+      expect(loadPlayerStats().overall.played).toBe(0);
+      expect(recordMatchOnce("quiz", "daily-2026-09-19", true, "2026-09-19")).toBe(true);
+      expect(recordMatchOnce("quiz", "daily-2026-09-19", true, "2026-09-19")).toBe(false);
+      const stats = loadPlayerStats();
       expect(stats.games.quiz.played).toBe(1);
     });
   });

@@ -2,8 +2,7 @@ import { useEffect, type MutableRef } from "preact/hooks";
 import { dailyReferenceDate } from "../../data/daily-artifact";
 import {
   isGameMatchRecorded,
-  markGameMatchRecorded,
-  recordGameFinish,
+  recordMatchOnce,
 } from "../../lib/player-stats";
 import type { QuizSession } from "../../lib/quiz-types";
 import { quizDailyDate } from "./daily-seed";
@@ -29,8 +28,7 @@ export function useRecordQuizMatch(
     const matchId = dailyDate ? `daily-${dailyDate}` : `session-${session.session_id || "default"}`;
 
     if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("quiz", matchId)) {
-      recordGameFinish("quiz", isQuizWin(session, history), dailyDate || dailyReferenceDate());
-      markGameMatchRecorded("quiz", matchId);
+      recordMatchOnce("quiz", matchId, isQuizWin(session, history), dailyDate || dailyReferenceDate());
       recordedMatchRef.current = matchId;
     }
   }, [state, session, history, theme]);
