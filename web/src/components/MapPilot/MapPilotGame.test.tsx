@@ -330,6 +330,19 @@ describe("map pilot country list and select", () => {
 });
 
 describe("map pilot saved progress", () => {
+  it("preserves give-up after the final answer and reload", () => {
+    save({ events: eventIds, answers: rightAnswers, index: round.length - 1 });
+    const first = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    fireEvent.click(first.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(first.getByRole("button", { name: "Sim, desistir" }));
+    expect(stored()).toMatchObject({ gaveUp: true, index: round.length });
+    first.unmount();
+    const second = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(second.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
+    expect(stored()).toMatchObject({ gaveUp: true });
+    expect(second.getByRole("button", { name: "Ocultar fonte" })).toHaveAttribute("aria-expanded", "true");
+  });
+
   it("measures completion after resuming the final answered date without another start", () => {
     const gtag = vi.fn();
     vi.stubGlobal("gtag", gtag);
@@ -410,7 +423,7 @@ describe("map pilot saved progress", () => {
     fireEvent.click(first.getByRole("button", { name: "Desistir" }));
     fireEvent.click(first.getByRole("button", { name: "Sim, desistir" }));
     expect(first.getByRole("heading", { name: "Rodada concluída" })).toBeTruthy();
-    expect(stored()).toEqual({ events: eventIds, answers: [], index: round.length });
+    expect(stored()).toEqual({ events: eventIds, answers: [], index: round.length, gaveUp: true });
     first.unmount();
 
     const second = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
@@ -479,6 +492,8 @@ describe("map pilot saved progress", () => {
   const invalid: Array<[string, () => void]> = [
     ["malformed JSON", () => localStorage.setItem(mapPilotStorageKey(DATE), "{")],
     ["an array", () => save([])],
+    ["an invalid give-up flag", () => save({ events: eventIds, answers: [], index: round.length, gaveUp: "yes" })],
+    ["give-up before the result", () => save({ events: eventIds, answers: [], index: 0, gaveUp: true })],
     ["events of another round", () => save({ events: [...eventIds].reverse(), answers: [], index: 0 })],
     ["fewer events", () => save({ events: eventIds.slice(1), answers: [], index: 0 })],
     ["a feature outside the countries", () => save({ events: eventIds, answers: ["ATA"], index: 1 })],

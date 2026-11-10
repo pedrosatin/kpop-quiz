@@ -21,6 +21,7 @@ export function useRecordGridMatch(
   grid: IntersectionGrid | null,
   status: GridGameStatus,
   solvedCount: number,
+  gaveUp = false,
 ): void {
   const recordedMatchRef = useRef<string | null>(null);
 
@@ -28,7 +29,7 @@ export function useRecordGridMatch(
     if (status === "complete" && grid) {
       const matchId = gridMatchId(grid);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("grid", matchId)) {
-        const isWin = isGridWin(solvedCount);
+        const isWin = !gaveUp && isGridWin(solvedCount);
         recordGameFinish("grid", isWin, grid.reference_date || dailyReferenceDate());
         markGameMatchRecorded("grid", matchId);
         recordedMatchRef.current = matchId;
@@ -36,5 +37,5 @@ export function useRecordGridMatch(
     } else if (status !== "complete") {
       recordedMatchRef.current = null;
     }
-  }, [status, grid, solvedCount]);
+  }, [status, grid, solvedCount, gaveUp]);
 }

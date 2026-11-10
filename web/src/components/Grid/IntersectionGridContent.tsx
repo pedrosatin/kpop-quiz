@@ -90,7 +90,7 @@ export function IntersectionGridContent({
       ?.focus({ preventScroll: true });
   }, [focusCell, isComplete]);
 
-  useRecordGridMatch(grid, status, solvedCount);
+  useRecordGridMatch(grid, status, solvedCount, gaveUp);
 
   // The second tap of a double tap on a group lands on the board once the
   // picker closes; it must not open the cell under it. A click from Enter or

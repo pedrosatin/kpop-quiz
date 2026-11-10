@@ -3,7 +3,7 @@ import type { MapPilotEvent } from "../../data/map-pilot";
 /**
  * What localStorage keeps of one daily round, under `kpop-map-<YYYY-MM-DD>`
  * (the round date):
- * `{ events: string[], answers: string[], index: number, replay?: true }`.
+ * `{ events: string[], answers: string[], index: number, replay?: true, gaveUp?: true }`.
  * `events` are the MusicBrainz event MBIDs of the round in order, so a save
  * made before a data refresh changed the round is dropped. `answers` are
  * the map feature ids the player picked, one per answered date, in order.
@@ -19,6 +19,7 @@ export interface MapPilotSave {
   answers: string[];
   index: number;
   replay?: boolean;
+  gaveUp?: boolean;
 }
 
 export function mapPilotStorageKey(roundDate: string): string {
@@ -61,16 +62,19 @@ export function loadMapPilotSave(
     return null;
   }
   if (typeof saved !== "object" || saved === null || Array.isArray(saved)) return null;
-  const { events, answers, index, replay } = saved as Partial<MapPilotSave>;
+  const { events, answers, index, replay, gaveUp } = saved as Partial<MapPilotSave>;
   if (!Array.isArray(events) || events.length !== round.length) return null;
   if (events.some((id, i) => id !== round[i]!.event_mbid)) return null;
   if (!Array.isArray(answers) || answers.some((id) => typeof id !== "string" || !playableFeatures.has(id))) return null;
   if (!Number.isInteger(index) || (index as number) < 0 || (index as number) > round.length) return null;
+  if (gaveUp !== undefined && typeof gaveUp !== "boolean") return null;
+  if (gaveUp === true && index !== round.length) return null;
   const count = answers.length;
   const valid: MapPilotSave = {
     events: [...events],
     answers: [...answers],
     index: index as number,
+    ...(gaveUp === true ? { gaveUp: true } : {}),
     ...(replay === true ? { replay: true } : {}),
   };
   if (count > round.length) return null;
