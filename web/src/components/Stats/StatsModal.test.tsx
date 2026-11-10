@@ -118,6 +118,20 @@ describe("StatsModal component", () => {
     expect(screen.getByText("100%")).toBeInTheDocument(); // Quiz win rate (4/4)
   });
 
+  it("explains the streak of the tab on screen", () => {
+    const overallRule = "A sequência geral conta os dias seguidos com pelo menos um desafio diário concluído, com vitória ou derrota.";
+    const gameRule = "A sequência de cada jogo conta as vitórias seguidas em desafios diários, e uma derrota volta a zero.";
+    render(<StatsModal isOpen={true} onClose={() => {}} locale="pt-BR" stats={sampleStats} />);
+
+    expect(screen.getByText(overallRule)).toBeInTheDocument();
+    expect(screen.queryByText(gameRule)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Quiz" }));
+
+    expect(screen.getByText(gameRule)).toBeInTheDocument();
+    expect(screen.queryByText(overallRule)).not.toBeInTheDocument();
+  });
+
   it("displays guess distribution chart on name-guess tab", () => {
     const { container } = render(
       <StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />

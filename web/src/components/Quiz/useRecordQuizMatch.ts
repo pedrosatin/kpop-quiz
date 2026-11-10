@@ -1,5 +1,4 @@
 import { useEffect, type MutableRef } from "preact/hooks";
-import { dailyReferenceDate } from "../../data/daily-artifact";
 import {
   isGameMatchRecorded,
   recordMatchOnce,
@@ -28,7 +27,7 @@ export function useRecordQuizMatch(
     const matchId = dailyDate ? `daily-${dailyDate}` : `session-${session.session_id || "default"}`;
 
     if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("quiz", matchId)) {
-      recordMatchOnce("quiz", matchId, isQuizWin(session, history), dailyDate || dailyReferenceDate());
+      recordMatchOnce("quiz", matchId, isQuizWin(session, history), dailyDate);
       recordedMatchRef.current = matchId;
     }
   }, [state, session, history, theme]);

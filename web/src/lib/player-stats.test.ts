@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ALL_GAME_IDS,
-  calculateNewStreak,
+  calculateGameStreak,
+  calculateOverallStreak,
   createInitialPlayerStats,
   exportPlayerStatsJson,
   getDaysDifference,
@@ -16,6 +17,7 @@ import {
   recordMatchOnce,
   savePlayerStats,
 } from "./player-stats";
+import { dailyReferenceDate } from "../data/daily-artifact";
 
 describe("player-stats module", () => {
   beforeEach(() => {
@@ -103,44 +105,64 @@ describe("player-stats module", () => {
     });
   });
 
-  describe("calculateNewStreak pure helper", () => {
-    it("keeps the streak one day back, from a date saved on a calendar ahead of Sao Paulo", () => {
-      expect(calculateNewStreak(5, "2026-11-09", "2026-11-08", true)).toBe(5);
-      expect(calculateNewStreak(5, "2026-11-09", "2026-11-08", false)).toBe(5);
+  describe("calculateOverallStreak pure helper", () => {
+    it("starts at 1 without a previous date", () => {
+      expect(calculateOverallStreak(0, undefined, "2026-09-18")).toBe(1);
     });
 
-    it("still resets when the clock moved back more than one day", () => {
-      expect(calculateNewStreak(5, "2026-11-10", "2026-11-08", true)).toBe(1);
+    it("adds one on the day after the last recorded one", () => {
+      expect(calculateOverallStreak(5, "2026-09-17", "2026-09-18")).toBe(6);
     });
 
-    it("starts streak at 1 on win without previous date", () => {
-      expect(calculateNewStreak(0, undefined, "2026-09-18", true)).toBe(1);
+    it("keeps the count on a day that already has a game", () => {
+      expect(calculateOverallStreak(3, "2026-09-18", "2026-09-18")).toBe(3);
     });
 
-    it("starts streak at 0 on loss without previous date", () => {
-      expect(calculateNewStreak(0, undefined, "2026-09-18", false)).toBe(0);
+    it("recovers a 0 saved by the earlier rule on a day that already has a game", () => {
+      expect(calculateOverallStreak(0, "2026-09-18", "2026-09-18")).toBe(1);
     });
 
-    it("increments streak on consecutive day win", () => {
-      expect(calculateNewStreak(1, "2026-09-17", "2026-09-18", true)).toBe(2);
-      expect(calculateNewStreak(5, "2026-09-17", "2026-09-18", true)).toBe(6);
+    it("restarts at 1 after a gap", () => {
+      expect(calculateOverallStreak(4, "2026-09-15", "2026-09-18")).toBe(1);
     });
 
-    it("resets streak to 0 on consecutive day loss", () => {
-      expect(calculateNewStreak(5, "2026-09-17", "2026-09-18", false)).toBe(0);
+    it("keeps the count when the date is before the last recorded one", () => {
+      expect(calculateOverallStreak(4, "2026-09-18", "2026-09-17")).toBe(4);
+    });
+  });
+
+  describe("calculateGameStreak pure helper", () => {
+    it("starts at 1 on a win and 0 on a loss without a previous date", () => {
+      expect(calculateGameStreak(0, undefined, "2026-09-18", true)).toBe(1);
+      expect(calculateGameStreak(0, undefined, "2026-09-18", false)).toBe(0);
     });
 
-    it("maintains current streak on same day play", () => {
-      expect(calculateNewStreak(3, "2026-09-18", "2026-09-18", true)).toBe(3);
-      expect(calculateNewStreak(3, "2026-09-18", "2026-09-18", false)).toBe(3);
+    it("adds one on a win the day after the last recorded one", () => {
+      expect(calculateGameStreak(1, "2026-09-17", "2026-09-18", true)).toBe(2);
+      expect(calculateGameStreak(5, "2026-09-17", "2026-09-18", true)).toBe(6);
     });
 
-    it("resets streak to 1 on jump of days with win", () => {
-      expect(calculateNewStreak(4, "2026-09-15", "2026-09-18", true)).toBe(1);
+    it("resets on a loss, on the next day or later the same day", () => {
+      expect(calculateGameStreak(5, "2026-09-17", "2026-09-18", false)).toBe(0);
+      expect(calculateGameStreak(5, "2026-09-18", "2026-09-18", false)).toBe(0);
     });
 
-    it("resets streak to 0 on jump of days with loss", () => {
-      expect(calculateNewStreak(4, "2026-09-15", "2026-09-18", false)).toBe(0);
+    it("keeps the count on a second win the same day", () => {
+      expect(calculateGameStreak(3, "2026-09-18", "2026-09-18", true)).toBe(3);
+    });
+
+    it("does not recover from a same-day loss with a later win", () => {
+      expect(calculateGameStreak(0, "2026-09-18", "2026-09-18", true)).toBe(0);
+    });
+
+    it("restarts after a gap: 1 on a win, 0 on a loss", () => {
+      expect(calculateGameStreak(4, "2026-09-15", "2026-09-18", true)).toBe(1);
+      expect(calculateGameStreak(4, "2026-09-15", "2026-09-18", false)).toBe(0);
+    });
+
+    it("keeps the count when the date is before the last recorded one", () => {
+      expect(calculateGameStreak(4, "2026-09-18", "2026-09-17", true)).toBe(4);
+      expect(calculateGameStreak(4, "2026-09-18", "2026-09-17", false)).toBe(4);
     });
   });
 
@@ -176,8 +198,8 @@ describe("player-stats module", () => {
       stats = recordGameFinish("grid", false, "2026-09-18");
       expect(stats.games.grid.currentStreak).toBe(0);
       expect(stats.games.grid.maxStreak).toBe(2); // Max streak is preserved
-      expect(stats.overall.currentStreak).toBe(0);
-      expect(stats.overall.maxStreak).toBe(2);
+      expect(stats.overall.currentStreak).toBe(3); // A loss still counts as a day played
+      expect(stats.overall.maxStreak).toBe(3);
     });
 
     it("maintains daily streak when multiple games are played on the same day", () => {
@@ -198,9 +220,11 @@ describe("player-stats module", () => {
 
       // Third game on the same day (loss)
       stats = recordGameFinish("connections", false, "2026-09-18");
-      expect(stats.games.connections.currentStreak).toBe(1); // Day streak maintained
+      expect(stats.games.connections.currentStreak).toBe(0); // A loss resets the game streak
+      expect(stats.games.connections.maxStreak).toBe(1);
       expect(stats.games.connections.played).toBe(3);
       expect(stats.games.connections.won).toBe(2);
+      expect(stats.overall.currentStreak).toBe(1); // The day is still counted once
       expect(stats.overall.played).toBe(3);
       expect(stats.overall.won).toBe(2);
     });
@@ -260,8 +284,8 @@ describe("player-stats module", () => {
       expect(stats.games.timeline.won).toBe(1);
       expect(stats.games.timeline.currentStreak).toBe(0);
       expect(stats.games.timeline.maxStreak).toBe(1);
-      expect(stats.overall.currentStreak).toBe(0);
-      expect(stats.overall.maxStreak).toBe(1);
+      expect(stats.overall.currentStreak).toBe(2);
+      expect(stats.overall.maxStreak).toBe(2);
     });
 
     it("tracks Name Guess distribution accurately", () => {
@@ -305,6 +329,149 @@ describe("player-stats module", () => {
       stats = recordGameFinish("quiz", true, "2026-09-18");
       expect(stats.games.quiz.currentStreak).toBe(2);
       expect(stats.overall.currentStreak).toBe(2); // Consecutive day increments overall
+    });
+  });
+
+  describe("streak rules", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("keeps the overall streak at 1 when the first game of the day is lost and the second won", () => {
+      let stats = recordGameFinish("quiz", false, "2026-09-18");
+      expect(stats.overall.currentStreak).toBe(1);
+      expect(stats.games.quiz.currentStreak).toBe(0);
+
+      stats = recordGameFinish("grid", true, "2026-09-18");
+      expect(stats.overall.currentStreak).toBe(1);
+      expect(stats.overall.maxStreak).toBe(1);
+      expect(stats.games.quiz.currentStreak).toBe(0);
+      expect(stats.games.grid.currentStreak).toBe(1);
+    });
+
+    it("does not let a later same-day win of one game undo its loss or count twice", () => {
+      recordGameFinish("quiz", true, "2026-09-17");
+      let stats = recordGameFinish("quiz", false, "2026-09-18");
+      expect(stats.games.quiz.currentStreak).toBe(0);
+
+      stats = recordGameFinish("quiz", true, "2026-09-18");
+      expect(stats.games.quiz.currentStreak).toBe(0);
+      expect(stats.games.quiz.maxStreak).toBe(1);
+
+      stats = recordGameFinish("quiz", true, "2026-09-19");
+      expect(stats.games.quiz.currentStreak).toBe(1);
+    });
+
+    it("raises the overall streak and zeroes the game streak over two days of losses", () => {
+      recordGameFinish("connections", true, "2026-09-16");
+      let stats = recordGameFinish("connections", false, "2026-09-17");
+      expect(stats.overall.currentStreak).toBe(2);
+      expect(stats.games.connections.currentStreak).toBe(0);
+
+      stats = recordGameFinish("connections", false, "2026-09-18");
+      expect(stats.overall.currentStreak).toBe(3);
+      expect(stats.overall.maxStreak).toBe(3);
+      expect(stats.games.connections.currentStreak).toBe(0);
+      expect(stats.games.connections.maxStreak).toBe(1);
+    });
+
+    it("restarts both streaks after a one-day gap", () => {
+      recordGameFinish("grid", true, "2026-09-16");
+      recordGameFinish("grid", true, "2026-09-17");
+
+      const stats = recordGameFinish("grid", true, "2026-09-19");
+      expect(stats.overall.currentStreak).toBe(1);
+      expect(stats.overall.maxStreak).toBe(2);
+      expect(stats.games.grid.currentStreak).toBe(1);
+      expect(stats.games.grid.maxStreak).toBe(2);
+    });
+
+    it("restarts the overall streak at 1 and the game streak at 0 on a loss after a gap", () => {
+      recordGameFinish("grid", true, "2026-09-16");
+
+      const stats = recordGameFinish("grid", false, "2026-09-18");
+      expect(stats.overall.currentStreak).toBe(1);
+      expect(stats.games.grid.currentStreak).toBe(0);
+    });
+
+    it("keeps streaks and dates when a record is dated before the last one", () => {
+      recordGameFinish("name-guess", true, "2026-09-17");
+      recordGameFinish("name-guess", true, "2026-09-18");
+
+      for (const isWin of [true, false]) {
+        const stats = recordGameFinish("name-guess", isWin, "2026-09-16");
+        expect(stats.overall.currentStreak).toBe(2);
+        expect(stats.overall.lastPlayedDate).toBe("2026-09-18");
+        expect(stats.games["name-guess"].currentStreak).toBe(2);
+        expect(stats.games["name-guess"].lastPlayedDate).toBe("2026-09-18");
+      }
+
+      const stats = loadPlayerStats();
+      expect(stats.games["name-guess"].played).toBe(4);
+      expect(stats.games["name-guess"].won).toBe(3);
+    });
+
+    it("leaves streaks and dates alone in free play and still counts the game", () => {
+      recordGameFinish("quiz", true, "2026-09-17");
+      const before = loadPlayerStats();
+
+      for (const isWin of [true, false]) recordGameFinish("quiz", isWin);
+
+      const stats = loadPlayerStats();
+      expect(stats.overall.currentStreak).toBe(before.overall.currentStreak);
+      expect(stats.overall.maxStreak).toBe(before.overall.maxStreak);
+      expect(stats.overall.lastPlayedDate).toBe("2026-09-17");
+      expect(stats.games.quiz.currentStreak).toBe(before.games.quiz.currentStreak);
+      expect(stats.games.quiz.lastPlayedDate).toBe("2026-09-17");
+      expect(stats.games.quiz.played).toBe(3);
+      expect(stats.games.quiz.won).toBe(2);
+      expect(stats.overall.played).toBe(3);
+      expect(stats.overall.won).toBe(2);
+    });
+
+    it("turns the day at midnight in Sao Paulo on a device in another time zone", () => {
+      vi.stubEnv("TZ", "Asia/Seoul");
+      const lastSecond = new Date("2026-09-18T02:59:59Z");
+      const midnight = new Date("2026-09-18T03:00:00Z");
+      // Both instants are already September 18 on the device.
+      expect(lastSecond.getDate()).toBe(18);
+      expect(midnight.getDate()).toBe(18);
+
+      let stats = recordGameFinish("quiz", false, dailyReferenceDate(lastSecond));
+      expect(stats.overall.lastPlayedDate).toBe("2026-09-17");
+      expect(stats.overall.currentStreak).toBe(1);
+
+      stats = recordGameFinish("quiz", false, dailyReferenceDate(midnight));
+      expect(stats.overall.lastPlayedDate).toBe("2026-09-18");
+      expect(stats.overall.currentStreak).toBe(2);
+    });
+
+    it("builds on stats saved before these rules without rewriting them", () => {
+      const saved = createInitialPlayerStats();
+      saved.overall = { played: 9, won: 5, currentStreak: 0, maxStreak: 4, lastPlayedDate: "2026-09-17" };
+      saved.games.quiz = { played: 5, won: 4, currentStreak: 3, maxStreak: 4, lastPlayedDate: "2026-09-17" };
+      saved.games.grid = { played: 4, won: 1, currentStreak: 2, maxStreak: 2, lastPlayedDate: "2026-09-17" };
+      savePlayerStats(saved);
+      expect(loadPlayerStats()).toEqual(saved);
+
+      let stats = recordGameFinish("quiz", true, "2026-09-18");
+      expect(stats.games.quiz.currentStreak).toBe(4);
+      expect(stats.overall.currentStreak).toBe(1);
+      expect(stats.overall.maxStreak).toBe(4);
+
+      stats = recordGameFinish("grid", false, "2026-09-18");
+      expect(stats.games.grid.currentStreak).toBe(0);
+      expect(stats.games.grid.maxStreak).toBe(2);
+      expect(stats.overall.currentStreak).toBe(1);
+    });
+
+    it("continues the streaks from an exported and imported file", () => {
+      recordGameFinish("quiz", false, "2026-09-17");
+      expect(importPlayerStatsJson(exportPlayerStatsJson())).toEqual({ success: true });
+
+      const stats = recordGameFinish("quiz", false, "2026-09-18");
+      expect(stats.overall.currentStreak).toBe(2);
+      expect(stats.games.quiz.currentStreak).toBe(0);
     });
   });
 

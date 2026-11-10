@@ -32,14 +32,6 @@ export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-gues
  */
 const LATER_GAME_IDS: GameId[] = ["code", "crossword"];
 
-export function getTodayDateString(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 export function getDaysDifference(prevDateStr: string, currDateStr: string): number {
   const [y1, m1, d1] = prevDateStr.split("-").map(Number);
   const [y2, m2, d2] = currDateStr.split("-").map(Number);
@@ -182,58 +174,72 @@ export function savePlayerStats(stats: PlayerStats): void {
   }
 }
 
-export function calculateNewStreak(
+/**
+ * Consecutive days with at least one finished daily challenge. A loss counts
+ * as much as a win. A date before the last recorded one changes nothing.
+ */
+export function calculateOverallStreak(
+  prevStreak: number,
+  lastPlayedDate: string | undefined,
+  currentDate: string
+): number {
+  if (!lastPlayedDate) return 1;
+  const diff = getDaysDifference(lastPlayedDate, currentDate);
+  if (diff < 0) return prevStreak;
+  // A day with a finished game is worth at least 1, including a 0 saved by
+  // the earlier rule, which reset the overall streak on a loss.
+  if (diff === 0) return Math.max(prevStreak, 1);
+  return diff === 1 ? prevStreak + 1 : 1;
+}
+
+/**
+ * Consecutive daily wins of one game. A loss resets it, and a later win on
+ * the same day neither adds to it nor recovers it: the day's result stands.
+ * A date before the last recorded one changes nothing.
+ */
+export function calculateGameStreak(
   prevStreak: number,
   lastPlayedDate: string | undefined,
   currentDate: string,
   isWin: boolean
 ): number {
-  if (!lastPlayedDate) {
-    return isWin ? 1 : 0;
-  }
-
+  if (!lastPlayedDate) return isWin ? 1 : 0;
   const diff = getDaysDifference(lastPlayedDate, currentDate);
-
-  // Um dia para trás mantém a sequência: partidas antigas gravaram o calendário do
-  // aparelho, que pode estar um dia à frente de São Paulo.
-  if (diff === 0 || diff === -1) {
-    // Se foi hoje, mantém a sequência do dia
-    return prevStreak;
-  }
-
-  if (diff === 1) {
-    // Se foi o dia anterior, incrementa com vitória ou zera com derrota
-    return isWin ? prevStreak + 1 : 0;
-  }
-
-  // Se foi anterior a ontem (diff > 1) ou relógio retroativo (diff < -1)
-  return isWin ? 1 : 0;
+  if (diff < 0) return prevStreak;
+  if (!isWin) return 0;
+  if (diff === 0) return prevStreak;
+  return diff === 1 ? prevStreak + 1 : 1;
 }
 
+function latestDate(lastPlayedDate: string | undefined, currentDate: string): string {
+  return lastPlayedDate && getDaysDifference(lastPlayedDate, currentDate) < 0 ? lastPlayedDate : currentDate;
+}
+
+/**
+ * Records a finished game. `dailyDate` is the challenge's reference date
+ * (`reference_date` or `dailyReferenceDate()`); without it the game is free
+ * play and only the played and won counters change.
+ */
 export function recordGameFinish(
   gameId: GameId,
   isWin: boolean,
-  dateStr?: string,
+  dailyDate?: string,
   guessCount?: number
 ): PlayerStats {
   const stats = loadPlayerStats();
-  const currentDate = dateStr || getTodayDateString();
 
   const game = stats.games[gameId] || createDefaultGameStats(gameId === "name-guess");
 
-  // Streak calculations
-  game.currentStreak = calculateNewStreak(game.currentStreak, game.lastPlayedDate, currentDate, isWin);
-  game.maxStreak = Math.max(game.maxStreak, game.currentStreak);
-  game.lastPlayedDate = currentDate;
+  if (dailyDate) {
+    game.currentStreak = calculateGameStreak(game.currentStreak, game.lastPlayedDate, dailyDate, isWin);
+    game.maxStreak = Math.max(game.maxStreak, game.currentStreak);
+    game.lastPlayedDate = latestDate(game.lastPlayedDate, dailyDate);
 
-  stats.overall.currentStreak = calculateNewStreak(
-    stats.overall.currentStreak,
-    stats.overall.lastPlayedDate,
-    currentDate,
-    isWin
-  );
-  stats.overall.maxStreak = Math.max(stats.overall.maxStreak, stats.overall.currentStreak);
-  stats.overall.lastPlayedDate = currentDate;
+    const { overall } = stats;
+    overall.currentStreak = calculateOverallStreak(overall.currentStreak, overall.lastPlayedDate, dailyDate);
+    overall.maxStreak = Math.max(overall.maxStreak, overall.currentStreak);
+    overall.lastPlayedDate = latestDate(overall.lastPlayedDate, dailyDate);
+  }
 
   // Counts update
   game.played += 1;
@@ -394,7 +400,6 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
 
 export function resetPlayerStats(): void {
   savePlayerStats(createInitialPlayerStats());
-
 }
 
 export function getMatchRecordKey(gameId: GameId, matchId: string): string {
