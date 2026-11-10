@@ -65,8 +65,6 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
     if (initialSaved.current?.boardItemIds) return initialSaved.current.boardItemIds;
     return puzzle ? shuffleArray(puzzle.items.map((i) => i.id)) : [];
   });
-  const [proximityFeedback, setProximityFeedback] = useState<boolean>(false);
-  const [alreadyGuessedFeedback, setAlreadyGuessedFeedback] = useState<boolean>(false);
 
   const analytics = useGameAnalytics(
     {
@@ -94,8 +92,6 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
   const toggleSelectItem = useCallback((id: string) => {
     if (gameStatus !== "in_progress") return;
     analytics.start();
-    setProximityFeedback(false);
-    setAlreadyGuessedFeedback(false);
     setSelectedItemIds((prev) => {
       if (prev.includes(id)) return prev.filter((item) => item !== id);
       return prev.length < 4 ? [...prev, id] : prev;
@@ -104,8 +100,6 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
 
   const clearSelection = useCallback(() => {
     setSelectedItemIds([]);
-    setProximityFeedback(false);
-    setAlreadyGuessedFeedback(false);
   }, []);
 
   const shuffleItems = useCallback(() => {
@@ -123,8 +117,6 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
     });
 
     if (isRepeat) {
-      setAlreadyGuessedFeedback(true);
-      setProximityFeedback(false);
       return { success: false, oneAway: false, alreadyGuessed: true };
     }
 
@@ -141,8 +133,6 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
       setSolvedCategoryIds(newSolved);
       setBoardItemIds((prev) => prev.filter((id) => !matched.item_ids.includes(id)));
       setSelectedItemIds([]);
-      setProximityFeedback(false);
-      setAlreadyGuessedFeedback(false);
       if (newSolved.length === 4) setGameStatus("won");
       return { success: true, oneAway: false, category: matched };
     }
@@ -152,8 +142,6 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
       selectedItemIds.filter((id) => cat.item_ids.includes(id)).length === 3
     );
 
-    setProximityFeedback(oneAway);
-    setAlreadyGuessedFeedback(false);
     const nextMistakes = mistakesRemaining - 1;
     setMistakesRemaining(nextMistakes);
 
@@ -174,8 +162,6 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
     setSolvedCategoryIds(puzzle.categories.map((c) => c.id));
     setBoardItemIds([]);
     setSelectedItemIds([]);
-    setProximityFeedback(false);
-    setAlreadyGuessedFeedback(false);
   }, [puzzle, gameStatus]);
 
   const restartGame = useCallback(() => {
@@ -190,13 +176,11 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
     setGuessHistory([]);
     setGameStatus("in_progress");
     setSelectedItemIds([]);
-    setProximityFeedback(false);
-    setAlreadyGuessedFeedback(false);
   }, [puzzle, storageKey]);
 
   return {
     selectedItemIds, solvedCategoryIds, mistakesRemaining, guessHistory,
-    gameStatus, boardItemIds, proximityFeedback, alreadyGuessedFeedback,
+    gameStatus, boardItemIds,
     toggleSelectItem, clearSelection, shuffleItems, submitGuess, giveUp, restartGame,
   };
 }

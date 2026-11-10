@@ -94,7 +94,6 @@ describe("useConnectionsGame state machine", () => {
 
     const guessResult = submitIds(result, guess);
     expect(guessResult).toEqual({ success: false, oneAway: true });
-    expect(result.current.proximityFeedback).toBe(true);
     expect(result.current.mistakesRemaining).toBe(3);
   });
 
@@ -105,8 +104,9 @@ describe("useConnectionsGame state machine", () => {
     submitIds(result, wrong);
     expect(result.current.mistakesRemaining).toBe(3);
 
-    act(() => { result.current.submitGuess(); });
-    expect(result.current.alreadyGuessedFeedback).toBe(true);
+    let duplicate: ReturnType<typeof result.current.submitGuess> | undefined;
+    act(() => { duplicate = result.current.submitGuess(); });
+    expect(duplicate).toMatchObject({ alreadyGuessed: true });
     expect(result.current.mistakesRemaining).toBe(3);
   });
 

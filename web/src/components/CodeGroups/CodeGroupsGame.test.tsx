@@ -57,6 +57,7 @@ describe("CodeGroupsGame", () => {
     await screen.findAllByRole("combobox");
     const button = screen.getByRole("button", { name: pt.codeSubmit });
     expect(fireEvent.keyDown(button, { key: "Enter", repeat: true, cancelable: true })).toBe(false);
+    expect(fireEvent.keyDown(screen.getAllByRole("combobox")[0]!, { key: "ArrowDown", repeat: true, cancelable: true })).toBe(true);
     expect(screen.getByTestId("code-remaining")).toHaveTextContent("10");
   });
 
