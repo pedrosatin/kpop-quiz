@@ -548,7 +548,47 @@ def _revalidate_published_grid(
     return {**outcome, "action": "regenerated", "grid_id": grid["grid_id"]}
 
 
+def _recover_installation(output_dir: Path) -> None:
+    backup = output_dir.with_name(f".{output_dir.name}.publication-backup")
+    if not backup.exists():
+        return
+    if not output_dir.exists():
+        os.replace(backup, output_dir)
+    else:
+        shutil.rmtree(backup)
+
+
 def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> None:
+    """Install a complete directory snapshot; recover an interrupted swap on retry."""
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    _recover_installation(output_dir)
+    _recover_installation(output_dir / NEXT_DIRNAME)
+    backup = output_dir.with_name(f".{output_dir.name}.publication-backup")
+    with tempfile.TemporaryDirectory(
+        prefix=f".{output_dir.name}.publication-stage-", dir=output_dir.parent,
+    ) as folder:
+        snapshot = Path(folder) / "snapshot"
+        if output_dir.is_dir():
+            shutil.copytree(output_dir, snapshot, ignore=shutil.ignore_patterns(
+                ".*.publication-stage-*", ".*.publication-backup",
+            ))
+        else:
+            snapshot.mkdir()
+        _copy_files(source_dir, snapshot, prune)
+        for optional in (GRID_DAILY_FILENAME, ENRICHED_MANIFEST_FILENAME, CODE_GROUPS_DAILY_FILENAME, CROSSWORD_DAILY_FILENAME):
+            if not (source_dir / optional).is_file():
+                (snapshot / optional).unlink(missing_ok=True)
+        try:
+            if output_dir.exists():
+                os.replace(output_dir, backup)
+            os.replace(snapshot, output_dir)
+        except BaseException:
+            _recover_installation(output_dir)
+            raise
+        _recover_installation(output_dir)
+
+
+def _copy_files(source_dir: Path, output_dir: Path, prune: bool = False) -> None:
     """Copy every file of source_dir into output_dir, replacing each one atomically."""
     output_dir.mkdir(parents=True, exist_ok=True)
     names = set()
@@ -558,6 +598,9 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
         names.add(source_file.name)
         if source_file.name.startswith("grid-publication.") and (output_dir / source_file.name).is_file():
             _install_publication(source_file, output_dir)
+            continue
+        if source_file.name.startswith("crossword-publication."):
+            write_crossword_record(output_dir, json.loads(source_file.read_text(encoding="utf-8")))
             continue
         target_path = output_dir / source_file.name
         descriptor, temp_path = tempfile.mkstemp(prefix=f".{source_file.name}.", dir=output_dir)
@@ -575,7 +618,7 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
             raise
     if prune:
         for stale in output_dir.iterdir():
-            if stale.is_file() and stale.name not in names and not stale.name.startswith(("grid-publication.", "crossword-publication.")):
+            if stale.is_file() and stale.name not in names and not stale.name.startswith(("grid-publication.", "crossword-publication.", "crossword-history.")):
                 stale.unlink()
 
     # Fsync output_dir directory entry
@@ -587,6 +630,7 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
 
 
 def _published_day(directory: Path) -> str | None:
+    _recover_installation(directory)
     try:
         payload = json.loads((directory / CONNECTIONS_DAILY_FILENAME).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):

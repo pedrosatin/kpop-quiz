@@ -231,7 +231,9 @@ The optional [group signal report](docs/group-signals.md) records Wikidata chann
 
 The `date` input of `daily-puzzles-cron` accepts a real calendar date as `YYYY-MM-DD`, or stays empty to use the current date. The value reaches the job as an environment variable and is passed to the generator as a separate argument. The step fails before generating puzzles if the date is malformed or does not exist.
 
-Publishing refuses a date older than the day already installed, including with `--regenerate`. Use a separate output directory for historical exports; `--dry-run` can inspect an older date without changing published files. Rotation preserves both grid and crossword publication records when replacing `next/`, including when the scheduler skips a day.
+Publishing refuses a date older than the day already installed, including with `--regenerate`. Use a separate output directory for historical exports; `--dry-run` can inspect an older date without changing published files. Rotation preserves both grid and crossword publication records when replacing `next/`, including when the scheduler skips a day. Replacing a crossword record archives its previous contents under `crossword-history.<date>.<hash>.json`; re-running identical records does not duplicate that history.
+
+The publication job also checks that the live data tree still matches the revision used for generation. If another change replaced data while generation ran, publication fails before copying files; rerun the full workflow to generate from the new revision. Local installation copies a complete directory snapshot before swapping it into place. If the process stops between directory renames, the next publication read restores the previous directory from its sibling backup; the destination is not left with a partially copied set. A brief absence is possible between those renames, so the local output directory is not a live-serving boundary. Run one publisher per output directory. Only verified data is committed for deployment.
 
 The app stays static: answers and the next day's set, published ahead of time to tolerate scheduler delays, can be read from the public files. Hiding them until game time would require serving the daily set from a backend with a different availability policy.
 
@@ -456,3 +458,7 @@ staging pages without the banner emit no events, even with saved acceptance and
 another `gtag` function present.
 
 O piloto de feedback após uma partida concluída do quiz, sua configuração e rollback estão descritos em [Feedback do quiz](docs/feedback.md).
+
+Photo downloads install complete responses atomically and keep a local `.sha256` sidecar. The download command reuses files only when their checksum matches; older files without a sidecar are downloaded once more.
+
+To inspect run records left unfinished after an interruption, use `python -m kpop_scraping.recover_runs --database data/kpop.db`. This lists `running` records without writing; the database does not contain a heartbeat, so the list does not prove that a process has stopped. After checking that the process has stopped, close only its record with `--fail-run collection_runs:123` (replace the table and ID with the listed identity). Completed records and other running records are preserved; no age-based cleanup runs automatically.
