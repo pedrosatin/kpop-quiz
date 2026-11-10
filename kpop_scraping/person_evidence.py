@@ -50,6 +50,16 @@ _WRITTEN_DATES = (
 )
 
 
+def is_coarse_birth_place(predicate: str, flags: Iterable[str]) -> bool:
+    """True for a ``born_in`` fact whose place is less specific than the infobox's.
+
+    The fact stays accepted and keeps its evidence. Anything that asks where a
+    person was born must skip it: "Seoul" is a true but vaguer answer when the
+    page names a district of Seoul (ADR 027).
+    """
+    return predicate == "born_in" and COARSE_PLACE in flags
+
+
 @dataclass(frozen=True)
 class PersonInfoboxCheck:
     """Outcome of reading one infobox field against a Wikidata value.

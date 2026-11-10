@@ -9,6 +9,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from .person_evidence import is_coarse_birth_place
+
 
 def build_geo_coverage_report(connection: sqlite3.Connection) -> dict[str, Any]:
     """Summarize accepted catalog coverage without resolving places to countries.
@@ -43,7 +45,7 @@ def build_geo_coverage_report(connection: sqlite3.Connection) -> dict[str, Any]:
     birthplace_facts = _fact_rows(connection, member_ids, "born_in")
 
     return {
-        "report_version": "geo-coverage-v1",
+        "report_version": "geo-coverage-v2",
         "scope": {
             "accepted_catalog_groups": len(groups),
             "groups_with_fact_run": len(processed_group_ids),
@@ -100,8 +102,8 @@ def _fact_rows(
         rows.extend(
             connection.execute(
                 f"""
-                SELECT f.subject_entity_id, f.status, f.value_wikidata_id,
-                       value.canonical_name AS value_name
+                SELECT f.subject_entity_id, f.predicate, f.status, f.value_wikidata_id,
+                       f.quality_flags_json, value.canonical_name AS value_name
                 FROM facts f
                 LEFT JOIN entities value ON value.id = f.value_entity_id
                 WHERE f.subject_entity_id IN ({placeholders}) AND f.predicate = ?
@@ -125,17 +127,27 @@ def _summarize(
     geographic_resolution: str | None = None,
 ) -> dict[str, Any]:
     statuses = Counter(str(row["status"]) for row in rows)
+    # An accepted birthplace less specific than the infobox's stays a historical
+    # fact, but is no candidate for a place question (ADR 027).
+    coarse = [
+        index
+        for index, row in enumerate(rows)
+        if row["status"] == "accepted"
+        and is_coarse_birth_place(row["predicate"], json.loads(row["quality_flags_json"]))
+    ]
+    dropped = set(coarse)
+    usable = [row for index, row in enumerate(rows) if index not in dropped]
     accepted_values: Counter[tuple[str, str]] = Counter(
         (
             str(row["value_wikidata_id"]),
             str(row["value_name"] or row["value_wikidata_id"]),
         )
-        for row in rows
+        for row in usable
         if row["status"] == "accepted" and row["value_wikidata_id"]
     )
     accepted_subjects = {
         int(row["subject_entity_id"])
-        for row in rows
+        for row in usable
         if row["status"] == "accepted" and row["value_wikidata_id"]
     }
     distinct_values = {qid for qid, _name in accepted_values}
@@ -159,6 +171,7 @@ def _summarize(
     }
     if geographic_resolution is not None:
         result["geographic_resolution"] = geographic_resolution
+        result["excluded_coarse_place_facts"] = len(coarse)
     return result
 
 
