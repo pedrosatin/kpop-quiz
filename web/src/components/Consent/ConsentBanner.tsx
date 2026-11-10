@@ -41,6 +41,14 @@ function loadGoogleAnalytics(ga4Id: string): void {
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(ga4Id)}`;
     document.head.appendChild(script);
+    gtag("consent", "default", {
+      analytics_storage: "denied", ad_storage: "denied",
+      ad_user_data: "denied", ad_personalization: "denied",
+    });
+    gtag("consent", "update", {
+      analytics_storage: "granted", ad_storage: "denied",
+      ad_user_data: "denied", ad_personalization: "denied",
+    });
     gtag("js", new Date());
     gtag("config", ga4Id);
   } catch {
@@ -53,6 +61,16 @@ function disableGoogleAnalytics(ga4Id: string): void {
   try {
     const w = window as unknown as Record<string, unknown>;
     w[`ga-disable-${ga4Id}`] = true;
+    for (const cookie of document.cookie.split(";")) {
+      const name = cookie.trim().split("=")[0]!;
+      if (name !== "_ga" && !name.startsWith("_ga_")) continue;
+      const expired = `${name}=; Max-Age=0; path=/`;
+      document.cookie = expired;
+      const parts = location.hostname.split(".");
+      for (let i = 0; i < parts.length - 1; i++) {
+        document.cookie = `${expired}; domain=${parts.slice(i).join(".")}`;
+      }
+    }
     if (typeof w.gtag === "function") {
       (w.gtag as (...args: unknown[]) => void)("consent", "update", {
         ad_storage: "denied",
@@ -84,6 +102,14 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
   useEffect(() => {
     const openPreferences = () => setChoice(null);
     window.addEventListener(OPEN_CONSENT_PREFERENCES_EVENT, openPreferences);
+    const syncConsent = (event: StorageEvent) => {
+      if (event.key !== CONSENT_STORAGE_KEY && event.key !== null) return;
+      const next = readConsentChoice();
+      setChoice(next);
+      if (next === "accepted") loadGoogleAnalytics(ga4Id);
+      else disableGoogleAnalytics(ga4Id);
+    };
+    window.addEventListener("storage", syncConsent);
 
     const stored = readConsentChoice();
     setGameAnalyticsConsent(ga4Id, stored === "accepted");
@@ -95,7 +121,10 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
       disableGoogleAnalytics(ga4Id);
     }
 
-    return () => window.removeEventListener(OPEN_CONSENT_PREFERENCES_EVENT, openPreferences);
+    return () => {
+      window.removeEventListener(OPEN_CONSENT_PREFERENCES_EVENT, openPreferences);
+      window.removeEventListener("storage", syncConsent);
+    };
   }, [ga4Id]);
 
   useEffect(() => {
