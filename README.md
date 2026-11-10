@@ -229,6 +229,8 @@ The optional [group signal report](docs/group-signals.md) records Wikidata chann
 
 The `date` input of `daily-puzzles-cron` accepts a real calendar date as `YYYY-MM-DD`, or stays empty to use the current date. The value reaches the job as an environment variable and is passed to the generator as a separate argument. The step fails before generating puzzles if the date is malformed or does not exist.
 
+Publishing refuses a date older than the day already installed, including with `--regenerate`. Use a separate output directory for historical exports; `--dry-run` can inspect an older date without changing published files. Rotation preserves both grid and crossword publication records when replacing `next/`, including when the scheduler skips a day.
+
 The app stays static: answers and the next day's set, published ahead of time to tolerate scheduler delays, can be read from the public files. Hiding them until game time would require serving the daily set from a backend with a different availability policy.
 
 ## Pinned GitHub Actions

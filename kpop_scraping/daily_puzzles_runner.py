@@ -310,6 +310,8 @@ def publish_daily_puzzles(
     history remains available to reject cached artifacts from earlier days.
     """
     output_dir = Path(output_dir)
+    if not dry_run:
+        _guard_publication_date(output_dir, puzzles["reference_date"])
     previous_grid = previous_grid or output_dir / GRID_DAILY_FILENAME
 
     with tempfile.TemporaryDirectory(prefix="daily_puzzles_stage_") as temp_dir_str:
@@ -573,7 +575,7 @@ def _install_files(source_dir: Path, output_dir: Path, prune: bool = False) -> N
             raise
     if prune:
         for stale in output_dir.iterdir():
-            if stale.is_file() and stale.name not in names and not stale.name.startswith("grid-publication."):
+            if stale.is_file() and stale.name not in names and not stale.name.startswith(("grid-publication.", "crossword-publication.")):
                 stale.unlink()
 
     # Fsync output_dir directory entry
@@ -591,6 +593,12 @@ def _published_day(directory: Path) -> str | None:
         return None
     value = payload.get("reference_date") if isinstance(payload, dict) else None
     return value if isinstance(value, str) else None
+
+
+def _guard_publication_date(output_dir: Path, reference_date: str) -> None:
+    published = _published_day(output_dir)
+    if published is not None and date.fromisoformat(published) > date.fromisoformat(reference_date):
+        raise ValueError(f"Cannot publish {reference_date} over newer published day {published}")
 
 
 def _published_result(output_dir: Path, reference_date: str, **flags: Any) -> dict[str, Any]:
@@ -669,6 +677,7 @@ def keep_or_promote_day(
             output_dir, reference_date, grid_revalidated=revalidated,
             crossword_confirmed=crossword, already_published=True,
         )
+    _guard_publication_date(output_dir, reference_date)
     next_dir = output_dir / NEXT_DIRNAME
     if _published_day(next_dir) != reference_date:
         return None
@@ -814,6 +823,8 @@ def run_daily_puzzles(
         raise FileNotFoundError(f"Database does not exist: {db_path}")
 
     iso_date = get_reference_date(reference_date)
+    if not dry_run:
+        _guard_publication_date(output_dir_path, iso_date)
 
     try:
         connection = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
