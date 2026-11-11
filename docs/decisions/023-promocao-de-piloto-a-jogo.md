@@ -21,8 +21,8 @@ documentados: a promoção foi executada caso a caso, sem ADR que defina quando
 um piloto está pronto. A fatia "graduação dos pilotos" (`.scratch/graduacao-pilotos/`)
 especifica a promoção dos dois pilotos atuais e a escolha editorial foi
 incluir estatísticas locais, persistência e compartilhamento nos graduados —
-o mapa ficou de fora dessas três por decisão da época (os testes de
-`MapPilotGame` afirmam explicitamente que o jogo não toca nas estatísticas).
+o mapa ficou de fora dessas três por decisão da época (em 2026-10-19, os testes
+de `MapPilotGame` afirmavam que o jogo não tocava nas estatísticas).
 
 ## Decisão
 
