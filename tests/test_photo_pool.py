@@ -423,6 +423,17 @@ class RevalidationTest(unittest.TestCase):
             self.assertEqual(destination.read_bytes(), b"old complete image")
             self.assertFalse(destination.with_name("photo.png.sha256").exists())
 
+    def test_invalid_content_length_counts_as_incomplete_download(self):
+        with tempfile.TemporaryDirectory() as folder:
+            destination = Path(folder) / "photo.png"
+            destination.write_bytes(b"old complete image")
+            response = io.BytesIO(b"image bytes")
+            response.headers = {"Content-Length": "eleven"}
+            with patch("urllib.request.urlopen", return_value=response):
+                with self.assertRaises(OSError):
+                    download_asset("https://example.com/photo.png", destination)
+            self.assertEqual(destination.read_bytes(), b"old complete image")
+
     def test_complete_download_installs_asset_and_checksum(self):
         import hashlib
         with tempfile.TemporaryDirectory() as folder:
