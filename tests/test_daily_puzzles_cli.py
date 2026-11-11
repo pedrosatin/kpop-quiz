@@ -118,6 +118,23 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
             self.assertIs(mock_run.call_args.kwargs["catalog"], expected)
 
     @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
+    def test_main_writes_the_board_swaps_for_the_gate(self, mock_run):
+        swaps = [{"game": "grid", "date": "2023-01-01", "reason": "fixture"}]
+        mock_run.return_value = {
+            "reference_date": "2023-01-01", "output_dir": Path("out"), "board_swaps": swaps,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "swaps.json"
+            with patch("pathlib.Path.is_file", return_value=True), \
+                    redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(
+                    daily_puzzles_cli.main(["--regenerate", "--board-swaps-file", str(target)]), 0
+                )
+            self.assertEqual(
+                json.loads(target.read_text(encoding="utf-8")), {"regenerate": True, "swaps": swaps}
+            )
+
+    @patch("kpop_scraping.daily_puzzles_cli.run_daily_puzzles")
     def test_main_with_next_output(self, mock_run):
         mock_run.return_value = {
             "reference_date": "2023-01-01",

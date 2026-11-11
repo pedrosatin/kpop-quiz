@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -69,6 +70,14 @@ def build_parser() -> argparse.ArgumentParser:
             "Also publish the static question catalog (catalog-manifest-v1.json and its "
             "shards) built from this run's dataset. Without it a catalog left by an earlier "
             "run is withdrawn. No released client reads the catalog yet"
+        ),
+    )
+    parser.add_argument(
+        "--board-swaps-file",
+        type=Path,
+        help=(
+            "Write whether this run was asked to --regenerate and the board swaps the runner "
+            "declared, for the board swap gate that follows the run in the cron"
         ),
     )
     parser.add_argument(
@@ -243,6 +252,11 @@ def main(argv: list[str] | None = None) -> int:
             related_clues=args.related_clues,
             catalog=args.catalog,
         )
+        if args.board_swaps_file:
+            args.board_swaps_file.write_text(
+                json.dumps({"regenerate": args.regenerate, "swaps": result["board_swaps"]}),
+                encoding="utf-8",
+            )
         report_reused_grid(result.get("grid_reused"))
         report_revalidated_grid(result.get("grid_revalidated"))
         report_skipped_grid(result.get("grid_skipped"))

@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import daily_puzzles_cli
+from kpop_scraping.board_swap_gate import check_board_swaps
 from kpop_scraping.code_groups_cli import validate as validate_code_groups_puzzle
 from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.daily_puzzles_runner import (
@@ -33,6 +34,7 @@ from kpop_scraping.quiz_schema import validate_session
 from kpop_scraping.timeline_schema import compute_timeline_puzzle_id, validate_timeline_puzzle
 from kpop_scraping.web_publish import verify_artifacts
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
+from tests.test_board_swap_gate import commit_data, init_repo
 
 
 def person_wikidata_id(group_num: int, member_index: int) -> str:
@@ -917,6 +919,36 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         grid = self._assert_policy_compatible(output_dir, database)
         self.assertEqual(grid["reference_date"], "2026-09-18")
         self.assertEqual(kept["grid_id"], grid["grid_id"])
+
+    def test_board_swap_gate_accepts_the_grid_swap_the_runner_declares(self):
+        repo = self.temp_path / "repo"
+        output_dir = repo / "data"
+        repo.mkdir()
+        init_repo(repo)
+        first = run_daily_puzzles(
+            database=self.db_path, output_dir=output_dir, reference_date="2026-09-18"
+        )
+        self.assertEqual(first["board_swaps"], [])
+        commit_data(repo)
+        group = self._member_answer(json.loads((output_dir / "grid.daily.json").read_text()))
+        database = self._database_without_roster_proof("declared.db", group)
+
+        kept = run_daily_puzzles(
+            database=database, output_dir=output_dir, reference_date="2026-09-18"
+        )
+
+        self.assertEqual(
+            [(swap["game"], swap["date"]) for swap in kept["board_swaps"]], [("grid", "2026-09-18")]
+        )
+        accepted, refused = check_board_swaps(
+            repo, "data", "HEAD", {"regenerate": False, "swaps": kept["board_swaps"]}
+        )
+        self.assertEqual((len(accepted), refused), (1, []))
+        self.assertIn("grid for 2026-09-18", accepted[0])
+        # The same replacement without the runner's declaration is refused.
+        refused = check_board_swaps(repo, "data", "HEAD", {"regenerate": False, "swaps": []})[1]
+        self.assertEqual(len(refused), 1)
+        self.assertIn("grid for 2026-09-18", refused[0])
 
     def test_kept_day_drops_an_incompatible_grid_when_none_can_be_generated(self):
         output_dir = self.temp_path / "keep_dropped"

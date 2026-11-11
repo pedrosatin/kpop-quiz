@@ -115,7 +115,8 @@ jobs:
 
       - name: Generate daily puzzles
         run: |
-          args=(--database data/kpop.db --output-dir web/public/data --ahead)
+          args=(--database data/kpop.db --output-dir web/public/data --ahead
+            --board-swaps-file "$RUNNER_TEMP/board-swaps.json")
           if [ "$REGENERATE" = "true" ]; then args+=(--regenerate); fi
           if [ "$RELATED_CLUES" = "true" ]; then args+=(--related-clues); fi
           if [ "$CATALOG" = "true" ]; then args+=(--catalog); fi
@@ -137,6 +138,11 @@ jobs:
       - name: Verify published artifacts
         working-directory: web
         run: npm run artifacts:verify
+
+      # A date already published keeps its boards unless the run asked to
+      # --regenerate or the runner declared the swap (see board_swap_gate).
+      - name: Refuse undeclared board swaps
+        run: python -m kpop_scraping.board_swap_gate --board-swaps-file "$RUNNER_TEMP/board-swaps.json"
 
       - name: Build static web app
         working-directory: web
