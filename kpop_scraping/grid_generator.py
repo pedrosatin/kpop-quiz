@@ -8,7 +8,7 @@ import random
 import re
 import sqlite3
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Callable, Iterable
 
 from .grid_membership import grid_member_facts
@@ -399,10 +399,19 @@ def _build_axes_for_categories(
     return axes
 
 
+def _criteria_set(
+    row_axis: tuple[dict[str, Any], ...],
+    col_axis: tuple[dict[str, Any], ...],
+) -> frozenset[str]:
+    """Identify a grid by its six criteria, whichever axis each one is on."""
+    return frozenset(criterion["id"] for criterion in (*row_axis, *col_axis))
+
+
 def _find_mixed_axis_grid(
     criteria: list[dict[str, Any]],
     criterion_groups: dict[str, set[str]],
     seed: str,
+    avoid: frozenset[frozenset[str]] = frozenset(),
 ) -> tuple[
     tuple[dict[str, Any], ...],
     tuple[dict[str, Any], ...],
@@ -451,7 +460,7 @@ def _find_mixed_axis_grid(
         rng.shuffle(compatible_columns)
 
         for col_axis in itertools.combinations(compatible_columns, 3):
-            if not _is_valid_axis(col_axis):
+            if not _is_valid_axis(col_axis) or _criteria_set(row_axis, col_axis) in avoid:
                 continue
             cells_valid = {
                 (r, c): criterion_intersection(
@@ -540,19 +549,21 @@ def grid_incompatibility(connection: sqlite3.Connection, grid: dict[str, Any]) -
     return None
 
 
-def generate_intersection_grid(
-    connection: sqlite3.Connection,
+def _select_axes(
+    all_criteria: dict[str, dict[str, Any]],
+    criterion_groups: dict[str, set[str]],
     seed: str,
-    reference_date: date | None = None,
-) -> dict[str, Any]:
-    """Generate a deterministic, verified 3x3 intersection grid from local facts."""
-    if reference_date is None:
-        reference_date = DEFAULT_REFERENCE_DATE
+    avoid: frozenset[frozenset[str]] = frozenset(),
+) -> tuple[
+    tuple[dict[str, Any], ...],
+    tuple[dict[str, Any], ...],
+    dict[tuple[int, int], list[str]],
+] | None:
+    """Draw the row and column axes of a solvable grid, or None.
 
-    candidate_groups, criterion_groups, group_evidence, all_criteria, dataset_version = (
-        _eligible_criteria(connection, reference_date)
-    )
-
+    A pair whose six criteria form a set in ``avoid`` is skipped, whatever
+    axis each criterion is on.
+    """
     # A criterion on an axis covers three cells, and the nine answers must be
     # distinct groups, so a criterion with fewer than three groups can never
     # be placed. Dropping it keeps the axis search small.
@@ -620,11 +631,11 @@ def generate_intersection_grid(
     shuffled_pairs = list(candidate_pairs)
     rng.shuffle(shuffled_pairs)
 
-    chosen_row: tuple[dict[str, Any], ...] | None = None
-    chosen_col: tuple[dict[str, Any], ...] | None = None
-    chosen_cells_data: dict[tuple[int, int], list[str]] = {}
-
     for row_criteria, col_criteria in shuffled_pairs:
+        # Skipping a pair consumes no randomness, so an empty ``avoid``
+        # chooses exactly as before.
+        if _criteria_set(row_criteria, col_criteria) in avoid:
+            continue
         cells_valid: dict[tuple[int, int], list[str]] = {}
         solvable = True
         for r in range(3):
@@ -647,22 +658,47 @@ def generate_intersection_grid(
         if not has_distinct_assignment(cells_options_list):
             continue
 
-        chosen_row = row_criteria
-        chosen_col = col_criteria
-        chosen_cells_data = cells_valid
-        break
+        return row_criteria, col_criteria, cells_valid
 
     # The curated partitions above are preferred because they keep each axis
     # semantically focused. If none has a solution, exhaustively search all
     # triples of active evidence-backed criteria before reporting failure.
-    if chosen_row is None or chosen_col is None:
-        fallback_grid = _find_mixed_axis_grid(
-            list(active_criteria.values()), criterion_groups, seed
-        )
-        if fallback_grid is not None:
-            chosen_row, chosen_col, chosen_cells_data = fallback_grid
+    return _find_mixed_axis_grid(
+        list(active_criteria.values()), criterion_groups, seed, avoid
+    )
 
-    if chosen_row is None or chosen_col is None:
+
+def generate_intersection_grid(
+    connection: sqlite3.Connection,
+    seed: str,
+    reference_date: date | None = None,
+    avoid_criteria_sets: Iterable[frozenset[str]] = (),
+) -> dict[str, Any]:
+    """Generate a deterministic, verified 3x3 intersection grid from local facts.
+
+    A grid whose six criteria form a set in ``avoid_criteria_sets`` is never
+    chosen. When every solvable grid is in it, the error says so.
+    """
+    avoid = frozenset(frozenset(criteria) for criteria in avoid_criteria_sets)
+    if reference_date is None:
+        reference_date = DEFAULT_REFERENCE_DATE
+
+    candidate_groups, criterion_groups, group_evidence, all_criteria, dataset_version = (
+        _eligible_criteria(connection, reference_date)
+    )
+
+    selection = _select_axes(all_criteria, criterion_groups, seed, avoid)
+    if (
+        selection is None
+        and avoid
+        and _select_axes(all_criteria, criterion_groups, seed) is not None
+    ):
+        raise ValueError(
+            f"Every solvable 3x3 intersection grid with seed {seed!r} repeats the criteria "
+            f"of a neighbouring day: {sorted(sorted(criteria) for criteria in avoid)}. "
+            "The catalog needs more evidence-backed criteria for the grid to vary daily."
+        )
+    if selection is None:
         coverage = {
             category: len({
                 qid
@@ -677,6 +713,7 @@ def generate_intersection_grid(
             f"evidence-backed group coverage: {coverage}. "
             "Refresh sourced facts before retrying; partial member lists cannot supply counts."
         )
+    chosen_row, chosen_col, chosen_cells_data = selection
 
     # Build conforming JSON structures
     row_criteria_payload = [_to_criterion_payload(c) for c in chosen_row]
@@ -749,12 +786,31 @@ def generate_intersection_grid(
     return grid
 
 
+def _daily_seed(day: date) -> str:
+    return f"kpop-grid-daily-{day.isoformat()}"
+
+
+def _drawn_criteria(connection: sqlite3.Connection, day: date) -> frozenset[str] | None:
+    """Return the criteria the seed of ``day`` draws with nothing to avoid."""
+    _, criterion_groups, _, all_criteria, _ = _eligible_criteria(connection, day)
+    selection = _select_axes(all_criteria, criterion_groups, _daily_seed(day))
+    return None if selection is None else _criteria_set(selection[0], selection[1])
+
+
 def generate_daily_grid(
     connection: sqlite3.Connection,
     reference_date: date | str | None = None,
     seed: str | None = None,
 ) -> dict[str, Any]:
-    """Generate a deterministic daily 3x3 intersection grid for the given date."""
+    """Generate a deterministic daily 3x3 intersection grid for the given date.
+
+    With the date-derived seed, consecutive dates never get the same six
+    criteria. A date with an even ordinal keeps what its seed draws. A date
+    with an odd ordinal skips the criteria its seed draws for the day before
+    and the day after, both even, so the rule needs no history. When only
+    those criteria are solvable, it raises ValueError and the publisher's
+    fallback applies. An explicit ``seed`` disables the rule.
+    """
     if reference_date is None:
         ref_date = date.fromisoformat(reference_date_today())
     elif isinstance(reference_date, str):
@@ -762,5 +818,17 @@ def generate_daily_grid(
     else:
         ref_date = reference_date
 
-    grid_seed = seed if seed is not None else f"kpop-grid-daily-{ref_date.isoformat()}"
-    return generate_intersection_grid(connection, seed=grid_seed, reference_date=ref_date)
+    if seed is not None:
+        return generate_intersection_grid(connection, seed=seed, reference_date=ref_date)
+    neighbours: set[frozenset[str]] = set()
+    if ref_date.toordinal() % 2:
+        for day in (ref_date - timedelta(days=1), ref_date + timedelta(days=1)):
+            drawn = _drawn_criteria(connection, day)
+            if drawn is not None:
+                neighbours.add(drawn)
+    return generate_intersection_grid(
+        connection,
+        seed=_daily_seed(ref_date),
+        reference_date=ref_date,
+        avoid_criteria_sets=neighbours,
+    )

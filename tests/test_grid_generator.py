@@ -7,7 +7,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -619,6 +619,127 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         self.assertIn("Insufficient candidate groups", str(ctx.exception))
         small_conn.close()
 
+
+def add_cube_groups(conn: sqlite3.Connection) -> None:
+    """Add Cube Entertainment groups formed in each decade of the base fixture.
+
+    The base fixture has one solvable set of six criteria, three labels by
+    three decades. A fourth label makes four, few enough for the seed alone
+    to draw the same set on consecutive days.
+    """
+    label_id = conn.execute(
+        "INSERT INTO entities(wikidata_id, entity_type, canonical_name) "
+        "VALUES ('Q483327', 'organization', 'Cube Entertainment')"
+    ).lastrowid
+    for language in ("en", "pt"):
+        conn.execute(
+            "INSERT INTO entity_aliases VALUES (?, ?, 'Cube Entertainment', 'label')",
+            (label_id, language),
+        )
+    for num, year in ((120, 2006), (121, 2016), (122, 2025)):
+        name = f"Test Group {num}"
+        group_id = conn.execute(
+            "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, 'group', ?)",
+            (f"Q{num}", name),
+        ).lastrowid
+        for language in ("en", "pt"):
+            conn.execute(
+                "INSERT INTO entity_aliases VALUES (?, ?, ?, 'label')", (group_id, language, name)
+            )
+        facts = (
+            (f"formed-{num}", "formed_on", "P571", None, None, str(year), 9),
+            (f"label-{num}", "record_label", "P264", "Q483327", label_id, None, None),
+        )
+        for statement, predicate, prop, value_qid, value_id, value_time, precision in facts:
+            fact_id = conn.execute(
+                """
+                INSERT INTO facts(
+                    statement_id, subject_entity_id, predicate, property_id, rank,
+                    value_wikidata_id, value_entity_id, value_time, value_precision,
+                    status, quality_flags_json
+                ) VALUES (?, ?, ?, ?, 'normal', ?, ?, ?, ?, 'accepted', '[]')
+                """,
+                (statement, group_id, predicate, prop, value_qid, value_id, value_time, precision),
+            ).lastrowid
+            conn.execute(
+                """
+                INSERT INTO fact_evidence(
+                    fact_id, evidence_type, source_key, locator, reference_hash,
+                    wikidata_snapshot_id
+                ) VALUES (?, 'wikidata_reference', 'wikidata', ?, 'refhash', 1)
+                """,
+                (fact_id, f"claims/{prop}/{statement}"),
+            )
+    conn.commit()
+
+
+def criteria_set(grid: dict) -> frozenset[str]:
+    return frozenset(c["id"] for c in grid["row_criteria"] + grid["col_criteria"])
+
+
+class ConsecutiveDailyGridTest(unittest.TestCase):
+    """Consecutive dates never publish the same six criteria (ticket 10)."""
+
+    DAYS = [date(2026, 11, 1) + timedelta(days=offset) for offset in range(14)]
+
+    def setUp(self) -> None:
+        self.connection = build_grid_test_database()
+        add_cube_groups(self.connection)
+
+    def tearDown(self) -> None:
+        self.connection.close()
+
+    def seed_draw(self, day: date) -> dict:
+        return generate_intersection_grid(
+            self.connection, seed=f"kpop-grid-daily-{day.isoformat()}", reference_date=day
+        )
+
+    def test_seed_draw_alone_repeats_criteria_in_this_window(self) -> None:
+        # Without the neighbour rule, 05/11 and 09/11 draw the criteria of the
+        # day before, so this window exercises the regression.
+        drawn = [criteria_set(self.seed_draw(day)) for day in self.DAYS]
+        repeated = [day for day, before, after in zip(self.DAYS[1:], drawn, drawn[1:]) if before == after]
+        self.assertEqual(repeated, [date(2026, 11, 5), date(2026, 11, 9)])
+
+    def test_consecutive_days_never_share_the_six_criteria(self) -> None:
+        published = [criteria_set(generate_daily_grid(self.connection, day)) for day in self.DAYS]
+        for day, before, after in zip(self.DAYS[1:], published, published[1:]):
+            self.assertNotEqual(before, after, f"{day} repeats the criteria of the day before")
+        self.assertEqual(len(set(published)), 4)
+
+    def test_even_days_keep_the_grid_their_seed_draws(self) -> None:
+        for day in self.DAYS:
+            if day.toordinal() % 2 == 0:
+                self.assertEqual(generate_daily_grid(self.connection, day), self.seed_draw(day))
+
+    def test_odd_day_skips_both_neighbours_deterministically(self) -> None:
+        day = date(2026, 11, 5)
+        first = generate_daily_grid(self.connection, day)
+        self.assertEqual(first, generate_daily_grid(self.connection, day.isoformat()))
+        self.assertNotIn(
+            criteria_set(first),
+            {criteria_set(self.seed_draw(day - timedelta(days=1))),
+             criteria_set(self.seed_draw(day + timedelta(days=1)))},
+        )
+        validate_intersection_grid(first)
+
+    def test_explicit_seed_keeps_the_plain_draw(self) -> None:
+        day = date(2026, 11, 5)
+        self.assertEqual(
+            generate_daily_grid(self.connection, day, seed=f"kpop-grid-daily-{day.isoformat()}"),
+            self.seed_draw(day),
+        )
+
+    def test_odd_day_without_another_solvable_grid_raises(self) -> None:
+        # The base fixture has a single solvable set: even days still publish
+        # it, odd days fail so the publisher's fallback decides the day.
+        connection = build_grid_test_database()
+        try:
+            generate_daily_grid(connection, date(2026, 11, 4))
+            with self.assertRaisesRegex(ValueError, "repeats the criteria of a neighbouring day"):
+                generate_daily_grid(connection, date(2026, 11, 5))
+        finally:
+            connection.close()
 
 
 if __name__ == "__main__":

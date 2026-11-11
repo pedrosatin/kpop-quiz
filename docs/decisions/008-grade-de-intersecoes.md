@@ -116,3 +116,30 @@ Adendo de 2026-10-28. Um grupo só entra num critério quando a revisão citada 
 - Continuam sem critério: formação que a revisão não afirma (estreia não é formação), grupo dissolvido (não há elenco vigente na data de referência), integrante com afirmação em conflito e lista que o seletor não sabe ler. A ADR-004 não muda.
 - Durante a partida, o veredito de um palpite recusado diz "Não aceita" e que o catálogo só aceita fatos comprovados; o palpite continua consumido e nada revela o gabarito. Depois da partida, a revisão repete que a lista mostra só o que tem fonte.
 - A cobertura se mede regenerando uma cópia do banco, não pelo arquivo publicado. Ampliar fatos nunca invalida uma grade publicada, porque a verificação de compatibilidade só confere se as respostas continuam admitidas; datas novas podem sair com critérios diferentes.
+
+## Variação entre dias consecutivos
+
+Adendo de 2026-11-10. De 26/10 a 09/11/2026 a Grade publicou todo dia os mesmos seis critérios (`formed_2000s`, `formed_2010s`, `members_le_5`, `label_dsp`, `label_jyp`, `label_yg`). A medição usou uma cópia do banco de 19/10/2026 e gerou a grade de cada data de 11/11 a 10/12/2026. As linhas da ADR-029 usam a mesma cópia com os fatos reprocessados pela regra `text-evidence-v9`, a partir das revisões e snapshots guardados. "Pares resolvíveis" conta, em 11/11, os pares de eixos das partições curadas cujas nove casas recebem respostas distintas. "Conjuntos possíveis" junta os pares com os mesmos seis critérios.
+
+| Base e gerador | Pares resolvíveis | Conjuntos possíveis | Conjuntos distintos em 30 datas | Repetições consecutivas | Casas com resposta única |
+| --- | --- | --- | --- | --- | --- |
+| Contagem de integrantes anterior à #294 | 38 | 19 | 17 | 3 | 171 |
+| Depois da #294 | 2 | 1 | 1 | 29 | 240 |
+| Depois da #294, com esta regra | 2 | 1 | 1 | 0 (15 datas ímpares sem grade) | 120 |
+| Depois da ADR-029, sem esta regra | 30 | 15 | 12 | 3 | 79 |
+| Depois da ADR-029, com esta regra | 30 | 15 | 13 | 0 | 78 |
+
+A restrição que esgotou o espaço foi a cobertura dos critérios. Depois da #294, só listas fechadas de integrantes contam: `members_le_5` passou de 112 grupos para 8, `members_le_4` de 88 para 5, e `members_3`, `members_6` a `members_8`, `members_ge_7` e `members_ge_8` ficaram com menos de três grupos. Com 87 `formed_on` aceitos, só um conjunto preenchia as nove casas com respostas distintas. A semente e o corte de três grupos por critério não descartavam alternativas, e a busca curada percorre todos os pares, sem orçamento. A ADR-029 elevou os `formed_on` aceitos de 87 para 298. O sorteio continuou independente por data, e com 15 conjuntos ainda repetiu em 13/11, 15/11 e 26/11.
+
+Decisão: com a semente derivada da data, duas datas consecutivas nunca recebem o mesmo conjunto de seis critérios, em qualquer eixo. Uma data de ordinal par (`date.toordinal()`) fica com o que a semente sorteia. Uma data de ordinal ímpar ignora os conjuntos que as sementes da véspera e do dia seguinte sorteiam. Os dois vizinhos são pares e nunca se desviam do sorteio, então a regra não depende do histórico publicado nem de recursão. Ignorar um par de eixos não consome aleatoriedade, e as datas pares e as ímpares sem conflito mantêm os bytes. Nenhuma regra de evidência mudou.
+
+Sem alternativa, a data ímpar não é gerada e o erro diz que todas as grades resolvíveis repetem um vizinho. Isso acontece quando o catálogo tem um só conjunto, ou dois e os vizinhos sorteiam conjuntos diferentes. O publicador aplica o fallback já existente: mantém a grade da véspera, com o aviso `Daily grid not updated` no resumo da execução, ou publica o dia sem Grade quando a véspera não valida. A repetição fica visível em vez de sair como desafio novo. Uma `seed` explícita desliga a regra.
+
+Limite: a garantia vale para uma mesma base de fatos. Com `--ahead`, cada data é gerada pela execução da véspera, com o banco daquele dia. Uma coleta que mude o sorteio de um vizinho ainda pode repetir o conjunto. Garantir isso entre bases diferentes exige que o runner passe ao gerador os critérios publicados na véspera.
+
+Alternativas rejeitadas:
+
+- Ler a grade publicada na véspera. Exige mudar o runner, e a regra deixa de ser verificável só com o banco.
+- Encadear cada data à anterior. A escolha de uma data dependeria de todas as anteriores.
+- Rodízio fixo pelos conjuntos ordenados. A ordem mudaria a cada fato novo e também alteraria as datas sem conflito.
+- Relaxar a cobertura mínima ou a regra de evidência para ganhar variedade. A ADR-004 e o adendo de cobertura acima não mudam.
