@@ -35,7 +35,6 @@ function renderResults(overrides: Partial<Parameters<typeof GridResults>[0]> = {
     grid: validGrid,
     cellStates: sampleCellStates([[0, 0]]),
     guessesUsed: 3,
-    onRestart: vi.fn(),
     onCopied: vi.fn(),
     onShareFailed: vi.fn(),
     locale: "pt-BR" as const,
@@ -198,7 +197,6 @@ describe("GridResults component", () => {
         grid={validGrid}
         cellStates={sampleCellStates()}
         guessesUsed={9}
-        onRestart={vi.fn()}
         locale="pt-BR"
         messages={ptMessages}
       />
@@ -254,28 +252,10 @@ describe("GridResults component", () => {
     expect(items[2]).not.toHaveClass("is-wrong");
   });
 
-  it("calls onRestart when restart button is clicked, after the guard", () => {
-    const onRestart = vi.fn();
-    render(
-      <GridResults
-        grid={validGrid}
-        cellStates={sampleCellStates()}
-        guessesUsed={9}
-        onRestart={onRestart}
-        locale="pt-BR"
-        messages={ptMessages}
-      />
-    );
-
-    const restartBtn = screen.getByRole("button", { name: "Jogar novamente" });
-    // A second tap meant for the last pick does nothing.
-    clock += RESULT_GUARD_MS - 1;
-    fireEvent.click(restartBtn);
-    expect(onRestart).not.toHaveBeenCalled();
-
-    clock += 1;
-    fireEvent.click(restartBtn);
-    expect(onRestart).toHaveBeenCalledTimes(1);
+  it("offers the next daily game instead of Play again", () => {
+    renderResults();
+    expect(screen.queryByRole("button", { name: "Jogar novamente" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Próximo: Quiz/ })).toHaveAttribute("href", "/pt-br/?theme=daily");
   });
 });
 

@@ -157,7 +157,6 @@ describe("Automated accessibility audits with axe-core for Intersection Grid", (
         grid={validGrid}
         cellStates={sampleCellStates()}
         guessesUsed={5}
-        onRestart={vi.fn()}
         locale="pt-BR"
         messages={ptMessages}
       />

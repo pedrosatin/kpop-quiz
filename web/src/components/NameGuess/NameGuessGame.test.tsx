@@ -6,7 +6,7 @@ import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessGame } from "./NameGuessGame";
 import { RESULT_GUARD_MS, generateShareText } from "./NameGuessResults";
 import { getMessages } from "../../i18n/catalog";
-import { loadPlayerStats, PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
+import { loadPlayerStats } from "../../lib/player-stats";
 
 const puzzle = validPuzzleJson as unknown as NameGuessPuzzle;
 const tPt = getMessages("pt-BR").nameGuess;
@@ -262,12 +262,6 @@ describe("NameGuessGame component", () => {
     await waitFor(() => {
       expect(clipboardSpy).toHaveBeenCalled();
     });
-
-    // Reset game
-    advanceClock();
-    const playAgainBtn = screen.getByRole("button", { name: tPt.playAgain });
-    fireEvent.click(playAgainBtn);
-    expect(screen.queryByText(tPt.wonTitle)).not.toBeInTheDocument();
   });
 
   it("shows the source link when the target has no clues", () => {
@@ -313,23 +307,6 @@ describe("NameGuessGame component", () => {
     expect(toast!.previousElementSibling).toHaveClass("game-hud");
     expect(toast!.closest(".name-guess-play")).toBeNull();
     expect(live.contains(toast)).toBe(false);
-  });
-
-  it("moves focus to the empty board after Play again", () => {
-    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
-
-    typeGuess("TWICE");
-    advanceClock();
-    fireEvent.click(screen.getByRole("button", { name: tPt.playAgain }));
-
-    const board = screen.getByRole("region", { name: tPt.boardAria });
-    expect(document.activeElement).toBe(board);
-    expect(board).toHaveAttribute("tabindex", "-1");
-    expect(within(board).getAllByLabelText("Posição 1: vazia").length).toBe(puzzle.max_attempts);
-
-    // Typing works right away from the focused board.
-    fireEvent.keyDown(board, { key: "a" });
-    expect(within(screen.getByRole("group", { name: "Palpite 1" })).getByLabelText("Posição 1: letra A")).toBeInTheDocument();
   });
 
   it("does not submit or restart on a physical Enter while the result title or Share has focus", () => {
@@ -386,7 +363,7 @@ describe("NameGuessGame component", () => {
     expect(title.closest(".game-actions")).toHaveClass("is-incorrect");
   });
 
-  it("records the daily win once and leaves a lost replay out of the stats", () => {
+  it("records the daily win", () => {
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
     typeGuess("TWICE");
 
@@ -394,16 +371,6 @@ describe("NameGuessGame component", () => {
     expect(stats.games["name-guess"].played).toBe(1);
     expect(stats.games["name-guess"].currentStreak).toBe(1);
     expect(stats.overall.lastPlayedDate).toBe(puzzle.reference_date);
-    const afterDaily = localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
-
-    advanceClock();
-    fireEvent.click(screen.getByRole("button", { name: tPt.playAgain }));
-    for (const guess of ["AESPA", "ALICE", "ALPHA", "APRIL", "BRAVE", "DREAM"]) {
-      typeGuess(guess);
-    }
-
-    expect(screen.getByRole("heading", { name: tPt.lostTitle })).toBeInTheDocument();
-    expect(localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(afterDaily);
   });
 
   it("reveals the answer when the player gives up", () => {
@@ -491,22 +458,22 @@ describe("NameGuessGame component", () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("ignores a tap on the result buttons right after they replace the keyboard", () => {
+  it("ignores a tap on the result buttons right after they replace the keyboard", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 
     typeGuess("TWICE");
-    const playAgain = screen.getByRole("button", { name: tPt.playAgain });
+    const copy = screen.getByRole("button", { name: tPt.copyResults });
 
-    fireEvent.click(playAgain);
-    expect(screen.getByRole("heading", { name: tPt.wonTitle })).toBeInTheDocument();
-
+    fireEvent.click(copy);
     // A held Enter repeats keydown; its default action is canceled.
-    expect(fireEvent.keyDown(playAgain, { key: "Enter", repeat: true })).toBe(false);
+    expect(fireEvent.keyDown(copy, { key: "Enter", repeat: true })).toBe(false);
+    expect(writeText).not.toHaveBeenCalled();
 
     advanceClock();
-    fireEvent.click(playAgain);
-    expect(screen.queryByRole("heading", { name: tPt.wonTitle })).not.toBeInTheDocument();
-    expect(screen.getByRole("group", { name: tPt.keyboardAria })).toBeInTheDocument();
+    fireEvent.click(copy);
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
   });
 
   it("renders localized aria labels when locale is en", () => {
@@ -810,16 +777,6 @@ describe("NameGuess share", () => {
 
     expect(liveMessage()).toHaveTextContent(tPt.shareFailed);
     expect(screen.getByRole("textbox", { name: tPt.shareTextLabel })).toBeInTheDocument();
-  });
-
-  it("clears the share announcement after Play again", async () => {
-    setNavigator("clipboard", { writeText: vi.fn().mockResolvedValue(undefined) });
-    await winAndShare();
-    expect(liveMessage()).toHaveTextContent(tPt.copied);
-
-    advanceClock();
-    fireEvent.click(screen.getByRole("button", { name: tPt.playAgain }));
-    expect(liveMessage()).toBeEmptyDOMElement();
   });
 
   it("stops the Copied timer when the result goes away", async () => {

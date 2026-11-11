@@ -22,7 +22,6 @@ export interface NameGuessMessages {
   wonTitle: string;
   lostTitle: string;
   targetWas: string;
-  playAgain: string;
   copyResults: string;
   copied: string;
   /** Shown when neither the share sheet nor the clipboard took the result. */
@@ -268,7 +267,6 @@ export interface Messages {
   gridLocatorClaim: (property: string) => string;
   gridReviewCellHeader: (row: number, col: number) => string;
   gridAcceptedAnswers: string;
-  gridRestart: string;
   gridShareHeader: (date: string, correct: number, guesses: number) => string;
   gridAxesHeader: string;
   gridCategoryFormation: string;
@@ -294,7 +292,6 @@ export interface Messages {
   connectionsShareGuessesLine: (guesses: number, mistakes: number) => string;
   connectionsShareButton: string;
   connectionsHighContrastShare: string;
-  connectionsRestart: string;
   connectionsItemAriaLabel: (name: string, selected: boolean) => string;
   connectionsCategorySolvedAria: (difficulty: number, label: string, items: string) => string;
   connectionsBoardAria: string;
@@ -340,6 +337,14 @@ export interface Messages {
   gameTimeline: string;
   gameCode: string;
   gameCrossword: string;
+  /** Hidden text of the ✓ on the tab of a game finished today. */
+  gameNavDoneToday: string;
+  dailyNextIn: (time: string) => string;
+  dailyNextReady: string;
+  dailyNextReload: string;
+  /** Label of the link to the next unfinished daily game; an arrow follows it. */
+  dailyNextGame: (game: string) => string;
+  dailyAllDone: string;
   codeSequenceNote: string;
   codeAttemptsLeft: (remaining: number) => string;
   codeYourGuess: string;
@@ -685,7 +690,6 @@ const catalogs: Record<Locale, Messages> = {
     gridLocatorClaim: (property) => `declaração ${property} e sua referência`,
     gridReviewCellHeader: (row, col) => `Linha ${row + 1}, coluna ${col + 1}`,
     gridAcceptedAnswers: "Respostas aceitas:",
-    gridRestart: "Jogar novamente",
     gridShareHeader: (date, correct, guesses) => `Grade de K-pop ${date}\n${correct}/9 acertos (${guesses} palpites)`,
     gridAxesHeader: "Critérios",
     gridCategoryFormation: "Formação",
@@ -713,7 +717,6 @@ const catalogs: Record<Locale, Messages> = {
       `Palpites: ${guesses} (${mistakes} ${mistakes === 1 ? "erro" : "erros"})`,
     connectionsShareButton: "Compartilhar resultado",
     connectionsHighContrastShare: "Versão sem cores (alto contraste)",
-    connectionsRestart: "Jogar novamente",
     connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selecionado" : "não selecionado"}`,
     connectionsCategorySolvedAria: (difficulty, label, items) => `Nível ${difficulty}: ${label}. Nomes: ${items}.`,
     connectionsBoardAria: "Tabuleiro do Conexões",
@@ -739,7 +742,6 @@ const catalogs: Record<Locale, Messages> = {
       wonTitle: "Você acertou!",
       lostTitle: "Não foi dessa vez",
       targetWas: "A resposta era",
-      playAgain: "Jogar novamente",
       copyResults: "Compartilhar resultado",
       copied: "Resultado copiado.",
       shareFailed: "Não deu para copiar. Selecione o texto abaixo e copie.",
@@ -868,6 +870,12 @@ const catalogs: Record<Locale, Messages> = {
     gameTimeline: "Linha do Tempo",
     gameCode: "Código",
     gameCrossword: "Cruzadinha",
+    gameNavDoneToday: "concluído hoje",
+    dailyNextIn: (time) => `Novo desafio em ${time}`,
+    dailyNextReady: "O novo desafio já está disponível.",
+    dailyNextReload: "Recarregar",
+    dailyNextGame: (game) => `Próximo: ${game}`,
+    dailyAllDone: "Você concluiu todos os jogos de hoje.",
     statsTitle: "Suas estatísticas",
     statsNavLabel: "Estatísticas",
     statsOpenButton: "Ver estatísticas e sequência",
@@ -1163,7 +1171,6 @@ const catalogs: Record<Locale, Messages> = {
     gridLocatorClaim: (property) => `statement ${property} and its reference`,
     gridReviewCellHeader: (row, col) => `Row ${row + 1}, column ${col + 1}`,
     gridAcceptedAnswers: "Accepted answers:",
-    gridRestart: "Play again",
     gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 correct (${guesses} guesses)`,
     gridAxesHeader: "Rules",
     gridCategoryFormation: "Formation",
@@ -1191,7 +1198,6 @@ const catalogs: Record<Locale, Messages> = {
       `Guesses: ${guesses} (${mistakes} ${mistakes === 1 ? "mistake" : "mistakes"})`,
     connectionsShareButton: "Share result",
     connectionsHighContrastShare: "No-color version (high contrast)",
-    connectionsRestart: "Play again",
     connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selected" : "not selected"}`,
     connectionsCategorySolvedAria: (difficulty, label, items) => `Level ${difficulty}: ${label}. Names: ${items}.`,
     connectionsBoardAria: "Connections board",
@@ -1217,7 +1223,6 @@ const catalogs: Record<Locale, Messages> = {
       wonTitle: "You got it!",
       lostTitle: "Not this time",
       targetWas: "The answer was",
-      playAgain: "Play again",
       copyResults: "Share result",
       copied: "Result copied.",
       shareFailed: "Could not copy. Select the text below and copy it.",
@@ -1345,6 +1350,12 @@ const catalogs: Record<Locale, Messages> = {
     gameTimeline: "Timeline",
     gameCode: "Code",
     gameCrossword: "Crossword",
+    gameNavDoneToday: "done today",
+    dailyNextIn: (time) => `New puzzle in ${time}`,
+    dailyNextReady: "The new puzzle is out.",
+    dailyNextReload: "Reload",
+    dailyNextGame: (game) => `Next: ${game}`,
+    dailyAllDone: "You finished all of today's games.",
     statsTitle: "Your stats",
     statsNavLabel: "Stats",
     statsOpenButton: "See stats and streak",

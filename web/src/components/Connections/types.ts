@@ -80,7 +80,6 @@ export interface ConnectionsResultsProps {
   gameStatus: ConnectionsGameStatus;
   guessHistory: string[][];
   mistakesRemaining: number;
-  onRestart: () => void;
   /** Called after the share text reaches the clipboard. */
   onCopied?: () => void;
   /** Called when neither the share sheet nor the clipboard took the text. */

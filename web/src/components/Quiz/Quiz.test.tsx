@@ -778,7 +778,7 @@ describe("Quiz", () => {
       expect(gtag.mock.calls[1]![2]).toMatchObject({ daily: "yes", outcome: "win" });
     });
 
-    it("sends the day's quiz as daily, its replay as free play, and nothing on reload", async () => {
+    it("sends the day's quiz as daily, and nothing on reload", async () => {
       window.history.replaceState(null, "", "/?theme=daily&mode=standard");
       const gtag = measure();
       await renderReady();
@@ -787,19 +787,12 @@ describe("Quiz", () => {
       expect(gtag.mock.calls[0]![2]).toMatchObject({ daily: "yes" });
       expect(gtag.mock.calls[1]![2]).toMatchObject({ daily: "yes", outcome: "win", days_since_last: "first" });
 
-      await playAgain();
-      expect(gtag.mock.calls[2]![1]).toBe("game_start");
-      expect(gtag.mock.calls[2]![2]).toMatchObject({ daily: "no" });
-      await giveUp();
-      await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(4));
-      expect(gtag.mock.calls[3]![2]).toMatchObject({ daily: "no", outcome: "give_up" });
-
       document.body.innerHTML = "";
       mockSessionFetch();
       render(<Quiz locale="pt-BR" />);
       await screen.findByRole("heading", { name: "Fim da partida" });
       await act(async () => { await new Promise((resolve) => setTimeout(resolve, 50)); });
-      expect(gtag).toHaveBeenCalledTimes(4);
+      expect(gtag).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1180,21 +1173,6 @@ describe("Quiz", () => {
 
       render(<StatsModal isOpen onClose={() => {}} locale="pt-BR" />);
       expect(currentStreakShown()).toBe("1");
-    });
-
-    it("does not record a replay of the finished daily quiz", async () => {
-      await renderDailySetup();
-      fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
-      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
-      const questions = dailyPtSession.questions as QuizSession["questions"];
-      await playRound(questions, 2);
-      const afterFirst = window.localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
-
-      fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
-      await screen.findByRole("heading", { name: questions[0]!.prompt });
-      await playRound(questions, questions.length);
-
-      expect(window.localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(afterFirst);
     });
 
     it("counts a general quiz game without touching any streak", async () => {

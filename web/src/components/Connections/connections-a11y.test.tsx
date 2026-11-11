@@ -114,7 +114,6 @@ describe("Automated accessibility audits with axe-core for Connections", () => {
         gameStatus="won"
         guessHistory={guessHistory}
         mistakesRemaining={4}
-        onRestart={vi.fn()}
         locale="pt-BR"
         messages={ptMessages}
       />
@@ -136,7 +135,6 @@ describe("Automated accessibility audits with axe-core for Connections", () => {
         gameStatus="lost"
         guessHistory={wrongGuesses}
         mistakesRemaining={0}
-        onRestart={vi.fn()}
         locale="pt-BR"
         messages={ptMessages}
       />
@@ -153,7 +151,6 @@ describe("Automated accessibility audits with axe-core for Connections", () => {
         gameStatus="won"
         guessHistory={guessHistory}
         mistakesRemaining={4}
-        onRestart={vi.fn()}
         locale="pt-BR"
         messages={ptMessages}
       />

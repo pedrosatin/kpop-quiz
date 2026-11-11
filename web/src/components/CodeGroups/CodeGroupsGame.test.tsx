@@ -81,7 +81,7 @@ describe("CodeGroupsGame", () => {
     expect(screen.getByRole("heading", { level: 2, name: pt.codeResultWon })).toBeInTheDocument();
     expect(document.activeElement).toBe(screen.getByTestId("game-result"));
     expect(screen.getByTestId("code-remaining")).toHaveTextContent("1");
-    expect(screen.getAllByRole("link")).toHaveLength(6);
+    expect(screen.getAllByRole("link", { name: /· Wikidata$/ })).toHaveLength(6);
     expect(loadPlayerStats().games.code?.played).toBe(1);
 
     // A reload of the finished game must not replay the stats.
@@ -198,19 +198,6 @@ describe("CodeGroupsGame", () => {
     await screen.findByRole("heading", { level: 2, name: pt.codeResultWon });
     await settle();
     expect(loadPlayerStats().games.code?.played).toBe(0);
-  });
-
-  it("play again clears the save and replays the same day without stats", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(puzzle))));
-    renderGame();
-    await screen.findAllByRole("combobox");
-    guess(puzzle.secret as string[]);
-    clock += RESULT_GUARD_MS + 1;
-    fireEvent.click(screen.getByRole("button", { name: pt.restart }));
-    expect(document.querySelectorAll(".code-history li")).toHaveLength(0);
-    expect(screen.getByTestId("code-remaining")).toHaveTextContent("10");
-    expect(loadPlayerStats().games.code?.played).toBe(1);
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 });
 

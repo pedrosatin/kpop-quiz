@@ -8,6 +8,7 @@ import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
+import { DailyNext } from "../Results/DailyNext";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 export interface GridResultsProps {
@@ -18,7 +19,6 @@ export interface GridResultsProps {
   verdict?: string | null;
   /** When the game ended by give-up, the answers open revealed. */
   gaveUp?: boolean;
-  onRestart: () => void;
   onCopied?: () => void;
   onShareFailed?: () => void;
   titleRef?: Ref<HTMLHeadingElement>;
@@ -61,7 +61,6 @@ export function GridResults({
   guessesUsed,
   verdict,
   gaveUp = false,
-  onRestart,
   onCopied,
   onShareFailed,
   titleRef,
@@ -76,7 +75,7 @@ export function GridResults({
   const shareFailedId = useId();
   const source = useRef<HTMLDivElement>(null);
   // The buttons appear where the counters were, right after the last pick,
-  // so a second tap or a held Enter must not share or restart the game.
+  // so a second tap or a held Enter must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "grid", locale } });
 
@@ -114,9 +113,6 @@ export function GridResults({
         <button type="button" class="btn btn-primary" onKeyDown={ignoreRepeat} onClick={guarded(() => { void handleShare(shareText); })}>
           {copied ? messages.copiedToClipboard : messages.gridShareButton}
         </button>
-        <button type="button" class="btn btn-secondary" onKeyDown={ignoreRepeat} onClick={guarded(onRestart)}>
-          {messages.gridRestart}
-        </button>
         <button
           type="button"
           class="btn btn-secondary"
@@ -128,6 +124,8 @@ export function GridResults({
           {sourceOpen ? messages.hideSource : messages.showSource}
         </button>
       </div>
+
+      <DailyNext game="grid" locale={locale} />
 
       <label class="share-toggle grid-share-toggle">
         <input

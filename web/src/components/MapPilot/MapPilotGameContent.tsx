@@ -11,7 +11,7 @@ import {
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
-import { clearMapPilotSave, storeMapPilotSave } from "./map-pilot-save";
+import { storeMapPilotSave } from "./map-pilot-save";
 import { formatMapDate, MapPilotResult } from "./MapPilotResult";
 import type { MapPilotCopy } from "./map-pilot-copy";
 import {
@@ -72,12 +72,10 @@ export function MapPilotGameContent({
   const notices = useRef(0);
   const nextButton = useRef<HTMLButtonElement>(null);
   const resultTitle = useRef<HTMLHeadingElement>(null);
-  const questionTitle = useRef<HTMLHeadingElement>(null);
   const answeredAt = useRef(-Infinity);
   // Only what the player does in this visit moves focus; a round restored
   // from storage leaves focus where the page put it.
   const playedHere = useRef(false);
-  const [restarts, setRestarts] = useState(0);
   const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
   const confirmGiveUpOpenRef = useRef(false);
 
@@ -128,8 +126,6 @@ export function MapPilotGameContent({
   useFocusOnChange(nextButton, answerState !== null && playedHere.current, questionIndex);
   // At the end the result takes the bar, so focus its title to start reading there.
   useFocusOnChange(resultTitle, isComplete && playedHere.current);
-  // After Play again, the first question.
-  useFocusOnChange(questionTitle, restarts > 0 && !isComplete, restarts);
 
   const sortedCountries = useMemo(
     () => [...mapPilotCountries].sort((a, b) =>
@@ -187,19 +183,6 @@ export function MapPilotGameContent({
     setGame({ ...game, index: round.length, gaveUp: true });
   }
 
-  function restart() {
-    analytics.reset();
-    clearMapPilotSave(game.date);
-    playedHere.current = true;
-    answeredAt.current = -Infinity;
-    setListChoice("");
-    setPickPrompt(0);
-    setNotice(null);
-    closeGiveUpConfirm();
-    setGame({ date: game.date, answers: [], index: 0, replay: true });
-    setRestarts((value) => value + 1);
-  }
-
   const roundFeatures = new Set(round.map((event) => event.map_feature_id));
   const barState = mapPilotBarState(answerState);
 
@@ -213,7 +196,7 @@ export function MapPilotGameContent({
       {current && (
         <header class="map-pilot-question-header">
           <p class="map-pilot-progress" aria-live="polite">{copy.roundProgress(questionIndex + 1, round.length)}</p>
-          <h2 id="map-game-title" ref={questionTitle} tabIndex={-1}>{copy.question(formatMapDate(current.event_date, locale))}</h2>
+          <h2 id="map-game-title" tabIndex={-1}>{copy.question(formatMapDate(current.event_date, locale))}</h2>
         </header>
       )}
 
@@ -315,7 +298,6 @@ export function MapPilotGameContent({
             countryByFeature={countryByFeature}
             locale={locale}
             gaveUp={gaveUpRound || answers.length < round.length}
-            onRestart={restart}
             onCopied={() => setNotice({ kind: "copied", n: ++notices.current })}
             onShareFailed={() => setNotice({ kind: "shareFailed", n: ++notices.current })}
             titleRef={resultTitle}

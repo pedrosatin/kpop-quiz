@@ -5,6 +5,7 @@ import { DEFAULT_TIMELINE_MESSAGES } from "./types";
 import { getCanonicalChronologicalOrder } from "./timeline-utils";
 import { TimelineEvidenceList } from "./TimelineEvidenceList";
 import { TimelineShare } from "./TimelineShare";
+import { DailyNext } from "../Results/DailyNext";
 
 export function TimelineResults({
   score,
@@ -88,6 +89,8 @@ export function TimelineResults({
         onShareSuccess={onShareSuccess ?? onCopied}
         onShareError={onShareError ?? onShareFailed}
       />
+
+      <DailyNext game="timeline" locale={locale} />
     </section>
   );
 }

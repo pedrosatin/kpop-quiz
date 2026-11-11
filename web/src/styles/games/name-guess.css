@@ -361,7 +361,7 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .name-guess-result-buttons > .btn-primary {
+  .name-guess-result-buttons > .btn-primary:only-child {
     grid-column: 1 / -1;
   }
 

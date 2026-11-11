@@ -276,6 +276,12 @@ textarea {
   }
 }
 
+/* Positioned so the hidden text scrolls with the tabs instead of widening the page. */
+.game-nav-done {
+  position: relative;
+  font-weight: 700;
+}
+
 .game-nav-item.is-active {
   color: var(--color-action-text);
   background: var(--color-action);

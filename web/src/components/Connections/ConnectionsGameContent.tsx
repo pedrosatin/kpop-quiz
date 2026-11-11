@@ -43,7 +43,6 @@ export function ConnectionsGameContent({
     shuffleItems,
     submitGuess,
     giveUp,
-    restartGame,
   } = useConnectionsGame(puzzle, locale);
 
   const boardItems = useMemo(() => {
@@ -66,7 +65,6 @@ export function ConnectionsGameContent({
   const grid = useRef<HTMLDivElement>(null);
   const resultTitle = useRef<HTMLHeadingElement>(null);
   const [solvedHere, setSolvedHere] = useState(0);
-  const [restarts, setRestarts] = useState(0);
 
   const toggle = useCallback(
     (id: string) => {
@@ -116,22 +114,13 @@ export function ConnectionsGameContent({
     giveUp();
   }, [closeGiveUpConfirm, giveUp]);
 
-  const restart = useCallback(() => {
-    closeGiveUpConfirm();
-    setFeedback(null);
-    restartGame();
-    setRestarts((n) => n + 1);
-  }, [closeGiveUpConfirm, restartGame]);
-
   // A solved group takes its four tiles and disables Submit, so focus moves
-  // to the first tile left instead of falling to the page. Play again does
-  // the same with the new board.
-  const focusStep = `${solvedHere}:${restarts}`;
-  const refocusBoard = !isGameOver && (solvedHere > 0 || restarts > 0);
+  // to the first tile left instead of falling to the page.
+  const refocusBoard = !isGameOver && solvedHere > 0;
   useEffect(() => {
     if (!refocusBoard) return;
     grid.current?.querySelector<HTMLButtonElement>(".connections-tile")?.focus({ preventScroll: true });
-  }, [refocusBoard, focusStep]);
+  }, [refocusBoard, solvedHere]);
   useFocusOnChange(resultTitle, isGameOver && playedHere.current);
 
   useRecordConnectionsMatch(puzzle, gameStatus, isGameOver);
@@ -190,7 +179,6 @@ export function ConnectionsGameContent({
               gameStatus={gameStatus}
               guessHistory={guessHistory}
               mistakesRemaining={mistakesRemaining}
-              onRestart={restart}
               onCopied={() => setFeedback({ kind: "copied", n: ++shares.current })}
               onShareFailed={() => setFeedback({ kind: "shareFailed", n: ++shares.current })}
               titleRef={resultTitle}

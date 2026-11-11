@@ -80,7 +80,7 @@
   .map-pilot-pick { flex: 0 0 auto; }
 }
 
-/* Result: title and summary, then Share, Play again and the sources. */
+/* Result: title and summary, then Share, the sources and the next daily game. */
 .map-pilot-actions:has(.map-pilot-result) { flex-wrap: wrap; }
 .map-pilot-result { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-5); }
 .map-pilot-verdict { display: flex; flex: 1 1 14rem; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-2); min-width: 0; }
@@ -110,7 +110,7 @@
 
 @media (max-width: 30rem) {
   .map-pilot-result-buttons { display: grid; flex: 1 1 100%; grid-template-columns: 1fr 1fr; }
-  .map-pilot-result-buttons > .btn-primary { grid-column: 1 / -1; }
+  .map-pilot-result-buttons > .btn-primary:only-child { grid-column: 1 / -1; }
   .map-pilot-result-buttons > .btn { padding-inline: var(--space-2); }
 }
 @media (max-width: 420px) {

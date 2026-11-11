@@ -51,7 +51,6 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
     submitGuess,
     giveUp,
     toggleHighContrast,
-    resetGame,
   } = useNameGuessGame(puzzle, locale);
 
   // Only a game finished in this visit moves focus to the result; a finished
@@ -90,20 +89,10 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
   const resultTitle = useRef<HTMLHeadingElement>(null);
   useFocusOnChange(resultTitle, isGameOver && playedHere.current);
 
-  // Play again removes the focused button, so focus moves to the empty board
-  // and a screen reader announces the new game.
-  const board = useRef<HTMLDivElement>(null);
-  const [restarts, setRestarts] = useState(0);
   // The outcome of the last Share press; n changes on every press, so the
   // same message is announced again.
   const [shareFeedback, setShareFeedback] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
   const shares = useRef(0);
-  const restart = useCallback(() => {
-    resetGame();
-    setShareFeedback(null);
-    setRestarts((n) => n + 1);
-  }, [resetGame]);
-  useFocusOnChange(board, restarts > 0, restarts);
 
   const recordedMatchRef = useRef<string | null>(null);
 
@@ -177,7 +166,6 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
             feedbacks={feedbacks}
             currentInput={currentInput}
             t={t}
-            boardRef={board}
           />
         </div>
 
@@ -221,7 +209,6 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
                 locale={locale}
                 highContrast={highContrast}
                 t={t}
-                onReset={restart}
                 onCopied={() => setShareFeedback({ kind: "copied", n: ++shares.current })}
                 onShareFailed={() => setShareFeedback({ kind: "shareFailed", n: ++shares.current })}
                 titleRef={resultTitle}

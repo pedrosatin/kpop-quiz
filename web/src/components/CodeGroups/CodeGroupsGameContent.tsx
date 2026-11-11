@@ -7,6 +7,7 @@ import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
+import { DailyNext } from "../Results/DailyNext";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { useCodeGroupsGame } from "./useCodeGroupsGame";
 import { useRecordCodeGroupsMatch } from "./useRecordCodeGroupsMatch";
@@ -47,7 +48,7 @@ export function generateShareText(
 }
 
 export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGameContentProps) {
-  const { selection, history, won, finished, selectValue, submit, restart, feedback } =
+  const { selection, history, won, finished, selectValue, submit, feedback } =
     useCodeGroupsGame(puzzle, locale);
   useRecordCodeGroupsMatch(puzzle, finished, won);
 
@@ -189,15 +190,8 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
             >
               {copied ? messages.copiedToClipboard : messages.codeShareButton}
             </button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              onKeyDown={ignoreRepeat}
-              onClick={guarded(restart)}
-            >
-              {messages.restart}
-            </button>
           </div>
+          <DailyNext game="code" locale={locale} />
           {shareFailed && (
             <div class="code-share-fallback">
               <p id={shareFailedId}>{messages.shareFailed}</p>

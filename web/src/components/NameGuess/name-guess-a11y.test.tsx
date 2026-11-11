@@ -96,7 +96,6 @@ describe("Automated accessibility audits with axe-core for NameGuess", () => {
         locale="pt-BR"
         highContrast={false}
         t={tPt}
-        onReset={vi.fn()}
       />
     );
     const results = await axe.run(container);
@@ -121,7 +120,6 @@ describe("Automated accessibility audits with axe-core for NameGuess", () => {
         locale="pt-BR"
         highContrast={true}
         t={tPt}
-        onReset={vi.fn()}
       />
     );
     const results = await axe.run(container);

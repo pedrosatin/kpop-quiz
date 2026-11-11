@@ -6,6 +6,7 @@ import { getMessages } from "../../i18n/catalog";
 import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import { formatTime, generateWordSearchShareSummary } from "./utils";
 import { useGameShareAction } from "../Results/use-game-share-action";
+import { DailyNext } from "../Results/DailyNext";
 
 interface SourceLine {
   key: string;
@@ -118,6 +119,8 @@ export function WordSearchResult({
           {sourceOpen ? messages.hideSource : messages.showSource}
         </button>
       </div>
+
+      <DailyNext game="wordSearch" locale={locale} />
 
       {shareFailed && (
         <div class="word-search-share-fallback">
