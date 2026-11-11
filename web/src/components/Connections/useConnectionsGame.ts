@@ -1,7 +1,7 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
-import { isGameMatchRecorded } from "../../lib/player-stats";
+import { isDailyMatchRecorded } from "../../lib/player-stats";
 import type { ConnectionsGameStatus, ConnectionsStoredState, GuessResult } from "./types";
 import { connectionsMatchId } from "./useRecordConnectionsMatch";
 
@@ -70,7 +70,7 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
     {
       game: "connections",
       locale: _locale,
-      isDaily: () => puzzle !== null && !isGameMatchRecorded("connections", connectionsMatchId(puzzle)),
+      isDaily: () => puzzle !== null && !isDailyMatchRecorded("connections", puzzle.reference_date, connectionsMatchId(puzzle)),
       // Only a give-up ends the game with mistakes left.
       outcome: gameStatus === "won" ? "win" : gameStatus === "lost" ? (mistakesRemaining > 0 ? "give_up" : "loss") : null,
     },

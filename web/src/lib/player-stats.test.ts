@@ -8,6 +8,7 @@ import {
   getDaysDifference,
   getMatchRecordKey,
   importPlayerStatsJson,
+  isDailyMatchRecorded,
   isGameMatchRecorded,
   loadPlayerStats,
   markGameMatchRecorded,
@@ -489,6 +490,57 @@ describe("player-stats module", () => {
 
     it("generates predictable key", () => {
       expect(getMatchRecordKey("quiz", "123")).toBe("kpop-match-recorded-quiz-123");
+    });
+  });
+
+  describe("daily match identity (game and reference date)", () => {
+    // 2026-10-19 had two boards in every daily game (PR #228).
+    it("counts two boards of the same date once, keeping played, won and the streaks", () => {
+      recordGameFinish("connections", true, "2026-10-18");
+      expect(recordMatchOnce("connections", "connections-board-a", true, "2026-10-19")).toBe(true);
+      const after = loadPlayerStats();
+      expect(after.games.connections).toMatchObject({ played: 2, won: 2, currentStreak: 2 });
+
+      expect(recordMatchOnce("connections", "connections-board-b", false, "2026-10-19")).toBe(false);
+      expect(loadPlayerStats()).toEqual(after);
+    });
+
+    it("keys the daily match by game and date", () => {
+      recordMatchOnce("timeline", "timeline-board-a", true, "2026-10-19");
+      expect(isDailyMatchRecorded("timeline", "2026-10-19")).toBe(true);
+      expect(isDailyMatchRecorded("timeline", "2026-10-20")).toBe(false);
+      expect(isDailyMatchRecorded("word-search", "2026-10-19")).toBe(false);
+      expect(isGameMatchRecorded("timeline", "daily-2026-10-19")).toBe(true);
+    });
+
+    it("still recognizes a match counted under the board's earlier key", () => {
+      // Recorded by the earlier rule, keyed by the board, before the deploy.
+      recordGameFinish("crossword", true, "2026-11-11");
+      markGameMatchRecorded("crossword", "crossword-board-a");
+      const before = loadPlayerStats();
+
+      expect(isDailyMatchRecorded("crossword", "2026-11-11", "crossword-board-a")).toBe(true);
+      expect(recordMatchOnce("crossword", "crossword-board-a", true, "2026-11-11")).toBe(false);
+      expect(loadPlayerStats()).toEqual(before);
+    });
+
+    it("keeps free play keyed by the match itself", () => {
+      expect(recordMatchOnce("quiz", "session-a", true)).toBe(true);
+      expect(recordMatchOnce("quiz", "session-b", true)).toBe(true);
+      expect(recordMatchOnce("quiz", "session-a", true)).toBe(false);
+      expect(loadPlayerStats().games.quiz.played).toBe(2);
+    });
+
+    it("keeps the day counted across export, reset and import", () => {
+      recordMatchOnce("grid", "grid-board-a", true, "2026-10-19");
+      const exported = exportPlayerStatsJson();
+      resetPlayerStats();
+      expect(importPlayerStatsJson(exported)).toEqual({ success: true });
+      const imported = loadPlayerStats();
+      expect(imported.games.grid).toMatchObject({ played: 1, won: 1, lastPlayedDate: "2026-10-19" });
+
+      expect(recordMatchOnce("grid", "grid-board-b", true, "2026-10-19")).toBe(false);
+      expect(loadPlayerStats()).toEqual(imported);
     });
   });
 

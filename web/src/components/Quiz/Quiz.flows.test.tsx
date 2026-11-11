@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getMessages } from "../../i18n/catalog";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
-import { isGameMatchRecorded, loadPlayerStats, recordGameFinish } from "../../lib/player-stats";
+import { isGameMatchRecorded, loadPlayerStats, recordGameFinish, recordMatchOnce } from "../../lib/player-stats";
 import type { QuizSession } from "../../lib/quiz-types";
 import { clearCatalogCache } from "../../data/catalog-loader";
 import { CatalogSelectionError, selectCatalogRound } from "../../data/catalog-session";
@@ -13,6 +13,7 @@ import ptSession from "../../tests/fixtures/session.pt-BR.standard.cfd5c3457b985
 import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c1ff312324883f8b724318e6bf7c132293eb9ee53ff8f8e0e5c2072562738f4.json";
 import manifest from "../../tests/fixtures/manifest-v2.json";
 import { NEXT_GUARD_MS } from "./AnswerFeedback";
+import { dailySeedDate } from "./daily-seed";
 import { Quiz } from "./Quiz";
 import {
   buildQuizProgressSave,
@@ -312,6 +313,20 @@ describe("Quiz flows", () => {
       expect(screen.queryByRole("button", { name: "Jogar novamente" })).toBeNull();
       expect(screen.getByRole("link", { name: /Próximo: Grade/ })).toHaveAttribute("href", "/pt-br/grid/");
       expect(screen.getByText(/^Novo desafio em \d{2}:\d{2}:\d{2}$/)).toBeInTheDocument();
+    });
+
+    it("says in the daily setup that the day is done once its date was counted", async () => {
+      // Counted on another board of the same date, e.g. before a republication.
+      recordMatchOnce("quiz", "daily-other-board", true, dailySeedDate(dailyPtSession as QuizSession));
+      const before = loadPlayerStats();
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      expect(notice()).toHaveTextContent(messages.quizDailyDone);
+
+      startRound();
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      await playToResults();
+      expect(loadPlayerStats()).toEqual(before);
     });
   });
 

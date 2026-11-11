@@ -8,8 +8,9 @@ import type { CrosswordStatus } from "./crossword-save";
 import { CrosswordClues, clueText } from "./CrosswordClues";
 import { CrosswordGrid, type CrosswordInputs } from "./CrosswordGrid";
 import { CrosswordResult } from "./CrosswordResult";
-import { useCrosswordGame } from "./useCrosswordGame";
+import { crosswordMatchId, useCrosswordGame } from "./useCrosswordGame";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
+import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 
 export interface CrosswordGameContentProps {
   puzzle: CrosswordPuzzle;
@@ -45,6 +46,7 @@ export function barMessage(
 export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGameContentProps) {
   const game = useCrosswordGame(puzzle, locale);
   const { values, status, finished } = game;
+  const dayDone = useDailyMatchDone("crossword", puzzle.reference_date, crosswordMatchId(puzzle), finished);
   const [active, setActive] = useState(0);
   const inputs = useRef<CrosswordInputs>({});
 
@@ -88,6 +90,8 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
     action();
   };
   const { message, barState } = barMessage(status, game.wrongCheck, shareNote, messages);
+
+  if (dayDone) return <DailyDone game="crossword" locale={locale} />;
 
   return (
     <section

@@ -12,7 +12,8 @@ import {
   type ConnectionsFeedback,
 } from "./connections-feedback";
 import { useConnectionsGame } from "./useConnectionsGame";
-import { useRecordConnectionsMatch } from "./useRecordConnectionsMatch";
+import { connectionsMatchId, useRecordConnectionsMatch } from "./useRecordConnectionsMatch";
+import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
@@ -124,8 +125,11 @@ export function ConnectionsGameContent({
   useFocusOnChange(resultTitle, isGameOver && playedHere.current);
 
   useRecordConnectionsMatch(puzzle, gameStatus, isGameOver);
+  const dayDone = useDailyMatchDone("connections", puzzle.reference_date, connectionsMatchId(puzzle), isGameOver);
 
   const barState = connectionsBarState(isGameOver, gameStatus, feedback);
+
+  if (dayDone) return <DailyDone game="connections" locale={locale} />;
 
   return (
     <section id="connections" class="game-card game-card--wide connections-game" data-testid="game-board" aria-labelledby="connections-heading">

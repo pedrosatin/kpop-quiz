@@ -4,7 +4,7 @@ import validPuzzleJson from "../../../public/data/code-groups.pilot.json";
 import { getMessages } from "../../i18n/catalog";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 import { CodeGroupsGame } from "./CodeGroupsGame";
-import { generateShareText } from "./CodeGroupsGameContent";
+import { CodeGroupsGameContent, generateShareText } from "./CodeGroupsGameContent";
 import { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 import type { CodeGroupsPuzzle } from "../../data/code-groups";
 
@@ -147,7 +147,7 @@ describe("CodeGroupsGame", () => {
 
   it("resumes progress saved under kpop-code-<date>", async () => {
     const played = puzzle.secret.slice(1).concat(puzzle.secret.slice(0, 1));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ history: [played], selection: ["", "", "", ""] }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ puzzle_id: puzzle.puzzle_id, history: [played], selection: ["", "", "", ""] }));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(puzzle))));
     renderGame();
     expect(await screen.findByText(pt.codeGuessSummary(0, 4))).toBeInTheDocument();
@@ -172,7 +172,7 @@ describe("CodeGroupsGame", () => {
   it("records a restored finished game exactly once", async () => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ history: [puzzle.secret], selection: ["", "", "", ""] }),
+      JSON.stringify({ puzzle_id: puzzle.puzzle_id, history: [puzzle.secret], selection: ["", "", "", ""] }),
     );
     vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(puzzle)))));
     renderGame();
@@ -191,13 +191,79 @@ describe("CodeGroupsGame", () => {
     markGameMatchRecorded("code", `code-${puzzle.puzzle_id}`);
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ history: [puzzle.secret], selection: ["", "", "", ""] }),
+      JSON.stringify({ puzzle_id: puzzle.puzzle_id, history: [puzzle.secret], selection: ["", "", "", ""] }),
     );
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(puzzle))));
     renderGame();
     await screen.findByRole("heading", { level: 2, name: pt.codeResultWon });
     await settle();
     expect(loadPlayerStats().games.code?.played).toBe(0);
+  });
+});
+
+describe("CodeGroupsGame republished day", () => {
+  // Another board for the same date: a different id and a different secret.
+  // It is rendered past the loader, whose identity hash it would not match.
+  const republished: CodeGroupsPuzzle = {
+    ...puzzle,
+    puzzle_id: "f".repeat(64),
+    secret: [...puzzle.secret].reverse(),
+  };
+
+  function serve(board: CodeGroupsPuzzle) {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(board)))));
+  }
+
+  function renderBoard(board: CodeGroupsPuzzle) {
+    return render(<CodeGroupsGameContent puzzle={board} locale="pt-BR" messages={pt} />);
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+  });
+
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("does not apply the guesses saved for another board of the same date", async () => {
+    const played = puzzle.secret.slice(1).concat(puzzle.secret.slice(0, 1));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ puzzle_id: puzzle.puzzle_id, history: [played], selection: ["", "", "", ""] }));
+    renderBoard(republished);
+    expect(screen.getAllByRole("combobox")).toHaveLength(4);
+    expect(document.querySelectorAll(".code-history li")).toHaveLength(0);
+    expect(screen.getByTestId("code-remaining")).toHaveTextContent(String(puzzle.max_attempts));
+  });
+
+  it("shows the day as done after a republished board and does not count it again", async () => {
+    serve(puzzle);
+    renderGame();
+    await screen.findAllByRole("combobox");
+    guess(puzzle.secret as string[]);
+    await settle();
+    const before = loadPlayerStats();
+    expect(before.games.code).toMatchObject({ played: 1, won: 1, currentStreak: 1 });
+
+    cleanup();
+    renderBoard(republished);
+    expect(screen.getByTestId("daily-done")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: pt.dailyDoneTitle })).toBeInTheDocument();
+    expect(screen.queryAllByRole("combobox")).toHaveLength(0);
+    await settle();
+    expect(loadPlayerStats()).toEqual(before);
+  });
+
+  it("shows the day as done for a save and a count from before the board id was kept", async () => {
+    markGameMatchRecorded("code", `code-${puzzle.puzzle_id}`);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ history: [puzzle.secret], selection: ["", "", "", ""] }));
+    serve(puzzle);
+    renderGame();
+    expect(await screen.findByTestId("daily-done")).toBeInTheDocument();
+    await settle();
+    expect(loadPlayerStats().games.code.played).toBe(0);
   });
 });
 
@@ -278,5 +344,15 @@ describe("CodeGroups share", () => {
     const field = screen.getByRole("textbox", { name: pt.shareTextLabel });
     expect(field).toHaveAttribute("readonly");
     expect((field as HTMLTextAreaElement).value).toContain("Código de grupos de K-pop");
+  });
+
+  it("selects the whole text to copy by hand on focus and on click", async () => {
+    setNavigator("clipboard", { writeText: vi.fn().mockRejectedValue(new Error("denied")) });
+    await winAndShare();
+    const field = screen.getByRole("textbox", { name: pt.shareTextLabel }) as HTMLTextAreaElement;
+    const select = vi.spyOn(field, "select");
+    fireEvent.focus(field);
+    fireEvent.click(field);
+    expect(select).toHaveBeenCalledTimes(2);
   });
 });

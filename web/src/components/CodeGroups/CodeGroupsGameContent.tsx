@@ -8,9 +8,10 @@ import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
+import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { useCodeGroupsGame } from "./useCodeGroupsGame";
-import { useRecordCodeGroupsMatch } from "./useRecordCodeGroupsMatch";
+import { codeGroupsMatchId, useRecordCodeGroupsMatch } from "./useRecordCodeGroupsMatch";
 
 export interface CodeGroupsGameContentProps {
   puzzle: CodeGroupsPuzzle;
@@ -51,6 +52,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
   const { selection, history, won, finished, selectValue, submit, feedback } =
     useCodeGroupsGame(puzzle, locale);
   useRecordCodeGroupsMatch(puzzle, finished, won);
+  const dayDone = useDailyMatchDone("code", puzzle.reference_date, codeGroupsMatchId(puzzle), finished);
 
   const playedHere = useRef(false);
   const submitHere = () => {
@@ -107,6 +109,8 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
     const attemptNumber = history.indexOf(feedback.attempt) + 1;
     feedbackText = messages.codeAttemptFeedback(attemptNumber, feedback.attempt.exact, feedback.attempt.misplaced, attemptsLeft);
   }
+
+  if (dayDone) return <DailyDone game="code" locale={locale} />;
 
   return (
     <section id="code-groups" tabIndex={-1} aria-label={messages.codeTitle} class="game-card game-card--wide code-groups" data-testid="game-board">

@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { CrosswordPuzzle } from "../../data/crossword";
 import { useGameAnalytics } from "../../lib/game-analytics";
-import {
-  isGameMatchRecorded,
-  recordMatchOnce,
-} from "../../lib/player-stats";
+import { isDailyMatchRecorded, recordMatchOnce } from "../../lib/player-stats";
 import type { Locale } from "../../lib/quiz-types";
 import {
   clearCrosswordSave,
@@ -31,9 +28,9 @@ export interface UseCrosswordGame {
 }
 
 /**
- * The stats id of the board. Each day's board counts once, by its envelope
- * checksum, on the board's `reference_date` (not the device's local day), so it
- * joins the overall streak like any other daily game of that date.
+ * The board's id under the earlier per-board stats key, the envelope checksum.
+ * The daily match itself counts once per `reference_date` (ADR 030), so a board
+ * swapped for the same date does not count again.
  */
 export function crosswordMatchId(puzzle: CrosswordPuzzle): string {
   return `crossword-${puzzle.dataset_version}`;
@@ -52,7 +49,7 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
     {
       game: "crossword",
       locale,
-      isDaily: () => !isGameMatchRecorded("crossword", crosswordMatchId(puzzle)),
+      isDaily: () => !isDailyMatchRecorded("crossword", puzzle.reference_date, crosswordMatchId(puzzle)),
       // Revealing the board is how the player gives up; the round has no loss.
       outcome: status === "won" ? "win" : status === "revealed" ? "give_up" : null,
     },
@@ -74,7 +71,7 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
       return;
     }
     const matchId = crosswordMatchId(puzzle);
-    if (recorded.current === matchId || isGameMatchRecorded("crossword", matchId)) return;
+    if (recorded.current === matchId) return;
     recordMatchOnce("crossword", matchId, status === "won", puzzle.reference_date);
     recorded.current = matchId;
   }, [finished, status, puzzle]);

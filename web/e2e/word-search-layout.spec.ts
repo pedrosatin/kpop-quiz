@@ -83,7 +83,11 @@ for (const locale of ["pt", "en"]) {
           );
           await page.screenshot({ path: testInfo.outputPath("victory.png") });
           await context.clearCookies();
-          await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("kpop-word-search-")).forEach((key) => localStorage.removeItem(key)));
+          // A fresh board needs the day's record gone too: with the date counted
+          // and no finished save, the game shows the day as done (ADR 030).
+          await page.evaluate(() => Object.keys(localStorage)
+            .filter((key) => key.startsWith("kpop-word-search-") || key.startsWith("kpop-match-recorded-word-search-"))
+            .forEach((key) => localStorage.removeItem(key)));
           await reloadPersisted(page);
           await page.locator(".word-search-actions > button").click();
           await page.getByRole("button", { name: /Sim, desistir|Yes, give up/ }).click();

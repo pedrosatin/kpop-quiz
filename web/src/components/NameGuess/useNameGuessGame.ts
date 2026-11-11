@@ -1,6 +1,6 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
 import { useCallback, useEffect, useMemo, useReducer } from "preact/hooks";
-import { isGameMatchRecorded } from "../../lib/player-stats";
+import { isDailyMatchRecorded } from "../../lib/player-stats";
 import type { NameGuessPuzzle, Locale } from "../../lib/quiz-types";
 import type { GameStatus, LetterStatus } from "./types";
 
@@ -155,7 +155,7 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-B
     {
       game: "name-guess",
       locale,
-      isDaily: () => !isGameMatchRecorded("name-guess", nameGuessMatchId(puzzle)),
+      isDaily: () => !isDailyMatchRecorded("name-guess", puzzle.reference_date, nameGuessMatchId(puzzle)),
       // Only a give-up ends the game with attempts left.
       outcome: status === "won" ? "win" : status === "lost" ? (guesses.length < puzzle.max_attempts ? "give_up" : "loss") : null,
     },

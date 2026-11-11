@@ -508,6 +508,45 @@ describe("ConnectionsGame component integration", () => {
     for (const category of puzzle.categories) guess(category.item_ids);
     expect(loadPlayerStats().games.connections?.played).toBe(1);
   });
+
+  // 2026-10-19: the date's board was republished after players finished it.
+  it("shows the day as done on a board republished for the same date and does not count it again", () => {
+    const view = renderGame();
+    for (const category of puzzle.categories) guess(category.item_ids);
+    const before = loadPlayerStats();
+    expect(before.games.connections).toMatchObject({ played: 1, won: 1, currentStreak: 1 });
+    view.unmount();
+
+    const republished = { ...puzzle, puzzle_id: "f".repeat(64) };
+    render(<ConnectionsGame locale="pt-BR" puzzle={republished} messages={pt} />);
+    expect(screen.getByTestId("daily-done")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: pt.dailyDoneTitle })).toBeInTheDocument();
+    expect(document.querySelectorAll(".connections-tile")).toHaveLength(0);
+    expect(loadPlayerStats()).toEqual(before);
+  });
+
+  it("shows the day as done when the match was counted under the board's earlier key", () => {
+    markGameMatchRecorded("connections", `connections-${puzzle.puzzle_id}`);
+    renderGame();
+    expect(screen.getByTestId("daily-done")).toBeInTheDocument();
+    expect(loadPlayerStats().games.connections?.played ?? 0).toBe(0);
+  });
+
+  it("starts a republished board clean, without the other board's progress", () => {
+    localStorage.setItem(
+      `kpop-connections-${puzzle.puzzle_id}`,
+      JSON.stringify({
+        solvedCategoryIds: [puzzle.categories[0]!.id],
+        mistakesRemaining: 2,
+        guessHistory: [puzzle.categories[0]!.item_ids],
+        gameStatus: "in_progress",
+        boardItemIds: puzzle.categories.slice(1).flatMap((c) => c.item_ids),
+      }),
+    );
+    render(<ConnectionsGame locale="pt-BR" puzzle={{ ...puzzle, puzzle_id: "f".repeat(64) }} messages={pt} />);
+    expect(document.querySelectorAll(".connections-grid .connections-tile")).toHaveLength(16);
+    expect(screen.getByText("4 erros restantes")).toBeInTheDocument();
+  });
 });
 
 describe("Connections share", () => {

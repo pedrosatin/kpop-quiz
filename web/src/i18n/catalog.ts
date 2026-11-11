@@ -122,6 +122,8 @@ export interface Messages {
   quizReplayLegacyRepeats: string;
   /** Saved progress exists but does not match the current artifact or config. */
   quizResumeIncompatible: string;
+  /** Setup notice of the daily theme once the day's quiz is counted; a new round does not count. */
+  quizDailyDone: string;
   /** Saved progress is corrupt or fails schema checks. */
   quizResumeInvalid: string;
   /** localStorage is unavailable; the round continues without persistence. */
@@ -345,6 +347,9 @@ export interface Messages {
   /** Label of the link to the next unfinished daily game; an arrow follows it. */
   dailyNextGame: (game: string) => string;
   dailyAllDone: string;
+  /** Shown instead of a new board when the date's board was republished after the player finished it. */
+  dailyDoneTitle: string;
+  dailyDoneBody: string;
   codeSequenceNote: string;
   codeAttemptsLeft: (remaining: number) => string;
   codeYourGuess: string;
@@ -511,6 +516,7 @@ const catalogs: Record<Locale, Messages> = {
     quizReplayRepeats: "Só há dez perguntas elegíveis nesta combinação; jogar novamente repete o mesmo conjunto.",
     quizReplayLegacyRepeats: "O catálogo de perguntas novas ainda não está disponível; jogar novamente usa as mesmas perguntas publicadas.",
     quizResumeIncompatible: "Não foi possível retomar a partida salva: ela não combina com os dados atuais. Comece uma nova.",
+    quizDailyDone: "Você já concluiu o desafio diário de hoje. Uma nova rodada não conta nas estatísticas.",
     quizResumeInvalid: "O progresso salvo está inválido e foi descartado. Comece uma nova partida.",
     quizStorageUnavailable: "O armazenamento local está indisponível; o progresso desta partida não será guardado.",
     consentLabel: "Preferências de privacidade",
@@ -876,6 +882,8 @@ const catalogs: Record<Locale, Messages> = {
     dailyNextReload: "Recarregar",
     dailyNextGame: (game) => `Próximo: ${game}`,
     dailyAllDone: "Você concluiu todos os jogos de hoje.",
+    dailyDoneTitle: "Desafio de hoje concluído",
+    dailyDoneBody: "O tabuleiro de hoje foi atualizado depois da sua partida. Ela continua nas suas estatísticas, e a nova versão não conta como outra partida.",
     statsTitle: "Suas estatísticas",
     statsNavLabel: "Estatísticas",
     statsOpenButton: "Ver estatísticas e sequência",
@@ -993,6 +1001,7 @@ const catalogs: Record<Locale, Messages> = {
     quizReplayRepeats: "Only ten eligible questions exist for this combination; playing again repeats the same set.",
     quizReplayLegacyRepeats: "The new-question catalog is not available yet; playing again uses the same published questions.",
     quizResumeIncompatible: "Could not resume the saved game: it does not match the current data. Start a new round.",
+    quizDailyDone: "You already finished today's daily challenge. A new round does not count in your stats.",
     quizResumeInvalid: "The saved progress is invalid and was discarded. Start a new game.",
     quizStorageUnavailable: "Local storage is unavailable; progress for this round will not be saved.",
     consentLabel: "Privacy preferences",
@@ -1356,6 +1365,8 @@ const catalogs: Record<Locale, Messages> = {
     dailyNextReload: "Reload",
     dailyNextGame: (game) => `Next: ${game}`,
     dailyAllDone: "You finished all of today's games.",
+    dailyDoneTitle: "Today's challenge is done",
+    dailyDoneBody: "Today's board was updated after you played it. Your game stays in your stats, and the new version does not count as another game.",
     statsTitle: "Your stats",
     statsNavLabel: "Stats",
     statsOpenButton: "See stats and streak",

@@ -49,16 +49,21 @@ python -m kpop_scraping.code_groups_cli --verify web/public/data/code-groups.pil
 ## Persistência, estatísticas e compartilhamento
 
 O progresso da partida fica no `localStorage`, na chave
-`kpop-code-<data da rodada>`, com os QIDs de cada tentativa e a seleção em
-curso. As contagens não são salvas: elas são recalculadas a partir da
+`kpop-code-<data da rodada>`, com o `puzzle_id` do tabuleiro, os QIDs de cada
+tentativa e a seleção em curso. Um registro de outro tabuleiro da mesma data
+(republicação) ou sem `puzzle_id` (gravado antes desta regra) é descartado em
+vez de retomado. As contagens não são salvas: elas são recalculadas a partir da
 sequência secreta, então um registro editado nunca mostra um palpite que o
 jogo não produziu. Um registro com grupo fora dos seis símbolos, grupo
 repetido, mais tentativas que o limite ou seleção inválida é descartado, e ao
 carregar o jogo apaga os registros de outras datas.
 
 A partida concluída entra nas estatísticas locais (janela de estatísticas,
-aba "Código" / "Code") uma única vez, marcada pela chave
-`kpop-match-recorded-code-<puzzle_id>`; um resultado restaurado do
+aba "Código" / "Code") uma única vez por data, marcada pela chave
+`kpop-match-recorded-code-daily-<data>` ([ADR 030](decisions/030-partida-diaria-por-jogo-e-data.md));
+a chave antiga `kpop-match-recorded-code-code-<puzzle_id>` continua reconhecida.
+Com a data já registrada e sem registro concluído do tabuleiro atual, o jogo
+mostra o dia como concluído; um resultado restaurado do
 `localStorage` não repete o evento nem os eventos de GA4 (`game_start`,
 `game_complete`, `share`, deduplicados por partida e visita em
 `web/src/lib/game-analytics.ts`).
