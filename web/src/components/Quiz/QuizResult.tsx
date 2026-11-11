@@ -52,7 +52,6 @@ export function QuizResult({
       {/* From 60rem the title, text and buttons sit beside the stats, and the
           review below them runs in two columns. */}
       <div class="quiz-result-summary">
-        <p class="kicker">{messages.score}</p>
         <h2 id="result-heading" class="result-title" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
           {messages.resultTitle}
         </h2>

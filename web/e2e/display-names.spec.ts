@@ -76,10 +76,10 @@ for (const viewport of VIEWPORTS) {
     const connections = new ConnectionsPage(page, baseURL!);
     await connections.open();
     const board = page.getByTestId("game-board");
-    await expect(board.getByRole("button", { name: /^SHINee,/ })).toBeVisible();
-    await expect(board.getByRole("button", { name: /^shinee,/ })).toHaveCount(0);
-    await expect(board.getByRole("button", { name: /^f\(x\),/ })).toBeVisible();
-    await expect(board.getByRole("button", { name: /^TXT,/ })).toBeVisible();
+    await expect(board.getByRole("button", { name: /^SHINee$/ })).toBeVisible();
+    await expect(board.getByRole("button", { name: /^shinee$/ })).toHaveCount(0);
+    await expect(board.getByRole("button", { name: /^f\(x\)$/ })).toBeVisible();
+    await expect(board.getByRole("button", { name: /^TXT$/ })).toBeVisible();
   });
 }
 

@@ -38,7 +38,6 @@ export function ScoreSummary({
           <strong class="result-stat-value">{cluesUsedCount}</strong>
         </div>
       </div>
-      <p class="result-summary">{messages.resultText(score)}</p>
     </div>
   );
 }

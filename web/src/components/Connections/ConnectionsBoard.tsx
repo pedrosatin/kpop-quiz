@@ -141,7 +141,6 @@ export function ConnectionsBoard({
               disabled={disabled}
               onToggle={onToggleItem}
               locale={locale}
-              messages={messages}
               {...(displayNames.has(item.id) ? { displayName: displayNames.get(item.id)! } : {})}
             />
           ))}

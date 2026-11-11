@@ -21,8 +21,8 @@ documentados: a promoção foi executada caso a caso, sem ADR que defina quando
 um piloto está pronto. A fatia "graduação dos pilotos" (`.scratch/graduacao-pilotos/`)
 especifica a promoção dos dois pilotos atuais e a escolha editorial foi
 incluir estatísticas locais, persistência e compartilhamento nos graduados —
-o mapa ficou de fora dessas três por decisão da época (os testes de
-`MapPilotGame` afirmam explicitamente que o jogo não toca nas estatísticas).
+o mapa ficou de fora dessas três por decisão da época (em 2026-10-19, os testes
+de `MapPilotGame` afirmavam que o jogo não tocava nas estatísticas).
 
 ## Decisão
 
@@ -136,3 +136,7 @@ rodada. Para uma partida fixa:
 - o compartilhamento não traz data nem número do dia.
 
 Detalhes em [Cruzadinha](../crossword-game.md).
+
+## Adendo: estatísticas do mapa
+
+Adendo de 2026-11-11. O mapa passou a gravar estatísticas locais: ao fim da rodada do dia ele conta uma partida em `map`, com a data da rodada, e a aba "Mapa" entrou em `StatsTabs`. A vitória segue a regra já usada na medição (ao menos metade das datas certas). Uma rodada salva como replay não conta, e uma exportação feita antes desta mudança continua importável, com o mapa zerado. A medição do GA4 não mudou: o mapa continua sem enviar `days_since_last` nem `streak_bucket`. Isto substitui a frase "o mapa permanece como está" apenas quanto às estatísticas.

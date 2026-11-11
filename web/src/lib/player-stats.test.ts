@@ -537,6 +537,15 @@ describe("player-stats module", () => {
       });
     });
 
+    it("imports an export from before the map had stats and zeros it", () => {
+      const payload = JSON.parse(JSON.stringify(createInitialPlayerStats())) as {
+        games: Record<string, unknown>;
+      };
+      delete payload.games["map"];
+      expect(importPlayerStatsJson(JSON.stringify(payload))).toEqual({ success: true });
+      expect(loadPlayerStats().games.map).toEqual({ played: 0, won: 0, currentStreak: 0, maxStreak: 0 });
+    });
+
     it("imports an export from before the crossword game and zeros it", () => {
       const payload = JSON.parse(JSON.stringify(createInitialPlayerStats())) as {
         games: Record<string, unknown>;

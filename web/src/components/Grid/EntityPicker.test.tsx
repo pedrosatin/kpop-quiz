@@ -44,7 +44,7 @@ describe("EntityPicker component", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Escolha um grupo")).toBeInTheDocument();
-    expect(screen.getByText(/Formado nos anos 2010 ∩ JYP Entertainment/)).toBeInTheDocument();
+    expect(screen.getByText("Formado nos anos 2010 e JYP Entertainment")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Buscar grupo...")).toBeInTheDocument();
     expect(screen.getByText("TWICE")).toBeInTheDocument();
     expect(screen.getByText("BLACKPINK")).toBeInTheDocument();

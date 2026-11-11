@@ -1,4 +1,4 @@
-import { cleanup, render } from "@testing-library/preact";
+import { cleanup, render, screen } from "@testing-library/preact";
 import axe from "axe-core";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { GameSetup } from "../components/GameSetup/GameSetup";
@@ -307,6 +307,26 @@ describe("Automated accessibility audits with axe-core", () => {
     );
     const results = await axe.run(container);
     expect(results.violations).toEqual([]);
+  });
+
+  it("names the points once on the Quiz result, in the card", () => {
+    const { container } = render(
+      <QuizResult
+        score={100}
+        messages={ptMessages}
+        locale="pt-BR"
+        onRestart={vi.fn()}
+        totalQuestions={2}
+        correctCount={1}
+        elapsedSeconds={23}
+        cluesUsedCount={1}
+        playMode="standard"
+        history={sampleResults}
+      />
+    );
+    expect(screen.getAllByText("Pontos")).toHaveLength(1);
+    expect(container.querySelector(".kicker")).toBeNull();
+    expect(screen.queryByText(/Você fez/)).toBeNull();
   });
 
   it("validates standalone ScoreSummary, ShareResult, and ReviewAnswers components", async () => {

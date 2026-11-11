@@ -12,7 +12,7 @@ import {
   type MapPilotEvent,
 } from "../../data/map-pilot";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
-import { PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
+import { loadPlayerStats } from "../../lib/player-stats";
 
 const DATE = "2026-09-24";
 const round = selectMapPilotRound(mapPilotEvents, DATE);
@@ -443,7 +443,7 @@ describe("map pilot saved progress", () => {
     expect(answerButton(second)).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("restores a finished round's result without taking focus or touching the stats", () => {
+  it("restores a finished round's result without taking focus", () => {
     const answers = [...rightAnswers];
     answers[1] = wrongFor(round[1]!).map_feature_id;
     save({ events: eventIds, answers, index: 10 });
@@ -451,13 +451,41 @@ describe("map pilot saved progress", () => {
     const title = view.getByRole("heading", { name: "Rodada concluída" });
     expect(title).toHaveAccessibleDescription("9 de 10 certas.");
     expect(document.activeElement).toBe(document.body);
-    expect(localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBeNull();
   });
 
-  it("does not record the round in the shared statistics", () => {
+  it("records a won round once in the map statistics, even after a reload", () => {
     const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
     playRound(view);
-    expect(localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBeNull();
+    const { games, overall } = loadPlayerStats();
+    expect(games.map).toMatchObject({ played: 1, won: 1, currentStreak: 1, lastPlayedDate: DATE });
+    expect(overall).toMatchObject({ played: 1, won: 1 });
+    view.unmount();
+    render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(loadPlayerStats().games.map.played).toBe(1);
+  });
+
+  it("records a lost round and a give-up as played without a win", () => {
+    const lost = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    playRound(lost, round.map((_, index) => index));
+    expect(loadPlayerStats().games.map).toMatchObject({ played: 1, won: 0, currentStreak: 0 });
+    lost.unmount();
+    localStorage.clear();
+
+    const gaveUp = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    fireEvent.click(gaveUp.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(gaveUp.getByRole("button", { name: "Sim, desistir" }));
+    expect(loadPlayerStats().games.map).toMatchObject({ played: 1, won: 0 });
+  });
+
+  it("does not count an unfinished round or a replay saved before Play again was removed", () => {
+    save({ events: eventIds, answers: rightAnswers.slice(0, 3), index: 3 });
+    const view = render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(loadPlayerStats().games.map.played).toBe(0);
+    view.unmount();
+
+    save({ events: eventIds, answers: rightAnswers, index: 10, replay: true });
+    render(<MapPilotGame locale="pt-BR" seedDate={DATE} />);
+    expect(loadPlayerStats().games.map.played).toBe(0);
   });
 
   const invalid: Array<[string, () => void]> = [

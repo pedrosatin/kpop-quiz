@@ -286,7 +286,7 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(within(screen.getByRole("grid")).getByText("SHINee")).toBeInTheDocument();
 
     expect(status()).toHaveTextContent(
-      "Não aceita: SHINee. O catálogo só aceita fatos comprovados. 8 palpites restantes. 0 de 9 casas certas.",
+      "Não aceita: SHINee. Sem fonte registrada aqui. Veja a FAQ. 8 palpites restantes. 0 de 9 casas certas.",
     );
     expect(document.querySelector(".game-actions")).toHaveClass("is-incorrect");
     await waitFor(() => expect(cellButton(0, 0)).toHaveFocus());
@@ -443,7 +443,7 @@ describe("IntersectionGrid orchestrator component", () => {
     pick(0, 0, "SHINee");
 
     expect(status()).toHaveTextContent(
-      "Not accepted: SHINee. The catalog only accepts proven facts. 8 guesses left. 0 of 9 squares correct.",
+      "Not accepted: SHINee. No recorded source here. See the FAQ. 8 guesses left. 0 of 9 squares correct.",
     );
     expect(status().textContent).not.toMatch(/wrong|incorrect|false|errada|falsa/i);
     for (const answer of grid.cells[0]!.valid_entity_ids) {

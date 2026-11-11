@@ -442,7 +442,7 @@
   gap: var(--space-4);
 }
 
-/* From 60rem the title, text and buttons sit at the left of the stats, and
+/* From 60rem the title and buttons sit at the left of the stats, and
    the review runs in two columns. Items fill each row left to right, the
    same order as the DOM, and an opened source grows its own row only. */
 @media (min-width: 60rem) {
@@ -453,16 +453,10 @@
   .quiz-result-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
-      "kicker stats"
       "title stats"
-      "text stats"
       "actions stats";
     gap: var(--space-2) var(--space-6);
     align-items: center;
-  }
-
-  .quiz-result-summary > .kicker {
-    grid-area: kicker;
   }
 
   .quiz-result-summary > .result-title {
@@ -478,10 +472,6 @@
   .quiz-result .result-stats {
     grid-area: stats;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .quiz-result .result-summary {
-    grid-area: text;
   }
 
   .quiz-result-summary > .btn-row {

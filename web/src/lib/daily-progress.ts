@@ -23,8 +23,8 @@ const STATS_ID: Record<Exclude<SeoRouteKey, "mapPilot">, GameId> = {
 
 /**
  * Daily games finished on `today`. Stats keep the date of the last daily
- * match of each game (win or loss); the map keeps no stats, so its save
- * of the day tells whether the result is showing.
+ * match of each game (win or loss). The map reads its save of the day
+ * instead, which shows the result before the stats write and on a replay.
  */
 export function completedDailyGames(today: string): Set<SeoRouteKey> {
   const { games } = loadPlayerStats();

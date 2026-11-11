@@ -85,7 +85,7 @@ export function streakBucket(streak: number): string {
   return streak <= 7 ? "4-7" : "8+";
 }
 
-// The Map pilot keeps no player stats, so it has no return bands to send.
+// The Map records stats, but its analytics never sent return bands and still sends none.
 function gameStats(game: AnalyticsGame) {
   return game === "map" ? null : loadPlayerStats().games[game];
 }

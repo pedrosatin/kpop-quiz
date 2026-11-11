@@ -15,6 +15,10 @@ describe("quiz feedback", () => {
     expect(screen.queryByText("Did you enjoy this game?")).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
   });
+  it.each([["pt-BR", /serviço de avaliações/], ["en", /rating service/]] as const)("explains in plain words who records the answer in %s", async (locale, notice) => {
+    render(<Feedback locale={locale} site="k_test" />);
+    expect(await screen.findByText(notice)).not.toHaveTextContent(/TBBC/);
+  });
   it("sends only generic metadata and retries a failed comment with the same nonce and vote", async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(reply(201, {ok:true,id:"vote-id"})).mockRejectedValueOnce(new Error()).mockResolvedValueOnce(reply(200,{ok:true,id:"vote-id"}));
     vi.stubGlobal("fetch", fetcher);
