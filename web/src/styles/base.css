@@ -179,18 +179,16 @@ textarea {
   color: var(--color-action);
 }
 
-.theme-select {
-  min-height: var(--control-height);
-  min-width: 0;
-  max-width: 100%;
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
+/* One icon per mode, chosen by html[data-theme]; no attribute means the system theme. */
+.theme-toggle .theme-icon {
+  display: none;
+  flex: none;
+}
+
+:root:not([data-theme]) .theme-icon-system,
+:root[data-theme="light"] .theme-icon-light,
+:root[data-theme="dark"] .theme-icon-dark {
+  display: block;
 }
 
 .language-link {
@@ -210,6 +208,21 @@ textarea {
 .language-link:hover {
   color: var(--color-link);
   text-decoration: underline;
+}
+
+.language-short {
+  display: none;
+}
+
+/* On phones the language link shortens to EN/PT so the header stays on one row. */
+@media (max-width: 40rem) {
+  .language-full {
+    display: none;
+  }
+
+  .language-short {
+    display: inline;
+  }
 }
 
 /* Game navigation */

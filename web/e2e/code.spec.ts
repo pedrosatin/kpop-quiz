@@ -107,7 +107,7 @@ test("a day without the artifact offers working retry", async ({page,baseURL}) =
 
 test("English route and keyboard selection complete the same sample", async ({ page, baseURL }) => {
   await open(page,baseURL);
-  await page.getByRole("link",{name:"English",exact:true}).click();
+  await page.getByRole("link",{name:"EN, English",exact:true}).click();
   await expect(page).toHaveURL(/\/en\/code\/$/);
   await expect(page.getByRole("heading",{name:"Group code",level:1})).toBeVisible();
   await choose(page,secret,true);

@@ -132,21 +132,30 @@ async function expectReachableAboveBanner(page: Page, selector: string) {
   }
 }
 
-/** The board's top edge is on screen, above both the action bar and the banner, and is not covered. */
-async function expectBoardTopVisible(page: Page, board: string) {
-  const geometry = await page.locator(board).evaluate((el) => {
+/**
+ * The board's top edge is on screen, above both the action bar and the banner, and is not covered.
+ * With through, the bottom of that element inside the board (such as the second row) must be visible too.
+ */
+async function expectBoardTopVisible(page: Page, board: string, through?: string) {
+  const geometry = await page.locator(board).evaluate((el, through) => {
     const r = el.getBoundingClientRect();
+    const end = through ? el.querySelector(through)?.getBoundingClientRect().bottom : undefined;
     const bar = document.querySelector(".game-actions")?.getBoundingClientRect();
     const banner = document.querySelector(".consent-banner")!.getBoundingClientRect();
     const probe = document.elementFromPoint(r.left + r.width / 2, r.top + 4);
     return {
       top: r.top,
+      end,
       visibleBottom: Math.min(bar?.top ?? Infinity, banner.top),
       hit: probe !== null && el.contains(probe),
     };
-  });
+  }, through);
   expect(geometry.top).toBeGreaterThanOrEqual(0);
   expect(geometry.top + 8).toBeLessThanOrEqual(geometry.visibleBottom);
+  if (through) {
+    expect(geometry.end, `${through} exists in ${board}`).toBeDefined();
+    expect(geometry.end!).toBeLessThanOrEqual(geometry.visibleBottom);
+  }
   expect(geometry.hit).toBe(true);
 }
 
@@ -197,7 +206,8 @@ for (const locale of locales) {
       await openWithBanner(page, consentURL + locale.games[game]);
       await expect(page.locator(boards[game])).toBeVisible({ timeout: 30_000 });
       expect((await bannerBox(page)).height).toBeLessThanOrEqual(PHONE_BANNER_MAX);
-      await expectBoardTopVisible(page, boards[game]);
+      // Guess shows its first two rows of tiles; the other boards only their top edge.
+      await expectBoardTopVisible(page, boards[game], game === "guess" ? ".name-guess-row:nth-child(2)" : undefined);
       await expectReachableAboveBanner(page, ".game-actions button");
       await expectNoHorizontalOverflow(page);
     }

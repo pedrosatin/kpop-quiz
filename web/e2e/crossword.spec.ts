@@ -193,7 +193,7 @@ test("keyboard editing, crossed clues and digits remain playable", async ({ page
 
 test("English link keeps the player on the crossword", async ({ page, baseURL }) => {
   await open(page, baseURL, copy["pt-br"].path);
-  await page.getByRole("link", { name: "English", exact: true }).click();
+  await page.getByRole("link", { name: "EN, English", exact: true }).click();
   await expect(page).toHaveURL(/\/en\/crossword\/$/);
   await expect(page.getByRole("heading", { name: "K-pop Crossword", level: 1 })).toBeVisible();
 });
