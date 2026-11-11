@@ -9,6 +9,7 @@ from kpop_scraping.evidence import (
     INFOBOX_MEMBER_FIELDS,
     WikipediaPage,
     assess_references,
+    formation_category_check,
     formation_date_evidence,
     genre_evidence,
     infobox_evidence,
@@ -44,6 +45,7 @@ from tests.wikidata_fixture import (
 
 EDITORIAL_FIXTURE = Path(__file__).parent / "fixtures" / "wikipedia_evidence_cases.json"
 SOURCE_COVERAGE_FIXTURE = Path(__file__).parent / "fixtures" / "reference_source_coverage.json"
+FORMATION_CATEGORY_FIXTURE = Path(__file__).parent / "fixtures" / "formation_category_cases.json"
 
 
 def page(extract, source_revision_id=1, title=""):
@@ -931,6 +933,126 @@ class PersonInfoboxValidationTest(unittest.TestCase):
         born = decisions_by_predicate(validate_facts(extracted.candidates, context))["born_on"]
         self.assertEqual([(d.status, d.reason) for d in born], [("conflict", "same_rank_values_differ")] * 2)
         self.assertEqual([d.observed for d in born], [None, None])
+
+
+def formation_entity(statement_id, value, precision):
+    """A Wikidata item with a single P571 that cites only P143."""
+    day = value if precision == 11 else f"{value[:4]}-01-01"
+    return {"claims": {"P571": [{
+        "id": statement_id,
+        "mainsnak": {
+            "datatype": "time",
+            "datavalue": {"type": "time", "value": {
+                "after": 0, "before": 0, "calendarmodel": GREGORIAN_CALENDAR,
+                "precision": precision, "time": f"+{day}T00:00:00Z", "timezone": 0,
+            }},
+            "property": "P571",
+            "snaktype": "value",
+        },
+        "rank": "normal",
+        "references": [{"hash": "p143", "snaks": {"P143": [{
+            "datatype": "wikibase-item", "property": "P143", "snaktype": "value",
+            "datavalue": {"type": "wikibase-entityid", "value": {"entity-type": "item", "id": "Q328"}},
+        }]}, "snaks-order": ["P143"]}],
+        "type": "statement",
+    }]}}
+
+
+class FormationCategoryTest(unittest.TestCase):
+    """"Musical groups established in YYYY" proves only a year-precision P571 (ADR 029)."""
+
+    CASES = {
+        case["name"]: case
+        for case in json.loads(FORMATION_CATEGORY_FIXTURE.read_text(encoding="utf-8"))["cases"]
+    }
+
+    def page(self, case, wikitext=None):
+        if wikitext is None:
+            wikitext = " " * case["excerpt_offset"] + case["wikitext_excerpt"]
+        return WikipediaPage(
+            3, "en", case["page_id"], case["revision_id"], case["extract_sentence"],
+            case["title"], wikitext,
+        )
+
+    def decide(self, case, page=None):
+        entity = formation_entity(case["statement_id"], case["p571_value"], case["p571_precision"])
+        candidates = group_fact_candidates(case["qid"], entity).candidates
+        context = ValidationContext(
+            names={case["qid"]: (case["name"],)},
+            entity_types={case["qid"]: "group"},
+            group_pages={case["qid"]: page or self.page(case)},
+        )
+        (decision,) = validate_facts(candidates, context)
+        return decision
+
+    def locator(self, case):
+        start = case["excerpt_offset"]
+        end = start + len(case["wikitext_excerpt"])
+        return (
+            f"wikipedia:en:pageid={case['page_id']}:revid={case['revision_id']}"
+            f"#wikitext[{start}:{end}]"
+        )
+
+    def test_fixed_revisions_prove_the_year_with_the_category(self):
+        for name in ("BigBang", "Got7", "Wonder Girls"):
+            case = self.CASES[name]
+            with self.subTest(name):
+                self.assertEqual(case["expected"], "accepted")
+                decision = self.decide(case)
+                self.assertEqual((decision.status, decision.reason), ("accepted", None))
+                (item,) = decision.evidence
+                self.assertEqual(item.locator, self.locator(case))
+                self.assertEqual(item.snippet, case["wikitext_excerpt"])
+                self.assertEqual(item.evidence_type, "wikipedia_revision")
+                self.assertEqual(item.source_revision_id, 3)
+                # Without the category the same revision proves nothing.
+                bare = self.decide(case, self.page(case, wikitext=""))
+                self.assertEqual((bare.status, bare.reason), ("rejected", "missing_evidence"))
+
+    def test_a_category_with_another_year_rejects_the_fact_with_its_own_reason(self):
+        for name in ("2NB", "Dreamcatcher"):
+            case = self.CASES[name]
+            with self.subTest(name):
+                decision = self.decide(case)
+                self.assertEqual(
+                    (decision.status, decision.reason),
+                    ("rejected", "formation_category_year_differs"),
+                )
+                self.assertEqual(decision.evidence, ())
+                self.assertEqual(decision.observed.locator, self.locator(case))
+                self.assertEqual(decision.observed.snippet, case["wikitext_excerpt"])
+
+    def test_a_divergent_category_vetoes_a_formation_sentence_of_the_same_revision(self):
+        # 2NB's summary says 2006, as P571 does; its category says 2008.
+        case = self.CASES["2NB"]
+        page = self.page(case)
+        self.assertIsNotNone(formation_date_evidence(page, TimeValue("2006", 9, GREGORIAN_CALENDAR), ["2NB"]))
+        self.assertEqual(self.decide(case).reason, "formation_category_year_differs")
+
+    def test_month_or_day_precision_is_not_proved_by_the_category(self):
+        itzy = self.CASES["Itzy"]
+        self.assertEqual(itzy["wikitext_excerpt"], "[[Category:Musical groups established in 2019]]")
+        decision = self.decide(itzy)
+        self.assertEqual((decision.status, decision.reason), ("rejected", "missing_evidence"))
+        month = TimeValue("2019-02", 10, GREGORIAN_CALENDAR)
+        self.assertIsNone(formation_category_check(self.page(itzy), month).evidence)
+
+    def test_only_literal_categories_outside_comments_count(self):
+        year = TimeValue("2006", 9, GREGORIAN_CALENDAR)
+        case = self.CASES["BigBang"]
+        cases = {
+            "<!-- [[Category:Musical groups established in 2006]] -->": (False, False),
+            "<!-- [[Category:Musical groups established in 2008]] -->": (False, False),
+            "[[Category:Musical groups established in 2006|BigBang]]": (True, False),
+            "[[category:musical groups established in 2006]]": (True, False),
+            "[[Category:Musical groups established in 2006]]\n[[Category:Musical groups established in 2008]]": (False, True),
+            "[[Category:Musical groups disestablished in 2018]]": (False, False),
+            "Category:Musical groups established in 2006": (False, False),
+        }
+        for wikitext, (proves, differs) in cases.items():
+            with self.subTest(wikitext):
+                check = formation_category_check(self.page(case, wikitext), year)
+                self.assertEqual((check.evidence is not None, check.observed is not None), (proves, differs))
 
 
 if __name__ == "__main__":

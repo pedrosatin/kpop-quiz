@@ -481,7 +481,7 @@ class _Run:
         return collect_person_pages(self.store, self.person_client, requests), None, []
 
     def _record_observed_pages(self, decisions: list[FactDecision]) -> None:
-        """Keep what a person page said when it contradicted or could not prove a fact."""
+        """Keep what a page said when it contradicted or could not prove a fact."""
         for decision in decisions:
             observed = decision.observed
             if observed is None or decision.reason is None:

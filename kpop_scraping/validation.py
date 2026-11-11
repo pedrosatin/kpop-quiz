@@ -6,7 +6,14 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import NamedTuple
 
-from .evidence import EvidenceItem, WikipediaPage, assess_references, text_evidence
+from .evidence import (
+    FORMATION_CATEGORY_DIFFERS,
+    EvidenceItem,
+    WikipediaPage,
+    assess_references,
+    formation_category_check,
+    text_evidence,
+)
 from .facts import FactCandidate
 from .person_evidence import PERSON_BIRTH_FIELDS, VALUE_AMBIGUOUS, VALUE_DIFFERS, person_infobox_check
 
@@ -16,8 +23,8 @@ REJECTED = "rejected"
 CONFLICT = "conflict"
 SUPERSEDED = "superseded"
 STALE = "stale"
-# A fact rejected with one of these reasons keeps the infobox text in ``observed``.
-PAGE_CONTRADICTION_REASONS = frozenset({VALUE_DIFFERS, VALUE_AMBIGUOUS})
+# A fact rejected with one of these reasons keeps the page text in ``observed``.
+PAGE_CONTRADICTION_REASONS = frozenset({VALUE_DIFFERS, VALUE_AMBIGUOUS, FORMATION_CATEGORY_DIFFERS})
 EVIDENCE_REASONS = frozenset(
     {"missing_evidence", "unreliable_reference_source", "unreviewed_reference_source"}
 )
@@ -65,8 +72,10 @@ def find_evidence(
     """Return evidence and, when there is none, the rejection reason.
 
     Reliable Wikidata references come first. Group facts and memberships may
-    fall back to the collected Wikipedia revision of the group. ``born_on`` and
-    ``born_in`` may fall back to the infobox of the person's own page.
+    fall back to the collected Wikipedia revision of the group; for
+    ``formed_on`` its formation-year category can prove the year or reject
+    it. ``born_on`` and ``born_in`` may fall back to the infobox of the
+    person's own page.
     """
     assessment = assess_references(candidate.statement)
     reason = assessment.rejection_reason or "missing_evidence"
@@ -95,6 +104,12 @@ def find_evidence(
             candidate.time,
             context.release_performers.get(group_id or "", ()),
         )
+        if predicate == "formed_on" and candidate.time:
+            # A formation-year category with another year vetoes the extract too.
+            category = formation_category_check(page, candidate.time)
+            if category.observed:
+                return EvidenceSearch((), FORMATION_CATEGORY_DIFFERS, category.observed)
+            item = item or category.evidence
         if item:
             return EvidenceSearch((item,), reason)
     return EvidenceSearch((), reason)
