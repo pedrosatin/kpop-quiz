@@ -6,6 +6,7 @@ import type { NameGuessPuzzle } from "../../lib/quiz-types";
 import { NameGuessGame } from "./NameGuessGame";
 import { RESULT_GUARD_MS, generateShareText } from "./NameGuessResults";
 import { getMessages } from "../../i18n/catalog";
+import { loadPlayerStats, PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
 
 const puzzle = validPuzzleJson as unknown as NameGuessPuzzle;
 const tPt = getMessages("pt-BR").nameGuess;
@@ -383,6 +384,26 @@ describe("NameGuessGame component", () => {
     const title = screen.getByRole("heading", { name: tPt.lostTitle });
     expect(document.activeElement).toBe(title);
     expect(title.closest(".game-actions")).toHaveClass("is-incorrect");
+  });
+
+  it("records the daily win once and leaves a lost replay out of the stats", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+    typeGuess("TWICE");
+
+    const stats = loadPlayerStats();
+    expect(stats.games["name-guess"].played).toBe(1);
+    expect(stats.games["name-guess"].currentStreak).toBe(1);
+    expect(stats.overall.lastPlayedDate).toBe(puzzle.reference_date);
+    const afterDaily = localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
+
+    advanceClock();
+    fireEvent.click(screen.getByRole("button", { name: tPt.playAgain }));
+    for (const guess of ["AESPA", "ALICE", "ALPHA", "APRIL", "BRAVE", "DREAM"]) {
+      typeGuess(guess);
+    }
+
+    expect(screen.getByRole("heading", { name: tPt.lostTitle })).toBeInTheDocument();
+    expect(localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(afterDaily);
   });
 
   it("reveals the answer when the player gives up", () => {
