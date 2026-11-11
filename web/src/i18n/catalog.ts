@@ -204,6 +204,7 @@ export interface Messages {
   themeAuto: string;
   themeLight: string;
   themeDark: string;
+  themeSwitchTo: string;
   totalTime: string;
   cluesUsed: string;
   shareHints: (count: number) => string;
@@ -627,6 +628,7 @@ const catalogs: Record<Locale, Messages> = {
     themeAuto: "Tema do sistema",
     themeLight: "Tema claro",
     themeDark: "Tema escuro",
+    themeSwitchTo: "Alternar para",
     totalTime: "Tempo total",
     cluesUsed: "Pistas usadas",
     shareHints: (count) => (count === 1 ? "1 pista" : `${count} pistas`),
@@ -1107,6 +1109,7 @@ const catalogs: Record<Locale, Messages> = {
     themeAuto: "System theme",
     themeLight: "Light theme",
     themeDark: "Dark theme",
+    themeSwitchTo: "Switch to",
     totalTime: "Total time",
     cluesUsed: "Clues used",
     shareHints: (count) => (count === 1 ? "1 clue" : `${count} clues`),
