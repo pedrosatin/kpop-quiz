@@ -35,7 +35,7 @@
   --ws-list: 4.375rem;
   --ws-cell-min: 1.75rem;
   --ws-grid-max-h: calc(
-    100dvh - var(--consent-banner-height, 0px) - var(--ws-above) - var(--ws-actions) - var(--ws-list)
+    100dvh - var(--consent-banner-height, 0px) - var(--stale-notice-h, 0px) - var(--ws-above) - var(--ws-actions) - var(--ws-list)
   );
 }
 

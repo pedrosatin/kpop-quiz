@@ -11,6 +11,7 @@ import type { ReplayNotice } from "./types";
 import type { QuizFocusRefs } from "./useQuizFocus";
 import type { QuizMatch } from "./useQuizMatch";
 import type { QuizSettings } from "./useQuizSettings";
+import { StaleDailyNotice } from "../Results/StaleDailyNotice";
 
 export interface QuizScreenActions {
   load: () => void;
@@ -131,8 +132,18 @@ function QuizRoundScreen({
   );
 }
 
-/** Renders the screen for the current machine state. */
+/** Renders the screen for the current machine state, under the notice of a daily session from an earlier day. */
 export function QuizScreen(props: QuizScreenProps) {
+  const { locale, settings, match } = props;
+  return (
+    <>
+      {settings.theme === "daily" && <StaleDailyNotice board={match.session} locale={locale} />}
+      <QuizStateScreen {...props} />
+    </>
+  );
+}
+
+function QuizStateScreen(props: QuizScreenProps) {
   const { messages, match, question, actions } = props;
   const { state, session } = match;
   if (state === "missing" || state === "invalid") {

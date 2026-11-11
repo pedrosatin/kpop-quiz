@@ -3,6 +3,7 @@ import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 import { CodeGroupsArtifactError, loadCodeGroupsPuzzle, type CodeGroupsPuzzle } from "../../data/code-groups";
 import { CodeGroupsGameContent } from "./CodeGroupsGameContent";
+import { StaleDailyNotice } from "../Results/StaleDailyNotice";
 import "./code-groups.css";
 
 export function CodeGroupsGame({ locale, baseUrl }: { locale: Locale; baseUrl?: string }) {
@@ -56,5 +57,10 @@ export function CodeGroupsGame({ locale, baseUrl }: { locale: Locale; baseUrl?: 
     );
   }
 
-  return <CodeGroupsGameContent puzzle={puzzle} locale={locale} messages={messages} />;
+  return (
+    <>
+      <StaleDailyNotice board={puzzle} locale={locale} />
+      <CodeGroupsGameContent puzzle={puzzle} locale={locale} messages={messages} />
+    </>
+  );
 }

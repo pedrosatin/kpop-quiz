@@ -5,6 +5,7 @@ import { QuizState } from "../Quiz/QuizState";
 import { ConnectionsArtifactError, loadConnectionsPuzzle } from "../../data/connections-loader";
 import type { ConnectionsGameProps } from "./types";
 import { ConnectionsGameContent, SUBMIT_GUARD_MS } from "./ConnectionsGameContent";
+import { StaleDailyNotice } from "../Results/StaleDailyNotice";
 
 export { SUBMIT_GUARD_MS };
 
@@ -59,11 +60,14 @@ export function ConnectionsGame({
   }
 
   return (
-    <ConnectionsGameContent
-      puzzle={loadedPuzzle}
-      locale={locale}
-      messages={messages}
-      onReload={loadData}
-    />
+    <>
+      <StaleDailyNotice board={loadedPuzzle} locale={locale} />
+      <ConnectionsGameContent
+        puzzle={loadedPuzzle}
+        locale={locale}
+        messages={messages}
+        onReload={loadData}
+      />
+    </>
   );
 }

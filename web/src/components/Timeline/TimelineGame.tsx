@@ -5,6 +5,7 @@ import { QuizState } from "../Quiz/QuizState";
 import { TimelineArtifactError, loadTimelinePuzzle } from "../../data/timeline-loader";
 import { TimelineGameContent } from "./TimelineGameContent";
 import type { TimelineGameProps } from "./types";
+import { StaleDailyNotice } from "../Results/StaleDailyNotice";
 
 export function TimelineGame({
   locale,
@@ -57,10 +58,13 @@ export function TimelineGame({
   }
 
   return (
-    <TimelineGameContent
-      puzzle={loadedPuzzle}
-      locale={locale}
-    />
+    <>
+      <StaleDailyNotice board={loadedPuzzle} locale={locale} />
+      <TimelineGameContent
+        puzzle={loadedPuzzle}
+        locale={locale}
+      />
+    </>
   );
 }
 

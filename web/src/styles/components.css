@@ -10,6 +10,7 @@
   .game-hud        counters above the board (.hud-item, .hud-label, .hud-value)
   .choice          selectable option card (radio or checkbox inside a label)
   .callout         neutral note; .alert-error, .alert-warning for problems
+  .stale-daily-notice  date of a daily board from an earlier day, above the game
   .badge           small pill label (.badge-success, .badge-failure)
   .modal-*         dialog backdrop, card, header, title
   .state, .loader  loading and error placeholders
@@ -491,6 +492,27 @@
 .alert-error p,
 .alert-warning p {
   margin: 0;
+}
+
+/*
+  Notice above a daily board from an earlier day (StaleDailyNotice). The
+  boards sized to the viewport (Connections, Name guess, Word search) give
+  up its height and the gap below it through --stale-notice-h: two lines
+  below 40rem, one line from there, measured at 360px and 1440px in
+  Portuguese and English.
+*/
+.stale-daily-notice {
+  margin-block-end: var(--space-2);
+}
+
+:root:has(.stale-daily-notice) {
+  --stale-notice-h: 4.5rem;
+}
+
+@media (min-width: 40rem) {
+  :root:has(.stale-daily-notice) {
+    --stale-notice-h: 3rem;
+  }
 }
 
 .text-success {

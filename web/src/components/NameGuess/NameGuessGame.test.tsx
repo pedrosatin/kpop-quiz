@@ -7,6 +7,8 @@ import { NameGuessGame } from "./NameGuessGame";
 import { RESULT_GUARD_MS, generateShareText } from "./NameGuessResults";
 import { getMessages } from "../../i18n/catalog";
 import { loadPlayerStats } from "../../lib/player-stats";
+import { formatCalendarDate } from "../../lib/format-date";
+import { dayAfter, onDay, resetStaleDaily, serveDailyBoard, trackDailyParam } from "../../test/stale-daily";
 
 const puzzle = validPuzzleJson as unknown as NameGuessPuzzle;
 const tPt = getMessages("pt-BR").nameGuess;
@@ -867,5 +869,45 @@ describe("NameGuess revealed answer label", () => {
     expect(document.querySelector(".name-guess-target-name")?.textContent).toBe("Tahiti (banda)");
     expect(screen.getByRole("heading", { name: tPt.lostTitle })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: tPt.keyboardAria })).not.toBeInTheDocument();
+  });
+});
+
+describe("NameGuess board from an earlier day", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    serveDailyBoard(puzzle);
+  });
+
+  afterEach(() => {
+    resetStaleDaily();
+    vi.restoreAllMocks();
+  });
+
+  async function playLoadedBoard() {
+    render(<NameGuessGame locale="pt-BR" />);
+    await screen.findByRole("button", { name: tPt.enter });
+    typeGuess("TWICE");
+  }
+
+  it("shows the board's date and counts no daily match when today's is not out", async () => {
+    onDay(dayAfter(puzzle.reference_date));
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.getByTestId("stale-daily-notice")).toHaveTextContent(
+      getMessages("pt-BR").staleDaily(formatCalendarDate(puzzle.reference_date, "pt-BR")),
+    );
+    expect(loadPlayerStats().games["name-guess"]?.played ?? 0).toBe(0);
+    await vi.waitFor(() => expect(daily()).toEqual(["no", "no"]));
+  });
+
+  it("keeps today's board as the daily challenge", async () => {
+    onDay(puzzle.reference_date);
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.queryByTestId("stale-daily-notice")).toBeNull();
+    expect(loadPlayerStats().games["name-guess"]?.played).toBe(1);
+    await vi.waitFor(() => expect(daily()).toEqual(["yes", "yes"]));
   });
 });

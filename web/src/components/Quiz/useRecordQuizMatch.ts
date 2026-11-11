@@ -1,4 +1,5 @@
 import { useEffect, type MutableRef } from "preact/hooks";
+import { staleDailyDate } from "../../data/daily-artifact";
 import { dailyMatchId, recordMatchOnce } from "../../lib/player-stats";
 import type { QuizSession } from "../../lib/quiz-types";
 import { quizDailyDate } from "./daily-seed";
@@ -19,7 +20,9 @@ export function useRecordQuizMatch(
   recordedMatchRef: MutableRef<string | null>,
 ): void {
   useEffect(() => {
-    if (state !== "results" || !session) return;
+    // A daily session from an earlier day counts neither as the day's
+    // challenge nor as free play: its round may already count for its day.
+    if (state !== "results" || !session || staleDailyDate(session)) return;
     const dailyDate = quizDailyDate(session, theme);
     const matchId = dailyDate ? dailyMatchId(dailyDate) : `session-${session.session_id || "default"}`;
 

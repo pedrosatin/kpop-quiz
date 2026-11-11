@@ -6,6 +6,8 @@ import type { TimelinePuzzle } from "../../lib/quiz-types";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 import fixture from "../../tests/fixtures/timeline.daily.json";
 import { TimelineGame } from "./TimelineGame";
+import { formatCalendarDate } from "../../lib/format-date";
+import { dayAfter, onDay, resetStaleDaily, serveDailyBoard, trackDailyParam } from "../../test/stale-daily";
 import {
   calculateScore,
   getCanonicalChronologicalOrder,
@@ -274,5 +276,46 @@ describe("TimelineGame", () => {
     fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
     await screen.findByRole("heading", { name: /Pontuação:/ });
     expect((await axe.run(container)).violations).toEqual([]);
+  });
+});
+
+describe("Timeline board from an earlier day", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.spyOn(performance, "now").mockReturnValue(1000);
+    serveDailyBoard(puzzle);
+  });
+
+  afterEach(() => {
+    resetStaleDaily();
+    vi.restoreAllMocks();
+  });
+
+  async function playLoadedBoard() {
+    render(<TimelineGame locale="pt-BR" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Verificar ordem" }));
+    await screen.findByRole("heading", { name: /Pontuação:/ });
+  }
+
+  it("shows the board's date and counts no daily match when today's is not out", async () => {
+    onDay(dayAfter(puzzle.reference_date));
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.getByTestId("stale-daily-notice")).toHaveTextContent(
+      pt.staleDaily(formatCalendarDate(puzzle.reference_date, "pt-BR")),
+    );
+    expect(loadPlayerStats().games["timeline"]?.played ?? 0).toBe(0);
+    await vi.waitFor(() => expect(daily()).toEqual(["no", "no"]));
+  });
+
+  it("keeps today's board as the daily challenge", async () => {
+    onDay(puzzle.reference_date);
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.queryByTestId("stale-daily-notice")).toBeNull();
+    expect(loadPlayerStats().games["timeline"]?.played).toBe(1);
+    await vi.waitFor(() => expect(daily()).toEqual(["yes", "yes"]));
   });
 });

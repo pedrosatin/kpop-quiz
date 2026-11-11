@@ -1,7 +1,7 @@
 import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../lib/quiz-types";
 import type { QuizTheme } from "../components/Quiz/url-params";
 import type { QuizDecadeSelection, QuizDecadeValue } from "../components/Quiz/url-params";
-import { dailyReferenceDate } from "./daily-artifact";
+import { dailyReferenceDate, noteDailyBoard } from "./daily-artifact";
 
 export class QuizArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -216,8 +216,9 @@ async function loadFromManifest(
   const entry = manifest.sessions[sessionKey];
   if (!entry) throw new QuizArtifactError("missing");
   const session = await readSession(entry, manifest, locale, playMode, null, effectiveBaseUrl);
-  const next = theme === "daily" ? await nextDailySession(session, sessionKey, locale, playMode, effectiveBaseUrl) : null;
-  return { session: next ?? session, availableDecades: available, decades: [] };
+  if (theme !== "daily") return { session, availableDecades: available, decades: [] };
+  const daily = await nextDailySession(session, sessionKey, locale, playMode, effectiveBaseUrl) ?? session;
+  return { session: noteDailyBoard(daily, dailySessionDate(daily)), availableDecades: available, decades: [] };
 }
 
 export async function loadQuizSession(

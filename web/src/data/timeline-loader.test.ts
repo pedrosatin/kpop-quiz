@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TimelineArtifactError, loadTimelinePuzzle } from "./timeline-loader";
 import { isTimelinePuzzle } from "../lib/quiz-types";
+import { staleDailyDate } from "./daily-artifact";
+import { dayAfter } from "../test/stale-daily";
 import validTimeline from "../tests/fixtures/timeline.daily.json";
 import releaseTimeline from "../tests/fixtures/timeline-releases.daily.json";
 
@@ -84,6 +86,19 @@ describe("published timeline puzzle loader and validator", () => {
     expect(result.reference_date).toBe(today);
     expect(fetch).toHaveBeenCalledWith(`/base/data/timeline.daily.json?d=${today}`);
     expect(fetch).toHaveBeenCalledWith("/base/data/next/timeline.daily.json");
+  });
+
+  it("notes the next/ board as stale when the root artifact is 404 and next/ is from an earlier day", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(validTimeline), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    ));
+
+    const today = await loadTimelinePuzzle("pt-BR", "/base", validTimeline.reference_date);
+    const later = await loadTimelinePuzzle("pt-BR", "/base", dayAfter(validTimeline.reference_date));
+    expect(staleDailyDate(today)).toBeUndefined();
+    expect(staleDailyDate(later)).toBe(validTimeline.reference_date);
   });
 
   it("falls back to data/next/ when root artifact returns HTML fallback", async () => {

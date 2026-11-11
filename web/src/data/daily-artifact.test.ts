@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dailyReferenceDate, preferNextDaily, secondsUntilNextDaily } from "./daily-artifact";
+import { dailyReferenceDate, preferNextDaily, secondsUntilNextDaily, staleDailyDate } from "./daily-artifact";
 import { loadQuizSession } from "./session-loader";
 import ptSession from "../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import manifest from "../tests/fixtures/manifest-v2.json";
@@ -90,6 +90,37 @@ describe("preferNextDaily", () => {
   });
 });
 
+describe("preferNextDaily and the board of an earlier day", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("notes the main board as stale when next/ has no board for today", async () => {
+    vi.stubGlobal("fetch", routeFetch({}));
+    const board = await preferNextDaily({ reference_date: "2026-09-24", label: "main" }, "grid.daily.json", "/", isDated, "2026-09-25");
+    expect(staleDailyDate(board)).toBe("2026-09-24");
+  });
+
+  it("notes next/ as stale when it is newer than the main board but still not today's", async () => {
+    vi.stubGlobal("fetch", routeFetch({ "/data/next/grid.daily.json": { reference_date: "2026-09-24", label: "next" } }));
+    const board = await preferNextDaily({ reference_date: "2026-09-23", label: "main" }, "grid.daily.json", "/", isDated, "2026-09-25");
+    expect(board.label).toBe("next");
+    expect(staleDailyDate(board)).toBe("2026-09-24");
+  });
+
+  it("takes today's board from the main directory or from next/ after midnight", async () => {
+    vi.stubGlobal("fetch", routeFetch({ "/data/next/grid.daily.json": { reference_date: "2026-09-25", label: "next" } }));
+    const main = await preferNextDaily({ reference_date: "2026-09-25", label: "main" }, "grid.daily.json", "/", isDated, "2026-09-25");
+    const next = await preferNextDaily({ reference_date: "2026-09-24", label: "main" }, "grid.daily.json", "/", isDated, "2026-09-25");
+    expect(next.label).toBe("next");
+    expect(staleDailyDate(main)).toBeUndefined();
+    expect(staleDailyDate(next)).toBeUndefined();
+  });
+
+  it("knows nothing of a board that no loader served", () => {
+    expect(staleDailyDate({ reference_date: "2020-01-01" })).toBeUndefined();
+    expect(staleDailyDate(null)).toBeUndefined();
+  });
+});
+
 describe("daily quiz session published ahead", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -159,5 +190,41 @@ describe("daily quiz session published ahead", () => {
     const session = await loadQuizSession("pt-BR", "standard", "daily", "/");
     expect(session.config.seed).toBe("kpop-daily-2026-09-24");
     expect(fetch).not.toHaveBeenCalledWith("/data/next/manifest-v2.json");
+  });
+});
+
+describe("daily quiz session of an earlier day", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("is noted as stale when next/ has no session for today", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T15:00:00Z"));
+    const main = await dailyArtifacts("2026-09-24");
+    vi.stubGlobal("fetch", routeFetch({
+      "/data/manifest-v2.json": main.manifest,
+      [`/data/${main.path}`]: main.bytes,
+    }));
+    const session = await loadQuizSession("pt-BR", "standard", "daily", "/");
+    expect(session.config.seed).toBe("kpop-daily-2026-09-24");
+    expect(staleDailyDate(session)).toBe("2026-09-24");
+  });
+
+  it("is today's after midnight when next/ has it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T04:00:00Z"));
+    const main = await dailyArtifacts("2026-09-24");
+    const next = await dailyArtifacts("2026-09-25");
+    vi.stubGlobal("fetch", routeFetch({
+      "/data/manifest-v2.json": main.manifest,
+      [`/data/${main.path}`]: main.bytes,
+      "/data/next/manifest-v2.json": next.manifest,
+      [`/data/next/${next.path}`]: next.bytes,
+    }));
+    const session = await loadQuizSession("pt-BR", "standard", "daily", "/");
+    expect(session.config.seed).toBe("kpop-daily-2026-09-25");
+    expect(staleDailyDate(session)).toBeUndefined();
   });
 });

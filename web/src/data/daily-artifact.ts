@@ -37,9 +37,37 @@ export function nextDataUrl(filename: string, baseUrl: string): string {
   return `${base}data/next/${filename}`;
 }
 
+// Boards a loader served after their day, with that day: neither data/ nor
+// data/next/ had today's challenge. Decided once, when the board is loaded,
+// so a board loaded before midnight stays today's until the page reloads.
+const staleBoards = new WeakMap<object, string>();
+
 /**
- * Newer of the main artifact and its next/ copy, never past today.
- * Any failure to load or validate the next/ copy keeps the main artifact.
+ * Notes, when a loader serves `board`, whether its day is before `today`.
+ * The single place that decides whether a daily board is today's.
+ */
+export function noteDailyBoard<T extends object>(
+  board: T,
+  referenceDate: string | null | undefined,
+  today: string = dailyReferenceDate(),
+): T {
+  if (referenceDate && referenceDate < today) staleBoards.set(board, referenceDate);
+  return board;
+}
+
+/**
+ * The date of a board a loader served after its day; undefined for today's
+ * board and for one that never went through a loader. Such a board is not
+ * today's challenge: the game shows its date and counts no daily match.
+ */
+export function staleDailyDate(board: object | null | undefined): string | undefined {
+  return board ? staleBoards.get(board) : undefined;
+}
+
+/**
+ * Newer of the main artifact and its next/ copy, never past today, noted as
+ * stale when neither is today's. Any failure to load or validate the next/
+ * copy keeps the main artifact.
  */
 export async function preferNextDaily<T extends { reference_date: string }>(
   current: T,
@@ -47,6 +75,17 @@ export async function preferNextDaily<T extends { reference_date: string }>(
   baseUrl: string,
   isValid: (value: unknown) => value is T,
   today: string = dailyReferenceDate(),
+): Promise<T> {
+  const board = await newerDaily(current, filename, baseUrl, isValid, today);
+  return noteDailyBoard(board, board.reference_date, today);
+}
+
+async function newerDaily<T extends { reference_date: string }>(
+  current: T,
+  filename: string,
+  baseUrl: string,
+  isValid: (value: unknown) => value is T,
+  today: string,
 ): Promise<T> {
   if (current.reference_date >= today) return current;
   try {

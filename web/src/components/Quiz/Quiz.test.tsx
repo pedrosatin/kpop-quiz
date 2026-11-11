@@ -1162,6 +1162,8 @@ describe("Quiz", () => {
     }
 
     it("shows an overall streak of 1 after finishing the daily quiz with 2 of 10", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(`${DAILY_DATE}T15:00:00Z`));
       await renderDailySetup();
       fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
       await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });

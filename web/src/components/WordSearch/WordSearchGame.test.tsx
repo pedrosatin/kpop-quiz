@@ -7,6 +7,8 @@ import { wordSources } from "./WordSearchResult";
 import { getMessages } from "../../i18n/catalog";
 import { generateWordSearchShareSummary } from "./utils";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
+import { formatCalendarDate } from "../../lib/format-date";
+import { dayAfter, onDay, resetStaleDaily, serveDailyBoard, trackDailyParam } from "../../test/stale-daily";
 
 const puzzle = validPuzzleJson as unknown as WordSearchPuzzle;
 const pt = getMessages("pt-BR");
@@ -198,7 +200,8 @@ describe("WordSearchGame component", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => puzzle,
+        // A new object per load, like a parsed response.
+        json: async () => structuredClone(puzzle),
       })
     );
 
@@ -798,5 +801,45 @@ describe("WordSearchGame display names", () => {
     const panel = document.querySelector<HTMLElement>(".word-search-source")!;
     const titles = within(panel).getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
     expect(titles.slice(0, 3)).toEqual(["Tempest (group)", "Tempest (band)", "Uniq"]);
+  });
+});
+
+describe("WordSearch board from an earlier day", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    serveDailyBoard(puzzle);
+  });
+
+  afterEach(() => {
+    resetStaleDaily();
+    vi.restoreAllMocks();
+  });
+
+  async function playLoadedBoard() {
+    render(<WordSearchGame locale="pt-BR" />);
+    await screen.findByTestId("found-counter");
+    findAll();
+  }
+
+  it("shows the board's date and counts no daily match when today's is not out", async () => {
+    onDay(dayAfter(puzzle.reference_date));
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.getByTestId("stale-daily-notice")).toHaveTextContent(
+      pt.staleDaily(formatCalendarDate(puzzle.reference_date, "pt-BR")),
+    );
+    expect(loadPlayerStats().games["word-search"]?.played ?? 0).toBe(0);
+    await vi.waitFor(() => expect(daily()).toEqual(["no", "no"]));
+  });
+
+  it("keeps today's board as the daily challenge", async () => {
+    onDay(puzzle.reference_date);
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.queryByTestId("stale-daily-notice")).toBeNull();
+    expect(loadPlayerStats().games["word-search"]?.played).toBe(1);
+    await vi.waitFor(() => expect(daily()).toEqual(["yes", "yes"]));
   });
 });

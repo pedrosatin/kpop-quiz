@@ -7,6 +7,8 @@ import { CodeGroupsGame } from "./CodeGroupsGame";
 import { CodeGroupsGameContent, generateShareText } from "./CodeGroupsGameContent";
 import { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 import type { CodeGroupsPuzzle } from "../../data/code-groups";
+import { formatCalendarDate } from "../../lib/format-date";
+import { dayAfter, onDay, resetStaleDaily, serveDailyBoard, trackDailyParam } from "../../test/stale-daily";
 
 // The committed pilot artifact is the fixed example and carries a valid
 // identity hash, so it doubles as the frozen fixture of these tests.
@@ -33,6 +35,12 @@ function guess(ids: string[]) {
   fireEvent.click(screen.getByRole("button", { name: pt.codeSubmit }));
 }
 
+// The loader takes the pilot as today's board only on its own date.
+function onPuzzleDay() {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(`${puzzle.reference_date}T15:00:00Z`));
+}
+
 async function settle() {
   // Lets the effects an async artifact load schedules run (jsdom rAF).
   await new Promise((resolve) => setTimeout(resolve, 50));
@@ -43,12 +51,14 @@ describe("CodeGroupsGame", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.spyOn(performance, "now").mockImplementation(() => clock);
+    onPuzzleDay();
   });
 
   afterEach(() => {
     cleanup();
     localStorage.clear();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("prevents repeated Enter from submitting extra attempts", async () => {
@@ -221,12 +231,14 @@ describe("CodeGroupsGame republished day", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.spyOn(performance, "now").mockImplementation(() => clock);
+    onPuzzleDay();
   });
 
   afterEach(() => {
     cleanup();
     localStorage.clear();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("does not apply the guesses saved for another board of the same date", async () => {
@@ -354,5 +366,46 @@ describe("CodeGroups share", () => {
     fireEvent.focus(field);
     fireEvent.click(field);
     expect(select).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("CodeGroups board from an earlier day", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    serveDailyBoard(puzzle);
+  });
+
+  afterEach(() => {
+    resetStaleDaily();
+    vi.restoreAllMocks();
+  });
+
+  async function playLoadedBoard() {
+    render(<CodeGroupsGame locale="pt-BR" />);
+    await screen.findAllByRole("combobox");
+    guess(puzzle.secret as string[]);
+  }
+
+  it("shows the board's date and counts no daily match when today's is not out", async () => {
+    onDay(dayAfter(puzzle.reference_date));
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.getByTestId("stale-daily-notice")).toHaveTextContent(
+      pt.staleDaily(formatCalendarDate(puzzle.reference_date, "pt-BR")),
+    );
+    expect(loadPlayerStats().games["code"]?.played ?? 0).toBe(0);
+    await vi.waitFor(() => expect(daily()).toEqual(["no", "no"]));
+  });
+
+  it("keeps today's board as the daily challenge", async () => {
+    onDay(puzzle.reference_date);
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.queryByTestId("stale-daily-notice")).toBeNull();
+    expect(loadPlayerStats().games["code"]?.played).toBe(1);
+    await vi.waitFor(() => expect(daily()).toEqual(["yes", "yes"]));
   });
 });

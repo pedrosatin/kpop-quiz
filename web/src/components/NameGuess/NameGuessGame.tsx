@@ -4,6 +4,7 @@ import { NameGuessArtifactError, loadNameGuessPuzzle } from "../../data/name-gue
 import { NameGuessGameContent } from "./NameGuessGameContent";
 import { getMessages } from "../../i18n/catalog";
 import type { NameGuessGameProps } from "./types";
+import { StaleDailyNotice } from "../Results/StaleDailyNotice";
 
 export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGuessGameProps) {
   const messages = getMessages(locale);
@@ -55,5 +56,10 @@ export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGu
     );
   }
 
-  return <NameGuessGameContent puzzle={loadedPuzzle} locale={locale} t={t} giveUpLabel={messages.giveUp} />;
+  return (
+    <>
+      <StaleDailyNotice board={loadedPuzzle} locale={locale} />
+      <NameGuessGameContent puzzle={loadedPuzzle} locale={locale} t={t} giveUpLabel={messages.giveUp} />
+    </>
+  );
 }

@@ -6,6 +6,8 @@ import type { ConnectionsPuzzle } from "../../lib/quiz-types";
 import { ConnectionsGame, SUBMIT_GUARD_MS } from "./ConnectionsGame";
 import { RESULT_GUARD_MS, generateShareText } from "./ConnectionsResults";
 import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
+import { formatCalendarDate } from "../../lib/format-date";
+import { dayAfter, onDay, resetStaleDaily, serveDailyBoard, trackDailyParam } from "../../test/stale-daily";
 
 const puzzle = validPuzzleJson as unknown as ConnectionsPuzzle;
 const pt = getMessages("pt-BR");
@@ -711,5 +713,46 @@ describe("ConnectionsGame display names", () => {
     expect(names).toContain("Tempest (banda)");
     expect(names).toContain("Uniq");
     expect(names).not.toContain("Tempest");
+  });
+});
+
+describe("Connections board from an earlier day", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    serveDailyBoard(puzzle);
+  });
+
+  afterEach(() => {
+    resetStaleDaily();
+    vi.restoreAllMocks();
+  });
+
+  async function playLoadedBoard() {
+    render(<ConnectionsGame locale="pt-BR" messages={pt} />);
+    await screen.findByRole("button", { name: "Enviar" });
+    for (const category of puzzle.categories) guess(category.item_ids);
+  }
+
+  it("shows the board's date and counts no daily match when today's is not out", async () => {
+    onDay(dayAfter(puzzle.reference_date));
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.getByTestId("stale-daily-notice")).toHaveTextContent(
+      pt.staleDaily(formatCalendarDate(puzzle.reference_date, "pt-BR")),
+    );
+    expect(loadPlayerStats().games.connections?.played ?? 0).toBe(0);
+    await vi.waitFor(() => expect(daily()).toEqual(["no", "no"]));
+  });
+
+  it("keeps today's board as the daily challenge", async () => {
+    onDay(puzzle.reference_date);
+    const daily = trackDailyParam();
+    await playLoadedBoard();
+
+    expect(screen.queryByTestId("stale-daily-notice")).toBeNull();
+    expect(loadPlayerStats().games.connections?.played).toBe(1);
+    await vi.waitFor(() => expect(daily()).toEqual(["yes", "yes"]));
   });
 });

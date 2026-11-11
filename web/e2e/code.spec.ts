@@ -19,6 +19,12 @@ async function open(page: Page, baseURL: string | undefined, path = route) {
   await page.goto(joinBaseUrl(baseURL!, prefix + path));
   await expect(page.locator("#code-groups")).toBeVisible();
 }
+// The pilot is today's board only on its own date; on any later day the
+// game would show it as an earlier day's board.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date(`${artifact.reference_date}T15:00:00Z`));
+});
+
 async function choose(page: Page, guess: string[], keyboard = false) {
   const selects = page.locator(".code-slots select");
   for (let i = 0; i < 4; i++) {

@@ -4,6 +4,7 @@ import { WordSearchArtifactError, loadWordSearchPuzzle } from "../../data/word-s
 import { WordSearchGameContent } from "./WordSearchGameContent";
 import { getMessages } from "../../i18n/catalog";
 import type { WordSearchGameProps } from "./types";
+import { StaleDailyNotice } from "../Results/StaleDailyNotice";
 
 export function WordSearchGame({
   puzzle: initialPuzzle,
@@ -71,5 +72,10 @@ export function WordSearchGame({
     );
   }
 
-  return <WordSearchGameContent puzzle={loadedPuzzle} locale={locale} />;
+  return (
+    <>
+      <StaleDailyNotice board={loadedPuzzle} locale={locale} />
+      <WordSearchGameContent puzzle={loadedPuzzle} locale={locale} />
+    </>
+  );
 }

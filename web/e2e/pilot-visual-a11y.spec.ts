@@ -18,6 +18,8 @@ const games = [
 // which the local build may not hold, so the suite serves the committed pilot
 // artifact (same contract) through route interception.
 async function serveCodeArtifact(page: Page) {
+  // Today's board only on its own date, as the daily file it stands in for.
+  await page.clock.setFixedTime(new Date(`${code.reference_date}T15:00:00Z`));
   await page.route("**/data/code-groups.daily.json", (request) => request.fulfill({ json: code }));
   await page.route("**/data/next/code-groups.daily.json", (request) => request.fulfill({ status: 404, body: "" }));
 }
