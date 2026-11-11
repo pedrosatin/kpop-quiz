@@ -41,7 +41,7 @@ export function freshRoundProgress(questionDeadlineMs: number | null, startedAtM
 }
 
 // selectedId and questionDeadlineMs compare against undefined, not `??`: an
-// explicit null override (advance, timeout) saves no selection and no deadline.
+// explicit null override saves no selection (advance) or no deadline (timeout).
 function progressPayload(
   locale: Locale,
   settings: QuizSettings,

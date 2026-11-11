@@ -232,7 +232,7 @@ def download_asset(
     with urllib.request.urlopen(request, timeout=timeout) as response:
         payload = response.read()
         expected = response.headers.get("Content-Length")
-        if not payload or (expected is not None and (not expected.isdigit() or len(payload) != int(expected))):
+        if not payload or (expected is not None and (not (expected.isascii() and expected.isdigit()) or len(payload) != int(expected))):
             raise OSError("Incomplete asset download")
     descriptor, temporary = tempfile.mkstemp(prefix=f".{destination.name}.", dir=destination.parent)
     try:
