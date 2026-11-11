@@ -8,13 +8,13 @@ import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
+import { DailyNext } from "../Results/DailyNext";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 interface ResultCopy {
   complete: string;
   summary: (correct: number, total: number) => string;
   shareLine: (correct: number, total: number) => string;
-  restart: string;
   reviewTitle: string;
   right: string;
   wrong: string;
@@ -35,7 +35,6 @@ const COPY: Record<Locale, ResultCopy> = {
     complete: "Rodada concluída",
     summary: (correct, total) => `${correct} de ${total} certas.`,
     shareLine: (correct, total) => `${correct}/${total} datas certas`,
-    restart: "Jogar novamente",
     reviewTitle: "Datas da rodada",
     right: "Certa",
     wrong: "Errada",
@@ -55,7 +54,6 @@ const COPY: Record<Locale, ResultCopy> = {
     complete: "Round complete",
     summary: (correct, total) => `${correct} of ${total} right.`,
     shareLine: (correct, total) => `${correct}/${total} dates right`,
-    restart: "Play again",
     reviewTitle: "Dates in this round",
     right: "Right",
     wrong: "Wrong",
@@ -119,7 +117,6 @@ export interface MapPilotResultProps {
   locale: Locale;
   /** When the round ended by give-up, the per-date answers open revealed. */
   gaveUp?: boolean;
-  onRestart: () => void;
   onCopied?: () => void;
   onShareFailed?: () => void;
   titleRef?: Ref<HTMLHeadingElement>;
@@ -137,7 +134,6 @@ export function MapPilotResult({
   countryByFeature,
   locale,
   gaveUp = false,
-  onRestart,
   onCopied,
   onShareFailed,
   titleRef,
@@ -151,7 +147,7 @@ export function MapPilotResult({
   const shareFailedId = useId();
   const source = useRef<HTMLDivElement>(null);
   // The buttons appear where Next was, so a second tap or a held Enter
-  // meant for the last Next must not share or restart the round.
+  // meant for the last Next must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "map", locale } });
 
@@ -187,9 +183,6 @@ export function MapPilotResult({
         <button type="button" class="btn btn-primary" onKeyDown={ignoreRepeat} onClick={guarded(() => { void handleShare(shareText); })}>
           {copied ? messages.copiedToClipboard : messages.share}
         </button>
-        <button type="button" class="btn btn-secondary" onKeyDown={ignoreRepeat} onClick={guarded(onRestart)}>
-          {copy.restart}
-        </button>
         <button
           type="button"
           class="btn btn-secondary"
@@ -201,6 +194,8 @@ export function MapPilotResult({
           {sourceOpen ? messages.hideSource : messages.showSource}
         </button>
       </div>
+
+      <DailyNext game="mapPilot" locale={locale} />
 
       {shareFailed && (
         <div class="map-pilot-share-fallback">

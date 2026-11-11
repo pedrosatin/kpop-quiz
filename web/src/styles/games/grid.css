@@ -517,7 +517,7 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .grid-result-buttons > .btn-primary {
+  .grid-result-buttons > .btn-primary:only-child {
     grid-column: 1 / -1;
   }
 

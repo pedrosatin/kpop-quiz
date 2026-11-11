@@ -137,7 +137,8 @@ outros dias, e uma grade nova começa limpa.
 A partida concluída entra uma única vez, marcada por
 `kpop-match-recorded-crossword-crossword-<dataset_version>`, com a data local do
 dia em que o jogador terminou. Resolver conta como vitória, e revelar conta como
-partida sem vitória. "Jogar novamente" limpa o progresso, mas não conta de novo.
+partida sem vitória. O resultado mostra a contagem para o próximo desafio e o
+próximo jogo diário ainda não concluído, sem "Jogar novamente".
 A aba "Cruzadinha" / "Crossword" aparece na janela de estatísticas.
 
 ### GA4

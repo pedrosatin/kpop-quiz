@@ -8,6 +8,7 @@ import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
+import { DailyNext } from "../Results/DailyNext";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 /** The result as text: header, one row of squares per guess, then the link. */
@@ -51,7 +52,6 @@ interface NameGuessResultsProps {
   locale: Locale;
   highContrast: boolean;
   t: NameGuessTranslations;
-  onReset: () => void;
   /** Called after the clipboard took the result, so the bar can announce it. */
   onCopied?: () => void;
   /** Called when neither the share sheet nor the clipboard took the result. */
@@ -72,7 +72,6 @@ export function NameGuessResults({
   locale,
   highContrast,
   t,
-  onReset,
   onCopied,
   onShareFailed,
   titleRef,
@@ -97,7 +96,7 @@ export function NameGuessResults({
     locale,
   );
   // The buttons appear where the keyboard was, so a second tap or a held key
-  // meant for the last guess must not share or restart the game.
+  // meant for the last guess must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "name-guess", locale } });
 
@@ -148,14 +147,6 @@ export function NameGuessResults({
         >
           {copied ? t.copied : t.copyResults}
         </button>
-        <button
-          type="button"
-          onKeyDown={ignoreRepeat}
-          onClick={guarded(onReset)}
-          class="btn btn-secondary"
-        >
-          {t.playAgain}
-        </button>
         {hasDetails && (
           <button
             type="button"
@@ -168,6 +159,8 @@ export function NameGuessResults({
           </button>
         )}
       </div>
+
+      <DailyNext game="nameGuess" locale={locale} />
 
       {shareFailed && (
         <div ref={fallback} class="name-guess-share-fallback">

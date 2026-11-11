@@ -7,6 +7,7 @@ import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
+import { DailyNext } from "../Results/DailyNext";
 import { isEntrySolved, type CrosswordStatus } from "./crossword-save";
 
 /**
@@ -42,14 +43,13 @@ interface CrosswordResultProps {
   checks: number;
   correctWords: number;
   titleRef?: Ref<HTMLHeadingElement>;
-  onRestart: () => void;
   onCopied: () => void;
   onShareFailed: () => void;
 }
 
 /**
  * End of the round, shown in the action bar in place of the controls: the
- * verdict, Share, Show source and Play again. The cited clues open below on
+ * verdict, Share, Show source and the next daily game. The cited clues open below on
  * request, so the solved grid stays in view.
  */
 export function CrosswordResult({
@@ -61,7 +61,6 @@ export function CrosswordResult({
   checks,
   correctWords,
   titleRef,
-  onRestart,
   onCopied,
   onShareFailed,
 }: CrosswordResultProps) {
@@ -123,10 +122,9 @@ export function CrosswordResult({
         >
           {sourceOpen ? messages.hideSource : messages.showSource}
         </button>
-        <button type="button" class="btn btn-secondary" onKeyDown={ignoreRepeat} onClick={guarded(onRestart)}>
-          {messages.restart}
-        </button>
       </div>
+
+      <DailyNext game="crossword" locale={locale} />
 
       {shareFailed && (
         <div class="crossword-share-fallback">

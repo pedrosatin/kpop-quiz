@@ -16,6 +16,7 @@ import {
   seoOgLocale,
 } from "../lib/seo-routes";
 import { StatsNavTrigger } from "../components/Stats/StatsNavTrigger";
+import { GameNav, type GameNavItem } from "../components/GameNav/GameNav";
 import { OPEN_CONSENT_PREFERENCES_EVENT } from "../components/Consent/ConsentBanner";
 import { ConsentBanner } from "../components/Consent/ConsentBanner";
 
@@ -166,57 +167,57 @@ const ga4Id = import.meta.env.PUBLIC_GA4_ID;
 const enableGa4 = !isStaging && Boolean(ga4Id);
 const privacyPath = locale === "pt-BR" ? "/pt-br/privacidade/" : "/en/privacy/";
 const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot && !isTimeline && !isCode && !isCrossword;
-const games = [
+const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
   {
-    id: "quiz",
+    key: "quiz",
     label: messages.gameQuiz,
     path: locale === "pt-BR" ? "/pt-br/" : "/en/",
     isActive: isQuiz,
   },
   {
-    id: "grid",
+    key: "grid",
     label: messages.gameGrid,
     path: locale === "pt-BR" ? "/pt-br/grid/" : "/en/grid/",
     isActive: isGrid,
   },
   {
-    id: "connections",
+    key: "connections",
     label: messages.gameConnections,
     path: locale === "pt-BR" ? "/pt-br/conexoes/" : "/en/connections/",
     isActive: isConnections,
   },
   {
-    id: "name-guess",
+    key: "nameGuess",
     label: messages.gameNameGuess,
     path: locale === "pt-BR" ? "/pt-br/adivinhe/" : "/en/guess/",
     isActive: isNameGuess,
   },
   {
-    id: "word-search",
+    key: "wordSearch",
     label: messages.gameWordSearch,
     path: locale === "pt-BR" ? "/pt-br/caca-palavras/" : "/en/word-search/",
     isActive: isWordSearch,
   },
   {
-    id: "map",
+    key: "mapPilot",
     label: messages.gameMap,
     path: locale === "pt-BR" ? "/pt-br/mapa/" : "/en/map/",
     isActive: isMapPilot,
   },
   {
-    id: "timeline",
+    key: "timeline",
     label: messages.gameTimeline,
     path: locale === "pt-BR" ? "/pt-br/linha-do-tempo/" : "/en/timeline/",
     isActive: isTimeline,
   },
   {
-    id: "code",
+    key: "code",
     label: messages.gameCode,
     path: locale === "pt-BR" ? "/pt-br/codigo/" : "/en/code/",
     isActive: isCode,
   },
   {
-    id: "crossword",
+    key: "crossword",
     label: messages.gameCrossword,
     path: locale === "pt-BR" ? "/pt-br/cruzadinha/" : "/en/crossword/",
     isActive: isCrossword,
@@ -343,17 +344,11 @@ const games = [
     </header>
     {showGameNavigation && (
       <nav class="game-nav-bar" aria-label={messages.gameNavLabel}>
-        <div class="game-nav-container">
-          {games.map((g) => (
-            <a
-              href={`${base}${g.path}`}
-              class={`game-nav-item ${g.isActive ? "is-active" : ""}`}
-              aria-current={g.isActive ? "page" : undefined}
-            >
-              {g.label}
-            </a>
-          ))}
-        </div>
+        <GameNav
+          client:load
+          locale={locale}
+          games={games.map(({ path, ...game }) => ({ ...game, href: `${base}${path}` }))}
+        />
       </nav>
     )}
     {showGameNavigation && (

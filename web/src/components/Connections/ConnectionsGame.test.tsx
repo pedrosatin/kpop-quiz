@@ -5,7 +5,7 @@ import { getMessages } from "../../i18n/catalog";
 import type { ConnectionsPuzzle } from "../../lib/quiz-types";
 import { ConnectionsGame, SUBMIT_GUARD_MS } from "./ConnectionsGame";
 import { RESULT_GUARD_MS, generateShareText } from "./ConnectionsResults";
-import { loadPlayerStats, markGameMatchRecorded, PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
+import { loadPlayerStats, markGameMatchRecorded } from "../../lib/player-stats";
 
 const puzzle = validPuzzleJson as unknown as ConnectionsPuzzle;
 const pt = getMessages("pt-BR");
@@ -433,19 +433,13 @@ describe("ConnectionsGame component integration", () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("guards the result buttons, and Play again focuses the new board", () => {
-    const { container } = renderGame();
+  it("ends with the countdown and the next daily game instead of Play again", () => {
+    renderGame();
     for (const category of puzzle.categories) guess(category.item_ids);
-    const again = screen.getByRole("button", { name: pt.connectionsRestart });
-
-    fireEvent.click(again);
-    expect(screen.getByRole("heading", { level: 2, name: pt.connectionsGameOverWon })).toBeInTheDocument();
-    expect(fireEvent.keyDown(again, { key: "Enter", repeat: true })).toBe(false);
-
-    clock += RESULT_GUARD_MS;
-    fireEvent.click(again);
-    expect(container.querySelectorAll(".connections-grid .connections-tile")).toHaveLength(16);
-    expect(document.activeElement).toBe(container.querySelector(".connections-grid .connections-tile"));
+    const result = screen.getByTestId("game-result");
+    expect(within(result).queryByRole("button", { name: "Jogar novamente" })).toBeNull();
+    expect(within(result).getByText(/^Novo desafio em \d{2}:\d{2}:\d{2}$/)).toHaveAttribute("aria-live", "off");
+    expect(within(result).getByRole("link", { name: /Próximo: Quiz/ })).toHaveAttribute("href", "/pt-br/?theme=daily");
   });
 
   it("shows each category's explanation and source behind Ver fonte", () => {
@@ -501,24 +495,6 @@ describe("ConnectionsGame component integration", () => {
     renderGame();
     for (const category of puzzle.categories) guess(category.item_ids);
     expect(loadPlayerStats().games.connections?.played).toBe(1);
-  });
-
-  it("leaves a lost Play again of the finished daily board out of the stats", () => {
-    renderGame();
-    for (const category of puzzle.categories) guess(category.item_ids);
-    expect(loadPlayerStats().games.connections.currentStreak).toBe(1);
-    const afterDaily = localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
-
-    clock += RESULT_GUARD_MS;
-    fireEvent.click(screen.getByRole("button", { name: pt.connectionsRestart }));
-    // Four different one-away guesses use up the mistakes; a wrong guess keeps its selection.
-    for (const stray of categoryIds("cat_sm")) {
-      fireEvent.click(screen.getByRole("button", { name: "Limpar seleção" }));
-      guess([...categoryIds("cat_jyp").slice(0, 3), stray]);
-    }
-
-    expect(screen.getByRole("heading", { level: 2, name: pt.connectionsGameOverLost })).toBeInTheDocument();
-    expect(localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(afterDaily);
   });
 });
 

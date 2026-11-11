@@ -6,12 +6,14 @@ import type { QuestionResult } from "./types";
 import { ScoreSummary } from "../Results/ScoreSummary";
 import { ShareResult } from "../Results/ShareResult";
 import { ReviewAnswers } from "../Results/ReviewAnswers";
+import { DailyNext } from "../Results/DailyNext";
 
 export interface QuizResultProps {
   score: number;
   messages: Messages;
   locale: Locale;
   headingRef?: RefObject<HTMLHeadingElement>;
+  /** Play again; the daily theme offers the next daily game instead. */
   onRestart: () => void;
   totalQuestions?: number;
   correctCount?: number;
@@ -75,10 +77,13 @@ export function QuizResult({
             locale={locale}
             dailyDate={dailyDate}
           />
-          <button class="btn btn-primary" type="button" onClick={onRestart}>
-            {messages.restart}
-          </button>
+          {!dailyDate && (
+            <button class="btn btn-primary" type="button" onClick={onRestart}>
+              {messages.restart}
+            </button>
+          )}
         </div>
+        {dailyDate && <DailyNext game="quiz" locale={locale} />}
       </div>
       {feedbackEligible && <Feedback locale={locale} />}
       <ReviewAnswers items={history} messages={messages} />

@@ -12,7 +12,8 @@ import type { MapPilotEvent } from "../../data/map-pilot";
  * showing. `answers` has `index` entries, or `index + 1` while the date on
  * screen is answered and Next was not pressed yet. A give-up jumps to the
  * result, so a finished round may hold fewer answers than dates. `replay`
- * marks a round started with Play again, which analytics counts as free play.
+ * marks a round started with Play again, which analytics counts as free play;
+ * the result no longer offers Play again, but older saves may keep the mark.
  */
 export interface MapPilotSave {
   events: string[];
@@ -85,14 +86,18 @@ export function loadMapPilotSave(
   return valid;
 }
 
+/** Whether the save of this round shows its result; the pilot keeps no stats. */
+export function isMapPilotRoundFinished(roundDate: string): boolean {
+  try {
+    const saved = JSON.parse(localStorage.getItem(mapPilotStorageKey(roundDate)) ?? "null") as Partial<MapPilotSave> | null;
+    return Array.isArray(saved?.events) && saved.events.length > 0 && saved.index === saved.events.length;
+  } catch {
+    return false;
+  }
+}
+
 export function storeMapPilotSave(roundDate: string, save: MapPilotSave): void {
   try {
     localStorage.setItem(mapPilotStorageKey(roundDate), JSON.stringify(save));
-  } catch {}
-}
-
-export function clearMapPilotSave(roundDate: string): void {
-  try {
-    localStorage.removeItem(mapPilotStorageKey(roundDate));
   } catch {}
 }

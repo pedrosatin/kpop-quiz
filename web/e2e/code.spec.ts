@@ -59,7 +59,7 @@ test("rejects input errors, returns aggregate displacement, then wins", async ({
   await submit.click();
   await expect(page.locator(".game-result")).toContainText("Código descoberto!");
   await expect(submit).toBeDisabled();
-  await expect(page.locator(".game-result a")).toHaveCount(6);
+  await expect(page.locator(".game-result li a")).toHaveCount(6);
 });
 
 test("ten failed guesses reveal the code and lock input", async ({ page, baseURL }) => {

@@ -8,6 +8,7 @@ import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
+import { DailyNext } from "../Results/DailyNext";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 export function generateShareText({
@@ -104,7 +105,6 @@ export function ConnectionsResults({
   gameStatus,
   guessHistory,
   mistakesRemaining,
-  onRestart,
   onCopied,
   onShareFailed,
   titleRef,
@@ -119,7 +119,7 @@ export function ConnectionsResults({
   const sourceId = useId();
   const source = useRef<HTMLDivElement>(null);
   // The buttons appear where Submit was, so a second tap or a held Enter
-  // meant for the last guess must not share or restart the game.
+  // meant for the last guess must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "connections", locale } });
 
@@ -158,9 +158,6 @@ export function ConnectionsResults({
         <button type="button" class="btn btn-primary" onKeyDown={ignoreRepeat} onClick={guarded(() => { void handleShare(shareText); })}>
           {copied ? messages.copiedToClipboard : messages.connectionsShareButton}
         </button>
-        <button type="button" class="btn btn-secondary" onKeyDown={ignoreRepeat} onClick={guarded(onRestart)}>
-          {messages.connectionsRestart}
-        </button>
         <button
           type="button"
           class="btn btn-secondary"
@@ -171,6 +168,8 @@ export function ConnectionsResults({
           {sourceOpen ? messages.hideSource : messages.showSource}
         </button>
       </div>
+
+      <DailyNext game="connections" locale={locale} />
 
       {shareFailed && (
         <div class="connections-share-fallback">

@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CELL_GUARD_MS, IntersectionGrid, nextCellAfterGuess } from "./IntersectionGrid";
-import { RESULT_GUARD_MS } from "./GridResults";
 import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
@@ -546,7 +545,7 @@ describe("IntersectionGrid orchestrator component", () => {
       });
     });
 
-    it("reports a give-up and a loss, and a replay as free play", async () => {
+    it("reports a give-up", async () => {
       const gtag = measure();
       await renderReady();
       pick(0, 0, "TWICE");
@@ -554,14 +553,6 @@ describe("IntersectionGrid orchestrator component", () => {
       fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
       await waitFor(() => expect(gtag).toHaveBeenCalledTimes(2));
       expect(gtag.mock.calls[1]![2]).toMatchObject({ daily: "yes", outcome: "give_up" });
-
-      clock += RESULT_GUARD_MS + 1;
-      fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
-      await screen.findByRole("grid");
-      for (let guess = 0; guess < 9; guess += 1) pick(0, 0, "SHINee");
-      await waitFor(() => expect(gtag).toHaveBeenCalledTimes(4));
-      expect(gtag.mock.calls[2]![2]).toMatchObject({ daily: "no" });
-      expect(gtag.mock.calls[3]![2]).toMatchObject({ daily: "no", outcome: "loss", days_since_last: "0" });
     });
   });
 
@@ -631,19 +622,6 @@ describe("IntersectionGrid orchestrator component", () => {
     vi.stubGlobal("fetch", vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(validGridJson))));
     render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
     await screen.findByRole("heading", { name: "Fim da partida" });
-  });
-
-  it("starts over from Play again, clears the save and focuses the first cell", async () => {
-    await renderReady();
-    for (let i = 0; i < 9; i++) pick(0, 0, "SHINee");
-    await screen.findByRole("heading", { name: "Fim da partida" });
-
-    clock += RESULT_GUARD_MS;
-    fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
-
-    expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
-    await waitFor(() => expect(cellButton(0, 0)).toHaveFocus());
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
   it("counts a restored finished game that was not counted yet, once", async () => {

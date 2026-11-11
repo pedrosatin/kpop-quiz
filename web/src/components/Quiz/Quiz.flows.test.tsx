@@ -302,25 +302,16 @@ describe("Quiz flows", () => {
       expect(selectCatalogRound).toHaveBeenCalled();
     });
 
-    it("keeps the published daily session on replay and starts counting again", async () => {
+    it("ends the daily session with the next daily game instead of a replay", async () => {
       window.history.replaceState(null, "", "/?theme=daily&mode=standard");
       await renderSetup();
       startRound();
       await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
       await playToResults();
 
-      restart();
-      const heading = await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
-      await act(async () => { await Promise.resolve(); });
-
-      expect(document.activeElement).toBe(heading);
-      expect(readSlot(dailySlot)).toMatchObject({
-        machine_state: "question.ready",
-        question_index: 0,
-        history: [],
-        replay_notice: null,
-      });
-      expect(trackedEvents()).toEqual(["game_start", "game_complete", "game_start"]);
+      expect(screen.queryByRole("button", { name: "Jogar novamente" })).toBeNull();
+      expect(screen.getByRole("link", { name: /Próximo: Grade/ })).toHaveAttribute("href", "/pt-br/grid/");
+      expect(screen.getByText(/^Novo desafio em \d{2}:\d{2}:\d{2}$/)).toBeInTheDocument();
     });
   });
 

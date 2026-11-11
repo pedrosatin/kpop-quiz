@@ -856,6 +856,36 @@
   overflow-wrap: anywhere;
 }
 
+/* End of a daily game: time left until the next challenge and the next game. */
+.daily-next {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  min-height: var(--control-height);
+}
+
+.daily-next p {
+  margin: 0;
+}
+
+.daily-next-countdown {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 30rem) {
+  .daily-next {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .daily-next-link {
+    flex: 1 1 100%;
+  }
+}
+
 @media (forced-colors: active) {
   .review-item {
     border-width: 2px;

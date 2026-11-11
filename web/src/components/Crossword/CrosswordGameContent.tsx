@@ -147,11 +147,6 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
                 checks={game.checks}
                 correctWords={game.correctWords}
                 titleRef={resultTitle}
-                onRestart={() => {
-                  setShareNote(null);
-                  setActive(0);
-                  game.restart();
-                }}
                 onCopied={() => setShareNote({ kind: "copied", n: ++shares.current })}
                 onShareFailed={() => setShareNote({ kind: "shareFailed", n: ++shares.current })}
               />

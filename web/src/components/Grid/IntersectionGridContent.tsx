@@ -35,7 +35,6 @@ export interface IntersectionGridContentProps {
   makeGuess: GridGameApi["makeGuess"];
   giveUp: GridGameApi["giveUp"];
   gaveUp: GridGameApi["gaveUp"];
-  restartGame: GridGameApi["restartGame"];
 }
 
 export function IntersectionGridContent({
@@ -54,7 +53,6 @@ export function IntersectionGridContent({
   makeGuess,
   giveUp,
   gaveUp,
-  restartGame,
 }: IntersectionGridContentProps) {
   const solvedCount = useMemo(() => {
     return Object.values(cells).filter((c) => c.solved).length;
@@ -143,14 +141,6 @@ export function IntersectionGridContent({
     giveUp();
   }, [closeGiveUpConfirm, giveUp]);
 
-  const restart = useCallback(() => {
-    closeGiveUpConfirm();
-    setFeedback(null);
-    setFinalVerdict(null);
-    restartGame();
-    setFocusCell({ row: 0, col: 0, n: ++announcements.current });
-  }, [closeGiveUpConfirm, restartGame]);
-
   const selectedRowCrit = selectedCell ? grid.row_criteria[selectedCell.row]?.label[locale] : undefined;
   const selectedColCrit = selectedCell ? grid.col_criteria[selectedCell.col]?.label[locale] : undefined;
   const guessesLeft = maxGuesses - guessesUsed;
@@ -201,7 +191,6 @@ export function IntersectionGridContent({
               guessesUsed={guessesUsed}
               verdict={finalVerdict}
               gaveUp={gaveUp}
-              onRestart={restart}
               onCopied={() => setFeedback({ kind: "copied", n: ++announcements.current })}
               onShareFailed={() => setFeedback({ kind: "shareFailed", n: ++announcements.current })}
               titleRef={resultTitle}

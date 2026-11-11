@@ -298,21 +298,6 @@ describe("CrosswordGame", () => {
     expect(document.querySelectorAll('.crossword-source a[href*="oldid="]')).toHaveLength(sources.length);
   });
 
-  it("restarts after the end without counting the board again", async () => {
-    serve();
-    await renderGame();
-    fireEvent.click(screen.getByRole("button", { name: pt.crosswordReveal }));
-    fireEvent.click(screen.getByRole("button", { name: pt.revealConfirmAction }));
-    await act(async () => {});
-    await pressAfterGuard(pt.restart);
-    expect(screen.queryByTestId("game-result")).toBeNull();
-    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
-    solveAll();
-    fireEvent.click(screen.getByRole("button", { name: pt.crosswordCheck }));
-    await act(async () => {});
-    expect(loadPlayerStats().games.crossword.played).toBe(1);
-  });
-
   it("offers a retry for a missing board and rejects a tampered one", async () => {
     let phase = 0;
     vi.stubGlobal(

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dailyReferenceDate, preferNextDaily } from "./daily-artifact";
+import { dailyReferenceDate, preferNextDaily, secondsUntilNextDaily } from "./daily-artifact";
 import { loadQuizSession } from "./session-loader";
 import ptSession from "../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import manifest from "../tests/fixtures/manifest-v2.json";
@@ -41,6 +41,20 @@ describe("daily reference date", () => {
   it("follows the Sao Paulo calendar", () => {
     expect(dailyReferenceDate(new Date("2026-09-26T02:30:00Z"))).toBe("2026-09-25");
     expect(dailyReferenceDate(new Date("2026-09-26T03:30:00Z"))).toBe("2026-09-26");
+  });
+});
+
+describe("secondsUntilNextDaily", () => {
+  it("counts down to midnight in Sao Paulo", () => {
+    expect(secondsUntilNextDaily(new Date("2026-11-10T23:00:00Z"))).toBe(4 * 3600);
+    expect(secondsUntilNextDaily(new Date("2026-11-11T02:59:59Z"))).toBe(1);
+    expect(secondsUntilNextDaily(new Date("2026-11-11T03:00:00Z"))).toBe(86400);
+  });
+
+  it("keeps UTC-3 on dates that had daylight saving time before 2019", () => {
+    // Summer time used to start on the first Sunday of November and end in February.
+    expect(secondsUntilNextDaily(new Date("2026-11-01T03:00:00Z"))).toBe(86400);
+    expect(secondsUntilNextDaily(new Date("2027-01-15T15:00:00Z"))).toBe(12 * 3600);
   });
 });
 

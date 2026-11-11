@@ -30,7 +30,6 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
     makeGuess,
     giveUp,
     gaveUp,
-    restartGame,
     reload,
   } = useGridGame(locale, baseUrl);
 
@@ -78,7 +77,6 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
         makeGuess={makeGuess}
         giveUp={giveUp}
         gaveUp={gaveUp}
-        restartGame={restartGame}
       />
     </>
   );
