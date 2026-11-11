@@ -12,6 +12,7 @@ import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { storeMapPilotSave } from "./map-pilot-save";
+import { useRecordMapMatch } from "./useRecordMapMatch";
 import { formatMapDate, MapPilotResult } from "./MapPilotResult";
 import type { MapPilotCopy } from "./map-pilot-copy";
 import {
@@ -82,17 +83,19 @@ export function MapPilotGameContent({
   const questionIndex = game.index;
   const answers = game.answers;
   const isComplete = round.length > 0 && questionIndex >= round.length;
+  const outcome = isComplete ? mapRoundOutcome(round, answers, gaveUpRound) : null;
   const analytics = useGameAnalytics(
     {
       game: "map",
       locale,
-      // The pilot keeps no stats, so the save is what remembers a replay.
+      // The save is what remembers a replay.
       isDaily: () => !game.replay,
-      outcome: isComplete ? mapRoundOutcome(round, answers, gaveUpRound) : null,
+      outcome,
     },
     isComplete,
     answers.length > 0,
   );
+  useRecordMapMatch(game.date, isComplete, outcome === "win", game.replay === true);
   const current = isComplete ? undefined : (round[questionIndex] as MapPilotEvent | undefined);
   const selectedFeature = answers.length > questionIndex ? answers[questionIndex]! : null;
   // Pending pick from map/list/select; only Responder commits it into answers.

@@ -16,7 +16,7 @@ function labelOf(id: string): string {
 }
 
 function tile(id: string): HTMLElement {
-  return screen.getByRole("button", { name: new RegExp(`^${labelOf(id)},`) });
+  return screen.getByRole("button", { name: labelOf(id) });
 }
 
 function categoryIds(id: string): string[] {
@@ -62,6 +62,18 @@ describe("ConnectionsGame component integration", () => {
     const twiceBtn = screen.getByRole("button", { name: /TWICE/ });
     expect(twiceBtn).toBeInTheDocument();
     expect(twiceBtn).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("names a tile only by its label and leaves the state to aria-pressed", () => {
+    const messages = getMessages("pt-BR");
+    render(<ConnectionsGame locale="pt-BR" puzzle={puzzle} messages={messages} />);
+
+    const twiceBtn = screen.getByRole("button", { name: /TWICE/ });
+    const label = twiceBtn.getAttribute("aria-label");
+    expect(label).not.toMatch(/selecionado/);
+    fireEvent.click(twiceBtn);
+    expect(twiceBtn).toHaveAttribute("aria-label", label);
+    expect(twiceBtn).toHaveAttribute("aria-pressed", "true");
   });
 
   it("renders in English locale when specified", () => {
@@ -429,7 +441,7 @@ describe("ConnectionsGame component integration", () => {
       }),
     );
     renderGame();
-    expect(screen.getAllByRole("button", { name: /não selecionado/ })).toHaveLength(12);
+    expect(document.querySelectorAll('.connections-tile[aria-pressed="false"]')).toHaveLength(12);
     expect(document.activeElement).toBe(document.body);
   });
 

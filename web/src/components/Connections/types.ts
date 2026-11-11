@@ -53,7 +53,6 @@ export interface ConnectionsTileProps {
   disabled?: boolean;
   onToggle: (id: string) => void;
   locale: Locale;
-  messages: Messages;
   /** Resolved against the full board so disambiguators stay when needed. */
   displayName?: string;
 }

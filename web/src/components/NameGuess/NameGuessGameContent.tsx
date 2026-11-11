@@ -12,6 +12,7 @@ import {
 import { dailyReferenceDate } from "../../data/daily-artifact";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getMessages } from "../../i18n/catalog";
+import { formatCalendarDate } from "../../lib/format-date";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 function isTextEntry(el: HTMLElement): boolean {
@@ -180,7 +181,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
                 and the counter. The counter stays after the last guess. */}
             <div class="game-hud name-guess-hud">
               <p class="hud-item hud-label">
-                {t.subtitle} · <span class="name-guess-date">{puzzle.reference_date}</span>
+                {t.subtitle} · <span class="name-guess-date">{formatCalendarDate(puzzle.reference_date, locale)}</span>
               </p>
               <p role="status" aria-live="polite" class="hud-item hud-value">
                 {t.attemptsLeft}: {attemptsRemaining}/{puzzle.max_attempts}

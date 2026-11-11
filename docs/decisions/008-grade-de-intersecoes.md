@@ -114,7 +114,7 @@ Adendo de 2026-10-28. Um grupo só entra num critério quando a revisão citada 
 - Comentários de wikitext antes ou depois de um template de lista da infobox não escondem a lista (ADR-019). O caso que expôs o defeito foi a revisão 1375560471 de aespa, com um comentário depois de `{{hlist|...}}` no campo `label`.
 - Uma lista fechada de integrantes pode terminar com uma única oração de saída, como "while former member Wonho left the group in October 2019". A oração não acrescenta integrante, não pode citar alguém da lista e a pessoa citada ainda precisa de prova de ex-integrante na mesma revisão.
 - Continuam sem critério: formação que a revisão não afirma (estreia não é formação), grupo dissolvido (não há elenco vigente na data de referência), integrante com afirmação em conflito e lista que o seletor não sabe ler. A ADR-004 não muda.
-- Durante a partida, o veredito de um palpite recusado diz "Não aceita" e que o catálogo só aceita fatos comprovados; o palpite continua consumido e nada revela o gabarito. Depois da partida, a revisão repete que a lista mostra só o que tem fonte.
+- Durante a partida, o veredito de um palpite recusado diz "Não aceita", que falta fonte registrada para a casa e aponta a FAQ; o palpite continua consumido e nada revela o gabarito. Depois da partida, a revisão repete que a lista mostra só o que tem fonte.
 - A cobertura se mede regenerando uma cópia do banco, não pelo arquivo publicado. Ampliar fatos nunca invalida uma grade publicada, porque a verificação de compatibilidade só confere se as respostas continuam admitidas; datas novas podem sair com critérios diferentes.
 
 ## Variação entre dias consecutivos

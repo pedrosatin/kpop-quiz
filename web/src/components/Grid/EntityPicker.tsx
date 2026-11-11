@@ -155,7 +155,7 @@ export function EntityPicker({
             </h2>
             {rowLabel && colLabel && (
               <p class="modal-subtitle">
-                {rowLabel} ∩ {colLabel}
+                {messages.gridPickerCriteria(rowLabel, colLabel)}
               </p>
             )}
           </div>

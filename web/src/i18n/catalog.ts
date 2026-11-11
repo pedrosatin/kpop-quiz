@@ -182,7 +182,6 @@ export interface Messages {
   declaredReference: string;
   openRevision: (project: string) => string;
   resultTitle: string;
-  resultText: (score: number) => string;
   restart: string;
   giveUp: string;
   /** Title of the give-up confirmation dialog. */
@@ -240,6 +239,7 @@ export interface Messages {
   gridCellSolved: (groupName: string) => string;
   gridCellFailed: (lastAttempt?: string) => string;
   gridPickerTitle: string;
+  gridPickerCriteria: (row: string, col: string) => string;
   gridPickerSearchPlaceholder: string;
   gridPickerSearchLabel: string;
   gridPickerNoMatches: string;
@@ -292,7 +292,6 @@ export interface Messages {
   connectionsShareGuessesLine: (guesses: number, mistakes: number) => string;
   connectionsShareButton: string;
   connectionsHighContrastShare: string;
-  connectionsItemAriaLabel: (name: string, selected: boolean) => string;
   connectionsCategorySolvedAria: (difficulty: number, label: string, items: string) => string;
   connectionsBoardAria: string;
   connectionsSolvedAria: string;
@@ -613,7 +612,6 @@ const catalogs: Record<Locale, Messages> = {
     // Wikipédia is feminine, Wikidata masculine.
     openRevision: (project) => `Abrir a revisão ${project === "Wikipedia" ? "na" : "no"} ${project}`,
     resultTitle: "Fim da partida",
-    resultText: (score) => `Você fez ${score} pontos.`,
     restart: "Jogar novamente",
     giveUp: "Desistir",
     giveUpConfirmTitle: "Desistir da partida?",
@@ -663,6 +661,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCellSolved: (groupName) => `Certa: ${groupName}`,
     gridCellFailed: (lastAttempt) => (lastAttempt ? `Não aceita: você tentou ${lastAttempt}` : "Não aceita"),
     gridPickerTitle: "Escolha um grupo",
+    gridPickerCriteria: (row, col) => `${row} e ${col}`,
     gridPickerSearchPlaceholder: "Buscar grupo...",
     gridPickerSearchLabel: "Buscar grupo pelo nome",
     gridPickerNoMatches: "Nenhum grupo encontrado.",
@@ -677,7 +676,7 @@ const catalogs: Record<Locale, Messages> = {
     gridHint: "Escolha uma casa e um grupo para ela.",
     gridGuessRight: (groupName) => `Certa: ${groupName}.`,
     gridGuessWrong: (groupName) => `Não aceita: ${groupName}.`,
-    gridCatalogLimit: "O catálogo só aceita fatos comprovados.",
+    gridCatalogLimit: "Sem fonte registrada aqui. Veja a FAQ.",
     gridReviewCatalogNote: "A lista mostra só o que o catálogo comprova com fonte. Um grupo real pode ficar de fora quando falta prova de uma das regras.",
     gridReviewTitle: "Respostas e fontes",
     gridReviewCorrect: "Certa",
@@ -717,7 +716,6 @@ const catalogs: Record<Locale, Messages> = {
       `Palpites: ${guesses} (${mistakes} ${mistakes === 1 ? "erro" : "erros"})`,
     connectionsShareButton: "Compartilhar resultado",
     connectionsHighContrastShare: "Versão sem cores (alto contraste)",
-    connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selecionado" : "não selecionado"}`,
     connectionsCategorySolvedAria: (difficulty, label, items) => `Nível ${difficulty}: ${label}. Nomes: ${items}.`,
     connectionsBoardAria: "Tabuleiro do Conexões",
     connectionsSolvedAria: "Categorias encontradas",
@@ -1094,7 +1092,6 @@ const catalogs: Record<Locale, Messages> = {
     declaredReference: "Cited reference",
     openRevision: (project) => `Open the revision on ${project}`,
     resultTitle: "Game over",
-    resultText: (score) => `You scored ${score} points.`,
     restart: "Play again",
     giveUp: "Give up",
     giveUpConfirmTitle: "Give up this game?",
@@ -1144,6 +1141,7 @@ const catalogs: Record<Locale, Messages> = {
     gridCellSolved: (groupName) => `Correct: ${groupName}`,
     gridCellFailed: (lastAttempt) => (lastAttempt ? `Not accepted: you tried ${lastAttempt}` : "Not accepted"),
     gridPickerTitle: "Pick a group",
+    gridPickerCriteria: (row, col) => `${row} and ${col}`,
     gridPickerSearchPlaceholder: "Search groups...",
     gridPickerSearchLabel: "Search groups by name",
     gridPickerNoMatches: "No groups found.",
@@ -1158,7 +1156,7 @@ const catalogs: Record<Locale, Messages> = {
     gridHint: "Pick a square, then a group for it.",
     gridGuessRight: (groupName) => `Correct: ${groupName}.`,
     gridGuessWrong: (groupName) => `Not accepted: ${groupName}.`,
-    gridCatalogLimit: "The catalog only accepts proven facts.",
+    gridCatalogLimit: "No recorded source here. See the FAQ.",
     gridReviewCatalogNote: "The list shows only what the catalog proves with a source. A real group can be left out when one of the rules lacks proof.",
     gridReviewTitle: "Answers and sources",
     gridReviewCorrect: "Correct",
@@ -1198,7 +1196,6 @@ const catalogs: Record<Locale, Messages> = {
       `Guesses: ${guesses} (${mistakes} ${mistakes === 1 ? "mistake" : "mistakes"})`,
     connectionsShareButton: "Share result",
     connectionsHighContrastShare: "No-color version (high contrast)",
-    connectionsItemAriaLabel: (name, selected) => `${name}, ${selected ? "selected" : "not selected"}`,
     connectionsCategorySolvedAria: (difficulty, label, items) => `Level ${difficulty}: ${label}. Names: ${items}.`,
     connectionsBoardAria: "Connections board",
     connectionsSolvedAria: "Categories found",

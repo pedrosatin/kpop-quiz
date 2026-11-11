@@ -136,3 +136,7 @@ rodada. Para uma partida fixa:
 - o compartilhamento não traz data nem número do dia.
 
 Detalhes em [Cruzadinha](../crossword-game.md).
+
+## Adendo: estatísticas do mapa
+
+Adendo de 2026-11-11. O mapa passou a gravar estatísticas locais: ao fim da rodada do dia ele conta uma partida em `map`, com a data da rodada, e a aba "Mapa" entrou em `StatsTabs`. A vitória segue a regra já usada na medição (ao menos metade das datas certas). Uma rodada salva como replay não conta, e uma exportação feita antes desta mudança continua importável, com o mapa zerado. A medição do GA4 não mudou: o mapa continua sem enviar `days_since_last` nem `streak_bucket`. Isto substitui a frase "o mapa permanece como está" apenas quanto às estatísticas.

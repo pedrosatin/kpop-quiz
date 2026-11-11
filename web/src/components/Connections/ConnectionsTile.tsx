@@ -17,7 +17,6 @@ export function ConnectionsTile({
   disabled = false,
   onToggle,
   locale,
-  messages,
   displayName: displayNameProp,
 }: ConnectionsTileProps) {
   // The board resolves every tile against its peers; alone, a tile keeps the
@@ -25,14 +24,13 @@ export function ConnectionsTile({
   // names apart is never dropped.
   const displayName =
     displayNameProp || alignLoneLabel(item.labels[locale], item.canonical_name, item.id, locale);
-  const ariaLabel = messages.connectionsItemAriaLabel(displayName, isSelected);
 
   return (
     <button
       type="button"
       class={`connections-tile ${isSelected ? "selected" : ""}`}
       aria-pressed={isSelected}
-      aria-label={ariaLabel}
+      aria-label={displayName}
       disabled={disabled}
       onClick={() => onToggle(item.id)}
     >

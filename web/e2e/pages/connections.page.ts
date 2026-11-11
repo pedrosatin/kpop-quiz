@@ -55,7 +55,7 @@ export class ConnectionsPage {
     for (const item of puzzle.items) {
       const label = visible.get(item.id)!;
       await expect(
-        board.getByRole("button", { name: new RegExp(`^${escapeRegExp(label)},`) }),
+        board.getByRole("button", { name: label, exact: true }),
         `tile for ${item.id}`,
       ).toBeVisible();
       const note = hiddenNote(item.labels[locale] || item.canonical_name);
@@ -91,9 +91,7 @@ export class ConnectionsPage {
       for (const id of ids) {
         const label = visible.get(id);
         expect(label, `connections item ${id}`).toBeTruthy();
-        const tile = board.getByRole("button", {
-          name: new RegExp(`^${escapeRegExp(label!)},`),
-        });
+        const tile = board.getByRole("button", { name: label!, exact: true });
         await expect(tile).toBeVisible();
         await tile.click();
       }

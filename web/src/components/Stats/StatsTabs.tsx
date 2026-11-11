@@ -18,6 +18,7 @@ export function StatsTabs({ activeTab, onSelect, locale }: StatsTabsProps) {
     { id: "name-guess", label: messages.gameNameGuess },
     { id: "word-search", label: messages.gameWordSearch },
     { id: "timeline", label: messages.gameTimeline },
+    { id: "map", label: messages.gameMap },
     { id: "code", label: messages.gameCode },
     { id: "crossword", label: messages.gameCrossword },
   ];
