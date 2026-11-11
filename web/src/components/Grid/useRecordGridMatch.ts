@@ -2,8 +2,7 @@ import { useEffect, useRef } from "preact/hooks";
 import type { IntersectionGrid } from "../../lib/quiz-types";
 import {
   isGameMatchRecorded,
-  markGameMatchRecorded,
-  recordGameFinish,
+  recordMatchOnce,
 } from "../../lib/player-stats";
 import { dailyReferenceDate } from "../../data/daily-artifact";
 import type { GridGameStatus } from "./types";
@@ -21,6 +20,7 @@ export function useRecordGridMatch(
   grid: IntersectionGrid | null,
   status: GridGameStatus,
   solvedCount: number,
+  gaveUp = false,
 ): void {
   const recordedMatchRef = useRef<string | null>(null);
 
@@ -28,13 +28,12 @@ export function useRecordGridMatch(
     if (status === "complete" && grid) {
       const matchId = gridMatchId(grid);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("grid", matchId)) {
-        const isWin = isGridWin(solvedCount);
-        recordGameFinish("grid", isWin, grid.reference_date || dailyReferenceDate());
-        markGameMatchRecorded("grid", matchId);
+        const isWin = !gaveUp && isGridWin(solvedCount);
+        recordMatchOnce("grid", matchId, isWin, grid.reference_date || dailyReferenceDate());
         recordedMatchRef.current = matchId;
       }
     } else if (status !== "complete") {
       recordedMatchRef.current = null;
     }
-  }, [status, grid, solvedCount]);
+  }, [status, grid, solvedCount, gaveUp]);
 }

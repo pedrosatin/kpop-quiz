@@ -349,6 +349,15 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
   });
 
+  it("counts giving up after five solved cells as a loss", async () => {
+    await renderReady();
+    for (const [row, col, name] of WIN_PATH.slice(0, 5)) pick(row, col, name);
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
+    await waitFor(() => expect(loadPlayerStats().games.grid.played).toBe(1));
+    expect(loadPlayerStats().games.grid.won).toBe(0);
+  });
+
   it("finishes game when all 9 guesses are consumed and focuses the result title", async () => {
     await renderReady();
 

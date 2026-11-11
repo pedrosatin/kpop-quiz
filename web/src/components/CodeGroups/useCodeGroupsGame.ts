@@ -110,6 +110,9 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
   );
   const [feedback, setFeedback] = useState<UseCodeGroupsGame["feedback"]>(null);
 
+  const submitLocked = useRef(false);
+  useEffect(() => { submitLocked.current = false; }, [history, selection]);
+
   const won = history.at(-1)?.exact === 4;
   const finished = won || history.length === puzzle.max_attempts;
   const analytics = useGameAnalytics(
@@ -144,7 +147,7 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
   );
 
   const submit = useCallback(() => {
-    if (finished) return;
+    if (finished || submitLocked.current) return;
     if (selection.some((id) => !id)) {
       setFeedback({ kind: "chooseAll" });
       return;
@@ -154,6 +157,7 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
       return;
     }
     analytics.start();
+    submitLocked.current = true;
     const guess = scoreGuess(puzzle, selection);
     setFeedback({ kind: "attempt", attempt: guess });
     const nextLength = history.length + 1;
@@ -166,6 +170,7 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
   }, [finished, history.length, puzzle, selection]);
 
   const restart = useCallback(() => {
+    submitLocked.current = false;
     analytics.reset();
     clearCodeGroupsSave(puzzle);
     setHistory([]);

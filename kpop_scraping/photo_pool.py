@@ -11,10 +11,13 @@ else is pure and unit-tested.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
+import os
 import re
 import sys
+import tempfile
 import urllib.parse
 import urllib.request
 from datetime import date
@@ -226,10 +229,21 @@ def download_asset(
         raise ValueError(f"Insecure URL scheme for asset download: {parsed.scheme}")
     request = urllib.request.Request(url, headers={"User-Agent": user_agent})
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(request, timeout=timeout) as response, open(
-        destination, "wb"
-    ) as handle:
-        handle.write(response.read())
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        payload = response.read()
+        expected = response.headers.get("Content-Length")
+        if not payload or (expected is not None and (not (expected.isascii() and expected.isdigit()) or len(payload) != int(expected))):
+            raise OSError("Incomplete asset download")
+    descriptor, temporary = tempfile.mkstemp(prefix=f".{destination.name}.", dir=destination.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+    destination.with_name(destination.name + ".sha256").write_text(hashlib.sha256(payload).hexdigest())
     return destination
 
 
@@ -390,8 +404,10 @@ def _run(args: argparse.Namespace) -> int:
             if entry is None:
                 raise SystemExit(f"no candidate URL for {record['source_url']}")
             destination = args.assets_dir / Path(record["asset_url"]).name
-            if destination.is_file():
-                continue
+            checksum = destination.with_name(destination.name + ".sha256")
+            if destination.is_file() and checksum.is_file():
+                if hashlib.sha256(destination.read_bytes()).hexdigest() == checksum.read_text().strip():
+                    continue
             download_asset(entry["file_url"], destination)
             count += 1
         print(f"pool download: {count} new files, {len(records)} records -> {args.assets_dir}")

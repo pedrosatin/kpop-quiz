@@ -30,6 +30,7 @@ jobs:
     outputs:
       changed: ${{ steps.changes.outputs.changed }}
       target_date: ${{ steps.changes.outputs.target_date }}
+      source_data_tree: ${{ steps.changes.outputs.source_data_tree }}
     env:
       REFERENCE_DATE: ${{ inputs.date }}
       REGENERATE: ${{ inputs.regenerate }}
@@ -149,6 +150,7 @@ jobs:
             if [ -z "$TARGET_DATE" ]; then
               TARGET_DATE=$(python3 -c 'from kpop_scraping.daily_puzzles_runner import get_reference_date; print(get_reference_date())')
             fi
+            echo "source_data_tree=$(git rev-parse HEAD:web/public/data)" >> "$GITHUB_OUTPUT"
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "target_date=${TARGET_DATE}" >> "$GITHUB_OUTPUT"
           else
@@ -175,6 +177,7 @@ jobs:
       pull-requests: write
     env:
       TARGET_DATE: ${{ needs.daily-puzzles.outputs.target_date }}
+      SOURCE_DATA_TREE: ${{ needs.daily-puzzles.outputs.source_data_tree }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -192,6 +195,11 @@ jobs:
 
       - name: Apply generated data
         run: |
+          set -euo pipefail
+          if [ "$(git rev-parse HEAD:web/public/data)" != "$SOURCE_DATA_TREE" ]; then
+            echo "::error::Published data changed during generation. Rerun the full workflow to generate from the new data."
+            exit 1
+          fi
           rm -rf web/public/data
           mkdir -p web/public
           cp -a "$RUNNER_TEMP/daily-puzzles-data" web/public/data

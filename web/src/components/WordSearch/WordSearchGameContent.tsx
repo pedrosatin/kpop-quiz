@@ -11,8 +11,7 @@ import { WordSearchResult } from "./WordSearchResult";
 import { formatTime } from "./utils";
 import {
   isGameMatchRecorded,
-  markGameMatchRecorded,
-  recordGameFinish,
+  recordMatchOnce,
 } from "../../lib/player-stats";
 import { dailyReferenceDate } from "../../data/daily-artifact";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
@@ -85,8 +84,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
     if (completed && puzzle) {
       const matchId = wordSearchMatchId(puzzle);
       if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("word-search", matchId)) {
-        recordGameFinish("word-search", foundWordIds.length >= puzzle.words.length, puzzle.reference_date || dailyReferenceDate());
-        markGameMatchRecorded("word-search", matchId);
+        recordMatchOnce("word-search", matchId, foundWordIds.length >= puzzle.words.length, puzzle.reference_date || dailyReferenceDate());
         recordedMatchRef.current = matchId;
       }
     } else if (!completed) {

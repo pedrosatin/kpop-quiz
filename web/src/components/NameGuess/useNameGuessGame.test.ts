@@ -11,6 +11,16 @@ describe("useNameGuessGame hook", () => {
     localStorage.clear();
   });
 
+  it("ignores a save with an unknown status", () => {
+    localStorage.setItem(`kpop_guess_state_${puzzle.puzzle_id}`, JSON.stringify({
+      guesses: [], feedbacks: [], status: "broken", highContrast: false,
+    }));
+    const { result } = renderHook(() => useNameGuessGame(puzzle));
+    expect(result.current.status).toBe("playing");
+    act(() => result.current.addLetter("T"));
+    expect(result.current.currentInput).toBe("T");
+  });
+
   it("initializes with clean state", () => {
     const { result } = renderHook(() => useNameGuessGame(puzzle));
 

@@ -40,6 +40,22 @@ afterEach(() => {
 });
 
 describe("ConsentBanner", () => {
+  it("revokes analytics and removes GA cookies after a choice in another tab", async () => {
+    localStorage.setItem(CONSENT_STORAGE_KEY, "accepted");
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    document.cookie = "_ga=sample; path=/";
+    document.cookie = "_ga_TEST=sample; path=/";
+    document.cookie = "unrelated=keep; path=/";
+    act(() => {
+      localStorage.setItem(CONSENT_STORAGE_KEY, "rejected");
+      window.dispatchEvent(new StorageEvent("storage", { key: CONSENT_STORAGE_KEY, newValue: "rejected" }));
+    });
+    expect((window as unknown as Record<string, unknown>)[`ga-disable-${GA_ID}`]).toBe(true);
+    expect(document.cookie).not.toContain("_ga");
+    expect(document.cookie).toContain("unrelated=keep");
+    document.cookie = "unrelated=; Max-Age=0; path=/";
+  });
+
   it("gates real game lifecycle on acceptance and revocation without replay", async () => {
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
     const game = renderHook(({ finished }) => useGameAnalytics({ game: "quiz", locale: "pt-BR", isDaily: () => false, outcome: null }, finished), {

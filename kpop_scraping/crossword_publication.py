@@ -16,6 +16,7 @@ audited board of ``crossword-pilot.json`` every day.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from datetime import date, timedelta
@@ -123,7 +124,16 @@ def read_record(directory: Path, reference_date: str) -> dict | None:
 
 
 def write_record(directory: Path, value: dict) -> None:
-    write_json_atomic(Path(directory) / filename(value['reference_date']), value, validate_record)
+    validate_record(value)
+    directory = Path(directory)
+    target = directory / filename(value['reference_date'])
+    if target.is_file():
+        previous = read_record(directory, value['reference_date'])
+        if previous != value:
+            digest = hashlib.sha256(json.dumps(previous, sort_keys=True).encode()).hexdigest()
+            archive = directory / f"crossword-history.{value['reference_date']}.{digest}.json"
+            write_json_atomic(archive, previous, validate_record)
+    write_json_atomic(target, value, validate_record)
 
 
 def has_history(directory: Path) -> bool:

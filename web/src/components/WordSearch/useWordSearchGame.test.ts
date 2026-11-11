@@ -331,3 +331,29 @@ describe("useWordSearchGame hook", () => {
     expect(result.current.foundWordIds.length).toBe(puzzle.words.length);
   });
 });
+
+describe("restored word search invariants", () => {
+  beforeEach(() => localStorage.clear());
+  it("drops unknown words from a completed save", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    localStorage.setItem(`kpop-word-search-${puzzle.puzzle_id}`, JSON.stringify({
+      foundWordIds: ["unknown"], status: "completed", elapsedSeconds: 1,
+    }));
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+    expect(result.current.status).toBe("in_progress");
+    expect(result.current.foundWordIds).toEqual([]);
+  });
+  it("ignores pointer and keyboard selection after giving up", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+    act(() => result.current.giveUp());
+    act(() => {
+      result.current.handleCellPointerDown(0, 0);
+      result.current.handleCellPointerEnter(0, 1);
+      result.current.handleCellPointerUp(0, 1);
+      result.current.handleKeyDown(new KeyboardEvent("keydown", { key: "Enter" }));
+    });
+    expect(result.current.anchorCell).toBeNull();
+    expect(result.current.lastCheck).toBeNull();
+  });
+});

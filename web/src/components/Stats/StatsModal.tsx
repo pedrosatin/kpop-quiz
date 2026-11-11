@@ -149,6 +149,9 @@ export function StatsModal({
           class="stats-tab-panel"
         >
           <StatsSummary metrics={currentMetrics} locale={locale} />
+          <p class="stats-streak-help">
+            {activeTab === "overall" ? messages.statsOverallStreakHelp : messages.statsGameStreakHelp}
+          </p>
           {activeTab === "name-guess" && (
             <StatsDistribution stats={currentStats} locale={locale} />
           )}

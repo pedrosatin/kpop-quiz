@@ -16,10 +16,18 @@ export function wordSearchMatchId(puzzle: WordSearchPuzzle): string {
   return `word-search-${puzzle.puzzle_id}`;
 }
 
+function ignoreInput(): void {}
+
+// A finished board ignores pointer and key input; while it is in play the
+// handler keeps its identity between renders.
+function whilePlaying<A extends unknown[]>(status: GameStatus, handler: (...args: A) => void): (...args: A) => void {
+  return status === "in_progress" ? handler : ignoreInput;
+}
+
 export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   const storageKey = `kpop-word-search-${puzzle.puzzle_id}`;
 
-  const initial = useMemo(() => loadStoredProgress(storageKey), [storageKey]);
+  const initial = useMemo(() => loadStoredProgress(storageKey, new Set(puzzle.words.map((word) => word.id))), [storageKey, puzzle]);
   const [foundWordIds, setFoundWordIds] = useState<string[]>(initial.foundWordIds);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(initial.elapsedSeconds);
   const [status, setStatus] = useState<GameStatus>(initial.status);
@@ -319,10 +327,10 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     activePath,
     foundCellsMap,
     lastCheck,
-    handleCellPointerDown,
-    handleCellPointerEnter,
-    handleCellPointerUp,
-    handleKeyDown,
+    handleCellPointerDown: whilePlaying(status, handleCellPointerDown),
+    handleCellPointerEnter: whilePlaying(status, handleCellPointerEnter),
+    handleCellPointerUp: whilePlaying(status, handleCellPointerUp),
+    handleKeyDown: whilePlaying(status, handleKeyDown),
     cancelSelection,
     revealedCells,
     giveUp,

@@ -2,7 +2,7 @@ import type { Messages } from "../../i18n/catalog";
 import type { Locale, QuizQuestion, QuizSession } from "../../lib/quiz-types";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { GameSetup } from "../GameSetup/GameSetup";
-import { dailySeedDate } from "./daily-seed";
+import { quizDailyDate } from "./daily-seed";
 import { QuizResult } from "./QuizResult";
 import { QuizRound } from "./QuizRound";
 import { QuizState } from "./QuizState";
@@ -55,11 +55,6 @@ function resultNoticeText({ resumeNotice, replayStatus }: QuizMatch, messages: M
     : replayNoticeText(replayStatus, messages);
 }
 
-function resultDailyDate(theme: QuizSettings["theme"], session: QuizSession): string | undefined {
-  if (theme !== "daily") return undefined;
-  return dailySeedDate(session) ?? new Date().toISOString().slice(0, 10);
-}
-
 // While the session loads, the setup is already on screen with Start
 // disabled: the server renders it, so the card keeps its final height and
 // the content below does not shift when the data arrives.
@@ -94,7 +89,7 @@ function QuizResultScreen({ locale, messages, settings, match, focus, actions, s
       playMode={settings.playMode} history={history}
       {...(restoredVisit ? {} : { headingRef: focus.resultHeadingRef })}
       onRestart={actions.restart}
-      dailyDate={resultDailyDate(settings.theme, session)} feedbackEligible={!gaveUpRef.current}
+      dailyDate={quizDailyDate(session, settings.theme)} feedbackEligible={!gaveUpRef.current}
       {...(resultNotice ? { notice: resultNotice } : {})}
     />
   );

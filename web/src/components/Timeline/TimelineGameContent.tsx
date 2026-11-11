@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { Locale, TimelinePuzzle } from "../../lib/quiz-types";
 import {
   isGameMatchRecorded,
-  markGameMatchRecorded,
-  recordGameFinish,
+  recordMatchOnce,
 } from "../../lib/player-stats";
 import { dailyReferenceDate } from "../../data/daily-artifact";
 import { timelineMatchId, useTimelineGame } from "./useTimelineGame";
@@ -111,8 +110,7 @@ export function TimelineGameContent({
         // A give-up reveals the canonical order, so a correct board after
         // one still counts as played without a win.
         const isWin = !gaveUp && score === puzzle.events.length;
-        recordGameFinish("timeline", isWin, puzzle.reference_date || dailyReferenceDate());
-        markGameMatchRecorded("timeline", matchId);
+        recordMatchOnce("timeline", matchId, isWin, puzzle.reference_date || dailyReferenceDate());
         recordedMatchRef.current = matchId;
       }
     } else {

@@ -30,6 +30,7 @@ export const NEXT_GUARD_MS = 300;
 const MAP_VIEW_BOX = "0 20 1200 480";
 
 export interface RoundState {
+  gaveUp?: boolean;
   replay?: boolean;
   date: string;
   answers: string[];
@@ -66,7 +67,7 @@ export function MapPilotGameContent({
   const [listChoice, setListChoice] = useState("");
   // Answer pressed with no country picked: the live region says so.
   const [pickPrompt, setPickPrompt] = useState(0);
-  const [gaveUpRound, setGaveUpRound] = useState(false);
+  const gaveUpRound = game.gaveUp === true;
   const [notice, setNotice] = useState<ShareNotice | null>(null);
   const notices = useRef(0);
   const nextButton = useRef<HTMLButtonElement>(null);
@@ -117,6 +118,7 @@ export function MapPilotGameContent({
       events: round.map((event) => event.event_mbid),
       answers: game.answers,
       index: game.index,
+      ...(game.gaveUp ? { gaveUp: true } : {}),
       ...(game.replay ? { replay: true } : {}),
     });
   }, [game, round]);
@@ -182,8 +184,7 @@ export function MapPilotGameContent({
     playedHere.current = true;
     setListChoice("");
     setPickPrompt(0);
-    setGaveUpRound(true);
-    setGame({ ...game, index: round.length });
+    setGame({ ...game, index: round.length, gaveUp: true });
   }
 
   function restart() {
@@ -196,7 +197,6 @@ export function MapPilotGameContent({
     setNotice(null);
     closeGiveUpConfirm();
     setGame({ date: game.date, answers: [], index: 0, replay: true });
-    setGaveUpRound(false);
     setRestarts((value) => value + 1);
   }
 

@@ -1,4 +1,6 @@
 import json
+import io
+from unittest.mock import patch
 import tempfile
 import unittest
 from pathlib import Path
@@ -408,6 +410,40 @@ class RevalidationTest(unittest.TestCase):
         fresh = {"license_name": "CC BY-SA 4.0"}
         result = check_revalidation(stored, fresh)
         self.assertFalse(result["ok"])
+
+    def test_incomplete_download_keeps_existing_asset(self):
+        with tempfile.TemporaryDirectory() as folder:
+            destination = Path(folder) / "photo.png"
+            destination.write_bytes(b"old complete image")
+            response = io.BytesIO(b"truncated")
+            response.headers = {"Content-Length": "100"}
+            with patch("urllib.request.urlopen", return_value=response):
+                with self.assertRaises(OSError):
+                    download_asset("https://example.com/photo.png", destination)
+            self.assertEqual(destination.read_bytes(), b"old complete image")
+            self.assertFalse(destination.with_name("photo.png.sha256").exists())
+
+    def test_invalid_content_length_counts_as_incomplete_download(self):
+        with tempfile.TemporaryDirectory() as folder:
+            destination = Path(folder) / "photo.png"
+            destination.write_bytes(b"old complete image")
+            response = io.BytesIO(b"image bytes")
+            response.headers = {"Content-Length": "eleven"}
+            with patch("urllib.request.urlopen", return_value=response):
+                with self.assertRaises(OSError):
+                    download_asset("https://example.com/photo.png", destination)
+            self.assertEqual(destination.read_bytes(), b"old complete image")
+
+    def test_complete_download_installs_asset_and_checksum(self):
+        import hashlib
+        with tempfile.TemporaryDirectory() as folder:
+            destination = Path(folder) / "photo.png"
+            response = io.BytesIO(b"complete image")
+            response.headers = {"Content-Length": "14"}
+            with patch("urllib.request.urlopen", return_value=response):
+                download_asset("https://example.com/photo.png", destination)
+            self.assertEqual(destination.read_bytes(), b"complete image")
+            self.assertEqual(destination.with_name("photo.png.sha256").read_text(), hashlib.sha256(b"complete image").hexdigest())
 
     def test_download_asset_rejects_insecure_scheme(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -40,8 +40,8 @@ export function freshRoundProgress(questionDeadlineMs: number | null, startedAtM
   };
 }
 
-// With `??`, a null override (selectedId, questionDeadlineMs) keeps the current
-// value, so a timeout still saves the pending selection.
+// selectedId and questionDeadlineMs compare against undefined, not `??`: an
+// explicit null override saves no selection (advance) or no deadline (timeout).
 function progressPayload(
   locale: Locale,
   settings: QuizSettings,
@@ -63,12 +63,12 @@ function progressPayload(
     timerEnabled: overrides.timerEnabled ?? settings.timerEnabled,
     machineState,
     questionIndex: overrides.questionIndex ?? match.questionIndex,
-    selectedId: overrides.selectedId ?? match.selectedId,
+    selectedId: overrides.selectedId !== undefined ? overrides.selectedId : match.selectedId,
     timedOut: overrides.timedOut ?? match.timedOut,
     score: overrides.score ?? match.score,
     revealedClues: overrides.revealedClues ?? match.revealedClues,
     history: overrides.history ?? match.history,
-    questionDeadlineMs: overrides.questionDeadlineMs ?? (machineState === "question.ready" ? match.deadlineMs : null),
+    questionDeadlineMs: overrides.questionDeadlineMs !== undefined ? overrides.questionDeadlineMs : (machineState === "question.ready" ? match.deadlineMs : null),
     startedAtMs: startedAt,
     elapsedSeconds: overrides.elapsedSeconds ?? match.elapsedSeconds,
     gaveUp: overrides.gaveUp ?? match.gaveUpRef.current,

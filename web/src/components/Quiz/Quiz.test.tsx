@@ -24,6 +24,7 @@ import {
 import type { QuizSession } from "../../lib/quiz-types";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
 import { isGameMatchRecorded, loadPlayerStats, PLAYER_STATS_STORAGE_KEY } from "../../lib/player-stats";
+import { StatsModal } from "../Stats/StatsModal";
 
 const CATALOG_DIR = path.resolve(__dirname, "../../tests/fixtures/catalog");
 const catalogManifest = JSON.parse(fs.readFileSync(path.join(CATALOG_DIR, "catalog-manifest-v1.json"), "utf-8"));
@@ -615,6 +616,25 @@ describe("Quiz", () => {
     expect(fetch).toHaveBeenCalledTimes(7);
   });
 
+  it("never saves the previous answer on the next question", async () => {
+    await renderReady();
+    const question = ptSession.questions[0]!;
+    const answer = question.options.find((option) => option.id === question.answer_option_id)!;
+    fireEvent.click(screen.getByRole("radio", { name: answer.label }));
+    fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+    advanceClock();
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }));
+    const progress = writes.mock.calls.filter(([key]) => key.startsWith("kpop-quiz-progress"))
+      .map(([, value]) => JSON.parse(value));
+    expect(progress.length).toBeGreaterThan(0);
+    expect(progress.some((saved) => saved.question_index === 1)).toBe(true);
+    for (const saved of progress) {
+      if (saved.question_index === 1) expect(saved.selected_id).toBeNull();
+    }
+    writes.mockRestore();
+  });
+
   it("completes all questions, displays results, and restarts the round", async () => {
     await renderReady();
     for (let index = 0; index < ptSession.questions.length; index += 1) {
@@ -670,7 +690,7 @@ describe("Quiz", () => {
       await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
     };
 
-    it("records a free round on the Sao Paulo day, whatever the visitor's time zone", async () => {
+    it("keeps free play out of the daily calendar in any visitor time zone", async () => {
       const zone = process.env.TZ;
       process.env.TZ = "Asia/Tokyo";
       vi.useFakeTimers({ toFake: ["Date"] });
@@ -679,7 +699,8 @@ describe("Quiz", () => {
         measure();
         await renderReady();
         await playToResult(true);
-        await vi.waitFor(() => expect(loadPlayerStats().games.quiz.lastPlayedDate).toBe("2026-11-08"));
+        await vi.waitFor(() => expect(loadPlayerStats().games.quiz.played).toBe(1));
+        expect(loadPlayerStats().games.quiz.lastPlayedDate).toBeUndefined();
       } finally {
         vi.useRealTimers();
         if (zone === undefined) delete process.env.TZ;
@@ -694,13 +715,13 @@ describe("Quiz", () => {
       await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(2));
       expect(gtag.mock.calls[0]![2]).toMatchObject({ game: "quiz", mode: "standard", daily: "no" });
       expect(gtag.mock.calls[1]![2]).toMatchObject({
-        game: "quiz", daily: "no", outcome: "win", days_since_last: "first", streak_bucket: "1",
+        game: "quiz", daily: "no", outcome: "win", days_since_last: "first", streak_bucket: "0",
       });
 
       await playAgain();
       await giveUp();
       await vi.waitFor(() => expect(gtag).toHaveBeenCalledTimes(4));
-      expect(gtag.mock.calls[3]![2]).toMatchObject({ daily: "no", outcome: "give_up", days_since_last: "0" });
+      expect(gtag.mock.calls[3]![2]).toMatchObject({ daily: "no", outcome: "give_up", days_since_last: "first" });
 
       await playAgain();
       await playToResult(false);
@@ -1119,6 +1140,75 @@ describe("Quiz", () => {
     expect(await screen.findByRole("heading", { name: question.prompt })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: option.label })).toBeChecked();
     expect(screen.queryByRole("heading", { name: "Monte sua partida" })).not.toBeInTheDocument();
+  });
+
+  describe("streaks", () => {
+    const DAILY_DATE = "2026-09-18";
+
+    async function renderDailySetup() {
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      mockSessionFetch(dailyPtSession);
+      render(<Quiz locale="pt-BR" />);
+      await waitForSetupReady();
+    }
+
+    /** Answers the round on screen and opens the result, with `correct` right answers first. */
+    async function playRound(questions: QuizSession["questions"], correct: number) {
+      for (const [index, question] of questions.entries()) {
+        const option = question.options.find((candidate) => (candidate.id === question.answer_option_id) === (index < correct))!;
+        fireEvent.click(screen.getByRole("radio", { name: option.label }));
+        fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+        advanceClock();
+        fireEvent.click(screen.getByRole("button", { name: index === questions.length - 1 ? "Ver resultado" : "Próxima pergunta" }));
+      }
+      await screen.findByRole("heading", { name: "Fim da partida" });
+    }
+
+    function currentStreakShown() {
+      return screen.getByText("Sequência atual").previousElementSibling?.textContent;
+    }
+
+    it("shows an overall streak of 1 after finishing the daily quiz with 2 of 10", async () => {
+      await renderDailySetup();
+      fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      await playRound(dailyPtSession.questions as QuizSession["questions"], 2);
+
+      const stats = loadPlayerStats();
+      expect(stats.overall.lastPlayedDate).toBe(DAILY_DATE);
+      expect(stats.games.quiz.currentStreak).toBe(0);
+
+      render(<StatsModal isOpen onClose={() => {}} locale="pt-BR" />);
+      expect(currentStreakShown()).toBe("1");
+    });
+
+    it("does not record a replay of the finished daily quiz", async () => {
+      await renderDailySetup();
+      fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      const questions = dailyPtSession.questions as QuizSession["questions"];
+      await playRound(questions, 2);
+      const afterFirst = window.localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
+
+      fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+      await screen.findByRole("heading", { name: questions[0]!.prompt });
+      await playRound(questions, questions.length);
+
+      expect(window.localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(afterFirst);
+    });
+
+    it("counts a general quiz game without touching any streak", async () => {
+      await renderReady();
+      await playRound(ptSession.questions as QuizSession["questions"], ptSession.questions.length);
+
+      const stats = loadPlayerStats();
+      expect(stats.games.quiz.played).toBe(1);
+      expect(stats.games.quiz.won).toBe(1);
+      expect(stats.games.quiz.currentStreak).toBe(0);
+      expect(stats.games.quiz.lastPlayedDate).toBeUndefined();
+      expect(stats.overall.currentStreak).toBe(0);
+      expect(stats.overall.lastPlayedDate).toBeUndefined();
+    });
   });
 
   it("restores answered feedback and used clues without duplicating stats", async () => {

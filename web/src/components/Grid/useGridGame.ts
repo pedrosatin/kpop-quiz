@@ -116,6 +116,16 @@ function createEmptyCells(): Record<string, GridStoredCell> {
   return cells;
 }
 
+// The picker is open while a cell is selected during play; the selection is
+// the only record of it.
+function pickerStatus(status: GridGameStatus, selectedCell: CellCoordinates | null): GridGameStatus {
+  return status === "ready" && selectedCell ? "cell_selected" : status;
+}
+
+function canSelectCell(status: GridGameStatus, cell: GridStoredCell | undefined): boolean {
+  return status === "ready" && !cell?.solved;
+}
+
 function restoreGame(grid: IntersectionGrid) {
   const saved = loadSavedGrid(grid);
   const cells = saved?.cells ?? createEmptyCells();
@@ -193,12 +203,10 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   }, [grid, status, guessesUsed, gaveUp, storedCells]);
 
   const selectCell = useCallback((row: number, col: number) => {
-    const key = cellKey(row, col);
-    if (storedCells[key]?.solved) return;
+    if (!canSelectCell(status, storedCells[cellKey(row, col)])) return;
     setSelectedCell({ row, col });
     setUniquenessError(null);
-    setStatus("cell_selected");
-  }, [storedCells]);
+  }, [storedCells, status]);
 
   const closePicker = useCallback(() => {
     setSelectedCell(null);
@@ -283,7 +291,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   return {
     corrected,
     grid,
-    status,
+    status: pickerStatus(status, selectedCell),
     errorKind,
     selectedCell,
     guessesUsed,

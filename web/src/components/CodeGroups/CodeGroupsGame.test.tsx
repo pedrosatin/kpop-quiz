@@ -51,6 +51,16 @@ describe("CodeGroupsGame", () => {
     vi.restoreAllMocks();
   });
 
+  it("prevents repeated Enter from submitting extra attempts", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(puzzle))));
+    renderGame();
+    await screen.findAllByRole("combobox");
+    const button = screen.getByRole("button", { name: pt.codeSubmit });
+    expect(fireEvent.keyDown(button, { key: "Enter", repeat: true, cancelable: true })).toBe(false);
+    expect(fireEvent.keyDown(screen.getAllByRole("combobox")[0]!, { key: "ArrowDown", repeat: true, cancelable: true })).toBe(true);
+    expect(screen.getByTestId("code-remaining")).toHaveTextContent("10");
+  });
+
   it("loads the daily artifact and renders six symbols in the slots", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(puzzle))));
     renderGame();

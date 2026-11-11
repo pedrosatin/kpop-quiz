@@ -20,6 +20,7 @@ export interface UseGameShareActionOptions {
 export function useGameShareAction({ onCopied, onShareFailed, analytics }: UseGameShareActionOptions = {}) {
   const [copied, setCopied] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
+  const sharing = useRef(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCopiedRef = useRef(onCopied);
   const onShareFailedRef = useRef(onShareFailed);
@@ -31,33 +32,39 @@ export function useGameShareAction({ onCopied, onShareFailed, analytics }: UseGa
   }, []);
 
   const handleShare = async (text: string) => {
-    const nav = typeof navigator !== "undefined" ? navigator : undefined;
-    if (typeof nav?.share === "function") {
-      try {
-        await nav.share({ text });
-        if (analytics) trackGameEvent("share", analytics, "native");
-        return;
-      } catch (error) {
-        if ((error as { name?: unknown } | null)?.name === "AbortError") return;
-      }
-    }
+    if (sharing.current) return;
+    sharing.current = true;
     try {
-      if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
-      await nav.clipboard.writeText(text);
-      if (analytics) trackGameEvent("share", analytics, "clipboard");
-    } catch {
-      setShareFailed(true);
-      onShareFailedRef.current?.();
-      return;
+      const nav = typeof navigator !== "undefined" ? navigator : undefined;
+      if (typeof nav?.share === "function") {
+        try {
+          await nav.share({ text });
+          if (analytics) trackGameEvent("share", analytics, "native");
+          return;
+        } catch (error) {
+          if ((error as { name?: unknown } | null)?.name === "AbortError") return;
+        }
+      }
+      try {
+        if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
+        await nav.clipboard.writeText(text);
+        if (analytics) trackGameEvent("share", analytics, "clipboard");
+      } catch {
+        setShareFailed(true);
+        onShareFailedRef.current?.();
+        return;
+      }
+      setShareFailed(false);
+      setCopied(true);
+      onCopiedRef.current?.();
+      if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => {
+        copiedTimer.current = null;
+        setCopied(false);
+      }, COPIED_FEEDBACK_MS);
+    } finally {
+      sharing.current = false;
     }
-    setShareFailed(false);
-    setCopied(true);
-    onCopiedRef.current?.();
-    if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-    copiedTimer.current = setTimeout(() => {
-      copiedTimer.current = null;
-      setCopied(false);
-    }, COPIED_FEEDBACK_MS);
   };
 
   return { copied, shareFailed, handleShare };

@@ -395,6 +395,8 @@ export interface Messages {
   statsWinRate: string;
   statsCurrentStreak: string;
   statsMaxStreak: string;
+  statsOverallStreakHelp: string;
+  statsGameStreakHelp: string;
   statsGuessDistribution: string;
   statsExport: string;
   statsImport: string;
@@ -875,6 +877,8 @@ const catalogs: Record<Locale, Messages> = {
     statsWinRate: "% de vitórias",
     statsCurrentStreak: "Sequência atual",
     statsMaxStreak: "Maior sequência",
+    statsOverallStreakHelp: "A sequência geral conta os dias seguidos com pelo menos um desafio diário concluído, com vitória ou derrota.",
+    statsGameStreakHelp: "A sequência de cada jogo conta as vitórias seguidas em desafios diários, e uma derrota volta a zero.",
     statsGuessDistribution: "Palpites por partida",
     statsExport: "Exportar estatísticas",
     statsImport: "Importar estatísticas",
@@ -1350,6 +1354,8 @@ const catalogs: Record<Locale, Messages> = {
     statsWinRate: "Win %",
     statsCurrentStreak: "Current streak",
     statsMaxStreak: "Best streak",
+    statsOverallStreakHelp: "The overall streak counts consecutive days with at least one daily challenge finished, win or lose.",
+    statsGameStreakHelp: "Each game's streak counts consecutive daily challenge wins, and a loss sets it back to zero.",
     statsGuessDistribution: "Guesses per game",
     statsExport: "Export stats",
     statsImport: "Import stats",
