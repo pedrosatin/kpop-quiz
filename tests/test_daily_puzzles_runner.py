@@ -1327,12 +1327,25 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
     def test_kept_board_the_database_no_longer_supports_is_not_an_ambiguity(self):
         run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")
         conn = sqlite3.connect(self.db_path)
-        conn.execute("UPDATE facts SET status = 'rejected' WHERE statement_id = 'stmt-lbl-117'")
+        # Q101 drops from 4 members to 3, so the published members_4 category
+        # keeps 3 of its 4 items and no partition fits the board any more.
+        conn.execute("UPDATE facts SET status = 'rejected' WHERE statement_id = 'stmt-mem-101-0'")
         conn.commit()
         conn.close()
-        kept = run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18"
-        )
+        from kpop_scraping import connections_generator
+
+        real_count = connections_generator.count_valid_partitions
+        counts: list[int] = []
+
+        def recording_count(*args, **kwargs):
+            counts.append(real_count(*args, **kwargs))
+            return counts[-1]
+
+        with patch.object(connections_generator, "count_valid_partitions", recording_count):
+            kept = run_daily_puzzles(
+                database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18"
+            )
+        self.assertEqual(counts, [0])
         self.assertEqual(kept["connections_partition"], {"checked": True, "reason": None})
 
     def test_without_a_database_the_check_is_recorded_as_not_run(self):
