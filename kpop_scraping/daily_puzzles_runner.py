@@ -447,6 +447,32 @@ def publish_daily_puzzles(
         return result
 
 
+def declared_board_swaps(result: dict[str, Any]) -> list[dict[str, str]]:
+    """Boards of the day that a kept or promoted run replaced on purpose.
+
+    The board swap gate (``board_swap_gate``) accepts these and refuses any
+    other change to a date already published.
+    """
+    day = result["reference_date"]
+    swaps = []
+    grid = result.get("grid_revalidated")
+    if grid:
+        swaps.append({
+            "game": "grid", "date": day,
+            "reason": f"grid {grid['previous_grid_id']} {grid['action']}: {grid['reason']}",
+        })
+    crossword = result.get("crossword_confirmed")
+    if crossword and crossword["action"] != "recorded":
+        swaps.append({
+            "game": "crossword", "date": day,
+            "reason": (
+                f"crossword {crossword['previous_dataset_version']} {crossword['action']}: "
+                f"{crossword['reason']}"
+            ),
+        })
+    return swaps
+
+
 def _crossword_result(
     artifact: dict[str, Any] | None, record: dict[str, Any] | None
 ) -> dict[str, Any]:
@@ -924,6 +950,7 @@ def run_daily_puzzles(
                 ),
             )
             result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run, connection=connection)
+        result["board_swaps"] = declared_board_swaps(result)
         if ahead:
             next_date = (date.fromisoformat(iso_date) + timedelta(days=1)).isoformat()
             # The day just published or kept is the history of the next one,

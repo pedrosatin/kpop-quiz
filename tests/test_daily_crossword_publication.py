@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import daily_puzzles_cli, web_publish
+from kpop_scraping.board_swap_gate import check_board_swaps
 from kpop_scraping.crossword_daily import validate_published
 from kpop_scraping.crossword_daily_repository import digest
 from kpop_scraping.crossword_publication import (
@@ -26,6 +27,7 @@ from kpop_scraping.crossword_publication import (
 from kpop_scraping.daily_puzzles_runner import MISSING_CROSSWORD_HISTORY, run_daily_puzzles
 from kpop_scraping.web_publish import CROSSWORD_DAILY_FILENAME, verify_artifacts
 
+from tests.test_board_swap_gate import commit_data, init_repo
 from tests.test_daily_puzzles_runner import build_test_database
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -180,6 +182,29 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
         self.assertEqual(read(self.out / 'next'), promoted)
         self.assertEqual(result['crossword_id'], promoted['dataset_version'])
         self.assertEqual(verify_cli(self.out, '--require-crossword'), 0)
+
+    def test_board_swap_gate_accepts_the_crossword_replaced_on_promotion(self):
+        init_repo(self.path)
+        self.seed_omitted_eve()
+        run(self.db, self.out, reference_date=DAY, ahead=True)
+        # DAY is published again after NEXT was prepared, as in the test above.
+        (self.out / f'crossword-publication.{EVE}.json').unlink()
+        write_record(self.out, omission_record('2026-09-01', 'fixture'))
+        run(self.db, self.out, reference_date=DAY, regenerate=True)
+        commit_data(self.path)
+
+        result = run(self.db, self.out, reference_date=NEXT)
+
+        self.assertEqual(
+            [(swap['game'], swap['date']) for swap in result['board_swaps']], [('crossword', NEXT)]
+        )
+        accepted, refused = check_board_swaps(
+            self.path, 'data', 'HEAD', {'regenerate': False, 'swaps': result['board_swaps']}
+        )
+        self.assertEqual((len(accepted), refused), (1, []))
+        self.assertIn('crossword for 2026-09-19 (served from data/next)', accepted[0])
+        refused = check_board_swaps(self.path, 'data', 'HEAD', {'regenerate': False, 'swaps': []})[1]
+        self.assertEqual(len(refused), 1)
 
     def test_cli_warns_in_github_actions_when_the_crossword_is_omitted(self):
         stdout, stderr = io.StringIO(), io.StringIO()
