@@ -6,12 +6,12 @@ import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from .entities import PRECISION_DAY, PRECISION_MONTH, Statement, TimeValue
+from .entities import PRECISION_DAY, PRECISION_MONTH, PRECISION_YEAR, Statement, TimeValue
 from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
 
-EVIDENCE_RULES_VERSION = "text-evidence-v8"
+EVIDENCE_RULES_VERSION = "text-evidence-v9"
 MIN_NAME_LENGTH = 4
 # Shorter performer names count in a credit only when spelled exactly.
 MIN_CREDIT_NAME_LENGTH = 2
@@ -203,9 +203,10 @@ class WikipediaPage:
     """Revision already collected for a catalog group, with its intro extract.
 
     ``wikitext`` is the source of the same revision when it was collected;
-    only the infobox rules read it. The page of a person also records the
-    Wikidata item the page declares and whether the title was a redirect, so
-    the person rule can check the identity again before it trusts the page.
+    only the infobox and formation-category rules read it. The page of a
+    person also records the Wikidata item the page declares and whether the
+    title was a redirect, so the person rule can check the identity again
+    before it trusts the page.
     """
 
     source_revision_id: int
@@ -280,6 +281,52 @@ def formation_date_evidence(
                     page, start + match.start("date"), start + match.end("date")
                 )
     return None
+
+
+FORMATION_CATEGORY_DIFFERS = "formation_category_year_differs"
+_FORMATION_CATEGORY = re.compile(
+    r"\[\[\s*[Cc]ategory\s*:\s*[Mm]usical[ _]groups[ _]established[ _]in[ _]"
+    r"(?P<year>\d{4})\s*(?:\|[^\[\]]*)?\]\]"
+)
+_WIKITEXT_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.S)
+
+
+@dataclass(frozen=True)
+class FormationCategoryCheck:
+    """What the formation-year categories of a revision say about a P571 value.
+
+    ``evidence`` proves a value of year precision. ``observed`` is a category
+    with another year, which contradicts the value at any precision.
+    """
+
+    evidence: EvidenceItem | None = None
+    observed: EvidenceItem | None = None
+
+
+def formation_category_check(page: WikipediaPage, value: TimeValue) -> FormationCategoryCheck:
+    """Compare the year of P571 with "Musical groups established in YYYY" (ADR 029).
+
+    Only category links written in the wikitext of the same revision, outside
+    comments, count. They prove only a value of year precision, and only when
+    every such category names that year.
+    """
+    comments = [match.span() for match in _WIKITEXT_COMMENT.finditer(page.wikitext)]
+    found = [
+        match
+        for match in _FORMATION_CATEGORY.finditer(page.wikitext)
+        if not any(start <= match.start() < end for start, end in comments)
+    ]
+    year = value.components()[0]
+    for match in found:
+        if int(match.group("year")) != year:
+            return FormationCategoryCheck(observed=_category_evidence(page, match))
+    if found and value.precision == PRECISION_YEAR:
+        return FormationCategoryCheck(evidence=_category_evidence(page, found[0]))
+    return FormationCategoryCheck()
+
+
+def _category_evidence(page: WikipediaPage, match: re.Match[str]) -> EvidenceItem:
+    return _wikitext_evidence(page, match.start(), match.end(), match.group(0))
 
 
 def place_evidence(
@@ -786,7 +833,10 @@ def infobox_evidence(
 
 
 def infobox_item_evidence(page: WikipediaPage, field: str, start: int, end: int) -> EvidenceItem:
-    snippet = f"{field} = {page.wikitext[start:end].strip()}"
+    return _wikitext_evidence(page, start, end, f"{field} = {page.wikitext[start:end].strip()}")
+
+
+def _wikitext_evidence(page: WikipediaPage, start: int, end: int, snippet: str) -> EvidenceItem:
     if len(snippet) > MAX_SNIPPET_LENGTH:
         snippet = snippet[: MAX_SNIPPET_LENGTH - 3].rstrip() + "..."
     return EvidenceItem(
