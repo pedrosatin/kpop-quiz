@@ -15,6 +15,7 @@ from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
 from kpop_scraping.timeline_schema import validate_timeline_puzzle
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
+from tests.test_word_search_schema import plant_repeated_word
 from kpop_scraping.web_publish import (
     CODE_GROUPS_DAILY_FILENAME,
     CONNECTIONS_DAILY_FILENAME,
@@ -669,6 +670,16 @@ class WebPublishTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 publish(output, self.sessions(), word_search=invalid_puzzle)
             self.assertFalse((output / WORD_SEARCH_DAILY_FILENAME).exists())
+
+    def test_publish_with_word_repeated_in_the_grid_fails_before_creating_file(self):
+        for reverse in (False, True):
+            with self.subTest(reverse=reverse), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory)
+                puzzle = self.word_search()
+                plant_repeated_word(puzzle, reverse=reverse)
+                with self.assertRaisesRegex(ValueError, "appears in the grid outside its declared"):
+                    publish(output, self.sessions(), word_search=puzzle)
+                self.assertFalse((output / WORD_SEARCH_DAILY_FILENAME).exists())
 
     def test_cli_require_word_search_without_verify_fails(self):
         with tempfile.TemporaryDirectory() as directory:

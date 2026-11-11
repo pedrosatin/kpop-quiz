@@ -147,6 +147,54 @@ def _validate_evidence(evidence: Any, context: str) -> None:
     _require(bool(parts.netloc), f"{context} source_url netloc cannot be empty")
 
 
+# Eight linear directions on a 2D grid: (row_step, col_step)
+DIRECTIONS: list[tuple[int, int]] = [
+    (0, 1),    # Horizontal left to right
+    (0, -1),   # Horizontal right to left
+    (1, 0),    # Vertical top to bottom
+    (-1, 0),   # Vertical bottom to top
+    (1, 1),    # Diagonal down-right
+    (1, -1),   # Diagonal down-left
+    (-1, 1),   # Diagonal up-right
+    (-1, -1),  # Diagonal up-left
+]
+
+
+def find_word_occurrences(grid: list[list[str]], word: str) -> list[tuple[int, int, int, int]]:
+    """Find all start and end coordinates where the target word occurs in the grid."""
+    rows = len(grid)
+    cols = len(grid[0]) if rows > 0 else 0
+    length = len(word)
+    occurrences: list[tuple[int, int, int, int]] = []
+
+    for r in range(rows):
+        for c in range(cols):
+            for dr, dc in DIRECTIONS:
+                end_r = r + (length - 1) * dr
+                end_c = c + (length - 1) * dc
+                if 0 <= end_r < rows and 0 <= end_c < cols:
+                    if all(grid[r + i * dr][c + i * dc] == word[i] for i in range(length)):
+                        occurrences.append((r, c, end_r, end_c))
+
+    return occurrences
+
+
+def occurs_only_where_declared(
+    grid: list[list[str]], word: str, declared: tuple[int, int, int, int]
+) -> bool:
+    """True when the word appears in the grid only at the declared coordinates.
+
+    A palindrome also reads back along the same line, so its reversed segment
+    is the one other occurrence allowed. The web accepts a word by the declared
+    coordinates, so any other occurrence would be refused to the player.
+    """
+    expected = {declared}
+    if word == word[::-1]:
+        expected.add((declared[2], declared[3], declared[0], declared[1]))
+    occurrences = find_word_occurrences(grid, word)
+    return len(occurrences) == len(expected) and set(occurrences) == expected
+
+
 def extract_word_coordinates(
     start_row: int, start_col: int, end_row: int, end_col: int
 ) -> list[tuple[int, int]]:
@@ -416,6 +464,14 @@ def _validate_words(words: Any, rows: int, cols: int, grid: list[list[str]]) -> 
 
     for idx, word_obj in enumerate(words):
         _validate_word_entry(word_obj, idx, rows, cols, grid, seen_ids, seen_words)
+
+    for idx, word_obj in enumerate(words):
+        declared = tuple(word_obj[k] for k in ("start_row", "start_col", "end_row", "end_col"))
+        _require(
+            occurs_only_where_declared(grid, word_obj["word"], declared),
+            f"words[{idx}].word ('{word_obj['word']}') appears in the grid outside its declared "
+            "coordinates; each word must occur exactly once, in any direction",
+        )
 
 
 def validate_word_search_puzzle(payload: dict[str, Any]) -> None:

@@ -21,6 +21,7 @@ from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.daily_puzzles_runner import (
     NEXT_DIRNAME,
     generate_daily_puzzles,
+    keep_or_promote_day,
     get_reference_date,
     publish_daily_puzzles,
     run_daily_puzzles,
@@ -1243,6 +1244,119 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             "--output-dir", str(out_dir),
         ])
         self.assertEqual(missing_code, 1)
+
+
+class ConnectionsPartitionOnKeepTests(unittest.TestCase):
+    """A kept or promoted connections board must still have one solution in the database."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.temp_path = Path(self.temp_dir.name)
+        self.db_path = self.temp_path / "kpop.db"
+        build_test_database(self.db_path).close()
+        self.out_dir = self.temp_path / "data"
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def make_ambiguous(self, board_dir: Path) -> None:
+        """Let two groups of different label categories satisfy each other's label.
+
+        Swapping them gives a second partition of the same 16 groups.
+        """
+        board = json.loads((board_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        label_qid = {"label_hybe": "Q106399432", "label_jyp": "Q483238", "label_sm": "Q483957"}
+        labelled = [c for c in board["categories"] if c["id"] in label_qid]
+        self.assertEqual(len(labelled), 2, "the fixture day needs two label categories")
+        first, second = labelled
+        conn = sqlite3.connect(self.db_path)
+        for number, (member, category) in enumerate(
+            [(first["item_ids"][0], second), (second["item_ids"][0], first)]
+        ):
+            fact = conn.execute(
+                """
+                INSERT INTO facts(
+                    statement_id, subject_entity_id, predicate, property_id, rank,
+                    value_wikidata_id, value_entity_id, status, quality_flags_json
+                ) VALUES (?, (SELECT id FROM entities WHERE wikidata_id = ?), 'record_label', 'P264',
+                    'normal', ?, (SELECT id FROM entities WHERE wikidata_id = ?), 'accepted', '[]')
+                """,
+                (f"stmt-swap-{number}", member, label_qid[category["id"]], label_qid[category["id"]]),
+            )
+            conn.execute(
+                """
+                INSERT INTO fact_evidence(
+                    fact_id, evidence_type, source_key, locator, reference_hash, wikidata_snapshot_id
+                ) VALUES (?, 'wikidata_reference', 'domain:example.com', 'claims/P264/ref', 'ref1', 1)
+                """,
+                (fact.lastrowid,),
+            )
+        conn.commit()
+        conn.close()
+
+    def test_kept_board_with_one_solution_is_reported_as_checked(self):
+        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")
+        kept = run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18"
+        )
+        self.assertTrue(kept["already_published"])
+        self.assertEqual(kept["connections_partition"], {"checked": True, "reason": None})
+
+    def test_kept_board_with_an_ambiguous_partition_is_refused(self):
+        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")
+        saved = (self.out_dir / "connections.daily.json").read_bytes()
+        self.make_ambiguous(self.out_dir)
+        with self.assertRaisesRegex(ValueError, "ambiguous solution.*--regenerate"):
+            run_daily_puzzles(
+                database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18"
+            )
+        self.assertEqual((self.out_dir / "connections.daily.json").read_bytes(), saved)
+
+    def test_promoted_board_with_an_ambiguous_partition_is_refused_and_not_installed(self):
+        run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
+        )
+        self.make_ambiguous(self.out_dir / NEXT_DIRNAME)
+        with self.assertRaisesRegex(ValueError, "ambiguous solution"):
+            run_daily_puzzles(
+                database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18"
+            )
+        board = json.loads((self.out_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        self.assertEqual(board["reference_date"], "2026-09-17")
+
+    def test_kept_board_the_database_no_longer_supports_is_not_an_ambiguity(self):
+        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")
+        conn = sqlite3.connect(self.db_path)
+        # Q101 drops from 4 members to 3, so the published members_4 category
+        # keeps 3 of its 4 items and no partition fits the board any more.
+        conn.execute("UPDATE facts SET status = 'rejected' WHERE statement_id = 'stmt-mem-101-0'")
+        conn.commit()
+        conn.close()
+        from kpop_scraping import connections_generator
+
+        real_count = connections_generator.count_valid_partitions
+        counts: list[int] = []
+
+        def recording_count(*args, **kwargs):
+            counts.append(real_count(*args, **kwargs))
+            return counts[-1]
+
+        with patch.object(connections_generator, "count_valid_partitions", recording_count):
+            kept = run_daily_puzzles(
+                database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18"
+            )
+        self.assertEqual(counts, [0])
+        self.assertEqual(kept["connections_partition"], {"checked": True, "reason": None})
+
+    def test_without_a_database_the_check_is_recorded_as_not_run(self):
+        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")
+        self.make_ambiguous(self.out_dir)
+        err = io.StringIO()
+        with redirect_stderr(err):
+            kept = keep_or_promote_day(self.out_dir, "2026-09-18")
+        self.assertTrue(kept["already_published"])
+        self.assertEqual(kept["connections_partition"], {"checked": False, "reason": "no database"})
+        self.assertIn("connections partition uniqueness not checked", err.getvalue())
 
 
 class WordSearchThemeFallbackRunnerTests(unittest.TestCase):

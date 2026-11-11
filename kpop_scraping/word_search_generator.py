@@ -15,26 +15,17 @@ from .quiz_models import Entity, Evidence, Fact
 from .quiz_repository import _dataset_version, _load_entities, _load_facts
 from .quiz_utils import hash_payload
 from .word_search_schema import (
+    DIRECTIONS,
     WORD_SEARCH_SCHEMA_VERSION,
     extract_word_coordinates,
+    find_word_occurrences,
     normalize_word,
+    occurs_only_where_declared,
     validate_word_search_clues,
     validate_word_search_puzzle,
 )
 
 QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
-
-# Eight linear directions on a 2D grid: (row_step, col_step)
-DIRECTIONS: list[tuple[int, int]] = [
-    (0, 1),    # Horizontal left to right
-    (0, -1),   # Horizontal right to left
-    (1, 0),    # Vertical top to bottom
-    (-1, 0),   # Vertical bottom to top
-    (1, 1),    # Diagonal down-right
-    (1, -1),   # Diagonal down-left
-    (-1, 1),   # Diagonal up-right
-    (-1, -1),  # Diagonal up-left
-]
 
 # Letter frequency weights derived from romanized K-pop entity names
 LETTER_WEIGHTS: dict[str, int] = {
@@ -551,25 +542,6 @@ def extract_viable_themes(
     return viable_themes
 
 
-def find_word_occurrences(grid: list[list[str]], word: str) -> list[tuple[int, int, int, int]]:
-    """Find all start and end coordinates where the target word occurs in the grid."""
-    rows = len(grid)
-    cols = len(grid[0]) if rows > 0 else 0
-    length = len(word)
-    occurrences: list[tuple[int, int, int, int]] = []
-
-    for r in range(rows):
-        for c in range(cols):
-            for dr, dc in DIRECTIONS:
-                end_r = r + (length - 1) * dr
-                end_c = c + (length - 1) * dc
-                if 0 <= end_r < rows and 0 <= end_c < cols:
-                    if all(grid[r + i * dr][c + i * dc] == word[i] for i in range(length)):
-                        occurrences.append((r, c, end_r, end_c))
-
-    return occurrences
-
-
 def place_words_on_grid(
     candidates: list[WordCandidate],
     rows: int,
@@ -685,23 +657,12 @@ def fill_empty_cells_and_verify(
             completed[r][c] = char
 
         # Verify uniqueness: each target word must appear exactly once at declared coordinates
-        spurious = False
-        for p in placed:
-            matches = find_word_occurrences(completed, p.candidate.word)
-            expected = (p.start_row, p.start_col, p.end_row, p.end_col)
-            is_palindrome = p.candidate.word == p.candidate.word[::-1]
-            if is_palindrome:
-                reverse_expected = (p.end_row, p.end_col, p.start_row, p.start_col)
-                if len(matches) != 2 or not (
-                    (matches[0] == expected and matches[1] == reverse_expected) or
-                    (matches[0] == reverse_expected and matches[1] == expected)
-                ):
-                    spurious = True
-                    break
-            else:
-                if len(matches) != 1 or matches[0] != expected:
-                    spurious = True
-                    break
+        spurious = not all(
+            occurs_only_where_declared(
+                completed, p.candidate.word, (p.start_row, p.start_col, p.end_row, p.end_col)
+            )
+            for p in placed
+        )
 
         if not spurious:
             return completed

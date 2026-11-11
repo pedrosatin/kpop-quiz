@@ -20,6 +20,7 @@ from kpop_scraping import web_publish
 from kpop_scraping.daily_puzzles_runner import run_daily_puzzles
 from kpop_scraping.grid_publication import filename as grid_publication_filename
 from tests.test_daily_puzzles_runner import build_test_database
+from tests.test_word_search_schema import plant_repeated_word
 
 ROOT = Path(__file__).parents[1]
 
@@ -102,6 +103,21 @@ class ArtifactsGateTests(unittest.TestCase):
         code, output = self.gate()
         self.assertEqual(code, 1)
         self.assertIn(str(path), output)
+
+    def test_word_repeated_in_the_word_search_grid_fails_in_either_directory(self):
+        for directory in (self.data, self.next):
+            for reverse in (False, True):
+                with self.subTest(directory=directory.name, reverse=reverse):
+                    path = directory / web_publish.WORD_SEARCH_DAILY_FILENAME
+                    saved = path.read_bytes()
+                    payload = json.loads(saved)
+                    plant_repeated_word(payload, reverse=reverse)
+                    path.write_text(json.dumps(payload), encoding="utf-8")
+                    code, output = self.gate()
+                    self.assertEqual(code, 1)
+                    self.assertIn(str(path), output)
+                    self.assertIn("appears in the grid outside its declared coordinates", output)
+                    path.write_bytes(saved)
 
     def test_missing_grid_fails_in_either_directory(self):
         for directory in (self.data, self.next):
