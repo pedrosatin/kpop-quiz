@@ -32,8 +32,8 @@ export interface UseCrosswordGame {
 
 /**
  * The stats id of the board. Each day's board counts once, by its envelope
- * checksum, on the local day the player finished it, so it joins the overall
- * streak like any other game played that day.
+ * checksum, on the board's `reference_date` (not the device's local day), so it
+ * joins the overall streak like any other daily game of that date.
  */
 export function crosswordMatchId(puzzle: CrosswordPuzzle): string {
   return `crossword-${puzzle.dataset_version}`;
