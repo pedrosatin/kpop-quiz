@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -85,6 +86,17 @@ def _valid_session_keys(keys: set[str]) -> bool:
         if keys & decade_keys and not decade_keys <= keys:
             return False
     return keys & (BASE_KEYS | DAILY_KEYS) in VALID_KEY_SETS
+
+
+@contextmanager
+def _located(path: Path):
+    """Name ``path`` in a verification error whose message lacks it."""
+    try:
+        yield
+    except ValueError as exc:
+        if str(path) in str(exc):
+            raise
+        raise ValueError(f"{path}: {exc}") from exc
 
 
 def _read_session(path: Path) -> dict[str, Any]:
@@ -497,7 +509,10 @@ def verify(
             When False (default): backwards-compatible policy. If grid.daily.json
             exists on disk, it is schema-validated; if absent, verification passes.
             When True: grid.daily.json is mandatory and must exist and satisfy
-            schema validation, raising ValueError if missing or invalid.
+            schema validation, raising ValueError if missing or invalid. The one
+            exception is a day the runner published without a grid: its
+            ``grid-publication.<date>.json`` (dated by connections.daily.json)
+            has ``grid_id`` null, and the missing file passes.
         require_connections: Verification policy flag for connections puzzle (connections.daily.json).
             When False (default): backwards-compatible policy. If connections.daily.json
             exists on disk, it is schema-validated; if absent, verification passes.
@@ -558,41 +573,51 @@ def verify(
         validate_legacy_clues(session)
     verify_enriched_manifest(output_dir, sessions)
     verify_question_catalog(output_dir, manifest, sessions, require_catalog)
-    grid_path = output_dir / GRID_DAILY_FILENAME
-    if grid_path.is_file():
-        _read_grid(grid_path)
-    elif require_grid:
-        raise ValueError(f"missing required grid artifact: {grid_path}")
     connections_path = output_dir / CONNECTIONS_DAILY_FILENAME
+    grid_publication = None
     if connections_path.is_file():
         from .grid_publication import read_publication
-        connections = _read_connections(connections_path)
-        read_publication(output_dir, connections["reference_date"])
+        with _located(connections_path):
+            connections = _read_connections(connections_path)
+        grid_publication = read_publication(output_dir, connections["reference_date"])
     elif require_connections:
         raise ValueError(f"missing required connections artifact: {connections_path}")
+    grid_path = output_dir / GRID_DAILY_FILENAME
+    if grid_path.is_file():
+        with _located(grid_path):
+            _read_grid(grid_path)
+    elif require_grid and (grid_publication is None or grid_publication["grid_id"] is not None):
+        # The daily runner may publish a day without a grid (grid_skipped);
+        # its publication record then says so with grid_id null.
+        raise ValueError(f"missing required grid artifact: {grid_path}")
     name_guess_path = output_dir / NAME_GUESS_DAILY_FILENAME
     if name_guess_path.is_file():
-        _read_name_guess(name_guess_path)
+        with _located(name_guess_path):
+            _read_name_guess(name_guess_path)
     elif require_name_guess:
         raise ValueError(f"missing required name-guess artifact: {name_guess_path}")
     word_search_path = output_dir / WORD_SEARCH_DAILY_FILENAME
     if word_search_path.is_file():
-        _read_word_search(word_search_path)
+        with _located(word_search_path):
+            _read_word_search(word_search_path)
     elif require_word_search:
         raise ValueError(f"missing required word-search artifact: {word_search_path}")
     timeline_path = output_dir / TIMELINE_DAILY_FILENAME
     if timeline_path.is_file():
-        _read_timeline(timeline_path)
+        with _located(timeline_path):
+            _read_timeline(timeline_path)
     elif require_timeline:
         raise ValueError(f"missing required timeline artifact: {timeline_path}")
     code_groups_path = output_dir / CODE_GROUPS_DAILY_FILENAME
     if code_groups_path.is_file():
-        _read_code_groups(code_groups_path)
+        with _located(code_groups_path):
+            _read_code_groups(code_groups_path)
     elif require_code_groups:
         raise ValueError(f"missing required code-groups artifact: {code_groups_path}")
     crossword_path = output_dir / CROSSWORD_DAILY_FILENAME
     if crossword_path.is_file():
-        _read_crossword(crossword_path)
+        with _located(crossword_path):
+            _read_crossword(crossword_path)
     elif require_crossword:
         raise ValueError(f"missing required crossword artifact: {crossword_path}")
     verify_crossword_history(output_dir)
@@ -761,17 +786,18 @@ def main(argv: list[str] | None = None) -> int:
             for directory in (args.output_dir, next_dir):
                 if directory is next_dir and not (next_dir / MANIFEST_FILENAME).is_file():
                     continue
-                verify(
-                    directory,
-                    require_grid=args.require_grid,
-                    require_connections=args.require_connections,
-                    require_name_guess=args.require_name_guess,
-                    require_word_search=args.require_word_search,
-                    require_timeline=args.require_timeline,
-                    require_code_groups=args.require_code_groups,
-                    require_catalog=args.require_catalog and directory is args.output_dir,
-                    require_crossword=args.require_crossword,
-                )
+                with _located(directory):
+                    verify(
+                        directory,
+                        require_grid=args.require_grid,
+                        require_connections=args.require_connections,
+                        require_name_guess=args.require_name_guess,
+                        require_word_search=args.require_word_search,
+                        require_timeline=args.require_timeline,
+                        require_code_groups=args.require_code_groups,
+                        require_catalog=args.require_catalog and directory is args.output_dir,
+                        require_crossword=args.require_crossword,
+                    )
             # The next day's record follows the main directory's last one.
             verify_crossword_history(args.output_dir, next_dir)
         elif args.database:
