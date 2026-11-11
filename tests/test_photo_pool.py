@@ -417,7 +417,7 @@ class RevalidationTest(unittest.TestCase):
             destination.write_bytes(b"old complete image")
             response = io.BytesIO(b"truncated")
             response.headers = {"Content-Length": "100"}
-            with patch("urllib.request.urlopen", return_value=response):
+            with patch("kpop_scraping.http_request.urlopen", return_value=response):
                 with self.assertRaises(OSError):
                     download_asset("https://example.com/photo.png", destination)
             self.assertEqual(destination.read_bytes(), b"old complete image")
@@ -429,7 +429,7 @@ class RevalidationTest(unittest.TestCase):
             destination.write_bytes(b"old complete image")
             response = io.BytesIO(b"image bytes")
             response.headers = {"Content-Length": "eleven"}
-            with patch("urllib.request.urlopen", return_value=response):
+            with patch("kpop_scraping.http_request.urlopen", return_value=response):
                 with self.assertRaises(OSError):
                     download_asset("https://example.com/photo.png", destination)
             self.assertEqual(destination.read_bytes(), b"old complete image")
@@ -440,7 +440,7 @@ class RevalidationTest(unittest.TestCase):
             destination = Path(folder) / "photo.png"
             response = io.BytesIO(b"complete image")
             response.headers = {"Content-Length": "14"}
-            with patch("urllib.request.urlopen", return_value=response):
+            with patch("kpop_scraping.http_request.urlopen", return_value=response):
                 download_asset("https://example.com/photo.png", destination)
             self.assertEqual(destination.read_bytes(), b"complete image")
             self.assertEqual(destination.with_name("photo.png.sha256").read_text(), hashlib.sha256(b"complete image").hexdigest())

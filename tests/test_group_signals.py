@@ -279,7 +279,7 @@ class GroupSignalTest(unittest.TestCase):
         self.assertTrue(parsed[BTS_CHANNEL]["hidden_subscriber_count"])
 
     def test_youtube_request_is_skipped_without_calling_when_ids_are_invalid(self):
-        with patch("kpop_scraping.group_signals.urlopen") as urlopen:
+        with patch("kpop_scraping.http_request.urlopen") as urlopen:
             with self.assertRaises(SignalError):
                 fetch_youtube_statistics(["channel-name"], "key")
         urlopen.assert_not_called()
@@ -292,7 +292,7 @@ class GroupSignalTest(unittest.TestCase):
             None,
             None,
         )
-        with patch("kpop_scraping.group_signals.urlopen", side_effect=transport_error):
+        with patch("kpop_scraping.http_request.urlopen", side_effect=transport_error):
             with self.assertRaisesRegex(SignalError, "^YouTube statistics request failed$") as caught:
                 fetch_youtube_statistics([BTS_CHANNEL], "secret-value")
         self.assertIsNone(caught.exception.__cause__)
@@ -317,7 +317,7 @@ class GroupSignalTest(unittest.TestCase):
                 ]
             }
         ).encode()
-        with patch("kpop_scraping.group_signals.urlopen", return_value=response):
+        with patch("kpop_scraping.http_request.urlopen", return_value=response):
             with self.assertRaisesRegex(SignalError, "unexpected channel IDs"):
                 fetch_youtube_statistics([BTS_CHANNEL], "secret-value")
 

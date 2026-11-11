@@ -122,7 +122,7 @@ class MusicBrainzClientTest(unittest.TestCase):
             requests.append((request, timeout))
             return io.BytesIO(b'{"id": "x"}')
 
-        with mock.patch("kpop_scraping.musicbrainz.urlopen", fake_urlopen):
+        with mock.patch("kpop_scraping.http_request.urlopen", fake_urlopen):
             client.lookup("event", "x", ("artist-rels", "place-rels"))
             client.lookup("place", "y")
 
@@ -144,7 +144,7 @@ class MusicBrainzClientTest(unittest.TestCase):
                 raise response
             return response
 
-        with mock.patch("kpop_scraping.musicbrainz.urlopen", fake_urlopen):
+        with mock.patch("kpop_scraping.http_request.urlopen", fake_urlopen):
             self.assertEqual(client.lookup("event", "x"), {"id": "x"})
         # Backoff first, then whatever keeps the retry 1.1 s after the first call.
         self.assertEqual(self.sleeps[0], 1.0)
@@ -156,7 +156,7 @@ class MusicBrainzClientTest(unittest.TestCase):
         def fake_urlopen(request, timeout):
             raise HTTPError("https://musicbrainz.org", 404, "missing", {}, io.BytesIO())
 
-        with mock.patch("kpop_scraping.musicbrainz.urlopen", fake_urlopen):
+        with mock.patch("kpop_scraping.http_request.urlopen", fake_urlopen):
             with self.assertRaisesRegex(MusicBrainzError, "HTTP 404"):
                 client.lookup("event", "x")
 

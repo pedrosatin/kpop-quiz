@@ -14,13 +14,12 @@ from http.client import HTTPException
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
+from .http_request import DEFAULT_USER_AGENT, open_url
 from .mediawiki import parse_retry_after
 
 
 API_URL = "https://musicbrainz.org/ws/2"
-DEFAULT_USER_AGENT = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)"
 MIN_INTERVAL_SECONDS = 1.1
 RETRYABLE_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
 ENTITY_TYPES = frozenset({"area", "artist", "event", "place", "series"})
@@ -60,12 +59,16 @@ class MusicBrainzClient:
         return self._get(url)
 
     def _get(self, url: str) -> dict[str, Any]:
-        request = Request(url, headers={"Accept": "application/json", "User-Agent": self.user_agent})
         for attempt in range(self.retries + 1):
             can_retry = attempt < self.retries
             self._wait_for_slot()
             try:
-                with urlopen(request, timeout=self.timeout) as response:
+                with open_url(
+                    url,
+                    timeout=self.timeout,
+                    user_agent=self.user_agent,
+                    headers={"Accept": "application/json"},
+                ) as response:
                     payload = json.load(response)
             except HTTPError as exc:
                 headers = exc.headers

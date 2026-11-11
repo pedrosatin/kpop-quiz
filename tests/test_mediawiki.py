@@ -88,7 +88,7 @@ class MediaWikiClientTest(unittest.TestCase):
             MediaWikiClient().get_pages(range(21))
 
     @patch("kpop_scraping.mediawiki.time.sleep")
-    @patch("kpop_scraping.mediawiki.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_retries_maxlag_response(self, urlopen, sleep):
         urlopen.side_effect = [
             Response(b'{"error":{"code":"maxlag","info":"waiting"}}'),
@@ -99,7 +99,7 @@ class MediaWikiClientTest(unittest.TestCase):
         sleep.assert_called_once_with(1)
 
     @patch("kpop_scraping.mediawiki.time.sleep")
-    @patch("kpop_scraping.mediawiki.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_maxlag_wait_respects_retry_after_header(self, urlopen, sleep):
         urlopen.side_effect = [
             Response(b'{"error":{"code":"maxlag","info":"lag"}}', {"Retry-After": "5"}),
@@ -109,7 +109,7 @@ class MediaWikiClientTest(unittest.TestCase):
         sleep.assert_called_once_with(5.0)
 
     @patch("kpop_scraping.mediawiki.time.sleep")
-    @patch("kpop_scraping.mediawiki.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_retries_429_and_5xx_with_backoff(self, urlopen, sleep):
         urlopen.side_effect = [
             http_error(429, {"Retry-After": "3"}),
@@ -125,7 +125,7 @@ class MediaWikiClientTest(unittest.TestCase):
         self.assertEqual(urlopen.call_args.kwargs["timeout"], 30)
 
     @patch("kpop_scraping.mediawiki.time.sleep")
-    @patch("kpop_scraping.mediawiki.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_client_error_is_not_retried(self, urlopen, sleep):
         urlopen.side_effect = [http_error(404)]
         with self.assertRaisesRegex(MediaWikiError, "HTTP 404"):
@@ -133,7 +133,7 @@ class MediaWikiClientTest(unittest.TestCase):
         sleep.assert_not_called()
 
     @patch("kpop_scraping.mediawiki.time.sleep")
-    @patch("kpop_scraping.mediawiki.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_retry_after_above_limit_stops_without_waiting(self, urlopen, sleep):
         urlopen.side_effect = [http_error(429, {"Retry-After": "3600"})]
         with self.assertRaisesRegex(MediaWikiError, "above the 120s limit"):

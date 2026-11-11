@@ -13,7 +13,8 @@ from http.client import HTTPException
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+
+from .http_request import DEFAULT_USER_AGENT, open_url
 
 
 class MediaWikiError(RuntimeError):
@@ -73,7 +74,7 @@ class MediaWikiClient:
     def __init__(
         self,
         api_url: str = "https://en.wikipedia.org/w/api.php",
-        user_agent: str = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)",
+        user_agent: str = DEFAULT_USER_AGENT,
         timeout: float = 30,
         retries: int = 3,
         provider: str = "wikipedia",
@@ -90,14 +91,16 @@ class MediaWikiClient:
 
     def _get(self, parameters: dict[str, str | int]) -> dict[str, Any]:
         query = {"format": "json", "formatversion": "2", "maxlag": "5", **parameters}
-        request = Request(
-            f"{self.api_url}?{urlencode(query)}",
-            headers={"Accept": "application/json", "User-Agent": self.user_agent},
-        )
+        url = f"{self.api_url}?{urlencode(query)}"
         for attempt in range(self.retries + 1):
             can_retry = attempt < self.retries
             try:
-                with urlopen(request, timeout=self.timeout) as response:
+                with open_url(
+                    url,
+                    timeout=self.timeout,
+                    user_agent=self.user_agent,
+                    headers={"Accept": "application/json"},
+                ) as response:
                     headers = getattr(response, "headers", None)
                     payload = json.load(response)
             except HTTPError as exc:

@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import unicodedata
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .storage import canonical_json
 
@@ -22,15 +23,27 @@ def digest(*parts: str) -> str:
     return hashlib.sha256("\x1f".join(parts).encode("utf-8")).hexdigest()
 
 
+REFERENCE_TIMEZONE = "America/Sao_Paulo"
+
+
+class ReferenceTimezoneError(RuntimeError):
+    """The reference time zone is missing from the environment."""
+
+
 def reference_date_today() -> str:
-    """Return today as ISO YYYY-MM-DD in America/Sao_Paulo, falling back to UTC."""
+    """Return today as ISO YYYY-MM-DD in America/Sao_Paulo.
+
+    A missing time zone raises instead of falling back to UTC, which would
+    publish the next day between 21:00 and midnight in Sao Paulo.
+    """
     try:
-        from zoneinfo import ZoneInfo
-
-        return datetime.now(ZoneInfo("America/Sao_Paulo")).date().isoformat()
-    except Exception:
-        return datetime.now(timezone.utc).date().isoformat()
-
+        zone = ZoneInfo(REFERENCE_TIMEZONE)
+    except ZoneInfoNotFoundError as exc:
+        raise ReferenceTimezoneError(
+            f"time zone {REFERENCE_TIMEZONE} is unavailable; install the tzdata package "
+            "or the system time zone database, or pass an explicit date"
+        ) from exc
+    return datetime.now(zone).date().isoformat()
 
 
 def display_key(label: str) -> str:

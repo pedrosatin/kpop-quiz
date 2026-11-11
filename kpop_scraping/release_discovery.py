@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
+from .http_request import DEFAULT_USER_AGENT, open_url
 from .mediawiki import MediaWikiError, parse_retry_after
 from .storage import Repository, utc_now
 
@@ -40,11 +40,11 @@ class WikidataQueryClient:
     def __init__(
         self,
         endpoint: str = DEFAULT_ENDPOINT,
-        user_agent: str = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)",
+        user_agent: str = DEFAULT_USER_AGENT,
         timeout: float = 30,
         retries: int = 2,
         max_response_bytes: int = MAX_RESPONSE_BYTES,
-        opener: Callable[..., Any] = urlopen,
+        opener: Callable[..., Any] | None = None,
     ) -> None:
         if not user_agent.strip():
             raise ValueError("user_agent must not be empty")
@@ -58,13 +58,16 @@ class WikidataQueryClient:
         self.opener = opener
 
     def query(self, sparql: str) -> QueryResult:
-        request = Request(
-            f"{self.endpoint}?{urlencode({'query': sparql, 'format': 'json'})}",
-            headers={"Accept": "application/sparql-results+json", "User-Agent": self.user_agent},
-        )
+        url = f"{self.endpoint}?{urlencode({'query': sparql, 'format': 'json'})}"
         for attempt in range(self.retries + 1):
             try:
-                with self.opener(request, timeout=self.timeout) as response:
+                with open_url(
+                    url,
+                    timeout=self.timeout,
+                    user_agent=self.user_agent,
+                    headers={"Accept": "application/sparql-results+json"},
+                    opener=self.opener,
+                ) as response:
                     body = response.read(self.max_response_bytes + 1)
                     status = int(getattr(response, "status", 200))
                 if len(body) > self.max_response_bytes:

@@ -9,24 +9,29 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from pathlib import Path
 from typing import Any
-from urllib.request import Request, urlopen
+
+# Ensure repo root is on sys.path when invoked directly as scripts/build_map_pilot_map.py
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from kpop_scraping.http_request import DEFAULT_USER_AGENT, open_url  # noqa: E402
 
 
 SOURCE_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
     "v5.1.1/geojson/ne_10m_admin_0_countries.geojson"
 )
-USER_AGENT = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)"
 WIDTH = 1200
 HEIGHT = 600
 SIMPLIFY_PX = 0.35
 
 
 def download_features() -> dict[str, Any]:
-    request = Request(SOURCE_URL, headers={"User-Agent": USER_AGENT})
-    with urlopen(request, timeout=30) as response:
+    with open_url(SOURCE_URL, timeout=30, user_agent=DEFAULT_USER_AGENT) as response:
         return json.load(response)
 
 

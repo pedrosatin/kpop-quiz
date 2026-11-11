@@ -201,7 +201,7 @@ class TestMapBuildingAndCLI(unittest.TestCase):
         self.assertEqual(feature["iso_a2"], "US")
         self.assertTrue(feature["path"].startswith("M"))
 
-    @mock.patch("scripts.build_map_pilot_map.urlopen")
+    @mock.patch("kpop_scraping.http_request.urlopen")
     def test_download_features(self, mock_urlopen):
         mock_response = mock.MagicMock()
         mock_response.read.return_value = b'{"type": "FeatureCollection"}'

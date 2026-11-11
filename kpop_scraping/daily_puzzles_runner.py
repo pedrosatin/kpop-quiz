@@ -105,7 +105,7 @@ MISSING_CROSSWORD_HISTORY = "missing previous-day crossword history"
 
 
 def get_reference_date(date_val: str | date | None = None) -> str:
-    """Return ISO YYYY-MM-DD date string. Default to America/Sao_Paulo (or UTC) today."""
+    """Return ISO YYYY-MM-DD date string. Default to today in America/Sao_Paulo."""
     if date_val is None:
         return reference_date_today()
     if isinstance(date_val, date):
