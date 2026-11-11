@@ -19,17 +19,16 @@ import re
 import sys
 import tempfile
 import urllib.parse
-import urllib.request
 from datetime import date
 from pathlib import Path
 from typing import Any
 
+from .http_request import DEFAULT_USER_AGENT, open_url
 from .media_registry import PERMITTED_LICENSES, validate_licensed_media
 
 POOL_SCHEMA_VERSION = "photo-pool-v1"
 POOL_MIN_PER_IDOL = 2
 POOL_PORTRAIT_SHORT_SIDE_PX = 400
-USER_AGENT = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)"
 
 LICENSE_DEED_URLS = {
     "CC0": "https://creativecommons.org/publicdomain/zero/1.0/",
@@ -220,16 +219,15 @@ def check_revalidation(
 def download_asset(
     url: str,
     destination: Path,
-    user_agent: str = USER_AGENT,
+    user_agent: str = DEFAULT_USER_AGENT,
     timeout: float = 60,
 ) -> Path:
     """Download one file sequentially with an identifiable User-Agent."""
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"Insecure URL scheme for asset download: {parsed.scheme}")
-    request = urllib.request.Request(url, headers={"User-Agent": user_agent})
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with open_url(url, timeout=timeout, user_agent=user_agent) as response:
         payload = response.read()
         expected = response.headers.get("Content-Length")
         if not payload or (expected is not None and (not (expected.isascii() and expected.isdigit()) or len(payload) != int(expected))):
@@ -415,7 +413,7 @@ def _run(args: argparse.Namespace) -> int:
         from .mediawiki import MediaWikiClient
 
         records = read_pool_registry(args.registry)
-        client = MediaWikiClient(api_url=args.api_url, user_agent=USER_AGENT)
+        client = MediaWikiClient(api_url=args.api_url, user_agent=DEFAULT_USER_AGENT)
         report = [revalidate_record(client, record) for record in records]
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(

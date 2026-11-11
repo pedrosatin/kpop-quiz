@@ -20,7 +20,9 @@ The map-game pilot at `/pt-br/mapa/` and `/en/map/` asks in which country the of
 - Node.js 24.15 or newer within the 24.x release line for the web interface
 - Internet access to run the collector
 
-The collector uses only the Python standard library.
+The collector uses only the Python standard library. The daily reference date is the date in São Paulo (`America/Sao_Paulo`); without that time zone, generation stops with an error instead of falling back to UTC. Where the system has no time zone database (Windows, minimal containers), `pip install -r requirements.txt` adds `tzdata`.
+
+Every HTTP request goes through `kpop_scraping/http_request.py`, which refuses a request without a positive timeout or without a `User-Agent` that carries a contact URL or e-mail. Retries, rate limits and `maxlag` stay in each client. `tests/test_pipeline_rules.py` fails when `urlopen` appears outside that module, or when importing a `kpop_scraping` module opens a connection or a SQLite database.
 
 ## Quick start
 

@@ -10,8 +10,8 @@ from datetime import date, timedelta
 from http.client import HTTPException
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
-from urllib.request import Request, urlopen
 
+from .http_request import open_url
 from .storage import Repository, canonical_json
 
 
@@ -102,10 +102,14 @@ class PageviewClient:
             f"{PAGEVIEWS_API}/en.wikipedia/all-access/user/"
             f"{quote(clean_title.replace(' ', '_'), safe='')}/daily/{start}/{end}"
         )
-        request = Request(url, headers={"Accept": "application/json", "User-Agent": self.user_agent})
         for attempt in range(self.retries + 1):
             try:
-                with urlopen(request, timeout=self.timeout) as response:
+                with open_url(
+                    url,
+                    timeout=self.timeout,
+                    user_agent=self.user_agent,
+                    headers={"Accept": "application/json"},
+                ) as response:
                     payload = json.load(response)
             except HTTPError as exc:
                 retry_after = exc.headers.get("Retry-After") if exc.headers else None

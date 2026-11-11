@@ -1,1 +1,4 @@
 # The collector uses only the Python 3.11+ standard library.
+# zoneinfo reads the system time zone database first. tzdata supplies
+# America/Sao_Paulo where the system has none (Windows, minimal containers).
+tzdata

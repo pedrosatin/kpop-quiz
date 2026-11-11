@@ -13,6 +13,9 @@ from kpop_scraping.group_relevance import (
 )
 
 
+AGENT = "kpop-quiz-test/1.0 (https://example.org/contact)"
+
+
 def _item(day: str, views: int, title: str = "Example") -> dict:
     return {
         "access": "all-access",
@@ -133,16 +136,16 @@ class GroupPageviewTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "user_agent must not be empty"):
             PageviewClient("")
         with self.assertRaisesRegex(ValueError, "timeout must be positive"):
-            PageviewClient("Agent", timeout=0)
+            PageviewClient(AGENT, timeout=0)
         with self.assertRaisesRegex(ValueError, "retries cannot be negative"):
-            PageviewClient("Agent", retries=-1)
-        client = PageviewClient("Agent", timeout=10, retries=5)
-        self.assertEqual(client.user_agent, "Agent")
+            PageviewClient(AGENT, retries=-1)
+        client = PageviewClient(AGENT, timeout=10, retries=5)
+        self.assertEqual(client.user_agent, AGENT)
         self.assertEqual(client.timeout, 10)
         self.assertEqual(client.retries, 5)
 
     def test_client_fetch_validates_arguments(self):
-        client = PageviewClient("Agent")
+        client = PageviewClient(AGENT)
         with self.assertRaisesRegex(ValueError, "page title must not be empty"):
             client.fetch("  ", "2026-01-01", "2026-01-02")
         with self.assertRaisesRegex(ValueError, "dates must use YYYY-MM-DD"):
@@ -150,20 +153,20 @@ class GroupPageviewTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "dates must use YYYY-MM-DD"):
             client.fetch("A", "2026-01-01", "2026-01-0")
 
-    @patch("kpop_scraping.group_relevance.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     @patch("kpop_scraping.group_relevance.json.load")
     def test_client_fetch_success(self, mock_json_load, mock_urlopen):
         mock_json_load.return_value = {"items": [_item("2026-01-01", 10)]}
         mock_response = Mock()
         mock_urlopen.return_value.__enter__.return_value = mock_response
-        client = PageviewClient("Agent")
+        client = PageviewClient(AGENT)
         result = client.fetch("Example", "2026-01-01", "2026-01-01")
         self.assertEqual(result.title, "Example")
         self.assertEqual(result.total_views, 10)
         self.assertEqual(result.days_observed, 1)
 
     @patch("kpop_scraping.group_relevance.time.sleep")
-    @patch("kpop_scraping.group_relevance.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     @patch("kpop_scraping.group_relevance.json.load")
     def test_client_fetch_retries_on_http_error(self, mock_json_load, mock_urlopen, mock_sleep):
         from urllib.error import HTTPError
@@ -176,7 +179,7 @@ class GroupPageviewTest(unittest.TestCase):
         mock_urlopen.side_effect = [error_429, mock_response]
         mock_json_load.return_value = {"items": [_item("2026-01-01", 10)]}
 
-        client = PageviewClient("Agent", retries=1)
+        client = PageviewClient(AGENT, retries=1)
         result = client.fetch("Example", "2026-01-01", "2026-01-01")
 
         self.assertEqual(result.total_views, 10)
@@ -184,27 +187,27 @@ class GroupPageviewTest(unittest.TestCase):
         mock_sleep.assert_called_with(2.0)
 
     @patch("kpop_scraping.group_relevance.time.sleep")
-    @patch("kpop_scraping.group_relevance.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_client_fetch_fails_on_non_retryable_http_error(self, mock_urlopen, mock_sleep):
         from urllib.error import HTTPError
 
         error_404 = HTTPError("url", 404, "Not Found", {}, None)
         mock_urlopen.side_effect = error_404
 
-        client = PageviewClient("Agent")
+        client = PageviewClient(AGENT)
         with self.assertRaisesRegex(PageviewError, "failed with HTTP 404"):
             client.fetch("Example", "2026-01-01", "2026-01-01")
 
         mock_sleep.assert_not_called()
 
     @patch("kpop_scraping.group_relevance.time.sleep")
-    @patch("kpop_scraping.group_relevance.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_client_fetch_exhausts_retries(self, mock_urlopen, mock_sleep):
         from urllib.error import URLError
 
         mock_urlopen.side_effect = URLError("Network down")
 
-        client = PageviewClient("Agent", retries=2)
+        client = PageviewClient(AGENT, retries=2)
         with self.assertRaisesRegex(PageviewError, "failed after retries"):
             client.fetch("Example", "2026-01-01", "2026-01-01")
 
@@ -213,10 +216,10 @@ class GroupPageviewTest(unittest.TestCase):
     def test_client_fetch_fails_when_all_retries_fail_with_http_error(self):
         from urllib.error import HTTPError
         error_500 = HTTPError("url", 500, "Internal Server Error", {}, None)
-        with patch("kpop_scraping.group_relevance.urlopen") as mock_urlopen, \
+        with patch("kpop_scraping.http_request.urlopen") as mock_urlopen, \
              patch("kpop_scraping.group_relevance.time.sleep") as mock_sleep:
             mock_urlopen.side_effect = [error_500, error_500, error_500]
-            client = PageviewClient("Agent", retries=2)
+            client = PageviewClient(AGENT, retries=2)
             with self.assertRaisesRegex(PageviewError, "failed with HTTP 500"):
                 client.fetch("Example", "2026-01-01", "2026-01-01")
             self.assertEqual(mock_sleep.call_count, 2)
@@ -312,7 +315,7 @@ class GroupPageviewTest(unittest.TestCase):
         # We can just mock the whole loop with an empty range? No, range is determined by self.retries + 1.
         # Let's just set retries to -1 using a trick (if validation didn't catch it).
         # We validate retries in __init__, so we bypass it.
-        client = PageviewClient("Agent")
+        client = PageviewClient(AGENT)
         client.retries = -1
         with self.assertRaisesRegex(AssertionError, "retry loop exited unexpectedly"):
             client.fetch("Example", "2026-01-01", "2026-01-01")

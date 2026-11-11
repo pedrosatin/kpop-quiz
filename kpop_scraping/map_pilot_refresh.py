@@ -32,10 +32,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.request import Request, urlopen
 
 from .country_crosswalk import build_country_crosswalk
-from .musicbrainz import DEFAULT_USER_AGENT, MusicBrainzClient
+from .http_request import DEFAULT_USER_AGENT, open_url
+from .musicbrainz import MusicBrainzClient
 from .official_schedule import ScheduleEntry, parse_yg_tour_schedule
 from .tour_events import CountryIdentity, TourEventContext, assess_tour_event_candidate
 from .wikidata import MAX_ENTITIES_PER_REQUEST, EntityProfile, WikidataEntityClient
@@ -97,8 +97,7 @@ class DatasetError(ValueError):
 
 
 def fetch_schedule_html(url: str, user_agent: str = DEFAULT_USER_AGENT, timeout: float = 30) -> str:
-    request = Request(url, headers={"Accept": "text/html", "User-Agent": user_agent})
-    with urlopen(request, timeout=timeout) as response:
+    with open_url(url, timeout=timeout, user_agent=user_agent, headers={"Accept": "text/html"}) as response:
         charset = response.headers.get_content_charset() or "utf-8"
         return response.read().decode(charset)
 

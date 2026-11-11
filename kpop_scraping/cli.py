@@ -6,6 +6,7 @@ from pathlib import Path
 from .catalog import classify_catalog
 from .collector import collect_category
 from .fact_pipeline import extract_facts
+from .http_request import DEFAULT_USER_AGENT
 from .mediawiki import MediaWikiClient, MediaWikiError
 from .reports import export_fact_coverage_csv, export_release_coverage_csv
 from .release_discovery import MAX_GROUPS_PER_QUERY, WikidataQueryClient, discover_releases
@@ -67,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
             "the default database and its raw directory are refused"
         ),
     )
-    parser.add_argument("--user-agent", default="kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)")
+    parser.add_argument("--user-agent", default=DEFAULT_USER_AGENT)
     return parser
 
 

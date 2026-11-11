@@ -20,7 +20,8 @@ from decimal import Decimal
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+
+from .http_request import DEFAULT_USER_AGENT, open_url
 
 YOUTUBE_CHANNEL_PROPERTY = "P2397"
 YOUTUBE_HANDLE_PROPERTY = "P11245"
@@ -130,10 +131,11 @@ def fetch_youtube_statistics(
     url = YOUTUBE_STATISTICS_URL + "?" + urlencode(
         {"part": "statistics", "id": ",".join(channel_ids), "key": api_key}
     )
-    request = Request(url, headers={"Accept": "application/json", "User-Agent": "kpop-quiz-group-signals/1.0"})
     request_failed = False
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with open_url(
+            url, timeout=timeout, user_agent=DEFAULT_USER_AGENT, headers={"Accept": "application/json"}
+        ) as response:
             payload = json.load(response)
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):
         request_failed = True

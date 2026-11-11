@@ -35,7 +35,7 @@ class MusicBrainzClientTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             client.lookup("invalid_entity", "123")
 
-    @patch("kpop_scraping.musicbrainz.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_get_returns_json_payload(self, urlopen_mock):
         payload = {"data": "test"}
         urlopen_mock.return_value = Response(json.dumps(payload).encode("utf-8"))
@@ -46,7 +46,7 @@ class MusicBrainzClientTest(unittest.TestCase):
         result = client._get("https://test.api/artist/123")
         self.assertEqual(result, payload)
 
-    @patch("kpop_scraping.musicbrainz.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_get_retries_retryable_error(self, urlopen_mock):
         payload = {"data": "success"}
         urlopen_mock.side_effect = [
@@ -66,7 +66,7 @@ class MusicBrainzClientTest(unittest.TestCase):
         # sleep gets called from _wait_for_slot (1.1) and _retry_delay (1.0)
         sleep_mock.assert_any_call(1.0) # max(2**0, 1.0) = 1.0
 
-    @patch("kpop_scraping.musicbrainz.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_get_fails_on_non_retryable_error(self, urlopen_mock):
         urlopen_mock.side_effect = http_error(404)
 
@@ -80,7 +80,7 @@ class MusicBrainzClientTest(unittest.TestCase):
         self.assertIn("HTTP 404", str(ctx.exception))
         self.assertEqual(urlopen_mock.call_count, 1)
 
-    @patch("kpop_scraping.musicbrainz.urlopen")
+    @patch("kpop_scraping.http_request.urlopen")
     def test_get_exhausts_retries(self, urlopen_mock):
         urlopen_mock.side_effect = [
             http_error(503),
