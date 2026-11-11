@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { Locale, TimelinePuzzle } from "../../lib/quiz-types";
-import {
-  isGameMatchRecorded,
-  recordMatchOnce,
-} from "../../lib/player-stats";
+import { recordMatchOnce } from "../../lib/player-stats";
 import { dailyReferenceDate } from "../../data/daily-artifact";
 import { timelineMatchId, useTimelineGame } from "./useTimelineGame";
 import { TimelineBoard } from "./TimelineBoard";
@@ -11,6 +8,7 @@ import { TimelineResults } from "./TimelineResults";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getMessages } from "../../i18n/catalog";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
+import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 
 export interface TimelineGameContentProps {
   puzzle: TimelinePuzzle;
@@ -106,7 +104,7 @@ export function TimelineGameContent({
   useEffect(() => {
     if (gameStatus === "submitted") {
       const matchId = timelineMatchId(puzzle);
-      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("timeline", matchId)) {
+      if (recordedMatchRef.current !== matchId) {
         // A give-up reveals the canonical order, so a correct board after
         // one still counts as played without a win.
         const isWin = !gaveUp && score === puzzle.events.length;
@@ -117,6 +115,9 @@ export function TimelineGameContent({
       recordedMatchRef.current = null;
     }
   }, [gameStatus, puzzle, score, gaveUp]);
+  const dayDone = useDailyMatchDone("timeline", puzzle.reference_date, timelineMatchId(puzzle), gameStatus === "submitted");
+
+  if (dayDone) return <DailyDone game="timeline" locale={locale} />;
 
   return (
     <section id="timeline" class="timeline-game" data-testid="game-board" aria-labelledby="timeline-board-heading">

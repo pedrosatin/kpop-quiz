@@ -9,13 +9,11 @@ import { WordSearchGrid } from "./WordSearchGrid";
 import { WordSearchList } from "./WordSearchList";
 import { WordSearchResult } from "./WordSearchResult";
 import { formatTime } from "./utils";
-import {
-  isGameMatchRecorded,
-  recordMatchOnce,
-} from "../../lib/player-stats";
+import { recordMatchOnce } from "../../lib/player-stats";
 import { dailyReferenceDate } from "../../data/daily-artifact";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
+import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 
 interface WordSearchGameContentProps {
   puzzle: WordSearchPuzzle;
@@ -83,7 +81,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   useEffect(() => {
     if (completed && puzzle) {
       const matchId = wordSearchMatchId(puzzle);
-      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("word-search", matchId)) {
+      if (recordedMatchRef.current !== matchId) {
         recordMatchOnce("word-search", matchId, foundWordIds.length >= puzzle.words.length, puzzle.reference_date || dailyReferenceDate());
         recordedMatchRef.current = matchId;
       }
@@ -91,6 +89,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
       recordedMatchRef.current = null;
     }
   }, [completed, puzzle, foundWordIds.length]);
+  const dayDone = useDailyMatchDone("word-search", puzzle.reference_date, wordSearchMatchId(puzzle), completed);
 
   // Names are resolved against the whole list, so two words that differ only
   // by a disambiguator keep it.
@@ -146,6 +145,8 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   } else {
     message = <p class="game-actions-hint">{t.selectionHint}</p>;
   }
+
+  if (dayDone) return <DailyDone game="wordSearch" locale={locale} />;
 
   return (
     <section class="game-card game-card--wide word-search" id="word-search" data-testid="game-board">

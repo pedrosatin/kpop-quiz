@@ -1,8 +1,5 @@
 import { useEffect, type MutableRef } from "preact/hooks";
-import {
-  isGameMatchRecorded,
-  recordMatchOnce,
-} from "../../lib/player-stats";
+import { dailyMatchId, recordMatchOnce } from "../../lib/player-stats";
 import type { QuizSession } from "../../lib/quiz-types";
 import { quizDailyDate } from "./daily-seed";
 import type { QuestionResult, QuizMachineState } from "./types";
@@ -24,9 +21,9 @@ export function useRecordQuizMatch(
   useEffect(() => {
     if (state !== "results" || !session) return;
     const dailyDate = quizDailyDate(session, theme);
-    const matchId = dailyDate ? `daily-${dailyDate}` : `session-${session.session_id || "default"}`;
+    const matchId = dailyDate ? dailyMatchId(dailyDate) : `session-${session.session_id || "default"}`;
 
-    if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("quiz", matchId)) {
+    if (recordedMatchRef.current !== matchId) {
       recordMatchOnce("quiz", matchId, isQuizWin(session, history), dailyDate);
       recordedMatchRef.current = matchId;
     }

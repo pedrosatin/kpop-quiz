@@ -11,11 +11,12 @@ import {
   type GridFeedback,
 } from "./grid-feedback";
 import { CELL_GUARD_MS, nextCellAfterGuess } from "./next-cell-after-guess";
-import { useRecordGridMatch } from "./useRecordGridMatch";
+import { gridMatchId, useRecordGridMatch } from "./useRecordGridMatch";
 import { useGridGame } from "./useGridGame";
 import type { CellCoordinates, GridCellState, GridGameStatus } from "./types";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
+import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 
 type GridGameApi = ReturnType<typeof useGridGame>;
 
@@ -89,6 +90,7 @@ export function IntersectionGridContent({
   }, [focusCell, isComplete]);
 
   useRecordGridMatch(grid, status, solvedCount, gaveUp);
+  const dayDone = useDailyMatchDone("grid", grid.reference_date, gridMatchId(grid), isComplete);
 
   // The second tap of a double tap on a group lands on the board once the
   // picker closes; it must not open the cell under it. A click from Enter or
@@ -145,6 +147,8 @@ export function IntersectionGridContent({
   const selectedColCrit = selectedCell ? grid.col_criteria[selectedCell.col]?.label[locale] : undefined;
   const guessesLeft = maxGuesses - guessesUsed;
   const barState = gridBarState(isComplete, feedback);
+
+  if (dayDone) return <DailyDone game="grid" locale={locale} />;
 
   return (
     <section id="grid" class="game-card game-card--wide grid-game" data-testid="game-board" aria-labelledby="grid-hud-heading">

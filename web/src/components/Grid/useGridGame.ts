@@ -1,5 +1,5 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { isGameMatchRecorded } from "../../lib/player-stats";
+import { isDailyMatchRecorded } from "../../lib/player-stats";
 import { gridMatchId, isGridWin } from "./useRecordGridMatch";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { CandidateEntity, IntersectionGrid, Locale } from "../../lib/quiz-types";
@@ -153,7 +153,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     {
       game: "grid",
       locale,
-      isDaily: () => grid !== null && !isGameMatchRecorded("grid", gridMatchId(grid)),
+      isDaily: () => grid !== null && !isDailyMatchRecorded("grid", grid.reference_date, gridMatchId(grid)),
       outcome: status !== "complete" ? null : gaveUp ? "give_up" : isGridWin(countSolved(storedCells)) ? "win" : "loss",
     },
     status === "complete",

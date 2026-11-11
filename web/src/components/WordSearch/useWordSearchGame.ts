@@ -1,5 +1,5 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { isGameMatchRecorded } from "../../lib/player-stats";
+import { isDailyMatchRecorded } from "../../lib/player-stats";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { CellCoord, GameStatus, SelectionCheck } from "./types";
@@ -86,7 +86,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     {
       game: "word-search",
       locale,
-      isDaily: () => !isGameMatchRecorded("word-search", wordSearchMatchId(puzzle)),
+      isDaily: () => !isDailyMatchRecorded("word-search", puzzle.reference_date, wordSearchMatchId(puzzle)),
       // The round has no failure state: it ends with every word found or a give-up.
       outcome: status !== "completed" ? null : foundWordIds.length >= puzzle.words.length ? "win" : "give_up",
     },

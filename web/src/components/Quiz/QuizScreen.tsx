@@ -1,5 +1,6 @@
 import type { Messages } from "../../i18n/catalog";
 import type { Locale, QuizQuestion, QuizSession } from "../../lib/quiz-types";
+import { isDailyMatchRecorded } from "../../lib/player-stats";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { GameSetup } from "../GameSetup/GameSetup";
 import { quizDailyDate } from "./daily-seed";
@@ -42,7 +43,11 @@ function replayNoticeText(status: ReplayNotice, messages: Messages): string | un
   return undefined;
 }
 
-function setupNoticeText({ resumeNotice, replayStatus }: QuizMatch, messages: Messages): string | undefined {
+// The daily theme's round counts once per date (ADR 030): once it is counted,
+// the setup says so before any note about the saved round.
+function setupNoticeText({ resumeNotice, replayStatus, session }: QuizMatch, settings: QuizSettings, messages: Messages): string | undefined {
+  const dailyDate = session ? quizDailyDate(session, settings.theme) : undefined;
+  if (dailyDate !== undefined && isDailyMatchRecorded("quiz", dailyDate)) return messages.quizDailyDone;
   if (resumeNotice === "incompatible") return messages.quizResumeIncompatible;
   if (resumeNotice === "invalid") return messages.quizResumeInvalid;
   if (resumeNotice === "storage-unavailable") return messages.quizStorageUnavailable;
@@ -68,7 +73,7 @@ function QuizSetupScreen({ messages, settings, match, hydrated, actions }: QuizS
   return (
     <GameSetup key={hydrated ? "client" : "ssr"} busy={state === "loading"} busyLabel={messages.loading}
       playMode={settings.playMode} theme={settings.theme} decades={settings.decades} availableDecades={settings.availableDecades} timerEnabled={settings.timerEnabled} messages={messages}
-      notice={setupNoticeText(match, messages)}
+      notice={setupNoticeText(match, settings, messages)}
       onSelectTheme={settings.selectTheme}
       onSelectDecades={settings.selectDecades}
       onSelectMode={settings.selectMode}

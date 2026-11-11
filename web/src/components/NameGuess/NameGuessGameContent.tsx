@@ -5,15 +5,13 @@ import { NameGuessResults } from "./NameGuessResults";
 import { VirtualKeyboard } from "./VirtualKeyboard";
 import type { NameGuessTranslations } from "./types";
 import { nameGuessMatchId, useNameGuessGame } from "./useNameGuessGame";
-import {
-  isGameMatchRecorded,
-  recordMatchOnce,
-} from "../../lib/player-stats";
+import { recordMatchOnce } from "../../lib/player-stats";
 import { dailyReferenceDate } from "../../data/daily-artifact";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getMessages } from "../../i18n/catalog";
 import { formatCalendarDate } from "../../lib/format-date";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
+import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 
 function isTextEntry(el: HTMLElement): boolean {
   return (
@@ -28,6 +26,35 @@ function isTextEntry(el: HTMLElement): boolean {
 // working while a virtual key has focus; only Enter belongs to them.
 function isActivatable(el: HTMLElement): boolean {
   return el.closest("button, a[href], summary, [role='button'], [role='link']") !== null;
+}
+
+/** Physical keyboard listener on the window; none while `enabled` is false. */
+function usePhysicalKeyboard(
+  enabled: boolean,
+  submit: () => void,
+  removeLetter: () => void,
+  addLetter: (letter: string) => void,
+): void {
+  useEffect(() => {
+    if (!enabled) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target && isTextEntry(target)) return;
+      if (e.key === "Enter") {
+        // Enter on a focused button already activates that button.
+        if (target && isActivatable(target)) return;
+        submit();
+      } else if (e.key === "Backspace") {
+        removeLetter();
+      } else if (/^[a-zA-Z]$/.test(e.key)) {
+        addLetter(e.key);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [enabled, submit, removeLetter, addLetter]);
 }
 
 export interface NameGuessGameContentProps {
@@ -62,26 +89,9 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
     submitGuess();
   }, [submitGuess]);
 
-  // Physical keyboard listener
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
-      const target = e.target instanceof HTMLElement ? e.target : null;
-      if (target && isTextEntry(target)) return;
-      if (e.key === "Enter") {
-        // Enter on a focused button already activates that button.
-        if (target && isActivatable(target)) return;
-        submit();
-      } else if (e.key === "Backspace") {
-        removeLetter();
-      } else if (/^[a-zA-Z]$/.test(e.key)) {
-        addLetter(e.key);
-      }
-    }
+  const dayDone = useDailyMatchDone("name-guess", puzzle.reference_date, nameGuessMatchId(puzzle), status !== "playing");
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [submit, removeLetter, addLetter]);
+  usePhysicalKeyboard(!dayDone, submit, removeLetter, addLetter);
 
   const attemptsUsed = guesses.length;
   const attemptsRemaining = puzzle.max_attempts - attemptsUsed;
@@ -100,7 +110,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
   useEffect(() => {
     if (isGameOver && puzzle) {
       const matchId = nameGuessMatchId(puzzle);
-      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("name-guess", matchId)) {
+      if (recordedMatchRef.current !== matchId) {
         const isWin = status === "won";
         const guessCount = guesses.length;
         recordMatchOnce("name-guess", matchId, isWin, puzzle.reference_date || dailyReferenceDate(), guessCount);
@@ -149,6 +159,8 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
   }
 
   const actionsState = status === "won" ? " is-correct" : status === "lost" ? " is-incorrect" : "";
+
+  if (dayDone) return <DailyDone game="nameGuess" locale={locale} />;
 
   return (
     <section

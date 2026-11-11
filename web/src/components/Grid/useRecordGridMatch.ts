@@ -1,9 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { IntersectionGrid } from "../../lib/quiz-types";
-import {
-  isGameMatchRecorded,
-  recordMatchOnce,
-} from "../../lib/player-stats";
+import { recordMatchOnce } from "../../lib/player-stats";
 import { dailyReferenceDate } from "../../data/daily-artifact";
 import type { GridGameStatus } from "./types";
 
@@ -27,7 +24,7 @@ export function useRecordGridMatch(
   useEffect(() => {
     if (status === "complete" && grid) {
       const matchId = gridMatchId(grid);
-      if (recordedMatchRef.current !== matchId && !isGameMatchRecorded("grid", matchId)) {
+      if (recordedMatchRef.current !== matchId) {
         const isWin = !gaveUp && isGridWin(solvedCount);
         recordMatchOnce("grid", matchId, isWin, grid.reference_date || dailyReferenceDate());
         recordedMatchRef.current = matchId;

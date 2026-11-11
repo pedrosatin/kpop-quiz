@@ -430,7 +430,30 @@ export function markGameMatchRecorded(gameId: GameId, matchId: string): void {
   }
 }
 
-/** Counts a match once; reset keeps its marker while the saved board still exists. */
+/**
+ * The identity of a daily match: the game and the challenge's reference date
+ * (ADR 030). A board republished for the same date is the same daily match.
+ */
+export function dailyMatchId(dateStr: string): string {
+  return `daily-${dateStr}`;
+}
+
+/**
+ * Whether the daily match of `dateStr` is already counted. `legacyMatchId` is
+ * the board's id under the earlier per-board key (`puzzle_id` or
+ * `dataset_version`): a match counted under it before the change still counts.
+ */
+export function isDailyMatchRecorded(gameId: GameId, dateStr: string, legacyMatchId?: string): boolean {
+  return isGameMatchRecorded(gameId, dailyMatchId(dateStr))
+    || (legacyMatchId !== undefined && isGameMatchRecorded(gameId, legacyMatchId));
+}
+
+/**
+ * Counts a match once; reset keeps its marker while the saved board still
+ * exists. With `dateStr` the match is the day's challenge, counted once per
+ * game and date whatever board `matchId` names; without it (free play) the
+ * match is `matchId` itself.
+ */
 export function recordMatchOnce(
   gameId: GameId,
   matchId: string,
@@ -438,8 +461,9 @@ export function recordMatchOnce(
   dateStr?: string,
   guessCount?: number,
 ): boolean {
-  if (isGameMatchRecorded(gameId, matchId)) return false;
+  const recorded = dateStr ? isDailyMatchRecorded(gameId, dateStr, matchId) : isGameMatchRecorded(gameId, matchId);
+  if (recorded) return false;
   recordGameFinish(gameId, isWin, dateStr, guessCount);
-  markGameMatchRecorded(gameId, matchId);
+  markGameMatchRecorded(gameId, dateStr ? dailyMatchId(dateStr) : matchId);
   return true;
 }

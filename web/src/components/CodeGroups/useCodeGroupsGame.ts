@@ -2,18 +2,21 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { CodeGroupsGuess, CodeGroupsPuzzle } from "../../data/code-groups";
 import { scoreGuess } from "../../data/code-groups";
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { isGameMatchRecorded } from "../../lib/player-stats";
+import { isDailyMatchRecorded } from "../../lib/player-stats";
 import { codeGroupsMatchId } from "./useRecordCodeGroupsMatch";
 import type { Locale } from "../../lib/quiz-types";
 
 /**
  * What localStorage keeps of one daily round, under `kpop-code-<YYYY-MM-DD>`
- * (the puzzle date), following the map save: the QIDs of every submitted
- * guess in order and the current selection. The exact/misplaced counts are
- * recomputed from the secret, so a save never shows a count play did not
- * produce, and a save for another date is pruned instead of resumed.
+ * (the puzzle date), following the map save: the board's `puzzle_id`, the
+ * QIDs of every submitted guess in order and the current selection. The
+ * exact/misplaced counts are recomputed from the secret, so a save never
+ * shows a count play did not produce. A save for another date is pruned, and
+ * one for another board of the same date (a republished day, or a save from
+ * before the id was kept) is dropped instead of resumed.
  */
 export interface CodeGroupsSave {
+  puzzle_id: string;
   history: string[][];
   selection: string[];
 }
@@ -58,7 +61,8 @@ export function loadCodeGroupsSave(puzzle: CodeGroupsPuzzle): CodeGroupsSave | n
     return null;
   }
   if (typeof saved !== "object" || saved === null || Array.isArray(saved)) return null;
-  const { history, selection } = saved as Partial<CodeGroupsSave>;
+  const { puzzle_id, history, selection } = saved as Partial<CodeGroupsSave>;
+  if (puzzle_id !== puzzle.puzzle_id) return null;
   if (!Array.isArray(history) || history.length > puzzle.max_attempts) return null;
   for (const ids of history) {
     if (!Array.isArray(ids) || ids.length !== 4 || new Set(ids).size !== 4) return null;
@@ -67,12 +71,13 @@ export function loadCodeGroupsSave(puzzle: CodeGroupsPuzzle): CodeGroupsSave | n
   if (!Array.isArray(selection) || selection.length !== 4) return null;
   if (history.length === puzzle.max_attempts && selection.some((id) => id !== "")) return null;
   if (!selection.every((id) => id === "" || isSymbolId(id, puzzle))) return null;
-  return { history: history.map((ids) => [...ids]), selection: [...selection] };
+  return { puzzle_id, history: history.map((ids) => [...ids]), selection: [...selection] };
 }
 
-export function storeCodeGroupsSave(puzzle: CodeGroupsPuzzle, save: CodeGroupsSave): void {
+export function storeCodeGroupsSave(puzzle: CodeGroupsPuzzle, save: Omit<CodeGroupsSave, "puzzle_id">): void {
   try {
-    localStorage.setItem(codeGroupsStorageKey(puzzle.reference_date), JSON.stringify(save));
+    const stored: CodeGroupsSave = { puzzle_id: puzzle.puzzle_id, ...save };
+    localStorage.setItem(codeGroupsStorageKey(puzzle.reference_date), JSON.stringify(stored));
   } catch {}
 }
 
@@ -119,7 +124,7 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
     {
       game: "code",
       locale,
-      isDaily: () => !isGameMatchRecorded("code", codeGroupsMatchId(puzzle)),
+      isDaily: () => !isDailyMatchRecorded("code", puzzle.reference_date, codeGroupsMatchId(puzzle)),
       // The round has no give-up: it ends with the code or out of attempts.
       outcome: finished ? (won ? "win" : "loss") : null,
     },

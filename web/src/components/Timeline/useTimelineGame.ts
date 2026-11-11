@@ -1,5 +1,5 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { isGameMatchRecorded } from "../../lib/player-stats";
+import { isDailyMatchRecorded } from "../../lib/player-stats";
 import { useCallback, useMemo, useState } from "preact/hooks";
 import type { Locale, TimelineEvent, TimelinePuzzle } from "../../lib/quiz-types";
 import type { TimelineGameStatus } from "./types";
@@ -41,7 +41,7 @@ export function useTimelineGame(
     {
       game: "timeline",
       locale,
-      isDaily: () => !isGameMatchRecorded("timeline", timelineMatchId(puzzle)),
+      isDaily: () => !isDailyMatchRecorded("timeline", puzzle.reference_date, timelineMatchId(puzzle)),
       outcome: gameStatus !== "submitted" ? null : gaveUp ? "give_up" : score === puzzle.events.length ? "win" : "loss",
     },
     gameStatus === "submitted",

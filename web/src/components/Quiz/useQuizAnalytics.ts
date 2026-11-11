@@ -1,5 +1,5 @@
 import { useGameAnalytics, type GameOutcome } from "../../lib/game-analytics";
-import { isGameMatchRecorded } from "../../lib/player-stats";
+import { isDailyMatchRecorded } from "../../lib/player-stats";
 import type { Locale } from "../../lib/quiz-types";
 import { quizDailyDate } from "./daily-seed";
 import type { QuizMatch } from "./useQuizMatch";
@@ -22,7 +22,7 @@ export function useQuizAnalytics(locale: Locale, settings: QuizSettings, match: 
       mode: settings.playMode,
       isDaily: () => {
         const dailyDate = session ? quizDailyDate(session, settings.theme) : undefined;
-        return dailyDate !== undefined && !isGameMatchRecorded("quiz", `daily-${dailyDate}`);
+        return dailyDate !== undefined && !isDailyMatchRecorded("quiz", dailyDate);
       },
       outcome: quizOutcome(match),
     },
