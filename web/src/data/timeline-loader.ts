@@ -3,7 +3,7 @@ import {
   type TimelinePuzzle,
   type Locale,
 } from "../lib/quiz-types";
-import { dailyReferenceDate, nextDataUrl, preferNextDaily } from "./daily-artifact";
+import { dailyReferenceDate, nextDataUrl, noteDailyBoard, preferNextDaily } from "./daily-artifact";
 
 export class TimelineArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -43,7 +43,7 @@ export async function loadTimelinePuzzle(
       ) {
         const payload: unknown = await nextResponse.json();
         if (isTimelinePuzzle(payload) && payload.reference_date <= today) {
-          return payload;
+          return noteDailyBoard(payload, payload.reference_date, today);
         }
       }
     } catch {

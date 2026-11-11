@@ -1,4 +1,4 @@
-import { dailyReferenceDate } from "../../data/daily-artifact";
+import { dailyReferenceDate, staleDailyDate } from "../../data/daily-artifact";
 import type { QuizSession } from "../../lib/quiz-types";
 import type { QuizTheme } from "./url-params";
 
@@ -9,8 +9,12 @@ export function dailySeedDate(session: QuizSession): string | undefined {
     : undefined;
 }
 
-/** Day a daily-theme round counts for: its seed's date, else today in Sao Paulo. Undefined for other themes. */
+/**
+ * Day a daily-theme round counts for: its seed's date, else today in Sao Paulo.
+ * Undefined for other themes and for a daily session from an earlier day,
+ * which is not today's challenge.
+ */
 export function quizDailyDate(session: QuizSession, theme: QuizTheme): string | undefined {
-  if (theme !== "daily") return undefined;
+  if (theme !== "daily" || staleDailyDate(session)) return undefined;
   return dailySeedDate(session) ?? dailyReferenceDate();
 }

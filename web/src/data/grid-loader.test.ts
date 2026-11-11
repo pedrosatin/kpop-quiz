@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GridArtifactError, loadIntersectionGrid } from "./grid-loader";
+import { staleDailyDate } from "./daily-artifact";
 import { isIntersectionGrid } from "../lib/quiz-types";
 import validGrid from "../tests/fixtures/grid.daily.json";
 import legacyMain from "../tests/fixtures/grid.published-legacy-20261026.json";
@@ -38,6 +39,8 @@ describe("published intersection grid loader and validator", () => {
     const result = await loadIntersectionGrid("pt-BR", "/", "2099-01-01");
     expect(result.reference_date).toBe(validGrid.reference_date);
     expect(fetch).toHaveBeenCalledWith("/data/grid.daily.json?d=2099-01-01", { cache: "no-store" });
+    // The grid keeps its own rule: a reused board still counts for its date.
+    expect(staleDailyDate(result)).toBeUndefined();
   });
 
   it("shows a reused legacy grid with the formation wording and keeps its identity", async () => {

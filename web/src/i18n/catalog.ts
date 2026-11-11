@@ -350,6 +350,8 @@ export interface Messages {
   /** Shown instead of a new board when the date's board was republished after the player finished it. */
   dailyDoneTitle: string;
   dailyDoneBody: string;
+  /** Shown above a daily board from an earlier day, when today's was not published yet. */
+  staleDaily: (date: string) => string;
   codeSequenceNote: string;
   codeAttemptsLeft: (remaining: number) => string;
   codeYourGuess: string;
@@ -884,6 +886,7 @@ const catalogs: Record<Locale, Messages> = {
     dailyAllDone: "Você concluiu todos os jogos de hoje.",
     dailyDoneTitle: "Desafio de hoje concluído",
     dailyDoneBody: "O tabuleiro de hoje foi atualizado depois da sua partida. Ela continua nas suas estatísticas, e a nova versão não conta como outra partida.",
+    staleDaily: (date) => `Este é o desafio de ${date}. O de hoje ainda não saiu.`,
     statsTitle: "Suas estatísticas",
     statsNavLabel: "Estatísticas",
     statsOpenButton: "Ver estatísticas e sequência",
@@ -1367,6 +1370,7 @@ const catalogs: Record<Locale, Messages> = {
     dailyAllDone: "You finished all of today's games.",
     dailyDoneTitle: "Today's challenge is done",
     dailyDoneBody: "Today's board was updated after you played it. Your game stays in your stats, and the new version does not count as another game.",
+    staleDaily: (date) => `This is the challenge from ${date}. Today's is not out yet.`,
     statsTitle: "Your stats",
     statsNavLabel: "Stats",
     statsOpenButton: "See stats and streak",

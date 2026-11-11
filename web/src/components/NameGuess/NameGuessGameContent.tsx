@@ -5,8 +5,7 @@ import { NameGuessResults } from "./NameGuessResults";
 import { VirtualKeyboard } from "./VirtualKeyboard";
 import type { NameGuessTranslations } from "./types";
 import { nameGuessMatchId, useNameGuessGame } from "./useNameGuessGame";
-import { recordMatchOnce } from "../../lib/player-stats";
-import { dailyReferenceDate } from "../../data/daily-artifact";
+import { recordDailyBoardMatch } from "../../lib/player-stats";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getMessages } from "../../i18n/catalog";
 import { formatCalendarDate } from "../../lib/format-date";
@@ -113,7 +112,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
       if (recordedMatchRef.current !== matchId) {
         const isWin = status === "won";
         const guessCount = guesses.length;
-        recordMatchOnce("name-guess", matchId, isWin, puzzle.reference_date || dailyReferenceDate(), guessCount);
+        recordDailyBoardMatch("name-guess", puzzle, matchId, isWin, guessCount);
         recordedMatchRef.current = matchId;
       }
     } else if (!isGameOver) {

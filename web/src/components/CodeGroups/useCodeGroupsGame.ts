@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { CodeGroupsGuess, CodeGroupsPuzzle } from "../../data/code-groups";
 import { scoreGuess } from "../../data/code-groups";
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { isDailyMatchRecorded } from "../../lib/player-stats";
+import { isDailyBoardRound } from "../../lib/player-stats";
 import { codeGroupsMatchId } from "./useRecordCodeGroupsMatch";
 import type { Locale } from "../../lib/quiz-types";
 
@@ -124,7 +124,7 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
     {
       game: "code",
       locale,
-      isDaily: () => !isDailyMatchRecorded("code", puzzle.reference_date, codeGroupsMatchId(puzzle)),
+      isDaily: () => isDailyBoardRound("code", puzzle, codeGroupsMatchId(puzzle)),
       // The round has no give-up: it ends with the code or out of attempts.
       outcome: finished ? (won ? "win" : "loss") : null,
     },

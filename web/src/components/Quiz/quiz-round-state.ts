@@ -1,4 +1,6 @@
+import { noteDailyBoard } from "../../data/daily-artifact";
 import { isQuizSession, type QuizSession } from "../../lib/quiz-types";
+import { dailySeedDate } from "./daily-seed";
 import { clearQuizProgress, expandHistory, type QuizProgressConfigIdentity, type QuizProgressSave } from "./storage";
 import type { QuizLoadContext, QuizMachineState, QuizPlayContext, ReplayNotice, SessionSource } from "./types";
 import type { QuizDecadeSelection, QuizDecadeValue } from "./url-params";
@@ -65,7 +67,9 @@ export function applyRestoredSave(
   }
   ctx.stopTimer();
   match.closeGiveUpConfirm();
-  match.setSession(save.session);
+  // The save holds a copy of the session: a daily one from an earlier day is
+  // noted again, as the loader noted the session it matched.
+  match.setSession(noteDailyBoard(save.session, dailySeedDate(save.session)));
   match.setSessionSource(source);
   match.setReplayStatus(save.replay_notice);
   settings.setAvailableDecades(available);

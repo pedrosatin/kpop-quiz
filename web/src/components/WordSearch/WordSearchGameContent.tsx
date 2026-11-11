@@ -9,8 +9,7 @@ import { WordSearchGrid } from "./WordSearchGrid";
 import { WordSearchList } from "./WordSearchList";
 import { WordSearchResult } from "./WordSearchResult";
 import { formatTime } from "./utils";
-import { recordMatchOnce } from "../../lib/player-stats";
-import { dailyReferenceDate } from "../../data/daily-artifact";
+import { recordDailyBoardMatch } from "../../lib/player-stats";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
@@ -82,7 +81,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
     if (completed && puzzle) {
       const matchId = wordSearchMatchId(puzzle);
       if (recordedMatchRef.current !== matchId) {
-        recordMatchOnce("word-search", matchId, foundWordIds.length >= puzzle.words.length, puzzle.reference_date || dailyReferenceDate());
+        recordDailyBoardMatch("word-search", puzzle, matchId, foundWordIds.length >= puzzle.words.length);
         recordedMatchRef.current = matchId;
       }
     } else if (!completed) {

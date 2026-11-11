@@ -48,7 +48,7 @@
   --ng-above: calc(18.75rem + var(--intro-coarse-extra));
   --ng-actions: 14.25rem;
   --ng-tile-max: 3.5rem;
-  --ng-board-max-h: calc(100dvh - var(--consent-banner-height, 0px) - var(--ng-above) - var(--ng-actions));
+  --ng-board-max-h: calc(100dvh - var(--consent-banner-height, 0px) - var(--stale-notice-h, 0px) - var(--ng-above) - var(--ng-actions));
 }
 
 @media (min-width: 48rem) {

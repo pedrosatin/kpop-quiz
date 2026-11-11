@@ -41,7 +41,7 @@
   --cx-row-max: 4.5rem;
   --cx-row: clamp(
     var(--control-height),
-    (100dvh - var(--consent-banner-height, 0px) - var(--cx-above) - var(--cx-actions) - 3 * var(--cx-gap)) / 4,
+    (100dvh - var(--consent-banner-height, 0px) - var(--stale-notice-h, 0px) - var(--cx-above) - var(--cx-actions) - 3 * var(--cx-gap)) / 4,
     var(--cx-row-max)
   );
   display: flex;

@@ -14,6 +14,8 @@ import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c
 import manifest from "../../tests/fixtures/manifest-v2.json";
 import { NEXT_GUARD_MS } from "./AnswerFeedback";
 import { dailySeedDate } from "./daily-seed";
+import { formatCalendarDate } from "../../lib/format-date";
+import { dayAfter, onDay } from "../../test/stale-daily";
 import { Quiz } from "./Quiz";
 import {
   buildQuizProgressSave,
@@ -174,6 +176,11 @@ function drawCatalogRound() {
 
 const notice = () => screen.getByTestId("quiz-replay-notice");
 
+// The loader takes the dated daily session as today's only on its own date.
+function onDailyDate() {
+  onDay(dailySeedDate(dailyPtSession as QuizSession)!);
+}
+
 describe("Quiz flows", () => {
   const gtag = vi.fn();
   const trackedEvents = () => gtag.mock.calls.map((call) => call[1]);
@@ -196,6 +203,7 @@ describe("Quiz flows", () => {
   afterEach(() => {
     setGameAnalyticsConsent("", false);
     vi.restoreAllMocks();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -304,6 +312,7 @@ describe("Quiz flows", () => {
     });
 
     it("ends the daily session with the next daily game instead of a replay", async () => {
+      onDailyDate();
       window.history.replaceState(null, "", "/?theme=daily&mode=standard");
       await renderSetup();
       startRound();
@@ -317,6 +326,7 @@ describe("Quiz flows", () => {
 
     it("says in the daily setup that the day is done once its date was counted", async () => {
       // Counted on another board of the same date, e.g. before a republication.
+      onDailyDate();
       recordMatchOnce("quiz", "daily-other-board", true, dailySeedDate(dailyPtSession as QuizSession));
       const before = loadPlayerStats();
       window.history.replaceState(null, "", "/?theme=daily&mode=standard");
@@ -557,6 +567,67 @@ describe("Quiz flows", () => {
         if (zone === undefined) delete process.env.TZ;
         else process.env.TZ = zone;
       }
+    });
+  });
+
+  describe("daily session from an earlier day", () => {
+    const sessionDate = dailySeedDate(dailyPtSession as QuizSession)!;
+    const staleNotice = () => screen.getByTestId("stale-daily-notice");
+
+    it("shows its date and counts no daily match when today's is not out", async () => {
+      onDay(dayAfter(sessionDate));
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      expect(staleNotice()).toHaveTextContent(messages.staleDaily(formatCalendarDate(sessionDate, "pt-BR")));
+
+      startRound();
+      await waitForQuestion();
+      await playToResults();
+
+      expect(staleNotice()).toBeInTheDocument();
+      expect(loadPlayerStats().games.quiz?.played ?? 0).toBe(0);
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_start", "game_complete"]));
+      expect(gtag.mock.calls.map((call) => call[2].daily)).toEqual(["no", "no"]);
+    });
+
+    it("counts no daily match for a round resumed from a save", async () => {
+      onDay(dayAfter(sessionDate));
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      const session = dailyPtSession as QuizSession;
+      const last = session.questions.length - 1;
+      saveQuizProgress(roundSave(session, "published", {
+        theme: "daily",
+        questionIndex: last,
+        history: session.questions.slice(0, last).map((question) => ({
+          question, selectedOptionId: null, isCorrect: false, cluesUsedCount: 0,
+        })),
+      }));
+      render(<Quiz locale="pt-BR" />);
+      await waitForQuestion();
+      expect(staleNotice()).toBeInTheDocument();
+
+      fireEvent.click(screen.getAllByRole("radio")[0]!);
+      fireEvent.click(screen.getByRole("button", { name: "Responder" }));
+      now += NEXT_GUARD_MS;
+      fireEvent.click(screen.getByRole("button", { name: "Ver resultado" }));
+      await screen.findByRole("heading", { name: "Fim da partida" });
+
+      expect(loadPlayerStats().games.quiz?.played ?? 0).toBe(0);
+    });
+
+    it("keeps today's session as the daily challenge", async () => {
+      onDay(sessionDate);
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      expect(screen.queryByTestId("stale-daily-notice")).toBeNull();
+
+      startRound();
+      await waitForQuestion();
+      await playToResults();
+
+      expect(isGameMatchRecorded("quiz", `daily-${sessionDate}`)).toBe(true);
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_start", "game_complete"]));
+      expect(gtag.mock.calls.map((call) => call[2].daily)).toEqual(["yes", "yes"]);
     });
   });
 

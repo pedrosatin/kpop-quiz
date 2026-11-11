@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { CodeGroupsPuzzle } from "../../data/code-groups";
-import { recordMatchOnce } from "../../lib/player-stats";
+import { recordDailyBoardMatch } from "../../lib/player-stats";
 
 export function codeGroupsMatchId(puzzle: CodeGroupsPuzzle): string {
   return `code-${puzzle.puzzle_id}`;
@@ -22,7 +22,7 @@ export function useRecordCodeGroupsMatch(
     if (isFinished && puzzle) {
       const matchId = codeGroupsMatchId(puzzle);
       if (recordedMatchRef.current !== matchId) {
-        recordMatchOnce("code", matchId, isWin, puzzle.reference_date);
+        recordDailyBoardMatch("code", puzzle, matchId, isWin);
         recordedMatchRef.current = matchId;
       }
     } else if (!isFinished) {
