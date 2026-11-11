@@ -142,6 +142,6 @@ Distribuir apenas a lista de palavras para que o cliente monte a grade dinamicam
 
 - O gerador Python em `kpop_scraping` seleciona entidades por tema, posiciona palavras nos 8 eixos lineares, preenche células remanescentes e valida ausência de colisões.
 - O contrato de dados do caça-palavras é formalizado no arquivo `schemas/word-search-puzzle-v1.json` com validação Draft 2020-12.
-- O módulo `kpop_scraping/word_search_schema.py` implementa as rotinas de extração de coordenadas, inspeção de grade, validação profunda e escrita atômica.
+- O módulo `kpop_scraping/word_search_schema.py` implementa as rotinas de extração de coordenadas, inspeção de grade, validação profunda e escrita atômica. A validação profunda também recusa a palavra que ocorre na grade fora da posição declarada (`occurs_only_where_declared`, a mesma busca que o gerador usa), para que a publicação e o gate de artefatos barrem o que só o gerador barrava.
 - A suíte de testes em `tests/test_word_search_schema.py` cobre regras de geometria, limites de grade, integridade referencial e serialização.
 - O cliente web gerencia a interação tátil e por teclado, a renderização dos 8 eixos e o resumo compartilhável sem dependência de rede após o carregamento inicial.

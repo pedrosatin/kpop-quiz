@@ -402,6 +402,56 @@ def _find_disjoint_assignment(
     return None
 
 
+def _load_criterion_groups(connection: sqlite3.Connection) -> tuple[
+    dict[str, Entity],
+    dict[str, Entity],
+    dict[str, set[str]],
+    dict[tuple[str, str], list[Evidence]],
+    dict[str, dict[str, Any]],
+]:
+    """Read the facts and return the groups each criterion admits, per the database."""
+    connection.row_factory = sqlite3.Row
+    entities = _load_entities(connection)
+    facts, _rejected = _load_facts(connection, entities)
+
+    candidate_groups = {
+        entity.wikidata_id: entity
+        for entity in sorted(entities.values(), key=lambda e: e.wikidata_id)
+        if entity.entity_type == "group" and bool(QID_REGEX.match(entity.wikidata_id))
+    }
+
+    group_criteria, group_evidence, all_criteria = evaluate_connections_criteria(
+        facts, candidate_groups, _groups_with_complete_members(connection, facts)
+    )
+
+    criterion_groups: dict[str, set[str]] = defaultdict(set)
+    for group_qid in sorted(group_criteria.keys()):
+        for crit_id in sorted(group_criteria[group_qid]):
+            criterion_groups[crit_id].add(group_qid)
+    return entities, candidate_groups, criterion_groups, group_evidence, all_criteria
+
+
+def validate_connections_partition_unique(
+    connection: sqlite3.Connection, puzzle: dict[str, Any]
+) -> None:
+    """Refuse a puzzle whose categories split its items in more than one way.
+
+    The file alone cannot tell this: the categories hold only the chosen items,
+    while a second partition may exist among the criteria's other members in
+    the database. A database that no longer supports the published categories
+    admits no partition at all; that is a stale fact, not an ambiguity, and it
+    passes here. Raises ValueError when two partitions exist.
+    """
+    _, _, criterion_groups, _, _ = _load_criterion_groups(connection)
+    categories = [(cat["id"], criterion_groups[cat["id"]]) for cat in puzzle["categories"]]
+    items = sorted(item["id"] for item in puzzle["items"])
+    if count_valid_partitions(items, categories, max_count=2) > 1:
+        raise ValueError(
+            f"connections puzzle {puzzle['puzzle_id']} has an ambiguous solution "
+            "under the database criteria"
+        )
+
+
 def generate_connections_puzzle(
     connection: sqlite3.Connection,
     seed: str | None = None,
@@ -414,30 +464,15 @@ def generate_connections_puzzle(
     if seed is None:
         seed = f"kpop-connections-{reference_date.isoformat()}"
 
-    connection.row_factory = sqlite3.Row
-    entities = _load_entities(connection)
-    facts, _rejected = _load_facts(connection, entities)
+    entities, candidate_groups, criterion_groups, group_evidence, all_criteria = (
+        _load_criterion_groups(connection)
+    )
     dataset_version = _dataset_version(connection, entities, reference_date)
-
-    candidate_groups = {
-        entity.wikidata_id: entity
-        for entity in sorted(entities.values(), key=lambda e: e.wikidata_id)
-        if entity.entity_type == "group" and bool(QID_REGEX.match(entity.wikidata_id))
-    }
 
     if len(candidate_groups) < 16:
         raise ValueError(
             f"Insufficient candidate groups: found {len(candidate_groups)}, need at least 16"
         )
-
-    group_criteria, group_evidence, all_criteria = evaluate_connections_criteria(
-        facts, candidate_groups, _groups_with_complete_members(connection, facts)
-    )
-
-    criterion_groups: dict[str, set[str]] = defaultdict(set)
-    for group_qid in sorted(group_criteria.keys()):
-        for crit_id in sorted(group_criteria[group_qid]):
-            criterion_groups[crit_id].add(group_qid)
 
     # Keep criteria with at least 4 matching candidate groups
     active_criteria = {

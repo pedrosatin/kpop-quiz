@@ -107,7 +107,7 @@ Tentativas ilimitadas permitiriam a enumeração exaustiva de palpites sem restr
 
 ## Consequências
 
-- O gerador Python em `kpop_scraping` deve agrupar fatos auditados, selecionar 4 categorias com níveis 1 a 4 e validar que a partição dos 16 itens é única e disjunta.
+- O gerador Python em `kpop_scraping` deve agrupar fatos auditados, selecionar 4 categorias com níveis 1 a 4 e validar que a partição dos 16 itens é única e disjunta. O runner repete essa verificação contra o banco (`validate_connections_partition_unique`) no tabuleiro que mantém ou promove; um tabuleiro com duas partições é recusado, e sem banco a checagem fica registrada como não executada.
 - O contrato de dados do artefato de palavras conectadas passa a ser regulado pelo schema JSON Draft 2020-12 em `schemas/connections-puzzle-v1.json`.
 - A validação estrutural e a escrita atômica do arquivo passam a ser executadas pelo módulo `kpop_scraping/connections_schema.py`.
 - O cliente web gerencia o estado da partida, histórico de palpites, vidas restantes e renderização bilíngue de forma independente, sem chamadas a servidores remotos.

@@ -46,7 +46,10 @@ from pathlib import Path
 from typing import Any
 
 from .code_groups_cli import generate as generate_code_groups_puzzle
-from .connections_generator import generate_connections_puzzle
+from .connections_generator import (
+    generate_connections_puzzle,
+    validate_connections_partition_unique,
+)
 from .crossword_daily import generate as generate_daily_crossword
 from .crossword_daily import validate as validate_daily_crossword
 from .crossword_daily import validate_published as validate_published_crossword
@@ -693,6 +696,29 @@ def _published_result(output_dir: Path, reference_date: str, **flags: Any) -> di
     }
 
 
+def _check_connections_partition(
+    directory: Path, connection: sqlite3.Connection | None
+) -> dict[str, Any]:
+    """Confirm the kept or promoted connections board still has one solution.
+
+    The check needs the database: the file alone cannot show a second partition
+    among the criteria's other members. Without it the check is recorded as not
+    run. An ambiguous board raises, so it is neither kept nor
+    promoted; ``--regenerate`` publishes a new one.
+    """
+    if connection is None:
+        sys.stderr.write(
+            "WARNING: connections partition uniqueness not checked: no database given\n"
+        )
+        return {"checked": False, "reason": "no database"}
+    puzzle = json.loads((directory / CONNECTIONS_DAILY_FILENAME).read_text(encoding="utf-8"))
+    try:
+        validate_connections_partition_unique(connection, puzzle)
+    except ValueError as exc:
+        raise ValueError(f"{exc}; publish a new board with --regenerate") from exc
+    return {"checked": True, "reason": None}
+
+
 def keep_or_promote_day(
     output_dir: Path,
     reference_date: str,
@@ -708,18 +734,23 @@ def keep_or_promote_day(
     With ``connection``, a grid the current eligibility policy no longer
     admits is replaced before the day is reported (see
     ``_revalidate_published_grid``); the other artifacts keep their bytes.
+    The connections board is also checked against the database for a single
+    solution (see ``_check_connections_partition``); the result reports it in
+    ``connections_partition``.
     """
     # The grid and the group code artifact are optional in a published set;
     # verify() still validates either file when it is present.
     if _published_day(output_dir) == reference_date:
         read_publication(output_dir, reference_date)
         verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
+        partition = _check_connections_partition(output_dir, connection)
         revalidated = _revalidate_published_grid(output_dir, reference_date, connection) if connection else None
         crossword = _confirm_crossword_day(output_dir, reference_date, connection)
         verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
         return _published_result(
             output_dir, reference_date, grid_revalidated=revalidated,
-            crossword_confirmed=crossword, already_published=True,
+            crossword_confirmed=crossword, connections_partition=partition,
+            already_published=True,
         )
     _guard_publication_date(output_dir, reference_date)
     next_dir = output_dir / NEXT_DIRNAME
@@ -727,6 +758,7 @@ def keep_or_promote_day(
         return None
     read_publication(next_dir, reference_date)
     verify_artifacts(next_dir, require_grid=False, require_code_groups=False)
+    partition = _check_connections_partition(next_dir, connection)
     _install_files(next_dir, output_dir)
     if not (next_dir / GRID_DAILY_FILENAME).is_file():
         # An earlier day's grid is removed when the promoted set has none.
@@ -764,7 +796,8 @@ def keep_or_promote_day(
     verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
     return _published_result(
         output_dir, reference_date, grid_revalidated=revalidated,
-        crossword_confirmed=crossword, promoted_from_next=True,
+        crossword_confirmed=crossword, connections_partition=partition,
+        promoted_from_next=True,
     )
 
 

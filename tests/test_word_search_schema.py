@@ -18,6 +18,7 @@ from kpop_scraping.word_search_schema import (
     check_word_in_grid,
     extract_word_coordinates,
     generate_word_search_share_summary,
+    occurs_only_where_declared,
     validate_word_search_puzzle,
     write_word_search_puzzle_atomic,
 )
@@ -109,6 +110,44 @@ def sample_word_search_puzzle() -> dict:
         "grid": grid,
         "words": words,
     }
+
+
+def plant_repeated_word(puzzle: dict, reverse: bool = False) -> None:
+    """Write a second copy of the first word elsewhere in the grid, in place.
+
+    The copy reads along a forward direction (right, down, or either diagonal
+    to the right), or along the opposite one with ``reverse``. It only changes
+    cells that no declared word uses, so every declared word still matches its
+    coordinates and only the uniqueness rule is broken.
+    """
+    entry = puzzle["words"][0]
+    word = entry["word"]
+    declared = (entry["start_row"], entry["start_col"], entry["end_row"], entry["end_col"])
+    used = {
+        cell
+        for other in puzzle["words"]
+        for cell in extract_word_coordinates(
+            other["start_row"], other["start_col"], other["end_row"], other["end_col"]
+        )
+    }
+    rows, cols = puzzle["dimensions"]["rows"], puzzle["dimensions"]["cols"]
+    forward = [(0, 1), (1, 0), (1, 1), (-1, 1)]
+    directions = [(-dr, -dc) for dr, dc in forward] if reverse else forward
+    for row in range(rows):
+        for col in range(cols):
+            for dr, dc in directions:
+                end_row, end_col = row + dr * (len(word) - 1), col + dc * (len(word) - 1)
+                if (row, col, end_row, end_col) == declared or not (
+                    0 <= end_row < rows and 0 <= end_col < cols
+                ):
+                    continue
+                cells = [(row + dr * i, col + dc * i) for i in range(len(word))]
+                if all(cell not in used or puzzle["grid"][cell[0]][cell[1]] == letter
+                       for cell, letter in zip(cells, word)):
+                    for (r, c), letter in zip(cells, word):
+                        puzzle["grid"][r][c] = letter
+                    return
+    raise AssertionError("no room for the repeated word")
 
 
 SCHEMA_JSON = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -363,6 +402,23 @@ class TestWordSearchSchemaValidation(unittest.TestCase):
         puzzle["grid"][0][0] = "Z"
         with self.assertRaises(ValueError):
             validate_word_search_puzzle(puzzle)
+
+    def test_reject_word_repeated_in_the_grid(self):
+        for reverse in (False, True):
+            with self.subTest(reverse=reverse):
+                puzzle = sample_word_search_puzzle()
+                plant_repeated_word(puzzle, reverse=reverse)
+                with self.assertRaisesRegex(ValueError, r"words\[0\]\.word \('TWICE'\) appears"):
+                    validate_word_search_puzzle(puzzle)
+
+    def test_accept_word_that_occurs_once(self):
+        validate_word_search_puzzle(sample_word_search_puzzle())
+
+    def test_palindrome_reads_back_along_its_own_line_only(self):
+        grid = [list("XXXXX"), list("XABAX"), list("XXXXX")]
+        self.assertTrue(occurs_only_where_declared(grid, "ABA", (1, 1, 1, 3)))
+        grid[2][0:3] = list("ABA")
+        self.assertFalse(occurs_only_where_declared(grid, "ABA", (1, 1, 1, 3)))
 
     def test_reject_word_label_mismatch_with_word(self):
         puzzle = sample_word_search_puzzle()
