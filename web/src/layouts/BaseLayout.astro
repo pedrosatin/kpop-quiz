@@ -162,6 +162,7 @@ const themeButtonLabels = Object.fromEntries(
   ]),
 ) as Record<keyof typeof themeNames, string>;
 const otherLocale = locale === "pt-BR" ? "en" : "pt-BR";
+const languageShort = otherLocale === "en" ? "EN" : "PT";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 // Only the production build is served from the root; prefixed builds are staging.
 const isStaging = base !== "";
@@ -361,9 +362,9 @@ const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
           </svg>
         </button>
         <nav aria-label={messages.languageLabel}>
-          <a class="language-link" href={`${base}${otherPath}`} hreflang={otherLocale} lang={otherLocale} aria-label={messages.languageName}>
+          <a class="language-link" href={`${base}${otherPath}`} hreflang={otherLocale} lang={otherLocale} aria-label={`${languageShort}, ${messages.languageName}`}>
             <span class="language-full">{messages.languageName}</span>
-            <span class="language-short" aria-hidden="true">{otherLocale === "en" ? "EN" : "PT"}</span>
+            <span class="language-short" aria-hidden="true">{languageShort}</span>
           </a>
         </nav>
       </div>
