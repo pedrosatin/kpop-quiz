@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TimelinePuzzle } from "../../lib/timeline-types";
 import fixture from "../../tests/fixtures/timeline.daily.json";
 import releaseFixture from "../../tests/fixtures/timeline-releases.daily.json";
-import { getCanonicalChronologicalOrder } from "./timeline-utils";
+import { calculateScore, getCanonicalChronologicalOrder } from "./timeline-utils";
 import { TimelineResults } from "./TimelineResults";
 import { RESULT_GUARD_MS, TimelineShare } from "./TimelineShare";
 
@@ -79,6 +79,34 @@ describe("TimelineResults", () => {
     expect(screen.getAllByText("🟥")).toHaveLength(2);
     expect(screen.getAllByLabelText(/Posição correta/)).toHaveLength(3);
     expect(screen.getAllByLabelText(/Posição incorreta/)).toHaveLength(2);
+  });
+
+  it("shows where the player put each event next to its right position", () => {
+    const playerOrder = [canonicalEvents[3]!, canonicalEvents[1]!, canonicalEvents[0]!, canonicalEvents[2]!, canonicalEvents[4]!];
+    const { results } = calculateScore(playerOrder, canonicalEvents);
+    const { unmount } = render(<TimelineResults score={2} totalEvents={5} canonicalEvents={canonicalEvents} events={playerOrder}
+      results={results} shareText={sampleShareText} locale="pt-BR" />);
+    const items = Array.from(document.querySelectorAll<HTMLElement>(".timeline-results-item"));
+    expect(screen.getAllByTestId("timeline-result-positions").map((line) => line.textContent)).toEqual([
+      "Sua posição: 3 · Posição certa: 1",
+      "Sua posição: 2 · Posição certa: 2",
+      "Sua posição: 4 · Posição certa: 3",
+      "Sua posição: 1 · Posição certa: 4",
+      "Sua posição: 5 · Posição certa: 5",
+    ]);
+    expect(within(items[0]!).getByLabelText("Posição incorreta")).toBeInTheDocument();
+    expect(within(items[1]!).getByLabelText("Posição correta")).toBeInTheDocument();
+    unmount();
+
+    render(<TimelineResults score={2} totalEvents={5} canonicalEvents={canonicalEvents} events={playerOrder}
+      results={results} shareText={sampleShareText} locale="en" />);
+    expect(screen.getAllByTestId("timeline-result-positions")[0]).toHaveTextContent("Your position: 3 · Right position: 1");
+  });
+
+  it("shows only the right position when the player's order is unknown", () => {
+    render(<TimelineResults score={0} totalEvents={5} canonicalEvents={canonicalEvents} results={[false, false, false, false, false]}
+      shareText={sampleShareText} locale="pt-BR" />);
+    expect(screen.getAllByTestId("timeline-result-positions")[0]).toHaveTextContent(/^Posição certa: 1$/);
   });
 
   it("displays sources panel with sanitization for external links", () => {

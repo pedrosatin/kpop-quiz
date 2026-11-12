@@ -1,6 +1,6 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
 import { isDailyBoardRound } from "../../lib/player-stats";
-import { useCallback, useMemo, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Locale, TimelineEvent, TimelinePuzzle } from "../../lib/quiz-types";
 import type { TimelineGameStatus } from "./types";
 import {
@@ -8,7 +8,9 @@ import {
   generateTimelineShareText,
   getCanonicalChronologicalOrder,
   getInitialTimelineEventIds,
+  loadTimelineDraft,
   loadTimelineSavedState,
+  saveTimelineDraft,
   saveTimelineState,
 } from "./timeline-utils";
 
@@ -27,8 +29,15 @@ export function useTimelineGame(
     [storageKey, puzzle]
   );
 
+  // The order the player was building before a reload. Ignored once the
+  // board has a submitted save.
+  const initialDraft = useMemo(
+    () => (initialSaved ? null : loadTimelineDraft(storageKey, puzzle)),
+    [initialSaved, storageKey, puzzle]
+  );
+
   const [orderedEventIds, setOrderedEventIds] = useState<string[]>(
-    () => initialSaved?.orderedEventIds ?? getInitialTimelineEventIds(puzzle)
+    () => initialSaved?.orderedEventIds ?? initialDraft ?? getInitialTimelineEventIds(puzzle)
   );
   const [gameStatus, setGameStatus] = useState<TimelineGameStatus>(
     () => (initialSaved?.submitted ? "submitted" : "in_progress")
@@ -45,8 +54,17 @@ export function useTimelineGame(
       outcome: gameStatus !== "submitted" ? null : gaveUp ? "give_up" : score === puzzle.events.length ? "win" : "loss",
     },
     gameStatus === "submitted",
-    Boolean(initialSaved),
+    // A draft exists only after a move, which already started the round.
+    Boolean(initialSaved ?? initialDraft),
   );
+
+  // Set by a move in this visit, so mounting never writes a draft.
+  const movedHere = useRef(false);
+
+  useEffect(() => {
+    if (gameStatus !== "in_progress" || !movedHere.current) return;
+    saveTimelineDraft(storageKey, puzzle, orderedEventIds);
+  }, [gameStatus, orderedEventIds, storageKey, puzzle]);
 
   const eventMap = useMemo(() => {
     const map = new Map<string, TimelineEvent>();
@@ -89,6 +107,7 @@ export function useTimelineGame(
     (index: number) => {
       if (!canMoveUp(index)) return;
       analytics.start();
+      movedHere.current = true;
       setOrderedEventIds((prev) => {
         const next = [...prev];
         const current = next[index]!;
@@ -104,6 +123,7 @@ export function useTimelineGame(
     (index: number) => {
       if (!canMoveDown(index)) return;
       analytics.start();
+      movedHere.current = true;
       setOrderedEventIds((prev) => {
         const next = [...prev];
         const current = next[index]!;
@@ -124,6 +144,7 @@ export function useTimelineGame(
       if (new Set(eventIds).size !== puzzle.events.length) return;
       if (eventIds.every((id, index) => id === orderedEventIds[index])) return;
       analytics.start();
+      movedHere.current = true;
       setOrderedEventIds(eventIds);
     },
     [gameStatus, puzzle.events, orderedEventIds]

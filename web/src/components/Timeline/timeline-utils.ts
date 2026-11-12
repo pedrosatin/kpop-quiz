@@ -1,6 +1,6 @@
 import type { TimelineEvent, TimelinePuzzle } from "../../lib/timeline-types";
 import type { Locale } from "../../lib/quiz-types";
-import type { TimelineStoredState } from "./types";
+import type { TimelineDraftState, TimelineStoredState } from "./types";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 
@@ -86,6 +86,59 @@ export function calculateScore(
 }
 
 /**
+ * Whether `ids` is a permutation of the puzzle's event ids.
+ */
+export function isEventOrderOf(ids: unknown, puzzle: TimelinePuzzle): ids is string[] {
+  if (!Array.isArray(ids) || ids.length !== puzzle.events.length) return false;
+  const puzzleEventIds = new Set(puzzle.events.map((e) => e.id));
+  if (ids.some((id: unknown) => typeof id !== "string" || !puzzleEventIds.has(id))) return false;
+  return new Set(ids).size === puzzle.events.length;
+}
+
+function readStoredObject(storageKey: string): Record<string, unknown> | null {
+  const raw = localStorage.getItem(storageKey);
+  if (!raw) return null;
+  const parsed: unknown = JSON.parse(raw);
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+  return parsed as Record<string, unknown>;
+}
+
+/**
+ * Restore the order the player was building before submitting. A draft is the
+ * board's save with `submitted: false`; one from another board or date, or with
+ * an order that is not a permutation of this board's events, is dropped.
+ */
+export function loadTimelineDraft(storageKey: string, puzzle: TimelinePuzzle): string[] | null {
+  if (!storageKey) return null;
+  try {
+    const parsed = readStoredObject(storageKey);
+    if (!parsed || parsed.submitted !== false) return null;
+    if (parsed.puzzleId !== puzzle.puzzle_id || parsed.referenceDate !== puzzle.reference_date) return null;
+    return isEventOrderOf(parsed.orderedEventIds, puzzle) ? parsed.orderedEventIds : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist the order being built. It never records a match: only the submit
+ * writes a save with `submitted: true`.
+ */
+export function saveTimelineDraft(storageKey: string, puzzle: TimelinePuzzle, orderedEventIds: string[]): void {
+  const draft: TimelineDraftState = {
+    puzzleId: puzzle.puzzle_id,
+    referenceDate: puzzle.reference_date,
+    orderedEventIds,
+    submitted: false,
+  };
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(draft));
+  } catch {
+    // Ignore storage quota and permission errors.
+  }
+}
+
+/**
  * Validate and restore saved timeline game state from localStorage.
  */
 export function loadTimelineSavedState(
@@ -108,14 +161,7 @@ export function loadTimelineSavedState(
     if (!Array.isArray(parsed.results) || !parsed.results.every((r: unknown) => typeof r === "boolean")) {
       return null;
     }
-    if (!Array.isArray(parsed.orderedEventIds)) return null;
-
-    if (parsed.orderedEventIds.length !== puzzle.events.length) return null;
-    const puzzleEventIds = new Set(puzzle.events.map((e) => e.id));
-    if (parsed.orderedEventIds.some((id: unknown) => typeof id !== "string" || !puzzleEventIds.has(id))) {
-      return null;
-    }
-    if (new Set(parsed.orderedEventIds).size !== puzzle.events.length) return null;
+    if (!isEventOrderOf(parsed.orderedEventIds, puzzle)) return null;
 
     const canonical = getCanonicalChronologicalOrder(puzzle.events);
     const currentEvents = parsed.orderedEventIds.map((id: string) =>

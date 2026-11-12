@@ -31,6 +31,12 @@ export function TimelineResults({
     return getCanonicalChronologicalOrder(list);
   }, [canonicalEvents, events]);
 
+  // 1-based position where the player left each event, when the order is known.
+  const playerPositions = useMemo(
+    () => new Map((events ?? []).map((event, index) => [event.id, index + 1])),
+    [events]
+  );
+
   const total = totalEvents ?? chronologicalEvents.length;
   const scoreBanner = messages?.scoreBanner
     ? messages.scoreBanner(score, total)
@@ -39,6 +45,10 @@ export function TimelineResults({
   const summaryHeading = messages?.summaryHeading ?? defaultMsgs.summaryHeading;
   const correctLabel = messages?.correctPosition ?? defaultMsgs.correctPosition;
   const incorrectLabel = messages?.incorrectPosition ?? defaultMsgs.incorrectPosition;
+  const positionLabels = {
+    player: messages?.playerPosition ?? defaultMsgs.playerPosition,
+    right: messages?.rightPosition ?? defaultMsgs.rightPosition,
+  };
   const viewEvidence = messages?.viewEvidence ?? defaultMsgs.viewEvidence;
   const revisionLabel = messages?.revision ?? defaultMsgs.revision;
 
@@ -61,7 +71,8 @@ export function TimelineResults({
         <ol class="timeline-results-list" role="list">
           {chronologicalEvents.map((event, index) => (
             <TimelineResultItem key={event.id} event={event} index={index} locale={locale}
-              isCorrect={results[index] ?? false} correctLabel={correctLabel} incorrectLabel={incorrectLabel} />
+              isCorrect={results[index] ?? false} correctLabel={correctLabel} incorrectLabel={incorrectLabel}
+              playerPosition={playerPositions.get(event.id)} positionLabels={positionLabels} />
           ))}
         </ol>
       </div>
@@ -95,13 +106,15 @@ export function TimelineResults({
   );
 }
 
-function TimelineResultItem({ event, index, locale, isCorrect, correctLabel, incorrectLabel }: {
+function TimelineResultItem({ event, index, locale, isCorrect, correctLabel, incorrectLabel, playerPosition, positionLabels }: {
   event: TimelineEvent;
   index: number;
   locale: Locale;
   isCorrect: boolean;
   correctLabel: string;
   incorrectLabel: string;
+  playerPosition: number | undefined;
+  positionLabels: { player: (position: number) => string; right: (position: number) => string };
 }) {
   const accuracyClass = isCorrect ? "is-correct" : "is-incorrect";
   const indicatorLabel = isCorrect ? correctLabel : incorrectLabel;
@@ -110,7 +123,7 @@ function TimelineResultItem({ event, index, locale, isCorrect, correctLabel, inc
   return (
     <li class={`timeline-results-item ${accuracyClass}`}>
       <div class="timeline-results-item-header">
-        <span role="img" class={`timeline-accuracy-badge ${accuracyClass}`} aria-label={`${indicatorLabel}: ${index + 1}`}>
+        <span role="img" class={`timeline-accuracy-badge ${accuracyClass}`} aria-label={indicatorLabel}>
           <span class="timeline-accuracy-emoji">{isCorrect ? "🟩" : "🟥"}</span>
           <span class="timeline-accuracy-symbol">{isCorrect ? " ✓" : " ✗"}</span>
         </span>
@@ -118,6 +131,15 @@ function TimelineResultItem({ event, index, locale, isCorrect, correctLabel, inc
       </div>
       <div class="timeline-results-item-body">
         <span class="timeline-results-item-title">{title}</span>
+        <p class="timeline-results-positions" data-testid="timeline-result-positions">
+          {playerPosition !== undefined && (
+            <>
+              <span>{positionLabels.player(playerPosition)}</span>
+              <span aria-hidden="true"> · </span>
+            </>
+          )}
+          <span>{positionLabels.right(index + 1)}</span>
+        </p>
       </div>
     </li>
   );
