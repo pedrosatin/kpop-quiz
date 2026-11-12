@@ -89,17 +89,23 @@ function keyRank(key: string, norm: string): number {
 }
 
 /**
- * The match a non-empty search names on its own: the only one, the first
- * whose shown name is the whole search, or the one group with an alias that
- * is. -1 when the search names none.
+ * The match a non-empty search names on its own: the only one, unless it
+ * matched by a piece of an alias; the first whose shown name is the whole
+ * search; or the one group with an alias that is. -1 when the search names
+ * none. A piece of an alias names nothing: "singer" is inside Blackpink's
+ * Wikidata alias "South Korean singer" and must not send Blackpink.
  */
 export function namedMatchIndex(matches: CandidateMatch[], query: string): number {
   if (!normalizeSearch(query)) return -1;
-  if (matches.length === 1) return 0;
+  if (matches.length === 1) return isAliasPiece(matches[0]!) ? -1 : 0;
   const shown = matches.findIndex((m) => m.rank === 0 && m.alias === null);
   if (shown >= 0) return shown;
   const byAlias = matches.flatMap((m, i) => (m.rank === 0 ? [i] : []));
   return byAlias.length === 1 ? byAlias[0]! : -1;
+}
+
+function isAliasPiece(match: CandidateMatch): boolean {
+  return match.alias !== null && match.rank !== 0;
 }
 
 function uniqueKeys(names: string[]): string[] {

@@ -331,6 +331,14 @@ describe("EntityPicker component", () => {
     fireEvent.keyDown(search, { key: "Enter" });
     expect(onSelect).toHaveBeenLastCalledWith(pool[0]);
 
+    // A piece of an alias finds the group but Enter does not send it.
+    onSelect.mockClear();
+    fireEvent.input(search, { target: { value: "sns" } });
+    expect(screen.getByRole("option")).toHaveTextContent("SNSD");
+    expect(search).not.toHaveAttribute("aria-activedescendant");
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onSelect).not.toHaveBeenCalled();
+
     // A shown name that matched needs no alias beside it.
     fireEvent.input(search, { target: { value: "girls" } });
     expect(screen.getByRole("option").querySelector(".candidate-alias")).toBeNull();

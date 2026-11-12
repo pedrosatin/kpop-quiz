@@ -133,6 +133,25 @@ describe("namedMatchIndex", () => {
     expect(named("ab", shared)).toBeNull();
   });
 
+  it("names nothing by a piece of an alias, even as the only match", () => {
+    // Blackpink's Wikidata aliases include "South Korean singer".
+    const local = buildCandidateIndex(
+      [group("Q25056945", "Blackpink", ["South Korean singer", "Black Pink"]), group("Q1", "TWICE")],
+      "en",
+      new Map(),
+    );
+    for (const query of ["singer", "south", "korean"]) {
+      const matches = searchCandidates(local, query);
+      expect(matches.map((m) => m.candidate.id)).toEqual(["Q25056945"]);
+      expect(namedMatchIndex(matches, query)).toBe(-1);
+    }
+    // A whole alias only one group has still names it.
+    expect(named("south korean singer", local)).toBe("Blackpink");
+    expect(named("snsd")).toBe("Girls' Generation");
+    // The start of a shown name, as the only match, still names it (#365).
+    expect(named("blackp", local)).toBe("Blackpink");
+  });
+
   it("names nothing on an empty search", () => {
     expect(namedMatchIndex(searchCandidates(index, ""), "")).toBe(-1);
   });
