@@ -100,7 +100,12 @@ export interface UseCodeGroupsGame {
   submit: () => void;
   restart: () => void;
   /** String keys or composed messages for the live region; set on rejections and guesses. */
-  feedback: { kind: "chooseAll" | "chooseDistinct" | "attempt"; attempt?: CodeGroupsGuess } | null;
+  feedback: { kind: "chooseAll" | "chooseDistinct" | "alreadyGuessed" | "attempt"; attempt?: CodeGroupsGuess } | null;
+}
+
+/** Whether `selection` repeats, in the same order, a guess already sent. */
+function isRepeatedGuess(history: readonly CodeGroupsGuess[], selection: readonly string[]): boolean {
+  return history.some((guess) => guess.ids.every((id, index) => id === selection[index]));
 }
 
 export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): UseCodeGroupsGame {
@@ -161,6 +166,11 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
       setFeedback({ kind: "chooseDistinct" });
       return;
     }
+    // The same guess cannot tell anything new, so it costs no attempt.
+    if (isRepeatedGuess(history, selection)) {
+      setFeedback({ kind: "alreadyGuessed" });
+      return;
+    }
     analytics.start();
     submitLocked.current = true;
     const guess = scoreGuess(puzzle, selection);
@@ -168,11 +178,11 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
     const nextLength = history.length + 1;
     const willFinish = guess.exact === 4 || nextLength === puzzle.max_attempts;
     setHistory((prev) => [...prev, guess]);
-    // Keep the last pick between attempts so the same guess can be sent again
-    // (ten identical clicks exhaust the round). Clear only when the round ends,
-    // so a finished save stays loadable (history at the limit with empty slots).
+    // Keep the last pick between attempts so one slot can change at a time.
+    // Clear only when the round ends, so a finished save stays loadable
+    // (history at the limit with empty slots).
     if (willFinish) setSelection([...EMPTY_SELECTION]);
-  }, [finished, history.length, puzzle, selection]);
+  }, [finished, history, puzzle, selection]);
 
   const restart = useCallback(() => {
     submitLocked.current = false;

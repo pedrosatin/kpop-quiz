@@ -35,6 +35,30 @@ function guess(ids: string[]) {
   fireEvent.click(screen.getByRole("button", { name: pt.codeSubmit }));
 }
 
+/** Distinct orders of the secret that miss it, enough to run out of attempts. */
+function wrongGuesses(count: number): string[][] {
+  const orders = (ids: string[]): string[][] =>
+    ids.length <= 1 ? [ids] : ids.flatMap((id, i) => orders(ids.filter((_, j) => j !== i)).map((rest) => [id, ...rest]));
+  const secret = puzzle.secret as string[];
+  return orders(secret).filter((ids) => ids.join() !== secret.join()).slice(0, count);
+}
+
+/** What a finished board shows: which controls are locked and what comes first. */
+function finishedLayout() {
+  const board = screen.getByTestId("game-board");
+  const controls = [...board.querySelectorAll<HTMLSelectElement | HTMLButtonElement>("form select, form button")];
+  const parts = { result: ".code-result", form: "form", history: ".code-history" } as const;
+  const order = (Object.keys(parts) as Array<keyof typeof parts>)
+    .map((name) => ({ name, node: board.querySelector(parts[name])! }))
+    .sort((a, b) => (a.node.compareDocumentPosition(b.node) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+    .map(({ name }) => name);
+  return {
+    locked: controls.map((control) => control.disabled && control.matches(":disabled")),
+    order,
+    counter: screen.queryByTestId("code-remaining") !== null,
+  };
+}
+
 // The loader takes the pilot as today's board only on its own date.
 function onPuzzleDay() {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -90,7 +114,8 @@ describe("CodeGroupsGame", () => {
 
     expect(screen.getByRole("heading", { level: 2, name: pt.codeResultWon })).toBeInTheDocument();
     expect(document.activeElement).toBe(screen.getByTestId("game-result"));
-    expect(screen.getByTestId("code-remaining")).toHaveTextContent("1");
+    // The result replaces the attempts counter.
+    expect(screen.queryByTestId("code-remaining")).toBeNull();
     expect(screen.getAllByRole("link", { name: /· Wikidata$/ })).toHaveLength(6);
     expect(loadPlayerStats().games.code?.played).toBe(1);
 
@@ -129,6 +154,65 @@ describe("CodeGroupsGame", () => {
     expect(screen.getByText(pt.codeChooseDistinct)).toBeInTheDocument();
     expect(screen.getByTestId("code-remaining")).toHaveTextContent("10");
     expect(document.querySelectorAll(".code-history li")).toHaveLength(0);
+  });
+
+  it.each(["pt-BR", "en"] as const)("refuses a guess already sent without spending an attempt (%s)", async (locale) => {
+    const messages = getMessages(locale);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(puzzle))));
+    renderGame(locale);
+    await screen.findAllByRole("combobox");
+    const played = [puzzle.secret[1]!, puzzle.secret[0]!, puzzle.secret[2]!, puzzle.secret[3]!];
+    const send = () => fireEvent.click(screen.getByRole("button", { name: messages.codeSubmit }));
+    played.forEach((id, index) => selectSlot(index, id));
+    send();
+    expect(screen.getByTestId("code-remaining")).toHaveTextContent("9/10");
+    // The slots keep the last guess, so sending again repeats it.
+    send();
+    expect(screen.getByRole("status")).toHaveTextContent(messages.codeAlreadyGuessed);
+    expect(screen.getByTestId("code-remaining")).toHaveTextContent("9/10");
+    expect(document.querySelectorAll(".code-history li")).toHaveLength(1);
+    // The same groups in another order are a new guess.
+    selectSlot(2, played[3]!);
+    selectSlot(3, played[2]!);
+    send();
+    expect(screen.getByTestId("code-remaining")).toHaveTextContent("8/10");
+    expect(screen.getByRole("status")).not.toHaveTextContent(messages.codeAlreadyGuessed);
+  });
+
+  it.each([
+    ["won", () => [puzzle.secret as string[]]],
+    ["lost", () => wrongGuesses(puzzle.max_attempts)],
+  ] as const)("locks the form the moment the round is %s, as a reload shows it", async (_, guesses) => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify(puzzle)))));
+    renderGame();
+    await screen.findAllByRole("combobox");
+    for (const ids of guesses()) guess(ids);
+    const finishedHere = finishedLayout();
+    expect(finishedHere.locked).toEqual([true, true, true, true, true]);
+    expect(finishedHere.order).toEqual(["result", "form", "history"]);
+    expect(finishedHere.counter).toBe(false);
+
+    cleanup();
+    renderGame();
+    await screen.findByTestId("game-result");
+    expect(finishedLayout()).toEqual(finishedHere);
+  });
+
+  it("resumes a save that holds the same guess twice, from before repeats were refused", async () => {
+    const played = puzzle.secret.slice(1).concat(puzzle.secret.slice(0, 1));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ puzzle_id: puzzle.puzzle_id, history: [played, played], selection: played }),
+    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(puzzle))));
+    renderGame();
+    expect(await screen.findAllByText(pt.codeGuessSummary(0, 4))).toHaveLength(2);
+    expect(screen.getByTestId("code-remaining")).toHaveTextContent("8/10");
+    fireEvent.click(screen.getByRole("button", { name: pt.codeSubmit }));
+    expect(screen.getByRole("status")).toHaveTextContent(pt.codeAlreadyGuessed);
+    expect(document.querySelectorAll(".code-history li")).toHaveLength(2);
+    guess(puzzle.secret as string[]);
+    expect(screen.getByRole("heading", { level: 2, name: pt.codeResultWon })).toBeInTheDocument();
   });
 
   it("offers a working retry when the artifact is missing or invalid", async () => {

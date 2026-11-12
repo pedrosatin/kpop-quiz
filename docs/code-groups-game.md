@@ -8,6 +8,15 @@ símbolos do tabuleiro. O jogador escolhe um grupo para cada posição e envia
 até 10 tentativas. Depois de cada uma, o jogo mostra quantos grupos estão na
 posição exata e quantos pertencem ao código, mas estão em outra posição — a
 mesma informação agregada do Mastermind, sem indicar quais posições acertaram.
+Um palpite igual, na mesma ordem, a um já enviado é recusado na região de
+status ("Você já tentou esse palpite. Nenhuma tentativa usada.") sem gastar
+tentativa, como a escolha incompleta ou com grupo repetido.
+
+Ao vencer ou esgotar as tentativas, o formulário fica desabilitado no mesmo
+render. O fieldset, os selects e o botão ficam desabilitados, igual ao que um
+recarregamento mostra. O resultado ocupa o lugar do contador de tentativas,
+acima do formulário e do histórico, para aparecer sem rolar depois de dez
+palpites.
 
 A sequência é um desafio de lógica, não um fato: o jogo não afirma nenhuma
 relação entre os grupos que formam o código. O resultado do fim revela a
@@ -56,7 +65,9 @@ vez de retomado. As contagens não são salvas: elas são recalculadas a partir 
 sequência secreta, então um registro editado nunca mostra um palpite que o
 jogo não produziu. Um registro com grupo fora dos seis símbolos, grupo
 repetido, mais tentativas que o limite ou seleção inválida é descartado, e ao
-carregar o jogo apaga os registros de outras datas.
+carregar o jogo apaga os registros de outras datas. Um registro com o mesmo
+palpite enviado duas vezes, gravado antes da recusa de palpite repetido,
+continua válido e é retomado como foi jogado.
 
 A partida concluída entra nas estatísticas locais (janela de estatísticas,
 aba "Código" / "Code") uma única vez por data, marcada pela chave

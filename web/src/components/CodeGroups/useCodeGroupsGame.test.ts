@@ -5,7 +5,7 @@ import type { CodeGroupsPuzzle } from "../../data/code-groups";
 import { useCodeGroupsGame } from "./useCodeGroupsGame";
 
 beforeEach(() => localStorage.clear());
-it("counts same-turn duplicate submission once but allows a later deliberate repeat", () => {
+it("counts same-turn duplicate submission once and refuses a later repeat without an attempt", () => {
   const puzzle = fixture as CodeGroupsPuzzle;
   const { result } = renderHook(() => useCodeGroupsGame(puzzle, "pt-BR"));
   const guess = [...puzzle.secret].reverse();
@@ -16,5 +16,12 @@ it("counts same-turn duplicate submission once but allows a later deliberate rep
   });
   expect(result.current.history).toHaveLength(1);
   act(() => result.current.submit());
+  expect(result.current.history).toHaveLength(1);
+  expect(result.current.feedback).toEqual({ kind: "alreadyGuessed" });
+  // Changing one slot makes it a new guess again.
+  act(() => result.current.selectValue(0, guess[1]!));
+  act(() => result.current.selectValue(1, guess[0]!));
+  act(() => result.current.submit());
   expect(result.current.history).toHaveLength(2);
+  expect(result.current.feedback?.kind).toBe("attempt");
 });
