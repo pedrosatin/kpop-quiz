@@ -66,15 +66,66 @@ test("rejects input errors, returns aggregate displacement, then wins", async ({
   await expect(page.locator(".game-result")).toContainText("Código descoberto!");
   await expect(submit).toBeDisabled();
   await expect(page.locator(".game-result li a")).toHaveCount(6);
+  // The form closes on the win itself, the same way a reload shows it.
+  await expectFinishedLayout(page);
+  await reloadPersisted(page);
+  await expect(page.locator(".game-result")).toContainText("Código descoberto!");
+  await expectFinishedLayout(page);
 });
+
+/** Distinct orders of the secret that miss it, enough to run out of attempts. */
+function wrongGuesses(count: number): string[][] {
+  const orders = (ids: string[]): string[][] =>
+    ids.length <= 1 ? [ids] : ids.flatMap((id, i) => orders(ids.filter((_, j) => j !== i)).map((rest) => [id, ...rest]));
+  return orders(secret).filter((ids) => ids.join() !== secret.join()).slice(0, count);
+}
+
+/** Result first, then the form and the history; the counter is gone and every control is locked. */
+async function expectFinishedLayout(page: Page) {
+  await expect(page.getByTestId("code-remaining")).toHaveCount(0);
+  const layout = await page.locator("#code-groups").evaluate((board) => {
+    const top = (selector: string) => board.querySelector(selector)!.getBoundingClientRect().top;
+    return {
+      order: [top(".game-result"), top("form"), top(".code-history")],
+      locked: [...board.querySelectorAll<HTMLSelectElement | HTMLButtonElement>("form select, form button")]
+        .map((control) => control.disabled),
+    };
+  });
+  expect(layout.order).toEqual([...layout.order].sort((a, b) => a - b));
+  expect(layout.locked).toEqual([true, true, true, true, true]);
+}
+
+for (const [path, submitLabel, repeatedText] of [
+  ["/pt-br/codigo/", "Enviar palpite", "Você já tentou esse palpite. Nenhuma tentativa usada."],
+  ["/en/code/", "Submit guess", "You already tried that guess. No attempt used."],
+] as const) {
+  test(`a guess already sent is refused without spending an attempt (${path})`, async ({ page, baseURL }) => {
+    await open(page,baseURL,path);
+    const submit = page.getByRole("button",{name:submitLabel});
+    await choose(page,[secret[1],secret[0],secret[2],secret[3]]);
+    await submit.click();
+    await expect(page.locator(".code-history li")).toHaveCount(1);
+    await submit.click();
+    await expect(page.getByRole("status")).toHaveText(repeatedText);
+    await expect(page.getByTestId("code-remaining")).toContainText("9/10");
+    await expect(page.locator(".code-history li")).toHaveCount(1);
+  });
+}
 
 test("ten failed guesses reveal the code and lock input", async ({ page, baseURL }) => {
   await page.setViewportSize({width:360,height:740});
   await open(page,baseURL);
-  await choose(page,[secret[1],secret[0],secret[2],secret[3]]);
-  for (let i=0;i<10;i++) await page.getByRole("button",{name:"Enviar palpite"}).click();
+  for (const ids of wrongGuesses(10)) {
+    await choose(page,ids);
+    await page.getByRole("button",{name:"Enviar palpite"}).click();
+  }
   await expect(page.locator(".code-history li")).toHaveCount(10);
   await expect(page.locator(".game-result")).toContainText("Tentativas esgotadas");
+  await expectFinishedLayout(page);
+  // The result shows near the top, not after ten rows of history.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const resultTop = await page.locator(".game-result").evaluate((element) => element.getBoundingClientRect().top);
+  expect(resultTop).toBeLessThan(740);
   // The result reads the visible names: the Wikipedia note is hidden, the rest kept.
   const result = page.locator(".game-result");
   await expect(result).toContainText("Sequência secreta: Redsquare / Geenius / 1Verse / The Boyz");

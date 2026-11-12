@@ -25,6 +25,8 @@ async function openFixture(page: Page, baseURL: string, path: string, locale: st
   if (base.pathname === "/") base.pathname = prefix ? `${prefix}/` : new URL(configuredBase).pathname;
   const url = joinBaseUrl(base.href, path);
   const origin = new URL(url).origin;
+  // The pilot is today's board only on its own date, as the daily file it stands in for.
+  await page.clock.setFixedTime(new Date(`${puzzle.reference_date}T15:00:00Z`));
   await page.route("**/*", async (route) => {
     const request = new URL(route.request().url());
     if (request.origin !== origin) return route.abort();
@@ -78,6 +80,13 @@ async function codeScrolls(page: Page) {
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     return (window as unknown as { __codeScrolls: string[] }).__codeScrolls;
   });
+}
+
+/** Distinct orders of the secret that miss it, enough to run out of attempts. */
+function wrongGuesses(count: number): string[][] {
+  const orders = (ids: string[]): string[][] =>
+    ids.length <= 1 ? [ids] : ids.flatMap((id, i) => orders(ids.filter((_, j) => j !== i)).map((rest) => [id, ...rest]));
+  return orders(secret).filter((ids) => ids.join() !== secret.join()).slice(0, count);
 }
 
 async function choose(page: Page, ids: string[]) {
@@ -163,16 +172,22 @@ for (const locale of ["pt", "en"] as const) {
       test(`${environment} ${locale} ${width}: ${consent} banner, loss remains visible`, async ({ page, baseURL }) => {
         await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
         await openFixture(page, baseURL!, path, locale, consent);
-        await choose(page, [secret[1]!, secret[0]!, secret[2]!, secret[3]!]);
         const submit = page.getByRole("button", { name: submitLabel });
-        for (let attempt = 0; attempt < 9; attempt++) await submit.click();
+        // A repeated guess costs nothing, so the round runs out on distinct ones.
+        const guesses = wrongGuesses(10);
+        for (const ids of guesses.slice(0, 9)) {
+          await choose(page, ids);
+          await submit.click();
+        }
         await expect(page.locator(".code-feedback")).toContainText(locale === "pt" ? "1 tentativa restante" : "1 attempt remaining.");
         if (locale === "pt") {
           await expect(page.locator(".code-feedback")).toContainText("1 tentativa restante");
           await expect(page.locator(".code-hud")).toContainText("Tentativa restante: 1/10");
         }
+        await choose(page, guesses[9]!);
         await submit.click();
-        await expect(page.locator(".code-hud")).toContainText("0/10");
+        // The result takes the counter's place.
+        await expect(page.locator(".code-hud")).toHaveCount(0);
         await expect(page.locator(".code-result h2")).toContainText(locale === "pt" ? "Tentativas esgotadas" : "Attempts exhausted");
         await expect(page.locator(".code-result")).toBeFocused();
         await visibleAboveBanner(page, ".code-result h2");

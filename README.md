@@ -335,7 +335,7 @@ Wikidata usa CC0. Nenhuma fonte externa foi acrescentada.
 
 ## Jogo de código de grupos
 
-O jogo de lógica fica em `/pt-br/codigo/` e `/en/code/`, no menu de jogos, no sitemap e com cartões OG. Seis grupos distintos do catálogo aceito servem como símbolos. O jogador descobre uma sequência de quatro sem repetição em dez tentativas, com contagens agregadas de posições exatas e grupos deslocados. A sequência sorteada não afirma uma relação factual entre grupos. O artefato diário (`code-groups.daily.json`) segue o contrato `code-groups-pilot-v1` e traz revisões Wikidata da classificação P31.
+O jogo de lógica fica em `/pt-br/codigo/` e `/en/code/`, no menu de jogos, no sitemap e com cartões OG. Seis grupos distintos do catálogo aceito servem como símbolos. O jogador descobre uma sequência de quatro sem repetição em dez tentativas, com contagens agregadas de posições exatas e grupos deslocados. Um palpite já enviado é recusado sem gastar tentativa, e ao fim da partida o formulário fica desabilitado e o resultado aparece antes do histórico. A sequência sorteada não afirma uma relação factual entre grupos. O artefato diário (`code-groups.daily.json`) segue o contrato `code-groups-pilot-v1` e traz revisões Wikidata da classificação P31.
 
 As rotas antigas `/pt-br/codigo-piloto/` e `/en/code-pilot/` respondem `301` no Cloudflare Pages pelo `web/public/_redirects`; no GitHub Pages de homologação elas dão 404, o que é aceitável porque a homologação inteira é `noindex` ([ADR 023](docs/decisions/023-promocao-de-piloto-a-jogo.md)).
 

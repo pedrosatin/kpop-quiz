@@ -432,15 +432,21 @@ describe("outcome of each game", () => {
   });
 
   it("tells Code wins and losses apart", () => {
-    const play = (ids: string[], attempts: number) => outcomeOf(() => {
+    const play = (guesses: string[][]) => outcomeOf(() => {
       const { result, unmount } = renderHook(() => useCodeGroupsGame(code, "en"));
-      ids.forEach((id, index) => act(() => result.current.selectValue(index, id)));
-      for (let attempt = 0; attempt < attempts; attempt += 1) act(() => result.current.submit());
+      for (const ids of guesses) {
+        ids.forEach((id, index) => act(() => result.current.selectValue(index, id)));
+        act(() => result.current.submit());
+      }
       unmount();
     });
     const secret = code.secret as string[];
-    expect(play(secret, 1)).toBe("win");
-    expect(play([...secret.slice(1), secret[0]!], code.max_attempts)).toBe("loss");
+    expect(play([secret])).toBe("win");
+    // A repeated guess costs nothing, so the loss takes distinct wrong guesses.
+    const orders = (ids: string[]): string[][] =>
+      ids.length <= 1 ? [ids] : ids.flatMap((id, i) => orders(ids.filter((_, j) => j !== i)).map((rest) => [id, ...rest]));
+    const wrong = orders(secret).filter((ids) => ids.join() !== secret.join());
+    expect(play(wrong.slice(0, code.max_attempts))).toBe("loss");
   });
 });
 

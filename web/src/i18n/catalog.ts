@@ -363,6 +363,7 @@ export interface Messages {
   codeSubmit: string;
   codeChooseAll: string;
   codeChooseDistinct: string;
+  codeAlreadyGuessed: string;
   codeAttemptFeedback: (attempt: number, exact: number, misplaced: number, remaining: number) => string;
   codeGuessSummary: (exact: number, misplaced: number) => string;
   codeHistoryHeading: string;
@@ -576,7 +577,7 @@ const catalogs: Record<Locale, Messages> = {
     ],
     codeHowToPlay: [
       "O código do dia é uma sequência de 4 grupos distintos, escolhidos entre os 6 símbolos do tabuleiro. Escolha um grupo para cada posição e envie o palpite.",
-      "Você tem 10 tentativas. Depois de cada uma, o jogo mostra quantos grupos estão na posição exata e quantos pertencem ao código, mas estão em outra posição. Os números não indicam quais posições você acertou.",
+      "Você tem 10 tentativas. Depois de cada uma, o jogo mostra quantos grupos estão na posição exata e quantos pertencem ao código, mas estão em outra posição. Os números não indicam quais posições você acertou. Repetir um palpite já enviado não gasta tentativa.",
       "Clique ou toque na opção de uma posição para trocar o grupo. No teclado, use as setas. O resultado do fim mostra o código e as fontes de cada grupo.",
     ],
     crosswordHowToPlay: [
@@ -801,6 +802,7 @@ const catalogs: Record<Locale, Messages> = {
     codeSubmit: "Enviar palpite",
     codeChooseAll: "Escolha os quatro grupos. Nenhuma tentativa usada.",
     codeChooseDistinct: "Escolha quatro grupos diferentes. Nenhuma tentativa usada.",
+    codeAlreadyGuessed: "Você já tentou esse palpite. Nenhuma tentativa usada.",
     codeAttemptFeedback: (attempt, exact, misplaced, remaining) =>
       `Tentativa ${attempt}: ${exact} ${exact === 1 ? "exato" : "exatos"}, ${misplaced} ${misplaced === 1 ? "deslocado" : "deslocados"}. ${remaining} ${remaining === 1 ? "tentativa restante" : "tentativas restantes"}.`,
     codeGuessSummary: (exact, misplaced) => `${exact} ${exact === 1 ? "exato" : "exatos"} · ${misplaced} ${misplaced === 1 ? "deslocado" : "deslocados"}`,
@@ -1065,7 +1067,7 @@ const catalogs: Record<Locale, Messages> = {
     ],
     codeHowToPlay: [
       "The daily code is a sequence of 4 distinct groups chosen from the board's 6 symbols. Pick a group for each position and submit your guess.",
-      "You have 10 guesses. After each one, the game shows how many groups are in the exact position and how many belong to the code but sit elsewhere. The counts do not tell you which positions you got right.",
+      "You have 10 guesses. After each one, the game shows how many groups are in the exact position and how many belong to the code but sit elsewhere. The counts do not tell you which positions you got right. Sending a guess again costs no attempt.",
       "Click or tap a position's option to change its group. With a keyboard, use the arrow keys. The final result reveals the code and the source of each group.",
     ],
     crosswordHowToPlay: [
@@ -1289,6 +1291,7 @@ const catalogs: Record<Locale, Messages> = {
     codeSubmit: "Submit guess",
     codeChooseAll: "Choose all four groups. No attempt used.",
     codeChooseDistinct: "Choose four different groups. No attempt used.",
+    codeAlreadyGuessed: "You already tried that guess. No attempt used.",
     codeAttemptFeedback: (attempt, exact, misplaced, remaining) =>
       `Attempt ${attempt}: ${exact} exact, ${misplaced} misplaced. ${remaining} ${remaining === 1 ? "attempt" : "attempts"} remaining.`,
     codeGuessSummary: (exact, misplaced) => `${exact} exact · ${misplaced} misplaced`,

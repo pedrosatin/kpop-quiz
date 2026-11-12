@@ -1,5 +1,5 @@
 import { useId, useLayoutEffect, useRef, useState } from "preact/hooks";
-import type { CodeGroupsPuzzle } from "../../data/code-groups";
+import type { CodeGroupsGuess, CodeGroupsPuzzle } from "../../data/code-groups";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages, type Messages } from "../../i18n/catalog";
 import { resolveDisplayLabels } from "../../lib/display-name";
@@ -10,7 +10,7 @@ import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
-import { useCodeGroupsGame } from "./useCodeGroupsGame";
+import { useCodeGroupsGame, type UseCodeGroupsGame } from "./useCodeGroupsGame";
 import { codeGroupsMatchId, useRecordCodeGroupsMatch } from "./useRecordCodeGroupsMatch";
 
 export interface CodeGroupsGameContentProps {
@@ -46,6 +46,26 @@ export function generateShareText(
     `${header}\n${verdict}\n${messages.codeShareAttemptsLine(history.length)}\n\n${rows.join("\n")}`,
     seoShareUrl("code", locale),
   );
+}
+
+const REJECTION_MESSAGE = {
+  chooseAll: "codeChooseAll",
+  chooseDistinct: "codeChooseDistinct",
+  alreadyGuessed: "codeAlreadyGuessed",
+} as const;
+
+/** The live-region text for the last rejection or guess. */
+function feedbackMessage(
+  feedback: UseCodeGroupsGame["feedback"],
+  history: readonly CodeGroupsGuess[],
+  attemptsLeft: number,
+  messages: Messages,
+): string {
+  if (!feedback) return "";
+  if (feedback.kind !== "attempt") return messages[REJECTION_MESSAGE[feedback.kind]];
+  if (!feedback.attempt) return "";
+  const attemptNumber = history.indexOf(feedback.attempt) + 1;
+  return messages.codeAttemptFeedback(attemptNumber, feedback.attempt.exact, feedback.attempt.misplaced, attemptsLeft);
 }
 
 export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGameContentProps) {
@@ -102,68 +122,16 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
   const shareText = generateShareText(puzzle, history, locale);
   const attemptsLeft = puzzle.max_attempts - history.length;
 
-  let feedbackText = "";
-  if (feedback?.kind === "chooseAll") feedbackText = messages.codeChooseAll;
-  else if (feedback?.kind === "chooseDistinct") feedbackText = messages.codeChooseDistinct;
-  else if (feedback?.kind === "attempt" && feedback.attempt) {
-    const attemptNumber = history.indexOf(feedback.attempt) + 1;
-    feedbackText = messages.codeAttemptFeedback(attemptNumber, feedback.attempt.exact, feedback.attempt.misplaced, attemptsLeft);
-  }
+  const feedbackText = feedbackMessage(feedback, history, attemptsLeft, messages);
 
   if (dayDone) return <DailyDone game="code" locale={locale} />;
 
   return (
     <section id="code-groups" tabIndex={-1} aria-label={messages.codeTitle} class="game-card game-card--wide code-groups" data-testid="game-board">
       <p class="code-sequence-note">{messages.codeSequenceNote}</p>
-      <p class="code-hud" data-testid="code-remaining">
-        {messages.codeAttemptsLeft(attemptsLeft)}: {attemptsLeft}/{puzzle.max_attempts}
-      </p>
-      <form
-        onKeyDown={(event) => { if (event.key === "Enter") ignoreRepeat(event); }}
-        onSubmit={(event) => {
-          event.preventDefault();
-          submitHere();
-        }}
-      >
-        <fieldset disabled={finished}>
-          <legend>{messages.codeYourGuess}</legend>
-          <div class="code-slots">
-            {selection.map((value, index) => (
-              <label key={index}>
-                {`${messages.codePosition} ${index + 1}`}
-                <select
-                  value={value}
-                  onChange={(event) => selectValue(index, event.currentTarget.value)}
-                  aria-label={`${messages.codePosition} ${index + 1}`}
-                >
-                  <option value="">{messages.codeChooseGroup}</option>
-                  {puzzle.symbols.map((s) => (
-                    <option value={s.qid} key={s.qid}>
-                      {nameByQid.get(s.qid) ?? s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-          <button class="btn btn-primary" type="submit">
-            {messages.codeSubmit}
-          </button>
-        </fieldset>
-      </form>
-      <p ref={feedbackRef} role="status" aria-live="polite" aria-atomic="true" class="code-feedback">
-        {feedbackText}
-      </p>
-      <h2>{messages.codeHistoryHeading}</h2>
-      <ol class="code-history">
-        {history.map((guess, index) => (
-          <li key={index}>
-            <span>{guess.ids.map(label).join(" / ")}</span>
-            <strong>{messages.codeGuessSummary(guess.exact, guess.misplaced)}</strong>
-          </li>
-        ))}
-      </ol>
-      {finished && (
+      {/* Once the round ends the result takes the counter's place, above the
+          locked form and the history, so it shows without scrolling past them. */}
+      {finished ? (
         <section
           class="game-result code-result"
           data-testid="game-result"
@@ -230,7 +198,57 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
           </ul>
           <p>Wikidata · CC0</p>
         </section>
+      ) : (
+        <p class="code-hud" data-testid="code-remaining">
+          {messages.codeAttemptsLeft(attemptsLeft)}: {attemptsLeft}/{puzzle.max_attempts}
+        </p>
       )}
+      <form
+        onKeyDown={(event) => { if (event.key === "Enter") ignoreRepeat(event); }}
+        onSubmit={(event) => {
+          event.preventDefault();
+          submitHere();
+        }}
+      >
+        <fieldset disabled={finished}>
+          <legend>{messages.codeYourGuess}</legend>
+          <div class="code-slots">
+            {selection.map((value, index) => (
+              <label key={index}>
+                {`${messages.codePosition} ${index + 1}`}
+                <select
+                  value={value}
+                  disabled={finished}
+                  onChange={(event) => selectValue(index, event.currentTarget.value)}
+                  aria-label={`${messages.codePosition} ${index + 1}`}
+                >
+                  <option value="">{messages.codeChooseGroup}</option>
+                  {puzzle.symbols.map((s) => (
+                    <option value={s.qid} key={s.qid}>
+                      {nameByQid.get(s.qid) ?? s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+          <button class="btn btn-primary" type="submit" disabled={finished}>
+            {messages.codeSubmit}
+          </button>
+        </fieldset>
+      </form>
+      <p ref={feedbackRef} role="status" aria-live="polite" aria-atomic="true" class="code-feedback">
+        {feedbackText}
+      </p>
+      <h2>{messages.codeHistoryHeading}</h2>
+      <ol class="code-history">
+        {history.map((guess, index) => (
+          <li key={index}>
+            <span>{guess.ids.map(label).join(" / ")}</span>
+            <strong>{messages.codeGuessSummary(guess.exact, guess.misplaced)}</strong>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
