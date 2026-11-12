@@ -101,8 +101,9 @@ function isResumableCatalogSave(
 
 /**
  * The session the live catalog builds for the saved question ids, or null when
- * one of them is no longer in it. A catalog round has no published bytes to
- * compare with, so this is the artifact its save is checked against.
+ * an id is missing from it or the ids do not form a valid round. A catalog
+ * round has no published bytes to compare with, so this is the artifact its
+ * save is checked against.
  */
 async function catalogSessionFor(
   catalog: QuizCatalog,

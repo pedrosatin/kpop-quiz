@@ -360,6 +360,31 @@ describe("Quiz flows", () => {
       expect(trackedEvents()).toEqual([]);
     });
 
+    it("restores a saved catalog round of one decade without drawing another", async () => {
+      const decades = [2000] as const;
+      const round = await selectCatalogRound({ locale: "pt-BR", playMode: "standard", decades, avoidPrevious: false, baseUrl: "/" });
+      const [first, second] = round.session.questions;
+      saveQuizProgress(roundSave(round.session, "catalog", {
+        decades: [...decades],
+        questionIndex: 1,
+        selectedId: second!.options[1]!.id,
+        history: [{ question: first!, selectedOptionId: first!.options[0]!.id, isCorrect: false, cluesUsedCount: 0 }],
+        replayNotice: "ok",
+      }));
+      vi.mocked(selectCatalogRound).mockClear();
+      window.history.replaceState(null, "", "/?decade=2000");
+
+      render(<Quiz locale="pt-BR" />);
+
+      expect(await screen.findByRole("heading", { name: second!.prompt })).toBeInTheDocument();
+      expect(screen.getByRole("radio", { name: second!.options[1]!.label })).toBeChecked();
+      expect(selectCatalogRound).not.toHaveBeenCalled();
+      expect(readSlot(quizProgressStorageKey({ ...historyConfig, decades: [...decades] }))).toMatchObject({
+        session_id: round.session.session_id,
+        question_index: 1,
+      });
+    });
+
     it("drops a save from an older catalog and warns on the fresh setup", async () => {
       const round = await drawCatalogRound();
       saveQuizProgress(roundSave({ ...round.session, catalog_version: "0".repeat(64) }, "catalog"));
@@ -382,7 +407,7 @@ describe("Quiz flows", () => {
       expect(readSlot()).toBeNull();
     });
 
-    it("drops a catalog save that names a question the live catalog no longer has", async () => {
+    it("drops a catalog save that names a question the live catalog does not have", async () => {
       const round = await drawCatalogRound();
       const [first, ...rest] = round.session.questions;
       const gone = { ...first!, id: "e".repeat(64) };
