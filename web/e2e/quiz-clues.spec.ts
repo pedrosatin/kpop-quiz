@@ -9,7 +9,7 @@ import { preview } from "astro";
 import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
-import type { PlayMode, QuizQuestion, QuizSession } from "../src/lib/quiz-types";
+import type { Locale, PlayMode, QuizOption, QuizQuestion, QuizSession } from "../src/lib/quiz-types";
 
 // The real consent island only renders when a GA4 id is built in, which the
 // default dist leaves out. Build one that has it. QUIZ_CLUES_DATA_DIR swaps in
@@ -47,8 +47,10 @@ test.use({ serviceWorkers: "block" });
 /**
  * The browser must show what the published session says: the clue when the
  * artifact carries one, a plain notice when it does not, and a cost only for a
- * clue the player opens. Each case reads the session the page fetched, so the
- * check follows whatever the pipeline published.
+ * clue the player opens. Each case reads the session the page fetched, or, for
+ * a catalog round, the catalog shard it fetched, taking from the page's save
+ * only the order of questions and options. The check follows whatever the
+ * pipeline published.
  */
 
 const locales = [
@@ -84,22 +86,52 @@ async function seedConsent(page: Page) {
   await page.addInitScript((key) => window.localStorage.setItem(key, "rejected"), CONSENT_STORAGE_KEY);
 }
 
-/**
- * Opens the quiz and returns the session artifacts the page fetched. The
- * daily game reads the current day and may then read the next one, so the
- * caller picks the one the board shows.
- */
-async function openSession(page: Page, baseURL: string, path: string, mode: PlayMode, query: string, consent?: { state: Consent; reject: RegExp }) {
-  if (!consent) await seedConsent(page);
-  const bodies: QuizSession[] = [];
+/** The fields of a catalog shard (ADR 026) these checks read. */
+interface CatalogShard {
+  language: Locale;
+  play_mode: PlayMode;
+  questions: QuizQuestion[];
+}
+
+/** Session artifacts and catalog shards the page fetched since the listener was added. */
+interface Fetched {
+  sessions: QuizSession[];
+  shards: CatalogShard[];
+}
+
+function collectArtifacts(page: Page): Fetched {
+  const fetched: Fetched = { sessions: [], shards: [] };
   page.on("response", async (response) => {
-    if (/\/data\/(?:next\/)?session\.[^/]+\.json$/.test(response.url()) && response.ok()) {
-      bodies.push((await response.json()) as QuizSession);
+    if (!response.ok()) return;
+    const list = /\/data\/(?:next\/)?session\.[^/]+\.json$/.test(response.url()) ? fetched.sessions
+      : /\/data\/catalog\.[^/]+\.json$/.test(response.url()) ? fetched.shards
+      : null;
+    if (!list) return;
+    try {
+      list.push(await response.json());
+    } catch {
+      // A reload can drop a body still being read; the checks that need it wait for it and fail by name.
     }
   });
+  return fetched;
+}
+
+/**
+ * Opens the quiz and returns the artifacts the page fetched. The daily game
+ * reads the current day and may then read the next one, so the caller picks
+ * the one the board shows. With the question catalog published (QUIZ_CATALOG),
+ * a decade round is drawn from a catalog shard instead of a session artifact;
+ * `catalog` says whether the scenario accepts that.
+ */
+async function openSession(page: Page, baseURL: string, path: string, mode: PlayMode, query: string, catalog: boolean, consent?: { state: Consent; reject: RegExp }) {
+  if (!consent) await seedConsent(page);
+  const fetched = collectArtifacts(page);
   await page.goto(`${joinBaseUrl(baseURL, path)}?mode=${mode}&${query}`);
   await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
-  expect(bodies.length, "the page must fetch a session artifact").toBeGreaterThan(0);
+  await expect.poll(
+    () => fetched.sessions.length + (catalog ? fetched.shards.length : 0),
+    { message: catalog ? "the page must fetch a session artifact or a catalog shard" : "the page must fetch a session artifact" },
+  ).toBeGreaterThan(0);
   if (consent) {
     const banner = page.locator(".consent-banner");
     await expect(banner, "the consent build must render the real banner").toBeVisible();
@@ -108,18 +140,71 @@ async function openSession(page: Page, baseURL: string, path: string, mode: Play
       await expect(banner).toHaveCount(0);
     }
   }
-  return bodies;
+  return fetched;
 }
 
-/** Starts the game and returns the fetched session whose first question is on screen. */
-async function startAndMatch(page: Page, fetched: QuizSession[]): Promise<QuizSession> {
+/** Sessions of the rounds the page saved in progress slots. */
+async function savedSessions(page: Page): Promise<QuizSession[]> {
+  return page.evaluate(() => Object.keys(window.localStorage)
+    .filter((key) => key.startsWith("kpop-quiz-progress:"))
+    .flatMap((key) => {
+      try {
+        const session = (JSON.parse(window.localStorage.getItem(key)!) as { session?: unknown }).session;
+        return session ? [session as QuizSession] : [];
+      } catch {
+        return [];
+      }
+    }));
+}
+
+const byOptionId = (options: readonly QuizOption[]) => [...options].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+/**
+ * The catalog round the page saved, checked question by question against the
+ * shard the page fetched: clues, correct answer, clue cost and the set of
+ * options must be the shard's. The save only gives the order of questions and
+ * of options, which the board draws from it; every other field comes from the shard.
+ */
+async function catalogRound(saved: QuizSession, fetched: Fetched): Promise<QuizSession> {
+  let published = new Map<string, QuizQuestion>();
+  await expect.poll(() => {
+    published = new Map(fetched.shards
+      .filter((shard) => shard.language === saved.config.language && shard.play_mode === saved.config.play_mode)
+      .flatMap((shard) => shard.questions.map((question) => [question.id, question] as const)));
+    return saved.questions.filter((question) => !published.has(question.id)).map((question) => question.id);
+  }, { message: "every question of the saved catalog round must be in the fetched shard" }).toEqual([]);
+  const questions = saved.questions.map((question) => {
+    const expected = published.get(question.id)!;
+    expect(question.clues_available, `clues of ${question.id}`).toEqual(expected.clues_available);
+    expect(question.answer_option_id, `answer of ${question.id}`).toBe(expected.answer_option_id);
+    expect(question.hint_cost, `clue cost of ${question.id}`).toBe(expected.hint_cost);
+    expect(byOptionId(question.options), `options of ${question.id}`).toEqual(byOptionId(expected.options));
+    const options = new Map(expected.options.map((option) => [option.id, option]));
+    return { ...expected, options: question.options.map((option) => options.get(option.id)!) };
+  });
+  return { ...saved, questions };
+}
+
+/**
+ * Starts the game and returns the session whose first question is on screen:
+ * a fetched artifact or, when `catalog` allows it, the catalog round the page
+ * saved, checked against the fetched shard.
+ */
+async function startAndMatch(page: Page, fetched: Fetched, catalog: boolean): Promise<QuizSession> {
   await page.getByTestId("game-start").click();
   const heading = page.getByTestId("game-board").getByRole("heading", { level: 2 });
   await expect(heading).toBeVisible();
   const shown = (await heading.textContent())!;
-  const matches = fetched.filter((candidate) => candidate.questions[0]!.prompt === shown);
-  expect(matches, `no fetched session starts with "${shown}"`).not.toHaveLength(0);
-  return matches.at(-1)!;
+  const startsWithShown = (candidate: QuizSession) => candidate.questions[0]!.prompt === shown;
+  const matches = fetched.sessions.filter(startsWithShown);
+  if (!catalog) expect(matches, `no fetched session starts with "${shown}"`).not.toHaveLength(0);
+  if (matches.length) return matches.at(-1)!;
+  let saved: QuizSession[] = [];
+  await expect.poll(async () => {
+    saved = (await savedSessions(page)).filter((candidate) => candidate.catalog_version && startsWithShown(candidate));
+    return saved.length;
+  }, { message: `no fetched session or saved catalog round starts with "${shown}"` }).toBeGreaterThan(0);
+  return catalogRound(saved.at(-1)!, fetched);
 }
 
 async function expectInsideViewport(page: Page, testId: string) {
@@ -161,8 +246,10 @@ for (const locale of locales)
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
           await context.route("**/*", (route) => new URL(route.request().url()).origin === consentURL ? route.continue() : route.abort());
           if (scenario.tomorrow) await page.clock.setFixedTime(Date.now() + 36 * 3_600_000);
-          const fetched = await openSession(page, consentURL, locale.path, mode, scenario.query, { state: consent, reject: locale.reject });
-          const session = await startAndMatch(page, fetched);
+          // Only the decade round may come from the catalog; the daily game always reads its published session.
+          const catalog = scenario.name === "decade-2000";
+          const fetched = await openSession(page, consentURL, locale.path, mode, scenario.query, catalog, { state: consent, reject: locale.reject });
+          const session = await startAndMatch(page, fetched, catalog);
           expect(session.config.play_mode).toBe(mode);
           const board = page.getByTestId("game-board");
 
@@ -232,39 +319,50 @@ for (const locale of locales)
         });
       }
 
-test.describe("a published session keeps its clue state after a reload", () => {
-  for (const locale of locales) {
-    test(`quiz ${locale.id}: the same artifact gives the same clue state after reload`, async ({ page, baseURL }) => {
-      const firstLoad = await openSession(page, baseURL!, locale.path, "standard", "decade=2000");
-      const first = await startAndMatch(page, firstLoad);
-      const hasClue = first.questions[0]!.clues_available.length > 0;
-      await expect(page.getByTestId("quiz-no-clue")).toHaveCount(hasClue ? 0 : 1);
+// The decade round is checked with the catalog answering 404 and with whatever
+// the build published, which is the catalog when QUIZ_CATALOG is on.
+const catalogVariants = [
+  { name: "catalog blocked", blocked: true },
+  { name: "catalog allowed", blocked: false },
+] as const;
 
-      // Q04 restores the in-progress round; the published artifact and clue state must match.
-      await page.reload();
-      await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
-      await expect(page.getByTestId("game-board").getByRole("heading", { level: 2 })).toHaveText(first.questions[0]!.prompt);
-      await expect(page.getByTestId("quiz-no-clue")).toHaveCount(hasClue ? 0 : 1);
+test.describe("a decade round keeps its clue state after a reload", () => {
+  for (const locale of locales)
+    for (const variant of catalogVariants) {
+      test(`quiz ${locale.id} ${variant.name}: the same round gives the same clue state after reload`, async ({ page, baseURL }) => {
+        if (variant.blocked) {
+          // This check covers the published decade session, which the general
+          // Quiz reads only when the catalog is missing, so answer 404 for the catalog.
+          await page.route("**/data/catalog-manifest-v1.json", (route) => route.fulfill({ status: 404, body: "" }));
+          await page.route("**/data/catalog.*", (route) => route.fulfill({ status: 404, body: "" }));
+        }
+        const catalog = !variant.blocked;
+        const firstLoad = await openSession(page, baseURL!, locale.path, "standard", "decade=2000", catalog);
+        const first = await startAndMatch(page, firstLoad, catalog);
+        const hasClue = first.questions[0]!.clues_available.length > 0;
+        await expect(page.getByTestId("quiz-no-clue")).toHaveCount(hasClue ? 0 : 1);
 
-      // Drop this config's progress and start again: the published session stays deterministic.
-      await page.evaluate(() => {
-        for (const key of Object.keys(window.localStorage)) {
-          if (key === "kpop-quiz-progress" || key.startsWith("kpop-quiz-progress:")) {
-            window.localStorage.removeItem(key);
+        // Q04 restores the in-progress round; the round and its clue state must match.
+        await page.reload();
+        await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
+        await expect(page.getByTestId("game-board").getByRole("heading", { level: 2 })).toHaveText(first.questions[0]!.prompt);
+        await expect(page.getByTestId("quiz-no-clue")).toHaveCount(hasClue ? 0 : 1);
+
+        // Drop this config's progress and start again: the round stays deterministic.
+        await page.evaluate(() => {
+          for (const key of Object.keys(window.localStorage)) {
+            if (key === "kpop-quiz-progress" || key.startsWith("kpop-quiz-progress:")) {
+              window.localStorage.removeItem(key);
+            }
           }
-        }
+        });
+        const secondLoad = collectArtifacts(page);
+        await page.goto(`${joinBaseUrl(baseURL!, locale.path)}?mode=standard&decade=2000`);
+        await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
+        const fetchedAgain = secondLoad.sessions.length + secondLoad.shards.length > 0;
+        const second = await startAndMatch(page, fetchedAgain ? secondLoad : firstLoad, catalog);
+        expect(second.session_id).toBe(first.session_id);
+        await expect(page.getByTestId("quiz-no-clue")).toHaveCount(hasClue ? 0 : 1);
       });
-      const secondLoad: QuizSession[] = [];
-      page.on("response", async (response) => {
-        if (/\/data\/(?:next\/)?session\.[^/]+\.json$/.test(response.url()) && response.ok()) {
-          secondLoad.push((await response.json()) as QuizSession);
-        }
-      });
-      await page.goto(`${joinBaseUrl(baseURL!, locale.path)}?mode=standard&decade=2000`);
-      await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
-      const second = await startAndMatch(page, secondLoad.length ? secondLoad : firstLoad);
-      expect(second.session_id).toBe(first.session_id);
-      await expect(page.getByTestId("quiz-no-clue")).toHaveCount(hasClue ? 0 : 1);
-    });
-  }
+    }
 });
