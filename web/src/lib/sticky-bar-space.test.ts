@@ -17,6 +17,23 @@ function rectOf(el: Element): DOMRect {
   return { top: box.top, bottom: box.top + box.height, height: box.height, left: 0, right: 100, width: 100, x: 0, y: box.top, toJSON() {} } as DOMRect;
 }
 
+/** jsdom has no ResizeObserver: this one lets a test report a resize. */
+const resizeCallbacks = new Set<() => void>();
+class FakeResizeObserver {
+  private readonly callback: () => void;
+  constructor(callback: () => void) {
+    this.callback = callback;
+  }
+  observe() {
+    resizeCallbacks.add(this.callback);
+  }
+  unobserve() {}
+  disconnect() {
+    resizeCallbacks.delete(this.callback);
+  }
+}
+const reportResize = () => resizeCallbacks.forEach((callback) => callback());
+
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 const flushMutations = () => new Promise<void>((resolve) => setTimeout(resolve));
 
@@ -28,10 +45,13 @@ beforeEach(() => {
     return (boxes.has(this) ? [rectOf(this)] : []) as unknown as DOMRectList;
   });
   Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+  vi.stubGlobal("ResizeObserver", FakeResizeObserver);
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  resizeCallbacks.clear();
   boxes.clear();
   document.body.innerHTML = "";
   document.documentElement.removeAttribute("style");
@@ -118,10 +138,61 @@ describe("installStickyBarSpace", () => {
     const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
     const stop = installStickyBarSpace(document);
     boxes.set(bar, { top: 600, height: 200 });
-    bar.querySelector(".game-actions-message")!.append(document.createElement("p"));
-    await flushMutations();
+    reportResize();
     expect(scrollBy).toHaveBeenCalledWith(0, 50);
     expect(document.documentElement.style.getPropertyValue(GAME_ACTIONS_HEIGHT_VAR)).toBe("200px");
+    stop();
+  });
+
+  it("rechecks the bar when its state class changes", async () => {
+    const { bar } = mountGame();
+    const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+    const stop = installStickyBarSpace(document);
+    boxes.set(bar, { top: 600, height: 200 });
+    bar.classList.add("is-incorrect");
+    await flushMutations();
+    expect(scrollBy).toHaveBeenCalledWith(0, 50);
+    stop();
+  });
+
+  it("stops publishing when a panel inside the bar turns it static", async () => {
+    const { bar } = mountGame();
+    const stop = installStickyBarSpace(document);
+    const source = document.createElement("div");
+    source.hidden = true;
+    bar.append(source);
+    await flushMutations();
+    bar.style.position = "static";
+    source.hidden = false;
+    await flushMutations();
+    expect(document.documentElement.style.getPropertyValue(GAME_ACTIONS_HEIGHT_VAR)).toBe("");
+    stop();
+  });
+
+  it("ignores class changes on the board, such as each move of a drag", async () => {
+    const { bar, cell } = mountGame();
+    const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+    const stop = installStickyBarSpace(document);
+    boxes.set(bar, { top: 600, height: 200 });
+    cell.classList.add("is-selecting");
+    cell.append(document.createElement("span"));
+    await flushMutations();
+    expect(scrollBy).not.toHaveBeenCalled();
+    expect(document.documentElement.style.getPropertyValue(GAME_ACTIONS_HEIGHT_VAR)).toBe("150px");
+    stop();
+  });
+
+  it("tracks a bar that mounts after it starts", async () => {
+    document.body.innerHTML = "<main><p>Loading</p></main>";
+    const stop = installStickyBarSpace(document);
+    expect(document.documentElement.style.getPropertyValue(GAME_ACTIONS_HEIGHT_VAR)).toBe("");
+    const bar = document.createElement("div");
+    bar.className = "game-actions";
+    bar.style.position = "sticky";
+    boxes.set(bar, { top: 680, height: 120 });
+    document.querySelector("main")!.append(bar);
+    await flushMutations();
+    expect(document.documentElement.style.getPropertyValue(GAME_ACTIONS_HEIGHT_VAR)).toBe("120px");
     stop();
   });
 
@@ -167,6 +238,23 @@ describe("installStickyBarSpace", () => {
     cell.scrollIntoView = scrollIntoView;
     const stop = installStickyBarSpace(document);
     cell.focus();
+    await nextFrame();
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    stop();
+  });
+
+  it("never scrolls for focus inside a dialog, which scrolls its own list", async () => {
+    mountGame();
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    const option = document.createElement("button");
+    dialog.append(option);
+    document.querySelector("main")!.append(dialog);
+    boxes.set(option, { top: 620, height: 44 });
+    const scrollIntoView = vi.fn();
+    option.scrollIntoView = scrollIntoView;
+    const stop = installStickyBarSpace(document);
+    option.focus();
     await nextFrame();
     expect(scrollIntoView).not.toHaveBeenCalled();
     stop();

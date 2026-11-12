@@ -219,9 +219,12 @@
   then stop above the bar at its current height, including after it grows
   with a message. The bar's own controls keep no margin: they are on screen
   wherever the bar is stuck, and a margin there would scroll the page on
-  every Tab.
+  every Tab. Dialogs keep none either: their lists scroll inside the dialog,
+  and the margin would leave an empty band under the highlighted option.
+  lib/sticky-bar-space.ts skips the same elements on focus
+  (OUTSIDE_PLAY_SELECTOR).
 */
-main :where(:not(.game-actions, .game-actions *)) {
+main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog"], [role="dialog"] *)) {
   scroll-margin-bottom: var(--game-actions-height, 0px);
 }
 
