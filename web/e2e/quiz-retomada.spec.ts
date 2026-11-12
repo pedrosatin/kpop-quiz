@@ -6,6 +6,7 @@ import {
   type QuizProgressConfigIdentity,
 } from "../src/components/Quiz/storage";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { openQuizCustomize } from "./pages/quiz.page";
 import type { Locale } from "../src/lib/quiz-types";
 
 /**
@@ -14,7 +15,8 @@ import type { Locale } from "../src/lib/quiz-types";
  * usable. Saves are per config (locale|mode|theme|decades); visiting another
  * config must not destroy an in-progress round. The checks run on whatever
  * the general Quiz reads: published sessions, or catalog rounds when the
- * catalog is published (QUIZ_CATALOG).
+ * catalog is published (QUIZ_CATALOG). A visit with no theme opens today's
+ * challenge, so these cases open the general quiz by URL.
  */
 
 const viewports = [
@@ -27,7 +29,7 @@ const locales = [
   {
     id: "pt",
     locale: "pt-BR" as Locale,
-    path: "/pt-br/",
+    path: "/pt-br/?theme=history",
     start: "Começar partida",
     submit: "Responder",
     next: /Próxima pergunta|Ver resultado/,
@@ -43,7 +45,7 @@ const locales = [
   {
     id: "en",
     locale: "en" as Locale,
-    path: "/en/",
+    path: "/en/?theme=history",
     start: "Start game",
     submit: "Submit answer",
     next: /Next question|See results/,
@@ -200,8 +202,9 @@ test("restores results without duplicating the recorded match (en, desktop)", as
 });
 
 test("restores the original deadline and expires once without skipping ahead (pt, desktop)", async ({ page, baseURL }) => {
-  await page.goto(joinBaseUrl(baseURL!, "/pt-br/"));
+  await page.goto(joinBaseUrl(baseURL!, "/pt-br/?theme=history"));
   await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
+  await openQuizCustomize(page);
   await page.getByRole("checkbox", { name: locales[0].enableTimer }).check();
   await page.getByTestId("game-start").click();
   await expect(page.getByTestId("game-board")).toBeVisible();
@@ -281,12 +284,12 @@ test("switching locale keeps the other config's in-progress save (pt→en, deskt
   const ptRaw = await page.evaluate((key) => window.localStorage.getItem(key), progressKey("pt-BR"));
   expect(ptRaw).toBeTruthy();
 
-  await page.goto(joinBaseUrl(baseURL!, "/en/"));
+  await page.goto(joinBaseUrl(baseURL!, "/en/?theme=history"));
   await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
   const stillPt = await page.evaluate((key) => window.localStorage.getItem(key), progressKey("pt-BR"));
   expect(stillPt).toBe(ptRaw);
 
-  await page.goto(joinBaseUrl(baseURL!, "/pt-br/"));
+  await page.goto(joinBaseUrl(baseURL!, "/pt-br/?theme=history"));
   await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("game-board").getByRole("heading", { level: 2 })).toHaveText(prompt);
   await expect(page.getByTestId("game-board").locator("label.option").filter({ hasText: optionText })).toBeChecked();
@@ -328,7 +331,7 @@ test("incompatible legacy save warns and does not erase another config slot (en,
     return raw;
   }, { slotKey: progressKey("pt-BR"), legacyKey: QUIZ_PROGRESS_LEGACY_STORAGE_KEY });
 
-  await page.goto(joinBaseUrl(baseURL!, "/en/"));
+  await page.goto(joinBaseUrl(baseURL!, "/en/?theme=history"));
   await expect(page.getByText(locales[1].incompatible)).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId("game-start")).toBeEnabled();
   const preserved = await page.evaluate(({ slotKey, legacyKey }) => ({

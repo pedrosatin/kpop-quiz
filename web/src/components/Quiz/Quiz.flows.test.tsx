@@ -186,6 +186,9 @@ describe("Quiz flows", () => {
   const trackedEvents = () => gtag.mock.calls.map((call) => call[1]);
 
   beforeEach(() => {
+    // A visit with no theme opens today's challenge; these cases play the
+    // general quiz unless they set their own URL.
+    window.history.replaceState(null, "", "/?theme=history");
     vi.spyOn(performance, "now").mockImplementation(() => now);
     world.catalog = "published";
     world.sessions = "published";

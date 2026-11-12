@@ -116,10 +116,10 @@ export interface Messages {
   empty: string;
   /** General quiz: the filter has fewer than ten eligible questions. */
   quizReplayUnavailable: string;
-  /** General quiz: exactly ten eligible questions, so replay repeats the set. */
+  /** General quiz result: exactly ten eligible questions, so Play again repeats the set. */
   quizReplayRepeats: string;
   /**
-   * General quiz: catalog absent, so the round uses the published legacy
+   * General quiz result: catalog absent, so the round uses the published legacy
    * session and "Play again" repeats those same questions.
    */
   quizReplayLegacyRepeats: string;
@@ -160,6 +160,10 @@ export interface Messages {
   decadeHelp: string;
   decadeLabel: (decade: number) => string;
   roundRules: string;
+  /** Collapsed group of the setup that holds the mode, the timer and the decades. */
+  customize: string;
+  /** One line under "Customize" with the current mode, timer and decades. */
+  customizeSummary: (modeName: string, timerEnabled: boolean, decades: readonly number[]) => string;
   difficultyName: (playMode: PlayMode) => string;
   difficultyDescription: (playMode: PlayMode) => string;
   start: string;
@@ -167,10 +171,8 @@ export interface Messages {
   clue: string;
   revealClue: (cost: number) => string;
   clueRevealed: string;
-  /** Notice when an Assisted question has no clue. */
-  noClueAssisted: string;
-  /** Notice when a Standard question has no clue; opening one never applies. */
-  noClueStandard: string;
+  /** One line, kept after answering, when an Assisted or Standard question has no clue. */
+  noClue: string;
   time: string;
   seconds: string;
   check: string;
@@ -526,8 +528,8 @@ const catalogs: Record<Locale, Messages> = {
     reload: "Tentar novamente",
     empty: "Este quiz ainda não tem perguntas.",
     quizReplayUnavailable: "Não há perguntas suficientes para esta combinação de idioma, modo e filtros.",
-    quizReplayRepeats: "Só há dez perguntas elegíveis nesta combinação; jogar novamente repete o mesmo conjunto.",
-    quizReplayLegacyRepeats: "O catálogo de perguntas novas ainda não está disponível; jogar novamente usa as mesmas perguntas publicadas.",
+    quizReplayRepeats: "Estes filtros têm só dez perguntas. Jogar novamente repete as perguntas desta rodada.",
+    quizReplayLegacyRepeats: "Jogar novamente repete as perguntas desta rodada.",
     quizResumeIncompatible: "Não foi possível retomar a partida salva: ela não combina com os dados atuais. Comece uma nova.",
     quizDailyDone: "Você já concluiu o desafio diário de hoje. Uma nova rodada não conta nas estatísticas.",
     quizResumeInvalid: "O progresso salvo está inválido e foi descartado. Comece uma nova partida.",
@@ -602,6 +604,12 @@ const catalogs: Record<Locale, Messages> = {
     decadeHelp: "Sem nenhuma década marcada, o quiz usa todas.",
     decadeLabel: (decade) => `Anos ${decade}`,
     roundRules: "10 perguntas de múltipla escolha. Depois de cada resposta, você vê a fonte.",
+    customize: "Personalizar",
+    customizeSummary: (modeName, timerEnabled, decades) => [
+      `Modo ${modeName}`,
+      timerEnabled ? "20 segundos por pergunta" : "sem limite de tempo",
+      ...(decades.length ? [`anos ${decades.join(", ")}`] : []),
+    ].join(" · "),
     difficultyName: (difficulty) => ({ assisted: "Assistido", standard: "Padrão", expert: "Especialista" })[difficulty],
     difficultyDescription: (difficulty) => ({
       assisted: "Mostra uma pista sempre que ela não entrega a resposta.",
@@ -613,8 +621,7 @@ const catalogs: Record<Locale, Messages> = {
     clue: "Pista",
     revealClue: (cost) => `Ver pista (-${cost} pontos)`,
     clueRevealed: "Pista aberta",
-    noClueAssisted: "Esta pergunta não tem pista disponível.",
-    noClueStandard: "Esta pergunta não tem pista disponível. Nenhum ponto será descontado.",
+    noClue: "Sem pista nesta pergunta.",
     time: "Tempo",
     seconds: "s",
     check: "Responder",
@@ -1030,8 +1037,8 @@ const catalogs: Record<Locale, Messages> = {
     reload: "Try again",
     empty: "This quiz has no questions yet.",
     quizReplayUnavailable: "There are not enough questions for this language, mode and filter combination.",
-    quizReplayRepeats: "Only ten eligible questions exist for this combination; playing again repeats the same set.",
-    quizReplayLegacyRepeats: "The new-question catalog is not available yet; playing again uses the same published questions.",
+    quizReplayRepeats: "These filters have only ten questions. Play again repeats this round's questions.",
+    quizReplayLegacyRepeats: "Play again repeats this round's questions.",
     quizResumeIncompatible: "Could not resume the saved game: it does not match the current data. Start a new round.",
     quizDailyDone: "You already finished today's daily challenge. A new round does not count in your stats.",
     quizResumeInvalid: "The saved progress is invalid and was discarded. Start a new game.",
@@ -1106,6 +1113,12 @@ const catalogs: Record<Locale, Messages> = {
     decadeHelp: "With no decade selected, the quiz uses all of them.",
     decadeLabel: (decade) => `${decade}s`,
     roundRules: "10 multiple-choice questions. After each answer, you see the source.",
+    customize: "Customize",
+    customizeSummary: (modeName, timerEnabled, decades) => [
+      `${modeName} mode`,
+      timerEnabled ? "20 seconds per question" : "no time limit",
+      ...(decades.length ? [decades.map((decade) => `${decade}s`).join(", ")] : []),
+    ].join(" · "),
     difficultyName: (difficulty) => ({ assisted: "Assisted", standard: "Standard", expert: "Expert" })[difficulty],
     difficultyDescription: (difficulty) => ({
       assisted: "Shows a clue whenever it doesn't give the answer away.",
@@ -1117,8 +1130,7 @@ const catalogs: Record<Locale, Messages> = {
     clue: "Clue",
     revealClue: (cost) => `Show clue (-${cost} points)`,
     clueRevealed: "Clue shown",
-    noClueAssisted: "This question has no clue available.",
-    noClueStandard: "This question has no clue available. No points will be deducted.",
+    noClue: "No clue for this question.",
     time: "Time",
     seconds: "s",
     check: "Submit answer",

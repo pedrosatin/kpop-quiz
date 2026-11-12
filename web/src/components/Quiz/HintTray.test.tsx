@@ -85,21 +85,21 @@ describe("HintTray", () => {
 
     it("says so in Assisted, in both languages, without a button", () => {
       renderTray("assisted");
-      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("Esta pergunta não tem pista disponível.");
+      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("Sem pista nesta pergunta.");
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
       cleanup();
       renderTray("assisted", "en");
-      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("This question has no clue available.");
+      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("No clue for this question.");
     });
 
-    it("says in Standard that nothing is charged and offers no button", () => {
+    it("says so in Standard without a button or a cost", () => {
       renderTray("standard");
-      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("Nenhum ponto será descontado.");
+      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("Sem pista nesta pergunta.");
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
       expect(screen.queryByText(/-15/)).not.toBeInTheDocument();
       cleanup();
       renderTray("standard", "en");
-      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("No points will be deducted.");
+      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("No clue for this question.");
     });
 
     it("stays silent in Expert, which has no clues by design", () => {
@@ -107,9 +107,23 @@ describe("HintTray", () => {
       expect(container.firstChild).toBeNull();
     });
 
-    it("drops the notice once the question is answered", () => {
-      const { container } = renderTray("standard", "pt-BR", true);
-      expect(container.firstChild).toBeNull();
+    it("keeps the same line after the answer, so the options below it do not move", () => {
+      const { rerender } = renderTray("standard");
+      const before = screen.getByTestId("quiz-no-clue");
+      rerender(
+        <HintTray
+          playMode="standard"
+          cluesAvailable={[]}
+          cluesShown={[]}
+          revealedClues={[]}
+          hintCost={15}
+          answered={true}
+          onRevealClue={vi.fn()}
+          messages={messages}
+        />
+      );
+      expect(screen.getByTestId("quiz-no-clue")).toBe(before);
+      expect(before).toHaveTextContent("Sem pista nesta pergunta.");
     });
   });
 

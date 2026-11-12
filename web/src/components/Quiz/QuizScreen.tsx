@@ -45,20 +45,21 @@ function replayNoticeText(status: ReplayNotice, messages: Messages): string | un
 }
 
 // The daily theme's round counts once per date (ADR 030): once it is counted,
-// the setup says so before any note about the saved round.
-function setupNoticeText({ resumeNotice, replayStatus, session }: QuizMatch, settings: QuizSettings, messages: Messages): string | undefined {
+// the setup says so before any note about the saved round. What Play again
+// repeats is told on the result, beside that button, and not here.
+function setupNoticeText({ resumeNotice, session }: QuizMatch, settings: QuizSettings, messages: Messages): string | undefined {
   const dailyDate = session ? quizDailyDate(session, settings.theme) : undefined;
   if (dailyDate !== undefined && isDailyMatchRecorded("quiz", dailyDate)) return messages.quizDailyDone;
   if (resumeNotice === "incompatible") return messages.quizResumeIncompatible;
   if (resumeNotice === "invalid") return messages.quizResumeInvalid;
   if (resumeNotice === "storage-unavailable") return messages.quizStorageUnavailable;
-  return replayNoticeText(replayStatus, messages);
+  return undefined;
 }
 
-function resultNoticeText({ resumeNotice, replayStatus }: QuizMatch, messages: Messages): string | undefined {
-  return resumeNotice === "storage-unavailable"
-    ? messages.quizStorageUnavailable
-    : replayNoticeText(replayStatus, messages);
+// Only the general quiz ends with Play again, so only it says what a replay repeats.
+function resultNoticeText({ resumeNotice, replayStatus }: QuizMatch, messages: Messages, offersReplay: boolean): string | undefined {
+  if (resumeNotice === "storage-unavailable") return messages.quizStorageUnavailable;
+  return offersReplay ? replayNoticeText(replayStatus, messages) : undefined;
 }
 
 // While the session loads, the setup is already on screen with Start
@@ -86,7 +87,8 @@ function QuizSetupScreen({ messages, settings, match, hydrated, actions }: QuizS
 
 function QuizResultScreen({ locale, messages, settings, match, focus, actions, session }: QuizScreenProps & { session: QuizSession }) {
   const { score, history, elapsedSeconds, restoredVisit, gaveUpRef } = match;
-  const resultNotice = resultNoticeText(match, messages);
+  const dailyDate = quizDailyDate(session, settings.theme);
+  const resultNotice = resultNoticeText(match, messages, !dailyDate);
   return (
     <QuizResult
       score={score} totalQuestions={session.questions.length} messages={messages} locale={locale}
@@ -95,7 +97,7 @@ function QuizResultScreen({ locale, messages, settings, match, focus, actions, s
       playMode={settings.playMode} history={history}
       {...(restoredVisit ? {} : { headingRef: focus.resultHeadingRef })}
       onRestart={actions.restart}
-      dailyDate={quizDailyDate(session, settings.theme)} feedbackEligible={!gaveUpRef.current}
+      dailyDate={dailyDate} feedbackEligible={!gaveUpRef.current}
       {...(resultNotice ? { notice: resultNotice } : {})}
     />
   );

@@ -29,6 +29,17 @@ describe("GameCollection component", () => {
     expect(dailyRadio).not.toBeChecked();
   });
 
+  it("lists today's quiz first, so the default card is the first one on screen", () => {
+    render(
+      <GameCollection
+        selectedTheme="daily"
+        onSelectTheme={vi.fn()}
+        messages={ptMessages}
+      />
+    );
+    expect(screen.getAllByRole("radio").map((radio) => (radio as HTMLInputElement).value)).toEqual(["daily", "history"]);
+  });
+
   it("renders both options in English", () => {
     render(
       <GameCollection

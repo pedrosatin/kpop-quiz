@@ -5,6 +5,9 @@ export type QuizTheme = "history" | "daily";
 export type QuizDecadeValue = 1990 | 2000 | 2010 | 2020;
 export type QuizDecadeSelection = QuizDecadeValue[];
 
+/** The quiz a visit opens on when the URL names no theme or decade: today's challenge. */
+export const DEFAULT_QUIZ_THEME: QuizTheme = "daily";
+
 const isQuizDecade = (value: number): value is QuizDecadeValue =>
   [1990, 2000, 2010, 2020].includes(value);
 
@@ -14,7 +17,7 @@ export function getInitialUrlParams(): {
   decades: QuizDecadeSelection;
 } {
   let playMode: PlayMode = loadStoredPreferences().playMode ?? "standard";
-  let theme: QuizTheme = "history";
+  let theme: QuizTheme = DEFAULT_QUIZ_THEME;
   let decades: QuizDecadeSelection = [];
   if (typeof window !== "undefined") {
     const params = new URLSearchParams(window.location.search);

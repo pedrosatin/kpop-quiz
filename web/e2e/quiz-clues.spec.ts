@@ -56,10 +56,10 @@ test.use({ serviceWorkers: "block" });
 const locales = [
   { id: "pt", path: "/pt-br/", reject: /^Recusar Google Analytics$/, start: "Começar partida", submit: "Responder", next: /Próxima pergunta|Ver resultado/, source: "Ver fonte",
     clueButton: (cost: number) => `Ver pista (-${cost} pontos)`, opened: "Pista aberta",
-    none: { assisted: "Esta pergunta não tem pista disponível.", standard: "Esta pergunta não tem pista disponível. Nenhum ponto será descontado." } },
+    none: "Sem pista nesta pergunta." },
   { id: "en", path: "/en/", reject: /^Reject Google Analytics$/, start: "Start game", submit: "Submit answer", next: /Next question|See results/, source: "Show source",
     clueButton: (cost: number) => `Show clue (-${cost} points)`, opened: "Clue shown",
-    none: { assisted: "This question has no clue available.", standard: "This question has no clue available. No points will be deducted." } },
+    none: "No clue for this question." },
 ] as const;
 
 const viewports = [
@@ -270,7 +270,7 @@ for (const locale of locales)
               await expect(clueButton).toHaveCount(0);
             } else if (question.clues_available.length === 0) {
               withoutClue += 1;
-              await expect(notice).toHaveText(locale.none[mode]);
+              await expect(notice).toHaveText(locale.none);
               await expect(clueButton).toHaveCount(0);
               await expectInsideViewport(page, "quiz-no-clue");
               if (shotDir && withoutClue === 1) {
@@ -300,6 +300,8 @@ for (const locale of locales)
               }
             }
             const advance = await answerCorrectly(page, question, locale);
+            // The no-clue line stays after the answer, so the options do not move.
+            if (mode !== "expert" && question.clues_available.length === 0) await expect(notice).toHaveText(locale.none);
             if (question.clues_available.length > 0) {
               await board.getByRole("button", { name: locale.source }).click();
               const source = page.getByTestId("quiz-clue-source");

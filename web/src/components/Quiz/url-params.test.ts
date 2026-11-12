@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getInitialUrlParams, updateUrlParams } from "./url-params";
+import { DEFAULT_QUIZ_THEME, getInitialUrlParams, updateUrlParams } from "./url-params";
 
 describe("url-params", () => {
   beforeEach(() => {
@@ -50,7 +50,7 @@ describe("url-params", () => {
       expect(getInitialUrlParams().decades).toEqual([1990, 2020]);
     });
 
-    it("rejects invalid values returning defaults (mode: standard, theme: history)", () => {
+    it("rejects invalid values returning defaults (mode: standard, theme: daily)", () => {
       window.history.replaceState(
         null,
         "",
@@ -58,9 +58,14 @@ describe("url-params", () => {
       );
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
-        theme: "history",
+        theme: "daily",
         decades: [],
       });
+    });
+
+    it("opens today's challenge when the URL names no theme or decade", () => {
+      expect(DEFAULT_QUIZ_THEME).toBe("daily");
+      expect(getInitialUrlParams().theme).toBe("daily");
     });
 
     it("uses stored preference for mode when mode param is missing or invalid", () => {
@@ -77,7 +82,7 @@ describe("url-params", () => {
       vi.stubGlobal("window", undefined);
       expect(getInitialUrlParams()).toEqual({
         playMode: "standard",
-        theme: "history",
+        theme: "daily",
         decades: [],
       });
     });

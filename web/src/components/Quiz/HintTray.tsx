@@ -26,15 +26,16 @@ export function HintTray({
   const canShowRevealButton = playMode === "standard" && cluesAvailable.length > 0;
   const nextClue = cluesAvailable.find((clue) => !revealedClues.includes(clue.id));
 
-  // Expert has no clues by design. Assisted and Standard say so when a
-  // question has none, and show no button that could not open anything.
+  // Expert has no clues by design. Assisted and Standard say so in one line
+  // when a question has none, and show no button that could not open
+  // anything. The line stays after the answer so the options do not move.
   const noClue = cluesAvailable.length === 0 && playMode !== "expert";
   if (activeClueIds.length === 0 && !canShowRevealButton) {
-    if (!noClue || answered) return null;
+    if (!noClue) return null;
     return (
       <div class="quiz-hint-tray" id="quiz-hint-tray">
-        <p class="callout quiz-clue quiz-clue--absent" data-testid="quiz-no-clue" role="status" aria-live="polite">
-          {playMode === "standard" ? messages.noClueStandard : messages.noClueAssisted}
+        <p class="quiz-clue--absent" data-testid="quiz-no-clue" role="status" aria-live="polite">
+          {messages.noClue}
         </p>
       </div>
     );

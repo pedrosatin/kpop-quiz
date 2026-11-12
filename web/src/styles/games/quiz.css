@@ -80,27 +80,85 @@
   margin-bottom: 0;
 }
 
-/* From 60rem the setup runs in two columns under its title: the kind of quiz
-   and the decades on the left, the mode and the timer on the right. Every
-   option and Start then fit above the fold at 1362x940 and 1440x900. */
+/* Customize: the mode, the timer and the decades sit closed under one row
+   that names their current values, so the kind of quiz and Start are what a
+   visit sees first. The row is a full-width control at least as tall as
+   --control-height. */
+.setup-customize {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}
+
+.setup-customize-toggle {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 0.125rem;
+  min-height: var(--control-height);
+  padding: var(--space-2) calc(var(--space-4) + 1.5rem) var(--space-2) var(--space-4);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  list-style: none;
+}
+
+.setup-customize-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.setup-customize-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  inset-inline-end: var(--space-4);
+  width: 0.5em;
+  height: 0.5em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-75%) rotate(45deg);
+  transition: transform var(--transition-fast);
+}
+
+.setup-customize[open] > .setup-customize-toggle::after {
+  transform: translateY(-25%) rotate(-135deg);
+}
+
+@media (hover: hover) {
+  .setup-customize-toggle:hover {
+    background: var(--color-surface-muted);
+  }
+}
+
+.setup-customize-title {
+  font-weight: 700;
+}
+
+.setup-customize-summary {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.setup-customize-body {
+  padding: var(--space-2) var(--space-4) var(--space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setup-customize-toggle::after {
+    transition: none;
+  }
+}
+
+/* From 60rem the open group runs in two columns: the decades on the left,
+   the mode and the timer on the right. */
 @media (min-width: 60rem) {
-  .setup-options {
+  .setup-customize-body--split {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0 var(--space-6);
     align-items: start;
   }
 
-  .setup-heading {
-    grid-column: 1 / -1;
-  }
-
-  /* A setup with only the mode and timer group spans the whole row. */
-  .setup-heading + .setup-group:last-child {
-    grid-column: 1 / -1;
-  }
-
-  .setup-group > :last-child {
+  .setup-customize-body--split .setup-group > :last-child {
     margin-bottom: 0;
   }
 
@@ -201,10 +259,12 @@
   margin-bottom: var(--space-4);
 }
 
-/* The notice replaces the clue, so it stays one quiet line of text. */
+/* The notice replaces the clue: one quiet line, on screen before and after
+   the answer, so the options under it keep their place. */
 .quiz-clue--absent {
+  margin: 0;
   color: var(--color-text-muted);
-  margin-bottom: 0;
+  font-size: 0.875rem;
 }
 
 .quiz-source-clue {
