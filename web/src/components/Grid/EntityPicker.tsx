@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "preact/hooks";
 import type { CandidateEntity, Locale } from "../../lib/quiz-types";
 import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import type { Messages } from "../../i18n/catalog";
-import { normalizeSearch } from "./types";
+import { buildCandidateIndex, namedMatchIndex, searchCandidates } from "./candidate-search";
 
 export interface EntityPickerProps {
   candidatePool: CandidateEntity[];
@@ -72,16 +72,19 @@ export function EntityPicker({
     [candidatePool, locale],
   );
 
-  const filtered = useMemo(
-    () => filterCandidates(candidatePool, query, locale, displayNames),
-    [candidatePool, query, locale, displayNames],
+  // Names are put in compared form once per pool, not on every keystroke.
+  const searchIndex = useMemo(
+    () => buildCandidateIndex(candidatePool, locale, displayNames),
+    [candidatePool, locale, displayNames],
   );
+
+  const filtered = useMemo(() => searchCandidates(searchIndex, query), [searchIndex, query]);
 
   // Enter sends only a group the player chose: one reached with the arrow
   // keys, or the one the search names. An empty search highlights nothing,
   // so Enter on it sends nothing.
-  const activeIndex = navIndex ?? searchMatchIndex(filtered, query, locale, displayNames);
-  const activeCandidate = activeIndex >= 0 ? filtered[activeIndex] : undefined;
+  const activeIndex = navIndex ?? namedMatchIndex(filtered, query);
+  const activeCandidate = activeIndex >= 0 ? filtered[activeIndex]?.candidate : undefined;
   const activeOptionId = activeCandidate ? `candidate-opt-${activeCandidate.id}` : undefined;
 
   // Arrow keys move the highlight; keep it inside the scrolled list.
@@ -190,11 +193,12 @@ export function EntityPicker({
           {filtered.length === 0 ? (
             <li class="picker-no-matches text-muted">{messages.gridPickerNoMatches}</li>
           ) : (
-            filtered.map((candidate, idx) => (
+            filtered.map(({ candidate, alias }, idx) => (
               <CandidateOption
                 key={candidate.id}
                 candidate={candidate}
                 name={displayNames.get(candidate.id) || candidate.canonical_name}
+                alias={alias}
                 active={idx === activeIndex}
                 badge={candidateBadge(candidate.id, usedEntityIds, triedEntityIds, messages)}
                 onSelect={onSelectCandidate}
@@ -207,33 +211,18 @@ export function EntityPicker({
   );
 }
 
-/**
- * The option a non-empty search names on its own: the only match, or the
- * first whose name equals the search. -1 when the search names none.
- */
-function searchMatchIndex(
-  filtered: CandidateEntity[],
-  query: string,
-  locale: Locale,
-  displayNames: Map<string, string>,
-): number {
-  const norm = normalizeSearch(query);
-  if (!norm) return -1;
-  if (filtered.length === 1) return 0;
-  return filtered.findIndex((c) =>
-    [c.canonical_name, c.names[locale] || "", displayNames.get(c.id) || ""].some((name) => normalizeSearch(name) === norm),
-  );
-}
-
 function CandidateOption({
   candidate,
   name,
+  alias,
   active,
   badge,
   onSelect,
 }: {
   candidate: CandidateEntity;
   name: string;
+  /** The other name the search matched, shown beside the group's name. */
+  alias: string | null;
   active: boolean;
   badge: string | null;
   onSelect: (candidate: CandidateEntity) => void;
@@ -247,7 +236,10 @@ function CandidateOption({
       aria-disabled={badge !== null}
       onClick={() => onSelect(candidate)}
     >
-      <span class="candidate-name">{name}</span>
+      <span class="candidate-label">
+        <span class="candidate-name">{name}</span>
+        {alias && <span class="candidate-alias">{alias}</span>}
+      </span>
       {badge && <span class="badge">{badge}</span>}
     </li>
   );
@@ -266,19 +258,6 @@ function candidateBadge(
   if (used.has(id)) return messages.gridAlreadyUsedBadge;
   if (tried?.has(id)) return messages.gridTriedHereBadge;
   return null;
-}
-
-function filterCandidates(
-  pool: CandidateEntity[],
-  query: string,
-  locale: Locale,
-  displayNames: Map<string, string>,
-): CandidateEntity[] {
-  const norm = normalizeSearch(query);
-  if (!norm) return pool;
-  return pool.filter((c) =>
-    [c.canonical_name, c.names[locale] || "", displayNames.get(c.id) || ""].some((name) => normalizeSearch(name).includes(norm)),
-  );
 }
 
 /** The option an arrow key moves to; the first arrow from no highlight lands on the first group. */

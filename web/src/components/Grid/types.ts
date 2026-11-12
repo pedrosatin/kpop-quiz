@@ -49,11 +49,3 @@ export interface GridStoredState {
 export function cellKey(row: number, col: number): string {
   return `${row},${col}`;
 }
-
-export function normalizeSearch(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
-}

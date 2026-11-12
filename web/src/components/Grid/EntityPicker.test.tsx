@@ -307,6 +307,43 @@ describe("EntityPicker component", () => {
     expect(onSelect).toHaveBeenLastCalledWith(pool[2]);
   });
 
+  it("finds a group typed without its punctuation or by an alias, and shows the alias", () => {
+    const onSelect = vi.fn();
+    const pool: CandidateEntity[] = [
+      { id: "Q20153", canonical_name: "Girls' Generation", names: { "pt-BR": "Girls' Generation", en: "Girls' Generation" }, aliases: ["SNSD", "소녀시대"] },
+      { id: "Q39070585", canonical_name: "Stray Kids", names: { "pt-BR": "Stray Kids", en: "Stray Kids" } },
+      { id: "Q1", canonical_name: "Stray Kids Unit", names: { "pt-BR": "Stray Kids Unit", en: "Stray Kids Unit" } },
+    ];
+    renderPicker({ candidatePool: pool, onSelectCandidate: onSelect });
+    const search = screen.getByRole("combobox");
+
+    for (const typed of ["stray kids", "straykids", "Stray-Kids"]) {
+      fireEvent.input(search, { target: { value: typed } });
+      expect(search).toHaveAttribute("aria-activedescendant", "candidate-opt-Q39070585");
+    }
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onSelect).toHaveBeenLastCalledWith(pool[1]);
+
+    fireEvent.input(search, { target: { value: "snsd" } });
+    const option = screen.getByRole("option");
+    expect(option).toHaveTextContent("Girls' Generation");
+    expect(option.querySelector(".candidate-alias")).toHaveTextContent("SNSD");
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onSelect).toHaveBeenLastCalledWith(pool[0]);
+
+    // A piece of an alias finds the group but Enter does not send it.
+    onSelect.mockClear();
+    fireEvent.input(search, { target: { value: "sns" } });
+    expect(screen.getByRole("option")).toHaveTextContent("SNSD");
+    expect(search).not.toHaveAttribute("aria-activedescendant");
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onSelect).not.toHaveBeenCalled();
+
+    // A shown name that matched needs no alias beside it.
+    fireEvent.input(search, { target: { value: "girls" } });
+    expect(screen.getByRole("option").querySelector(".candidate-alias")).toBeNull();
+  });
+
   it("forgets the arrow highlight when the search changes", () => {
     const onSelect = vi.fn();
     renderPicker({ onSelectCandidate: onSelect });

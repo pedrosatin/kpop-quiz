@@ -3,6 +3,7 @@ import { loadPreferNextDaily } from "./helpers/daily-artifact";
 import { visibleLabels } from "./helpers/visible-names";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { CELL_GUARD_MS } from "../src/components/Grid/next-cell-after-guess";
+import { normalizeSearch } from "../src/components/Grid/candidate-search";
 import { reloadPersisted } from "./helpers/passive-effects";
 
 type Grid = {
@@ -49,8 +50,8 @@ for (const locale of locales)
       // A refused group whose name no other group shares, so typing it names it.
       const refused = grid.candidate_pool.find((c) => {
         if (cell.valid_entity_ids.includes(c.id)) return false;
-        const name = labels.get(c.id)!.toLowerCase();
-        return grid.candidate_pool.filter((o) => labels.get(o.id)!.toLowerCase() === name).length === 1;
+        const name = normalizeSearch(labels.get(c.id)!);
+        return grid.candidate_pool.filter((o) => normalizeSearch(labels.get(o.id)!) === name).length === 1;
       })!;
       const name = labels.get(refused.id)!;
 

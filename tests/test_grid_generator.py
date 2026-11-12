@@ -413,6 +413,31 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         )
         validate_intersection_grid(renamed)
 
+    def test_candidates_carry_the_other_names_of_the_group_for_search(self) -> None:
+        """Alternative labels from the entity snapshot reach the picker.
+
+        Names already shown (canonical and per-language) are not repeated, and
+        the list is sorted so equal databases yield equal bytes.
+        """
+        group_id = self.connection.execute(
+            "SELECT id FROM entities WHERE wikidata_id='Q101'"
+        ).fetchone()["id"]
+        self.connection.executemany(
+            "INSERT INTO entity_aliases VALUES (?, ?, ?, ?)",
+            [
+                (group_id, "en", "TG101", "alias"),
+                (group_id, "ko", "테스트그룹", "label"),
+                (group_id, "en", "Test Group 101", "alias"),
+                (group_id, "ko", " TG101 ", "alias"),
+            ],
+        )
+        grid = generate_intersection_grid(self.connection, seed="alias-seed")
+        pool = {item["id"]: item for item in grid["candidate_pool"]}
+
+        self.assertEqual(pool["Q101"]["aliases"], ["TG101", "테스트그룹"])
+        self.assertEqual(pool["Q102"]["aliases"], [])
+        validate_intersection_grid(grid)
+
     def test_mixed_axis_fallback_generates_evidenced_unique_grid(self) -> None:
         # Simulate a dataset for which none of the curated category partitions
         # are available. The broader search must still use accepted criteria,

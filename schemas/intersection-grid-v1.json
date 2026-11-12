@@ -132,7 +132,13 @@
       "properties": {
         "id": {"$ref": "#/$defs/qid"},
         "canonical_name": {"type": "string", "minLength": 1},
-        "names": {"$ref": "#/$defs/bilingual_text"}
+        "names": {"$ref": "#/$defs/bilingual_text"},
+        "aliases": {
+          "description": "Other names of the group in its Wikidata entity snapshot, for search only. Absent in grids published before the field existed.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
       }
     }
   }

@@ -668,6 +668,28 @@ def _select_axes(
     )
 
 
+def _candidate_payload(group: Entity) -> dict[str, Any]:
+    """One picker entry: the names shown, plus the other names to search by.
+
+    ``aliases`` holds the group's names from the Wikidata entity snapshot of
+    this dataset (labels in other languages, alternative labels, native names
+    and romanizations, all in ``entity_aliases``) that differ from the names
+    shown. They only help the player find the group; no answer depends on them.
+    """
+    names = {
+        "pt-BR": group.names.get("pt") or group.names.get("pt-BR") or group.canonical_name,
+        "en": group.names.get("en") or group.canonical_name,
+    }
+    shown = {group.canonical_name, *names.values()}
+    aliases = sorted({alias.strip() for alias in group.aliases} - shown - {""})
+    return {
+        "id": group.wikidata_id,
+        "canonical_name": group.canonical_name,
+        "names": names,
+        "aliases": aliases,
+    }
+
+
 def generate_intersection_grid(
     connection: sqlite3.Connection,
     seed: str,
@@ -739,19 +761,8 @@ def generate_intersection_grid(
                 }
             )
 
-    candidate_pool: list[dict[str, Any]] = [
-        {
-            "id": group.wikidata_id,
-            "canonical_name": group.canonical_name,
-            "names": {
-                "pt-BR": (
-                    group.names.get("pt")
-                    or group.names.get("pt-BR")
-                    or group.canonical_name
-                ),
-                "en": group.names.get("en") or group.canonical_name,
-            },
-        }
+    candidate_pool = [
+        _candidate_payload(group)
         for group in sorted(candidate_groups.values(), key=lambda g: g.wikidata_id)
     ]
 

@@ -334,6 +334,12 @@ export interface CandidateEntity {
   id: string;
   canonical_name: string;
   names: { "pt-BR": string; en: string };
+  /**
+   * Other names of the group in its Wikidata entity snapshot (labels in
+   * other languages, alternative labels, native names), for search only.
+   * Grids published before the field existed lack it.
+   */
+  aliases?: string[];
 }
 
 export interface IntersectionGrid {
@@ -385,11 +391,19 @@ function isGridCriterion(value: unknown): value is GridCriterion {
 }
 
 function isCandidate(value: unknown): value is CandidateEntity {
-  return isRecord(value)
-    && hasExactKeys(value, CANDIDATE_FIELDS)
+  if (!isRecord(value)) return false;
+  const { aliases, ...required } = value;
+  return hasExactKeys(required, CANDIDATE_FIELDS)
+    && (aliases === undefined || isAliasList(aliases))
     && typeof value.id === "string" && QID.test(value.id)
     && typeof value.canonical_name === "string" && value.canonical_name.length > 0
     && isBilingualText(value.names);
+}
+
+function isAliasList(value: unknown): value is string[] {
+  return Array.isArray(value)
+    && value.every((name) => typeof name === "string" && name.trim().length > 0)
+    && new Set(value).size === value.length;
 }
 
 function isGridEvidence(value: unknown): value is GridEvidence {

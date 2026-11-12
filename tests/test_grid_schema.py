@@ -496,6 +496,24 @@ class IntersectionGridSchemaTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_intersection_grid(fixture)
 
+    def test_candidate_aliases_are_optional_unique_non_empty_strings(self):
+        # Grids published before the field existed stay valid.
+        legacy = sample_intersection_grid()
+        self.assertNotIn("aliases", legacy["candidate_pool"][0])
+        validate_intersection_grid(legacy)
+
+        fixture = sample_intersection_grid()
+        fixture["candidate_pool"][0]["aliases"] = ["트와이스"]
+        if self.json_validator is not None:
+            self.json_validator(fixture)
+        validate_intersection_grid(fixture)
+
+        for aliases in ("TWICE", [""], ["  "], [1], ["A", "A"]):
+            fixture = sample_intersection_grid()
+            fixture["candidate_pool"][0]["aliases"] = aliases
+            with self.subTest(aliases=aliases), self.assertRaises(ValueError):
+                validate_intersection_grid(fixture)
+
     def test_invalid_types_fail(self):
         invalid_cases = [
             ("grid_id", 123456789),
