@@ -44,7 +44,7 @@ interface SavedGameState {
   highContrast: boolean;
 }
 
-type ErrorCode = "notEnoughLetters" | "notInWordList" | "alreadyGuessed";
+export type ErrorCode = "notEnoughLetters" | "tooManyLetters" | "notInWordList" | "alreadyGuessed";
 
 interface GameState {
   guesses: string[];
@@ -53,6 +53,8 @@ interface GameState {
   status: GameStatus;
   errorMessage: ErrorCode | null;
   highContrast: boolean;
+  /** A letter past the end of the row was refused and announced; set until the row gets shorter. */
+  overflowWarned: boolean;
 }
 
 type GameAction =
@@ -72,6 +74,7 @@ const INITIAL_STATE: GameState = {
   status: "playing",
   errorMessage: null,
   highContrast: false,
+  overflowWarned: false,
 };
 
 // Every input goes through this reducer, so each key sees the state left by the
@@ -82,15 +85,17 @@ function nameGuessReducer(state: GameState, action: GameAction): GameState {
       if (state.status !== "playing") return state;
       const clean = action.char.toUpperCase();
       if (!/^[A-Z]$/.test(clean)) return state;
-      const currentInput =
-        state.currentInput.length < action.puzzle.word_length
-          ? state.currentInput + clean
-          : state.currentInput;
-      return { ...state, currentInput, errorMessage: null };
+      if (state.currentInput.length < action.puzzle.word_length) {
+        return { ...state, currentInput: state.currentInput + clean, errorMessage: null };
+      }
+      // A full row says once that the name has no more letters; further keys
+      // change nothing until the row gets shorter.
+      if (state.overflowWarned) return state;
+      return { ...state, errorMessage: "tooManyLetters", overflowWarned: true };
     }
     case "removeLetter":
       if (state.status !== "playing") return state;
-      return { ...state, currentInput: state.currentInput.slice(0, -1), errorMessage: null };
+      return { ...state, currentInput: state.currentInput.slice(0, -1), errorMessage: null, overflowWarned: false };
     case "submitGuess": {
       if (state.status !== "playing") return state;
       const { puzzle } = action;
@@ -112,7 +117,7 @@ function nameGuessReducer(state: GameState, action: GameAction): GameState {
       } else if (guesses.length >= puzzle.max_attempts) {
         status = "lost";
       }
-      return { ...state, guesses, feedbacks, currentInput: "", status, errorMessage: null };
+      return { ...state, guesses, feedbacks, currentInput: "", status, errorMessage: null, overflowWarned: false };
     }
     case "giveUp":
       if (state.status !== "playing") return state;
@@ -129,6 +134,7 @@ function nameGuessReducer(state: GameState, action: GameAction): GameState {
         currentInput: "",
         status: "playing",
         errorMessage: null,
+        overflowWarned: false,
       };
     case "restore":
       return {

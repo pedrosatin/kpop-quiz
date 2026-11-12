@@ -517,7 +517,16 @@ describe("NameGuessGame component", () => {
     expect(screen.queryByText(tPt.notEnoughLetters)).not.toBeInTheDocument();
   });
 
-  it("lets Enter on a focused button do only the button's action", () => {
+  // The browser turns Enter or Space on a focused button into a click, unless
+  // the keydown was canceled; Space clicks on keyup.
+  function pressOn(el: HTMLElement, key: "Enter" | " ") {
+    el.focus();
+    const notCanceled = fireEvent.keyDown(el, { key });
+    if (key === " ") fireEvent.keyUp(el, { key });
+    if (notCanceled) fireEvent.click(el);
+  }
+
+  it("submits the guess on Enter from a focused letter key without typing the letter again", async () => {
     render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
 
     const row1 = screen.getByRole("group", { name: "Palpite 1" });
@@ -525,23 +534,120 @@ describe("NameGuessGame component", () => {
       fireEvent.keyDown(window, { key });
     }
 
-    // The browser turns Enter on a focused button into a click on that button.
+    // Space on the focused key still types its letter, once.
     const keyE = screen.getByRole("button", { name: "E" });
-    keyE.focus();
-    fireEvent.keyDown(keyE, { key: "Enter" });
-    fireEvent.click(keyE);
-
+    pressOn(keyE, " ");
     expect(within(row1).getByLabelText("Posição 5: letra E")).toBeInTheDocument();
+
+    pressOn(keyE, "Enter");
+
+    await waitFor(() => {
+      expect(screen.getByText(tPt.wonTitle)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(tPt.notEnoughLetters)).not.toBeInTheDocument();
+  });
+
+  it("does not type the focused letter key's letter on Enter in a short row", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    const row1 = screen.getByRole("group", { name: "Palpite 1" });
+    const keyT = screen.getByRole("button", { name: "T" });
+    pressOn(keyT, " ");
+    pressOn(keyT, "Enter");
+    pressOn(keyT, "Enter");
+
+    // The playtest saw T, T, T here; Enter now submits and the row is too short.
+    expect(within(row1).getByLabelText("Posição 1: letra T")).toBeInTheDocument();
+    expect(within(row1).getByLabelText("Posição 2: vazia")).toBeInTheDocument();
+    expect(liveMessage()).toHaveTextContent(tPt.notEnoughLetters);
+  });
+
+  it("lets Enter on the other focused buttons do only the button's action", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    const row1 = screen.getByRole("group", { name: "Palpite 1" });
+    for (const key of ["t", "w"]) {
+      fireEvent.keyDown(window, { key });
+    }
+
+    pressOn(screen.getByRole("button", { name: tPt.backspace }), "Enter");
+    expect(within(row1).getByLabelText("Posição 1: letra T")).toBeInTheDocument();
+    expect(within(row1).getByLabelText("Posição 2: vazia")).toBeInTheDocument();
+
+    // A letter key with a modifier is left to the browser.
+    const keyW = screen.getByRole("button", { name: "W" });
+    keyW.focus();
+    expect(fireEvent.keyDown(keyW, { key: "Enter", ctrlKey: true })).toBe(true);
     expect(liveMessage()).toBeEmptyDOMElement();
-    expect(screen.queryByText(tPt.wonTitle)).not.toBeInTheDocument();
 
     const toggle = screen.getByRole("button", { name: tPt.highContrast });
-    toggle.focus();
-    fireEvent.keyDown(toggle, { key: "Enter" });
-    fireEvent.click(toggle);
+    pressOn(toggle, "Enter");
 
     expect(toggle).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByText(tPt.wonTitle)).not.toBeInTheDocument();
+    expect(liveMessage()).toBeEmptyDOMElement();
+    expect(within(row1).getByLabelText("Posição 1: letra T")).toBeInTheDocument();
+  });
+
+  it("types the base letter of an accented key and ignores keys with no base letter", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    const row1 = screen.getByRole("group", { name: "Palpite 1" });
+    // "Pèntagön" lost its accented letters before: PNTAGN.
+    for (const key of ["Dead", "È", "ß", "1", "ö", "Process"]) {
+      fireEvent.keyDown(window, { key });
+    }
+
+    expect(within(row1).getByLabelText("Posição 1: letra E")).toBeInTheDocument();
+    expect(within(row1).getByLabelText("Posição 2: letra O")).toBeInTheDocument();
+    expect(within(row1).getByLabelText("Posição 3: vazia")).toBeInTheDocument();
+  });
+
+  it("leaves keys of an IME composition, Enter included, to the composition", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    const row1 = screen.getByRole("group", { name: "Palpite 1" });
+    fireEvent.keyDown(window, { key: "a", isComposing: true });
+    fireEvent.keyDown(window, { key: "Enter", isComposing: true });
+
+    expect(within(row1).getByLabelText("Posição 1: vazia")).toBeInTheDocument();
+    expect(liveMessage()).toBeEmptyDOMElement();
+  });
+
+  it("says once that the row is full when a letter is typed past its end", () => {
+    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+
+    const full = tPt.tooManyLetters(puzzle.word_length);
+    expect(full).toBe(`O nome de hoje tem ${puzzle.word_length} letras.`);
+    for (const key of "twice") fireEvent.keyDown(window, { key });
+    expect(liveMessage()).toBeEmptyDOMElement();
+
+    fireEvent.keyDown(window, { key: "s" });
+    const live = liveMessage();
+    expect(live).toHaveTextContent(full);
+    const announced = live.firstElementChild;
+
+    // More letters change nothing, so the message is not announced again.
+    fireEvent.keyDown(window, { key: "x" });
+    fireEvent.click(screen.getByRole("button", { name: "Q" }));
+    expect(live.firstElementChild).toBe(announced);
+    expect(live.querySelectorAll("p")).toHaveLength(1);
+
+    // A shorter row can fill up and warn again.
+    fireEvent.keyDown(window, { key: "Backspace" });
+    expect(live).toBeEmptyDOMElement();
+    fireEvent.keyDown(window, { key: "e" });
+    fireEvent.keyDown(window, { key: "e" });
+    expect(live).toHaveTextContent(full);
+    expect(within(screen.getByRole("group", { name: "Palpite 1" })).getByLabelText("Posição 5: letra E")).toBeInTheDocument();
+  });
+
+  it("says the length of the name in English when the row is full", () => {
+    render(<NameGuessGame locale="en" puzzle={puzzle} />);
+
+    for (const key of "twices") fireEvent.keyDown(window, { key });
+    const tEn = getMessages("en").nameGuess;
+    const live = screen.getByRole("region", { name: tEn.title }).querySelector(".game-actions-message");
+    expect(live).toHaveTextContent(`Today's name has ${puzzle.word_length} letters.`);
   });
 
   it("still types letters from the physical keyboard while a virtual key has focus", () => {

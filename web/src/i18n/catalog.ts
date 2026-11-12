@@ -17,6 +17,8 @@ export interface NameGuessMessages {
   enter: string;
   backspace: string;
   notEnoughLetters: string;
+  /** Said once when a letter is typed into a full row. */
+  tooManyLetters: (length: number) => string;
   notInWordList: string;
   alreadyGuessed: string;
   wonTitle: string;
@@ -751,6 +753,7 @@ const catalogs: Record<Locale, Messages> = {
       enter: "ENVIAR",
       backspace: "APAGAR",
       notEnoughLetters: "Preencha todas as letras.",
+      tooManyLetters: (length) => `O nome de hoje tem ${length} letras.`,
       notInWordList: "Esse nome não está na lista de palpites aceitos.",
       alreadyGuessed: "Você já tentou essa palavra.",
       wonTitle: "Você acertou!",
@@ -1239,6 +1242,7 @@ const catalogs: Record<Locale, Messages> = {
       enter: "ENTER",
       backspace: "DEL",
       notEnoughLetters: "Fill in every letter.",
+      tooManyLetters: (length) => `Today's name has ${length} letters.`,
       notInWordList: "That name isn't on the list of accepted guesses.",
       alreadyGuessed: "You already tried that word.",
       wonTitle: "You got it!",
