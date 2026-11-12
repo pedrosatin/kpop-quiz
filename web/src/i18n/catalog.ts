@@ -596,8 +596,8 @@ const catalogs: Record<Locale, Messages> = {
       "Clique ou toque na opção de uma posição para trocar o grupo. No teclado, use as setas. O resultado do fim mostra o código e as fontes de cada grupo.",
     ],
     crosswordHowToPlay: [
-      "Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. Num cruzamento, toque de novo no quadrado para trocar entre horizontal e vertical. Deixe de fora espaços, pontuação e acentos e mantenha os números.",
-      "No teclado, as setas levam ao próximo quadrado naquela direção e Tab passa ao quadrado seguinte, linha por linha. Uma letra num cruzamento vale para as duas palavras.",
+      "Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. Num cruzamento, toque ou clique de novo no quadrado para trocar entre horizontal e vertical. Deixe de fora espaços, pontuação e acentos e mantenha os números.",
+      "No teclado, as setas levam ao próximo quadrado na direção da seta e Tab passa ao quadrado seguinte, linha por linha. Uma letra num cruzamento vale para as duas palavras.",
       "Verifique as respostas quantas vezes quiser. Cada verificação marca os quadrados errados ou vazios. Para parar, toque em Revelar respostas e veja os nomes e as fontes de cada pista.",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
@@ -1106,8 +1106,8 @@ const catalogs: Record<Locale, Messages> = {
       "Click or tap a position's option to change its group. With a keyboard, use the arrow keys. The final result reveals the code and the source of each group.",
     ],
     crosswordHowToPlay: [
-      "Tap or click a clue to pick its word, then type the group's name. Where two words cross, tap the square again to switch between across and down. Leave out spaces, punctuation and accents, but keep numbers.",
-      "With a keyboard, the arrow keys move to the next square in that direction and Tab moves to the next square, row by row. A letter where two words cross counts for both.",
+      "Tap or click a clue to pick its word, then type the group's name. Where two words cross, tap or click the square again to switch between across and down. Leave out spaces, punctuation and accents, but keep numbers.",
+      "With a keyboard, each arrow key moves to the next square in its direction and Tab moves to the next square, row by row. A letter where two words cross counts for both.",
       "Check your answers as often as you like. Each check marks the squares that are wrong or empty. To stop, finish the round and see the answers and the source of each clue.",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,

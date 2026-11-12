@@ -186,7 +186,7 @@ for (const locale of locales) {
         await expect(bar).toHaveClass(/is-incorrect/);
         // The verdict takes the line of the hint, so the bar keeps its height.
         expect(await bar.evaluate((el) => el.getBoundingClientRect().height), "the wrong check keeps the bar's height").toBeLessThanOrEqual(before + 0.5);
-        await expectUncovered(square, "the lowest square after the bar grew");
+        await expectUncovered(square, "the lowest square after a wrong check");
         await expectEndReachable(page, "the last clue after a wrong check");
       });
 

@@ -140,6 +140,57 @@ for (const viewport of [...phones, { width: 1440, height: 900 }]) {
   });
 }
 
+for (const phone of phones) {
+  test(`${phone.width}x${phone.height}: picking a clue below the grid brings the active clue and the grid back on screen`, async ({ browser, baseURL }) => {
+    const t = locales.pt;
+    const { context, page, board, press } = await open(browser, baseURL!, t.path, phone);
+    // The last clue sits under the bar until the page scrolls to it.
+    await press(board.getByRole("button", { name: new RegExp(`^2 ${t.down}:`) }));
+    await expect(board.getByRole("textbox", { name: t.square(1, 3) })).toBeFocused();
+    await expect(activeClue(board)).toContainText(`2 ${t.down}`);
+    const clueTop = await activeClue(board).evaluate((el) => el.getBoundingClientRect().top);
+    expect(clueTop, "the active clue is on screen").toBeGreaterThanOrEqual(0);
+    const grid = await gridUncovered(page);
+    expect(grid.top, "the first row is on screen").toBeGreaterThanOrEqual(0);
+    expect(grid.bottom, "the bar does not cover the grid").toBeLessThanOrEqual(grid.edge + 0.5);
+    await context.close();
+  });
+}
+
+for (const viewport of [phones[0], { width: 1440, height: 900 }]) {
+  const how = viewport.width < 600 ? "tap" : "click";
+  test(`${viewport.width}x${viewport.height}: a letter typed after a second ${how} on a filled crossing replaces it`, async ({ browser, baseURL }) => {
+    const t = locales.pt;
+    const { context, page, board, press } = await open(browser, baseURL!, t.path, viewport);
+    const crossing = board.getByRole("textbox", { name: t.square(1, 1) });
+    await press(crossing);
+    await page.keyboard.type("q");
+    await expect(crossing).toHaveValue("Q");
+    // Back to the Q, then again to switch to 1 Down.
+    await press(crossing);
+    await press(crossing);
+    await expect(activeClue(board)).toContainText(`1 ${t.down}`);
+    await page.keyboard.type("b");
+    await expect(crossing).toHaveValue("B");
+    await expect(board.getByRole("textbox", { name: t.square(2, 1) })).toHaveValue("");
+    await expect(board.getByRole("textbox", { name: t.square(1, 2) })).toHaveValue("");
+    await expect(board.getByRole("textbox", { name: t.square(2, 1) })).toBeFocused();
+    await context.close();
+  });
+}
+
+for (const [locale, t] of Object.entries(locales) as [string, Copy][]) {
+  test(`${locale} 1440x900: Tab goes to the next square, row by row`, async ({ browser, baseURL }) => {
+    const { context, page, board } = await open(browser, baseURL!, t.path, { width: 1440, height: 900 });
+    await board.getByRole("textbox", { name: t.square(1, 1) }).focus();
+    for (const [row, col] of [[1, 2], [1, 3], [2, 1], [2, 3]] as const) {
+      await page.keyboard.press("Tab");
+      await expect(board.getByRole("textbox", { name: t.square(row, col) })).toBeFocused();
+    }
+    await context.close();
+  });
+}
+
 for (const [locale, t] of Object.entries(locales) as [string, Copy][]) {
   test(`${locale} 390x844: the share confirmation shows on screen`, async ({ browser, baseURL }) => {
     const { context, page, board, press } = await open(browser, baseURL!, t.path, { width: 390, height: 844 });

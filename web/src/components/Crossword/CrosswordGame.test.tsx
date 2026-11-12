@@ -139,6 +139,35 @@ describe("CrosswordGame", () => {
     expect(cellInput(5, 2)).toHaveAttribute("aria-invalid", "true");
   });
 
+  it("focuses the square back only after it is marked", async () => {
+    serve();
+    await renderGame();
+    typeEntry(0, "bxs");
+    const x = cellInput(0, 1);
+    x.focus();
+    let invalidOnFocus: string | null = "unset";
+    x.addEventListener("focus", () => { invalidOnFocus = x.getAttribute("aria-invalid"); });
+    const checkButton = screen.getByRole("button", { name: pt.crosswordCheck });
+    checkButton.focus();
+    fireEvent.click(checkButton);
+    await act(async () => {});
+    expect(x).toHaveFocus();
+    expect(invalidOnFocus).toBe("true");
+  });
+
+  it("keeps focus on the button when a restored round is checked before touching the grid", async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ values: { "0:0": "B" }, status: "playing", checks: 0 }));
+    serve();
+    await renderGame();
+    const checkButton = screen.getByRole("button", { name: pt.crosswordCheck });
+    checkButton.focus();
+    fireEvent.click(checkButton);
+    await act(async () => {});
+    expect(screen.getByRole("status")).toHaveTextContent(pt.crosswordWrong(puzzle.cells.length - 1));
+    expect(checkButton).toHaveFocus();
+    expect(cellInput(0, 0)).not.toHaveFocus();
+  });
+
   it("records the board's date, whatever the visitor's time zone", async () => {
     const zone = process.env.TZ;
     process.env.TZ = "Asia/Tokyo";

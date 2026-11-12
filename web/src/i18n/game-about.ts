@@ -240,8 +240,8 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "De onde vêm os dados da Cruzadinha de K-pop",
         faqHeading: "Perguntas sobre a Cruzadinha de K-pop",
         howToPlay: [
-          "A grade tem nomes de grupos de K-pop que se cruzam nas letras em comum. Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. A cada letra, o jogo passa para o quadrado seguinte da palavra escolhida. Num cruzamento, toque de novo no quadrado para trocar entre horizontal e vertical. No teclado, as setas levam ao próximo quadrado naquela direção e Tab passa ao quadrado seguinte, linha por linha.",
-          "Escreva o nome sem espaços, pontuação ou acentos e mantenha os números: um dígito do nome ocupa um quadrado. Uma letra escrita num cruzamento vale para as duas palavras, então acertar uma palavra ajuda a preencher a outra.",
+          "A grade tem nomes de grupos de K-pop que se cruzam nas letras em comum. Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. A cada letra, o jogo passa ao quadrado seguinte da palavra. Num cruzamento, toque ou clique de novo no quadrado para trocar entre horizontal e vertical. No teclado, as setas levam ao próximo quadrado na direção da seta e Tab passa ao quadrado seguinte, linha por linha.",
+          "Escreva o nome sem espaços, pontuação ou acentos e mantenha os números: um dígito do nome ocupa um quadrado. Uma letra num cruzamento vale para as duas palavras, então acertar uma ajuda a preencher a outra.",
           "Use Verificar respostas quantas vezes quiser. Cada verificação marca os quadrados vazios ou errados, e a grade continua aberta para edição enquanto houver algum; quando todos estão certos, a partida termina como resolvida. Ao confirmar Revelar respostas, a partida termina e mostra os nomes. No fim, Ver fonte lista cada pista com o trecho citado e o link da revisão da Wikipédia.",
         ],
         dataSources: [
@@ -462,7 +462,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "Where the K-pop Crossword data comes from",
         faqHeading: "K-pop Crossword FAQ",
         howToPlay: [
-          "The grid holds K-pop group names that cross at shared letters. Tap or click a clue to pick its word, then type the group's name. After each letter the game moves to the next square of the chosen word. Where two words cross, tap the square again to switch between across and down. With a keyboard, the arrow keys move to the next square in that direction and Tab moves to the next square, row by row.",
+          "The grid holds K-pop group names that cross at shared letters. Tap or click a clue to pick its word, then type the group's name. After each letter the game moves to the next square of the chosen word. Where two words cross, tap or click the square again to switch between across and down. With a keyboard, each arrow key moves to the next square in its direction and Tab moves to the next square, row by row.",
           "Type the name without spaces, punctuation or accents, and keep any digits: a digit in the name takes one square. A letter typed where two words cross counts for both, so solving one word helps you fill the other.",
           "Check your answers as often as you like. Each check marks the squares that are empty or wrong, and the grid stays open for editing while any remain; once every square is right, the round ends as solved. Confirming Reveal answers ends the round and shows the names. At the end, Show source lists each clue with the quoted passage and a link to the Wikipedia revision.",
         ],
