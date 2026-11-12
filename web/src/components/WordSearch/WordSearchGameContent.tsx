@@ -8,6 +8,7 @@ import { WordSearchHeader } from "./WordSearchHeader";
 import { WordSearchGrid } from "./WordSearchGrid";
 import { WordSearchList } from "./WordSearchList";
 import { WordSearchResult } from "./WordSearchResult";
+import { WordSearchBarMessage, barTone } from "./WordSearchBarMessage";
 import { formatTime } from "./utils";
 import { recordDailyBoardMatch } from "../../lib/player-stats";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
@@ -95,54 +96,28 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   const displayNames = buildLocalizedDisplayNames(puzzle.words, locale);
   const wordName = (id: string) => displayNames.get(id) ?? "";
 
-  // One message at a time, in two reserved lines: the selection in progress,
-  // then the verdict of the last one, then the instructions.
+  // While playing the bar says what the selection is doing (WordSearchBarMessage);
+  // at the end it only announces a copy, and the result title takes its place.
   let message = null;
-  let barState = "";
+  let barState = barTone(lastCheck);
   if (completed) {
     // A new key replaces the paragraph, so a second copy is announced again.
     if (shareNote?.kind === "copied") message = <p key={shareNote.n}>{messages.copiedToClipboard}</p>;
     else if (shareNote?.kind === "shareFailed") message = <p key={shareNote.n}>{messages.shareFailed}</p>;
     barState = " is-correct";
-  } else if (activePath.length > 1) {
-    message = (
-      <p class="word-search-selection">
-        <strong>{t.selectionLabel}</strong>{" "}
-        <span class="selection-letters">
-          {activePath.map((c) => puzzle.grid[c.row]?.[c.col] ?? "").join("")}
-        </span>{" "}
-        <span class="selection-count">({t.lettersCount(activePath.length)})</span>
-      </p>
-    );
-  } else if (anchorCell) {
-    message = (
-      <p class="game-actions-title">
-        {t.anchorHint(puzzle.grid[anchorCell.row]?.[anchorCell.col] ?? "")}
-      </p>
-    );
-  } else if (lastCheck?.kind === "found") {
-    message = (
-      <p key={lastCheck.n} class="game-actions-title">
-        {t.foundFeedback(wordName(lastCheck.wordId))}
-        <span class="visually-hidden"> {t.progressAnnouncement(foundCount, totalWords)}</span>
-      </p>
-    );
-    barState = " is-correct";
-  } else if (lastCheck?.kind === "repeat") {
-    message = (
-      <p key={lastCheck.n} class="game-actions-title">
-        {t.repeatFeedback(wordName(lastCheck.wordId))}
-      </p>
-    );
-  } else if (lastCheck?.kind === "miss") {
-    message = (
-      <p key={lastCheck.n} class="game-actions-title">
-        {t.missFeedback(lastCheck.letters)}
-      </p>
-    );
-    barState = " is-incorrect";
   } else {
-    message = <p class="game-actions-hint">{t.selectionHint}</p>;
+    if (activePath.length > 1 || anchorCell) barState = "";
+    message = (
+      <WordSearchBarMessage
+        puzzle={puzzle}
+        t={t}
+        activePath={activePath}
+        anchorCell={anchorCell}
+        lastCheck={lastCheck}
+        foundCount={foundCount}
+        wordName={wordName}
+      />
+    );
   }
 
   if (dayDone) return <DailyDone game="wordSearch" locale={locale} />;
