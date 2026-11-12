@@ -18,6 +18,7 @@ describe("HintTray", () => {
   it("displays already revealed clues with status role", () => {
     render(
       <HintTray
+        questionId="q-1"
         playMode="assisted"
         cluesAvailable={[sampleClue]}
         cluesShown={["clue-1"]}
@@ -36,6 +37,7 @@ describe("HintTray", () => {
     const onReveal = vi.fn();
     render(
       <HintTray
+        questionId="q-1"
         playMode="standard"
         cluesAvailable={[sampleClue]}
         cluesShown={[]}
@@ -54,6 +56,7 @@ describe("HintTray", () => {
   it("omits reveal button and returns null in expert mode when no clues are active", () => {
     const { container } = render(
       <HintTray
+        questionId="q-1"
         playMode="expert"
         cluesAvailable={[sampleClue]}
         cluesShown={[]}
@@ -72,6 +75,7 @@ describe("HintTray", () => {
     const renderTray = (playMode: "assisted" | "standard" | "expert", locale: "pt-BR" | "en" = "pt-BR", answered = false) =>
       render(
         <HintTray
+          questionId="q-1"
           playMode={playMode}
           cluesAvailable={[]}
           cluesShown={[]}
@@ -85,21 +89,21 @@ describe("HintTray", () => {
 
     it("says so in Assisted, in both languages, without a button", () => {
       renderTray("assisted");
-      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("Esta pergunta não tem pista disponível.");
+      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("Sem pista nesta pergunta.");
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
       cleanup();
       renderTray("assisted", "en");
-      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("This question has no clue available.");
+      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("No clue for this question.");
     });
 
-    it("says in Standard that nothing is charged and offers no button", () => {
+    it("says so in Standard without a button or a cost", () => {
       renderTray("standard");
-      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("Nenhum ponto será descontado.");
+      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("Sem pista nesta pergunta.");
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
       expect(screen.queryByText(/-15/)).not.toBeInTheDocument();
       cleanup();
       renderTray("standard", "en");
-      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("No points will be deducted.");
+      expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent("No clue for this question.");
     });
 
     it("stays silent in Expert, which has no clues by design", () => {
@@ -107,15 +111,57 @@ describe("HintTray", () => {
       expect(container.firstChild).toBeNull();
     });
 
-    it("drops the notice once the question is answered", () => {
-      const { container } = renderTray("standard", "pt-BR", true);
-      expect(container.firstChild).toBeNull();
+    it("keeps the same line after the answer, so the options below it do not move", () => {
+      const { rerender } = renderTray("standard");
+      const before = screen.getByTestId("quiz-no-clue");
+      rerender(
+        <HintTray
+          questionId="q-1"
+          playMode="standard"
+          cluesAvailable={[]}
+          cluesShown={[]}
+          revealedClues={[]}
+          hintCost={15}
+          answered={true}
+          onRevealClue={vi.fn()}
+          messages={messages}
+        />
+      );
+      expect(screen.getByTestId("quiz-no-clue")).toBe(before);
+      expect(before).toHaveTextContent("Sem pista nesta pergunta.");
+    });
+
+    // A live region announces what is added to it. With the same text on two
+    // questions in a row and nothing replaced, the second would stay silent.
+    it("replaces the text inside the same live region on the next question without a clue", () => {
+      const { rerender } = renderTray("standard");
+      const region = screen.getByTestId("quiz-no-clue");
+      const firstText = region.firstElementChild;
+      rerender(
+        <HintTray
+          questionId="q-2"
+          playMode="standard"
+          cluesAvailable={[]}
+          cluesShown={[]}
+          revealedClues={[]}
+          hintCost={15}
+          answered={false}
+          onRevealClue={vi.fn()}
+          messages={messages}
+        />
+      );
+      expect(screen.getByTestId("quiz-no-clue")).toBe(region);
+      expect(region).toHaveAttribute("role", "status");
+      expect(region.firstElementChild).not.toBe(firstText);
+      expect(firstText?.isConnected).toBe(false);
+      expect(region).toHaveTextContent("Sem pista nesta pergunta.");
     });
   });
 
   it("does not show the notice when a clue exists", () => {
     render(
       <HintTray
+        questionId="q-1"
         playMode="standard"
         cluesAvailable={[sampleClue]}
         cluesShown={[]}

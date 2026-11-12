@@ -2,6 +2,7 @@ import { test, expect, type Locator, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { openQuizCustomize } from "../e2e/pages/quiz.page";
 
 async function longFeedbackFixture(page: Page, locale: string) {
   const data = join(import.meta.dirname, "../public/data");
@@ -28,9 +29,18 @@ async function longFeedbackFixture(page: Page, locale: string) {
 // No analytics request may leave the isolated browser context.
 async function unobscured(page: Page, target: Locator) {
   const geometry = await target.evaluate((element) => {
+    // A corner sample 2px inside a 6px border radius sits 0.34px inside the
+    // curve, so a fractional layout offset can put it outside the element.
+    // Step in far enough to clear the curve of the largest corner radius.
+    const style = getComputedStyle(element);
+    const radius = Math.max(...["borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius"]
+      .map((corner) => parseFloat(style[corner as "borderTopLeftRadius"]) || 0));
+    const cornerInset = Math.max(2, Math.ceil(radius * (1 - Math.SQRT1_2)) + 1);
     return [...element.getClientRects()].map((rect) => {
-      const points = [[rect.x + 2, rect.y + 2], [rect.right - 2, rect.y + 2],
-        [rect.x + 2, rect.bottom - 2], [rect.right - 2, rect.bottom - 2],
+      // A short or narrow rect would push the corner samples past its middle.
+      const inset = Math.min(cornerInset, Math.min(rect.width, rect.height) / 2 - 1);
+      const points = [[rect.x + inset, rect.y + inset], [rect.right - inset, rect.y + inset],
+        [rect.x + inset, rect.bottom - inset], [rect.right - inset, rect.bottom - inset],
         [rect.x + rect.width / 2, rect.y + rect.height / 2]];
       const hit = points.every(([x, y]) => {
         const target = document.elementFromPoint(x!, y!);
@@ -82,6 +92,7 @@ for (const locale of ["pt-br", "en"]) {
     await page.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
     await page.goto(`/${locale}/`);
     await expect(page.locator(".consent-banner")).toBeVisible();
+    await openQuizCustomize(page);
     await page.getByRole("checkbox", { name: /Limitar cada pergunta|Limit each question/ }).check();
     await page.getByTestId("game-start").click();
     await expect(page.locator(".quiz-verdict")).toContainText(/Acabou o tempo|Time's up/, { timeout: 25_000 });
@@ -97,7 +108,7 @@ for (const locale of ["pt-br", "en"]) {
     await page.setViewportSize({ width: 360, height: 800 });
     await page.route("**/*", (route) => ["127.0.0.1", "localhost"].includes(new URL(route.request().url()).hostname) ? route.continue() : route.abort());
     const wrongId = await longFeedbackFixture(page, locale);
-    await page.goto(`/${locale}/`);
+    await page.goto(`/${locale}/?theme=history`);
     await expect(page.locator(".consent-banner")).toBeVisible();
     await page.getByTestId("game-start").click();
     const wrong = page.locator(`.option:has(input[value="${wrongId}"])`);
@@ -183,7 +194,8 @@ for (const locale of ["pt-br", "en"]) {
             return ["localhost", "127.0.0.1"].includes(url.hostname) ? route.continue() : route.abort();
           });
           const wrongId = long ? await longFeedbackFixture(page, locale) : null;
-          await page.goto(`/${locale}/`);
+          // The fixture rewrites the general quiz, and only it ends with Play again.
+          await page.goto(`/${locale}/?theme=history`);
           const banner = page.locator(".consent-banner");
           await expect(banner, "build with the fictitious GA4 ID to exercise real consent").toBeVisible();
           if (consent === "rejected") {

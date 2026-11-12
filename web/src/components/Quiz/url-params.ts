@@ -5,6 +5,9 @@ export type QuizTheme = "history" | "daily";
 export type QuizDecadeValue = 1990 | 2000 | 2010 | 2020;
 export type QuizDecadeSelection = QuizDecadeValue[];
 
+/** The quiz a visit opens on when the URL names no theme or decade: today's challenge. */
+export const DEFAULT_QUIZ_THEME: QuizTheme = "daily";
+
 const isQuizDecade = (value: number): value is QuizDecadeValue =>
   [1990, 2000, 2010, 2020].includes(value);
 
@@ -12,10 +15,13 @@ export function getInitialUrlParams(): {
   playMode: PlayMode;
   theme: QuizTheme;
   decades: QuizDecadeSelection;
+  /** True when the URL named a valid theme or decade, false when the visit fell on the default. */
+  themeNamed: boolean;
 } {
   let playMode: PlayMode = loadStoredPreferences().playMode ?? "standard";
-  let theme: QuizTheme = "history";
+  let theme: QuizTheme = DEFAULT_QUIZ_THEME;
   let decades: QuizDecadeSelection = [];
+  let themeNamed = false;
   if (typeof window !== "undefined") {
     const params = new URLSearchParams(window.location.search);
     const modeParam = params.get("mode");
@@ -29,13 +35,17 @@ export function getInitialUrlParams(): {
     const themeParam = params.get("theme");
     if (themeParam === "history" || themeParam === "daily") {
       theme = themeParam;
+      themeNamed = true;
     }
     decades = [
       ...new Set(params.getAll("decade").map(Number).filter(isQuizDecade)),
     ].sort();
-    if (decades.length) theme = "history";
+    if (decades.length) {
+      theme = "history";
+      themeNamed = true;
+    }
   }
-  return { playMode, theme, decades };
+  return { playMode, theme, decades, themeNamed };
 }
 
 export function updateUrlParams(

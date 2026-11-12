@@ -10,6 +10,8 @@ import { joinBaseUrl } from "../src/lib/join-base-url";
  * Catalog-backed general-quiz replay (Q03). The default dist has no catalog
  * (QUIZ_CATALOG off); this suite fulfills the Q02 fixtures so the browser path
  * can be exercised without publishing production data or flipping the flag.
+ * A visit with no theme opens today's challenge, so the general-quiz cases
+ * open `?theme=history`.
  */
 
 const catalogDir = fileURLToPath(new URL("../src/tests/fixtures/catalog/", import.meta.url));
@@ -55,8 +57,8 @@ async function answerAll(page: Page, submit: string, next: RegExp) {
 }
 
 for (const locale of [
-  { id: "pt", path: "/pt-br/", start: "Começar partida", submit: "Responder", next: /Próxima pergunta|Ver resultado/, restart: "Jogar novamente", unavailable: /Não há perguntas suficientes/ },
-  { id: "en", path: "/en/", start: "Start game", submit: "Submit answer", next: /Next question|See results/, restart: "Play again", unavailable: /There are not enough questions/ },
+  { id: "pt", path: "/pt-br/?theme=history", start: "Começar partida", submit: "Responder", next: /Próxima pergunta|Ver resultado/, restart: "Jogar novamente", unavailable: /Não há perguntas suficientes/ },
+  { id: "en", path: "/en/?theme=history", start: "Start game", submit: "Submit answer", next: /Next question|See results/, restart: "Play again", unavailable: /There are not enough questions/ },
 ] as const) {
   for (const viewport of viewports) {
     test(`catalog replay changes the set (${locale.id}, ${viewport.name})`, async ({ page, baseURL }) => {
@@ -99,31 +101,31 @@ test("corrupted catalog manifest yields a clear invalid state", async ({ page, b
   await page.route("**/data/catalog-manifest-v1.json", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ broken: true }) }),
   );
-  await page.goto(joinBaseUrl(baseURL!, "/pt-br/"));
+  await page.goto(joinBaseUrl(baseURL!, "/pt-br/?theme=history"));
   await expect(page.getByText(/Não foi possível ler os dados deste jogo/)).toBeVisible({ timeout: 30_000 });
 });
 
 for (const locale of [
   {
     id: "pt",
-    path: "/pt-br/",
+    path: "/pt-br/?theme=history",
     start: "Começar partida",
     submit: "Responder",
     next: /Próxima pergunta|Ver resultado/,
     restart: "Jogar novamente",
-    notice: /catálogo de perguntas novas ainda não está disponível/,
+    notice: "Jogar novamente repete as perguntas desta rodada.",
   },
   {
     id: "en",
-    path: "/en/",
+    path: "/en/?theme=history",
     start: "Start game",
     submit: "Submit answer",
     next: /Next question|See results/,
     restart: "Play again",
-    notice: /new-question catalog is not available yet/,
+    notice: "Play again repeats this round's questions.",
   },
 ] as const) {
-  test(`missing catalog falls back to legacy sessions with a repeat notice (${locale.id})`, async ({ page, baseURL }) => {
+  test(`missing catalog falls back to legacy sessions and says so beside Play again (${locale.id})`, async ({ page, baseURL }) => {
     test.setTimeout(90_000);
     await page.route("**/data/catalog-manifest-v1.json", (route) =>
       route.fulfill({ status: 404, body: "" }),
@@ -133,11 +135,13 @@ for (const locale of [
     );
     await page.goto(joinBaseUrl(baseURL!, locale.path));
     await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
-    await expect(page.getByTestId("quiz-replay-notice")).toHaveText(locale.notice);
+    // The setup has no Play again, so it says nothing about replaying.
+    await expect(page.getByTestId("quiz-replay-notice")).toHaveCount(0);
     await page.getByTestId("game-start").click();
     await answerAll(page, locale.submit, locale.next);
     await expect(page.getByTestId("game-result")).toBeVisible();
     await expect(page.getByTestId("quiz-replay-notice")).toHaveText(locale.notice);
+    await expect(page.getByRole("button", { name: locale.restart })).toBeVisible();
     await page.getByRole("button", { name: locale.restart }).click();
     await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
   });

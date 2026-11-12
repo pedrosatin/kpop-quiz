@@ -116,10 +116,10 @@ export interface Messages {
   empty: string;
   /** General quiz: the filter has fewer than ten eligible questions. */
   quizReplayUnavailable: string;
-  /** General quiz: exactly ten eligible questions, so replay repeats the set. */
+  /** General quiz result: exactly ten eligible questions, so Play again repeats the set. */
   quizReplayRepeats: string;
   /**
-   * General quiz: catalog absent, so the round uses the published legacy
+   * General quiz result: catalog absent, so the round uses the published legacy
    * session and "Play again" repeats those same questions.
    */
   quizReplayLegacyRepeats: string;
@@ -160,6 +160,10 @@ export interface Messages {
   decadeHelp: string;
   decadeLabel: (decade: number) => string;
   roundRules: string;
+  /** Collapsed group of the setup that holds the mode, the timer and the decades. */
+  customize: string;
+  /** One line under "Customize" with the current mode, timer and decades. */
+  customizeSummary: (modeName: string, timerEnabled: boolean, decades: readonly number[]) => string;
   difficultyName: (playMode: PlayMode) => string;
   difficultyDescription: (playMode: PlayMode) => string;
   start: string;
@@ -167,10 +171,8 @@ export interface Messages {
   clue: string;
   revealClue: (cost: number) => string;
   clueRevealed: string;
-  /** Notice when an Assisted question has no clue. */
-  noClueAssisted: string;
-  /** Notice when a Standard question has no clue; opening one never applies. */
-  noClueStandard: string;
+  /** One line, kept after answering, when an Assisted or Standard question has no clue. */
+  noClue: string;
   time: string;
   seconds: string;
   check: string;
@@ -226,6 +228,8 @@ export interface Messages {
   noAnswer: string;
   collectionTitle: string;
   generalGameTitle: string;
+  /** Description of the general quiz card while a round of it is saved in progress: where it stopped. */
+  quizGeneralInProgress: (question: number, total: number) => string;
   generalGameDescription: string;
   dailyGameTitle: string;
   dailyGameDescription: string;
@@ -526,8 +530,8 @@ const catalogs: Record<Locale, Messages> = {
     reload: "Tentar novamente",
     empty: "Este quiz ainda não tem perguntas.",
     quizReplayUnavailable: "Não há perguntas suficientes para esta combinação de idioma, modo e filtros.",
-    quizReplayRepeats: "Só há dez perguntas elegíveis nesta combinação; jogar novamente repete o mesmo conjunto.",
-    quizReplayLegacyRepeats: "O catálogo de perguntas novas ainda não está disponível; jogar novamente usa as mesmas perguntas publicadas.",
+    quizReplayRepeats: "Só há dez perguntas com estas opções. Jogar novamente repete as perguntas desta rodada.",
+    quizReplayLegacyRepeats: "Jogar novamente repete as perguntas desta rodada.",
     quizResumeIncompatible: "Não foi possível retomar a partida salva: ela não combina com os dados atuais. Comece uma nova.",
     quizDailyDone: "Você já concluiu o desafio diário de hoje. Uma nova rodada não conta nas estatísticas.",
     quizResumeInvalid: "O progresso salvo está inválido e foi descartado. Comece uma nova partida.",
@@ -542,7 +546,7 @@ const catalogs: Record<Locale, Messages> = {
     privacyLink: "Privacidade",
     howToPlayTitle: "Como jogar",
     quizHowToPlay: [
-      "Escolha um modo. No Assistido aparecem pistas. No Padrão, abrir uma pista custa alguns pontos. No Especialista não há pistas.",
+      "Comece pelo Quiz do dia ou escolha o Quiz geral. Em Personalizar, escolha o modo. No Assistido aparecem pistas. No Padrão, abrir uma pista custa alguns pontos. No Especialista não há pistas.",
       "Se quiser, filtre pela década de formação dos grupos e limite cada pergunta a 20 segundos.",
       "Responda 10 perguntas de múltipla escolha. Cada acerto soma pontos.",
       "Depois de cada resposta, você vê a resposta correta e a fonte.",
@@ -602,6 +606,12 @@ const catalogs: Record<Locale, Messages> = {
     decadeHelp: "Sem nenhuma década marcada, o quiz usa todas.",
     decadeLabel: (decade) => `Anos ${decade}`,
     roundRules: "10 perguntas de múltipla escolha. Depois de cada resposta, você vê a fonte.",
+    customize: "Personalizar",
+    customizeSummary: (modeName, timerEnabled, decades) => [
+      `Modo ${modeName}`,
+      timerEnabled ? "20 segundos por pergunta" : "sem limite de tempo",
+      ...(decades.length ? [`anos ${decades.join(", ")}`] : []),
+    ].join(" · "),
     difficultyName: (difficulty) => ({ assisted: "Assistido", standard: "Padrão", expert: "Especialista" })[difficulty],
     difficultyDescription: (difficulty) => ({
       assisted: "Mostra uma pista sempre que ela não entrega a resposta.",
@@ -613,8 +623,7 @@ const catalogs: Record<Locale, Messages> = {
     clue: "Pista",
     revealClue: (cost) => `Ver pista (-${cost} pontos)`,
     clueRevealed: "Pista aberta",
-    noClueAssisted: "Esta pergunta não tem pista disponível.",
-    noClueStandard: "Esta pergunta não tem pista disponível. Nenhum ponto será descontado.",
+    noClue: "Sem pista nesta pergunta.",
     time: "Tempo",
     seconds: "s",
     check: "Responder",
@@ -663,6 +672,7 @@ const catalogs: Record<Locale, Messages> = {
     noAnswer: "Sem resposta",
     collectionTitle: "Escolha o jogo",
     generalGameTitle: "Quiz geral",
+    quizGeneralInProgress: (question, total) => `Você parou na pergunta ${question} de ${total}. Escolha para continuar.`,
     generalGameDescription: "Perguntas sobre história, lançamentos e integrantes.",
     dailyGameTitle: "Quiz do dia",
     dailyGameDescription: "As perguntas de hoje, com resultado para compartilhar.",
@@ -1030,8 +1040,8 @@ const catalogs: Record<Locale, Messages> = {
     reload: "Try again",
     empty: "This quiz has no questions yet.",
     quizReplayUnavailable: "There are not enough questions for this language, mode and filter combination.",
-    quizReplayRepeats: "Only ten eligible questions exist for this combination; playing again repeats the same set.",
-    quizReplayLegacyRepeats: "The new-question catalog is not available yet; playing again uses the same published questions.",
+    quizReplayRepeats: "Only ten questions match these options. Play again repeats this round's questions.",
+    quizReplayLegacyRepeats: "Play again repeats this round's questions.",
     quizResumeIncompatible: "Could not resume the saved game: it does not match the current data. Start a new round.",
     quizDailyDone: "You already finished today's daily challenge. A new round does not count in your stats.",
     quizResumeInvalid: "The saved progress is invalid and was discarded. Start a new game.",
@@ -1046,7 +1056,7 @@ const catalogs: Record<Locale, Messages> = {
     privacyLink: "Privacy",
     howToPlayTitle: "How to play",
     quizHowToPlay: [
-      "Pick a mode. Assisted shows clues, Standard lets you open a clue for a few points, and Expert has no clues.",
+      "Start with the daily quiz or pick the general quiz. Under Customize, pick a mode. Assisted shows clues, Standard lets you open a clue for a few points, and Expert has no clues.",
       "If you like, filter by the decade the groups formed and limit each question to 20 seconds.",
       "Answer 10 multiple-choice questions. Each correct answer adds points.",
       "After each answer, you see the correct answer and its source.",
@@ -1106,6 +1116,12 @@ const catalogs: Record<Locale, Messages> = {
     decadeHelp: "With no decade selected, the quiz uses all of them.",
     decadeLabel: (decade) => `${decade}s`,
     roundRules: "10 multiple-choice questions. After each answer, you see the source.",
+    customize: "Customize",
+    customizeSummary: (modeName, timerEnabled, decades) => [
+      `${modeName} mode`,
+      timerEnabled ? "20 seconds per question" : "no time limit",
+      ...(decades.length ? [decades.map((decade) => `${decade}s`).join(", ")] : []),
+    ].join(" · "),
     difficultyName: (difficulty) => ({ assisted: "Assisted", standard: "Standard", expert: "Expert" })[difficulty],
     difficultyDescription: (difficulty) => ({
       assisted: "Shows a clue whenever it doesn't give the answer away.",
@@ -1117,8 +1133,7 @@ const catalogs: Record<Locale, Messages> = {
     clue: "Clue",
     revealClue: (cost) => `Show clue (-${cost} points)`,
     clueRevealed: "Clue shown",
-    noClueAssisted: "This question has no clue available.",
-    noClueStandard: "This question has no clue available. No points will be deducted.",
+    noClue: "No clue for this question.",
     time: "Time",
     seconds: "s",
     check: "Submit answer",
@@ -1166,6 +1181,7 @@ const catalogs: Record<Locale, Messages> = {
     noAnswer: "No answer",
     collectionTitle: "Choose a game",
     generalGameTitle: "General quiz",
+    quizGeneralInProgress: (question, total) => `You stopped at question ${question} of ${total}. Pick it to continue.`,
     generalGameDescription: "Questions about history, releases and members.",
     dailyGameTitle: "Daily quiz",
     dailyGameDescription: "Today's questions, with a result you can share.",

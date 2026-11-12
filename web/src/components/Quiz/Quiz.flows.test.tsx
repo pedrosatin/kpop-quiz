@@ -186,6 +186,9 @@ describe("Quiz flows", () => {
   const trackedEvents = () => gtag.mock.calls.map((call) => call[1]);
 
   beforeEach(() => {
+    // A visit with no theme opens today's challenge; these cases play the
+    // general quiz unless they set their own URL.
+    window.history.replaceState(null, "", "/?theme=history");
     vi.spyOn(performance, "now").mockImplementation(() => now);
     world.catalog = "published";
     world.sessions = "published";
@@ -677,6 +680,126 @@ describe("Quiz flows", () => {
       expect(isGameMatchRecorded("quiz", `daily-${sessionDate}`)).toBe(true);
       await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_start", "game_complete"]));
       expect(gtag.mock.calls.map((call) => call[2].daily)).toEqual(["yes", "yes"]);
+    });
+  });
+
+  describe("daily slot from one day to the next", () => {
+    const sessionDate = dailySeedDate(dailyPtSession as QuizSession)!;
+    const today = dailyPtSession as QuizSession;
+    const dayBefore = (() => {
+      const day = new Date(`${sessionDate}T00:00:00Z`);
+      day.setUTCDate(day.getUTCDate() - 1);
+      return day.toISOString().slice(0, 10);
+    })();
+    // Yesterday's challenge: its own seed date and id, as the daily slot held it.
+    const yesterday = { ...today, session_id: "a".repeat(64), config: { ...today.config, seed: `kpop-daily-${dayBefore}` } } as QuizSession;
+    const played = (session: QuizSession, count: number) => session.questions.slice(0, count).map((question) => ({
+      question, selectedOptionId: question.options[0]!.id, isCorrect: question.options[0]!.id === question.answer_option_id, cluesUsedCount: 0,
+    }));
+
+    // Regression: the daily session id changes every day, so yesterday's save
+    // failed the compatibility check and the setup told the player it could
+    // not resume a game, on every first visit of the day.
+    it("drops yesterday's daily save without a notice on a visit with no theme", async () => {
+      onDay(sessionDate);
+      window.history.replaceState(null, "", "/");
+      saveQuizProgress(roundSave(yesterday, "published", { theme: "daily", questionIndex: 2, history: played(yesterday, 2) }));
+      expect(readSlot(dailySlot)).not.toBeNull();
+
+      await renderSetup();
+
+      expect(screen.getByRole("radio", { name: /Quiz do dia/ })).toBeChecked();
+      expect(screen.queryByTestId("quiz-replay-notice")).toBeNull();
+      expect(screen.queryByText(messages.quizResumeIncompatible)).toBeNull();
+      expect(readSlot(dailySlot)).toBeNull();
+      startRound();
+      expect(await screen.findByRole("heading", { name: today.questions[0]!.prompt })).toBeInTheDocument();
+    });
+
+    it("still restores today's daily result from its save", async () => {
+      onDay(sessionDate);
+      window.history.replaceState(null, "", "/");
+      const total = today.questions.length;
+      saveQuizProgress(roundSave(today, "published", {
+        theme: "daily",
+        machineState: "results",
+        questionIndex: total - 1,
+        history: played(today, total),
+      }));
+
+      render(<Quiz locale="pt-BR" />);
+
+      expect(await screen.findByRole("heading", { name: "Fim da partida" })).toBeInTheDocument();
+      expect(screen.queryByText(messages.quizResumeIncompatible)).toBeNull();
+      expect(readSlot(dailySlot)).toMatchObject({ session_id: today.session_id, machine_state: "results" });
+    });
+  });
+
+  describe("general quiz saved in progress on a visit that opens today's challenge", () => {
+    const generalCard = () => screen.getByRole("radio", { name: /Quiz geral/ });
+    const generalText = () => generalCard().closest("label")!;
+
+    async function saveGeneralAt(questionIndex: number, machineState: "question.ready" | "results" = "question.ready") {
+      const round = await drawCatalogRound();
+      const questions = round.session.questions;
+      const count = machineState === "results" ? questions.length : questionIndex;
+      saveQuizProgress(roundSave(round.session, "catalog", {
+        machineState,
+        questionIndex,
+        history: questions.slice(0, count).map((question) => ({
+          question, selectedOptionId: question.options[0]!.id, isCorrect: false, cluesUsedCount: 0,
+        })),
+        replayNotice: "ok",
+      }));
+      return round.session;
+    }
+
+    it("says on the general card where the round stopped, and picking it continues there", async () => {
+      const session = await saveGeneralAt(3);
+      window.history.replaceState(null, "", "/");
+
+      await renderSetup();
+
+      expect(screen.getByRole("radio", { name: /Quiz do dia/ })).toBeChecked();
+      expect(generalText()).toHaveTextContent(messages.quizGeneralInProgress(4, 10));
+      expect(screen.getByText("Você parou na pergunta 4 de 10. Escolha para continuar.")).toBeInTheDocument();
+      expect(screen.queryByTestId("quiz-replay-notice")).toBeNull();
+
+      fireEvent.click(generalCard());
+
+      const heading = await screen.findByRole("heading", { name: session.questions[3]!.prompt });
+      await vi.waitFor(() => expect(heading).toHaveFocus());
+      expect(window.location.search).toContain("theme=history");
+    });
+
+    it("says so on a link that names only the mode", async () => {
+      await saveGeneralAt(1);
+      window.history.replaceState(null, "", "/?mode=standard");
+      await renderSetup();
+      expect(screen.getByRole("radio", { name: /Quiz do dia/ })).toBeChecked();
+      expect(generalText()).toHaveTextContent(messages.quizGeneralInProgress(2, 10));
+    });
+
+    it("keeps the usual description when the saved round is finished", async () => {
+      await saveGeneralAt(9, "results");
+      window.history.replaceState(null, "", "/");
+      await renderSetup();
+      expect(generalText()).toHaveTextContent(messages.generalGameDescription);
+    });
+
+    it("says nothing when the URL names today's challenge", async () => {
+      await saveGeneralAt(3);
+      window.history.replaceState(null, "", "/?theme=daily");
+      await renderSetup();
+      expect(generalText()).toHaveTextContent(messages.generalGameDescription);
+    });
+
+    it("looks only at the slot of the mode in use", async () => {
+      const round = await drawCatalogRound();
+      saveQuizProgress(roundSave(round.session, "catalog", { playMode: "expert", questionIndex: 0 }));
+      window.history.replaceState(null, "", "/?mode=standard");
+      await renderSetup();
+      expect(generalText()).toHaveTextContent(messages.generalGameDescription);
     });
   });
 

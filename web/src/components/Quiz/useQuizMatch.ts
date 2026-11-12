@@ -23,6 +23,8 @@ export function useQuizMatch() {
 
   const answerLockedRef = useRef(false);
   const focusQuestionRef = useRef(false);
+  /** Set when the player picks a saved round to continue; its question takes focus once restored. */
+  const focusRestoredRef = useRef(false);
   const loadRequestRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
   const recordedMatchRef = useRef<string | null>(null);
@@ -58,6 +60,7 @@ export function useQuizMatch() {
     restoredVisit, setRestoredVisit,
     answerLockedRef,
     focusQuestionRef,
+    focusRestoredRef,
     loadRequestRef,
     startTimeRef,
     recordedMatchRef,

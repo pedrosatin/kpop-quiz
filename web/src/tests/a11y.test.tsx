@@ -169,6 +169,7 @@ describe("Automated accessibility audits with axe-core", () => {
             messages={ptMessages}
           />
           <HintTray
+            questionId={sampleQuestion.id}
             playMode="standard"
             cluesAvailable={sampleQuestion.clues_available}
             cluesShown={[]}
@@ -211,6 +212,7 @@ describe("Automated accessibility audits with axe-core", () => {
             messages={ptMessages}
           />
           <HintTray
+            questionId={sampleQuestion.id}
             playMode="standard"
             cluesAvailable={sampleQuestion.clues_available}
             cluesShown={[sampleQuestion.clues_available[0]!.id]}

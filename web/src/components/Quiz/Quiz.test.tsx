@@ -195,6 +195,9 @@ function mockCatalogFetch() {
 
 describe("Quiz", () => {
   beforeEach(() => {
+    // A visit with no theme opens today's challenge; these cases play the
+    // general quiz unless they set their own URL.
+    window.history.replaceState(null, "", "/?theme=history");
     vi.spyOn(performance, "now").mockImplementation(() => now);
     clearCatalogCache();
   });
@@ -249,6 +252,23 @@ describe("Quiz", () => {
     expect(screen.getAllByRole("link", { name: /Abrir a revisão/ })[0]).toHaveAttribute("href", question.evidence[0]!.source_url);
   });
 
+  it("opens today's challenge on a visit whose URL names no theme, with the options closed under Customize", async () => {
+    window.history.replaceState(null, "", "/");
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await waitForSetupReady();
+    expect(screen.getByRole("radio", { name: /Quiz do dia/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Quiz geral/ })).not.toBeChecked();
+    const customize = screen.getByTestId("setup-customize-summary").closest("details")!;
+    expect(customize.open).toBe(false);
+    expect(screen.getByTestId("setup-customize-summary")).toHaveTextContent("Modo Padrão · sem limite de tempo");
+    const requested = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map(([url]) => url);
+    expect(requested.some((url) => url.includes("session.daily.pt-BR.standard"))).toBe(true);
+    // Today's challenge never draws from the general catalog.
+    expect(requested.some((url) => url.includes("catalog"))).toBe(false);
+    expect(screen.getByTestId("game-start")).toBeEnabled();
+  });
+
   it("falls back to published sessions when the question catalog is not published", async () => {
     await renderReady("pt-BR");
     const requested = (fetch as unknown as { mock: { calls: [string][] } }).mock.calls.map(([url]) => url);
@@ -256,13 +276,12 @@ describe("Quiz", () => {
     expect(requested.some((url) => url.includes("manifest-v2.json") || url.includes("session."))).toBe(true);
   });
 
-  it("shows the legacy repeat notice when the catalog is absent", async () => {
+  it("tells only on the result, beside Play again, that a replay repeats the round when the catalog is absent", async () => {
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
     await waitForSetupReady();
-    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
-      /catálogo de perguntas novas ainda não está disponível/,
-    );
+    // The setup has no Play again, so it says nothing about replaying.
+    expect(screen.queryByTestId("quiz-replay-notice")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     for (let index = 0; index < ptSession.questions.length; index += 1) {
       fireEvent.click(screen.getAllByRole("radio")[0]!);
@@ -273,20 +292,18 @@ describe("Quiz", () => {
     }
     await screen.findByRole("heading", { name: "Fim da partida" });
     expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
-      /catálogo de perguntas novas ainda não está disponível/,
+      "Jogar novamente repete as perguntas desta rodada.",
     );
     fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
     await screen.findByRole("heading", { name: ptSession.questions[0]!.prompt });
     // Restart on the legacy path keeps the same published set with the notice.
   });
 
-  it("shows the catalog repeat notice when exactly ten questions are eligible", async () => {
+  it("tells on the result that a replay repeats the round when exactly ten questions are eligible", async () => {
     await mockCatalogFetchWithTenEligible();
     render(<Quiz locale="pt-BR" />);
     await waitForSetupReady();
-    expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
-      /Só há dez perguntas elegíveis/,
-    );
+    expect(screen.queryByTestId("quiz-replay-notice")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
     for (let index = 0; index < 10; index += 1) {
       fireEvent.click(screen.getAllByRole("radio")[0]!);
@@ -297,7 +314,7 @@ describe("Quiz", () => {
     }
     await screen.findByRole("heading", { name: "Fim da partida" });
     expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
-      /Só há dez perguntas elegíveis/,
+      "Só há dez perguntas com estas opções. Jogar novamente repete as perguntas desta rodada.",
     );
   });
 
@@ -332,14 +349,14 @@ describe("Quiz", () => {
     await renderReady("pt-BR", dailyPtSession);
     const first = dailyPtSession.questions[0]!;
     expect(first.clues_available).toHaveLength(0);
-    expect(screen.getByTestId("quiz-no-clue")).toHaveTextContent(
-      "Esta pergunta não tem pista disponível. Nenhum ponto será descontado.",
-    );
+    const notice = screen.getByTestId("quiz-no-clue");
+    expect(notice).toHaveTextContent("Sem pista nesta pergunta.");
     expect(screen.queryByRole("button", { name: /Ver pista/ })).not.toBeInTheDocument();
     const answer = first.options.find((option) => option.id === first.answer_option_id)!;
     fireEvent.click(screen.getByRole("radio", { name: answer.label }));
     fireEvent.click(screen.getByRole("button", { name: "Responder" }));
-    expect(screen.queryByTestId("quiz-no-clue")).not.toBeInTheDocument();
+    // The same line stays above the options, so answering does not move them.
+    expect(screen.getByTestId("quiz-no-clue")).toBe(notice);
     clickNext();
     expect(screen.getByText("Pontos:").parentElement).toHaveTextContent(String(first.base_points));
   });
@@ -498,6 +515,28 @@ describe("Quiz", () => {
     expect(selected).toHaveLength(1);
     const checked = selected[0]!.querySelector<HTMLInputElement>("input:checked");
     expect(checked?.value).toBe("expert");
+    act(() => preactRender(null, container));
+    container.remove();
+  });
+
+  // Regression: the whole setup was remounted after hydration, so a
+  // "Personalizar" the player had opened closed again under their finger.
+  it("keeps Personalizar open and names the stored mode and timer after hydration", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />);
+    document.body.appendChild(container);
+    const details = container.querySelector<HTMLDetailsElement>("details.setup-customize")!;
+    expect(container.querySelector("[data-testid=setup-customize-summary]")).toHaveTextContent("Modo Padrão · sem limite de tempo");
+    details.open = true;
+    window.localStorage.setItem("kpop-quiz-play-mode", "expert");
+    window.localStorage.setItem("kpop-quiz-timer-enabled", "true");
+    mockSessionFetch();
+    await act(() => { hydrate(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />, container); });
+    await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("[data-testid=game-start]")).toBeEnabled());
+    expect(container.querySelector("details.setup-customize")).toBe(details);
+    expect(details.open).toBe(true);
+    expect(container.querySelector("[data-testid=setup-customize-summary]")).toHaveTextContent("Modo Especialista · 20 segundos por pergunta");
+    expect(container.querySelector<HTMLInputElement>(".timer-choice input")?.checked).toBe(true);
     act(() => preactRender(null, container));
     container.remove();
   });

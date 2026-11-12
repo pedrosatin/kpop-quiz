@@ -5,7 +5,8 @@ import {
   catalogAvailableDecades,
 } from "../../data/catalog-session";
 import type { QuizQuestion, QuizSession } from "../../lib/quiz-types";
-import type { QuizDecadeValue } from "./url-params";
+import { dailySeedDate } from "./daily-seed";
+import type { QuizDecadeValue, QuizTheme } from "./url-params";
 import {
   checkQuizProgressCompatibility,
   clearQuizProgress,
@@ -41,6 +42,18 @@ function noteUnusableSave(
   }
 }
 
+/**
+ * The daily theme keeps one slot per language and mode, and its session
+ * changes every day. A save from another day's challenge is neither a round to
+ * resume nor a fault to report: the slot is simply out of date.
+ */
+function isOtherDaySave(theme: QuizTheme, save: QuizProgressSave, session: QuizSession): boolean {
+  if (theme !== "daily") return false;
+  const savedDate = dailySeedDate(save.session);
+  const liveDate = dailySeedDate(session);
+  return savedDate !== undefined && liveDate !== undefined && savedDate !== liveDate;
+}
+
 export function tryResumePublished(ctx: QuizLoadContext, round: LoadedRound): void {
   const { locale, settings, match } = ctx;
   const config: QuizProgressConfigIdentity = {
@@ -52,6 +65,12 @@ export function tryResumePublished(ctx: QuizLoadContext, round: LoadedRound): vo
   const loaded = loadQuizProgressSave(config);
   if (loaded.status !== "ok") {
     noteUnusableSave(match, loaded.status, config);
+    applyRound(ctx, round);
+    return;
+  }
+  if (isOtherDaySave(settings.theme, loaded.save, round.session)) {
+    clearQuizProgress(config);
+    match.setResumeNotice(null);
     applyRound(ctx, round);
     return;
   }

@@ -9,6 +9,17 @@ const NEXT_CLICK_WAIT_MS = NEXT_GUARD_MS + 50;
 
 const QUIZ_PATH = "/pt-br/";
 
+/**
+ * Opens "Personalizar" / "Customize" on the setup, where the mode, the timer
+ * and the decades sit closed by default. Does nothing when it is already open.
+ */
+export async function openQuizCustomize(page: Page): Promise<void> {
+  const customize = page.locator("details.setup-customize");
+  if (await customize.evaluate((element) => (element as HTMLDetailsElement).open)) return;
+  await customize.locator("summary").click();
+  await expect(customize).toHaveAttribute("open", "");
+}
+
 export class QuizPage {
   constructor(
     private readonly page: Page,

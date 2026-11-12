@@ -90,6 +90,7 @@ export function QuizRound({
           messages={messages}
         />
         <HintTray
+          questionId={question.id}
           playMode={playMode}
           cluesAvailable={question.clues_available}
           cluesShown={question.clues_shown}

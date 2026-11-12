@@ -1,6 +1,6 @@
 import type { PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
-import type { QuizDecadeSelection, QuizTheme } from "../Quiz/url-params";
+import { DEFAULT_QUIZ_THEME, type QuizDecadeSelection, type QuizTheme } from "../Quiz/url-params";
 import { DifficultyPicker } from "./DifficultyPicker";
 import { GameCollection } from "./GameCollection";
 import { TimerControl } from "./TimerControl";
@@ -24,14 +24,23 @@ export interface GameSetupProps {
   busy?: boolean;
   /** Announced through a visually hidden status while busy. */
   busyLabel?: string;
-  /** Visible notice above Start (e.g. replay will repeat the only ten questions). */
+  /** Visible notice above Start (e.g. today's challenge already counted). */
   notice?: string | undefined;
+  /** Replaces the general quiz's description, e.g. where its saved round stopped. */
+  generalNote?: string | undefined;
+  /**
+   * Key of the state the choices show. The server cannot read the stored
+   * mode, timer or URL, and hydration keeps its markup, so a new key remounts
+   * the choices with client state. The <details> around the mode, the timer
+   * and the decades is not remounted and stays open or closed.
+   */
+  choicesKey?: string;
 }
 
 export function GameSetup({
   playMode,
   onSelectMode,
-  theme = "history",
+  theme = DEFAULT_QUIZ_THEME,
   onSelectTheme,
   availableDecades = [], decades = [], onSelectDecades,
   timerEnabled,
@@ -43,9 +52,10 @@ export function GameSetup({
   busy = false,
   busyLabel,
   notice,
+  generalNote,
+  choicesKey,
 }: GameSetupProps) {
-  // Without a theme or decade picker the left column would be empty.
-  const hasPoolGroup = Boolean(onSelectTheme || onSelectDecades);
+  const hasDecades = Boolean(onSelectDecades && availableDecades.length);
   return (
     <section id="quiz" class="game-card game-card--wide quiz-setup" data-testid="game-setup" aria-labelledby="difficulty-heading" aria-busy={busy}>
       <div class="setup-options">
@@ -53,36 +63,51 @@ export function GameSetup({
           <p class="kicker">{messages.setupKicker}</p>
           <h2 id="difficulty-heading" class="game-card-title">{messages.setupTitle}</h2>
         </div>
-        {/* From 60rem the two groups sit side by side: which questions on the
-            left, how to play them on the right. DOM order stays the reading
-            and Tab order in both layouts. */}
-        {hasPoolGroup && (
-          <div class="setup-group">
-            {onSelectTheme && (
-              <GameCollection
-                selectedTheme={theme}
-                onSelectTheme={onSelectTheme}
+        {onSelectTheme && (
+          <GameCollection
+            key={choicesKey}
+            selectedTheme={theme}
+            onSelectTheme={onSelectTheme}
+            messages={messages}
+            disabled={disabled}
+            {...(generalNote ? { generalNote } : {})}
+          />
+        )}
+        {/* The kind of quiz is the one choice a visit needs; Start already
+            plays today's challenge. The mode, the timer and the decades stay
+            one tap away, and the summary line says what they are set to.
+            From 60rem the open group runs in two columns: the decades on the
+            left, the mode and the timer on the right. DOM order stays the
+            reading and Tab order in both layouts. */}
+        <details class="setup-customize">
+          <summary class="setup-customize-toggle">
+            <span class="setup-customize-title">{messages.customize}</span>
+            <span class="setup-customize-summary" data-testid="setup-customize-summary" key={choicesKey}>
+              {messages.customizeSummary(messages.difficultyName(playMode), timerEnabled, hasDecades ? decades : [])}
+            </span>
+          </summary>
+          <div class={`setup-customize-body${hasDecades ? " setup-customize-body--split" : ""}`} key={choicesKey}>
+            {hasDecades && onSelectDecades && (
+              <div class="setup-group">
+                <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />
+              </div>
+            )}
+            <div class="setup-group">
+              <DifficultyPicker
+                playMode={playMode}
+                onSelectMode={onSelectMode}
                 messages={messages}
                 disabled={disabled}
               />
-            )}
-            {onSelectDecades && <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />}
+              <TimerControl
+                enabled={timerEnabled}
+                onChange={onTimerChange}
+                label={messages.enableTimer}
+                disabled={disabled}
+              />
+            </div>
           </div>
-        )}
-        <div class="setup-group">
-          <DifficultyPicker
-            playMode={playMode}
-            onSelectMode={onSelectMode}
-            messages={messages}
-            disabled={disabled}
-          />
-          <TimerControl
-            enabled={timerEnabled}
-            onChange={onTimerChange}
-            label={messages.enableTimer}
-            disabled={disabled}
-          />
-        </div>
+        </details>
       </div>
       {busy && busyLabel && <p class="visually-hidden" role="status">{busyLabel}</p>}
       {notice && <p class="game-actions-message" role="status" data-testid="quiz-replay-notice">{notice}</p>}
