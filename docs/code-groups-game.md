@@ -13,9 +13,10 @@ status ("Você já tentou esse palpite. Nenhuma tentativa usada.") sem gastar
 tentativa, como a escolha incompleta ou com grupo repetido.
 
 Ao vencer ou esgotar as tentativas, o formulário fica desabilitado no mesmo
-render (fieldset, selects e botão), igual ao que um recarregamento mostra, e o
-resultado ocupa o lugar do contador de tentativas, acima do formulário e do
-histórico, para aparecer sem rolar depois de dez palpites.
+render. O fieldset, os selects e o botão ficam desabilitados, igual ao que um
+recarregamento mostra. O resultado ocupa o lugar do contador de tentativas,
+acima do formulário e do histórico, para aparecer sem rolar depois de dez
+palpites.
 
 A sequência é um desafio de lógica, não um fato: o jogo não afirma nenhuma
 relação entre os grupos que formam o código. O resultado do fim revela a
