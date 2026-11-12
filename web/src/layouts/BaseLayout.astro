@@ -19,6 +19,7 @@ import { StatsNavTrigger } from "../components/Stats/StatsNavTrigger";
 import { GameNav, type GameNavItem } from "../components/GameNav/GameNav";
 import { OPEN_CONSENT_PREFERENCES_EVENT } from "../components/Consent/ConsentBanner";
 import { ConsentBanner } from "../components/Consent/ConsentBanner";
+import { StickyBarSpace } from "../components/StickyBarSpace/StickyBarSpace";
 
 function escapeJsonLd(obj: any): string {
   return JSON.stringify(obj).replace(/[<>&]/g, (c) => (c === '<' ? '\\u003c' : c === '>' ? '\\u003e' : '\\u0026'));
@@ -403,6 +404,7 @@ const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
     <main>
       <slot />
     </main>
+    {showGameNavigation && <StickyBarSpace client:load />}
     <footer>
       <p>
         {isMapPilot ? (

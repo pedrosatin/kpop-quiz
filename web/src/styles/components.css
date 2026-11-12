@@ -211,6 +211,20 @@
   box-shadow: 0 -0.5rem 1rem -0.75rem color-mix(in srgb, var(--color-text) 30%, transparent);
 }
 
+/*
+  Room above the stuck bar. StickyBarSpace publishes the bar's real height as
+  --game-actions-height while it is sticky (0 otherwise), and everything in the
+  page except the bar keeps that much scroll margin, on top of the root
+  scroll padding for the consent banner. Keyboard focus and scrollIntoView
+  then stop above the bar at its current height, including after it grows
+  with a message. The bar's own controls keep no margin: they are on screen
+  wherever the bar is stuck, and a margin there would scroll the page on
+  every Tab.
+*/
+main :where(:not(.game-actions, .game-actions *)) {
+  scroll-margin-bottom: var(--game-actions-height, 0px);
+}
+
 .game-actions.is-correct {
   background: var(--color-success-bg);
   color: var(--color-success-text);
