@@ -91,15 +91,36 @@ function loadSavedGrid(grid: IntersectionGrid): GridStoredState | null {
       restored[key] = { solved: true, failed: false, entityId: id };
       touched++;
     } else if (state.failed === true) {
+      const tried = restoreTried(state, pool);
+      if (!tried) return null;
       const id = state.lastAttemptId;
-      if (id !== undefined && (typeof id !== "string" || !pool.has(id))) return null;
-      restored[key] = { solved: false, failed: true, ...(id ? { lastAttemptId: id } : {}) };
-      touched++;
+      restored[key] = {
+        solved: false,
+        failed: true,
+        ...(id ? { lastAttemptId: id } : {}),
+        ...(tried.length > 0 ? { triedIds: tried } : {}),
+      };
+      touched += Math.max(1, tried.length);
     }
   }
-  // Every cell with a group took at least one guess.
+  // Every right group and every wrong group tried took a guess.
   if (touched > (guessesUsed as number)) return null;
   return { guessesUsed: guessesUsed as number, cells: restored, ...(gaveUp === true ? { gaveUp: true as const } : {}) };
+}
+
+/**
+ * The wrong groups a saved failed cell tried, without repeats, or null when
+ * one is not a pool QID. A save from before `triedIds` has only the last
+ * one, which then counts as the one group tried.
+ */
+function restoreTried(state: Partial<GridStoredCell>, pool: Set<string>): string[] | null {
+  const last: unknown = state.lastAttemptId;
+  const tried: unknown = state.triedIds ?? [];
+  if (last !== undefined && (typeof last !== "string" || !pool.has(last))) return null;
+  if (!Array.isArray(tried) || tried.some((id) => typeof id !== "string" || !pool.has(id))) return null;
+  const ids = new Set<string>(tried as string[]);
+  if (last) ids.add(last);
+  return [...ids];
 }
 
 function isFinished(cells: Record<string, GridStoredCell>, guessesUsed: number): boolean {
@@ -225,13 +246,26 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
       return { success: false, reason: "already_used" as const };
     }
 
+    // A group already refused in this cell costs nothing: the owner closes
+    // the picker and says so.
+    const key = cellKey(selectedCell.row, selectedCell.col);
+    const tried = storedCells[key]?.triedIds ?? [];
+    if (tried.includes(candidate.id)) {
+      return {
+        success: false,
+        reason: "already_tried" as const,
+        row: selectedCell.row,
+        col: selectedCell.col,
+        name: displayName,
+      };
+    }
+
     analytics.start();
     const targetCell = grid.cells.find(
       (c) => c.row_index === selectedCell.row && c.col_index === selectedCell.col
     );
     const isCorrect = targetCell ? targetCell.valid_entity_ids.includes(candidate.id) : false;
     const newGuesses = guessesUsed + 1;
-    const key = cellKey(selectedCell.row, selectedCell.col);
 
     const updatedCells = { ...storedCells };
     const newUsed = new Set(usedEntityIds);
@@ -240,7 +274,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
       updatedCells[key] = { solved: true, failed: false, entityId: candidate.id };
       newUsed.add(candidate.id);
     } else {
-      updatedCells[key] = { solved: false, failed: true, lastAttemptId: candidate.id };
+      updatedCells[key] = { solved: false, failed: true, lastAttemptId: candidate.id, triedIds: [...tried, candidate.id] };
     }
 
     const finished = isFinished(updatedCells, newGuesses);

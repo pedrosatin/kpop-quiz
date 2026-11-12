@@ -13,7 +13,7 @@ import {
 import { CELL_GUARD_MS, nextCellAfterGuess } from "./next-cell-after-guess";
 import { gridMatchId, useRecordGridMatch } from "./useRecordGridMatch";
 import { useGridGame } from "./useGridGame";
-import type { CellCoordinates, GridCellState, GridGameStatus } from "./types";
+import { cellKey, type CellCoordinates, type GridCellState, type GridGameStatus } from "./types";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
@@ -108,6 +108,14 @@ export function IntersectionGridContent({
 
   const guess = useCallback((candidate: CandidateEntity) => {
     const result = makeGuess(candidate);
+    if (result.reason === "already_tried") {
+      // Nothing is spent: the picker closes on the same cell and the bar
+      // says why, so the player sees the guesses left did not move.
+      lastGuessAt.current = performance.now();
+      setFeedback({ kind: "repeat", name: result.name, n: ++announcements.current });
+      close();
+      return;
+    }
     if (result.reason !== "correct" && result.reason !== "incorrect") return;
     lastGuessAt.current = performance.now();
     playedHere.current = true;
@@ -119,7 +127,7 @@ export function IntersectionGridContent({
       const target = nextCellAfterGuess(result.cells!, result.row!, result.col!);
       if (target) setFocusCell({ ...target, n });
     }
-  }, [makeGuess, messages]);
+  }, [makeGuess, messages, close]);
 
   const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
   const confirmGiveUpOpenRef = useRef(false);
@@ -142,6 +150,11 @@ export function IntersectionGridContent({
     setFinalVerdict(null);
     giveUp();
   }, [closeGiveUpConfirm, giveUp]);
+
+  const triedHere = useMemo(
+    () => new Set(selectedCell ? cells[cellKey(selectedCell.row, selectedCell.col)]?.triedIds : []),
+    [cells, selectedCell],
+  );
 
   const selectedRowCrit = selectedCell ? grid.row_criteria[selectedCell.row]?.label[locale] : undefined;
   const selectedColCrit = selectedCell ? grid.col_criteria[selectedCell.col]?.label[locale] : undefined;
@@ -216,6 +229,7 @@ export function IntersectionGridContent({
         <EntityPicker
           candidatePool={grid.candidate_pool}
           usedEntityIds={usedEntityIds}
+          triedEntityIds={triedHere}
           uniquenessError={uniquenessError}
           rowLabel={selectedRowCrit}
           colLabel={selectedColCrit}

@@ -249,6 +249,7 @@ export interface Messages {
   gridPickerResultsCount: (count: number) => string;
   gridAlreadyUsedError: string;
   gridAlreadyUsedBadge: string;
+  gridTriedHereBadge: string;
   gridClosePicker: string;
   gridGameOverTitle: string;
   gridGameOverSummary: (correct: number, guesses: number) => string;
@@ -258,6 +259,8 @@ export interface Messages {
   gridGuessRight: (groupName: string) => string;
   gridGuessWrong: (groupName: string) => string;
   gridCatalogLimit: string;
+  gridAlreadyTried: (groupName: string) => string;
+  gridNoGuessSpent: string;
   gridReviewCatalogNote: string;
   gridReviewTitle: string;
   gridReviewCorrect: string;
@@ -677,7 +680,8 @@ const catalogs: Record<Locale, Messages> = {
     gridPickerNoMatches: "Nenhum grupo encontrado.",
     gridPickerResultsCount: (count) => (count === 1 ? "1 grupo encontrado" : `${count} grupos encontrados`),
     gridAlreadyUsedError: "este grupo já está em outra casa.",
-    gridAlreadyUsedBadge: "Já usado",
+    gridAlreadyUsedBadge: "Usado em outra casa",
+    gridTriedHereBadge: "Já tentado aqui",
     gridClosePicker: "Fechar",
     gridGameOverTitle: "Fim da partida",
     gridGameOverSummary: (correct, guesses) => `${correct} de 9 casas certas com ${guesses} palpites`,
@@ -687,6 +691,8 @@ const catalogs: Record<Locale, Messages> = {
     gridGuessRight: (groupName) => `Certa: ${groupName}.`,
     gridGuessWrong: (groupName) => `Não aceita: ${groupName}.`,
     gridCatalogLimit: "Sem fonte registrada aqui. Veja a FAQ.",
+    gridAlreadyTried: (groupName) => `Já tentado aqui: ${groupName}.`,
+    gridNoGuessSpent: "Nenhum palpite gasto.",
     gridReviewCatalogNote: "A lista mostra só o que o catálogo comprova com fonte. Um grupo real pode ficar de fora quando falta prova de uma das regras.",
     gridReviewTitle: "Respostas e fontes",
     gridReviewCorrect: "Certa",
@@ -1162,7 +1168,8 @@ const catalogs: Record<Locale, Messages> = {
     gridPickerNoMatches: "No groups found.",
     gridPickerResultsCount: (count) => (count === 1 ? "1 group found" : `${count} groups found`),
     gridAlreadyUsedError: "this group is already in another square.",
-    gridAlreadyUsedBadge: "Already used",
+    gridAlreadyUsedBadge: "Used in another square",
+    gridTriedHereBadge: "Already tried here",
     gridClosePicker: "Close",
     gridGameOverTitle: "Game over",
     gridGameOverSummary: (correct, guesses) => `${correct} of 9 squares correct in ${guesses} guesses`,
@@ -1172,6 +1179,8 @@ const catalogs: Record<Locale, Messages> = {
     gridGuessRight: (groupName) => `Correct: ${groupName}.`,
     gridGuessWrong: (groupName) => `Not accepted: ${groupName}.`,
     gridCatalogLimit: "No recorded source here. See the FAQ.",
+    gridAlreadyTried: (groupName) => `Already tried here: ${groupName}.`,
+    gridNoGuessSpent: "No guess spent.",
     gridReviewCatalogNote: "The list shows only what the catalog proves with a source. A real group can be left out when one of the rules lacks proof.",
     gridReviewTitle: "Answers and sources",
     gridReviewCorrect: "Correct",

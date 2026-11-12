@@ -1,10 +1,24 @@
 import { fireEvent, render, screen } from "@testing-library/preact";
 import { describe, expect, it, vi } from "vitest";
-import { EntityPicker } from "./EntityPicker";
+import { EntityPicker, type EntityPickerProps } from "./EntityPicker";
 import { getMessages } from "../../i18n/catalog";
 import type { CandidateEntity } from "../../lib/quiz-types";
 
 const ptMessages = getMessages("pt-BR");
+
+function renderPicker(props: Partial<EntityPickerProps> = {}) {
+  return render(
+    <EntityPicker
+      candidatePool={sampleCandidates}
+      usedEntityIds={new Set()}
+      onSelectCandidate={vi.fn()}
+      onClose={vi.fn()}
+      locale="pt-BR"
+      messages={ptMessages}
+      {...props}
+    />
+  );
+}
 
 const sampleCandidates: CandidateEntity[] = [
   {
@@ -101,7 +115,7 @@ describe("EntityPicker component", () => {
       />
     );
 
-    expect(screen.getByText("Já usado")).toBeInTheDocument();
+    expect(screen.getByText("Usado em outra casa")).toBeInTheDocument();
     const twiceOption = screen.getByText("TWICE").closest("li");
     expect(twiceOption).toHaveAttribute("aria-disabled", "true");
   });
@@ -157,6 +171,7 @@ describe("EntityPicker component", () => {
     expect(onSelect).toHaveBeenCalledWith(sampleCandidates[0]);
 
     const dialog = screen.getByRole("dialog");
+    fireEvent.keyDown(dialog, { key: "ArrowDown" });
     fireEvent.keyDown(dialog, { key: "ArrowDown" });
     fireEvent.keyDown(dialog, { key: "Enter" });
     expect(onSelect).toHaveBeenCalledWith(sampleCandidates[1]);
@@ -229,6 +244,10 @@ describe("EntityPicker component", () => {
     expect(search).toHaveAttribute("aria-expanded", "true");
     expect(search).toHaveAttribute("aria-autocomplete", "list");
     expect(search).toHaveAttribute("aria-controls", screen.getByRole("listbox").id);
+    // Nothing is highlighted until the player moves or names a group.
+    expect(search).not.toHaveAttribute("aria-activedescendant");
+    expect(screen.queryByRole("option", { selected: true })).not.toBeInTheDocument();
+    fireEvent.keyDown(search, { key: "ArrowDown" });
     expect(search).toHaveAttribute("aria-activedescendant", "candidate-opt-Q21461452");
     fireEvent.keyDown(search, { key: "ArrowDown" });
     expect(search).toHaveAttribute("aria-activedescendant", "candidate-opt-Q25056705");
@@ -251,6 +270,71 @@ describe("EntityPicker component", () => {
     fireEvent.keyDown(screen.getByLabelText("Fechar"), { key: "Enter" });
     fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter", repeat: true });
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing on Enter with an empty search", () => {
+    const onSelect = vi.fn();
+    renderPicker({ onSelectCandidate: onSelect });
+
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Enter" });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("sends the group a search names on Enter, and nothing for a vague search", () => {
+    const onSelect = vi.fn();
+    const pool: CandidateEntity[] = [
+      { id: "Q1", canonical_name: "Super Five", names: { "pt-BR": "Super Five", en: "Super Five" } },
+      { id: "Q2", canonical_name: "IVE", names: { "pt-BR": "IVE", en: "IVE" } },
+      { id: "Q3", canonical_name: "Olive", names: { "pt-BR": "Olive", en: "Olive" } },
+    ];
+    renderPicker({ candidatePool: pool, onSelectCandidate: onSelect });
+    const search = screen.getByRole("combobox");
+
+    // Every name contains "v" and none is named by it.
+    fireEvent.input(search, { target: { value: "v" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onSelect).not.toHaveBeenCalled();
+
+    // "ive" is in three names but is the whole name of one.
+    fireEvent.input(search, { target: { value: "ive" } });
+    expect(search).toHaveAttribute("aria-activedescendant", "candidate-opt-Q2");
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onSelect).toHaveBeenLastCalledWith(pool[1]);
+
+    // The only match is named.
+    fireEvent.input(search, { target: { value: "oli" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onSelect).toHaveBeenLastCalledWith(pool[2]);
+  });
+
+  it("forgets the arrow highlight when the search changes", () => {
+    const onSelect = vi.fn();
+    renderPicker({ onSelectCandidate: onSelect });
+    const search = screen.getByRole("combobox");
+
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+    expect(search).toHaveAttribute("aria-activedescendant", "candidate-opt-Q21461452");
+    fireEvent.input(search, { target: { value: "i" } });
+    expect(search).not.toHaveAttribute("aria-activedescendant");
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("marks in words the groups tried in this cell and those used in another", () => {
+    renderPicker({
+      usedEntityIds: new Set(["Q21461452"]),
+      // TWICE was tried here and is now in another cell: that note wins.
+      triedEntityIds: new Set(["Q21461452", "Q243884"]),
+    });
+
+    const twice = screen.getByRole("option", { name: /TWICE/ });
+    const shinee = screen.getByRole("option", { name: /SHINee/ });
+    const blackpink = screen.getByRole("option", { name: /BLACKPINK/ });
+    expect(twice).toHaveTextContent("TWICEUsado em outra casa");
+    expect(shinee).toHaveTextContent("SHINeeJá tentado aqui");
+    expect(shinee).toHaveAttribute("aria-disabled", "true");
+    expect(blackpink).toHaveTextContent(/^BLACKPINK$/);
+    expect(blackpink).toHaveAttribute("aria-disabled", "false");
   });
 
   it("fits the backdrop to the visual viewport, above a phone keyboard", () => {

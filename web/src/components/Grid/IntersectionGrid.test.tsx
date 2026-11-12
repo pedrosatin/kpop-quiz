@@ -26,6 +26,9 @@ const WIN_PATH: [number, number, string][] = [
   [2, 2, "BLACKPINK"],
 ];
 
+// Wrong in 0,0 and in 0,1, each tried once: a repeat costs nothing.
+const WRONG_IN_TOP_ROW = ["GOT7", "BLACKPINK", "WINNER", "Wonder Girls", "2PM", "Girls' Generation", "BIGBANG", "2NE1", "SHINee"];
+
 let clock = 0;
 
 function cellButton(row: number, col: number): HTMLButtonElement {
@@ -149,7 +152,7 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(statuses()).toHaveLength(1);
     expect(statuses()[0]).toBe(live);
 
-    for (let i = 0; i < 8; i++) pick(0, 1, "SHINee");
+    for (const name of WRONG_IN_TOP_ROW.slice(1)) pick(0, 1, name);
     const title = await screen.findByRole("heading", { name: "Fim da partida" });
     expect(statuses()[0]).toBe(live);
     // The result takes the counters' place in the same panel, after the live region.
@@ -348,6 +351,90 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
   });
 
+  it("does not charge a group already refused in the same cell", async () => {
+    await renderReady();
+    pick(0, 0, "SHINee");
+    expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
+
+    pick(0, 0, "SHINee");
+
+    // The picker closes on the same cell and the bar says nothing was spent.
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(status()).toHaveTextContent("Já tentado aqui: SHINee. Nenhum palpite gasto.");
+    expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
+    expect(cellButton(0, 0)).toHaveFocus();
+    expect(document.querySelector(".grid-actions")).not.toHaveClass("is-incorrect");
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).guessesUsed).toBe(1);
+
+    // The picker marks the group as tried in this cell, in words.
+    clock += CELL_GUARD_MS + 1;
+    tap(cellButton(0, 0));
+    const option = within(screen.getByRole("dialog")).getByRole("option", { name: /SHINee/ });
+    expect(option).toHaveTextContent("Já tentado aqui");
+    expect(option).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("still charges a group refused in another cell", async () => {
+    await renderReady();
+    pick(0, 0, "SHINee");
+    pick(0, 1, "SHINee");
+    expect(screen.getByText("7 palpites restantes")).toBeInTheDocument();
+    expect(status()).toHaveTextContent("Não aceita: SHINee.");
+  });
+
+  it("sends nothing on Enter with an empty search", async () => {
+    await renderReady();
+    tap(cellButton(0, 0));
+    const search = within(screen.getByRole("dialog")).getByRole("combobox");
+    fireEvent.keyDown(search, { key: "Enter" });
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it("treats the last wrong group of an older save as tried", async () => {
+    const cells = emptyCells();
+    // Saved before triedIds existed.
+    cells["1,1"] = { solved: false, failed: true, lastAttemptId: "Q494217" };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 1, cells }));
+
+    await renderReady();
+    expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
+    pick(1, 1, "EXO");
+
+    expect(status()).toHaveTextContent("Já tentado aqui: EXO.");
+    expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
+  });
+
+  it("restores every group tried in a cell", async () => {
+    const cells = emptyCells();
+    cells["1,1"] = { solved: false, failed: true, lastAttemptId: "Q494217", triedIds: ["Q21461452", "Q494217"] };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 2, cells }));
+
+    await renderReady();
+    expect(screen.getByText("7 palpites restantes")).toBeInTheDocument();
+    pick(1, 1, "TWICE");
+
+    expect(status()).toHaveTextContent("Já tentado aqui: TWICE.");
+    expect(screen.getByText("7 palpites restantes")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["a group outside the pool", { triedIds: ["Q999999999"] }, 2],
+    ["something other than a list", { triedIds: "Q494217" }, 2],
+    ["more groups than guesses", { triedIds: ["Q21461452", "Q494217"] }, 1],
+  ])("drops a save whose tried groups name %s", async (_, extra, guessesUsed) => {
+    const cells: Record<string, unknown> = emptyCells();
+    cells["1,1"] = { solved: false, failed: true, lastAttemptId: "Q494217", ...extra };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed, cells }));
+
+    await renderReady();
+
+    expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
+    expect(cellButton(1, 1)).toHaveAccessibleName(/Vazia/);
+  });
+
   it("counts giving up after five solved cells as a loss", async () => {
     await renderReady();
     for (const [row, col, name] of WIN_PATH.slice(0, 5)) pick(row, col, name);
@@ -360,8 +447,8 @@ describe("IntersectionGrid orchestrator component", () => {
   it("finishes game when all 9 guesses are consumed and focuses the result title", async () => {
     await renderReady();
 
-    // Make 9 incorrect guesses
-    for (let i = 0; i < 9; i++) pick(0, 0, "SHINee");
+    // Nine different wrong groups in one cell.
+    for (const name of ["EXO", ...WRONG_IN_TOP_ROW.slice(1)]) pick(0, 0, name);
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Fim da partida" })).toBeInTheDocument();
@@ -404,7 +491,7 @@ describe("IntersectionGrid orchestrator component", () => {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
     expect(saved.guessesUsed).toBe(2);
     expect(saved.cells["0,0"]).toMatchObject({ solved: true, entityId: "Q21461452" });
-    expect(saved.cells["1,1"]).toEqual({ solved: false, failed: true, lastAttemptId: "Q494217" });
+    expect(saved.cells["1,1"]).toEqual({ solved: false, failed: true, lastAttemptId: "Q494217", triedIds: ["Q494217"] });
     expect(saved.cells["0,0"]).not.toHaveProperty("entityName");
   });
 

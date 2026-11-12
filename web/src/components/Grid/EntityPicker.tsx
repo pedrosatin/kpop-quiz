@@ -7,6 +7,8 @@ import { normalizeSearch } from "./types";
 export interface EntityPickerProps {
   candidatePool: CandidateEntity[];
   usedEntityIds: Set<string>;
+  /** Groups already refused in this cell; picking one again costs nothing. */
+  triedEntityIds?: Set<string> | undefined;
   uniquenessError?: string | null | undefined;
   rowLabel?: string | undefined;
   colLabel?: string | undefined;
@@ -19,6 +21,7 @@ export interface EntityPickerProps {
 export function EntityPicker({
   candidatePool,
   usedEntityIds,
+  triedEntityIds,
   uniquenessError,
   rowLabel,
   colLabel,
@@ -28,7 +31,8 @@ export function EntityPicker({
   messages,
 }: EntityPickerProps) {
   const [query, setQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
+  // The option the player moved to with the arrow keys; typing clears it.
+  const [navIndex, setNavIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
   const listboxId = useId();
@@ -79,11 +83,11 @@ export function EntityPicker({
     });
   }, [candidatePool, query, locale, displayNames]);
 
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
-
-  const activeCandidate = filtered[activeIndex];
+  // Enter sends only a group the player chose: one reached with the arrow
+  // keys, or the one the search names. An empty search highlights nothing,
+  // so Enter on it sends nothing.
+  const activeIndex = navIndex ?? searchMatchIndex(filtered, query, locale, displayNames);
+  const activeCandidate = activeIndex >= 0 ? filtered[activeIndex] : undefined;
   const activeOptionId = activeCandidate ? `candidate-opt-${activeCandidate.id}` : undefined;
 
   // Arrow keys move the highlight; keep it inside the scrolled list.
@@ -120,17 +124,14 @@ export function EntityPicker({
       trapTab(e);
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((prev) => (filtered.length > 0 ? Math.min(prev + 1, filtered.length - 1) : 0));
+      setNavIndex(Math.min(activeIndex + 1, filtered.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIndex((prev) => Math.max(prev - 1, 0));
+      setNavIndex(Math.max(activeIndex - 1, 0));
     } else if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement)) {
       e.preventDefault();
-      if (e.repeat) return;
-      const selected = filtered[activeIndex];
-      if (selected) {
-        onSelectCandidate(selected);
-      }
+      if (e.repeat || !activeCandidate) return;
+      onSelectCandidate(activeCandidate);
     }
   };
 
@@ -189,7 +190,10 @@ export function EntityPicker({
             type="search"
             class="text-input"
             value={query}
-            onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+            onInput={(e) => {
+              setQuery((e.target as HTMLInputElement).value);
+              setNavIndex(null);
+            }}
             placeholder={messages.gridPickerSearchPlaceholder}
             autocomplete="off"
             // The list stays open under the field while the picker is open.
@@ -217,6 +221,7 @@ export function EntityPicker({
           ) : (
             filtered.map((candidate, idx) => {
               const isUsed = usedEntityIds.has(candidate.id);
+              const isTried = !isUsed && (triedEntityIds?.has(candidate.id) ?? false);
               const displayName = displayNames.get(candidate.id) || candidate.canonical_name;
               const isItemActive = idx === activeIndex;
 
@@ -224,15 +229,18 @@ export function EntityPicker({
                 <li
                   key={candidate.id}
                   id={`candidate-opt-${candidate.id}`}
-                  class={`picker-candidate-item ${isItemActive ? "active" : ""} ${isUsed ? "used" : ""}`}
+                  class={`picker-candidate-item ${isItemActive ? "active" : ""} ${isUsed || isTried ? "used" : ""}`}
                   role="option"
                   aria-selected={isItemActive}
-                  aria-disabled={isUsed}
+                  aria-disabled={isUsed || isTried}
                   onClick={() => onSelectCandidate(candidate)}
                 >
                   <span class="candidate-name">{displayName}</span>
                   {isUsed && (
                     <span class="badge">{messages.gridAlreadyUsedBadge}</span>
+                  )}
+                  {isTried && (
+                    <span class="badge">{messages.gridTriedHereBadge}</span>
                   )}
                 </li>
               );
@@ -241,5 +249,23 @@ export function EntityPicker({
         </ul>
       </div>
     </div>
+  );
+}
+
+/**
+ * The option a non-empty search names on its own: the only match, or the
+ * first whose name equals the search. -1 when the search names none.
+ */
+function searchMatchIndex(
+  filtered: CandidateEntity[],
+  query: string,
+  locale: Locale,
+  displayNames: Map<string, string>,
+): number {
+  const norm = normalizeSearch(query);
+  if (!norm) return -1;
+  if (filtered.length === 1) return 0;
+  return filtered.findIndex((c) =>
+    [c.canonical_name, c.names[locale] || "", displayNames.get(c.id) || ""].some((name) => normalizeSearch(name) === norm),
   );
 }

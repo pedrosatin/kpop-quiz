@@ -387,14 +387,15 @@
   A refused guess takes the two lines of the message: the verdict, then the
   limit of the catalog. The count of guesses left is already in the bar, so the
   note does not repeat that the guess was spent. Each line stays on one line, and
-  the shortest sentence that says it keeps it whole at 360px.
+  the shortest sentence that says it keeps it whole at 360px. A group already
+  tried in the cell uses the same two lines: the warning, then that no guess
+  was spent.
 */
-.grid-message p.grid-refused {
+.grid-message p:is(.grid-refused, .grid-repeat) {
   display: block;
 }
 
-.grid-refused .grid-verdict,
-.grid-refused .grid-catalog-limit {
+:is(.grid-refused, .grid-repeat) :is(.grid-verdict, .grid-catalog-limit) {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -630,8 +631,7 @@
   }
 
   /* The side panel has room to wrap: a long group name or note is never cut. */
-  .grid-refused .grid-verdict,
-  .grid-refused .grid-catalog-limit {
+  :is(.grid-refused, .grid-repeat) :is(.grid-verdict, .grid-catalog-limit) {
     overflow: visible;
     white-space: normal;
   }
