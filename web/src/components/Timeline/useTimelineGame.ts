@@ -8,6 +8,7 @@ import {
   generateTimelineShareText,
   getCanonicalChronologicalOrder,
   getInitialTimelineEventIds,
+  isEventOrderOf,
   loadTimelineDraft,
   loadTimelineSavedState,
   saveTimelineDraft,
@@ -16,6 +17,12 @@ import {
 
 export function timelineMatchId(puzzle: TimelinePuzzle): string {
   return `timeline-${puzzle.puzzle_id}`;
+}
+
+function timelineOutcome(status: TimelineGameStatus, gaveUp: boolean, perfect: boolean) {
+  if (status !== "submitted") return null;
+  if (gaveUp) return "give_up";
+  return perfect ? "win" : "loss";
 }
 
 export function useTimelineGame(
@@ -51,7 +58,7 @@ export function useTimelineGame(
       game: "timeline",
       locale,
       isDaily: () => isDailyBoardRound("timeline", puzzle, timelineMatchId(puzzle)),
-      outcome: gameStatus !== "submitted" ? null : gaveUp ? "give_up" : score === puzzle.events.length ? "win" : "loss",
+      outcome: timelineOutcome(gameStatus, gaveUp, score === puzzle.events.length),
     },
     gameStatus === "submitted",
     // A draft exists only after a move, which already started the round.
@@ -137,17 +144,13 @@ export function useTimelineGame(
 
   const setOrder = useCallback(
     (eventIds: string[]) => {
-      if (gameStatus !== "in_progress") return;
-      if (!Array.isArray(eventIds) || eventIds.length !== puzzle.events.length) return;
-      const validIds = new Set(puzzle.events.map((e) => e.id));
-      if (eventIds.some((id) => !validIds.has(id))) return;
-      if (new Set(eventIds).size !== puzzle.events.length) return;
+      if (gameStatus !== "in_progress" || !isEventOrderOf(eventIds, puzzle)) return;
       if (eventIds.every((id, index) => id === orderedEventIds[index])) return;
       analytics.start();
       movedHere.current = true;
       setOrderedEventIds(eventIds);
     },
-    [gameStatus, puzzle.events, orderedEventIds]
+    [gameStatus, puzzle, orderedEventIds]
   );
 
   const submit = useCallback((abandoned = false) => {
