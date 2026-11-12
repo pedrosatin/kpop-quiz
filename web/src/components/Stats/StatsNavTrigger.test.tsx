@@ -7,11 +7,12 @@ import { act } from "preact/test-utils";
 // Mock the StatsModal since we only want to test the trigger's logic
 vi.mock("./StatsModal", () => {
   return {
-    StatsModal: vi.fn(({ isOpen, initialTab, onClose }) => {
+    StatsModal: vi.fn(({ isOpen, initialTab, onClose, returnFocusRef }) => {
       if (!isOpen) return null;
       return (
         <div data-testid="mock-stats-modal">
           <span data-testid="mock-initial-tab">{initialTab}</span>
+          <span data-testid="mock-return-focus">{returnFocusRef?.current?.id ?? "none"}</span>
           <button data-testid="mock-close-btn" onClick={onClose}>Close</button>
         </div>
       );
@@ -105,5 +106,39 @@ describe("StatsNavTrigger", () => {
     unmount();
 
     expect(removeSpy).toHaveBeenCalledWith("kpop:open-stats", expect.any(Function));
+  });
+
+  it("opens on the tab of the page's game", () => {
+    const messages = getMessages("pt-BR");
+    render(<StatsNavTrigger locale="pt-BR" game="connections" />);
+
+    fireEvent.click(screen.getByRole("button", { name: messages.statsOpenButton }));
+
+    expect(screen.getByTestId("mock-initial-tab")).toHaveTextContent("connections");
+  });
+
+  it("opens an event without a tab on the page's game too", () => {
+    render(<StatsNavTrigger locale="en" game="word-search" />);
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent("kpop:open-stats"));
+    });
+
+    expect(screen.getByTestId("mock-initial-tab")).toHaveTextContent("word-search");
+  });
+
+  it("hands its button to the window as the focus target on close", () => {
+    const messages = getMessages("en");
+    render(<StatsNavTrigger locale="en" game="quiz" />);
+
+    fireEvent.click(screen.getByRole("button", { name: messages.statsOpenButton }));
+    expect(screen.getByTestId("mock-return-focus")).toHaveTextContent("stats-open-nav-btn");
+    fireEvent.click(screen.getByTestId("mock-close-btn"));
+
+    // An event opening keeps the default: the element focused before.
+    act(() => {
+      window.dispatchEvent(new CustomEvent("kpop:open-stats"));
+    });
+    expect(screen.getByTestId("mock-return-focus")).toHaveTextContent("none");
   });
 });

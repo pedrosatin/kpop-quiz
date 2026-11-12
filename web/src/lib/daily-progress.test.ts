@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { completedDailyGames, DAILY_GAMES, dailyGamePath, formatCountdown, nextDailyGame } from "./daily-progress";
-import { recordGameFinish } from "./player-stats";
+import { completedDailyGames, DAILY_GAMES, dailyGamePath, formatCountdown, nextDailyGame, statsGameId } from "./daily-progress";
+import { ALL_GAME_IDS, recordGameFinish } from "./player-stats";
 import { mapPilotStorageKey } from "../components/MapPilot/map-pilot-save";
 
 const TODAY = "2026-11-10";
@@ -47,5 +47,13 @@ describe("daily progress", () => {
     expect(formatCountdown(86400)).toBe("24:00:00");
     expect(formatCountdown(4 * 3600 + 5 * 60 + 9)).toBe("04:05:09");
     expect(formatCountdown(0)).toBe("00:00:00");
+  });
+});
+
+describe("statsGameId", () => {
+  it("maps every game page to its own stats entry", () => {
+    expect(statsGameId("mapPilot")).toBe("map");
+    expect(statsGameId("nameGuess")).toBe("name-guess");
+    expect(DAILY_GAMES.map(statsGameId).sort()).toEqual([...ALL_GAME_IDS].sort());
   });
 });

@@ -10,16 +10,22 @@ export const DAILY_GAMES: readonly SeoRouteKey[] = SEO_ROUTES.filter((route) => 
 /** Fired with the game key when a daily result shows, so the tabs mark it. */
 export const DAILY_DONE_EVENT = "kpop-daily-done";
 
-const STATS_ID: Record<Exclude<SeoRouteKey, "mapPilot">, GameId> = {
+const STATS_ID: Record<SeoRouteKey, GameId> = {
   quiz: "quiz",
   grid: "grid",
   connections: "connections",
   nameGuess: "name-guess",
   wordSearch: "word-search",
+  mapPilot: "map",
   timeline: "timeline",
   code: "code",
   crossword: "crossword",
 };
+
+/** The stats entry of a game page, so the stats window opens on that game's tab. */
+export function statsGameId(route: SeoRouteKey): GameId {
+  return STATS_ID[route];
+}
 
 /**
  * Daily games finished on `today`. Stats keep the date of the last daily

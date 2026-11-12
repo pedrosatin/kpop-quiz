@@ -19,6 +19,12 @@ export interface StatsModalProps {
   locale: Locale;
   initialTab?: StatsTabId;
   stats?: PlayerStats;
+  /**
+   * The control that opened the window; it gets focus back on close. Without
+   * it (or while it is null), focus goes back to the element that had focus
+   * when the window opened.
+   */
+  returnFocusRef?: { readonly current: HTMLElement | null };
 }
 
 function trapTabFocus(e: KeyboardEvent, modal: HTMLDivElement | null) {
@@ -45,6 +51,7 @@ export function StatsModal({
   locale,
   initialTab = "overall",
   stats: propStats,
+  returnFocusRef,
 }: StatsModalProps) {
   const messages = getMessages(locale);
   const [activeTab, setActiveTab] = useState<StatsTabId>(initialTab);
@@ -86,9 +93,11 @@ export function StatsModal({
     return () => {
       clearTimeout(timer);
       window.removeEventListener("keydown", handleKeyDown);
-      previouslyFocusedRef.current?.focus();
+      // preventScroll keeps the page where the player left it: the header
+      // button may be off screen when the window was opened by script.
+      (returnFocusRef?.current ?? previouslyFocusedRef.current)?.focus({ preventScroll: true });
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, returnFocusRef]);
 
   // The optional stats prop pins the view for tests; the production caller
   // StatsNavTrigger never passes it, so post-import refresh flows through loadedStats.
@@ -149,6 +158,7 @@ export function StatsModal({
           class="stats-tab-panel"
         >
           <StatsSummary metrics={currentMetrics} locale={locale} />
+          <p class="stats-win-rule">{messages.statsWinRule[activeTab]}</p>
           <p class="stats-streak-help">
             {activeTab === "overall" ? messages.statsOverallStreakHelp : messages.statsGameStreakHelp}
           </p>

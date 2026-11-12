@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, it } from "vitest";
-import { StatsDistribution } from "./StatsDistribution";
+import { StatsDistribution, distributionRows } from "./StatsDistribution";
 import type { PlayerStats } from "../../lib/player-stats";
 
 const sampleStats = {
@@ -127,5 +127,42 @@ describe("StatsDistribution component", () => {
       const count = container.querySelectorAll('.stats-bar-count')[i];
       expect(count?.textContent).toBe('0');
     }
+  });
+
+  it("adds a loss row after the six guess rows, counted as played minus won", () => {
+    const { container } = render(<StatsDistribution stats={sampleStats} locale="pt-BR" />);
+
+    const labels = [...container.querySelectorAll(".stats-attempt-num")].map((el) => el.textContent);
+    expect(labels).toEqual(["1", "2", "3", "4", "5", "6", "X"]);
+    const lossFill = container.querySelectorAll(".stats-bar-fill")[6] as HTMLElement;
+    expect(lossFill).toHaveClass("is-loss", "has-count");
+    expect(lossFill.textContent).toBe("1");
+    // Max is 4 (attempt 3), so 1 loss is 25%.
+    expect(lossFill.style.width).toBe("25%");
+  });
+
+  it("names every row, the loss row included, in the chart label", () => {
+    render(<StatsDistribution stats={sampleStats} locale="en" />);
+
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "aria-label",
+      "Guesses per game: 1: 0, 2: 1, 3: 4, 4: 2, 5: 1, 6: 1, Losses: 1",
+    );
+  });
+
+  it("scales the bars by the losses when they are the largest row", () => {
+    const allLosses = {
+      ...sampleStats,
+      games: { "name-guess": { played: 3, won: 0, currentStreak: 0, maxStreak: 0, guessDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 } } },
+    } as unknown as PlayerStats;
+    const rows = distributionRows(allLosses, "Derrotas");
+
+    expect(rows.at(-1)).toEqual({ key: "loss", label: "X", name: "Derrotas", count: 3, isLoss: true });
+    const { container } = render(<StatsDistribution stats={allLosses} locale="pt-BR" />);
+    expect((container.querySelectorAll(".stats-bar-fill")[6] as HTMLElement).style.width).toBe("100%");
+  });
+
+  it("shows no losses without name guess stats", () => {
+    expect(distributionRows(missingGameStats, "Losses").at(-1)?.count).toBe(0);
   });
 });

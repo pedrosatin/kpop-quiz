@@ -16,6 +16,7 @@ import {
   seoOgLocale,
 } from "../lib/seo-routes";
 import { StatsNavTrigger } from "../components/Stats/StatsNavTrigger";
+import { statsGameId } from "../lib/daily-progress";
 import { GameNav, type GameNavItem } from "../components/GameNav/GameNav";
 import { OPEN_CONSENT_PREFERENCES_EVENT } from "../components/Consent/ConsentBanner";
 import { ConsentBanner } from "../components/Consent/ConsentBanner";
@@ -341,7 +342,7 @@ const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
         <span>K</span>Q
       </a>
       <div class="header-actions">
-        {showGameNavigation && <StatsNavTrigger locale={locale} client:load />}
+        {showGameNavigation && <StatsNavTrigger locale={locale} game={statsGameId(route)} client:load />}
         <button
           type="button"
           id="theme-toggle"
