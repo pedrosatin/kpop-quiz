@@ -4,13 +4,14 @@ import { NameGuessBoard } from "./NameGuessBoard";
 import { NameGuessResults } from "./NameGuessResults";
 import { VirtualKeyboard } from "./VirtualKeyboard";
 import type { NameGuessTranslations } from "./types";
-import { nameGuessMatchId, useNameGuessGame } from "./useNameGuessGame";
+import { nameGuessMatchId, useNameGuessGame, type ErrorCode } from "./useNameGuessGame";
 import { recordDailyBoardMatch } from "../../lib/player-stats";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getMessages } from "../../i18n/catalog";
 import { formatCalendarDate } from "../../lib/format-date";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
+import { guessLetterFromKey } from "./key-letter";
 
 function isTextEntry(el: HTMLElement): boolean {
   return (
@@ -37,23 +38,33 @@ function usePhysicalKeyboard(
   useEffect(() => {
     if (!enabled) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+      // A key that is part of an IME composition belongs to the composition.
+      if (e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
       const target = e.target instanceof HTMLElement ? e.target : null;
       if (target && isTextEntry(target)) return;
       if (e.key === "Enter") {
-        // Enter on a focused button already activates that button.
+        // Enter on a focused button already activates that button. A letter key
+        // of the on-screen keyboard claims Enter itself to submit.
         if (target && isActivatable(target)) return;
         submit();
       } else if (e.key === "Backspace") {
         removeLetter();
-      } else if (/^[a-zA-Z]$/.test(e.key)) {
-        addLetter(e.key);
+      } else {
+        // An accented letter types its base letter; a dead key types nothing,
+        // the letter it composes arrives with the next key.
+        const letter = guessLetterFromKey(e.key);
+        if (letter) addLetter(letter);
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [enabled, submit, removeLetter, addLetter]);
+}
+
+function errorText(code: ErrorCode, t: NameGuessTranslations, wordLength: number): string {
+  if (code === "tooManyLetters") return t.tooManyLetters(wordLength);
+  return t[code];
 }
 
 export interface NameGuessGameContentProps {
@@ -120,14 +131,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
     }
   }, [isGameOver, status, puzzle, guesses.length]);
 
-  let errorDisplay = null;
-  if (errorMessage === "notEnoughLetters") {
-    errorDisplay = t.notEnoughLetters;
-  } else if (errorMessage === "notInWordList") {
-    errorDisplay = t.notInWordList;
-  } else if (errorMessage === "alreadyGuessed") {
-    errorDisplay = t.alreadyGuessed;
-  }
+  const errorDisplay = errorMessage ? errorText(errorMessage, t, puzzle.word_length) : null;
 
   const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
   const confirmGiveUpOpenRef = useRef(false);
