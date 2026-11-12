@@ -231,7 +231,7 @@ describe("StatsModal component", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Quiz" }));
     expect(screen.getByText("Vitória: acertar pelo menos metade das perguntas (5 de 10).")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Mapa" }));
-    expect(screen.getByText("Vitória: acertar o país de pelo menos metade das datas (5 de 10).")).toBeInTheDocument();
+    expect(screen.getByText("Vitória: acertar o país de pelo menos metade das datas (5 de 10), sem desistir.")).toBeInTheDocument();
     unmount();
 
     render(<StatsModal isOpen={true} onClose={vi.fn()} locale="en" initialTab="name-guess" stats={sampleStats} />);

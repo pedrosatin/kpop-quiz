@@ -17,11 +17,11 @@ const PAGES = [
   { path: "/pt-br/conexoes/", tab: "Conexões", rule: "Vitória: achar as 4 categorias antes do quarto erro." },
   { path: "/pt-br/adivinhe/", tab: "Adivinhe", rule: "Vitória: acertar o nome em até 6 palpites." },
   { path: "/pt-br/caca-palavras/", tab: "Caça-palavras", rule: "Vitória: achar todos os nomes, sem desistir." },
-  { path: "/pt-br/mapa/", tab: "Mapa", rule: "Vitória: acertar o país de pelo menos metade das datas (5 de 10)." },
+  { path: "/pt-br/mapa/", tab: "Mapa", rule: "Vitória: acertar o país de pelo menos metade das datas (5 de 10), sem desistir." },
   { path: "/pt-br/linha-do-tempo/", tab: "Linha do Tempo", rule: "Vitória: pôr todos os acontecimentos na ordem certa, sem desistir." },
   { path: "/pt-br/codigo/", tab: "Código", rule: "Vitória: descobrir o código em até 10 tentativas." },
-  { path: "/pt-br/cruzadinha/", tab: "Cruzadinha", rule: "Vitória: completar a grade com Verificar respostas, sem Revelar respostas." },
-  { path: "/en/map/", tab: "Map", rule: "Win: get the country right for at least half the dates (5 of 10)." },
+  { path: "/pt-br/cruzadinha/", tab: "Cruzadinha", rule: "Vitória: completar a grade e conferir em Verificar respostas, sem usar Revelar respostas." },
+  { path: "/en/map/", tab: "Map", rule: "Win: get the country right for at least half the dates (5 of 10), without giving up." },
   { path: "/en/guess/", tab: "Guess", rule: "Win: guess the name in 6 tries or fewer." },
 ] as const;
 
