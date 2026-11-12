@@ -24,23 +24,21 @@ export function TimelineResults({
   titleRef,
 }: TimelineResultsProps) {
   const titleId = useId();
-  const defaultMsgs = DEFAULT_TIMELINE_MESSAGES[locale] || DEFAULT_TIMELINE_MESSAGES["pt-BR"];
+  const msgs = withDefaults(DEFAULT_TIMELINE_MESSAGES[locale] || DEFAULT_TIMELINE_MESSAGES["pt-BR"], messages);
 
   const chronologicalEvents = useMemo(() => {
     const list = canonicalEvents ?? events ?? [];
     return getCanonicalChronologicalOrder(list);
   }, [canonicalEvents, events]);
 
-  const total = totalEvents ?? chronologicalEvents.length;
-  const scoreBanner = messages?.scoreBanner
-    ? messages.scoreBanner(score, total)
-    : defaultMsgs.scoreBanner(score, total);
+  // 1-based position where the player left each event, when the order is known.
+  const playerPositions = useMemo(
+    () => new Map((events ?? []).map((event, index) => [event.id, index + 1])),
+    [events]
+  );
 
-  const summaryHeading = messages?.summaryHeading ?? defaultMsgs.summaryHeading;
-  const correctLabel = messages?.correctPosition ?? defaultMsgs.correctPosition;
-  const incorrectLabel = messages?.incorrectPosition ?? defaultMsgs.incorrectPosition;
-  const viewEvidence = messages?.viewEvidence ?? defaultMsgs.viewEvidence;
-  const revisionLabel = messages?.revision ?? defaultMsgs.revision;
+  const total = totalEvents ?? chronologicalEvents.length;
+  const positionLabels = { player: msgs.playerPosition, right: msgs.rightPosition };
 
   return (
     <section class="timeline-results" data-testid="game-result" aria-labelledby={titleId}>
@@ -51,23 +49,24 @@ export function TimelineResults({
           tabIndex={-1}
           class="timeline-results-score"
         >
-          {gaveUp ? (messages?.gaveUp ?? defaultMsgs.gaveUp) : scoreBanner}
+          {gaveUp ? msgs.gaveUp : msgs.scoreBanner(score, total)}
         </h2>
-        {gaveUp && <p>{(messages?.sequenceScore ?? defaultMsgs.sequenceScore)(score, total)}</p>}
+        {gaveUp && <p>{msgs.sequenceScore(score, total)}</p>}
       </div>
 
       <div class="timeline-results-summary">
-        <h3 class="timeline-results-summary-heading">{summaryHeading}</h3>
+        <h3 class="timeline-results-summary-heading">{msgs.summaryHeading}</h3>
         <ol class="timeline-results-list" role="list">
           {chronologicalEvents.map((event, index) => (
             <TimelineResultItem key={event.id} event={event} index={index} locale={locale}
-              isCorrect={results[index] ?? false} correctLabel={correctLabel} incorrectLabel={incorrectLabel} />
+              isCorrect={results[index] ?? false} correctLabel={msgs.correctPosition} incorrectLabel={msgs.incorrectPosition}
+              playerPosition={playerPositions.get(event.id)} positionLabels={positionLabels} />
           ))}
         </ol>
       </div>
 
       <details class="timeline-evidence-details">
-        <summary class="timeline-evidence-summary">{viewEvidence}</summary>
+        <summary class="timeline-evidence-summary">{msgs.viewEvidence}</summary>
         <div class="timeline-evidence-panel">
           {chronologicalEvents.map((event) => {
             const eventTitle =
@@ -75,7 +74,7 @@ export function TimelineResults({
             return (
               <div key={event.id} class="timeline-evidence-event">
                 <h4 class="timeline-evidence-event-title">{eventTitle}</h4>
-                <TimelineEvidenceList evidence={event.evidence} locale={locale} revisionLabel={revisionLabel} />
+                <TimelineEvidenceList evidence={event.evidence} locale={locale} revisionLabel={msgs.revision} />
               </div>
             );
           })}
@@ -95,13 +94,24 @@ export function TimelineResults({
   );
 }
 
-function TimelineResultItem({ event, index, locale, isCorrect, correctLabel, incorrectLabel }: {
+/** `defaults` with every override that is set; an `undefined` override keeps the default. */
+function withDefaults<T extends object>(defaults: T, overrides: Partial<T> | undefined): T {
+  const merged: T = { ...defaults };
+  for (const [key, value] of Object.entries(overrides ?? {})) {
+    if (value !== undefined) (merged as Record<string, unknown>)[key] = value;
+  }
+  return merged;
+}
+
+function TimelineResultItem({ event, index, locale, isCorrect, correctLabel, incorrectLabel, playerPosition, positionLabels }: {
   event: TimelineEvent;
   index: number;
   locale: Locale;
   isCorrect: boolean;
   correctLabel: string;
   incorrectLabel: string;
+  playerPosition: number | undefined;
+  positionLabels: { player: (position: number) => string; right: (position: number) => string };
 }) {
   const accuracyClass = isCorrect ? "is-correct" : "is-incorrect";
   const indicatorLabel = isCorrect ? correctLabel : incorrectLabel;
@@ -110,7 +120,7 @@ function TimelineResultItem({ event, index, locale, isCorrect, correctLabel, inc
   return (
     <li class={`timeline-results-item ${accuracyClass}`}>
       <div class="timeline-results-item-header">
-        <span role="img" class={`timeline-accuracy-badge ${accuracyClass}`} aria-label={`${indicatorLabel}: ${index + 1}`}>
+        <span role="img" class={`timeline-accuracy-badge ${accuracyClass}`} aria-label={indicatorLabel}>
           <span class="timeline-accuracy-emoji">{isCorrect ? "🟩" : "🟥"}</span>
           <span class="timeline-accuracy-symbol">{isCorrect ? " ✓" : " ✗"}</span>
         </span>
@@ -118,6 +128,15 @@ function TimelineResultItem({ event, index, locale, isCorrect, correctLabel, inc
       </div>
       <div class="timeline-results-item-body">
         <span class="timeline-results-item-title">{title}</span>
+        <p class="timeline-results-positions" data-testid="timeline-result-positions">
+          {playerPosition !== undefined && (
+            <>
+              <span>{positionLabels.player(playerPosition)}</span>
+              <span aria-hidden="true"> · </span>
+            </>
+          )}
+          <span>{positionLabels.right(index + 1)}</span>
+        </p>
       </div>
     </li>
   );

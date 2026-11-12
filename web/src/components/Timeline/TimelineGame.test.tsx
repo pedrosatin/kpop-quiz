@@ -98,6 +98,44 @@ describe("TimelineGame", () => {
     expect(screen.queryByRole("button", { name: "Verificar ordem" })).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["pt-BR", "Verificar ordem", "para cima", /Pontuação:/, "Sua posição: 4"],
+    ["en", "Check order", "up", /Score:/, "Your position: 4"],
+  ] as const)("keeps the order built before a reload and records only the submit (%s)", async (locale, submit, up, scoreHeading, movedPosition) => {
+    const titles = () => screen.getAllByRole("listitem").map((card) => within(card).getByRole("heading").textContent);
+    const { unmount } = render(<TimelineGame locale={locale} puzzle={puzzle} />);
+    const opening = titles();
+    const cards = screen.getAllByRole("listitem");
+    fireEvent.click(within(cards[4]!).getByRole("button", { name: new RegExp(`${up}$`) }));
+    const built = titles();
+    expect(built).not.toEqual(opening);
+    unmount();
+
+    render(<TimelineGame locale={locale} puzzle={puzzle} />);
+    expect(titles()).toEqual(built);
+    expect(loadPlayerStats().games.timeline?.played ?? 0).toBe(0);
+
+    fireEvent.click(screen.getByRole("button", { name: submit }));
+    await screen.findByRole("heading", { name: scoreHeading });
+    expect(loadPlayerStats().games.timeline?.played).toBe(1);
+    const movedItem = Array.from(document.querySelectorAll<HTMLElement>(".timeline-results-item"))
+      .find((item) => item.textContent?.includes(built[3]!))!;
+    expect(within(movedItem).getByTestId("timeline-result-positions")).toHaveTextContent(movedPosition);
+  });
+
+  it("shows the day as done instead of a draft when the date was finished on another board", () => {
+    markGameMatchRecorded("timeline", `daily-${puzzle.reference_date}`);
+    localStorage.setItem(`kpop-timeline-${puzzle.puzzle_id}`, JSON.stringify({
+      puzzleId: puzzle.puzzle_id,
+      referenceDate: puzzle.reference_date,
+      orderedEventIds: puzzle.events.map((event) => event.id),
+      submitted: false,
+    }));
+    render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
+    expect(screen.getByTestId("daily-done")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Verificar ordem" })).toBeNull();
+  });
+
   it("counts a puzzle finished in this visit once", async () => {
     const { unmount } = render(<TimelineGame locale="pt-BR" puzzle={puzzle} />);
     fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
@@ -307,6 +345,24 @@ describe("Timeline board from an earlier day", () => {
     );
     expect(loadPlayerStats().games["timeline"]?.played ?? 0).toBe(0);
     await vi.waitFor(() => expect(daily()).toEqual(["no", "no"]));
+  });
+
+  it("restores a draft on a board from an earlier day and still counts no daily match", async () => {
+    onDay(dayAfter(puzzle.reference_date));
+    const titles = () => screen.getAllByRole("listitem").map((card) => within(card).getByRole("heading").textContent);
+    const first = render(<TimelineGame locale="pt-BR" />);
+    await screen.findByRole("button", { name: "Verificar ordem" });
+    fireEvent.click(within(screen.getAllByRole("listitem")[4]!).getByRole("button", { name: /para cima$/ }));
+    const built = titles();
+    first.unmount();
+
+    render(<TimelineGame locale="pt-BR" />);
+    await screen.findByRole("button", { name: "Verificar ordem" });
+    expect(titles()).toEqual(built);
+    expect(screen.getByTestId("stale-daily-notice")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
+    await screen.findByRole("heading", { name: /Pontuação:/ });
+    expect(loadPlayerStats().games["timeline"]?.played ?? 0).toBe(0);
   });
 
   it("keeps today's board as the daily challenge", async () => {

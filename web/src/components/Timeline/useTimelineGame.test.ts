@@ -9,6 +9,7 @@ import {
   getCanonicalChronologicalOrder,
   getInitialTimelineEventIds,
   getInitialTimelineOrder,
+  loadTimelineDraft,
   loadTimelineSavedState,
 } from "./timeline-utils";
 
@@ -195,6 +196,81 @@ describe("useTimelineGame and timeline utils", () => {
     expect(secondRun.current.score).toBe(5);
     expect(secondRun.current.results).toEqual([true, true, true, true, true]);
     expect(localStorage.getItem(key)).not.toBeNull();
+  });
+
+  it("saves the order on each move and restores it before the submit", () => {
+    const key = `kpop-timeline-${puzzle.puzzle_id}`;
+    const { result: firstRun, unmount } = renderHook(() => useTimelineGame(puzzle, "pt-BR"));
+    expect(localStorage.getItem(key)).toBeNull();
+
+    act(() => firstRun.current.moveDown(0));
+    const moved = [...firstRun.current.orderedEventIds];
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual({
+      puzzleId: puzzle.puzzle_id,
+      referenceDate: puzzle.reference_date,
+      orderedEventIds: moved,
+      submitted: false,
+    });
+    expect(loadTimelineSavedState(key, puzzle)).toBeNull();
+    unmount();
+
+    const { result: secondRun } = renderHook(() => useTimelineGame(puzzle, "pt-BR"));
+    expect(secondRun.current.gameStatus).toBe("in_progress");
+    expect(secondRun.current.orderedEventIds).toEqual(moved);
+
+    const reversed = [...moved].reverse();
+    act(() => secondRun.current.setOrder(reversed));
+    expect(loadTimelineDraft(key, puzzle)).toEqual(reversed);
+  });
+
+  it("replaces the draft with the submitted save", () => {
+    const key = `kpop-timeline-${puzzle.puzzle_id}`;
+    const { result } = renderHook(() => useTimelineGame(puzzle, "pt-BR"));
+    act(() => result.current.moveUp(1));
+    act(() => result.current.submit());
+
+    expect(loadTimelineDraft(key, puzzle)).toBeNull();
+    expect(loadTimelineSavedState(key, puzzle)?.orderedEventIds).toEqual(result.current.orderedEventIds);
+  });
+
+  it("discards a draft from another board, another date, or with an invalid order", () => {
+    const key = `kpop-timeline-${puzzle.puzzle_id}`;
+    const ids = puzzle.events.map((e) => e.id);
+    const draft = { puzzleId: puzzle.puzzle_id, referenceDate: puzzle.reference_date, orderedEventIds: ids, submitted: false };
+    const rejected: unknown[] = [
+      { ...draft, puzzleId: "timeline-other" },
+      { ...draft, referenceDate: "2099-01-01" },
+      { ...draft, orderedEventIds: ids.slice(0, 4) },
+      { ...draft, orderedEventIds: [...ids.slice(0, 4), ids[0]] },
+      { ...draft, orderedEventIds: [...ids.slice(0, 4), "event-from-elsewhere"] },
+      { ...draft, orderedEventIds: "not-a-list" },
+      { ...draft, submitted: undefined },
+      [draft],
+      null,
+    ];
+    for (const value of rejected) {
+      localStorage.setItem(key, JSON.stringify(value));
+      expect(loadTimelineDraft(key, puzzle)).toBeNull();
+      const { result, unmount } = renderHook(() => useTimelineGame(puzzle, "pt-BR"));
+      expect(result.current.gameStatus).toBe("in_progress");
+      expect(result.current.orderedEventIds).toEqual(getInitialTimelineEventIds(puzzle));
+      unmount();
+    }
+
+    localStorage.setItem(key, "{ malformed json");
+    expect(loadTimelineDraft(key, puzzle)).toBeNull();
+    expect(loadTimelineDraft("", puzzle)).toBeNull();
+
+    localStorage.setItem(key, JSON.stringify(draft));
+    expect(loadTimelineDraft(key, puzzle)).toEqual(ids);
+  });
+
+  it("does not write a draft when the board only mounts", () => {
+    const key = `kpop-timeline-${puzzle.puzzle_id}`;
+    const ids = puzzle.events.map((e) => e.id);
+    localStorage.setItem(key, JSON.stringify({ puzzleId: "timeline-other", orderedEventIds: ids, submitted: false }));
+    renderHook(() => useTimelineGame(puzzle, "pt-BR"));
+    expect(JSON.parse(localStorage.getItem(key)!).puzzleId).toBe("timeline-other");
   });
 
   it("leaves an untouched new game below a perfect score", () => {

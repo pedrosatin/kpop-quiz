@@ -14,6 +14,14 @@ export interface TimelineStoredState {
   results: boolean[];
 }
 
+/** The order being built before the submit, under the same key as the result. */
+export interface TimelineDraftState {
+  puzzleId: string;
+  referenceDate: string;
+  orderedEventIds: string[];
+  submitted: false;
+}
+
 export interface TimelineCardMessages {
   moveUp: (title: string) => string;
   moveDown: (title: string) => string;
@@ -42,6 +50,8 @@ export interface TimelineResultsMessages extends TimelineShareMessages {
   summaryHeading: string;
   correctPosition: string;
   incorrectPosition: string;
+  playerPosition: (position: number) => string;
+  rightPosition: (position: number) => string;
   viewEvidence: string;
   revision: string;
 }
@@ -65,6 +75,8 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     summaryHeading: "Ordem cronológica correta",
     correctPosition: "Posição correta",
     incorrectPosition: "Posição incorreta",
+    playerPosition: (pos: number) => `Sua posição: ${pos}`,
+    rightPosition: (pos: number) => `Posição certa: ${pos}`,
     viewEvidence: "Ver fontes e evidências",
     revision: "revisão",
     share: "Compartilhar",
@@ -88,6 +100,8 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     summaryHeading: "Correct chronological order",
     correctPosition: "Correct position",
     incorrectPosition: "Incorrect position",
+    playerPosition: (pos: number) => `Your position: ${pos}`,
+    rightPosition: (pos: number) => `Right position: ${pos}`,
     viewEvidence: "View sources and evidence",
     revision: "revision",
     share: "Share",
