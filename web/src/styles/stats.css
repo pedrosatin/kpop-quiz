@@ -25,6 +25,12 @@
   max-width: 34rem;
 }
 
+/* The card scrolls when its content is taller than the screen; without this
+   the tab list, a scroll container itself, shrinks to its border. */
+.stats-modal-card > * {
+  flex-shrink: 0;
+}
+
 .stats-tabs-container {
   display: flex;
   gap: var(--space-1);

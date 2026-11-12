@@ -103,11 +103,18 @@ test("Name Guess: the guess distribution shows a loss bar", async ({ page }) => 
       },
     }));
   }, PLAYER_STATS_STORAGE_KEY);
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.goto(`${base}/pt-br/adivinhe/`);
   await waitForStatsNavHydrated(page);
   await page.locator("#stats-open-nav-btn").click();
   const chart = page.getByRole("img", { name: /Palpites por partida/ });
   await expect(chart).toHaveAccessibleName("Palpites por partida: 1: 0, 2: 0, 3: 0, 4: 1, 5: 0, 6: 0, Derrotas: 2");
+  // With the loss row the window is taller than a 360x800 screen: the card
+  // scrolls and the tab list keeps its height.
+  const tab = page.getByRole("dialog").getByRole("tab", { name: "Adivinhe" });
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(40);
+  await expect(tab).toBeInViewport({ ratio: 1 });
   const lossRow = page.locator(".stats-distribution-row").last();
   await expect(lossRow.locator(".stats-attempt-num")).toHaveText("X");
   await expect(lossRow.locator(".stats-bar-fill.is-loss")).toHaveText("2");
