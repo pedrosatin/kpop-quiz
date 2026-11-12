@@ -42,6 +42,14 @@ describe("published connections puzzle loader and validator", () => {
     expect(isConnectionsPuzzle(invalid)).toBe(false);
   });
 
+  it("rejects dimensions other than 4 groups of 4 items", () => {
+    for (const dimensions of [{ groups: 4, items_per_group: 4, total_items: 15 }, { groups: 4, items_per_group: 4 }]) {
+      const invalid = structuredClone(validPuzzle) as Record<string, unknown>;
+      invalid.dimensions = dimensions;
+      expect(isConnectionsPuzzle(invalid)).toBe(false);
+    }
+  });
+
   it("rejects when categories length is not 4", () => {
     const invalid = structuredClone(validPuzzle);
     invalid.categories = invalid.categories.slice(0, 3);

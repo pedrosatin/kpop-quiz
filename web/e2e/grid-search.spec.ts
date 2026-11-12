@@ -4,7 +4,7 @@ import { visibleLabels } from "./helpers/visible-names";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 
 type Candidate = { id: string; canonical_name: string; names: Record<string, string>; aliases?: string[] };
-type Grid = { candidate_pool: Candidate[] };
+type Grid = { reference_date: string; candidate_pool: Candidate[] };
 
 /** A name as a fan types it fast: lower case, no spaces, no punctuation. Written apart from the product. */
 const squash = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, "");

@@ -229,6 +229,20 @@ describe("published intersection grid loader and validator", () => {
     expect(isIntersectionGrid(invalid)).toBe(false);
   });
 
+  it("rejects wrong dimensions and repeated criteria or candidates", () => {
+    const cases: ((grid: typeof validGrid) => void)[] = [
+      (grid) => { (grid as { dimensions: unknown }).dimensions = { rows: 3, cols: 4 }; },
+      (grid) => { grid.row_criteria[1]!.id = grid.row_criteria[0]!.id; },
+      (grid) => { grid.col_criteria[1]!.id = grid.col_criteria[0]!.id; },
+      (grid) => { grid.candidate_pool.push(structuredClone(grid.candidate_pool[0]!)); },
+    ];
+    for (const change of cases) {
+      const invalid = structuredClone(validGrid);
+      change(invalid);
+      expect(isIntersectionGrid(invalid)).toBe(false);
+    }
+  });
+
   it("accepts candidates with or without search aliases, and rejects malformed ones", () => {
     const withAliases = structuredClone(validGrid) as { candidate_pool: Record<string, unknown>[] };
     expect(withAliases.candidate_pool[0]).not.toHaveProperty("aliases");
