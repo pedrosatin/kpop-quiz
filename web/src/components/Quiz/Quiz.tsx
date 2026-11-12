@@ -20,6 +20,7 @@ import { useQuizFocus } from "./useQuizFocus";
 import { useQuizMatch } from "./useQuizMatch";
 import { useQuizProgressAutosave, useQuizProgressWriter } from "./useQuizProgress";
 import { useQuizSettings } from "./useQuizSettings";
+import { useGeneralResume } from "./useGeneralResume";
 import { useQuizTimer } from "./useQuizTimer";
 import { useRecordQuizMatch } from "./useRecordQuizMatch";
 import type { QuizDecadeValue } from "./url-params";
@@ -34,6 +35,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const messages = getMessages(locale);
   const settings = useQuizSettings(locale, initialAvailableDecades);
   const match = useQuizMatch();
+  const generalResume = useGeneralResume(locale, settings);
   const [hydrated, setHydrated] = useState(false);
   const analytics = useQuizAnalytics(locale, settings, match);
   const persistProgress = useQuizProgressWriter(locale, settings, match);
@@ -73,6 +75,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       timerVisible={timerSeconds !== null}
       secondsLeft={secondsLeft}
       focus={focus}
+      generalResume={generalResume}
       actions={{
         load,
         // Clearing filters changes decadeKey and reloads through the effect.
@@ -84,6 +87,12 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
         requestGiveUp: () => requestGiveUp(match),
         confirmGiveUp: () => confirmGiveUp(play),
         revealClue: () => revealClue(play),
+        selectTheme: (theme) => {
+          // Picking the general quiz while it says where it stopped restores
+          // that round; its question then takes the focus from the card.
+          if (theme === "history" && generalResume) match.focusRestoredRef.current = true;
+          settings.selectTheme(theme);
+        },
       }}
     />
   );

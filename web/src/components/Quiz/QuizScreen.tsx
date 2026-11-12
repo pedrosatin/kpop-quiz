@@ -11,6 +11,8 @@ import type { ReplayNotice } from "./types";
 import type { QuizFocusRefs } from "./useQuizFocus";
 import type { QuizMatch } from "./useQuizMatch";
 import type { QuizSettings } from "./useQuizSettings";
+import type { GeneralResume } from "./useGeneralResume";
+import type { QuizTheme } from "./url-params";
 import { StaleDailyNotice } from "../Results/StaleDailyNotice";
 
 export interface QuizScreenActions {
@@ -23,6 +25,7 @@ export interface QuizScreenActions {
   requestGiveUp: () => void;
   confirmGiveUp: () => void;
   revealClue: () => void;
+  selectTheme: (theme: QuizTheme) => void;
 }
 
 export interface QuizScreenProps {
@@ -36,6 +39,8 @@ export interface QuizScreenProps {
   secondsLeft: number;
   focus: QuizFocusRefs;
   actions: QuizScreenActions;
+  /** Where a general quiz saved in this language and mode stopped, on a visit that fell on today's challenge. */
+  generalResume?: GeneralResume | null;
 }
 
 function replayNoticeText(status: ReplayNotice, messages: Messages): string | undefined {
@@ -68,15 +73,19 @@ function resultNoticeText({ resumeNotice, replayStatus }: QuizMatch, messages: M
 // The server has no localStorage or URL, so its HTML marks the default mode,
 // theme and timer as selected. hydrate() reuses that DOM without patching
 // class attributes, so the default card would stay highlighted next to the
-// stored choice. Changing the key after the first effect remounts the setup
-// with client state; the layout is identical, so nothing shifts.
-function QuizSetupScreen({ messages, settings, match, hydrated, actions }: QuizScreenProps) {
+// stored choice. Changing choicesKey after the first effect remounts the
+// choices with client state, but not the "Customize" <details>, which stays
+// open if the player opened it first. The summary line may then grow from one
+// line to two (Expert with the timer); on phones it keeps room for two lines,
+// so the cards and Start do not move.
+function QuizSetupScreen({ messages, settings, match, hydrated, actions, generalResume }: QuizScreenProps) {
   const { state, session, loadedRequestKey } = match;
   return (
-    <GameSetup key={hydrated ? "client" : "ssr"} busy={state === "loading"} busyLabel={messages.loading}
+    <GameSetup choicesKey={hydrated ? "client" : "ssr"} busy={state === "loading"} busyLabel={messages.loading}
       playMode={settings.playMode} theme={settings.theme} decades={settings.decades} availableDecades={settings.availableDecades} timerEnabled={settings.timerEnabled} messages={messages}
       notice={setupNoticeText(match, settings, messages)}
-      onSelectTheme={settings.selectTheme}
+      generalNote={generalResume ? messages.quizGeneralInProgress(generalResume.question, generalResume.total) : undefined}
+      onSelectTheme={actions.selectTheme}
       onSelectDecades={settings.selectDecades}
       onSelectMode={settings.selectMode}
       onTimerChange={settings.changeTimer}

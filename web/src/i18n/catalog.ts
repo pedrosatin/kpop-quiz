@@ -228,6 +228,8 @@ export interface Messages {
   noAnswer: string;
   collectionTitle: string;
   generalGameTitle: string;
+  /** Description of the general quiz card while a round of it is saved in progress: where it stopped. */
+  quizGeneralInProgress: (question: number, total: number) => string;
   generalGameDescription: string;
   dailyGameTitle: string;
   dailyGameDescription: string;
@@ -528,7 +530,7 @@ const catalogs: Record<Locale, Messages> = {
     reload: "Tentar novamente",
     empty: "Este quiz ainda não tem perguntas.",
     quizReplayUnavailable: "Não há perguntas suficientes para esta combinação de idioma, modo e filtros.",
-    quizReplayRepeats: "Estes filtros têm só dez perguntas. Jogar novamente repete as perguntas desta rodada.",
+    quizReplayRepeats: "Só há dez perguntas com estas opções. Jogar novamente repete as perguntas desta rodada.",
     quizReplayLegacyRepeats: "Jogar novamente repete as perguntas desta rodada.",
     quizResumeIncompatible: "Não foi possível retomar a partida salva: ela não combina com os dados atuais. Comece uma nova.",
     quizDailyDone: "Você já concluiu o desafio diário de hoje. Uma nova rodada não conta nas estatísticas.",
@@ -544,7 +546,7 @@ const catalogs: Record<Locale, Messages> = {
     privacyLink: "Privacidade",
     howToPlayTitle: "Como jogar",
     quizHowToPlay: [
-      "Escolha um modo. No Assistido aparecem pistas. No Padrão, abrir uma pista custa alguns pontos. No Especialista não há pistas.",
+      "Comece pelo Quiz do dia ou escolha o Quiz geral. Em Personalizar, escolha o modo. No Assistido aparecem pistas. No Padrão, abrir uma pista custa alguns pontos. No Especialista não há pistas.",
       "Se quiser, filtre pela década de formação dos grupos e limite cada pergunta a 20 segundos.",
       "Responda 10 perguntas de múltipla escolha. Cada acerto soma pontos.",
       "Depois de cada resposta, você vê a resposta correta e a fonte.",
@@ -670,6 +672,7 @@ const catalogs: Record<Locale, Messages> = {
     noAnswer: "Sem resposta",
     collectionTitle: "Escolha o jogo",
     generalGameTitle: "Quiz geral",
+    quizGeneralInProgress: (question, total) => `Você parou na pergunta ${question} de ${total}. Escolha para continuar.`,
     generalGameDescription: "Perguntas sobre história, lançamentos e integrantes.",
     dailyGameTitle: "Quiz do dia",
     dailyGameDescription: "As perguntas de hoje, com resultado para compartilhar.",
@@ -1037,7 +1040,7 @@ const catalogs: Record<Locale, Messages> = {
     reload: "Try again",
     empty: "This quiz has no questions yet.",
     quizReplayUnavailable: "There are not enough questions for this language, mode and filter combination.",
-    quizReplayRepeats: "These filters have only ten questions. Play again repeats this round's questions.",
+    quizReplayRepeats: "Only ten questions match these options. Play again repeats this round's questions.",
     quizReplayLegacyRepeats: "Play again repeats this round's questions.",
     quizResumeIncompatible: "Could not resume the saved game: it does not match the current data. Start a new round.",
     quizDailyDone: "You already finished today's daily challenge. A new round does not count in your stats.",
@@ -1053,7 +1056,7 @@ const catalogs: Record<Locale, Messages> = {
     privacyLink: "Privacy",
     howToPlayTitle: "How to play",
     quizHowToPlay: [
-      "Pick a mode. Assisted shows clues, Standard lets you open a clue for a few points, and Expert has no clues.",
+      "Start with the daily quiz or pick the general quiz. Under Customize, pick a mode. Assisted shows clues, Standard lets you open a clue for a few points, and Expert has no clues.",
       "If you like, filter by the decade the groups formed and limit each question to 20 seconds.",
       "Answer 10 multiple-choice questions. Each correct answer adds points.",
       "After each answer, you see the correct answer and its source.",
@@ -1178,6 +1181,7 @@ const catalogs: Record<Locale, Messages> = {
     noAnswer: "No answer",
     collectionTitle: "Choose a game",
     generalGameTitle: "General quiz",
+    quizGeneralInProgress: (question, total) => `You stopped at question ${question} of ${total}. Pick it to continue.`,
     generalGameDescription: "Questions about history, releases and members.",
     dailyGameTitle: "Daily quiz",
     dailyGameDescription: "Today's questions, with a result you can share.",

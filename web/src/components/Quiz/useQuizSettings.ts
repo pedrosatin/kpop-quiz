@@ -16,15 +16,19 @@ export function useQuizSettings(locale: Locale, initialAvailableDecades: QuizDec
   const [decades, setDecades] = useState<QuizDecadeSelection>(() => getInitialUrlParams().decades);
   const [availableDecades, setAvailableDecades] = useState<QuizDecadeValue[]>(initialAvailableDecades);
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() => loadStoredPreferences().timerEnabled ?? false);
+  // The visit fell on the default theme and the player has not picked one yet.
+  const [onDefaultTheme, setOnDefaultTheme] = useState<boolean>(() => !getInitialUrlParams().themeNamed);
   const decadeKey = decades.join(",");
 
   const selectTheme = (next: QuizTheme) => {
+    setOnDefaultTheme(false);
     setTheme(next);
     setDecades([]);
     updateUrlParams(playMode, next, []);
   };
 
   const selectDecades = (selected: QuizDecadeSelection) => {
+    setOnDefaultTheme(false);
     setDecades(selected);
     setTheme("history");
     updateUrlParams(playMode, "history", selected);
@@ -53,6 +57,7 @@ export function useQuizSettings(locale: Locale, initialAvailableDecades: QuizDec
   return {
     playMode,
     theme,
+    onDefaultTheme,
     decades,
     setDecades,
     decadeKey,

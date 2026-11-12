@@ -138,6 +138,16 @@
   font-size: 0.875rem;
 }
 
+/* The server writes the default summary, one line. The stored mode and timer
+   arrive after hydration and may need two ("Modo Especialista · 20 segundos
+   por pergunta"), so on phones the line keeps room for two from the start and
+   the row does not grow under the player's thumb. */
+@media (max-width: 40rem) {
+  .setup-customize-summary {
+    min-height: 2lh;
+  }
+}
+
 .setup-customize-body {
   padding: var(--space-2) var(--space-4) var(--space-4);
 }

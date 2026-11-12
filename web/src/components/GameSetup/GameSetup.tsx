@@ -26,6 +26,15 @@ export interface GameSetupProps {
   busyLabel?: string;
   /** Visible notice above Start (e.g. today's challenge already counted). */
   notice?: string | undefined;
+  /** Replaces the general quiz's description, e.g. where its saved round stopped. */
+  generalNote?: string | undefined;
+  /**
+   * Key of the state the choices show. The server cannot read the stored
+   * mode, timer or URL, and hydration keeps its markup, so a new key remounts
+   * the choices with client state. The <details> around the mode, the timer
+   * and the decades is not remounted and stays open or closed.
+   */
+  choicesKey?: string;
 }
 
 export function GameSetup({
@@ -43,6 +52,8 @@ export function GameSetup({
   busy = false,
   busyLabel,
   notice,
+  generalNote,
+  choicesKey,
 }: GameSetupProps) {
   const hasDecades = Boolean(onSelectDecades && availableDecades.length);
   return (
@@ -54,10 +65,12 @@ export function GameSetup({
         </div>
         {onSelectTheme && (
           <GameCollection
+            key={choicesKey}
             selectedTheme={theme}
             onSelectTheme={onSelectTheme}
             messages={messages}
             disabled={disabled}
+            {...(generalNote ? { generalNote } : {})}
           />
         )}
         {/* The kind of quiz is the one choice a visit needs; Start already
@@ -69,11 +82,11 @@ export function GameSetup({
         <details class="setup-customize">
           <summary class="setup-customize-toggle">
             <span class="setup-customize-title">{messages.customize}</span>
-            <span class="setup-customize-summary" data-testid="setup-customize-summary">
+            <span class="setup-customize-summary" data-testid="setup-customize-summary" key={choicesKey}>
               {messages.customizeSummary(messages.difficultyName(playMode), timerEnabled, hasDecades ? decades : [])}
             </span>
           </summary>
-          <div class={`setup-customize-body${hasDecades ? " setup-customize-body--split" : ""}`}>
+          <div class={`setup-customize-body${hasDecades ? " setup-customize-body--split" : ""}`} key={choicesKey}>
             {hasDecades && onSelectDecades && (
               <div class="setup-group">
                 <DecadePicker available={availableDecades} value={decades} onChange={onSelectDecades} messages={messages} disabled={disabled} />

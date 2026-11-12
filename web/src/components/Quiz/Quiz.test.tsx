@@ -252,7 +252,7 @@ describe("Quiz", () => {
     expect(screen.getAllByRole("link", { name: /Abrir a revisão/ })[0]).toHaveAttribute("href", question.evidence[0]!.source_url);
   });
 
-  it("opens today's challenge on a visit whose URL names no theme, with the options one tap away", async () => {
+  it("opens today's challenge on a visit whose URL names no theme, with the options closed under Customize", async () => {
     window.history.replaceState(null, "", "/");
     mockSessionFetch();
     render(<Quiz locale="pt-BR" />);
@@ -314,7 +314,7 @@ describe("Quiz", () => {
     }
     await screen.findByRole("heading", { name: "Fim da partida" });
     expect(screen.getByTestId("quiz-replay-notice")).toHaveTextContent(
-      "Estes filtros têm só dez perguntas. Jogar novamente repete as perguntas desta rodada.",
+      "Só há dez perguntas com estas opções. Jogar novamente repete as perguntas desta rodada.",
     );
   });
 
@@ -515,6 +515,28 @@ describe("Quiz", () => {
     expect(selected).toHaveLength(1);
     const checked = selected[0]!.querySelector<HTMLInputElement>("input:checked");
     expect(checked?.value).toBe("expert");
+    act(() => preactRender(null, container));
+    container.remove();
+  });
+
+  // Regression: the whole setup was remounted after hydration, so a
+  // "Personalizar" the player had opened closed again under their finger.
+  it("keeps Personalizar open and names the stored mode and timer after hydration", async () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />);
+    document.body.appendChild(container);
+    const details = container.querySelector<HTMLDetailsElement>("details.setup-customize")!;
+    expect(container.querySelector("[data-testid=setup-customize-summary]")).toHaveTextContent("Modo Padrão · sem limite de tempo");
+    details.open = true;
+    window.localStorage.setItem("kpop-quiz-play-mode", "expert");
+    window.localStorage.setItem("kpop-quiz-timer-enabled", "true");
+    mockSessionFetch();
+    await act(() => { hydrate(<Quiz locale="pt-BR" initialAvailableDecades={[1990, 2000, 2010, 2020]} />, container); });
+    await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("[data-testid=game-start]")).toBeEnabled());
+    expect(container.querySelector("details.setup-customize")).toBe(details);
+    expect(details.open).toBe(true);
+    expect(container.querySelector("[data-testid=setup-customize-summary]")).toHaveTextContent("Modo Especialista · 20 segundos por pergunta");
+    expect(container.querySelector<HTMLInputElement>(".timer-choice input")?.checked).toBe(true);
     act(() => preactRender(null, container));
     container.remove();
   });

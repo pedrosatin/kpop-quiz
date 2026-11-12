@@ -6,6 +6,8 @@ export interface GameCollectionProps {
   onSelectTheme: (theme: QuizTheme) => void;
   messages: Messages;
   disabled?: boolean;
+  /** Replaces the general quiz's description, e.g. where its saved round stopped. */
+  generalNote?: string;
 }
 
 interface ThemeOption {
@@ -19,6 +21,7 @@ export function GameCollection({
   onSelectTheme,
   messages,
   disabled = false,
+  generalNote,
 }: GameCollectionProps) {
   // Today's challenge is the default and comes first, so on a phone the
   // selected card is the one above the sticky Start bar.
@@ -31,7 +34,7 @@ export function GameCollection({
     {
       id: "history",
       title: messages.generalGameTitle,
-      description: messages.generalGameDescription,
+      description: generalNote ?? messages.generalGameDescription,
     },
   ];
 

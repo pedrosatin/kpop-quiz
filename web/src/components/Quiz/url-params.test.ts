@@ -20,6 +20,7 @@ describe("url-params", () => {
         playMode: "expert",
         theme: "daily",
         decades: [],
+        themeNamed: true,
       });
     });
 
@@ -29,6 +30,7 @@ describe("url-params", () => {
         playMode: "assisted",
         theme: "history",
         decades: [],
+        themeNamed: true,
       });
     });
 
@@ -38,6 +40,7 @@ describe("url-params", () => {
         playMode: "standard",
         theme: "history",
         decades: [2010],
+        themeNamed: true,
       });
     });
 
@@ -60,12 +63,22 @@ describe("url-params", () => {
         playMode: "standard",
         theme: "daily",
         decades: [],
+        themeNamed: false,
       });
     });
 
     it("opens today's challenge when the URL names no theme or decade", () => {
       expect(DEFAULT_QUIZ_THEME).toBe("daily");
-      expect(getInitialUrlParams().theme).toBe("daily");
+      expect(getInitialUrlParams()).toMatchObject({ theme: "daily", themeNamed: false });
+    });
+
+    it("tells a mode-only link from one that names the daily theme", () => {
+      window.history.replaceState(null, "", "/?mode=expert");
+      expect(getInitialUrlParams()).toMatchObject({ playMode: "expert", theme: "daily", themeNamed: false });
+      window.history.replaceState(null, "", "/?mode=expert&theme=daily");
+      expect(getInitialUrlParams()).toMatchObject({ theme: "daily", themeNamed: true });
+      window.history.replaceState(null, "", "/?decade=2000");
+      expect(getInitialUrlParams()).toMatchObject({ theme: "history", themeNamed: true });
     });
 
     it("uses stored preference for mode when mode param is missing or invalid", () => {
@@ -75,6 +88,7 @@ describe("url-params", () => {
         playMode: "expert",
         theme: "daily",
         decades: [],
+        themeNamed: true,
       });
     });
 
@@ -84,6 +98,7 @@ describe("url-params", () => {
         playMode: "standard",
         theme: "daily",
         decades: [],
+        themeNamed: false,
       });
     });
   });

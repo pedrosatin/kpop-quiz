@@ -35,8 +35,10 @@ async function unobscured(page: Page, target: Locator) {
     const style = getComputedStyle(element);
     const radius = Math.max(...["borderTopLeftRadius", "borderTopRightRadius", "borderBottomLeftRadius", "borderBottomRightRadius"]
       .map((corner) => parseFloat(style[corner as "borderTopLeftRadius"]) || 0));
-    const inset = Math.max(2, Math.ceil(radius * (1 - Math.SQRT1_2)) + 1);
+    const cornerInset = Math.max(2, Math.ceil(radius * (1 - Math.SQRT1_2)) + 1);
     return [...element.getClientRects()].map((rect) => {
+      // A short or narrow rect would push the corner samples past its middle.
+      const inset = Math.min(cornerInset, Math.min(rect.width, rect.height) / 2 - 1);
       const points = [[rect.x + inset, rect.y + inset], [rect.right - inset, rect.y + inset],
         [rect.x + inset, rect.bottom - inset], [rect.right - inset, rect.bottom - inset],
         [rect.x + rect.width / 2, rect.y + rect.height / 2]];

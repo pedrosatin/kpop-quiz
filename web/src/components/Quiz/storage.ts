@@ -513,6 +513,18 @@ export function loadQuizProgressSave(config: QuizProgressConfigIdentity): QuizPr
   return { status: "ok", save: legacyParsed.save };
 }
 
+/**
+ * Reads the save in this config's own slot without adopting the legacy key or
+ * deleting anything: null when the slot is empty, unreadable or invalid. For
+ * a glance at another config, which loads and cleans its own slot when played.
+ */
+export function peekQuizProgressSave(config: QuizProgressConfigIdentity): QuizProgressSave | null {
+  const read = readRaw(quizProgressStorageKey(config));
+  if (read.status !== "ok" || read.raw === null) return null;
+  const parsed = parseStored(read.raw);
+  return parsed.status === "ok" ? parsed.save : null;
+}
+
 /** Persist into the slot for this save's own config. Never touches other slots. */
 export function saveQuizProgress(save: QuizProgressSave): QuizProgressWriteResult {
   const key = quizProgressStorageKeyFromSave(save);

@@ -40,6 +40,30 @@ describe("GameCollection component", () => {
     expect(screen.getAllByRole("radio").map((radio) => (radio as HTMLInputElement).value)).toEqual(["daily", "history"]);
   });
 
+  it("puts the note in place of the general quiz description, in both languages", () => {
+    const { unmount } = render(
+      <GameCollection
+        selectedTheme="daily"
+        onSelectTheme={vi.fn()}
+        messages={ptMessages}
+        generalNote={ptMessages.quizGeneralInProgress(4, 10)}
+      />
+    );
+    expect(screen.getByRole("radio", { name: /Quiz geral/ }).closest("label")).toHaveTextContent("Você parou na pergunta 4 de 10. Escolha para continuar.");
+    expect(screen.queryByText(ptMessages.generalGameDescription)).not.toBeInTheDocument();
+    expect(screen.getByText(ptMessages.dailyGameDescription)).toBeInTheDocument();
+    unmount();
+    render(
+      <GameCollection
+        selectedTheme="daily"
+        onSelectTheme={vi.fn()}
+        messages={enMessages}
+        generalNote={enMessages.quizGeneralInProgress(4, 10)}
+      />
+    );
+    expect(screen.getByRole("radio", { name: /General quiz/ }).closest("label")).toHaveTextContent("You stopped at question 4 of 10. Pick it to continue.");
+  });
+
   it("renders both options in English", () => {
     render(
       <GameCollection
