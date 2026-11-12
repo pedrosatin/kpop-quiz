@@ -322,6 +322,79 @@ def evaluate_connections_criteria(
     return group_criteria, group_evidence, all_criteria
 
 
+MemberCountBounds = dict[str, tuple[int, int | None]]
+
+
+def _member_count_bounds(
+    connection: sqlite3.Connection,
+    facts: list[Fact],
+    candidate_groups: dict[str, Entity],
+    complete_member_groups: set[str],
+) -> MemberCountBounds:
+    """Return the member counts the data leaves possible for each candidate group.
+
+    A group whose every current member statement loaded has an exact count,
+    the one the "N members" categories use. Otherwise the loaded members are a
+    lower bound and the current statements (rejected and conflicting ones
+    included, superseded and stale ones not) an upper bound. A group with no
+    current member statement has no upper bound (None): the data says nothing.
+    """
+    statements: dict[str, int] = defaultdict(int)
+    for (wikidata_id,) in connection.execute(
+        """
+        SELECT e.wikidata_id
+        FROM facts f JOIN entities e ON e.id = f.subject_entity_id
+        WHERE f.predicate = 'has_member' AND f.status NOT IN ('superseded', 'stale')
+        """
+    ):
+        statements[wikidata_id] += 1
+    members: dict[str, set[str]] = defaultdict(set)
+    for fact in facts:
+        if fact.predicate == "has_member" and fact.value_entity is not None:
+            members[fact.subject.wikidata_id].add(fact.value_entity.wikidata_id)
+
+    bounds: MemberCountBounds = {}
+    for qid in candidate_groups:
+        known = len(members.get(qid, ()))
+        if qid in complete_member_groups:
+            bounds[qid] = (known, known)
+        elif statements.get(qid):
+            bounds[qid] = (known, max(known, statements[qid]))
+        else:
+            bounds[qid] = (known, None)
+    return bounds
+
+
+def member_count_conflicts(
+    assignment: dict[str, Iterable[str]],
+    member_count_bounds: MemberCountBounds,
+    all_criteria: dict[str, dict[str, Any]],
+) -> list[tuple[str, str]]:
+    """List (category, item) pairs where an item outside "N members" may have N.
+
+    A player reads "3 members" against what they know of every name on the
+    board, so the category is fair only when the data rules N out for each of
+    the other 12 items. An item whose count is unknown but could be N counts
+    as a conflict, as does one whose count is proven equal; an item absent
+    from the bounds is treated as unknown.
+    """
+    items = sorted({qid for quad in assignment.values() for qid in quad})
+    conflicts: list[tuple[str, str]] = []
+    for cat_id in sorted(assignment):
+        criterion = all_criteria.get(cat_id, {})
+        count = criterion.get("count")
+        if criterion.get("category") != "has_member" or count is None:
+            continue
+        own = set(assignment[cat_id])
+        for qid in items:
+            if qid in own:
+                continue
+            low, high = member_count_bounds.get(qid, (0, None))
+            if low <= count and (high is None or count <= high):
+                conflicts.append((cat_id, qid))
+    return conflicts
+
+
 def _rank_difficulty(
     chosen_categories: tuple[str, ...],
     assignment: dict[str, tuple[str, ...]],
@@ -347,8 +420,14 @@ def _find_disjoint_assignment(
     criterion_groups: dict[str, set[str]],
     rng: random.Random,
     max_evaluations: int = 40,
+    member_count_bounds: MemberCountBounds | None = None,
+    all_criteria: dict[str, dict[str, Any]] | None = None,
 ) -> tuple[dict[str, tuple[str, ...]], list[str]] | None:
-    """Find a unique 4x4 partition assignment for the given combination of 4 criteria."""
+    """Find a unique 4x4 partition assignment for the given combination of 4 criteria.
+
+    With ``member_count_bounds``, a board where an item outside an "N members"
+    category may also have N members is skipped (see ``member_count_conflicts``).
+    """
     c0, c1, c2, c3 = combo
     s0 = criterion_groups[c0]
     s1 = criterion_groups[c1]
@@ -394,8 +473,13 @@ def _find_disjoint_assignment(
                 for a3 in combos_3:
                     eval_count += 1
                     candidate_16 = sorted(set_a012 | set(a3))
-                    if count_valid_partitions(candidate_16, categories_criteria, max_count=2) == 1:
-                        assignment = {k0: a0, k1: a1, k2: a2, k3: a3}
+                    assignment = {k0: a0, k1: a1, k2: a2, k3: a3}
+                    ambiguous_count = member_count_bounds is not None and bool(
+                        member_count_conflicts(assignment, member_count_bounds, all_criteria or {})
+                    )
+                    if not ambiguous_count and count_valid_partitions(
+                        candidate_16, categories_criteria, max_count=2
+                    ) == 1:
                         return assignment, candidate_16
                     if eval_count >= max_evaluations:
                         return None
@@ -408,6 +492,7 @@ def _load_criterion_groups(connection: sqlite3.Connection) -> tuple[
     dict[str, set[str]],
     dict[tuple[str, str], list[Evidence]],
     dict[str, dict[str, Any]],
+    MemberCountBounds,
 ]:
     """Read the facts and return the groups each criterion admits, per the database."""
     connection.row_factory = sqlite3.Row
@@ -420,15 +505,22 @@ def _load_criterion_groups(connection: sqlite3.Connection) -> tuple[
         if entity.entity_type == "group" and bool(QID_REGEX.match(entity.wikidata_id))
     }
 
+    complete_member_groups = _groups_with_complete_members(connection, facts)
     group_criteria, group_evidence, all_criteria = evaluate_connections_criteria(
-        facts, candidate_groups, _groups_with_complete_members(connection, facts)
+        facts, candidate_groups, complete_member_groups
+    )
+    member_count_bounds = _member_count_bounds(
+        connection, facts, candidate_groups, complete_member_groups
     )
 
     criterion_groups: dict[str, set[str]] = defaultdict(set)
     for group_qid in sorted(group_criteria.keys()):
         for crit_id in sorted(group_criteria[group_qid]):
             criterion_groups[crit_id].add(group_qid)
-    return entities, candidate_groups, criterion_groups, group_evidence, all_criteria
+    return (
+        entities, candidate_groups, criterion_groups, group_evidence, all_criteria,
+        member_count_bounds,
+    )
 
 
 def validate_connections_partition_unique(
@@ -442,7 +534,7 @@ def validate_connections_partition_unique(
     admits no partition at all; that is a stale fact, not an ambiguity, and it
     passes here. Raises ValueError when two partitions exist.
     """
-    _, _, criterion_groups, _, _ = _load_criterion_groups(connection)
+    _, _, criterion_groups, _, _, _ = _load_criterion_groups(connection)
     categories = [(cat["id"], criterion_groups[cat["id"]]) for cat in puzzle["categories"]]
     items = sorted(item["id"] for item in puzzle["items"])
     if count_valid_partitions(items, categories, max_count=2) > 1:
@@ -464,9 +556,10 @@ def generate_connections_puzzle(
     if seed is None:
         seed = f"kpop-connections-{reference_date.isoformat()}"
 
-    entities, candidate_groups, criterion_groups, group_evidence, all_criteria = (
-        _load_criterion_groups(connection)
-    )
+    (
+        entities, candidate_groups, criterion_groups, group_evidence, all_criteria,
+        member_count_bounds,
+    ) = _load_criterion_groups(connection)
     dataset_version = _dataset_version(connection, entities, reference_date)
 
     if len(candidate_groups) < 16:
@@ -511,7 +604,10 @@ def generate_connections_puzzle(
         if len(s0 | s1 | s2 | s3) < 16:
             continue
 
-        result = _find_disjoint_assignment(combo, criterion_groups, rng)
+        result = _find_disjoint_assignment(
+            combo, criterion_groups, rng,
+            member_count_bounds=member_count_bounds, all_criteria=all_criteria,
+        )
         if result is not None:
             assignment_map, candidate_items = result
             found_puzzle_data = (combo, assignment_map, candidate_items)
