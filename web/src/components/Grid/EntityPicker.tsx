@@ -72,16 +72,10 @@ export function EntityPicker({
     [candidatePool, locale],
   );
 
-  const filtered = useMemo(() => {
-    const norm = normalizeSearch(query);
-    if (!norm) return candidatePool;
-    return candidatePool.filter((c) => {
-      const canonical = normalizeSearch(c.canonical_name);
-      const localized = normalizeSearch(c.names[locale] || "");
-      const displayed = normalizeSearch(displayNames.get(c.id) || "");
-      return canonical.includes(norm) || localized.includes(norm) || displayed.includes(norm);
-    });
-  }, [candidatePool, query, locale, displayNames]);
+  const filtered = useMemo(
+    () => filterCandidates(candidatePool, query, locale, displayNames),
+    [candidatePool, query, locale, displayNames],
+  );
 
   // Enter sends only a group the player chose: one reached with the arrow
   // keys, or the one the search names. An empty search highlights nothing,
@@ -97,41 +91,18 @@ export function EntityPicker({
     option?.scrollIntoView?.({ block: "nearest" });
   }, [activeOptionId]);
 
-  // Tab and Shift+Tab cycle between the search field and Close, so focus
-  // never reaches the page behind the dialog.
-  const trapTab = (e: KeyboardEvent) => {
-    const focusables = [
-      ...(dialogRef.current?.querySelectorAll<HTMLElement>("button, input, [href], [tabindex]:not([tabindex='-1'])") ?? []),
-    ].filter((el) => !el.hasAttribute("disabled"));
-    if (focusables.length === 0) return;
-    const first = focusables[0]!;
-    const last = focusables[focusables.length - 1]!;
-    const active = document.activeElement;
-    if (e.shiftKey && (active === first || !dialogRef.current?.contains(active))) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && (active === last || !dialogRef.current?.contains(active))) {
-      e.preventDefault();
-      first.focus();
-    }
-  };
-
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape") {
       e.preventDefault();
       onClose();
     } else if (e.key === "Tab") {
-      trapTab(e);
-    } else if (e.key === "ArrowDown") {
+      trapTab(e, dialogRef.current);
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      setNavIndex(Math.min(activeIndex + 1, filtered.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setNavIndex(Math.max(activeIndex - 1, 0));
+      setNavIndex(movedIndex(e.key, activeIndex, filtered.length));
     } else if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement)) {
       e.preventDefault();
-      if (e.repeat || !activeCandidate) return;
-      onSelectCandidate(activeCandidate);
+      if (!e.repeat && activeCandidate) onSelectCandidate(activeCandidate);
     }
   };
 
@@ -219,32 +190,16 @@ export function EntityPicker({
           {filtered.length === 0 ? (
             <li class="picker-no-matches text-muted">{messages.gridPickerNoMatches}</li>
           ) : (
-            filtered.map((candidate, idx) => {
-              const isUsed = usedEntityIds.has(candidate.id);
-              const isTried = !isUsed && (triedEntityIds?.has(candidate.id) ?? false);
-              const displayName = displayNames.get(candidate.id) || candidate.canonical_name;
-              const isItemActive = idx === activeIndex;
-
-              return (
-                <li
-                  key={candidate.id}
-                  id={`candidate-opt-${candidate.id}`}
-                  class={`picker-candidate-item ${isItemActive ? "active" : ""} ${isUsed || isTried ? "used" : ""}`}
-                  role="option"
-                  aria-selected={isItemActive}
-                  aria-disabled={isUsed || isTried}
-                  onClick={() => onSelectCandidate(candidate)}
-                >
-                  <span class="candidate-name">{displayName}</span>
-                  {isUsed && (
-                    <span class="badge">{messages.gridAlreadyUsedBadge}</span>
-                  )}
-                  {isTried && (
-                    <span class="badge">{messages.gridTriedHereBadge}</span>
-                  )}
-                </li>
-              );
-            })
+            filtered.map((candidate, idx) => (
+              <CandidateOption
+                key={candidate.id}
+                candidate={candidate}
+                name={displayNames.get(candidate.id) || candidate.canonical_name}
+                active={idx === activeIndex}
+                badge={candidateBadge(candidate.id, usedEntityIds, triedEntityIds, messages)}
+                onSelect={onSelectCandidate}
+              />
+            ))
           )}
         </ul>
       </div>
@@ -268,4 +223,85 @@ function searchMatchIndex(
   return filtered.findIndex((c) =>
     [c.canonical_name, c.names[locale] || "", displayNames.get(c.id) || ""].some((name) => normalizeSearch(name) === norm),
   );
+}
+
+function CandidateOption({
+  candidate,
+  name,
+  active,
+  badge,
+  onSelect,
+}: {
+  candidate: CandidateEntity;
+  name: string;
+  active: boolean;
+  badge: string | null;
+  onSelect: (candidate: CandidateEntity) => void;
+}) {
+  return (
+    <li
+      id={`candidate-opt-${candidate.id}`}
+      class={`picker-candidate-item ${active ? "active" : ""} ${badge ? "used" : ""}`}
+      role="option"
+      aria-selected={active}
+      aria-disabled={badge !== null}
+      onClick={() => onSelect(candidate)}
+    >
+      <span class="candidate-name">{name}</span>
+      {badge && <span class="badge">{badge}</span>}
+    </li>
+  );
+}
+
+/**
+ * Why a group cannot go in this cell, in words: it is the answer of another
+ * cell, or it was already refused here. Null when it can.
+ */
+function candidateBadge(
+  id: string,
+  used: Set<string>,
+  tried: Set<string> | undefined,
+  messages: Messages,
+): string | null {
+  if (used.has(id)) return messages.gridAlreadyUsedBadge;
+  if (tried?.has(id)) return messages.gridTriedHereBadge;
+  return null;
+}
+
+function filterCandidates(
+  pool: CandidateEntity[],
+  query: string,
+  locale: Locale,
+  displayNames: Map<string, string>,
+): CandidateEntity[] {
+  const norm = normalizeSearch(query);
+  if (!norm) return pool;
+  return pool.filter((c) =>
+    [c.canonical_name, c.names[locale] || "", displayNames.get(c.id) || ""].some((name) => normalizeSearch(name).includes(norm)),
+  );
+}
+
+/** The option an arrow key moves to; the first arrow from no highlight lands on the first group. */
+function movedIndex(key: "ArrowDown" | "ArrowUp", active: number, count: number): number {
+  return key === "ArrowDown" ? Math.min(active + 1, count - 1) : Math.max(active - 1, 0);
+}
+
+// Tab and Shift+Tab cycle between the search field and Close, so focus
+// never reaches the page behind the dialog.
+function trapTab(e: KeyboardEvent, dialog: HTMLElement | null) {
+  const focusables = [
+    ...(dialog?.querySelectorAll<HTMLElement>("button, input, [href], [tabindex]:not([tabindex='-1'])") ?? []),
+  ].filter((el) => !el.hasAttribute("disabled"));
+  if (focusables.length === 0) return;
+  const first = focusables[0]!;
+  const last = focusables[focusables.length - 1]!;
+  const active = document.activeElement;
+  const outside = !dialog?.contains(active);
+  if (e.shiftKey && (active === first || outside)) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && (active === last || outside)) {
+    e.preventDefault();
+    first.focus();
+  }
 }

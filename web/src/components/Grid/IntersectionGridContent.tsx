@@ -38,6 +38,12 @@ export interface IntersectionGridContentProps {
   gaveUp: GridGameApi["gaveUp"];
 }
 
+/** The groups already refused in the selected cell. */
+function triedInCell(cells: Record<string, GridCellState>, selected: CellCoordinates | null): Set<string> {
+  if (!selected) return new Set();
+  return new Set(cells[cellKey(selected.row, selected.col)]?.triedIds);
+}
+
 export function IntersectionGridContent({
   grid,
   locale,
@@ -151,10 +157,7 @@ export function IntersectionGridContent({
     giveUp();
   }, [closeGiveUpConfirm, giveUp]);
 
-  const triedHere = useMemo(
-    () => new Set(selectedCell ? cells[cellKey(selectedCell.row, selectedCell.col)]?.triedIds : []),
-    [cells, selectedCell],
-  );
+  const triedHere = useMemo(() => triedInCell(cells, selectedCell), [cells, selectedCell]);
 
   const selectedRowCrit = selectedCell ? grid.row_criteria[selectedCell.row]?.label[locale] : undefined;
   const selectedColCrit = selectedCell ? grid.col_criteria[selectedCell.col]?.label[locale] : undefined;
