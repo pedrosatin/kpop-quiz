@@ -7,7 +7,9 @@ import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
  * Korea 5px. The first tap zooms into the tapped region, where every
  * country of the round has a round target of at least 44x44px that no other
  * country's target overlaps. A tap leaves no country looking picked on the
- * next date, and the bar holds only the actions that still apply.
+ * next date, and the bar holds only the actions that still apply. "Mapa
+ * inteiro" sits under the zoomed map, clear of every target, and on a wide
+ * screen a click on the map selects.
  */
 
 const phones = [
@@ -16,8 +18,10 @@ const phones = [
   { width: 390, height: 844 },
 ] as const;
 
-/** Mirrors NEXT_GUARD_MS in MapPilotGameContent, plus a margin. */
+/** Mirrors NEXT_GUARD_MS in useMapRoundActions, plus a margin. */
 const NEXT_GUARD_WAIT_MS = 350;
+/** Mirrors ZOOM_GUARD_MS in useMapZoom, plus a margin: right after the zoom a tap picks nothing. */
+const ZOOM_GUARD_WAIT_MS = 350;
 
 const SMALL = [
   { id: "SGP", name: "Singapura" },
@@ -41,12 +45,46 @@ async function center(locator: Locator): Promise<{ x: number; y: number }> {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/** Taps the whole map where the country is; the map zooms there. */
+/** Taps the whole map where the country is; the map zooms there, and a tap can pick once the guard is over. */
 async function zoomOn(page: Page, id: string) {
   await expect(page.locator(".map-pilot-zoom-out")).toHaveCount(0);
   const { x, y } = await center(target(page, id));
   await page.touchscreen.tap(x, y);
   await expect(page.locator(".map-pilot-zoom-out")).toBeVisible();
+  await page.waitForTimeout(ZOOM_GUARD_WAIT_MS);
+}
+
+/**
+ * "Mapa inteiro" covers no target: the part of each target the map shows
+ * stays out of the button, and a tap at the button's center reaches it.
+ */
+async function expectZoomOutClear(page: Page, zoomedOn: string) {
+  const report = await page.evaluate(() => {
+    const map = document.querySelector(".map-pilot-world-map")!.getBoundingClientRect();
+    const button = document.querySelector(".map-pilot-zoom-out")!.getBoundingClientRect();
+    const covered = [...document.querySelectorAll<SVGCircleElement>(".map-pilot-target")]
+      .map((circle) => {
+        const box = circle.getBoundingClientRect();
+        // The SVG clips what falls outside it.
+        const visible = {
+          left: Math.max(box.left, map.left),
+          right: Math.min(box.right, map.right),
+          top: Math.max(box.top, map.top),
+          bottom: Math.min(box.bottom, map.bottom),
+        };
+        const shown = visible.left < visible.right && visible.top < visible.bottom;
+        const crosses = shown && visible.left < button.right && visible.right > button.left
+          && visible.top < button.bottom && visible.bottom > button.top;
+        return { id: circle.dataset.feature, crosses };
+      })
+      .filter((circle) => circle.crosses)
+      .map((circle) => circle.id);
+    const hit = document.elementFromPoint(button.left + button.width / 2, button.top + button.height / 2);
+    return { covered, hit: hit?.closest(".map-pilot-zoom-out") !== null, below: button.top >= map.bottom - 0.5 };
+  });
+  expect(report.covered, `targets under Mapa inteiro with the map zoomed on ${zoomedOn}`).toEqual([]);
+  expect(report.hit, "a tap at the center of Mapa inteiro reaches it").toBe(true);
+  expect(report.below, "Mapa inteiro sits under the map").toBe(true);
 }
 
 async function zoomOut(page: Page) {
@@ -144,9 +182,14 @@ for (const phone of phones) {
       const ids = await page.locator(".map-pilot-target").evaluateAll((circles) =>
         circles.map((circle) => (circle as SVGCircleElement).dataset.feature!));
       expect(ids).toHaveLength(14);
+      const wrap = page.locator(".map-pilot-map-wrap");
+      const whole = await wrap.boundingBox();
       for (const id of ids) {
         await zoomOn(page, id);
         await expectTouchTarget(page, id);
+        await expectZoomOutClear(page, id);
+        // The strip of Mapa inteiro comes out of the map, so nothing under it moves.
+        expect(await wrap.boundingBox(), `map box zoomed on ${id}`).toEqual(whole);
         await zoomOut(page);
       }
     });
@@ -220,3 +263,24 @@ for (const phone of phones) {
     });
   });
 }
+
+test.describe("map on a 1440x900 screen with a mouse", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("a click on a country of the map selects it, with no zoom", async ({ page }) => {
+    await openMap(page);
+    await expect(page.locator(".map-pilot-zoom-hint")).toHaveCount(0);
+    // Singapore is a 10px dot that takes the click.
+    const singapore = await center(target(page, "SGP"));
+    await page.mouse.click(singapore.x, singapore.y);
+    await expect(page.locator('path[aria-label="Singapura"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("answer-country-SG")).toHaveClass(/is-selected/);
+    // France has no dot: its shape takes the click.
+    const france = await center(target(page, "FRA"));
+    await page.mouse.click(france.x, france.y);
+    await expect(page.locator('path[aria-label="França"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator('path[aria-label="Singapura"]')).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator(".map-pilot-zoom-out")).toHaveCount(0);
+    await expect(page.locator(".map-pilot-world-map")).toHaveAttribute("viewBox", "0 20 1200 480");
+  });
+});
