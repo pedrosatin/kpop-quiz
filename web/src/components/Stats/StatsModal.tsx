@@ -93,7 +93,9 @@ export function StatsModal({
     return () => {
       clearTimeout(timer);
       window.removeEventListener("keydown", handleKeyDown);
-      (returnFocusRef?.current ?? previouslyFocusedRef.current)?.focus();
+      // preventScroll keeps the page where the player left it: the header
+      // button may be off screen when the window was opened by script.
+      (returnFocusRef?.current ?? previouslyFocusedRef.current)?.focus({ preventScroll: true });
     };
   }, [isOpen, onClose, returnFocusRef]);
 

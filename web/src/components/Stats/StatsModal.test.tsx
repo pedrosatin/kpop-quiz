@@ -250,6 +250,7 @@ describe("StatsModal component", () => {
     document.body.append(opener, elsewhere);
     // A scripted click, or a tap in Safari, leaves focus where it was.
     elsewhere.focus();
+    const focusSpy = vi.spyOn(opener, "focus");
     const { rerender } = render(
       <StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} returnFocusRef={{ current: opener }} />
     );
@@ -257,6 +258,8 @@ describe("StatsModal component", () => {
       <StatsModal isOpen={false} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} returnFocusRef={{ current: opener }} />
     );
     expect(opener).toHaveFocus();
+    // The page stays where the player left it.
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
     opener.remove();
     elsewhere.remove();
   });

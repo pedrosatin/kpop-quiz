@@ -70,6 +70,12 @@ test("390: statistics open on the Timeline tab with the page scrolled to the bot
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeInViewport({ ratio: 1 });
   await expect(dialog.getByRole("tab", { name: "Linha do Tempo" })).toHaveAttribute("aria-selected", "true");
+  const scrolled = await page.evaluate(() => window.scrollY);
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator("#stats-open-nav-btn")).toBeFocused();
+  // Focus goes back without moving the page.
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
 });
 
 test("390: the Crossword tab, last in the list, is scrolled into view", async ({ page }) => {
