@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { StatsTabs } from "./StatsTabs";
+import { StatsTabs, revealSelectedTab } from "./StatsTabs";
 
 describe("StatsTabs component", () => {
   afterEach(() => {
@@ -57,5 +57,41 @@ describe("StatsTabs component", () => {
 
     expect(onSelectMock).toHaveBeenCalledTimes(1);
     expect(onSelectMock).toHaveBeenCalledWith("grid");
+  });
+
+  describe("revealSelectedTab", () => {
+    function listWithSelected(tabLeft: number, tabRight: number) {
+      const list = document.createElement("div");
+      const tab = document.createElement("button");
+      tab.setAttribute("aria-selected", "true");
+      list.append(tab);
+      list.getBoundingClientRect = () => ({ left: 0, right: 300 }) as DOMRect;
+      tab.getBoundingClientRect = () => ({ left: tabLeft, right: tabRight }) as DOMRect;
+      list.scrollLeft = 50;
+      return list;
+    }
+
+    it("scrolls right to show a tab past the right edge", () => {
+      const list = listWithSelected(320, 420);
+      revealSelectedTab(list);
+      expect(list.scrollLeft).toBe(170);
+    });
+
+    it("scrolls left to show a tab before the left edge", () => {
+      const list = listWithSelected(-30, 40);
+      revealSelectedTab(list);
+      expect(list.scrollLeft).toBe(20);
+    });
+
+    it("leaves a visible tab alone", () => {
+      const list = listWithSelected(100, 200);
+      revealSelectedTab(list);
+      expect(list.scrollLeft).toBe(50);
+    });
+
+    it("does nothing without a selected tab", () => {
+      const list = document.createElement("div");
+      expect(() => revealSelectedTab(list)).not.toThrow();
+    });
   });
 });

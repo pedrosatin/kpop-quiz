@@ -1,3 +1,4 @@
+import type { GameId } from "../lib/player-stats";
 import type { Locale, PlayMode } from "../lib/quiz-types";
 import { gameAbout, type GameAboutMessages } from "./game-about";
 
@@ -415,7 +416,11 @@ export interface Messages {
   statsMaxStreak: string;
   statsOverallStreakHelp: string;
   statsGameStreakHelp: string;
+  /** What counts as a win, per stats tab: the overall tab explains how the tabs add up. */
+  statsWinRule: Record<"overall" | GameId, string>;
   statsGuessDistribution: string;
+  /** Accessible name of the distribution's loss row, shown as "X". */
+  statsLossRow: string;
   statsExport: string;
   statsImport: string;
   statsReset: string;
@@ -909,7 +914,20 @@ const catalogs: Record<Locale, Messages> = {
     statsMaxStreak: "Maior sequência",
     statsOverallStreakHelp: "A sequência geral conta os dias seguidos com pelo menos um desafio diário concluído, com vitória ou derrota.",
     statsGameStreakHelp: "A sequência de cada jogo conta as vitórias seguidas em desafios diários, e uma derrota volta a zero.",
+    statsWinRule: {
+      overall: "A % de vitórias soma as partidas de todos os jogos. Cada aba diz o que conta como vitória naquele jogo.",
+      quiz: "Vitória: acertar pelo menos metade das perguntas (5 de 10).",
+      grid: "Vitória: preencher pelo menos 5 das 9 casas, sem desistir.",
+      connections: "Vitória: achar as 4 categorias antes do quarto erro.",
+      "name-guess": "Vitória: acertar o nome em até 6 palpites.",
+      "word-search": "Vitória: achar todos os nomes, sem desistir.",
+      timeline: "Vitória: pôr todos os acontecimentos na ordem certa, sem desistir.",
+      map: "Vitória: acertar o país de pelo menos metade das datas (5 de 10).",
+      code: "Vitória: descobrir o código em até 10 tentativas.",
+      crossword: "Vitória: completar a grade com Verificar respostas, sem Revelar respostas.",
+    },
     statsGuessDistribution: "Palpites por partida",
+    statsLossRow: "Derrotas",
     statsExport: "Exportar estatísticas",
     statsImport: "Importar estatísticas",
     statsReset: "Apagar dados",
@@ -1398,7 +1416,20 @@ const catalogs: Record<Locale, Messages> = {
     statsMaxStreak: "Best streak",
     statsOverallStreakHelp: "The overall streak counts consecutive days with at least one daily challenge finished, win or lose.",
     statsGameStreakHelp: "Each game's streak counts consecutive daily challenge wins, and a loss sets it back to zero.",
+    statsWinRule: {
+      overall: "Win % counts the rounds of every game. Each tab says what counts as a win in that game.",
+      quiz: "Win: answer at least half the questions right (5 of 10).",
+      grid: "Win: fill at least 5 of the 9 squares, without giving up.",
+      connections: "Win: find the 4 categories before the fourth mistake.",
+      "name-guess": "Win: guess the name in 6 tries or fewer.",
+      "word-search": "Win: find every name, without giving up.",
+      timeline: "Win: put every event in the right order, without giving up.",
+      map: "Win: get the country right for at least half the dates (5 of 10).",
+      code: "Win: crack the code in 10 tries or fewer.",
+      crossword: "Win: complete the grid with Check answers, without Reveal answers.",
+    },
     statsGuessDistribution: "Guesses per game",
+    statsLossRow: "Losses",
     statsExport: "Export stats",
     statsImport: "Import stats",
     statsReset: "Clear data",

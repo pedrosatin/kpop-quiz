@@ -154,8 +154,9 @@ describe("StatsModal component", () => {
       const attemptLabel = chart?.querySelector(`.stats-attempt-num:nth-child(1)`);
       expect(attemptLabel).toBeInTheDocument();
     }
+    // Six guess counts and the loss row.
     const rows = container.querySelectorAll(".stats-distribution-row");
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(7);
   });
 
   it("shows timeline tab and updates metrics on switch", () => {
@@ -224,4 +225,50 @@ describe("StatsModal component", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("says what counts as a win on every tab, in Portuguese and English", () => {
+    const { unmount } = render(<StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />);
+    expect(screen.getByText(/Cada aba diz o que conta como vitória/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Quiz" }));
+    expect(screen.getByText("Vitória: acertar pelo menos metade das perguntas (5 de 10).")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Mapa" }));
+    expect(screen.getByText("Vitória: acertar o país de pelo menos metade das datas (5 de 10).")).toBeInTheDocument();
+    unmount();
+
+    render(<StatsModal isOpen={true} onClose={vi.fn()} locale="en" initialTab="name-guess" stats={sampleStats} />);
+    expect(screen.getByText("Win: guess the name in 6 tries or fewer.")).toBeInTheDocument();
+  });
+
+  it("opens on the tab it is given", () => {
+    render(<StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" initialTab="connections" stats={sampleStats} />);
+    expect(screen.getByRole("tab", { name: "Conexões" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("gives focus back to the control that opened it, even when that control never had focus", () => {
+    const opener = document.createElement("button");
+    const elsewhere = document.createElement("h2");
+    elsewhere.tabIndex = -1;
+    document.body.append(opener, elsewhere);
+    // A scripted click, or a tap in Safari, leaves focus where it was.
+    elsewhere.focus();
+    const { rerender } = render(
+      <StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} returnFocusRef={{ current: opener }} />
+    );
+    rerender(
+      <StatsModal isOpen={false} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} returnFocusRef={{ current: opener }} />
+    );
+    expect(opener).toHaveFocus();
+    opener.remove();
+    elsewhere.remove();
+  });
+
+  it("without an opener, gives focus back to the element focused before it opened", () => {
+    const before = document.createElement("button");
+    document.body.append(before);
+    before.focus();
+    const { rerender } = render(<StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />);
+    screen.getByRole("button", { name: "Fechar estatísticas" }).focus();
+    rerender(<StatsModal isOpen={false} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />);
+    expect(before).toHaveFocus();
+    before.remove();
+  });
 });
