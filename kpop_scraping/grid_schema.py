@@ -32,6 +32,8 @@ BILINGUAL_FIELDS = frozenset({"pt-BR", "en"})
 DIMENSIONS_FIELDS = frozenset({"rows", "cols"})
 CELL_FIELDS = frozenset({"row_index", "col_index", "valid_entity_ids", "evidence"})
 CANDIDATE_FIELDS = frozenset({"id", "canonical_name", "names"})
+# Grids published before candidates carried search aliases lack the field.
+CANDIDATE_OPTIONAL_FIELDS = frozenset({"aliases"})
 EVIDENCE_FIELDS = frozenset(
     {"fact_base_id", "locator", "revision_id", "source_key", "source_url"}
 )
@@ -136,8 +138,9 @@ def _validate_criterion(criterion: Any, context: str) -> None:
 
 def _validate_candidate(candidate: Any, context: str) -> None:
     _require(isinstance(candidate, dict), f"{context} must be an object")
+    keys = set(candidate.keys())
     _require(
-        set(candidate.keys()) == CANDIDATE_FIELDS,
+        CANDIDATE_FIELDS <= keys <= CANDIDATE_FIELDS | CANDIDATE_OPTIONAL_FIELDS,
         f"{context} contains unexpected or missing fields",
     )
     _require_qid(candidate["id"], f"{context}.id")
@@ -147,6 +150,17 @@ def _validate_candidate(candidate: Any, context: str) -> None:
         f"{context}.canonical_name must be a non-empty string",
     )
     _require_bilingual_text(candidate["names"], f"{context}.names")
+    if "aliases" in candidate:
+        aliases = candidate["aliases"]
+        _require(
+            isinstance(aliases, list)
+            and all(isinstance(name, str) and name.strip() for name in aliases),
+            f"{context}.aliases must be a list of non-empty strings",
+        )
+        _require(
+            len(set(aliases)) == len(aliases),
+            f"{context}.aliases must not repeat a name",
+        )
 
 
 def _validate_root_fields(payload: dict[str, Any]) -> None:

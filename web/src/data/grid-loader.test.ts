@@ -229,6 +229,19 @@ describe("published intersection grid loader and validator", () => {
     expect(isIntersectionGrid(invalid)).toBe(false);
   });
 
+  it("accepts candidates with or without search aliases, and rejects malformed ones", () => {
+    const withAliases = structuredClone(validGrid) as { candidate_pool: Record<string, unknown>[] };
+    expect(withAliases.candidate_pool[0]).not.toHaveProperty("aliases");
+    expect(isIntersectionGrid(withAliases)).toBe(true);
+    withAliases.candidate_pool[0]!.aliases = ["SNSD", "소녀시대"];
+    expect(isIntersectionGrid(withAliases)).toBe(true);
+    for (const aliases of ["SNSD", [""], [" "], [1], ["SNSD", "SNSD"]]) {
+      const invalid = structuredClone(withAliases);
+      invalid.candidate_pool[0]!.aliases = aliases;
+      expect(isIntersectionGrid(invalid)).toBe(false);
+    }
+  });
+
   it("rejects a grid when a cell references a QID not in candidate pool", () => {
     const invalid = structuredClone(validGrid);
     invalid.cells[0]!.valid_entity_ids = ["Q999999999"];
