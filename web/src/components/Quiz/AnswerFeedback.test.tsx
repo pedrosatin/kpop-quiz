@@ -104,7 +104,8 @@ describe("AnswerFeedback", () => {
     const region = document.getElementById(toggle.getAttribute("aria-controls")!)!;
     expect(region).toBeVisible();
     expect(region).toHaveTextContent("TWICE estreou em 2015.");
-    expect(screen.getByRole("link", { name: "Abrir a revisão no Wikidata" })).toHaveAttribute("href", sampleEvidence[0]!.source_url);
+    expect(screen.getByRole("link", { name: "Abrir esta revisão no Wikidata" })).toHaveAttribute("href", sampleEvidence[0]!.source_url);
+    expect(region).toHaveTextContent("Wikidata, revisão 100, no trecho citado.");
     advanceClock();
     fireEvent.click(screen.getByRole("button", { name: "Próxima pergunta" }));
     expect(onAdvance).toHaveBeenCalledTimes(1);
@@ -125,13 +126,12 @@ describe("AnswerFeedback", () => {
     renderBar();
     const toggle = screen.getByRole("button", { name: "Ver fonte" });
     fireEvent.click(toggle);
-    const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
     const focusable = [...document.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex="0"]')];
-    expect(focusable[focusable.indexOf(toggle) + 1]).toBe(panel);
-    expect(focusable[focusable.indexOf(panel) + 1]).toBe(screen.getByRole("link", { name: "Abrir a revisão no Wikidata" }));
+    expect(focusable[focusable.indexOf(toggle) + 1]).toBe(screen.getByRole("link", { name: "Abrir esta revisão no Wikidata" }));
+    expect(focusable[focusable.indexOf(toggle) + 2]).toBe(screen.getByRole("button", { name: "Próxima pergunta" }));
   });
 
-  it("makes the scrollable feedback and source regions reachable by Tab without moving focus on render", () => {
+  it("makes the scrollable feedback reachable by Tab without moving focus on render, and leaves the full-height panel out of it", () => {
     renderBar();
     const status = screen.getByRole("status");
     expect(status).toHaveAttribute("tabindex", "0");
@@ -139,8 +139,23 @@ describe("AnswerFeedback", () => {
     const toggle = screen.getByRole("button", { name: "Ver fonte" });
     fireEvent.click(toggle);
     const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
-    expect(panel).toHaveAttribute("tabindex", "0");
+    // The panel no longer scrolls inside the bar, so it is not a Tab stop.
+    expect(panel).not.toHaveAttribute("tabindex");
+    expect(panel).toHaveClass("source-panel");
     expect(document.activeElement).not.toBe(panel);
+  });
+
+  it("brings the bar into view when the source opens", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      renderBar();
+      fireEvent.click(screen.getByRole("button", { name: "Ver fonte" }));
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+      expect(scrollIntoView.mock.contexts[0]).toHaveClass("game-actions");
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    }
   });
 
   it("repeats both answers in the sources panel, since the bar clamps them", () => {

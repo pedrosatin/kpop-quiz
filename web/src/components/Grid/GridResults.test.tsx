@@ -181,7 +181,7 @@ describe("GridResults component", () => {
     for (const link of evidenceLinks) {
       expect(link).toHaveAttribute("target", "_blank");
       expect(link).toHaveAttribute("rel", "noopener noreferrer");
-      expect(link).toHaveAccessibleName("Abrir a revisão no Wikidata");
+      expect(link).toHaveAccessibleName("Abrir esta revisão no Wikidata");
     }
     expect(within(panel).getAllByText(/Wikidata, revisão 1001\./).length).toBeGreaterThan(0);
     expect(panel.querySelector(".grid-source-locator")).toHaveTextContent("Local na fonte: declaração P264 e sua referência");

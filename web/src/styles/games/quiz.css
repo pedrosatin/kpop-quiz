@@ -234,9 +234,15 @@
     line-clamp: unset;
   }
 
-  .quiz-round .quiz-source {
-    max-height: 8dvh;
-    overscroll-behavior-y: contain;
+  /* An open source panel reads at full height (.source-panel): the round
+     drops its cap and grows with the panel, so the page scrolls instead of
+     the question or the panel. */
+  .quiz-round:has(.quiz-source:not([hidden])) {
+    max-height: none;
+  }
+
+  .quiz-round:has(.quiz-source:not([hidden])) .quiz-question-card {
+    overflow-y: visible;
   }
 }
 
@@ -430,19 +436,11 @@
   gap: var(--space-2);
 }
 
-/* Opens inside the bar, so the explanation shows next to Next without a
-   scroll; long text scrolls inside it. */
+/* Opens inside the bar at full height (.source-panel), so the explanation
+   shows next to Next; a long one grows the page, not a box inside it. */
 .quiz-source {
   flex-basis: 100%;
-  max-height: min(40dvh, 18rem);
-  overflow-y: auto;
   font-size: 0.875rem;
-}
-
-@media (max-height: 30rem) {
-  .quiz-source {
-    max-height: 30dvh;
-  }
 }
 
 .quiz-source[hidden] {

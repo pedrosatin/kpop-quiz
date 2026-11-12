@@ -1,6 +1,7 @@
 import type { GameId } from "../lib/player-stats";
 import type { Locale, PlayMode } from "../lib/quiz-types";
 import { gameAbout, type GameAboutMessages } from "./game-about";
+import { sourceCopy, type SourceMessages } from "./source";
 
 export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code" | "crossword";
 
@@ -36,7 +37,6 @@ export interface NameGuessMessages {
   debutYear: string;
   agency: string;
   members: string;
-  evidenceLink: string;
   loading: string;
   loadError: string;
   artifactMissing: string;
@@ -73,7 +73,6 @@ export interface WordSearchMessages {
   resultSummary: (total: number, time: string) => string;
   evidenceWikidataId: string;
   evidenceClue: string;
-  evidenceLocator: string;
   loading: string;
   loadError: string;
   artifactMissing: string;
@@ -85,6 +84,8 @@ export interface Messages {
   meta: Record<SeoRouteKey, SeoMeta>;
   /** Static copy under each game page (How to play, data sources, FAQ). */
   about: GameAboutMessages;
+  /** One cited revision in a "Ver fonte" panel: site, revision, place and link. */
+  source: SourceMessages;
   skipLinks: Record<SkipLinkKey, string>;
   overview: {
     title: string;
@@ -187,7 +188,6 @@ export interface Messages {
   hideSource: string;
   revision: string;
   declaredReference: string;
-  openRevision: (project: string) => string;
   resultTitle: string;
   restart: string;
   giveUp: string;
@@ -481,6 +481,7 @@ const catalogs: Record<Locale, Messages> = {
       },
     },
     about: gameAbout["pt-BR"],
+    source: sourceCopy["pt-BR"],
     skipLinks: {
       quiz: "Pular para o quiz",
       grid: "Pular para a grade",
@@ -642,8 +643,6 @@ const catalogs: Record<Locale, Messages> = {
     hideSource: "Ocultar fonte",
     revision: "revisão",
     declaredReference: "Referência citada",
-    // Wikipédia is feminine, Wikidata masculine.
-    openRevision: (project) => `Abrir a revisão ${project === "Wikipedia" ? "na" : "no"} ${project}`,
     resultTitle: "Fim da partida",
     restart: "Jogar novamente",
     giveUp: "Desistir",
@@ -789,7 +788,6 @@ const catalogs: Record<Locale, Messages> = {
       debutYear: "Estreia",
       agency: "Agência",
       members: "Integrantes",
-      evidenceLink: "Ver a fonte no Wikidata",
       loading: "Carregando o jogo de hoje...",
       loadError: "Não foi possível carregar o jogo.",
       artifactMissing: "O jogo de hoje ainda não foi publicado.",
@@ -888,7 +886,6 @@ const catalogs: Record<Locale, Messages> = {
       resultSummary: (total, time) => `${total} palavras em ${time}.`,
       evidenceWikidataId: "ID no Wikidata:",
       evidenceClue: "Pista:",
-      evidenceLocator: "Local na fonte:",
       loading: "Carregando o caça-palavras de hoje...",
       loadError: "Não foi possível carregar o jogo.",
       artifactMissing: "O caça-palavras de hoje ainda não foi publicado.",
@@ -992,6 +989,7 @@ const catalogs: Record<Locale, Messages> = {
       },
     },
     about: gameAbout.en,
+    source: sourceCopy.en,
     skipLinks: {
       quiz: "Skip to the quiz",
       grid: "Skip to the grid",
@@ -1152,7 +1150,6 @@ const catalogs: Record<Locale, Messages> = {
     hideSource: "Hide source",
     revision: "revision",
     declaredReference: "Cited reference",
-    openRevision: (project) => `Open the revision on ${project}`,
     resultTitle: "Game over",
     restart: "Play again",
     giveUp: "Give up",
@@ -1298,7 +1295,6 @@ const catalogs: Record<Locale, Messages> = {
       debutYear: "Debut",
       agency: "Agency",
       members: "Members",
-      evidenceLink: "See the source on Wikidata",
       loading: "Loading today's game...",
       loadError: "The game could not be loaded.",
       artifactMissing: "Today's game has not been published yet.",
@@ -1396,7 +1392,6 @@ const catalogs: Record<Locale, Messages> = {
       resultSummary: (total, time) => `${total} words in ${time}.`,
       evidenceWikidataId: "Wikidata ID:",
       evidenceClue: "Clue:",
-      evidenceLocator: "Location in source:",
       loading: "Loading today's word search...",
       loadError: "The game could not be loaded.",
       artifactMissing: "Today's word search has not been published yet.",

@@ -543,24 +543,16 @@
 }
 
 /*
-  The answers panel opens inside the bar, like the quiz source: long text
-  scrolls inside it. A sticky bar that tall would cover the board, so the bar
-  stops being sticky while the panel is open; opening it scrolls it into view.
+  The answers panel opens inside the bar at full height (.source-panel). A
+  sticky bar that tall would cover the board, so the bar stops being sticky
+  while the panel is open; opening it scrolls it into view.
 */
 .grid-source {
   flex: 1 1 100%;
-  max-height: min(40dvh, 18rem);
-  overflow-y: auto;
   scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3));
   color: var(--color-text);
   font-size: 0.875rem;
   text-align: left;
-}
-
-@media (max-height: 30rem) {
-  .grid-source {
-    max-height: 30dvh;
-  }
 }
 
 .grid-source[hidden] {

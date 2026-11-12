@@ -9,6 +9,7 @@ import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
+import { SourceLink } from "../Source/SourceCitation";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 interface ResultCopy {
@@ -213,7 +214,7 @@ export function MapPilotResult({
         </div>
       )}
 
-      <div ref={source} id={sourceId} class="map-pilot-source" hidden={!sourceOpen}>
+      <div ref={source} id={sourceId} class="map-pilot-source source-panel" hidden={!sourceOpen}>
         {sourceOpen && (
           <section class="review-section map-pilot-review" aria-labelledby={`${sourceId}-title`}>
             <h3 id={`${sourceId}-title`} class="review-section-title">{copy.reviewTitle}</h3>
@@ -251,13 +252,7 @@ export function MapPilotResult({
                       </li>
                       <li>
                         {copy.wikidataCheck(event.country_check_wikidata_id, event.country_check_wikidata_revid)}{" "}
-                        <a
-                          href={wikidataRevisionUrl(event)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {messages.openRevision("Wikidata")}
-                        </a>
+                        <SourceLink url={wikidataRevisionUrl(event)} messages={messages} />
                       </li>
                       <li class="map-pilot-source-locator">{copy.checkedAt(formatMapDate(event.source_checked_at, locale, "short"))}</li>
                     </ul>

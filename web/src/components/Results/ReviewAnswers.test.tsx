@@ -135,7 +135,7 @@ describe("ReviewAnswers", () => {
     expect(screen.getByText("Pergunta 1 de 3")).toBeInTheDocument();
     expect(screen.getByText("Você acertou.")).toBeInTheDocument();
     expect(screen.getByText("Cheer Up foi lançado pelo TWICE em 2016.")).toBeInTheDocument();
-    const wikidataLink = screen.getByRole("link", { name: "Abrir a revisão no Wikidata" });
+    const wikidataLink = screen.getByRole("link", { name: "Abrir esta revisão no Wikidata" });
     expect(wikidataLink).toHaveAttribute(
       "href",
       "https://www.wikidata.org/wiki/Q1"
@@ -147,7 +147,7 @@ describe("ReviewAnswers", () => {
     expect(screen.getByText("Pergunta 2 de 3")).toBeInTheDocument();
     expect(screen.getAllByText("Não foi dessa vez.")).toHaveLength(2);
     expect(screen.getByText("Red Velvet estreou em agosto de 2014.")).toBeInTheDocument();
-    const wikipediaLink = screen.getByRole("link", { name: "Abrir a revisão na Wikipedia" });
+    const wikipediaLink = screen.getByRole("link", { name: "Abrir esta revisão na Wikipédia em português" });
     expect(wikipediaLink).toHaveAttribute(
       "href",
       "https://pt.wikipedia.org/wiki/Red_Velvet"

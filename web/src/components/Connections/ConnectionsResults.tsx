@@ -9,6 +9,7 @@ import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
+import { SourceLink } from "../Source/SourceCitation";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 export function generateShareText({
@@ -197,7 +198,7 @@ export function ConnectionsResults({
         <span>{messages.connectionsHighContrastShare}</span>
       </label>
 
-      <div ref={source} id={sourceId} class="connections-source" hidden={!sourceOpen}>
+      <div ref={source} id={sourceId} class="connections-source source-panel" hidden={!sourceOpen}>
         {categories.map((category) => (
           <div key={category.id} class="connections-source-category">
             <h3 class="connections-source-title">{category.label[locale] || category.label["pt-BR"]}</h3>
@@ -208,9 +209,7 @@ export function ConnectionsResults({
                   {line.itemName
                     ? messages.connectionsSourceItem(line.itemName, line.project, line.revision)
                     : `${line.project}, ${messages.revision} ${line.revision}.`}{" "}
-                  <a href={line.url} target="_blank" rel="noreferrer">
-                    {messages.openRevision(line.project)}
-                  </a>
+                  <SourceLink url={line.url} messages={messages} />
                 </li>
               ))}
             </ul>

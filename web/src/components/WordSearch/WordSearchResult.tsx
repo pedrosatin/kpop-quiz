@@ -7,6 +7,7 @@ import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import { formatTime, generateWordSearchShareSummary } from "./utils";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { DailyNext } from "../Results/DailyNext";
+import { SourceCitation } from "../Source/SourceCitation";
 
 interface SourceLine {
   key: string;
@@ -139,7 +140,7 @@ export function WordSearchResult({
         </div>
       )}
 
-      <div ref={source} id={sourceId} class="word-search-source" hidden={!sourceOpen}>
+      <div ref={source} id={sourceId} class="word-search-source source-panel" hidden={!sourceOpen}>
         {puzzle.words.map((word) => {
           const clue = word.clue?.[locale] || word.clue?.en;
           return (
@@ -159,13 +160,7 @@ export function WordSearchResult({
                 </li>
                 {wordSources(puzzle, word.id).map((line) => (
                   <li key={line.key}>
-                    {`${line.project}, ${messages.revision} ${line.revision}.`}{" "}
-                    <a href={line.url} target="_blank" rel="noreferrer">
-                      {messages.openRevision(line.project)}
-                    </a>
-                    <span class="word-search-source-locator">
-                      {t.evidenceLocator} {line.locator}
-                    </span>
+                    <SourceCitation url={line.url} revision={line.revision} locator={line.locator} messages={messages} />
                   </li>
                 ))}
               </ul>

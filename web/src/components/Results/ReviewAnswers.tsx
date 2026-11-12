@@ -2,6 +2,7 @@ import type { Messages } from "../../i18n/catalog";
 import type { QuestionResult } from "../Quiz/types";
 import { groupEvidence } from "../Quiz/AnswerFeedback";
 import { LicensedMedia } from "../Quiz/LicensedMedia";
+import { SourceCitation } from "../Source/SourceCitation";
 
 export interface ReviewAnswersProps {
   items: QuestionResult[];
@@ -64,14 +65,11 @@ export function ReviewAnswers({ items, messages }: ReviewAnswersProps) {
                   <summary>{messages.evidence}</summary>
                   {displayedEvidence.map((ev) => (
                     <p key={`${ev.source_url}-${ev.revision_id}-${ev.locator}`}>
-                      {ev.project}, {messages.revision} {ev.revision_id}.
-                      {ev.declaredReference && (
-                        <> {messages.declaredReference}: {ev.declaredReference}.</>
-                      )}
-                      {" "}
-                      <a href={ev.source_url} target="_blank" rel="noopener noreferrer">
-                        {messages.openRevision(ev.project)}
-                      </a>
+                      <SourceCitation url={ev.source_url} revision={ev.revision_id} locator={ev.locator} messages={messages}>
+                        {ev.declaredReference && (
+                          <> {messages.declaredReference}: {ev.declaredReference}.</>
+                        )}
+                      </SourceCitation>
                     </p>
                   ))}
                 </details>

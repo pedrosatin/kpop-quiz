@@ -15,6 +15,7 @@
   .modal-*         dialog backdrop, card, header, title
   .state, .loader  loading and error placeholders
   .result-*        end-of-game summary, stats tiles and share box
+  .source-panel    "Ver fonte" panel, full height; .source-citation one revision
   .text-input      single-line text field
 */
 
@@ -887,6 +888,22 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
 .evidence-details p,
 .evidence-details a {
   overflow-wrap: anywhere;
+}
+
+/*
+  "Ver fonte" panels in every game. The panel shows every source at full
+  height and the page scrolls: a box that scrolls inside the bar hid sources
+  with no sign that more followed. The bar holding an open panel stops
+  being sticky (each game's style sheet), so it does not cover the board.
+*/
+.source-panel {
+  max-height: none;
+  overflow: visible;
+}
+
+/* One cited revision in words, then the link that names its destination. */
+.source-citation-link {
+  overflow-wrap: break-word;
 }
 
 /* End of a daily game: time left until the next challenge and the next game. */

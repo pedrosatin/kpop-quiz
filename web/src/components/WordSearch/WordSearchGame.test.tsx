@@ -478,7 +478,7 @@ describe("WordSearch end of puzzle", () => {
     expect(panel).not.toBeVisible();
   });
 
-  it("shows each word's clue and every location in the source behind Ver fonte", () => {
+  it("shows each word's clue and every location in the source, in words, behind Ver fonte", () => {
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
     findAll();
     fireEvent.click(screen.getByRole("button", { name: pt.showSource }));
@@ -493,8 +493,12 @@ describe("WordSearch end of puzzle", () => {
       // The clue comes before the source lines.
       const clue = block.querySelector(".word-search-source-clue")!;
       expect(clue.compareDocumentPosition(block.querySelector("ul")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // Each location reads as a place in the page; the raw locator stays on
+      // its link, never as text.
       for (const evidence of word.evidence) {
-        expect(block).toHaveTextContent(`${tPt.evidenceLocator} ${evidence.locator}`);
+        const link = [...block.querySelectorAll("a")].find((a) => a.getAttribute("title") === evidence.locator);
+        expect(link).toHaveAttribute("href", evidence.source_url);
+        expect(block.textContent).not.toContain(evidence.locator);
       }
     }
   });
@@ -510,7 +514,8 @@ describe("WordSearch end of puzzle", () => {
     const panel = document.querySelector<HTMLElement>(".word-search-source")!;
     const word = puzzle.words[0]!;
     expect(panel).toHaveTextContent(`Clue: ${word.clue!.en}`);
-    expect(panel).toHaveTextContent(`Location in source: ${word.evidence[0]!.locator}`);
+    expect(panel).toHaveTextContent(/revision \d+, in the /);
+    expect(panel.textContent).not.toContain(word.evidence[0]!.locator);
   });
 
   it("describes the result title with the summary", () => {

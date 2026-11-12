@@ -53,7 +53,6 @@ export interface TimelineResultsMessages extends TimelineShareMessages {
   playerPosition: (position: number) => string;
   rightPosition: (position: number) => string;
   viewEvidence: string;
-  revision: string;
 }
 
 export interface TimelineMessages extends TimelineBoardMessages, TimelineResultsMessages {}
@@ -78,7 +77,6 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     playerPosition: (pos: number) => `Sua posição: ${pos}`,
     rightPosition: (pos: number) => `Posição certa: ${pos}`,
     viewEvidence: "Ver fontes e evidências",
-    revision: "revisão",
     share: "Compartilhar",
     copiedToClipboard: "Copiado para a área de transferência!",
     shareFailed: "Não deu para copiar. Selecione o texto abaixo e copie.",
@@ -103,7 +101,6 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
     playerPosition: (pos: number) => `Your position: ${pos}`,
     rightPosition: (pos: number) => `Right position: ${pos}`,
     viewEvidence: "View sources and evidence",
-    revision: "revision",
     share: "Share",
     copiedToClipboard: "Copied to clipboard!",
     shareFailed: "Could not copy. Select the text below and copy it.",

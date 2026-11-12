@@ -398,8 +398,8 @@
 }
 
 /*
-  The panel opens inside the bar, like the quiz source: long text scrolls
-  inside it. A sticky bar that tall would cover the last rows of the board,
+  The panel opens inside the bar at full height (.source-panel). A sticky
+  bar that tall would cover the last rows of the board,
   so the bar stops being sticky while the panel is open and stays below the
   final board; opening the panel scrolls it into view.
 */
@@ -407,16 +407,8 @@
   flex: 1 1 100%;
   display: grid;
   gap: var(--space-3);
-  max-height: min(40dvh, 18rem);
-  overflow-y: auto;
   scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3));
   text-align: left;
-}
-
-@media (max-height: 30rem) {
-  .name-guess-hints {
-    max-height: 30dvh;
-  }
 }
 
 .name-guess-actions:has(.name-guess-hints:not([hidden])) {
