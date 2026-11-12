@@ -114,14 +114,6 @@
   }
 }
 
-/* Keep keyboard focus from landing behind the sticky bar. Its tallest case
-   is a 390px phone: 119px measured, Start (--control-height) plus 75px of
-   padding, two lines of round rules and the row gap, which 5rem covers.
-   At 1440px the bar is one 75px row. */
-.quiz-setup input {
-  scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--control-height) + 5rem);
-}
-
 /* Question round */
 
 /* Keep the reading area above the actions, including when consent or source
