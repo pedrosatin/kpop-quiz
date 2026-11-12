@@ -160,7 +160,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "De onde vêm os dados do Quiz de mapa de K-pop",
         faqHeading: "Perguntas sobre o Quiz de mapa de K-pop",
         howToPlay: [
-          "O quiz de mapa usa a turnê DEADLINE de BLACKPINK. Cada rodada traz 10 datas da agenda oficial. Para cada data, selecione o país do show no mapa ou na lista e toque em Responder. Em telas menores, a lista fica num seletor na barra de baixo. Países pequenos, como Singapura, ficam mais fáceis pela lista.",
+          "O quiz de mapa usa a turnê DEADLINE de BLACKPINK. Cada rodada traz 10 datas da agenda oficial. Para cada data, selecione o país do show no mapa ou na lista e toque em Responder. Em telas menores, a lista fica num seletor na barra de baixo, e um toque no mapa aproxima a região para que países pequenos, como Singapura, possam ser tocados.",
           "Depois da resposta, a barra mostra o país correto e os links da agenda oficial e do MusicBrainz para aquela data. No fim, você vê quantas acertou, e Ver fonte lista as 10 datas com a sua resposta. No teclado, Tab chega a um país, Enter seleciona e Responder envia.",
         ],
         dataSources: [
@@ -382,7 +382,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         dataSourcesHeading: "Where the K-pop Map Quiz data comes from",
         faqHeading: "K-pop Map Quiz FAQ",
         howToPlay: [
-          "The map quiz is built on BLACKPINK's DEADLINE world tour. Each round has 10 dates from the official schedule. For each date, select the country of the show on the map or from the list, then press Answer. On smaller screens the list sits in a menu in the bottom bar. Small countries such as Singapore are easier to pick from the list.",
+          "The map quiz is built on BLACKPINK's DEADLINE world tour. Each round has 10 dates from the official schedule. For each date, select the country of the show on the map or from the list, then press Answer. On smaller screens the list sits in a menu in the bottom bar, and a tap on the map zooms into that region so small countries such as Singapore can be tapped.",
           "After you answer, the bar shows the correct country with links to the official schedule and to MusicBrainz for that date. At the end you see your score, and Show source lists all 10 dates with your answer. With a keyboard, Tab moves between countries, Enter selects one, and Answer submits.",
         ],
         dataSources: [

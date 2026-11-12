@@ -6,6 +6,9 @@
   the fold (first country at y=765 under a bar at 774 on 390x844; 845 on
   1440x900 before the list moved beside the map), so narrow screens get a
   select with Answer in the bar instead, where Next appears after the answer.
+  There the map is a 5:3 box and the first tap zooms into the tapped region,
+  where every country of the round has a 44px round target (see
+  MapPilot/map-pilot-geometry.ts); small countries show it as a ring.
 */
 .map-pilot-game {
   --game-actions-inset: clamp(1rem, 3vw, 2rem);
@@ -19,16 +22,41 @@
 .map-pilot-question-header { display: grid; grid-template-columns: 1fr auto; gap: 0.4rem 1rem; }
 .map-pilot-progress { grid-column: 2; grid-row: 1; margin: 0; color: var(--color-text-muted); font-weight: 700; white-space: nowrap; }
 .map-pilot-question-header h2 { grid-column: 1; grid-row: 1; max-width: 56rem; margin: 0; font-size: clamp(1.2rem, 2.4vw, 1.6rem); line-height: 1.25; }
-.map-pilot-map-wrap { min-width: 0; margin-top: 1rem; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface-muted); }
+.map-pilot-map-wrap { position: relative; min-width: 0; margin-top: 1rem; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-surface-muted); }
 .map-pilot-game.is-complete .map-pilot-map-wrap { margin-top: 0; }
 /* The map shrinks with the viewport so the action bar stays on screen. */
 .map-pilot-world-map { display: block; width: 100%; height: auto; max-height: var(--play-max-h); margin-inline: auto; }
 .map-pilot-feature { fill: color-mix(in srgb, var(--color-border) 27%, var(--color-surface)); stroke: var(--color-surface); stroke-width: 0.6; vector-effect: non-scaling-stroke; }
-.map-pilot-feature.is-playable { fill: color-mix(in srgb, var(--color-link) 55%, var(--color-surface)); cursor: pointer; }
-.map-pilot-feature.is-playable:hover,
-.map-pilot-feature.is-playable:focus { fill: var(--color-action); outline: none; }
+.map-pilot-feature.is-playable { fill: color-mix(in srgb, var(--color-link) 55%, var(--color-surface)); }
+.map-pilot-feature.is-pickable { cursor: pointer; }
+.map-pilot-feature.is-pickable:focus { outline: none; }
+/*
+  A tap leaves :hover on the shape it touched, so after a touch the country
+  looked picked on the next dates. Hover only paints where a mouse hovers,
+  and focus only paints when it comes from the keyboard.
+*/
+@media (hover: hover) {
+  .map-pilot-feature.is-pickable:hover { fill: var(--color-action); }
+  .map-pilot-target.is-pickable:hover { stroke: var(--color-action); }
+}
+.map-pilot-feature.is-pickable:focus-visible { fill: var(--color-action); }
 .map-pilot-feature.is-selected { fill: var(--color-action); }
 .map-pilot-feature.is-answer { fill: var(--color-success-text); }
+/*
+  Round targets drawn over the countries: dots on the whole map for the
+  countries too small to see, and 44px targets in the zoomed map. Only
+  small countries show theirs (.is-marked); the others stay invisible over
+  the mainland and only widen the area a finger can hit.
+*/
+.map-pilot-target { fill: transparent; stroke: none; pointer-events: none; }
+.map-pilot-target.is-pickable { pointer-events: all; cursor: pointer; }
+.map-pilot-target.is-marked { fill: color-mix(in srgb, var(--color-link) 25%, transparent); stroke: color-mix(in srgb, var(--color-link) 55%, var(--color-surface)); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.map-pilot-target.is-marked.is-selected { fill: color-mix(in srgb, var(--color-action) 35%, transparent); stroke: var(--color-action); }
+.map-pilot-target.is-marked.is-answer { fill: color-mix(in srgb, var(--color-success-text) 35%, transparent); stroke: var(--color-success-text); }
+.map-pilot-zoom-hint,
+.map-pilot-zoom-out { position: absolute; top: var(--space-1); left: var(--space-1); z-index: 1; }
+.map-pilot-zoom-hint { margin: 0; padding: 0.1rem 0.4rem; border-radius: var(--radius-control); background: color-mix(in srgb, var(--color-surface) 85%, transparent); color: var(--color-text-muted); font-size: 0.75rem; pointer-events: none; }
+.map-pilot-zoom-out { padding-inline: var(--space-3); }
 .map-pilot-attribution { margin: 0; padding: 0.3rem 0.7rem; color: var(--color-text-muted); font-size: 0.75rem; }
 
 /* Country list, only beside the map on wide screens. */
@@ -36,13 +64,16 @@
 .map-pilot-country-heading { margin: 0 0 var(--space-2); font-size: 0.9375rem; line-height: 1.25; }
 .map-pilot-country-list { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 .map-pilot-country { min-height: var(--control-height); padding: 0.25rem 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.9375rem; line-height: 1.15; cursor: pointer; }
-.map-pilot-country:hover:not(:disabled) { border-color: var(--color-action); background: var(--color-surface-muted); }
+@media (hover: hover) {
+  .map-pilot-country:hover:not(:disabled) { border-color: var(--color-action); background: var(--color-surface-muted); }
+}
 .map-pilot-country.is-selected { border-color: var(--color-action); background: var(--color-action); color: var(--color-action-text); }
 .map-pilot-country.is-answer { border-color: var(--color-success-text); box-shadow: inset 0 0 0 1px var(--color-success-text); }
 .map-pilot-country:disabled { cursor: default; opacity: 0.82; }
 
 /* Select and Answer, only in the bar on narrow screens. */
-.map-pilot-pick { display: flex; flex: 1 1 18rem; gap: var(--space-2); }
+/* min-width: 0 lets the select shrink: at 360px the row overflowed the card by 16px. */
+.map-pilot-pick { display: flex; flex: 1 1 18rem; gap: var(--space-2); min-width: 0; }
 .map-pilot-select { flex: 1 1 auto; min-width: 0; min-height: var(--control-height); padding: 0 var(--space-3); border: 2px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); }
 .map-pilot-pick .btn { flex: 0 0 auto; }
 
@@ -50,6 +81,19 @@
 .map-pilot-evidence span { color: var(--color-text-muted); }
 .map-pilot-country:focus-visible,
 .map-pilot-evidence a:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+@media (max-width: 59.999rem) {
+  /*
+    The world is 2.5 times wider than tall, a 328x131px strip at 390px. The
+    box is 5:3 up to --play-max-h, so the zoomed map fills it; the whole
+    map sits in the middle, with the zoom hint and the credit over the sea
+    above and below it.
+  */
+  .map-pilot-world-map { aspect-ratio: 5 / 3; touch-action: manipulation; }
+  .map-pilot-world-map.is-zoomable { cursor: zoom-in; }
+  .map-pilot-attribution { position: absolute; right: 0; bottom: 0; left: 0; padding: 0.1rem 0.5rem; background: color-mix(in srgb, var(--color-surface-muted) 85%, transparent); font-size: 0.6875rem; line-height: 1.25; pointer-events: none; }
+  .map-pilot-map-wrap.is-zoomed .map-pilot-attribution { display: none; }
+}
 
 @media (min-width: 60rem) {
   /*
@@ -115,6 +159,8 @@
 }
 @media (max-width: 420px) {
   .map-pilot-game { --game-actions-inset: 0.8rem; }
+  /* At 360px the select kept 154px and cut "Escolha um país". */
+  .map-pilot-pick .btn { padding-inline: var(--space-4); }
   /*
     Keep the bar off the map: the schedule notice leaves the screen but stays
     for screen readers (as .visually-hidden); How to play and the result's
@@ -127,8 +173,13 @@
 }
 @media (forced-colors: active) {
   .map-pilot-feature.is-playable { fill: Canvas; stroke: LinkText; stroke-width: 1.5; }
-  .map-pilot-feature.is-playable:focus { outline: 2px solid Highlight; }
+  .map-pilot-feature.is-pickable:focus-visible { outline: 2px solid Highlight; }
+  .map-pilot-feature.is-selected { fill: Highlight; }
   .map-pilot-feature.is-answer { fill: Highlight; }
+  .map-pilot-target.is-marked { fill: Canvas; stroke: LinkText; }
+  .map-pilot-target.is-marked.is-selected,
+  .map-pilot-target.is-marked.is-answer { fill: Canvas; stroke: Highlight; stroke-width: 3; }
+  .map-pilot-zoom-hint { background: Canvas; color: CanvasText; }
   .map-pilot-country,
   .map-pilot-select { border: 2px solid ButtonText; }
 }

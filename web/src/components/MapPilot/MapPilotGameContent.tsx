@@ -3,8 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   mapPilotCountries,
   mapPilotCountryLabel,
-  mapPilotFeatures,
-  mapPilotMetadata,
   type MapPilotCountry,
   type MapPilotEvent,
 } from "../../data/map-pilot";
@@ -23,12 +21,10 @@ import {
 } from "./map-pilot-feedback";
 import { MapPilotNextButton, MapPilotPickForm } from "./MapPilotControls";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
+import { MapPilotMap } from "./MapPilotMap";
 
 /** How long Next ignores activation after it replaces the answer controls. */
 export const NEXT_GUARD_MS = 300;
-
-// Equirectangular 1200x600 map cropped to 84°N–60°S. The polar rows hold no tour dates.
-const MAP_VIEW_BOX = "0 20 1200 480";
 
 export interface RoundState {
   gaveUp?: boolean;
@@ -203,54 +199,18 @@ export function MapPilotGameContent({
         </header>
       )}
 
-      <div class="map-pilot-map-wrap">
-        <svg
-          class="map-pilot-world-map"
-          viewBox={MAP_VIEW_BOX}
-          role={isComplete ? "img" : "group"}
-          aria-label={isComplete ? copy.resultMapLabel : copy.mapLabel}
-        >
-          {mapPilotFeatures.map((feature) => {
-            if (!current) {
-              // The finished round: the countries of its dates, not playable.
-              return (
-                <path
-                  key={feature.id}
-                  d={feature.path}
-                  class={`map-pilot-feature ${roundFeatures.has(feature.id) ? "is-answer" : ""}`}
-                  fill-rule="evenodd"
-                />
-              );
-            }
-            const isPlayable = playableFeatures.has(feature.id);
-            const isSelected = highlightFeature === feature.id;
-            const isCorrect = selectedFeature !== null && current.map_feature_id === feature.id;
-            return (
-              <path
-                key={feature.id}
-                d={feature.path}
-                class={`map-pilot-feature ${isPlayable ? "is-playable" : ""} ${isSelected ? "is-selected" : ""} ${isCorrect ? "is-answer" : ""}`}
-                fill-rule="evenodd"
-                role={isPlayable ? "button" : undefined}
-                // Preact writes SVG attributes as spelled, and SVG only reads the
-                // lowercase names: tabIndex and fillRule did nothing, and Tab
-                // skipped the map.
-                tabindex={isPlayable && selectedFeature === null ? 0 : -1}
-                aria-label={isPlayable ? mapPilotCountryLabel(countryByFeature.get(feature.id)!, locale) : undefined}
-                aria-pressed={isPlayable ? isSelected : undefined}
-                onClick={isPlayable ? () => selectPending(feature.id) : undefined}
-                onKeyDown={isPlayable ? (event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    selectPending(feature.id);
-                  }
-                } : undefined}
-              />
-            );
-          })}
-        </svg>
-        <p class="map-pilot-attribution">{copy.mapCredit} {mapPilotMetadata.mapVersion} · {mapPilotMetadata.mapScale}</p>
-      </div>
+      <MapPilotMap
+        locale={locale}
+        copy={copy}
+        current={current}
+        questionIndex={questionIndex}
+        playableFeatures={playableFeatures}
+        roundFeatures={roundFeatures}
+        countryByFeature={countryByFeature}
+        selectedFeature={selectedFeature}
+        highlightFeature={highlightFeature}
+        onSelect={selectPending}
+      />
 
       {current && (
         // Beside the map on wide screens; narrow screens use the select in the bar.
@@ -323,7 +283,8 @@ export function MapPilotGameContent({
             onEmptySubmit={() => setPickPrompt((value) => value + 1)}
           />
         )}
-        {!isComplete && (
+        {/* After an answer the bar keeps only Next: giving up waits for the next date. */}
+        {!isComplete && answerState === null && (
           <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
             {messages.giveUp}
           </button>
