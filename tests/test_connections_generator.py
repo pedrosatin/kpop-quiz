@@ -12,9 +12,12 @@ from unittest.mock import patch
 
 from kpop_scraping.connections_cli import main as cli_main
 from kpop_scraping.connections_generator import (
+    MEMBER_COUNT_CRITERIA,
+    _load_criterion_groups,
     count_valid_partitions,
     evaluate_connections_criteria,
     generate_connections_puzzle,
+    member_count_conflicts,
 )
 from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.quiz_repository import (
@@ -24,12 +27,7 @@ from kpop_scraping.quiz_repository import (
 )
 
 
-def build_connections_test_database(reverse: bool = False) -> sqlite3.Connection:
-    """Create an in-memory SQLite database populated with test entities, facts, and evidence."""
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    conn.executescript(
-        """
+CONNECTIONS_TEST_SCHEMA = """
         CREATE TABLE entities (
             id INTEGER PRIMARY KEY,
             wikidata_id TEXT NOT NULL UNIQUE,
@@ -91,7 +89,13 @@ def build_connections_test_database(reverse: bool = False) -> sqlite3.Connection
             source_revision_id INTEGER
         );
         """
-    )
+
+
+def build_connections_test_database(reverse: bool = False) -> sqlite3.Connection:
+    """Create an in-memory SQLite database populated with test entities, facts, and evidence."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(CONNECTIONS_TEST_SCHEMA)
     conn.execute(
         "INSERT INTO wikidata_entity_snapshots VALUES (1, 'QSOURCE', 1001)"
     )
@@ -255,6 +259,121 @@ def build_connections_test_database(reverse: bool = False) -> sqlite3.Connection
 
     conn.commit()
     return conn
+
+
+# The connections board published for 2026-11-11, by category, with the member
+# statements the database held for each group (local base of 2026-10-19; the
+# same claims Wikidata serves today). Statuses list one entry per current
+# has_member statement; an empty list means the group has none.
+PLAYTEST_2026_11_11_LABELS = {
+    "Q50595": "YG Entertainment",
+    "Q1988428": "Avex Trax",
+    "Q38903": "Universal Music Group",
+}
+PLAYTEST_2026_11_11_BOARD = {
+    "label_yg": ("Q50595", ["Q10728972", "Q15116397", "Q18551384", "Q282104"]),
+    "label_q1988428": ("Q1988428", ["Q120998562", "Q239693", "Q344286", "Q483706"]),
+    "label_q38903": ("Q38903", ["Q16097371", "Q487638", "Q489225", "Q7374722"]),
+    "members_3": (None, ["Q130546361", "Q483172", "Q6460281", "Q65269682"]),
+}
+PLAYTEST_2026_11_11_NAMES = {
+    "Q10728972": "AKMU", "Q15116397": "Winner", "Q18551384": "Hi Suhyun",
+    "Q282104": "BigBang", "Q120998562": "Super Junior-L.S.S.", "Q239693": "Super Junior",
+    "Q344286": "f(x)", "Q483706": "The Grace", "Q16097371": "Boys Republic",
+    "Q487638": "F.CUZ", "Q489225": "Rainbow", "Q7374722": "Royal Pirates",
+    "Q130546361": "Ablume", "Q483172": "CNBLUE", "Q6460281": "LUV", "Q65269682": "3YE",
+}
+ACCEPTED, CONFLICT, REJECTED = "accepted", "conflict", "rejected"
+PLAYTEST_2026_11_11_MEMBERS: dict[str, list[str]] = {
+    "Q10728972": [ACCEPTED, REJECTED],
+    "Q15116397": [ACCEPTED] * 4 + [CONFLICT],
+    "Q18551384": [],
+    # G-Dragon, Taeyang and Daesung accepted; T.O.P and Seungri in conflict
+    # (membership_period_unconfirmed): 3 to 5 members by the data.
+    "Q282104": [ACCEPTED] * 3 + [CONFLICT] * 2,
+    # Leeteuk, Shindong and Siwon, all membership_period_unconfirmed: 0 to 3.
+    "Q120998562": [CONFLICT] * 3,
+    "Q239693": [],
+    "Q344286": [CONFLICT] * 4 + [REJECTED],
+    "Q483706": [],
+    "Q16097371": [],
+    "Q487638": [],
+    "Q489225": [CONFLICT] * 3 + [REJECTED],
+    "Q7374722": [],
+    "Q130546361": [ACCEPTED] * 3,
+    "Q483172": [ACCEPTED] * 3,
+    "Q6460281": [ACCEPTED] * 3,
+    "Q65269682": [ACCEPTED] * 3,
+}
+
+
+def build_playtest_board_database(members: dict[str, list[str]]) -> sqlite3.Connection:
+    """Rebuild the 2026-11-11 board: its 16 groups, 3 labels and member statements."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(CONNECTIONS_TEST_SCHEMA)
+    conn.execute("INSERT INTO wikidata_entity_snapshots VALUES (1, 'QSOURCE', 1001)")
+    ids: dict[str, int] = {}
+
+    def entity(qid: str, etype: str, name: str) -> int:
+        cur = conn.execute(
+            "INSERT INTO entities(wikidata_id, entity_type, canonical_name) VALUES (?, ?, ?)",
+            (qid, etype, name),
+        )
+        for language in ("en", "pt"):
+            conn.execute(
+                "INSERT INTO entity_aliases VALUES (?, ?, ?, 'label')",
+                (cur.lastrowid, language, name),
+            )
+        ids[qid] = cur.lastrowid
+        return cur.lastrowid
+
+    def fact(statement_id: str, subject: str, predicate: str, value: str, status: str) -> None:
+        cur = conn.execute(
+            """
+            INSERT INTO facts(
+                statement_id, subject_entity_id, predicate, property_id, rank,
+                value_wikidata_id, value_entity_id, status, status_reason, quality_flags_json
+            ) VALUES (?, ?, ?, 'P', 'normal', ?, ?, ?, ?, '[]')
+            """,
+            (
+                statement_id, ids[subject], predicate, value, ids[value], status,
+                None if status == ACCEPTED else "membership_period_unconfirmed",
+            ),
+        )
+        conn.execute(
+            """
+            INSERT INTO fact_evidence(
+                fact_id, evidence_type, source_key, locator, reference_hash, wikidata_snapshot_id
+            ) VALUES (?, 'wikidata_reference', 'wikidata', ?, 'refhash', 1)
+            """,
+            (cur.lastrowid, f"claims/{statement_id}"),
+        )
+
+    for qid, name in PLAYTEST_2026_11_11_LABELS.items():
+        entity(qid, "organization", name)
+    for qid, name in PLAYTEST_2026_11_11_NAMES.items():
+        entity(qid, "group", name)
+    for label_qid, group_qids in PLAYTEST_2026_11_11_BOARD.values():
+        for qid in group_qids if label_qid else ():
+            fact(f"label-{qid}", qid, "record_label", label_qid, ACCEPTED)
+    for qid, statuses in members.items():
+        for index, status in enumerate(statuses):
+            entity(f"{qid}P{index}", "person", f"{qid} member {index}")
+            fact(f"has-{qid}-{index}", qid, "has_member", f"{qid}P{index}", status)
+    conn.commit()
+    return conn
+
+
+def playtest_conflicts(members: dict[str, list[str]]) -> set[tuple[str, str]]:
+    """Conflicts the published 2026-11-11 assignment has under the given data."""
+    conn = build_playtest_board_database(members)
+    try:
+        _, _, _, _, all_criteria, bounds = _load_criterion_groups(conn)
+    finally:
+        conn.close()
+    assignment = {cat: qids for cat, (_label, qids) in PLAYTEST_2026_11_11_BOARD.items()}
+    return set(member_count_conflicts(assignment, bounds, all_criteria))
 
 
 class PartitionUniquenessSolverTest(unittest.TestCase):
@@ -505,6 +624,83 @@ class ConnectionsGeneratorTest(unittest.TestCase):
         )
         self.assertIn("members_4", group_criteria["Q101"])
 
+
+
+class MemberCountCategoryUniquenessTest(unittest.TestCase):
+    """An "N members" category needs every other item on the board ruled out of N.
+
+    Playtest 2026-11-11: "3 integrantes" (Ablume, CNBLUE, LUV, 3YE) shared the
+    board with BigBang and Super Junior-L.S.S., which fans know as trios.
+    """
+
+    # Every group outside "3 members" with an exact, complete count of 2, a
+    # count no category uses: the board is fair and still generable.
+    FAIR_MEMBERS = {
+        qid: [ACCEPTED] * (3 if qid in PLAYTEST_2026_11_11_BOARD["members_3"][1] else 2)
+        for qid in PLAYTEST_2026_11_11_NAMES
+    }
+
+    def generate(self, members: dict[str, list[str]]) -> dict:
+        conn = build_playtest_board_database(members)
+        try:
+            return generate_connections_puzzle(conn, seed="kpop-connections-daily-2026-11-11")
+        finally:
+            conn.close()
+
+    def test_playtest_board_of_2026_11_11_is_refused(self) -> None:
+        conflicts = playtest_conflicts(PLAYTEST_2026_11_11_MEMBERS)
+        self.assertIn(("members_3", "Q282104"), conflicts)  # BigBang, 3 to 5
+        self.assertIn(("members_3", "Q120998562"), conflicts)  # L.S.S., 0 to 3
+        # AKMU (1 to 2) and Winner (4 to 5) are ruled out by the data.
+        self.assertNotIn(("members_3", "Q10728972"), conflicts)
+        self.assertNotIn(("members_3", "Q15116397"), conflicts)
+        with self.assertRaisesRegex(ValueError, "Unable to generate a solvable connections puzzle"):
+            self.generate(PLAYTEST_2026_11_11_MEMBERS)
+
+    def test_fair_board_is_generated(self) -> None:
+        self.assertEqual(playtest_conflicts(self.FAIR_MEMBERS), set())
+        puzzle = self.generate(self.FAIR_MEMBERS)
+        categories = {cat["id"]: cat["item_ids"] for cat in puzzle["categories"]}
+        self.assertEqual(categories["members_3"], sorted(PLAYTEST_2026_11_11_BOARD["members_3"][1]))
+
+    def test_proven_equal_count_outside_the_category_is_refused(self) -> None:
+        members = {**self.FAIR_MEMBERS, "Q282104": [ACCEPTED] * 3}
+        self.assertEqual(playtest_conflicts(members), {("members_3", "Q282104")})
+        with self.assertRaises(ValueError):
+            self.generate(members)
+
+    def test_unknown_count_that_may_be_n_is_refused(self) -> None:
+        members = {**self.FAIR_MEMBERS, "Q120998562": [CONFLICT] * 3}
+        self.assertEqual(playtest_conflicts(members), {("members_3", "Q120998562")})
+        with self.assertRaises(ValueError):
+            self.generate(members)
+
+    def test_unknown_count_that_rules_n_out_is_accepted(self) -> None:
+        # Four members loaded and one in conflict: 4 or 5, never 3.
+        members = {**self.FAIR_MEMBERS, "Q282104": [ACCEPTED] * 4 + [CONFLICT]}
+        self.assertEqual(playtest_conflicts(members), set())
+        self.generate(members)
+
+    def test_group_without_member_statements_is_refused(self) -> None:
+        """Decision: no member data proves nothing, so the group could have N."""
+        members = {**self.FAIR_MEMBERS, "Q239693": []}
+        self.assertEqual(playtest_conflicts(members), {("members_3", "Q239693")})
+        with self.assertRaises(ValueError):
+            self.generate(members)
+
+    def test_only_member_count_categories_are_checked(self) -> None:
+        criteria = {c["id"]: c for c in MEMBER_COUNT_CRITERIA.values()}
+        criteria["label_yg"] = {"id": "label_yg", "category": "record_label"}
+        assignment = {"label_yg": ("A", "B", "C", "D"), "members_3": ("E", "F", "G", "H")}
+        bounds = {qid: (3, 3) for qid in "ABCDEFGH"}
+        self.assertEqual(
+            member_count_conflicts(assignment, bounds, criteria),
+            [("members_3", qid) for qid in "ABCD"],
+        )
+        # An item missing from the bounds is unknown, so it may have 3 members.
+        del bounds["A"]
+        bounds.update({qid: (5, 5) for qid in "BCD"})
+        self.assertEqual(member_count_conflicts(assignment, bounds, criteria), [("members_3", "A")])
 
 
 if __name__ == '__main__':
