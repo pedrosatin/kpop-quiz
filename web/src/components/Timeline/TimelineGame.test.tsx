@@ -347,6 +347,24 @@ describe("Timeline board from an earlier day", () => {
     await vi.waitFor(() => expect(daily()).toEqual(["no", "no"]));
   });
 
+  it("restores a draft on a board from an earlier day and still counts no daily match", async () => {
+    onDay(dayAfter(puzzle.reference_date));
+    const titles = () => screen.getAllByRole("listitem").map((card) => within(card).getByRole("heading").textContent);
+    const first = render(<TimelineGame locale="pt-BR" />);
+    await screen.findByRole("button", { name: "Verificar ordem" });
+    fireEvent.click(within(screen.getAllByRole("listitem")[4]!).getByRole("button", { name: /para cima$/ }));
+    const built = titles();
+    first.unmount();
+
+    render(<TimelineGame locale="pt-BR" />);
+    await screen.findByRole("button", { name: "Verificar ordem" });
+    expect(titles()).toEqual(built);
+    expect(screen.getByTestId("stale-daily-notice")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Verificar ordem" }));
+    await screen.findByRole("heading", { name: /Pontuação:/ });
+    expect(loadPlayerStats().games["timeline"]?.played ?? 0).toBe(0);
+  });
+
   it("keeps today's board as the daily challenge", async () => {
     onDay(puzzle.reference_date);
     const daily = trackDailyParam();
