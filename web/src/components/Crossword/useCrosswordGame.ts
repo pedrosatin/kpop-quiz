@@ -5,10 +5,10 @@ import { isDailyMatchRecorded, recordMatchOnce } from "../../lib/player-stats";
 import type { Locale } from "../../lib/quiz-types";
 import {
   clearCrosswordSave,
-  isBoardSolved,
   isEntrySolved,
   loadCrosswordSave,
   storeCrosswordSave,
+  wrongSquares,
   type CrosswordStatus,
 } from "./crossword-save";
 
@@ -21,8 +21,14 @@ export interface UseCrosswordGame {
   correctWords: number;
   /** Bumps on every check that is not a win, so the verdict is announced again. */
   wrongCheck: number;
+  /**
+   * Squares ("row:col") that were wrong or empty at the last check. A square
+   * leaves the set when the player edits it; the next check rebuilds it.
+   */
+  wrongCells: ReadonlySet<string>;
   setLetters: (updates: Record<string, string>) => void;
-  check: () => void;
+  /** Checks the board and returns true when it is solved. */
+  check: () => boolean;
   reveal: () => void;
   restart: () => void;
 }
@@ -36,12 +42,23 @@ export function crosswordMatchId(puzzle: CrosswordPuzzle): string {
   return `crossword-${puzzle.dataset_version}`;
 }
 
+const NO_SQUARES: ReadonlySet<string> = new Set();
+
+/** The marked squares minus the ones just edited; the same set when none was marked. */
+export function withoutSquares(marked: ReadonlySet<string>, edited: readonly string[]): ReadonlySet<string> {
+  if (!edited.some((key) => marked.has(key))) return marked;
+  const rest = new Set(marked);
+  for (const key of edited) rest.delete(key);
+  return rest;
+}
+
 export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCrosswordGame {
   const [initialSave] = useState(() => loadCrosswordSave(puzzle));
   const [values, setValues] = useState<Record<string, string>>(() => ({ ...(initialSave?.values ?? {}) }));
   const [status, setStatus] = useState<CrosswordStatus>(initialSave?.status ?? "playing");
   const [checks, setChecks] = useState(initialSave?.checks ?? 0);
   const [wrongCheck, setWrongCheck] = useState(0);
+  const [wrongCells, setWrongCells] = useState<ReadonlySet<string>>(NO_SQUARES);
 
   const finished = status !== "playing";
   const resumed = initialSave !== null;
@@ -81,23 +98,28 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
       if (finished) return;
       analytics.start();
       setWrongCheck(0);
+      setWrongCells((marked) => withoutSquares(marked, Object.keys(updates)));
       setValues((prev) => ({ ...prev, ...updates }));
     },
     [finished],
   );
 
   const check = useCallback(() => {
-    if (finished) return;
+    if (finished) return false;
     analytics.start();
     setChecks((n) => n + 1);
-    if (isBoardSolved(puzzle, values)) setStatus("won");
+    const wrong = wrongSquares(puzzle, values);
+    setWrongCells(wrong.size ? wrong : NO_SQUARES);
+    if (!wrong.size) setStatus("won");
     else setWrongCheck((n) => n + 1);
+    return !wrong.size;
   }, [finished, puzzle, values]);
 
   const reveal = useCallback(() => {
     if (finished) return;
     analytics.start();
     setWrongCheck(0);
+    setWrongCells(NO_SQUARES);
     setStatus("revealed");
   }, [finished]);
 
@@ -108,11 +130,12 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
     setStatus("playing");
     setChecks(0);
     setWrongCheck(0);
+    setWrongCells(NO_SQUARES);
   }, [puzzle]);
 
   const correctWords = status === "won"
     ? puzzle.entries.length
     : puzzle.entries.filter((entry) => isEntrySolved(entry, values)).length;
 
-  return { values, status, finished, checks, correctWords, wrongCheck, setLetters, check, reveal, restart };
+  return { values, status, finished, checks, correctWords, wrongCheck, wrongCells, setLetters, check, reveal, restart };
 }

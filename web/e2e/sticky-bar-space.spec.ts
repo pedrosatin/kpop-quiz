@@ -184,8 +184,8 @@ for (const locale of locales) {
         const before = await bar.evaluate((el) => el.getBoundingClientRect().height);
         await bar.locator(".btn-primary").click();
         await expect(bar).toHaveClass(/is-incorrect/);
-        expect(await bar.evaluate((el) => el.getBoundingClientRect().height), "the wrong check grows the bar").toBeGreaterThan(before);
-        // The page gives up the room the bar took, so the square is not covered.
+        // The verdict takes the line of the hint, so the bar keeps its height.
+        expect(await bar.evaluate((el) => el.getBoundingClientRect().height), "the wrong check keeps the bar's height").toBeLessThanOrEqual(before + 0.5);
         await expectUncovered(square, "the lowest square after the bar grew");
         await expectEndReachable(page, "the last clue after a wrong check");
       });

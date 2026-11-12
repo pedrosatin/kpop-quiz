@@ -13,8 +13,8 @@ const entries: Entry[] = puzzle.entries;
 const sourceCount = puzzle.entries.flatMap((e: { sources: unknown[] }) => e.sources).length;
 const prefix = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
 const copy = {
-  "pt-br": { path: "/pt-br/cruzadinha/", across: "Horizontal", down: "Vertical", check: "Verificar respostas", reveal: "Revelar respostas", confirmReveal: "Sim, revelar", wrong: "incorretas", won: "Cruzadinha concluída!", revealed: "Respostas reveladas", source: "Ver fonte", share: "Compartilhar resultado" },
-  en: { path: "/en/crossword/", across: "Across", down: "Down", check: "Check answers", reveal: "Reveal answers", confirmReveal: "Yes, reveal", wrong: "incorrect", won: "Crossword completed!", revealed: "Answers revealed", source: "Show source", share: "Share result" },
+  "pt-br": { path: "/pt-br/cruzadinha/", across: "Horizontal", down: "Vertical", check: "Verificar respostas", reveal: "Revelar respostas", confirmReveal: "Sim, revelar", wrong: "a corrigir", won: "Cruzadinha concluída!", revealed: "Respostas reveladas", source: "Ver fonte", share: "Compartilhar resultado" },
+  en: { path: "/en/crossword/", across: "Across", down: "Down", check: "Check answers", reveal: "Reveal answers", confirmReveal: "Yes, reveal", wrong: "to fix", won: "Crossword completed!", revealed: "Answers revealed", source: "Show source", share: "Share result" },
 } as const;
 
 test.beforeEach(async ({ page }) => {
@@ -178,7 +178,7 @@ test("keyboard editing, crossed clues and digits remain playable", async ({ page
   await board.getByRole("button", { name: /^1 Across:/ }).click();
   await page.keyboard.type("xxx");
   await board.getByRole("button", { name: "Check answers", exact: true }).click();
-  await expect(board.getByRole("status")).toContainText("incorrect");
+  await expect(board.getByRole("status")).toContainText("to fix");
   await board.getByRole("textbox", { name: /^Row 1, column 1\./ }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(board.getByRole("textbox", { name: /^Row 1, column 2\./ })).toBeFocused();

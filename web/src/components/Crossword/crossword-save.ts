@@ -42,7 +42,17 @@ export function isEntrySolved(entry: CrosswordEntry, values: Readonly<Record<str
 }
 
 export function isBoardSolved(puzzle: CrosswordPuzzle, values: Readonly<Record<string, string>>): boolean {
-  return puzzle.cells.every((cell) => values[`${cell.row}:${cell.col}`] === cell.answer);
+  return wrongSquares(puzzle, values).size === 0;
+}
+
+/** The squares ("row:col") whose letter is wrong or missing. */
+export function wrongSquares(puzzle: CrosswordPuzzle, values: Readonly<Record<string, string>>): Set<string> {
+  const wrong = new Set<string>();
+  for (const cell of puzzle.cells) {
+    const key = `${cell.row}:${cell.col}`;
+    if (values[key] !== cell.answer) wrong.add(key);
+  }
+  return wrong;
 }
 
 /**

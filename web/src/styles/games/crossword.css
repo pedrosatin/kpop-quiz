@@ -68,6 +68,25 @@
   outline-offset: 1px;
 }
 
+/* A square the last check found wrong or empty: tinted, with a corner
+   triangle opposite the clue number, so the mark does not rely on color
+   alone. The input also carries aria-invalid. */
+.crossword-cell.is-wrong {
+  border-color: var(--color-error-text);
+  background: var(--color-error-bg);
+}
+
+.crossword-cell.is-wrong::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 35%;
+  height: 35%;
+  background: linear-gradient(to bottom left, var(--color-error-text) 50%, transparent 50%);
+  pointer-events: none;
+}
+
 .crossword-cell span {
   position: absolute;
   top: 0;
@@ -305,5 +324,10 @@
 
   .crossword-cell.selected {
     outline-color: Highlight;
+  }
+
+  .crossword-cell.is-wrong::after {
+    forced-color-adjust: none;
+    background: linear-gradient(to bottom left, CanvasText 50%, transparent 50%);
   }
 }

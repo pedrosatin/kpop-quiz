@@ -7,13 +7,14 @@ import { getMessages } from '../../i18n/catalog';
 import { CrosswordGrid, type CrosswordInputs } from './CrosswordGrid';
 
 const puzzle = publishedJson as unknown as CrosswordPuzzle;
-function Grid() {
+function Grid({ wrongCells = new Set<string>() }: { wrongCells?: ReadonlySet<string> } = {}) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [active, select] = useState(1);
   const inputs = useRef<CrosswordInputs>({});
+  const cursor = useRef<string | null>(null);
   return <section class="crossword">
     <CrosswordGrid puzzle={puzzle} messages={getMessages('en')} values={values} finished={false}
-      selected={puzzle.entries[active]!} inputs={inputs} onSelectEntry={select}
+      selected={puzzle.entries[active]!} inputs={inputs} wrongCells={wrongCells} cursor={cursor} onSelectEntry={select}
       onLetters={updates => setValues(previous => ({ ...previous, ...updates }))} />
     <div class="crossword-actions" style={{ position: 'sticky' }} />
   </section>;
@@ -66,4 +67,46 @@ it('ignores a side panel outside the square and scrolls a square above the viewp
   square(1, 1).focus();
   await frame();
   expect(scroll).toHaveBeenCalledExactlyOnceWith({ top: -28, behavior: 'instant' });
+});
+
+const inWord = (row: number, col: number) => square(row, col).closest('label')!.classList.contains('selected');
+
+/** A tap or click: the press on the square, focus, then the click. */
+function press(input: HTMLInputElement) {
+  fireEvent.pointerDown(input);
+  input.focus();
+  fireEvent.click(input);
+}
+
+it('switches the word through a crossing when the focused square is pressed again', async () => {
+  render(<Grid />);
+  // Row 1, column 1 starts 1 Across (BTS) and 1 Down (BTOB); 1 Down is selected.
+  press(square(1, 1));
+  expect(inWord(2, 1)).toBe(true);
+  expect(inWord(1, 2)).toBe(false);
+  press(square(1, 1));
+  expect(inWord(1, 2)).toBe(true);
+  expect(inWord(2, 1)).toBe(false);
+  expect(square(1, 1)).toHaveFocus();
+  press(square(1, 1));
+  expect(inWord(2, 1)).toBe(true);
+  await frame();
+});
+
+it('keeps the word when a square outside a crossing is pressed again', async () => {
+  render(<Grid />);
+  press(square(2, 1));
+  press(square(2, 1));
+  expect(inWord(2, 1)).toBe(true);
+  expect(inWord(1, 2)).toBe(false);
+  await frame();
+});
+
+it('marks the squares of the last check as invalid', () => {
+  render(<Grid wrongCells={new Set(['0:1', '5:2'])} />);
+  expect(square(1, 2)).toHaveAttribute('aria-invalid', 'true');
+  expect(square(1, 2).closest('label')).toHaveClass('is-wrong');
+  expect(square(6, 3)).toHaveAttribute('aria-invalid', 'true');
+  expect(square(1, 1)).not.toHaveAttribute('aria-invalid');
+  expect(document.querySelectorAll('[aria-invalid="true"]')).toHaveLength(2);
 });

@@ -30,6 +30,7 @@ export function barMessage(
   wrongCheck: number,
   shareNote: ShareNote,
   messages: Messages,
+  wrongSquares = 0,
 ): { message: JSX.Element | null; barState: string } {
   if (status !== "playing") {
     const barState = status === "won" ? " is-correct" : "";
@@ -38,7 +39,7 @@ export function barMessage(
     return { message: <p key={shareNote.n}>{text}</p>, barState };
   }
   if (wrongCheck > 0) {
-    return { message: <p key={wrongCheck} class="game-actions-title">{messages.crosswordWrong}</p>, barState: " is-incorrect" };
+    return { message: <p key={wrongCheck} class="game-actions-title">{messages.crosswordWrong(wrongSquares)}</p>, barState: " is-incorrect" };
   }
   return { message: <p class="game-actions-hint">{messages.crosswordHint}</p>, barState: "" };
 }
@@ -49,6 +50,7 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
   const dayDone = useDailyMatchDone("crossword", puzzle.reference_date, crosswordMatchId(puzzle), finished);
   const [active, setActive] = useState(0);
   const inputs = useRef<CrosswordInputs>({});
+  const cursor = useRef<string | null>(null);
 
   // Only a round finished in this visit moves focus to the result; a round
   // restored from storage leaves focus where the page put it.
@@ -85,11 +87,14 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
     input?.select();
     setActive(index);
   };
-  const endHere = (action: () => void) => () => {
+  // A wrong check leaves the player on the square they were typing in, with
+  // the same word, so they can fix the marked squares right away.
+  const check = () => {
     playedHere.current = true;
-    action();
+    if (game.check()) return;
+    inputs.current[cursor.current ?? entryCellKey(selected, 0)]?.focus({ preventScroll: true });
   };
-  const { message, barState } = barMessage(status, game.wrongCheck, shareNote, messages);
+  const { message, barState } = barMessage(status, game.wrongCheck, shareNote, messages, game.wrongCells.size);
 
   if (dayDone) return <DailyDone game="crossword" locale={locale} />;
 
@@ -113,6 +118,8 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
             finished={finished}
             selected={selected}
             inputs={inputs}
+            wrongCells={game.wrongCells}
+            cursor={cursor}
             onSelectEntry={setActive}
             onLetters={game.setLetters}
           />
@@ -156,7 +163,7 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
               />
             ) : (
               <div class="crossword-controls">
-                <button type="button" class="btn btn-primary" onClick={endHere(game.check)}>
+                <button type="button" class="btn btn-primary" onClick={check}>
                   {messages.crosswordCheck}
                 </button>
                 <button type="button" class="btn btn-secondary" onClick={requestReveal}>
