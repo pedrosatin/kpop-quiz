@@ -15,6 +15,8 @@ export interface GridCellState {
   lastAttemptId?: string;
   /** Name of lastAttemptId in the page's language, read from the pool. */
   lastAttempt?: string;
+  /** QIDs of every wrong group tried in this cell, oldest first. */
+  triedIds?: string[];
 }
 
 /** One cell as saved: QIDs only, so names follow the page's language. */
@@ -23,13 +25,19 @@ export interface GridStoredCell {
   failed: boolean;
   entityId?: string;
   lastAttemptId?: string;
+  /**
+   * Every wrong group tried in this cell, oldest first. Saves made before
+   * this field existed only have lastAttemptId, which counts as the one
+   * group tried.
+   */
+  triedIds?: string[];
 }
 
 /**
  * What localStorage keeps of one grid, under `kpop-grid-<grid_id>`:
  * `{ guessesUsed: 0..9, cells: { "row,col": GridStoredCell } }` with all
  * nine cells. A solved cell has `entityId`; a failed one may have
- * `lastAttemptId`. Both are candidate pool QIDs.
+ * `lastAttemptId` and `triedIds`. All are candidate pool QIDs.
  */
 export interface GridStoredState {
   guessesUsed: number;
