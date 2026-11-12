@@ -12,8 +12,9 @@ import type { Locale } from "../src/lib/quiz-types";
  * Q04 local resume: reload keeps identity, selection, clues, deadline and
  * results without duplicating stats. Invalid saves warn and leave the page
  * usable. Saves are per config (locale|mode|theme|decades); visiting another
- * config must not destroy an in-progress round. Catalog remains unpublished
- * (QUIZ_CATALOG off).
+ * config must not destroy an in-progress round. The checks run on whatever
+ * the general Quiz reads: published sessions, or catalog rounds when the
+ * catalog is published (QUIZ_CATALOG).
  */
 
 const viewports = [

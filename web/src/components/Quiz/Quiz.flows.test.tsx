@@ -370,6 +370,30 @@ describe("Quiz flows", () => {
       expect(readSlot()).toBeNull();
     });
 
+    // Regression: a catalog save was checked only against itself, so a save
+    // whose session id no longer matched its questions resumed silently.
+    it("drops a catalog save whose session id the live catalog does not build", async () => {
+      const round = await drawCatalogRound();
+      saveQuizProgress(roundSave({ ...round.session, session_id: "d".repeat(64) }, "catalog"));
+
+      await renderSetup();
+
+      expect(notice()).toHaveTextContent(messages.quizResumeIncompatible);
+      expect(readSlot()).toBeNull();
+    });
+
+    it("drops a catalog save that names a question the live catalog no longer has", async () => {
+      const round = await drawCatalogRound();
+      const [first, ...rest] = round.session.questions;
+      const gone = { ...first!, id: "e".repeat(64) };
+      saveQuizProgress(roundSave({ ...round.session, questions: [gone, ...rest] }, "catalog"));
+
+      await renderSetup();
+
+      expect(notice()).toHaveTextContent(messages.quizResumeIncompatible);
+      expect(readSlot()).toBeNull();
+    });
+
     it("drops a catalog save when the catalog is gone and offers the published round", async () => {
       const round = await drawCatalogRound();
       saveQuizProgress(roundSave(round.session, "catalog"));

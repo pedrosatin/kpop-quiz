@@ -87,19 +87,23 @@ async function seedConsent(page: Page) {
 /**
  * Opens the quiz and returns the session artifacts the page fetched. The
  * daily game reads the current day and may then read the next one, so the
- * caller picks the one the board shows.
+ * caller picks the one the board shows. With the question catalog published
+ * (QUIZ_CATALOG), a decade round is drawn from a catalog shard instead and no
+ * session artifact is fetched; startAndMatch then reads the round the page saved.
  */
 async function openSession(page: Page, baseURL: string, path: string, mode: PlayMode, query: string, consent?: { state: Consent; reject: RegExp }) {
   if (!consent) await seedConsent(page);
   const bodies: QuizSession[] = [];
+  let catalogShards = 0;
   page.on("response", async (response) => {
     if (/\/data\/(?:next\/)?session\.[^/]+\.json$/.test(response.url()) && response.ok()) {
       bodies.push((await response.json()) as QuizSession);
     }
+    if (/\/data\/catalog\.[^/]+\.json$/.test(response.url()) && response.ok()) catalogShards += 1;
   });
   await page.goto(`${joinBaseUrl(baseURL, path)}?mode=${mode}&${query}`);
   await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
-  expect(bodies.length, "the page must fetch a session artifact").toBeGreaterThan(0);
+  expect(bodies.length + catalogShards, "the page must fetch a session artifact or a catalog shard").toBeGreaterThan(0);
   if (consent) {
     const banner = page.locator(".consent-banner");
     await expect(banner, "the consent build must render the real banner").toBeVisible();
@@ -111,15 +115,39 @@ async function openSession(page: Page, baseURL: string, path: string, mode: Play
   return bodies;
 }
 
-/** Starts the game and returns the fetched session whose first question is on screen. */
+/** Sessions of the rounds the page saved in progress slots. */
+async function savedSessions(page: Page): Promise<QuizSession[]> {
+  return page.evaluate(() => Object.keys(window.localStorage)
+    .filter((key) => key.startsWith("kpop-quiz-progress:"))
+    .flatMap((key) => {
+      try {
+        const session = (JSON.parse(window.localStorage.getItem(key)!) as { session?: unknown }).session;
+        return session ? [session as QuizSession] : [];
+      } catch {
+        return [];
+      }
+    }));
+}
+
+/**
+ * Starts the game and returns the session whose first question is on screen:
+ * a fetched artifact, or the catalog round the page built and saved, whose
+ * options are already in the order the board shows.
+ */
 async function startAndMatch(page: Page, fetched: QuizSession[]): Promise<QuizSession> {
   await page.getByTestId("game-start").click();
   const heading = page.getByTestId("game-board").getByRole("heading", { level: 2 });
   await expect(heading).toBeVisible();
   const shown = (await heading.textContent())!;
-  const matches = fetched.filter((candidate) => candidate.questions[0]!.prompt === shown);
-  expect(matches, `no fetched session starts with "${shown}"`).not.toHaveLength(0);
-  return matches.at(-1)!;
+  const startsWithShown = (candidate: QuizSession) => candidate.questions[0]!.prompt === shown;
+  const matches = fetched.filter(startsWithShown);
+  if (matches.length) return matches.at(-1)!;
+  let saved: QuizSession[] = [];
+  await expect.poll(async () => {
+    saved = (await savedSessions(page)).filter((candidate) => candidate.catalog_version && startsWithShown(candidate));
+    return saved.length;
+  }, { message: `no fetched or saved session starts with "${shown}"` }).toBeGreaterThan(0);
+  return saved.at(-1)!;
 }
 
 async function expectInsideViewport(page: Page, testId: string) {
@@ -235,6 +263,10 @@ for (const locale of locales)
 test.describe("a published session keeps its clue state after a reload", () => {
   for (const locale of locales) {
     test(`quiz ${locale.id}: the same artifact gives the same clue state after reload`, async ({ page, baseURL }) => {
+      // A catalog round is drawn again after its progress is dropped; this
+      // check is about the published decade session, so keep the catalog out.
+      await page.route("**/data/catalog-manifest-v1.json", (route) => route.fulfill({ status: 404, body: "" }));
+      await page.route("**/data/catalog.*", (route) => route.fulfill({ status: 404, body: "" }));
       const firstLoad = await openSession(page, baseURL!, locale.path, "standard", "decade=2000");
       const first = await startAndMatch(page, firstLoad);
       const hasClue = first.questions[0]!.clues_available.length > 0;

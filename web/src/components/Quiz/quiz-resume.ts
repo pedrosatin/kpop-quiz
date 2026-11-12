@@ -1,5 +1,11 @@
 import { CatalogArtifactError, loadQuizCatalog, type QuizCatalog } from "../../data/catalog-loader";
-import { CatalogSelectionError, catalogAvailableDecades } from "../../data/catalog-session";
+import {
+  CatalogSelectionError,
+  buildCatalogSession,
+  catalogAvailableDecades,
+} from "../../data/catalog-session";
+import type { QuizQuestion, QuizSession } from "../../lib/quiz-types";
+import type { QuizDecadeValue } from "./url-params";
 import {
   checkQuizProgressCompatibility,
   clearQuizProgress,
@@ -93,19 +99,41 @@ function isResumableCatalogSave(
   return true;
 }
 
+/**
+ * The session the live catalog builds for the saved question ids, or null when
+ * one of them is no longer in it. A catalog round has no published bytes to
+ * compare with, so this is the artifact its save is checked against.
+ */
+async function catalogSessionFor(
+  catalog: QuizCatalog,
+  save: QuizProgressSave,
+  decades: readonly QuizDecadeValue[],
+): Promise<QuizSession | null> {
+  const byId = new Map(catalog.questions.map((question) => [question.id, question]));
+  const questions = save.session.questions.map((question) => byId.get(question.id));
+  if (questions.some((question) => question === undefined)) return null;
+  try {
+    return await buildCatalogSession(catalog, questions as QuizQuestion[], decades);
+  } catch (error) {
+    if (error instanceof CatalogSelectionError) return null;
+    throw error;
+  }
+}
+
 function adoptCatalogSave(
   ctx: QuizLoadContext,
   save: QuizProgressSave,
   catalog: QuizCatalog,
+  session: QuizSession | null,
   config: QuizProgressConfigIdentity,
 ): boolean {
   const { locale, settings, match } = ctx;
-  const compat = checkQuizProgressCompatibility(save, {
+  const compat = session === null ? "incompatible" : checkQuizProgressCompatibility(save, {
     locale,
     playMode: settings.playMode,
     theme: settings.theme,
     decades: settings.decades,
-    session: save.session,
+    session,
     sessionSource: "catalog",
     catalogVersion: catalog.catalogVersion,
   });
@@ -133,7 +161,9 @@ export async function tryResumeCatalog(ctx: QuizLoadContext, request: number): P
   try {
     const catalog = await loadQuizCatalog(locale, settings.playMode);
     if (request !== match.loadRequestRef.current) return true;
-    return adoptCatalogSave(ctx, save, catalog, config);
+    const session = await catalogSessionFor(catalog, save, settings.decades);
+    if (request !== match.loadRequestRef.current) return true;
+    return adoptCatalogSave(ctx, save, catalog, session, config);
   } catch (error) {
     if (request !== match.loadRequestRef.current) return true;
     if (isCatalogMissing(error)) {
