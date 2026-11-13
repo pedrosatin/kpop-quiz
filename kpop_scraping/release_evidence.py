@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from .evidence import WikipediaPage
-from .mediawiki import MAX_EXTRACTS_PER_REQUEST, MediaWikiClient, Page
+from .mediawiki import EXTRACT_OVERSIZE, MAX_EXTRACTS_PER_REQUEST, MediaWikiClient, Page
 from .storage import utc_now
 
 
@@ -168,6 +168,9 @@ def _page_rejection(page: Page | None, qid: str) -> str | None:
         return "page_list"
     if page.wikidata_id != qid:
         return "page_wikidata_mismatch"
+    # Checked before any read of the extract: save_pages would not store it.
+    if page.is_extract_oversize:
+        return EXTRACT_OVERSIZE
     if not page.extract.strip():
         return "page_extract_empty"
     lead = page.extract.split(".", 1)[0]

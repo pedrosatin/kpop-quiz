@@ -14,7 +14,13 @@ from dataclasses import dataclass
 
 from .evidence import WikipediaPage
 from .fact_store import FactStore
-from .mediawiki import MAX_EXTRACTS_PER_REQUEST, MAX_REVISIONS_PER_REQUEST, MediaWikiClient, Page
+from .mediawiki import (
+    EXTRACT_OVERSIZE,
+    MAX_EXTRACTS_PER_REQUEST,
+    MAX_REVISIONS_PER_REQUEST,
+    MediaWikiClient,
+    Page,
+)
 from .storage import utc_now
 
 LANGUAGE = "en"
@@ -107,6 +113,9 @@ def _page_rejection(page: Page | None, qid: str) -> str | None:
         return "page_disambiguation"
     if page.wikidata_id != qid:
         return "page_wikidata_mismatch"
+    # The snapshot would keep the extract, and save_pages does not store one this large.
+    if page.is_extract_oversize:
+        return EXTRACT_OVERSIZE
     return None
 
 

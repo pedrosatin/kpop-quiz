@@ -34,6 +34,13 @@ class MediaWikiError(RuntimeError):
 MAX_EXTRACTS_PER_REQUEST = 20
 # The Action API accepts 50 revision IDs per request for regular clients.
 MAX_REVISIONS_PER_REQUEST = 50
+# Largest intro extract, in UTF-8 bytes, that the pipeline stores and reads as
+# evidence. The evidence rules run regexes and sentence loops over the whole
+# extract, so its size bounds their cost. The largest extract in the database
+# had 3.7 KB in November 2026. A page above the limit is refused and recorded
+# with EXTRACT_OVERSIZE instead of reaching those rules.
+MAX_EXTRACT_BYTES = 32 * 1024
+EXTRACT_OVERSIZE = "page_extract_oversize"
 RETRYABLE_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
 MAX_RETRY_AFTER_SECONDS = 120.0
 _ASCII_SECONDS = re.compile(r"[0-9]+")
@@ -68,6 +75,22 @@ class Page:
     is_redirect: bool = False
     is_disambiguation: bool = False
     is_missing: bool = False
+
+    @property
+    def extract_bytes(self) -> int:
+        """UTF-8 size of the largest extract text this page carries.
+
+        The snapshot keeps the extract of ``source_payload`` as the API sent
+        it, and the evidence rules read that copy back, so it counts as well
+        as the stripped ``extract``.
+        """
+        stored = (self.source_payload or {}).get("extract")
+        texts = (self.extract, stored) if isinstance(stored, str) else (self.extract,)
+        return max(len(text.encode("utf-8")) for text in texts)
+
+    @property
+    def is_extract_oversize(self) -> bool:
+        return self.extract_bytes > MAX_EXTRACT_BYTES
 
 
 class MediaWikiClient:

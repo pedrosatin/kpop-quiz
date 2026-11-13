@@ -4,7 +4,13 @@ from io import BytesIO
 from unittest.mock import patch
 from urllib.error import HTTPError
 
-from kpop_scraping.mediawiki import MediaWikiClient, MediaWikiError, parse_retry_after
+from kpop_scraping.mediawiki import (
+    MAX_EXTRACT_BYTES,
+    MediaWikiClient,
+    MediaWikiError,
+    Page,
+    parse_retry_after,
+)
 
 
 class Response(BytesIO):
@@ -208,3 +214,42 @@ class MediaWikiClientTest(unittest.TestCase):
     def test_resolve_titles_rejects_a_response_without_pages(self, _get):
         with self.assertRaisesRegex(MediaWikiError, "unexpected shape"):
             MediaWikiClient().resolve_titles(["A"])
+
+
+class PageExtractLimitTest(unittest.TestCase):
+    def page(self, extract, source_payload=None):
+        return Page(1, "A", "https://example.test/A", extract, 42, source_payload)
+
+    def test_limit_is_32_kib(self):
+        self.assertEqual(MAX_EXTRACT_BYTES, 32 * 1024)
+
+    def test_extract_at_the_limit_is_kept_and_one_byte_more_is_oversize(self):
+        self.assertFalse(self.page("a" * 31 * 1024).is_extract_oversize)
+        self.assertFalse(self.page("a" * MAX_EXTRACT_BYTES).is_extract_oversize)
+        self.assertTrue(self.page("a" * (MAX_EXTRACT_BYTES + 1)).is_extract_oversize)
+        self.assertTrue(self.page("a" * 33 * 1024).is_extract_oversize)
+
+    def test_limit_counts_utf8_bytes_not_characters(self):
+        # A Hangul syllable takes three bytes: 10922 fit in the limit, 10923 do not.
+        within = self.page("가" * 10922)
+        above = self.page("가" * 10923)
+        self.assertEqual((within.extract_bytes, above.extract_bytes), (32766, 32769))
+        self.assertFalse(within.is_extract_oversize)
+        self.assertTrue(above.is_extract_oversize)
+
+    def test_limit_counts_the_extract_kept_in_the_snapshot_payload(self):
+        # The stripped extract fits, but the snapshot would store the padded copy.
+        padded = "Intro." + " " * MAX_EXTRACT_BYTES
+        page = self.page(padded.strip(), {"pageid": 1, "extract": padded})
+        self.assertEqual(page.extract_bytes, len(padded))
+        self.assertTrue(page.is_extract_oversize)
+        self.assertFalse(self.page("Intro.", {"pageid": 1}).is_extract_oversize)
+
+    @patch.object(MediaWikiClient, "_get")
+    def test_group_and_title_queries_return_pages_that_know_their_extract_is_oversize(self, get):
+        item = {"pageid": 1, "title": "A", "extract": "a" * 33 * 1024, "revisions": [{"revid": 42}]}
+        get.return_value = {"query": {"pages": [item]}}
+        client = MediaWikiClient()
+        self.assertTrue(client.get_pages([1])[0].is_extract_oversize)
+        self.assertTrue(client.get_pages_by_titles(["A"])[0].is_extract_oversize)
+        self.assertTrue(client.resolve_titles(["A"])["A"].is_extract_oversize)

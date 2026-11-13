@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from kpop_scraping.evidence import WikipediaPage, release_date_evidence, release_performer_evidence
 from kpop_scraping.entities import GREGORIAN_CALENDAR, TimeValue
-from kpop_scraping.mediawiki import MediaWikiError, Page
+from kpop_scraping.mediawiki import MAX_EXTRACT_BYTES, MediaWikiError, Page
 from kpop_scraping.release_evidence import (
     _PageRequest,
     _match_pages,
@@ -622,6 +622,20 @@ class ReleaseFactTest(unittest.TestCase):
         self.assertEqual(_page_rejection(Page(**{**base.__dict__, "wikidata_id": "Q2"}), "Q1"), "page_wikidata_mismatch")
         self.assertEqual(_page_rejection(Page(**{**base.__dict__, "is_disambiguation": True}), "Q1"), "page_disambiguation")
 
+    def test_release_page_policy_rejects_an_extract_above_the_size_limit(self):
+        lead = "Alpha is an album."
+        at_limit = Page(1, "Alpha", "u", lead + "a" * (MAX_EXTRACT_BYTES - len(lead)), 2, wikidata_id="Q1")
+        above = Page(**{**at_limit.__dict__, "extract": at_limit.extract + "a"})
+        self.assertIsNone(_page_rejection(at_limit, "Q1"))
+        self.assertEqual(_page_rejection(above, "Q1"), "page_extract_oversize")
+        # The size is checked before the lead is read: no release noun, same reason.
+        self.assertEqual(
+            _page_rejection(Page(**{**above.__dict__, "extract": "a" * 33 * 1024}), "Q1"),
+            "page_extract_oversize",
+        )
+        # A page of another item keeps the identity reason.
+        self.assertEqual(_page_rejection(above, "Q2"), "page_wikidata_mismatch")
+
 class ReleaseMigrationTest(unittest.TestCase):
     def test_v5_rows_ids_and_foreign_keys_survive_release_migration(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -948,6 +962,58 @@ class ReleasePipelineScopeTest(unittest.TestCase):
                 "SELECT pages_collected FROM collection_runs ORDER BY id DESC LIMIT 1"
             ).fetchone()[0],
             42,
+        )
+
+    def test_release_page_of_33_kib_is_rejected_and_the_31_kib_one_is_kept(self):
+        self.connection.executemany(
+            """INSERT INTO entities(
+                id,wikidata_id,entity_type,canonical_name,snapshot_id,created_at,updated_at
+            ) VALUES (?,?,?,?,1,'t','t')""",
+            [(100, "QS0", "album", "Big"), (101, "QS1", "album", "Fits")],
+        )
+        releases = tuple(
+            (100 + index, 1, f"QS{index}", object(), {"sitelinks": {"enwiki": {"title": title}}})
+            for index, title in enumerate(("Big", "Fits"))
+        )
+        sizes = {"Big": 33 * 1024, "Fits": 31 * 1024}
+
+        class WikiClient:
+            def get_pages_by_titles(self, titles):
+                pages = []
+                for title in titles:
+                    lead = f"{title} is an album by Group One. "
+                    pages.append(Page(
+                        7000 + len(title), title, f"https://en.example/{title}",
+                        lead + "a" * (sizes[title] - len(lead)), 8000 + len(title),
+                        wikidata_id="QS0" if title == "Big" else "QS1",
+                    ))
+                return pages
+
+        pages = collect_release_pages(self.repository, releases, {"en": WikiClient()})
+
+        self.assertEqual(list(pages), ["QS1"])
+        self.assertEqual(len(pages["QS1"][0].extract.encode("utf-8")), 31 * 1024)
+        states = self.connection.execute(
+            """SELECT release_entity_id,state,reason,source_revision_id IS NOT NULL
+            FROM release_source_pages WHERE release_entity_id IN (100,101) AND language='en'
+            ORDER BY release_entity_id"""
+        ).fetchall()
+        self.assertEqual(
+            [tuple(row) for row in states],
+            [(100, "rejected", "page_extract_oversize", 0), (101, "accepted", None, 1)],
+        )
+        # The oversize revision left no page row; the run closed with the other page.
+        self.assertEqual(
+            [row[0] for row in self.connection.execute(
+                "SELECT external_page_id FROM source_pages WHERE external_page_id>=7000"
+            )],
+            [7004],
+        )
+        self.assertEqual(
+            tuple(self.connection.execute(
+                "SELECT status,pages_collected FROM collection_runs ORDER BY id DESC LIMIT 1"
+            ).fetchone()),
+            ("completed", 1),
         )
 
     def test_release_page_batch_stops_when_a_request_fails(self):

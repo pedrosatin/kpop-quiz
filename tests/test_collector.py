@@ -4,7 +4,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 from kpop_scraping.collector import collect_category
-from kpop_scraping.mediawiki import Page
+from kpop_scraping.mediawiki import MAX_EXTRACT_BYTES, Page
 from kpop_scraping.storage import Repository
 
 
@@ -69,6 +69,32 @@ class RecordingBatchClient:
                 f"https://example.test/{page_id}",
                 "text",
                 7,
+            )
+            for page_id in page_ids
+        ]
+
+
+class ExtractSizeClient:
+    """Serve page 10 with an extract of the given size and page 20 with a short one."""
+
+    def __init__(self, size, revision_id=7):
+        self.size = size
+        self.revision_id = revision_id
+
+    def iter_category_members(self, _category):
+        yield {"pageid": 10, "title": "Alpha"}
+        yield {"pageid": 20, "title": "Beta"}
+
+    def get_pages(self, page_ids):
+        lead = "Alpha is a South Korean girl group. "
+        extracts = {10: lead + "a" * (self.size - len(lead)), 20: "Beta is a group."}
+        return [
+            Page(
+                page_id,
+                f"Group {page_id}",
+                f"https://example.test/{page_id}",
+                extracts[page_id],
+                self.revision_id,
             )
             for page_id in page_ids
         ]
@@ -140,3 +166,74 @@ class CollectorTest(unittest.TestCase):
         self.assertEqual(revision_count, 0)
         self.assertEqual(run["status"], "failed")
         self.assertIn("disk full", run["error"])
+
+    def test_extract_of_33_kib_is_recorded_as_issue_and_the_run_continues(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with Repository(root / "test.db", raw_dir=root / "raw") as repository:
+                count = collect_category(ExtractSizeClient(33 * 1024), repository, "Category:Test")
+                issues = repository.connection.execute(
+                    "SELECT external_page_id, title, issue_code, detail FROM collection_issues"
+                ).fetchall()
+                pages = repository.connection.execute(
+                    "SELECT external_page_id FROM source_pages"
+                ).fetchall()
+                entries = repository.connection.execute(
+                    "SELECT COUNT(*) FROM catalog_entries"
+                ).fetchone()[0]
+                run = repository.connection.execute(
+                    "SELECT status, pages_collected FROM collection_runs"
+                ).fetchone()
+            snapshots = [path for path in (root / "raw").rglob("*") if path.is_file()]
+        self.assertEqual(count, 1)
+        self.assertEqual(
+            [tuple(issue) for issue in issues],
+            [(
+                10, "Group 10", "page_extract_oversize",
+                f"Extract of revision 7 has {33 * 1024} UTF-8 bytes; the limit is {MAX_EXTRACT_BYTES}",
+            )],
+        )
+        # Only the short page left a page row, a catalog entry and a snapshot.
+        self.assertEqual([row["external_page_id"] for row in pages], [20])
+        self.assertEqual(entries, 1)
+        self.assertEqual(len(snapshots), 1)
+        self.assertEqual(tuple(run), ("completed", 1))
+
+    def test_extract_of_31_kib_is_collected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with Repository(Path(directory) / "test.db") as repository:
+                count = collect_category(ExtractSizeClient(31 * 1024), repository, "Category:Test")
+                issues = repository.connection.execute(
+                    "SELECT COUNT(*) FROM collection_issues"
+                ).fetchone()[0]
+                stored = repository.connection.execute(
+                    "SELECT length(CAST(extract AS BLOB)) FROM source_pages WHERE external_page_id=10"
+                ).fetchone()[0]
+                entries = repository.connection.execute(
+                    "SELECT COUNT(*) FROM catalog_entries"
+                ).fetchone()[0]
+        self.assertEqual((count, issues, stored, entries), (2, 0, 31 * 1024, 2))
+
+    def test_oversize_revision_leaves_the_revision_collected_before_in_place(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with Repository(Path(directory) / "test.db") as repository:
+                collect_category(ExtractSizeClient(31 * 1024, revision_id=7), repository, "Category:Test")
+                count = collect_category(
+                    ExtractSizeClient(33 * 1024, revision_id=8), repository, "Category:Test"
+                )
+                analyzed = repository.connection.execute(
+                    """
+                    SELECT sp.external_page_id, sr.external_revision_id
+                    FROM catalog_entries ce
+                    JOIN source_pages sp ON sp.id = ce.source_page_id
+                    JOIN source_revisions sr ON sr.id = ce.source_revision_id
+                    ORDER BY sp.external_page_id
+                    """
+                ).fetchall()
+                issue = repository.connection.execute(
+                    "SELECT collection_run_id, external_page_id, issue_code FROM collection_issues"
+                ).fetchone()
+        self.assertEqual(count, 1)
+        # Page 10 keeps revision 7 as the analyzed one; page 20 moved to revision 8.
+        self.assertEqual([tuple(row) for row in analyzed], [(10, 7), (20, 8)])
+        self.assertEqual(tuple(issue), (2, 10, "page_extract_oversize"))
