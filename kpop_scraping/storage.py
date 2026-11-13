@@ -1120,9 +1120,11 @@ class Repository:
         A missing page and a page whose extract exceeds ``MAX_EXTRACT_BYTES``
         are recorded in ``collection_issues`` and skipped: no snapshot, page
         row or catalog entry is written for them, and what an earlier run
-        stored stays as it was. Every flow that collects Wikipedia pages
-        (groups, releases, people) saves through this method, and the evidence
-        rules read the extract back from the snapshot written here.
+        stored stays as it was. Group, release and person collection all save
+        through this method. Group and release evidence read the extract back
+        from the snapshot written here. A caller that looks up the stored row
+        afterwards must refuse an oversize page first, as ``_page_rejection``
+        does.
         """
         fetched_at = utc_now()
         saved = 0

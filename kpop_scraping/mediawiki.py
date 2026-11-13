@@ -36,8 +36,8 @@ MAX_EXTRACTS_PER_REQUEST = 20
 MAX_REVISIONS_PER_REQUEST = 50
 # Largest intro extract, in UTF-8 bytes, that the pipeline stores and reads as
 # evidence. The evidence rules run regexes and sentence loops over the whole
-# extract, so its size bounds their cost. The largest extract in the database
-# had 3.7 KB in November 2026. A page above the limit is refused and recorded
+# extract, so its size bounds their cost. The largest extract in the local
+# database was 3.7 KB in November 2026. A page above the limit is refused and recorded
 # with EXTRACT_OVERSIZE instead of reaching those rules.
 MAX_EXTRACT_BYTES = 32 * 1024
 EXTRACT_OVERSIZE = "page_extract_oversize"

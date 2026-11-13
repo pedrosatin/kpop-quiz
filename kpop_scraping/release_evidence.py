@@ -140,6 +140,11 @@ def _store_page_result(repository, pages, item: _PageRequest, page: Page) -> int
           AND sp.external_page_id=? AND sr.external_revision_id=?""",
         (item.language, page.page_id, page.revision_id),
     ).fetchone()
+    if row is None:
+        raise RuntimeError(
+            f"release page {page.page_id} revision {page.revision_id} was not stored; "
+            "_page_rejection must refuse a page that save_pages skips"
+        )
     _record(
         repository, item.entity_id, item.language, item.snapshot_id, "accepted", None,
         int(row["page_id"]), int(row["revision_id"]),

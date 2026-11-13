@@ -1,7 +1,9 @@
 """Collect the English Wikipedia page of each person whose birth facts need it.
 
 The page is evidence only when it is the person's own page: it must resolve
-without a redirect, declare the person's Wikidata item and carry wikitext.
+without a redirect, declare the person's Wikidata item, carry wikitext and
+have an intro extract within ``MAX_EXTRACT_BYTES``: a larger page is not stored,
+even though the evidence read here comes from the infobox.
 Every request ends in a row of ``person_source_pages`` that says which revision
 was kept or why the page was refused, so a reviewer can trace a rejected fact
 back to its collection.
@@ -113,7 +115,7 @@ def _page_rejection(page: Page | None, qid: str) -> str | None:
         return "page_disambiguation"
     if page.wikidata_id != qid:
         return "page_wikidata_mismatch"
-    # The snapshot would keep the extract, and save_pages does not store one this large.
+    # save_pages skips a page this large, and _keep would then find no stored revision.
     if page.is_extract_oversize:
         return EXTRACT_OVERSIZE
     return None
@@ -133,6 +135,11 @@ def _keep(store: FactStore, run_id: int, request: PersonPageRequest, page: Page)
         """,
         (LANGUAGE, page.page_id, page.revision_id),
     ).fetchone()
+    if row is None:
+        raise RuntimeError(
+            f"person page {page.page_id} revision {page.revision_id} was not stored; "
+            "_page_rejection must refuse a page that save_pages skips"
+        )
     return _Kept(request, page, int(row["page_id"]), int(row["revision_id"]))
 
 
