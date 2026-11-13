@@ -271,10 +271,8 @@ for (const locale of locales) {
         await expectPublishedBarHeight(page);
         await scrollToEnd(map);
         await expectUncovered(map, "the map");
-        // A country's box center can fall on the sea, so only its box is
-        // checked. At 360px the map's Answer still overflows the bar in
-        // English; the map ticket on small countries owns that layout.
-        await expectEndReachable(page, "the last country", { tap: false, horizontal: false });
+        // A country's box center can fall on the sea, so only its box is checked.
+        await expectEndReachable(page, "the last country", { tap: false });
       });
     });
   }

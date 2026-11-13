@@ -6,6 +6,8 @@ export interface MapPilotCopy {
   question: (date: string) => string;
   instructions: string;
   mapLabel: string;
+  zoomHint: string;
+  zoomOut: string;
   resultMapLabel: string;
   countryChoices: string;
   pickPlaceholder: string;
@@ -31,8 +33,10 @@ export const MAP_PILOT_COPY: Record<Locale, MapPilotCopy> = {
     loading: "Preparando a rodada de hoje…",
     empty: "Não há perguntas de mapa disponíveis.",
     question: (date) => `Em qual país a agenda oficial listou um show de BLACKPINK em ${date}?`,
-    instructions: "Selecione um país no mapa ou na lista e toque em Responder. Países pequenos ficam mais fáceis pela lista.",
+    instructions: "Escolha o país e toque em Responder.",
     mapLabel: "Mapa interativo de países. Use Tab e Enter para selecionar uma área destacada; depois use Responder.",
+    zoomHint: "Toque no mapa para aproximar",
+    zoomOut: "Mapa inteiro",
     resultMapLabel: "Mapa com os países das datas desta rodada.",
     countryChoices: "Países desta rodada",
     pickPlaceholder: "Escolha um país",
@@ -56,8 +60,10 @@ export const MAP_PILOT_COPY: Record<Locale, MapPilotCopy> = {
     loading: "Preparing today's round…",
     empty: "No map questions are available.",
     question: (date) => `Which country did the official schedule list for a BLACKPINK show on ${date}?`,
-    instructions: "Select a country on the map or in the list, then press Answer. Small countries are easier to pick from the list.",
+    instructions: "Pick the country, then press Answer.",
     mapLabel: "Interactive country map. Use Tab and Enter to select a highlighted area, then press Answer.",
+    zoomHint: "Tap the map to zoom in",
+    zoomOut: "Whole map",
     resultMapLabel: "Map of the countries of this round's dates.",
     countryChoices: "Countries in this round",
     pickPlaceholder: "Choose a country",

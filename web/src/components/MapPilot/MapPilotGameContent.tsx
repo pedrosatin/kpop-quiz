@@ -1,42 +1,27 @@
-import { useGameAnalytics, type GameOutcome } from "../../lib/game-analytics";
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useGameAnalytics } from "../../lib/game-analytics";
+import { useMemo, useRef, useState } from "preact/hooks";
 import {
   mapPilotCountries,
   mapPilotCountryLabel,
-  mapPilotFeatures,
-  mapPilotMetadata,
   type MapPilotCountry,
   type MapPilotEvent,
 } from "../../data/map-pilot";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
-import { storeMapPilotSave } from "./map-pilot-save";
 import { useRecordMapMatch } from "./useRecordMapMatch";
-import { formatMapDate, MapPilotResult } from "./MapPilotResult";
+import { formatMapDate } from "./MapPilotResult";
 import type { MapPilotCopy } from "./map-pilot-copy";
-import {
-  MapPilotFeedbackMessage,
-  mapPilotBarState,
-  type AnswerState,
-  type ShareNotice,
-} from "./map-pilot-feedback";
-import { MapPilotNextButton, MapPilotPickForm } from "./MapPilotControls";
+import { MapPilotCountryList } from "./MapPilotControls";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
+import { MapPilotMap } from "./MapPilotMap";
+import { MapPilotActionBar } from "./MapPilotActionBar";
+import { deriveMapTurn, type RoundState } from "./map-pilot-turn";
+import { classes } from "./map-pilot-targets";
+import { NEXT_GUARD_MS, useMapRoundActions } from "./useMapRoundActions";
+import { useSaveMapRound } from "./useSaveMapRound";
 
-/** How long Next ignores activation after it replaces the answer controls. */
-export const NEXT_GUARD_MS = 300;
-
-// Equirectangular 1200x600 map cropped to 84°N–60°S. The polar rows hold no tour dates.
-const MAP_VIEW_BOX = "0 20 1200 480";
-
-export interface RoundState {
-  gaveUp?: boolean;
-  replay?: boolean;
-  date: string;
-  answers: string[];
-  index: number;
-}
+export { NEXT_GUARD_MS, type RoundState };
 
 export interface MapPilotGameContentProps {
   locale: Locale;
@@ -46,13 +31,6 @@ export interface MapPilotGameContentProps {
   round: MapPilotEvent[];
   playableFeatures: Set<string>;
   countryByFeature: Map<string, MapPilotCountry>;
-}
-
-/** The Map shows only a score, so a win follows the Quiz rule: at least half right. */
-function mapRoundOutcome(round: MapPilotEvent[], answers: string[], gaveUp: boolean): GameOutcome {
-  if (gaveUp || answers.length < round.length) return "give_up";
-  const correct = round.filter((event, index) => answers[index] === event.map_feature_id).length;
-  return correct >= Math.ceil(round.length / 2) ? "win" : "loss";
 }
 
 export function MapPilotGameContent({
@@ -66,135 +44,47 @@ export function MapPilotGameContent({
 }: MapPilotGameContentProps) {
   const messages = getMessages(locale);
   const [listChoice, setListChoice] = useState("");
-  // Answer pressed with no country picked: the live region says so.
-  const [pickPrompt, setPickPrompt] = useState(0);
-  const gaveUpRound = game.gaveUp === true;
-  const [notice, setNotice] = useState<ShareNotice | null>(null);
-  const notices = useRef(0);
   const nextButton = useRef<HTMLButtonElement>(null);
   const resultTitle = useRef<HTMLHeadingElement>(null);
-  const answeredAt = useRef(-Infinity);
-  // Only what the player does in this visit moves focus; a round restored
-  // from storage leaves focus where the page put it.
-  const playedHere = useRef(false);
-  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
-  const confirmGiveUpOpenRef = useRef(false);
 
-  const questionIndex = game.index;
-  const answers = game.answers;
-  const isComplete = round.length > 0 && questionIndex >= round.length;
-  const outcome = isComplete ? mapRoundOutcome(round, answers, gaveUpRound) : null;
+  const turn = deriveMapTurn(game, round, listChoice, countryByFeature);
+  const { isComplete, current, questionIndex, selectedFeature } = turn;
   const analytics = useGameAnalytics(
     {
       game: "map",
       locale,
       // The save is what remembers a replay.
       isDaily: () => !game.replay,
-      outcome,
+      outcome: turn.outcome,
     },
     isComplete,
-    answers.length > 0,
+    game.answers.length > 0,
   );
-  useRecordMapMatch(game.date, isComplete, outcome === "win", game.replay === true);
-  const current = isComplete ? undefined : (round[questionIndex] as MapPilotEvent | undefined);
-  const selectedFeature = answers.length > questionIndex ? answers[questionIndex]! : null;
-  // Pending pick from map/list/select; only Responder commits it into answers.
-  const pendingFeature = listChoice || null;
-  const highlightFeature = selectedFeature ?? pendingFeature;
-  const answerCountry = current ? countryByFeature.get(current.map_feature_id) : undefined;
-  const selectedCountry = selectedFeature ? countryByFeature.get(selectedFeature) : undefined;
-  const answerState: AnswerState = selectedFeature === null || !current
-    ? null
-    : selectedFeature === current.map_feature_id
-      ? "correct"
-      : "incorrect";
+  const actions = useMapRoundActions({ game, setGame, round, playableFeatures, setListChoice, analytics });
+  useRecordMapMatch(game.date, isComplete, turn.outcome === "win", game.replay === true);
+  useSaveMapRound(game, round, isComplete);
 
-  // Save after every answer and every Next, so a reload resumes the date on
-  // screen or the result. An untouched round is not saved, but a finished
-  // one is, even with zero answers after a give-up. So is a replay, or a reload
-  // would turn it back into the day's round.
-  useEffect(() => {
-    if (round.length === 0 || (game.answers.length === 0 && !isComplete && !game.replay)) return;
-    storeMapPilotSave(game.date, {
-      events: round.map((event) => event.event_mbid),
-      answers: game.answers,
-      index: game.index,
-      ...(game.gaveUp ? { gaveUp: true } : {}),
-      ...(game.replay ? { replay: true } : {}),
-    });
-  }, [game, round]);
-
-  // Next appears in the sticky action bar, already in view, so focusing it
-  // lets Enter advance without moving the page.
-  useFocusOnChange(nextButton, answerState !== null && playedHere.current, questionIndex);
+  // Only what the player does in this visit moves focus; a round restored
+  // from storage leaves focus where the page put it. Next appears in the
+  // sticky action bar, already in view, so focusing it lets Enter advance
+  // without moving the page.
+  useFocusOnChange(nextButton, turn.answerState !== null && actions.playedHere.current, questionIndex);
   // At the end the result takes the bar, so focus its title to start reading there.
-  useFocusOnChange(resultTitle, isComplete && playedHere.current);
+  useFocusOnChange(resultTitle, isComplete && actions.playedHere.current);
 
   const sortedCountries = useMemo(
     () => [...mapPilotCountries].sort((a, b) =>
       mapPilotCountryLabel(a, locale).localeCompare(mapPilotCountryLabel(b, locale), locale)),
     [locale],
   );
-
-  function selectPending(featureId: string) {
-    if (!current || selectedFeature !== null || !playableFeatures.has(featureId)) return;
-    analytics.start();
-    playedHere.current = true;
-    setListChoice(featureId);
-    setPickPrompt(0);
-  }
-
-  function submitAnswer(featureId: string) {
-    if (!current || selectedFeature !== null || !playableFeatures.has(featureId)) return;
-    analytics.start();
-    playedHere.current = true;
-    answeredAt.current = performance.now();
-    setListChoice("");
-    setPickPrompt(0);
-    setGame({ ...game, answers: [...game.answers, featureId] });
-  }
-
-  function nextQuestion() {
-    // Next takes the place of the answer controls: the second tap of a double
-    // tap, or a second Enter, meant for the answer must not skip the verdict.
-    if (performance.now() - answeredAt.current < NEXT_GUARD_MS) return;
-    analytics.start();
-    playedHere.current = true;
-    setListChoice("");
-    setPickPrompt(0);
-    setGame({ ...game, index: game.index + 1 });
-  }
-
-  function closeGiveUpConfirm() {
-    confirmGiveUpOpenRef.current = false;
-    setConfirmGiveUpOpen(false);
-  }
-
-  function requestGiveUp() {
-    if (isComplete) return;
-    confirmGiveUpOpenRef.current = true;
-    setConfirmGiveUpOpen(true);
-  }
-
-  function confirmGiveUp() {
-    if (!confirmGiveUpOpenRef.current || isComplete) return;
-    closeGiveUpConfirm();
-    analytics.start();
-    playedHere.current = true;
-    setListChoice("");
-    setPickPrompt(0);
-    setGame({ ...game, index: round.length, gaveUp: true });
-  }
-
   const roundFeatures = new Set(round.map((event) => event.map_feature_id));
-  const barState = mapPilotBarState(answerState);
 
   return (
     <section
-      class={`map-pilot-game${isComplete ? " is-complete" : ""}`}
+      class={classes("map-pilot-game", isComplete && "is-complete")}
       id="map-game"
       data-testid="game-board"
-      {...(isComplete ? {} : { "aria-labelledby": "map-game-title" })}
+      aria-labelledby={isComplete ? undefined : "map-game-title"}
     >
       {current && (
         <header class="map-pilot-question-header">
@@ -203,141 +93,55 @@ export function MapPilotGameContent({
         </header>
       )}
 
-      <div class="map-pilot-map-wrap">
-        <svg
-          class="map-pilot-world-map"
-          viewBox={MAP_VIEW_BOX}
-          role={isComplete ? "img" : "group"}
-          aria-label={isComplete ? copy.resultMapLabel : copy.mapLabel}
-        >
-          {mapPilotFeatures.map((feature) => {
-            if (!current) {
-              // The finished round: the countries of its dates, not playable.
-              return (
-                <path
-                  key={feature.id}
-                  d={feature.path}
-                  class={`map-pilot-feature ${roundFeatures.has(feature.id) ? "is-answer" : ""}`}
-                  fill-rule="evenodd"
-                />
-              );
-            }
-            const isPlayable = playableFeatures.has(feature.id);
-            const isSelected = highlightFeature === feature.id;
-            const isCorrect = selectedFeature !== null && current.map_feature_id === feature.id;
-            return (
-              <path
-                key={feature.id}
-                d={feature.path}
-                class={`map-pilot-feature ${isPlayable ? "is-playable" : ""} ${isSelected ? "is-selected" : ""} ${isCorrect ? "is-answer" : ""}`}
-                fill-rule="evenodd"
-                role={isPlayable ? "button" : undefined}
-                // Preact writes SVG attributes as spelled, and SVG only reads the
-                // lowercase names: tabIndex and fillRule did nothing, and Tab
-                // skipped the map.
-                tabindex={isPlayable && selectedFeature === null ? 0 : -1}
-                aria-label={isPlayable ? mapPilotCountryLabel(countryByFeature.get(feature.id)!, locale) : undefined}
-                aria-pressed={isPlayable ? isSelected : undefined}
-                onClick={isPlayable ? () => selectPending(feature.id) : undefined}
-                onKeyDown={isPlayable ? (event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    selectPending(feature.id);
-                  }
-                } : undefined}
-              />
-            );
-          })}
-        </svg>
-        <p class="map-pilot-attribution">{copy.mapCredit} {mapPilotMetadata.mapVersion} · {mapPilotMetadata.mapScale}</p>
-      </div>
+      <MapPilotMap
+        locale={locale}
+        copy={copy}
+        current={current}
+        questionIndex={questionIndex}
+        playableFeatures={playableFeatures}
+        roundFeatures={roundFeatures}
+        countryByFeature={countryByFeature}
+        selectedFeature={selectedFeature}
+        highlightFeature={turn.highlightFeature}
+        onSelect={actions.selectPending}
+      />
 
       {current && (
-        // Beside the map on wide screens; narrow screens use the select in the bar.
-        <div class="map-pilot-answers" role="group" aria-labelledby="map-country-choices">
-          <h3 id="map-country-choices" class="map-pilot-country-heading">{copy.countryChoices}</h3>
-          <div class="map-pilot-country-list">
-            {sortedCountries.map((country) => (
-              <button
-                key={country.map_feature_id}
-                type="button"
-                class={`map-pilot-country ${highlightFeature === country.map_feature_id ? "is-selected" : ""} ${selectedFeature !== null && country.map_feature_id === current.map_feature_id ? "is-answer" : ""}`}
-                disabled={selectedFeature !== null}
-                onClick={() => selectPending(country.map_feature_id)}
-                data-testid={`answer-country-${country.iso_3166_1}`}
-              >
-                {mapPilotCountryLabel(country, locale)}
-              </button>
-            ))}
-          </div>
-        </div>
+        <MapPilotCountryList
+          countries={sortedCountries}
+          locale={locale}
+          copy={copy}
+          highlightFeature={turn.highlightFeature}
+          selectedFeature={selectedFeature}
+          answerFeature={current.map_feature_id}
+          onPick={actions.selectPending}
+        />
       )}
 
-      {/* Only the message is a live region, so the buttons and links are not announced. */}
-      <div class={`game-actions map-pilot-actions${barState}`}>
-        <div
-          class={`game-actions-message${isComplete ? " visually-hidden" : ""}`}
-          role="status"
-          aria-live="polite"
-        >
-          <MapPilotFeedbackMessage
-            isComplete={isComplete}
-            answerState={answerState}
-            current={current}
-            answerCountry={answerCountry}
-            selectedCountry={selectedCountry}
-            pickPrompt={pickPrompt}
-            notice={notice}
-            locale={locale}
-            copy={copy}
-            messages={messages}
-          />
-        </div>
-        {isComplete ? (
-          <MapPilotResult
-            roundDate={game.date}
-            round={round}
-            answers={answers}
-            countryByFeature={countryByFeature}
-            locale={locale}
-            gaveUp={gaveUpRound || answers.length < round.length}
-            onCopied={() => setNotice({ kind: "copied", n: ++notices.current })}
-            onShareFailed={() => setNotice({ kind: "shareFailed", n: ++notices.current })}
-            titleRef={resultTitle}
-          />
-        ) : answerState ? (
-          <MapPilotNextButton
-            buttonRef={nextButton}
-            label={questionIndex + 1 === round.length ? copy.finish : copy.next}
-            onNext={nextQuestion}
-          />
-        ) : (
-          <MapPilotPickForm
-            listChoice={listChoice}
-            sortedCountries={sortedCountries}
-            locale={locale}
-            copy={copy}
-            onListChoice={setListChoice}
-            onClearPickPrompt={() => setPickPrompt(0)}
-            onChooseCountry={submitAnswer}
-            onEmptySubmit={() => setPickPrompt((value) => value + 1)}
-          />
-        )}
-        {!isComplete && (
-          <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
-            {messages.giveUp}
-          </button>
-        )}
-      </div>
+      <MapPilotActionBar
+        locale={locale}
+        copy={copy}
+        messages={messages}
+        game={game}
+        round={round}
+        turn={turn}
+        countryByFeature={countryByFeature}
+        sortedCountries={sortedCountries}
+        listChoice={listChoice}
+        setListChoice={setListChoice}
+        actions={actions}
+        nextButton={nextButton}
+        resultTitle={resultTitle}
+      />
 
       <ConfirmDialog
-        isOpen={confirmGiveUpOpen}
+        isOpen={actions.confirmGiveUpOpen}
         title={messages.giveUpConfirmTitle}
         body={messages.giveUpConfirmBody}
         confirmLabel={messages.giveUpConfirmAction}
         cancelLabel={messages.cancel}
-        onConfirm={confirmGiveUp}
-        onCancel={closeGiveUpConfirm}
+        onConfirm={actions.confirmGiveUp}
+        onCancel={actions.closeGiveUpConfirm}
       />
     </section>
   );
