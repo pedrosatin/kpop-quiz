@@ -113,16 +113,15 @@ def sample_word_search_puzzle() -> dict:
 
 
 def plant_repeated_word(puzzle: dict, reverse: bool = False) -> None:
-    """Write a second copy of the first word elsewhere in the grid, in place.
+    """Write a second copy of one declared word elsewhere in the grid, in place.
 
     The copy reads along a forward direction (right, down, or either diagonal
     to the right), or along the opposite one with ``reverse``. It only changes
     cells that no declared word uses, so every declared word still matches its
-    coordinates and only the uniqueness rule is broken.
+    coordinates and only the uniqueness rule is broken. The first word goes
+    first; when a published grid has no free run long enough for it, the
+    others are tried from the shortest.
     """
-    entry = puzzle["words"][0]
-    word = entry["word"]
-    declared = (entry["start_row"], entry["start_col"], entry["end_row"], entry["end_col"])
     used = {
         cell
         for other in puzzle["words"]
@@ -130,6 +129,16 @@ def plant_repeated_word(puzzle: dict, reverse: bool = False) -> None:
             other["start_row"], other["start_col"], other["end_row"], other["end_col"]
         )
     }
+    first, *others = puzzle["words"]
+    for entry in [first, *sorted(others, key=lambda entry: len(entry["word"]))]:
+        if _plant_copy(puzzle, entry, used, reverse):
+            return
+    raise AssertionError("no room for the repeated word")
+
+
+def _plant_copy(puzzle: dict, entry: dict, used: set, reverse: bool) -> bool:
+    word = entry["word"]
+    declared = (entry["start_row"], entry["start_col"], entry["end_row"], entry["end_col"])
     rows, cols = puzzle["dimensions"]["rows"], puzzle["dimensions"]["cols"]
     forward = [(0, 1), (1, 0), (1, 1), (-1, 1)]
     directions = [(-dr, -dc) for dr, dc in forward] if reverse else forward
@@ -146,8 +155,8 @@ def plant_repeated_word(puzzle: dict, reverse: bool = False) -> None:
                        for cell, letter in zip(cells, word)):
                     for (r, c), letter in zip(cells, word):
                         puzzle["grid"][r][c] = letter
-                    return
-    raise AssertionError("no room for the repeated word")
+                    return True
+    return False
 
 
 SCHEMA_JSON = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
