@@ -74,7 +74,7 @@ export function TimelineResults({
             return (
               <div key={event.id} class="timeline-evidence-event">
                 <h4 class="timeline-evidence-event-title">{eventTitle}</h4>
-                <TimelineEvidenceList evidence={event.evidence} locale={locale} revisionLabel={msgs.revision} />
+                <TimelineEvidenceList evidence={event.evidence} locale={locale} />
               </div>
             );
           })}

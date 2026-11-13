@@ -247,9 +247,9 @@ describe("Quiz", () => {
     expect(screen.getByText(question.explanation)).not.toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Ver fonte" }));
     expect(screen.getByText(question.explanation)).toBeVisible();
-    expect(screen.getAllByText(/Wikidata|Wikipedia/)[0]).toBeVisible();
+    expect(screen.getAllByText(/Wikidata|Wikipédia/)[0]).toBeVisible();
     expect(screen.queryByText(question.evidence[0]!.locator)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: /Abrir a revisão/ })[0]).toHaveAttribute("href", question.evidence[0]!.source_url);
+    expect(screen.getAllByRole("link", { name: /Abrir esta revisão/ })[0]).toHaveAttribute("href", question.evidence[0]!.source_url);
   });
 
   it("opens today's challenge on a visit whose URL names no theme, with the options closed under Customize", async () => {

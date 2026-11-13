@@ -8,6 +8,7 @@ import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
+import { projectSite, SourceCitation } from "../Source/SourceCitation";
 import { isEntrySolved, type CrosswordStatus } from "./crossword-save";
 
 /**
@@ -143,7 +144,7 @@ export function CrosswordResult({
         </div>
       )}
 
-      <div ref={source} id={sourceId} class="crossword-source" hidden={!sourceOpen}>
+      <div ref={source} id={sourceId} class="crossword-source source-panel" hidden={!sourceOpen}>
         {puzzle.entries.map((entry) => (
           <div key={entry.qid} class="crossword-source-word">
             <h3 class="crossword-source-title">{entry.canonical_name}</h3>
@@ -151,18 +152,18 @@ export function CrosswordResult({
               <strong>{messages.crosswordSourceClue}</strong> {entry.clue[locale]}
             </p>
             <ul>
-              {entry.sources.map((s) => {
-                const revision = new URL(s.url).searchParams.get("oldid");
-                return (
-                  <li key={s.locator}>
-                    {`Wikipedia, ${messages.revision} ${revision}.`}{" "}
-                    <a href={s.url} target="_blank" rel="noopener noreferrer">
-                      {messages.openRevision("Wikipedia")}
-                    </a>
-                    <span class="crossword-source-snippet">“{s.snippet}”</span>
-                  </li>
-                );
-              })}
+              {entry.sources.map((s) => (
+                <li key={s.locator}>
+                  <SourceCitation
+                    url={s.url}
+                    revision={new URL(s.url).searchParams.get("oldid")}
+                    locator={s.locator}
+                    fallbackSite={projectSite(s.url, messages)}
+                    messages={messages}
+                  />
+                  <span class="crossword-source-snippet">“{s.snippet}”</span>
+                </li>
+              ))}
             </ul>
           </div>
         ))}

@@ -153,7 +153,7 @@ export function GridResults({
       )}
 
       {/* Rendered on request: the busiest cells cite hundreds of places. */}
-      <div ref={source} id={sourceId} class="grid-source" hidden={!sourceOpen}>
+      <div ref={source} id={sourceId} class="grid-source source-panel" hidden={!sourceOpen}>
         {sourceOpen && <GridReview grid={grid} cellStates={cellStates} locale={locale} messages={messages} />}
       </div>
     </section>

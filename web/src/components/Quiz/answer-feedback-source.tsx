@@ -1,6 +1,8 @@
 import type { ComponentChildren } from "preact";
+import { useEffect, useRef } from "preact/hooks";
 import type { Messages } from "../../i18n/catalog";
 import type { DisplayEvidence } from "./answer-evidence";
+import { SourceCitation } from "../Source/SourceCitation";
 
 export function AnswerFeedbackSource({
   sourceOpen,
@@ -21,6 +23,13 @@ export function AnswerFeedbackSource({
   messages: Messages;
   onToggle: () => void;
 }) {
+  const panel = useRef<HTMLDivElement>(null);
+  // On phones the open panel grows the round past the screen; bring the bar
+  // into view so the panel and Next show together when they fit.
+  useEffect(() => {
+    if (sourceOpen) panel.current?.closest(".game-actions")?.scrollIntoView?.({ block: "nearest" });
+  }, [sourceOpen]);
+
   return (
     <>
       <button
@@ -32,7 +41,7 @@ export function AnswerFeedbackSource({
       >
         {sourceOpen ? messages.hideSource : messages.showSource}
       </button>
-      <div class="quiz-source" id={sourceId} hidden={!sourceOpen} tabIndex={0}>
+      <div ref={panel} class="quiz-source source-panel" id={sourceId} hidden={!sourceOpen}>
         {/* The bar clamps the verdict to two lines; the full answers stay here. */}
         {answers && <p>{answers}</p>}
         <p>{explanation}</p>
@@ -55,14 +64,17 @@ export function AnswerFeedbackSource({
 function SourceItem({ item, messages }: { item: DisplayEvidence; messages: Messages }) {
   return (
     <p class="quiz-source-item">
-      {item.project}, {messages.revision} {item.revision_id}.
-      {item.declaredReference && (
-        <> {messages.declaredReference}: {item.declaredReference}.</>
-      )}
-      {" "}
-      <a href={item.source_url} target="_blank" rel="noreferrer">
-        {messages.openRevision(item.project)}
-      </a>
+      <SourceCitation
+        url={item.source_url}
+        revision={item.revision_id}
+        locator={item.locator}
+        fallbackSite={messages.source.project(item.project)}
+        messages={messages}
+      >
+        {item.declaredReference && (
+          <> {messages.declaredReference}: {item.declaredReference}.</>
+        )}
+      </SourceCitation>
     </p>
   );
 }

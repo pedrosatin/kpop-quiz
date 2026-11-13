@@ -9,6 +9,7 @@ import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
+import { projectSite, SourceCitation } from "../Source/SourceCitation";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 /** The result as text: header, one row of squares per guess, then the link. */
@@ -101,8 +102,7 @@ export function NameGuessResults({
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "name-guess", locale } });
 
   // The bar stops being sticky while the panel is open, so the panel can open
-  // below the fold; bring it into view. It is capped in height, so the board
-  // stays on screen.
+  // below the fold; bring it into view.
   useEffect(() => {
     if (detailsOpen) details.current?.scrollIntoView?.({ block: "nearest" });
   }, [detailsOpen]);
@@ -114,13 +114,8 @@ export function NameGuessResults({
 
   const shareText = generateShareText({ puzzle, feedbacks, won, attempts: guesses.length, highContrast, locale });
 
-  const clues = target.clues;
-  const agencyName = typeof clues?.agency === "object" ? clues.agency[locale] : clues?.agency;
-  const descriptionText = clues?.description?.[locale];
-  const primaryEvidence = target.evidence[0];
-  const hasStats = Boolean(clues?.debut_year || agencyName || clues?.members_count);
   // The source link does not depend on the clues, so either one opens the panel.
-  const hasDetails = Boolean(clues || primaryEvidence);
+  const hasDetails = Boolean(target.clues || target.evidence[0]);
 
   return (
     <section aria-labelledby={titleId} class="name-guess-result" data-testid="game-result">
@@ -180,44 +175,58 @@ export function NameGuessResults({
       )}
 
       {hasDetails && (
-        <div ref={details} id={detailsId} class="callout name-guess-hints" hidden={!detailsOpen}>
-          {descriptionText && (
-            <p class="name-guess-hints-desc">
-              {descriptionText}
-            </p>
-          )}
-          {clues && hasStats && (
-            <div class="result-stats">
-              {clues.debut_year && (
-                <div class="result-stat">
-                  <span class="result-stat-label">{t.debutYear}</span> <strong class="result-stat-value">{clues.debut_year}</strong>
-                </div>
-              )}
-              {agencyName && (
-                <div class="result-stat">
-                  <span class="result-stat-label">{t.agency}</span> <strong class="result-stat-value name-guess-stat-text">{agencyName}</strong>
-                </div>
-              )}
-              {clues.members_count && (
-                <div class="result-stat">
-                  <span class="result-stat-label">{t.members}</span> <strong class="result-stat-value">{clues.members_count}</strong>
-                </div>
-              )}
-            </div>
-          )}
-          {primaryEvidence && (
-            <p class="name-guess-evidence">
-              <a
-                href={primaryEvidence.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {t.evidenceLink}
-              </a>
-            </p>
-          )}
+        <div ref={details} id={detailsId} class="callout name-guess-hints source-panel" hidden={!detailsOpen}>
+          <NameGuessDetails target={target} locale={locale} t={t} />
         </div>
       )}
     </section>
+  );
+}
+
+/** The panel behind "Ver fonte": description, stats and the cited revision. */
+function NameGuessDetails({ target, locale, t }: { target: NameGuessPuzzle["target"]; locale: Locale; t: NameGuessTranslations }) {
+  const clues = target.clues;
+  const agencyName = typeof clues?.agency === "object" ? clues.agency[locale] : clues?.agency;
+  const descriptionText = clues?.description?.[locale];
+  const primaryEvidence = target.evidence[0];
+  const hasStats = Boolean(clues?.debut_year || agencyName || clues?.members_count);
+  return (
+    <>
+      {descriptionText && (
+        <p class="name-guess-hints-desc">
+          {descriptionText}
+        </p>
+      )}
+      {clues && hasStats && (
+        <div class="result-stats">
+          {clues.debut_year && (
+            <div class="result-stat">
+              <span class="result-stat-label">{t.debutYear}</span> <strong class="result-stat-value">{clues.debut_year}</strong>
+            </div>
+          )}
+          {agencyName && (
+            <div class="result-stat">
+              <span class="result-stat-label">{t.agency}</span> <strong class="result-stat-value name-guess-stat-text">{agencyName}</strong>
+            </div>
+          )}
+          {clues.members_count && (
+            <div class="result-stat">
+              <span class="result-stat-label">{t.members}</span> <strong class="result-stat-value">{clues.members_count}</strong>
+            </div>
+          )}
+        </div>
+      )}
+      {primaryEvidence && (
+        <p class="name-guess-evidence">
+          <SourceCitation
+            url={primaryEvidence.source_url}
+            revision={primaryEvidence.revision_id}
+            locator={primaryEvidence.locator}
+            fallbackSite={projectSite(primaryEvidence.source_url, getMessages(locale))}
+            messages={getMessages(locale)}
+          />
+        </p>
+      )}
+    </>
   );
 }

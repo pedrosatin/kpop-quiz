@@ -38,8 +38,9 @@ export interface AnswerFeedbackProps {
  * The quiz action bar. Before an answer it holds the hint and Submit; after
  * it, the verdict, a toggle for the explanation and sources, and Next.
  * Only the message is a live region, so buttons and links are not announced.
- * The message and the sources panel are keyboard-focusable scroll regions in
- * DOM order, so Tab reaches each region before the controls that follow it.
+ * The message is a keyboard-focusable scroll region on phones. The sources
+ * panel shows at full height between the toggle and Next, so Tab goes from
+ * the toggle to its links and then to Next.
  * Mount it with a key per question so the sources start closed.
  */
 export function AnswerFeedback({

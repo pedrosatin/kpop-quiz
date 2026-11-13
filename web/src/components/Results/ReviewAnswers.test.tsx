@@ -135,7 +135,7 @@ describe("ReviewAnswers", () => {
     expect(screen.getByText("Pergunta 1 de 3")).toBeInTheDocument();
     expect(screen.getByText("Você acertou.")).toBeInTheDocument();
     expect(screen.getByText("Cheer Up foi lançado pelo TWICE em 2016.")).toBeInTheDocument();
-    const wikidataLink = screen.getByRole("link", { name: "Abrir a revisão no Wikidata" });
+    const wikidataLink = screen.getByRole("link", { name: "Abrir esta revisão no Wikidata" });
     expect(wikidataLink).toHaveAttribute(
       "href",
       "https://www.wikidata.org/wiki/Q1"
@@ -147,7 +147,7 @@ describe("ReviewAnswers", () => {
     expect(screen.getByText("Pergunta 2 de 3")).toBeInTheDocument();
     expect(screen.getAllByText("Não foi dessa vez.")).toHaveLength(2);
     expect(screen.getByText("Red Velvet estreou em agosto de 2014.")).toBeInTheDocument();
-    const wikipediaLink = screen.getByRole("link", { name: "Abrir a revisão na Wikipedia" });
+    const wikipediaLink = screen.getByRole("link", { name: "Abrir esta revisão na Wikipédia em português" });
     expect(wikipediaLink).toHaveAttribute(
       "href",
       "https://pt.wikipedia.org/wiki/Red_Velvet"
@@ -162,6 +162,14 @@ describe("ReviewAnswers", () => {
 
     // Verify it is purely informative (no buttons modifying answers or points)
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("names the project of a source URL it does not link", () => {
+    const item = sampleItems[0]!;
+    const evidence = [{ ...item.question.evidence[0]!, locator: "wikipedia:en:pageid=1:revid=8#wikitext[0:4]", revision_id: 8, source_url: "https://user:secret@en.wikipedia.org/w/index.php?oldid=8" }];
+    render(<ReviewAnswers items={[{ ...item, question: { ...item.question, evidence } }]} messages={ptMessages} />);
+    expect(screen.getByText("Wikipédia, revisão 8, na caixa de informações do artigo.")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("renders properly with English labels", () => {

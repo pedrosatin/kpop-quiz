@@ -251,10 +251,11 @@ describe("NameGuessGame component", () => {
     expect(hints).toBeVisible();
     expect(within(hints!).getAllByText(/JYP Entertainment/).length).toBeGreaterThanOrEqual(1);
     expect(within(hints!).getAllByText(/2015/).length).toBeGreaterThanOrEqual(1);
-    expect(within(hints!).getByRole("link", { name: tPt.evidenceLink })).toHaveAttribute(
+    expect(within(hints!).getByRole("link", { name: "Abrir esta revisão no Wikidata" })).toHaveAttribute(
       "href",
       puzzle.target.evidence[0]!.source_url,
     );
+    expect(hints).toHaveTextContent("Wikidata, revisão 1234567, na declaração \"data de criação\".");
 
     // Click copy results
     advanceClock();
@@ -276,11 +277,30 @@ describe("NameGuessGame component", () => {
     fireEvent.click(toggle);
     const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
     expect(panel).toBeVisible();
-    expect(within(panel).getByRole("link", { name: tPt.evidenceLink })).toHaveAttribute(
+    expect(within(panel).getByRole("link", { name: "Abrir esta revisão no Wikidata" })).toHaveAttribute(
       "href",
       puzzle.target.evidence[0]!.source_url,
     );
     expect(within(panel).queryByText(tPt.debutYear)).not.toBeInTheDocument();
+  });
+
+  it("names Wikipedia, not Wikidata, when the source is a Wikipedia revision", () => {
+    const locale = "pt-BR";
+    const url = "https://en.wikipedia.org/w/index.php?curid=46621949&oldid=1382324617";
+    const locator = "wikipedia:en:pageid=46621949:revid=1382324617#extract[192:196]";
+    const evidence = [{ ...puzzle.target.evidence[0]!, source_url: url, revision_id: 1382324617, locator }];
+    render(<NameGuessGame locale={locale} puzzle={{ ...puzzle, target: { ...puzzle.target, evidence } }} />);
+
+    typeGuess("TWICE");
+
+    const toggle = screen.getByRole("button", { name: getMessages(locale).nameGuess.showSource });
+    fireEvent.click(toggle);
+    const panel = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    const link = within(panel).getByRole("link", { name: "Abrir esta revisão na Wikipédia em inglês" });
+    expect(link).toHaveAttribute("href", url);
+    expect(link).toHaveAttribute("title", locator);
+    expect(panel).toHaveTextContent("Wikipédia em inglês, revisão 1382324617, no resumo do artigo.");
+    expect(panel.textContent).not.toContain("Wikidata");
   });
 
   it("hides the toggle when the target has neither clues nor a source", () => {

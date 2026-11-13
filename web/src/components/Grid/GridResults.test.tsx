@@ -181,7 +181,7 @@ describe("GridResults component", () => {
     for (const link of evidenceLinks) {
       expect(link).toHaveAttribute("target", "_blank");
       expect(link).toHaveAttribute("rel", "noopener noreferrer");
-      expect(link).toHaveAccessibleName("Abrir a revisão no Wikidata");
+      expect(link).toHaveAccessibleName("Abrir esta revisão no Wikidata");
     }
     expect(within(panel).getAllByText(/Wikidata, revisão 1001\./).length).toBeGreaterThan(0);
     expect(panel.querySelector(".grid-source-locator")).toHaveTextContent("Local na fonte: declaração P264 e sua referência");
@@ -189,6 +189,16 @@ describe("GridResults component", () => {
 
     fireEvent.click(toggle);
     expect(panel).toHaveAttribute("hidden");
+  });
+
+  it("names a Wikipedia source by site and language in Portuguese", () => {
+    const url = "https://en.wikipedia.org/w/index.php?curid=1&oldid=77";
+    const [first, ...rest] = validGrid.cells;
+    const cells = [{ ...first!, evidence: first!.evidence.map((e) => ({ ...e, revision_id: 77, source_url: url })) }, ...rest];
+    renderResults({ grid: { ...validGrid, cells } });
+    fireEvent.click(screen.getByRole("button", { name: "Ver fonte" }));
+    const link = screen.getAllByRole("link", { name: "Abrir esta revisão na Wikipédia em inglês" })[0]!;
+    expect(link.closest("li")!.textContent).toMatch(/^Wikipédia em inglês, revisão 77\./);
   });
 
   it("ignores Ver fonte right after the result appears and on a held Enter", () => {

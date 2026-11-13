@@ -118,9 +118,9 @@ describe("TimelineResults", () => {
       ],
     };
     render(<TimelineResults score={3} totalEvents={5} canonicalEvents={[eventWithInvalidUrl]} results={[true]} shareText={sampleShareText} locale="pt-BR" />);
-    expect(screen.getByRole("link", { name: "example.com" })).toHaveAttribute("href", "https://example.com/");
-    expect(screen.queryByRole("link", { name: "unsafe" })).not.toBeInTheDocument();
-    expect(screen.getByText("unsafe")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Abrir a fonte em example.com" })).toHaveAttribute("href", "https://example.com/");
+    expect(document.querySelector('a[href^="javascript"]')).toBeNull();
+    expect(screen.getByText("unsafe, revisão 2, no trecho citado.")).toBeInTheDocument();
   });
 
   it("calls navigator.share when available and invokes onShareSuccess", async () => {

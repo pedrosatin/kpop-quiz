@@ -154,11 +154,11 @@
 .map-pilot-share-fallback p { margin: 0; }
 .map-pilot-share-fallback .share-preview { max-width: none; }
 /*
-  The dates and sources open inside the bar, like the other games: the list
-  scrolls inside it, and the bar stops being sticky while it is open so it
-  does not cover the map; opening it scrolls it into view.
+  The dates and sources open inside the bar at full height, like the other
+  games (.source-panel), and the bar stops being sticky while it is open so
+  it does not cover the map; opening it scrolls it into view.
 */
-.map-pilot-source { flex: 1 1 100%; max-height: min(40dvh, 18rem); overflow-y: auto; scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3)); color: var(--color-text); font-size: 0.875rem; text-align: left; }
+.map-pilot-source { flex: 1 1 100%; scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3)); color: var(--color-text); font-size: 0.875rem; text-align: left; }
 .map-pilot-source[hidden] { display: none; }
 .map-pilot-actions:has(.map-pilot-source:not([hidden])) { position: static; }
 .map-pilot-review { margin: 0; padding-top: 0; border-top: 0; }
