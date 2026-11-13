@@ -1,4 +1,5 @@
 import type { RefObject } from "preact";
+import { useRef } from "preact/hooks";
 import {
   cellKey,
   entryCellKeys,
@@ -24,6 +25,10 @@ interface CrosswordGridProps {
   finished: boolean;
   selected: CrosswordEntry;
   inputs: RefObject<CrosswordInputs>;
+  /** Squares ("row:col") the last check found wrong or empty. */
+  wrongCells: ReadonlySet<string>;
+  /** Keeps the last square that had focus, so a check can return to it. */
+  cursor: RefObject<string | null>;
   onSelectEntry: (index: number) => void;
   onLetters: (updates: Record<string, string>) => void;
 }
@@ -55,22 +60,44 @@ export function nextSquare(puzzle: CrosswordPuzzle, inputs: CrosswordInputs, row
   return null;
 }
 
+/** The fixed or sticky overlays (consent banner, action bar) in the columns of `rect`. */
+function overlaysOver(rect: DOMRect, inside: Element): DOMRect[] {
+  const found: DOMRect[] = [];
+  for (const overlay of [document.querySelector('.consent-banner'), inside.closest('.crossword')?.querySelector('.crossword-actions')]) {
+    if (!overlay || !['fixed', 'sticky'].includes(getComputedStyle(overlay).position)) continue;
+    const box = overlay.getBoundingClientRect();
+    if (box.left < rect.right && box.right > rect.left) found.push(box);
+  }
+  return found;
+}
+
+const topOf = (overlays: DOMRect[]) => Math.min(window.innerHeight, ...overlays.map((box) => box.top));
+
 /** Account for overlays that native focus scrolling cannot see. */
 function keepSquareVisible(input: HTMLInputElement): void {
   requestAnimationFrame(() => {
     if (document.activeElement !== input) return;
     const rect = input.getBoundingClientRect();
     if (!rect.width) return;
-    let bottom = window.innerHeight;
-    const overlays = [document.querySelector('.consent-banner'), input.closest('.crossword')?.querySelector('.crossword-actions')];
-    for (const overlay of overlays) {
-      if (!overlay || !['fixed', 'sticky'].includes(getComputedStyle(overlay).position)) continue;
-      const obstruction = overlay.getBoundingClientRect();
-      if (obstruction.left < rect.right && obstruction.right > rect.left) bottom = Math.min(bottom, obstruction.top);
-    }
-    const offset = Math.max(0, rect.bottom - bottom + 8) || Math.min(0, rect.top - 8);
+    const offset = Math.max(0, rect.bottom - topOf(overlaysOver(rect, input)) + 8) || Math.min(0, rect.top - 8);
     if (offset) window.scrollBy({ top: offset, behavior: 'instant' });
   });
+}
+
+/**
+ * Picking a clue from the list, below the grid on a phone, brings the
+ * active clue and the whole grid back on screen when both fit above the
+ * bar. The room counts the bar as stuck to the foot of the screen, where it
+ * sits once the board is in view, even if the list scrolled it into its own
+ * place. A taller board is left to keepSquareVisible, which shows the square.
+ */
+export function revealBoard(board: HTMLElement): void {
+  const rect = board.getBoundingClientRect();
+  const overlays = overlaysOver(rect, board);
+  if (rect.top >= 0 && rect.bottom <= topOf(overlays)) return;
+  const room = window.innerHeight - overlays.reduce((sum, box) => sum + box.height, 0);
+  if (rect.height + 16 > room) return;
+  window.scrollBy({ top: rect.top - 8, behavior: 'instant' });
 }
 
 function eraseSquare(key: string, input: HTMLInputElement, wordCells: readonly string[], inputs: CrosswordInputs, onLetters: CrosswordGridProps['onLetters']): void {
@@ -84,8 +111,34 @@ function eraseSquare(key: string, input: HTMLInputElement, wordCells: readonly s
   keepSquareVisible(square);
 }
 
-export function CrosswordGrid({ puzzle, messages, values, finished, selected, inputs, onSelectEntry, onLetters }: CrosswordGridProps) {
+/**
+ * A second tap or click on the square that already has focus switches to the
+ * other word through it, as in the NYT Mini. The press records whether the
+ * square had focus before it, because the click comes after the press focused it.
+ */
+export function useDirectionToggle(puzzle: CrosswordPuzzle, selected: CrosswordEntry, onSelectEntry: (index: number) => void) {
+  const focusedAtPress = useRef<string | null>(null);
+  const press = (key: string, input: HTMLInputElement | null) => {
+    focusedAtPress.current = input !== null && document.activeElement === input ? key : null;
+  };
+  const click = (key: string, clues: readonly CrosswordEntry[]) => {
+    const again = focusedAtPress.current === key;
+    focusedAtPress.current = null;
+    const other = otherWord(clues, selected);
+    if (again && other) onSelectEntry(puzzle.entries.indexOf(other));
+  };
+  return { press, click };
+}
+
+/** The other word through a crossing square, or null outside a crossing. */
+export function otherWord(clues: readonly CrosswordEntry[], selected: CrosswordEntry): CrosswordEntry | null {
+  if (clues.length < 2 || !clues.includes(selected)) return null;
+  return clues.find((entry) => entry !== selected) ?? null;
+}
+
+export function CrosswordGrid({ puzzle, messages, values, finished, selected, inputs, wrongCells, cursor, onSelectEntry, onLetters }: CrosswordGridProps) {
   const selectedCells = entryCellKeys(selected);
+  const toggle = useDirectionToggle(puzzle, selected, onSelectEntry);
   const direction = (entry: CrosswordEntry) => (entry.direction === "across" ? messages.crosswordAcross : messages.crosswordDown);
 
   const onInput = (key: string, input: HTMLInputElement) => {
@@ -125,34 +178,96 @@ export function CrosswordGrid({ puzzle, messages, values, finished, selected, in
         const k = cellKey(r, c);
         const cell = puzzle.cells.find((x) => x.row === r && x.col === c);
         if (!cell) return <span key={k} class="crossword-block" aria-hidden="true" />;
-        const start = puzzle.entries.find((e) => e.row === r && e.col === c);
         const clues = puzzle.entries.filter((e) => entryCellKeys(e).includes(k));
-        const highlighted = !finished && selectedCells.includes(k);
         return (
-          <label key={k} class={`crossword-cell${highlighted ? " selected" : ""}`}>
-            {start && <span aria-hidden="true">{start.number}</span>}
-            <input
-              ref={(el) => {
-                if (inputs.current) inputs.current[k] = el;
-              }}
-              aria-label={messages.crosswordCellLabel(r + 1, c + 1, clues.map((e) => `${e.number} ${direction(e)}`).join("; "))}
-              value={finished ? cell.answer : values[k] ?? ""}
-              disabled={finished}
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellcheck={false}
-              inputMode="text"
-              onFocus={(event) => {
-                event.currentTarget.select();
-                if (!clues.includes(selected)) onSelectEntry(puzzle.entries.indexOf(clues[0]!));
-                keepSquareVisible(event.currentTarget);
-              }}
-              onInput={(event) => onInput(k, event.currentTarget)}
-              onKeyDown={(event) => onKeyDown(r, c, event)}
-            />
-          </label>
+          <CrosswordSquare
+            key={k}
+            number={puzzle.entries.find((e) => e.row === r && e.col === c)?.number}
+            label={messages.crosswordCellLabel(r + 1, c + 1, clues.map((e) => `${e.number} ${direction(e)}`).join("; "))}
+            value={finished ? cell.answer : values[k] ?? ""}
+            finished={finished}
+            highlighted={selectedCells.includes(k)}
+            wrong={wrongCells.has(k)}
+            inputRef={(el) => {
+              if (inputs.current) inputs.current[k] = el;
+            }}
+            onPress={() => toggle.press(k, inputs.current?.[k] ?? null)}
+            onFocus={(input) => {
+              cursor.current = k;
+              input.select();
+              if (!clues.includes(selected)) onSelectEntry(puzzle.entries.indexOf(clues[0]!));
+              keepSquareVisible(input);
+            }}
+            onClick={() => toggle.click(k, clues)}
+            onInput={(input) => onInput(k, input)}
+            onKeyDown={(event) => onKeyDown(r, c, event)}
+          />
         );
       })}
     </div>
+  );
+}
+
+interface CrosswordSquareProps {
+  number: number | undefined;
+  label: string;
+  value: string;
+  finished: boolean;
+  highlighted: boolean;
+  wrong: boolean;
+  inputRef: (el: HTMLInputElement | null) => void;
+  onPress: () => void;
+  onFocus: (input: HTMLInputElement) => void;
+  onClick: () => void;
+  onInput: (input: HTMLInputElement) => void;
+  onKeyDown: (event: KeyboardEvent) => void;
+}
+
+/** "selected" for the squares of the chosen word, "is-wrong" for a square the last check marked. */
+export function squareClass(finished: boolean, highlighted: boolean, wrong: boolean): string {
+  if (finished) return "crossword-cell";
+  return `crossword-cell${highlighted ? " selected" : ""}${wrong ? " is-wrong" : ""}`;
+}
+
+/**
+ * Releasing the mouse on the square that has focus keeps its letter
+ * selected. Otherwise Chrome collapses the selection to the caret after the
+ * click handler has selected it, and the next letter lands beside the old one.
+ */
+export function keepSelection(event: MouseEvent): void {
+  const input = (event.currentTarget as HTMLElement).querySelector("input");
+  if (input && document.activeElement === input) event.preventDefault();
+}
+
+/**
+ * One letter square. The press listens on the label, so a press on the
+ * border counts too; the label forwards its click to the input.
+ */
+function CrosswordSquare(props: CrosswordSquareProps) {
+  const wrong = props.wrong && !props.finished;
+  return (
+    <label class={squareClass(props.finished, props.highlighted, props.wrong)} onPointerDown={props.onPress} onMouseUp={keepSelection}>
+      {props.number !== undefined && <span aria-hidden="true">{props.number}</span>}
+      <input
+        ref={props.inputRef}
+        aria-label={props.label}
+        value={props.value}
+        disabled={props.finished}
+        aria-invalid={wrong ? "true" : undefined}
+        autoComplete="off"
+        autoCapitalize="characters"
+        spellcheck={false}
+        inputMode="text"
+        onFocus={(event) => props.onFocus(event.currentTarget)}
+        onClick={(event) => {
+          props.onClick();
+          // A letter typed beside the old one would spill into the next
+          // square as a paste; the new letter replaces the selected one.
+          event.currentTarget.select();
+        }}
+        onInput={(event) => props.onInput(event.currentTarget)}
+        onKeyDown={props.onKeyDown}
+      />
+    </label>
   );
 }

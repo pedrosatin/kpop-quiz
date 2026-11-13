@@ -1,12 +1,12 @@
 import type { JSX } from "preact";
-import { useCallback, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { entryCellKey, type CrosswordPuzzle } from "../../data/crossword";
 import type { Messages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import type { CrosswordStatus } from "./crossword-save";
 import { CrosswordClues, clueText } from "./CrosswordClues";
-import { CrosswordGrid, type CrosswordInputs } from "./CrosswordGrid";
+import { CrosswordGrid, revealBoard, type CrosswordInputs } from "./CrosswordGrid";
 import { CrosswordResult } from "./CrosswordResult";
 import { crosswordMatchId, useCrosswordGame } from "./useCrosswordGame";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
@@ -30,6 +30,7 @@ export function barMessage(
   wrongCheck: number,
   shareNote: ShareNote,
   messages: Messages,
+  wrongSquares = 0,
 ): { message: JSX.Element | null; barState: string } {
   if (status !== "playing") {
     const barState = status === "won" ? " is-correct" : "";
@@ -38,7 +39,7 @@ export function barMessage(
     return { message: <p key={shareNote.n}>{text}</p>, barState };
   }
   if (wrongCheck > 0) {
-    return { message: <p key={wrongCheck} class="game-actions-title">{messages.crosswordWrong}</p>, barState: " is-incorrect" };
+    return { message: <p key={wrongCheck} class="game-actions-title">{messages.crosswordWrong(wrongSquares)}</p>, barState: " is-incorrect" };
   }
   return { message: <p class="game-actions-hint">{messages.crosswordHint}</p>, barState: "" };
 }
@@ -49,6 +50,7 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
   const dayDone = useDailyMatchDone("crossword", puzzle.reference_date, crosswordMatchId(puzzle), finished);
   const [active, setActive] = useState(0);
   const inputs = useRef<CrosswordInputs>({});
+  const cursor = useRef<string | null>(null);
 
   // Only a round finished in this visit moves focus to the result; a round
   // restored from storage leaves focus where the page put it.
@@ -79,17 +81,30 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
   }, [closeRevealConfirm, game.reveal]);
 
   const selected = puzzle.entries[active] ?? puzzle.entries[0]!;
+  const board = useRef<HTMLDivElement>(null);
   const select = (index: number) => {
     const input = inputs.current[entryCellKey(puzzle.entries[index]!, 0)];
-    input?.focus();
+    input?.focus({ preventScroll: true });
     input?.select();
+    if (board.current) revealBoard(board.current);
     setActive(index);
   };
-  const endHere = (action: () => void) => () => {
+  // A wrong check leaves the player on the square they were typing in, with
+  // the same word, so they can fix the marked squares right away. Without
+  // one (a restored round checked before touching the grid) focus stays on
+  // the button. The square gets focus after the render that marks it, so it
+  // is already invalid when announced.
+  const returnToCursor = useRef(false);
+  const check = () => {
     playedHere.current = true;
-    action();
+    returnToCursor.current = !game.check() && cursor.current !== null;
   };
-  const { message, barState } = barMessage(status, game.wrongCheck, shareNote, messages);
+  useEffect(() => {
+    if (!returnToCursor.current) return;
+    returnToCursor.current = false;
+    inputs.current[cursor.current!]?.focus({ preventScroll: true });
+  }, [game.wrongCheck]);
+  const { message, barState } = barMessage(status, game.wrongCheck, shareNote, messages, game.wrongCells.size);
 
   if (dayDone) return <DailyDone game="crossword" locale={locale} />;
 
@@ -102,7 +117,7 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
       aria-label={messages.crosswordTitle}
     >
       <div class="game-layout">
-        <div class="crossword-board">
+        <div class="crossword-board" ref={board}>
           <p class="crossword-active-clue" data-testid="crossword-active-clue">
             {finished ? messages.crosswordBoardLabel : clueText(puzzle, puzzle.entries.indexOf(selected), locale, messages)}
           </p>
@@ -113,6 +128,8 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
             finished={finished}
             selected={selected}
             inputs={inputs}
+            wrongCells={game.wrongCells}
+            cursor={cursor}
             onSelectEntry={setActive}
             onLetters={game.setLetters}
           />
@@ -156,7 +173,7 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
               />
             ) : (
               <div class="crossword-controls">
-                <button type="button" class="btn btn-primary" onClick={endHere(game.check)}>
+                <button type="button" class="btn btn-primary" onClick={check}>
                   {messages.crosswordCheck}
                 </button>
                 <button type="button" class="btn btn-secondary" onClick={requestReveal}>

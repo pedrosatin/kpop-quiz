@@ -397,7 +397,11 @@ export interface Messages {
   crosswordCheck: string;
   crosswordReveal: string;
   crosswordHint: string;
-  crosswordWrong: string;
+  /**
+   * Verdict of a check that is not a win, with the number of squares marked
+   * (wrong or empty). One short line, so the sticky bar keeps its height.
+   */
+  crosswordWrong: (squares: number) => string;
   crosswordResultWon: string;
   crosswordResultRevealed: string;
   crosswordSummaryWon: (checks: number) => string;
@@ -592,9 +596,9 @@ const catalogs: Record<Locale, Messages> = {
       "Clique ou toque na opção de uma posição para trocar o grupo. No teclado, use as setas. O resultado do fim mostra o código e as fontes de cada grupo.",
     ],
     crosswordHowToPlay: [
-      "Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. Deixe de fora espaços, pontuação e acentos e mantenha os números.",
-      "No teclado, use Tab para trocar de quadrado e as setas para mover pela grade. Uma letra num cruzamento vale para as duas palavras.",
-      "Verifique as respostas quantas vezes quiser. Para parar, toque em Revelar respostas e veja os nomes e as fontes de cada pista.",
+      "Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. Num cruzamento, toque ou clique de novo no quadrado para trocar entre horizontal e vertical. Deixe de fora espaços, pontuação e acentos e mantenha os números.",
+      "No teclado, as setas levam ao próximo quadrado na direção da seta e Tab passa ao quadrado seguinte, linha por linha. Uma letra num cruzamento vale para as duas palavras.",
+      "Verifique as respostas quantas vezes quiser. Cada verificação marca os quadrados errados ou vazios. Para parar, toque em Revelar respostas e veja os nomes e as fontes de cada pista.",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
@@ -848,7 +852,7 @@ const catalogs: Record<Locale, Messages> = {
     crosswordCheck: "Verificar respostas",
     crosswordReveal: "Revelar respostas",
     crosswordHint: "Escolha uma pista e digite o nome.",
-    crosswordWrong: "Algumas respostas estão incompletas ou incorretas. Você pode continuar.",
+    crosswordWrong: (squares) => (squares === 1 ? "1 quadrado a corrigir." : `${squares} quadrados a corrigir.`),
     crosswordResultWon: "Cruzadinha concluída!",
     crosswordResultRevealed: "Respostas reveladas",
     crosswordSummaryWon: (checks) =>
@@ -1102,9 +1106,9 @@ const catalogs: Record<Locale, Messages> = {
       "Click or tap a position's option to change its group. With a keyboard, use the arrow keys. The final result reveals the code and the source of each group.",
     ],
     crosswordHowToPlay: [
-      "Tap or click a clue to pick its word, then type the group's name. Leave out spaces, punctuation and accents, but keep numbers.",
-      "With a keyboard, use Tab to switch squares and the arrow keys to move around the grid. A letter where two words cross counts for both.",
-      "Check your answers as often as you like. To stop, finish the round and see the answers and the source of each clue.",
+      "Tap or click a clue to pick its word, then type the group's name. Where two words cross, tap or click the square again to switch between across and down. Leave out spaces, punctuation and accents, but keep numbers.",
+      "With a keyboard, each arrow key moves to the next square in its direction and Tab moves to the next square, row by row. A letter where two words cross counts for both.",
+      "Check your answers as often as you like. Each check marks the squares that are wrong or empty. To stop, finish the round and see the answers and the source of each clue.",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",
@@ -1357,7 +1361,7 @@ const catalogs: Record<Locale, Messages> = {
     crosswordCheck: "Check answers",
     crosswordReveal: "Reveal answers",
     crosswordHint: "Pick a clue and type the name.",
-    crosswordWrong: "Some answers are incomplete or incorrect. You can keep editing.",
+    crosswordWrong: (squares) => (squares === 1 ? "1 square to fix." : `${squares} squares to fix.`),
     crosswordResultWon: "Crossword completed!",
     crosswordResultRevealed: "Answers revealed",
     crosswordSummaryWon: (checks) => (checks === 1 ? "Solved on the first check." : `Solved in ${checks} checks.`),

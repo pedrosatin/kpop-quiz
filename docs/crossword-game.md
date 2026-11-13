@@ -8,7 +8,10 @@ repetir grupos da véspera. Cada pista traz um ou dois fatos do grupo, como o an
 gravadora ou um integrante, e aponta para a revisão da Wikipédia que sustenta cada fato. O
 jogador escolhe a palavra pela pista, digita por célula e confere a grade
 quantas vezes quiser. "Verificar respostas" com tudo certo encerra a partida
-como resolvida; "Revelar respostas" encerra na hora e mostra os nomes.
+como resolvida; "Revelar respostas" encerra na hora e mostra os nomes. Uma
+verificação com erro marca as casas erradas ou vazias, diz quantas são e
+devolve o foco à casa em que o jogador estava. Num cruzamento, tocar ou
+clicar de novo na casa que já tem o foco troca entre horizontal e vertical.
 
 A tela segue o contrato dos jogos. O `.page-shell` leva o `GameIntro`. A grade
 fica à esquerda e o painel lateral, com as pistas e a barra de ação, aparece a

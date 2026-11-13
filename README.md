@@ -267,9 +267,21 @@ compartilhamento e o painel "Ver fonte" com os trechos e as revisões citadas.
 
 Backspace apaga a casa preenchida. Numa casa vazia, volta à anterior da
 palavra selecionada e apaga sua letra; na primeira casa vazia não faz nada.
-A direção selecionada permanece nos cruzamentos. Ao focar ou digitar, a
-página rola quando necessário para manter a casa acima da barra e do banner
-de consentimento.
+A direção selecionada permanece nos cruzamentos. Tocar ou clicar de novo na
+casa que já tem o foco, num cruzamento, troca a palavra entre horizontal e
+vertical. Tab passa à casa seguinte, linha por linha, e as setas levam à
+próxima casa na direção da seta. Ao focar ou digitar, a página rola quando
+necessário para manter a casa acima da barra e do banner de consentimento.
+Escolher uma pista na lista, que no celular fica abaixo da grade, traz de
+volta à tela a pista ativa e a grade inteira quando as duas cabem acima da
+barra.
+
+Uma verificação sem vitória marca as casas erradas ou vazias com fundo,
+triângulo no canto e `aria-invalid="true"`. A barra diz quantas são ("3
+quadrados a corrigir."), e o foco volta à casa em que o jogador estava, com a
+mesma pista. Numa partida restaurada, antes de tocar na grade, o foco fica no
+botão. Editar uma casa tira a marca dela; a próxima verificação refaz as
+marcas. A frase cabe numa linha, então a barra fixa não cresce.
 
 As rotas antigas `/pt-br/cruzadinha-piloto/` e `/en/crossword-pilot/`
 respondem `301` no Cloudflare Pages pelo `web/public/_redirects`; no GitHub

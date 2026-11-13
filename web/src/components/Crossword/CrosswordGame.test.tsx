@@ -105,10 +105,67 @@ describe("CrosswordGame", () => {
     serve();
     await renderGame();
     fireEvent.click(screen.getByRole("button", { name: pt.crosswordCheck }));
-    expect(screen.getByRole("status")).toHaveTextContent(pt.crosswordWrong);
+    expect(screen.getByRole("status")).toHaveTextContent(pt.crosswordWrong(puzzle.cells.length));
     expect(document.querySelector(".game-actions.is-incorrect")).not.toBeNull();
     expect(screen.queryByTestId("game-result")).toBeNull();
     expect(loadPlayerStats().games.crossword.played).toBe(0);
+  });
+
+  it("marks the wrong and empty squares on a wrong check and keeps focus and the clue", async () => {
+    serve();
+    await renderGame();
+    // 1 Across (BTS) with a wrong middle letter, then the cursor on the S.
+    typeEntry(0, "bxs");
+    const s = cellInput(0, 2);
+    s.focus();
+    const clue = screen.getByTestId("crossword-active-clue").textContent;
+    // Pressing the button takes focus from the grid, as a click does.
+    const checkButton = screen.getByRole("button", { name: pt.crosswordCheck });
+    checkButton.focus();
+    fireEvent.click(checkButton);
+    await act(async () => {});
+    const marked = screen.getAllByRole("textbox").filter((input) => input.getAttribute("aria-invalid") === "true");
+    // X in BTS plus the empty squares of BTOB (3) and SISTAR (5).
+    expect(marked).toHaveLength(9);
+    expect(cellInput(0, 1)).toHaveAttribute("aria-invalid", "true");
+    expect(cellInput(0, 0)).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByRole("status")).toHaveTextContent(pt.crosswordWrong(9));
+    expect(s).toHaveFocus();
+    expect(screen.getByTestId("crossword-active-clue").textContent).toBe(clue);
+
+    // Fixing a square removes its mark; the others stay until the next check.
+    fireEvent.input(cellInput(0, 1), { target: { value: "t" } });
+    expect(cellInput(0, 1)).not.toHaveAttribute("aria-invalid");
+    expect(cellInput(5, 2)).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("focuses the square back only after it is marked", async () => {
+    serve();
+    await renderGame();
+    typeEntry(0, "bxs");
+    const x = cellInput(0, 1);
+    x.focus();
+    let invalidOnFocus: string | null = "unset";
+    x.addEventListener("focus", () => { invalidOnFocus = x.getAttribute("aria-invalid"); });
+    const checkButton = screen.getByRole("button", { name: pt.crosswordCheck });
+    checkButton.focus();
+    fireEvent.click(checkButton);
+    await act(async () => {});
+    expect(x).toHaveFocus();
+    expect(invalidOnFocus).toBe("true");
+  });
+
+  it("keeps focus on the button when a restored round is checked before touching the grid", async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ values: { "0:0": "B" }, status: "playing", checks: 0 }));
+    serve();
+    await renderGame();
+    const checkButton = screen.getByRole("button", { name: pt.crosswordCheck });
+    checkButton.focus();
+    fireEvent.click(checkButton);
+    await act(async () => {});
+    expect(screen.getByRole("status")).toHaveTextContent(pt.crosswordWrong(puzzle.cells.length - 1));
+    expect(checkButton).toHaveFocus();
+    expect(cellInput(0, 0)).not.toHaveFocus();
   });
 
   it("records the board's date, whatever the visitor's time zone", async () => {
