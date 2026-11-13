@@ -14,14 +14,24 @@ from dataclasses import dataclass
 
 INFOBOX_START = re.compile(r"\{\{\s*Infobox[ _]+musical[ _]+artist\s*(?=[|}<\n])", re.I)
 # Any infobox opening; the name ends at a parameter, the closing braces or a break.
-_ANY_INFOBOX_START = re.compile(r"\{\{\s*Infobox(?:[ _]+([^|{}<\n]*?))?\s*(?=[|}<\n])", re.I)
+# The possessive quantifiers read each character once, so the captured name
+# keeps its trailing spaces, which the caller drops. The match ends after the
+# whitespace that leads to a parameter, or else at the last line break of it.
+_ANY_INFOBOX_START = re.compile(
+    r"\{\{\s*+Infobox(?:[ _]++([^|{}<\n]*+))?+"
+    r"(?:\s*+(?=[|}<])|[^\S\n]*+(?:\n[^\S\n]*+(?=\n))*+(?=\n))",
+    re.I,
+)
 _INERT_TEXT = re.compile(r"<!--.*?-->|<nowiki\b[^>]*>.*?</nowiki\s*>", re.I | re.S)
 # Templates that only wrap a list; their arguments are the list items.
 LIST_TEMPLATES = frozenset({
     "hlist", "flatlist", "plainlist", "ubl", "unbulleted list", "ublist",
     "bulleted list", "blist", "collapsible list", "ordered list",
 })
-_TEMPLATE_NAME = re.compile(r"\{\{\s*([^|{}]+?)\s*(?=\||\}\})")
+# The name keeps its trailing spaces, which the caller strips; a lazy name
+# between two ``\s*`` backtracks cubically on a long run of whitespace.
+_TEMPLATE_NAME = re.compile(r"\{\{\s*+([^|{}]*+)(?=\||\}\})")
+_BRACE = re.compile(r"([{}])")
 _ITEM_BREAK = re.compile(r"<br\s*/?>|\n|,|•|·", re.I)
 _REF = re.compile(r"<ref[^>/]*/>|<ref[^>]*>.*?</ref>", re.I | re.S)
 _COMMENT = re.compile(r"<!--.*?-->", re.S)
@@ -184,11 +194,37 @@ def _item_names(raw: str) -> tuple[str, ...]:
 
 
 def _strip_templates(text: str) -> str:
-    previous = None
-    while previous != text:
-        previous = text
-        text = re.sub(r"\{\{[^{}]*\}\}", "", text)
-    return text
+    """Remove every ``{{...}}`` with no brace inside, until none is left.
+
+    One pass with a stack gives the result of deleting ``\\{\\{[^{}]*\\}\\}``
+    over and over: the deletions never overlap, so their order does not matter.
+    """
+    kept: list[str] = []
+    braces: list[int] = []  # Indexes in ``kept`` of the braces still open or unmatched.
+    for piece in _BRACE.split(text):
+        if not piece:
+            continue
+        if piece == "}" and _closes_template(kept, braces):
+            del kept[braces[-3]:]
+            del braces[-3:]
+            continue
+        if piece in ("{", "}"):
+            braces.append(len(kept))
+        kept.append(piece)
+    return "".join(kept)
+
+
+def _closes_template(kept: list[str], braces: list[int]) -> bool:
+    """Tell whether one more ``}`` ends a ``{{...}}`` that has no brace inside."""
+    if len(braces) < 3:
+        return False
+    first, second, closing = braces[-3:]
+    return (
+        closing == len(kept) - 1
+        and kept[closing] == "}"
+        and second == first + 1
+        and kept[first] == kept[second] == "{"
+    )
 
 
 def _is_named_argument(text: str, start: int, end: int) -> bool:
