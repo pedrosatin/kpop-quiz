@@ -242,7 +242,7 @@ for (const locale of locales) {
         const count = await list.getByRole("option").count();
         expect(count, "the picker list is long enough to scroll").toBeGreaterThan(visibleRows + 1);
         for (let i = 0; i < visibleRows + 1; i++) await search.press("ArrowDown");
-        const gap = await page.evaluate(() => {
+        const measure = () => page.evaluate(() => {
           const input = document.querySelector("#picker-search-input")!;
           const active = document.getElementById(input.getAttribute("aria-activedescendant")!)!;
           const listbox = active.closest("[role='listbox']")!;
@@ -253,8 +253,13 @@ for (const locale of locales) {
             margin: getComputedStyle(active).scrollMarginBottom,
           };
         });
+        // The list scrolls the highlighted option into view after the key
+        // press, so wait for it to settle before measuring.
+        await expect
+          .poll(async () => (await measure()).below, { message: "the highlighted option is not below the list" })
+          .toBeGreaterThanOrEqual(-0.5);
+        const gap = await measure();
         expect(gap.below, "the highlighted option meets the foot of the list").toBeLessThanOrEqual(2);
-        expect(gap.below).toBeGreaterThanOrEqual(-0.5);
         // The page's room for the bar must not reach the dialog's own list.
         expect(gap.margin).toBe("0px");
       });
