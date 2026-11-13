@@ -10,15 +10,21 @@ type Report = SelectionVerdict | { kind: "offline"; from: string } | { kind: "ca
 
 /** Dialogs that take Esc for themselves. */
 const DIALOG = '[role="dialog"], [aria-modal="true"]';
+/**
+ * The site's own modals (confirmation, statistics). Only these count while
+ * focus is elsewhere: a third-party script may leave a hidden aria-modal
+ * node in the page, and that must not swallow Esc on the grid.
+ */
+const OWN_MODAL = '.modal-card[aria-modal="true"]';
 
 /**
- * Esc pressed in a dialog, or while a modal one is open, belongs to the
- * dialog: its own listener may run after this one, and focus reaches it a
- * moment after it opens.
+ * Esc pressed in a dialog, or while one of the site's modals is open,
+ * belongs to the dialog: its own listener may run after this one, and focus
+ * reaches it a moment after it opens.
  */
 function dialogOwnsEscape(target: EventTarget | null): boolean {
   const inside = (target as Element | null)?.closest?.(DIALOG);
-  return Boolean(inside ?? document.querySelector('[aria-modal="true"]'));
+  return Boolean(inside ?? document.querySelector(OWN_MODAL));
 }
 
 export interface SelectionOptions {
@@ -147,15 +153,21 @@ export function useSelection({ dimensions, grid, playing, judge }: SelectionOpti
   });
 
   // Esc cancels a marked start wherever the focus is: a tap does not move
-  // focus into the grid. An open dialog keeps its Esc.
+  // focus into the grid. An open dialog keeps its Esc. The listener stays on
+  // and reads refs, so an Esc pressed right after the start is drawn, before
+  // effects run, still finds the start.
+  const playingRef = useRef(playing);
+  playingRef.current = playing;
+  const cancelRef = useRef(cancel);
+  cancelRef.current = cancel;
   useEffect(() => {
-    if (!anchorCell || !playing) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented && !dialogOwnsEscape(e.target)) cancel();
+      if (e.key !== "Escape" || e.defaultPrevented || dialogOwnsEscape(e.target)) return;
+      if (anchorRef.current && playingRef.current) cancelRef.current();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [anchorCell, playing, cancel]);
+  }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     handleWordSearchKeyDown(e, {

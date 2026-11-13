@@ -406,6 +406,26 @@ describe("WordSearch action bar", () => {
     expect(liveRegion(container)).toHaveTextContent(getMessages("en").wordSearch.cancelFeedback);
   });
 
+  it("cancels a start with Esc while a hidden third-party aria-modal node is in the page", () => {
+    const stray = document.createElement("div");
+    stray.setAttribute("aria-modal", "true");
+    stray.hidden = true;
+    document.body.append(stray);
+    try {
+      const { container } = render(<WordSearchGame locale="en" puzzle={puzzle} />);
+      const start = container.querySelector<HTMLElement>('[data-row="4"][data-col="4"]')!;
+      fireEvent.pointerDown(start);
+      fireEvent.pointerUp(start);
+      expect(start).toHaveClass("is-anchor");
+
+      fireEvent.keyDown(document.body, { key: "Escape" });
+
+      expect(start).not.toHaveClass("is-anchor");
+    } finally {
+      stray.remove();
+    }
+  });
+
   it("cancels a start with Esc from the grid once, without a second notice", () => {
     const { container } = render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
     const grid = screen.getByRole("grid");
