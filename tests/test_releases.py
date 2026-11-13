@@ -120,6 +120,41 @@ class ReleaseFactTest(unittest.TestCase):
         with self.assertRaisesRegex(MediaWikiError, "size limit"):
             client.query("SELECT * WHERE {}")
 
+    def test_wdqs_marks_only_errors_that_pass_with_time_as_transient(self):
+        def failing(error):
+            def opener(*_args, **_kwargs):
+                raise error
+            return opener
+
+        def http_error(status, retry_after=None):
+            headers = Message()
+            if retry_after is not None:
+                headers["Retry-After"] = retry_after
+            return HTTPError("https://query.wikidata.org", status, "error", headers, None)
+
+        cases = (
+            ("HTTP 503 until the retries end", http_error(503), True),
+            ("HTTP 429 with a long Retry-After", http_error(429, "3600"), True),
+            ("network failure", TimeoutError("timed out"), True),
+            ("client error", http_error(400), False),
+        )
+        for name, error, transient in cases:
+            with self.subTest(name), patch("kpop_scraping.release_discovery.time.sleep"):
+                with self.assertRaises(MediaWikiError) as raised:
+                    WikidataQueryClient(opener=failing(error), retries=1).query("SELECT * WHERE {}")
+                self.assertEqual(raised.exception.transient, transient)
+
+        # A group above the candidate limit fails the same way on every run.
+        binding = {
+            "performer": {"value": "http://www.wikidata.org/entity/Q1"},
+            "release": {"value": "http://www.wikidata.org/entity/Q2"},
+        }
+        other = {**binding, "release": {"value": "http://www.wikidata.org/entity/Q3"}}
+        body = json.dumps({"results": {"bindings": [binding, other]}}).encode()
+        with self.assertRaisesRegex(MediaWikiError, "candidate limit exceeded") as raised:
+            _parse_results(body, {"Q1"}, 1)
+        self.assertFalse(raised.exception.transient)
+
     def test_rejects_invalid_per_group_limit(self):
         with self.assertRaisesRegex(ValueError, "candidate limit"):
             from kpop_scraping.release_discovery import discover_releases

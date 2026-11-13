@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping.cli import main
+from kpop_scraping.exit_codes import EXIT_DETERMINISTIC
 from kpop_scraping.fact_pipeline import EXTRACTOR_VERSION, extract_facts
 from kpop_scraping.fact_store import FactRunTotals, FactStore
 from kpop_scraping.reports import export_fact_coverage_csv
@@ -790,7 +791,7 @@ class FactCliTest(unittest.TestCase):
                 "--release-group-offset", "999",
             ])
 
-        self.assertEqual(result, 1)
+        self.assertEqual(result, EXIT_DETERMINISTIC)
         output.assert_any_call(
             "Pipeline failed: ValueError: no accepted catalog groups are available"
         )

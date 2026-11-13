@@ -81,14 +81,17 @@ class WikidataQueryClient:
                 status = exc.code
                 exc.close()
                 if status not in RETRYABLE_HTTP_STATUS or attempt >= self.retries:
-                    raise MediaWikiError(f"WDQS request failed with HTTP {status}") from exc
+                    raise MediaWikiError(
+                        f"WDQS request failed with HTTP {status}",
+                        transient=status in RETRYABLE_HTTP_STATUS,
+                    ) from exc
                 delay = parse_retry_after(headers.get("Retry-After")) or float(2**attempt)
                 if delay > 120:
-                    raise MediaWikiError("WDQS Retry-After exceeds 120 seconds") from exc
+                    raise MediaWikiError("WDQS Retry-After exceeds 120 seconds", transient=True) from exc
                 time.sleep(delay)
             except (URLError, TimeoutError, json.JSONDecodeError) as exc:
                 if attempt >= self.retries:
-                    raise MediaWikiError("WDQS request failed") from exc
+                    raise MediaWikiError("WDQS request failed", transient=True) from exc
                 time.sleep(float(2**attempt))
         raise AssertionError("retry loop exited unexpectedly")
 

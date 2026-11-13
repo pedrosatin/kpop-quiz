@@ -17,6 +17,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from kpop_scraping.cli import DEFAULT_DATABASE, build_parser, main
+from kpop_scraping.exit_codes import EXIT_DETERMINISTIC
 from kpop_scraping.fact_pipeline import extract_facts
 from kpop_scraping.person_preservation import PersonEvidenceUnavailable
 from kpop_scraping.storage import Repository
@@ -447,7 +448,7 @@ class CliEndToEndTest(GateTestCase):
         with database(audit / "kpop.db") as connection:
             connection.execute("DELETE FROM source_revision_wikitext")
         code, output = self.run_cli(audit, "--facts", "--releases")
-        self.assertEqual(code, 1)
+        self.assertEqual(code, EXIT_DETERMINISTIC)
         self.assertIn("Pipeline failed: PersonEvidenceUnavailable", output)
         self.assertEqual(facts(audit / "kpop.db"), audited)
 

@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from kpop_scraping.cli import build_parser, main
+from kpop_scraping.exit_codes import EXIT_DETERMINISTIC, EXIT_TRANSIENT
 from kpop_scraping.mediawiki import MediaWikiError
 from kpop_scraping.storage import SnapshotIntegrityError
 
@@ -146,9 +147,36 @@ class CLITest(unittest.TestCase):
             exit_code = main(["--database", str(self.database)])
 
         # Assertions
-        self.assertEqual(exit_code, 1)
+        self.assertEqual(exit_code, EXIT_DETERMINISTIC)
         output = stdout.getvalue()
         self.assertIn("Pipeline failed: RuntimeError: Test error", output)
+
+    @patch("kpop_scraping.cli.Repository")
+    def test_exit_code_tells_transient_failures_from_deterministic_ones(self, mock_repo):
+        cases = (
+            (MediaWikiError("MediaWiki error maxlag: 9.6 seconds lagged", code="maxlag", transient=True), EXIT_TRANSIENT),
+            (MediaWikiError("WDQS request failed with HTTP 503", transient=True), EXIT_TRANSIENT),
+            (MediaWikiError("WDQS candidate limit exceeded for Q1"), EXIT_DETERMINISTIC),
+            (MediaWikiError("MediaWiki request failed with HTTP 404", code="http_404"), EXIT_DETERMINISTIC),
+            (SnapshotIntegrityError("snapshot hash differs"), EXIT_DETERMINISTIC),
+            (ValueError("no accepted catalog groups are available"), EXIT_DETERMINISTIC),
+        )
+        for error, expected in cases:
+            with self.subTest(str(error)):
+                mock_repo.side_effect = error
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    exit_code = main(["--database", str(self.database)])
+                self.assertEqual(exit_code, expected)
+                self.assertIn(f"Pipeline failed: {type(error).__name__}: {error}", stdout.getvalue())
+
+    @patch("kpop_scraping.cli.Repository")
+    def test_unexpected_exception_keeps_the_generic_exit_code(self, mock_repo):
+        # main() does not catch it, so Python ends the process with code 1,
+        # which the rebuild does not repeat.
+        mock_repo.side_effect = OSError("disk is gone")
+        with self.assertRaises(OSError):
+            main(["--database", str(self.database)])
 
 
     @patch("kpop_scraping.cli.Repository")
