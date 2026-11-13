@@ -69,6 +69,11 @@ export interface WordSearchMessages {
   foundFeedback: (name: string) => string;
   repeatFeedback: (name: string) => string;
   missFeedback: (letters: string) => string;
+  /** A straight piece of a name that does not count on its own. */
+  partialFeedback: (letters: string) => string;
+  /** A second tap off the start's lines; that cell became the new start. */
+  offLineFeedback: (from: string, to: string) => string;
+  cancelFeedback: string;
   congratulations: string;
   resultSummary: (total: number, time: string) => string;
   evidenceWikidataId: string;
@@ -576,7 +581,7 @@ const catalogs: Record<Locale, Messages> = {
     ],
     wordSearchHowToPlay: [
       "Os nomes do tema estão escondidos na grade em linha reta: na horizontal, na vertical ou na diagonal, inclusive de trás para frente.",
-      "Selecione a primeira e a última letra de um nome, ou arraste de uma ponta à outra.",
+      "Selecione a primeira e a última letra de um nome, ou arraste de uma ponta à outra. Para cancelar, toque de novo na primeira letra ou aperte Esc.",
       "No teclado, mova com as setas e marque o início e o fim com Enter ou espaço.",
       "A lista mostra quantas letras tem cada nome. Se travar, use \"Mostrar palavras\". No fim, \"Ver fonte\" lista a revisão da Wikipédia ou do Wikidata que confirma cada nome.",
     ],
@@ -875,13 +880,16 @@ const catalogs: Record<Locale, Messages> = {
       lettersCount: (count) => (count === 1 ? "1 letra" : `${count} letras`),
       selectionLabel: "Palavra:",
       selectionHint: "Selecione a primeira e a última letra de um nome.",
-      anchorHint: (letter) => `Início: ${letter}.`,
+      anchorHint: (letter) => `Início: ${letter}. Marque essa letra de novo para cancelar.`,
       foundState: "encontrada",
       progress: (found, total) => `${found} de ${total}`,
       progressAnnouncement: (found, total) => `${found} de ${total} palavras.`,
       foundFeedback: (name) => `Achou: ${name}.`,
       repeatFeedback: (name) => `Você já achou ${name}.`,
       missFeedback: (letters) => `${letters} não é um dos nomes.`,
+      partialFeedback: (letters) => `${letters} é só um pedaço de um nome. Marque o nome inteiro.`,
+      offLineFeedback: (from, to) => `${from} e ${to} não estão em linha reta. Novo início: ${to}.`,
+      cancelFeedback: "Seleção cancelada.",
       congratulations: "Parabéns!",
       resultSummary: (total, time) => `${total} palavras em ${time}.`,
       evidenceWikidataId: "ID no Wikidata:",
@@ -1083,7 +1091,7 @@ const catalogs: Record<Locale, Messages> = {
     ],
     wordSearchHowToPlay: [
       "The theme's names are hidden in straight lines: across, down or diagonal, and they can run backwards.",
-      "Select the first and last letter of a name, or drag from one end to the other.",
+      "Select the first and last letter of a name, or drag from one end to the other. To cancel, tap the first letter again or press Esc.",
       "With a keyboard, move with the arrow keys and mark the start and end with Enter or Space.",
       "The list shows how many letters each name has. If you get stuck, use \"Show words\". At the end, \"Show source\" lists the Wikipedia or Wikidata revision behind each name.",
     ],
@@ -1381,13 +1389,16 @@ const catalogs: Record<Locale, Messages> = {
       lettersCount: (count) => (count === 1 ? "1 letter" : `${count} letters`),
       selectionLabel: "Word:",
       selectionHint: "Select the first and last letter of a name.",
-      anchorHint: (letter) => `Start: ${letter}.`,
+      anchorHint: (letter) => `Start: ${letter}. Select that letter again to cancel.`,
       foundState: "found",
       progress: (found, total) => `${found} of ${total}`,
       progressAnnouncement: (found, total) => `${found} of ${total} words.`,
       foundFeedback: (name) => `Found: ${name}.`,
       repeatFeedback: (name) => `You already found ${name}.`,
       missFeedback: (letters) => `${letters} is not one of the names.`,
+      partialFeedback: (letters) => `${letters} is only part of a name. Mark the whole name.`,
+      offLineFeedback: (from, to) => `${from} and ${to} are not in a straight line. New start: ${to}.`,
+      cancelFeedback: "Selection canceled.",
       congratulations: "Well done!",
       resultSummary: (total, time) => `${total} words in ${time}.`,
       evidenceWikidataId: "Wikidata ID:",

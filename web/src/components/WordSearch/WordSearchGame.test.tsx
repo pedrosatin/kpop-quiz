@@ -32,6 +32,21 @@ function liveRegion(container: Element): HTMLElement {
   return container.querySelector<HTMLElement>(".game-actions .game-actions-message[role='status'][aria-live='polite']")!;
 }
 
+const PITCH = 26;
+const center = (index: number) => index * PITCH + 12;
+
+/** Lays the cells out as 24px squares every 26px, as jsdom has no layout. */
+function layOutCells(): () => void {
+  const spy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    const row = Number(this.dataset.row ?? 0);
+    const col = Number(this.dataset.col ?? 0);
+    const x = col * PITCH;
+    const y = row * PITCH;
+    return { x, y, left: x, top: y, width: 24, height: 24, right: x + 24, bottom: y + 24, toJSON: () => ({}) } as DOMRect;
+  });
+  return () => spy.mockRestore();
+}
+
 function storeFinished(): void {
   localStorage.setItem(
     `kpop-word-search-${puzzle.puzzle_id}`,
@@ -107,33 +122,43 @@ describe("WordSearchGame component", () => {
     expect(wordItem).toHaveClass("is-found");
   });
 
-  it("finds a word dragged by touch, where the browser sends every event to the first cell", () => {
+  it("finds a word dragged by touch from coordinates, wherever the browser sends the events", () => {
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
-
-    const target = puzzle.words.find((w) => w.word === "SHINDONG")!;
-    const startCell = screen.getByLabelText(new RegExp(`^Linha ${target.start_row + 1}, coluna ${target.start_col + 1},`));
-    const endCell = screen.getByLabelText(new RegExp(`^Linha ${target.end_row + 1}, coluna ${target.end_col + 1},`));
+    const target = puzzle.words.find((w) => w.word === "SHINDONG")!; // column 10, rows 7 to 0
+    const startCell = cell(target.start_row, target.start_col);
     const grid = screen.getByRole("grid");
-
-    // Touch input captures the pointer on the element it started on, so the
-    // move and up events keep targeting the first cell. Only the coordinates
-    // say where the finger is.
-    const underFinger = vi.fn<(x: number, y: number) => Element | null>(() => startCell);
-    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: underFinger });
+    const restore = layOutCells();
 
     try {
-      fireEvent.pointerDown(startCell, { clientX: 1, clientY: 1, buttons: 1 });
-      underFinger.mockReturnValue(endCell.querySelector(".cell-letter") ?? endCell);
-      fireEvent.pointerMove(grid, { clientX: 99, clientY: 99, buttons: 1 });
-      fireEvent.pointerUp(startCell, { clientX: 99, clientY: 99 });
+      // Touch keeps targeting the first cell; only the coordinates say where
+      // the finger is. It strays beside the column and lifts past the top.
+      fireEvent.pointerDown(startCell, { clientX: center(10), clientY: center(7), buttons: 1 });
+      fireEvent.pointerMove(startCell, { clientX: center(10) + 9, clientY: center(3), buttons: 1 });
+      fireEvent.pointerMove(grid, { clientX: center(10) - 8, clientY: -20, buttons: 1 });
+      fireEvent.pointerUp(startCell, { clientX: center(10) - 8, clientY: -20 });
     } finally {
-      delete (document as { elementFromPoint?: unknown }).elementFromPoint;
+      restore();
     }
 
     expect(screen.getByTestId("found-counter")).toHaveTextContent(tPt.progress(1, puzzle.words.length));
     expect(document.querySelector(`[data-word-id="${target.id}"]`)).toHaveClass("is-found");
   });
 
+  it("starts on the nearest cell when a tap lands in the gap between two cells", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    const grid = screen.getByRole("grid");
+    const restore = layOutCells();
+
+    try {
+      // Cells are 24px every 26px: x = center(3) + 12.6 is in the gap, nearer column 3.
+      fireEvent.pointerDown(grid, { clientX: center(3) + 12.6, clientY: center(2) });
+      fireEvent.pointerUp(grid, { clientX: center(3) + 12.6, clientY: center(2) });
+    } finally {
+      restore();
+    }
+
+    expect(cell(2, 3)).toHaveClass("is-anchor");
+  });
   it("toggles easy mode and hides/reveals word names", () => {
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
 
@@ -264,9 +289,9 @@ describe("WordSearch action bar", () => {
 
     fireEvent.pointerDown(cell(target.start_row, target.start_col));
     fireEvent.pointerUp(cell(target.start_row, target.start_col));
-    expect(liveRegion(container)).toHaveTextContent(tPt.anchorHint("S"));
+    expect(liveRegion(container)).toHaveTextContent("Início: S. Marque essa letra de novo para cancelar.");
 
-    fireEvent.pointerEnter(cell(target.end_row, target.end_col));
+    fireEvent.pointerMove(cell(target.end_row, target.end_col));
     expect(liveRegion(container)).toHaveTextContent("SHINDONG");
     expect(liveRegion(container)).toHaveTextContent(tPt.lettersCount(8));
   });
@@ -329,6 +354,88 @@ describe("WordSearch action bar", () => {
 
     expect(liveRegion(container)).toHaveTextContent(tPt.repeatFeedback("Shindong"));
     expect(screen.getByTestId("found-counter")).toHaveTextContent(tPt.progress(1, puzzle.words.length));
+  });
+
+  // A piece of a name, a second tap off the line and a miss each get their
+  // own text in the live region, in both languages.
+  for (const locale of ["pt-BR", "en"] as const) {
+    it(`tells apart a piece of a name, a tap off the line and a miss (${locale})`, () => {
+      const t = getMessages(locale).wordSearch;
+      const { container } = render(<WordSearchGame locale={locale} puzzle={puzzle} />);
+      const at = (row: number, col: number) => container.querySelector<HTMLElement>(`[data-row="${row}"][data-col="${col}"]`)!;
+      const tap = (row: number, col: number) => {
+        fireEvent.pointerDown(at(row, col));
+        fireEvent.pointerUp(at(row, col));
+      };
+      const region = liveRegion(container);
+      const messages = new Set<string>();
+
+      // SHIN: the first four letters of SHINDONG, up column 10.
+      tap(7, 10);
+      tap(4, 10);
+      expect(region).toHaveTextContent(t.partialFeedback("SHIN"));
+      messages.add(region.textContent!);
+
+      // (0, 0) then (1, 2): not on one line, so (1, 2) becomes the start.
+      tap(0, 0);
+      tap(1, 2);
+      expect(region).toHaveTextContent(t.offLineFeedback("L", puzzle.grid[1]![2]!));
+      expect(at(1, 2)).toHaveClass("is-anchor");
+      messages.add(region.textContent!);
+
+      tap(1, 2);
+      tap(0, 1);
+      tap(0, 3);
+      expect(region).toHaveTextContent(t.missFeedback("HTA"));
+      messages.add(region.textContent!);
+
+      expect(messages.size).toBe(3);
+    });
+  }
+
+  it("cancels a start marked by a tap with Esc, with focus outside the grid", () => {
+    const { container } = render(<WordSearchGame locale="en" puzzle={puzzle} />);
+    const start = container.querySelector<HTMLElement>('[data-row="4"][data-col="4"]')!;
+    fireEvent.pointerDown(start);
+    fireEvent.pointerUp(start);
+    expect(liveRegion(container)).toHaveTextContent(`Start: ${puzzle.grid[4]![4]!}. Select that letter again to cancel.`);
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(start).not.toHaveClass("is-anchor");
+    expect(liveRegion(container)).toHaveTextContent(getMessages("en").wordSearch.cancelFeedback);
+  });
+
+  it("cancels a start with Esc while a hidden third-party aria-modal node is in the page", () => {
+    const stray = document.createElement("div");
+    stray.setAttribute("aria-modal", "true");
+    stray.hidden = true;
+    document.body.append(stray);
+    try {
+      const { container } = render(<WordSearchGame locale="en" puzzle={puzzle} />);
+      const start = container.querySelector<HTMLElement>('[data-row="4"][data-col="4"]')!;
+      fireEvent.pointerDown(start);
+      fireEvent.pointerUp(start);
+      expect(start).toHaveClass("is-anchor");
+
+      fireEvent.keyDown(document.body, { key: "Escape" });
+
+      expect(start).not.toHaveClass("is-anchor");
+    } finally {
+      stray.remove();
+    }
+  });
+
+  it("cancels a start with Esc from the grid once, without a second notice", () => {
+    const { container } = render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    const grid = screen.getByRole("grid");
+    fireEvent.keyDown(grid, { key: "Enter" });
+    expect(cell(0, 0)).toHaveClass("is-anchor");
+
+    fireEvent.keyDown(grid, { key: "Escape" });
+
+    expect(cell(0, 0)).not.toHaveClass("is-anchor");
+    expect(liveRegion(container)).toHaveTextContent(tPt.cancelFeedback);
   });
 });
 
@@ -419,6 +526,20 @@ describe("WordSearch end of puzzle", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
+
+  it("leaves the start marked when Esc closes the give-up dialog", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.pointerDown(cell(4, 4));
+    fireEvent.pointerUp(cell(4, 4));
+    expect(cell(4, 4)).toHaveClass("is-anchor");
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    const dialog = screen.getByRole("dialog", { name: "Desistir da partida?" });
+    fireEvent.keyDown(within(dialog).getByRole("button", { name: "Cancelar" }), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(cell(4, 4)).toHaveClass("is-anchor");
   });
 
   it("shows English give-up confirmation copy on word search", () => {
@@ -693,42 +814,14 @@ describe("WordSearch share", () => {
   });
 });
 
-describe("WordSearch chip row", () => {
-  const props = ["scrollWidth", "clientWidth"] as const;
-  const saved = props.map((key) => Object.getOwnPropertyDescriptor(HTMLElement.prototype, key));
+describe("WordSearch word list", () => {
+  afterEach(() => localStorage.clear());
 
-  afterEach(() => {
-    props.forEach((key, i) => {
-      if (saved[i]) Object.defineProperty(HTMLElement.prototype, key, saved[i]!);
-      else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[key];
-    });
-    localStorage.clear();
-  });
-
-  function list(): HTMLElement {
-    return document.querySelector<HTMLElement>(".word-search-words")!;
-  }
-
-  it("stays out of the tab order when every chip fits", () => {
+  it("lists every word in the tab-free list, none of them hidden behind a scroll", () => {
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
-    expect(list()).not.toHaveAttribute("tabindex");
-    expect(list()).not.toHaveClass("has-more-end");
-  });
-
-  it("takes focus and marks the hidden ends when the chips scroll", () => {
-    Object.defineProperty(HTMLElement.prototype, "scrollWidth", { configurable: true, get: () => 500 });
-    Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 200 });
-    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
-
-    expect(list()).toHaveAttribute("tabindex", "0");
-    expect(list()).toHaveAccessibleName(tPt.wordsHeading);
-    expect(list()).toHaveClass("has-more-end");
-    expect(list()).not.toHaveClass("has-more-start");
-
-    list().scrollLeft = 300;
-    fireEvent.scroll(list());
-    expect(list()).toHaveClass("has-more-start");
-    expect(list()).not.toHaveClass("has-more-end");
+    const list = screen.getByRole("list", { name: tPt.wordsHeading });
+    expect(list).not.toHaveAttribute("tabindex");
+    expect(within(list).getAllByRole("listitem")).toHaveLength(puzzle.words.length);
   });
 });
 

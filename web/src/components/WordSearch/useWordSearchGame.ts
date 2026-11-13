@@ -2,14 +2,10 @@ import { useGameAnalytics } from "../../lib/game-analytics";
 import { isDailyBoardRound } from "../../lib/player-stats";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
-import type { CellCoord, GameStatus, SelectionCheck } from "./types";
-import {
-  getLinearPath,
-  isWordMatch,
-  loadStoredProgress,
-  type StoredProgress,
-} from "./utils";
-import { handleWordSearchKeyDown } from "./keyboard";
+import type { CellCoord, GameStatus } from "./types";
+import { getLinearPath, loadStoredProgress, type StoredProgress } from "./utils";
+import { judgeSelection } from "./selection";
+import { useSelection } from "./useSelection";
 import type { Locale } from "../../lib/quiz-types";
 
 export function wordSearchMatchId(puzzle: WordSearchPuzzle): string {
@@ -32,32 +28,6 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(initial.elapsedSeconds);
   const [status, setStatus] = useState<GameStatus>(initial.status);
   const [easyMode, setEasyMode] = useState<boolean>(initial.easyMode);
-
-  const [focusedCell, setFocusedCell] = useState<CellCoord>({ row: 0, col: 0 });
-  const [anchorCell, setAnchorCell] = useState<CellCoord | null>(null);
-  const [currentHoverCell, setCurrentHoverCell] = useState<CellCoord | null>(null);
-  // Verdict of the last finished selection, cleared when the next one starts.
-  const [lastCheck, setLastCheck] = useState<SelectionCheck | null>(null);
-  const checkCountRef = useRef(0);
-
-  const focusedRef = useRef<CellCoord>(focusedCell);
-  focusedRef.current = focusedCell;
-
-  const focusCell = useCallback((cell: CellCoord) => {
-    focusedRef.current = cell;
-    setFocusedCell(cell);
-  }, []);
-
-  const anchorRef = useRef<CellCoord | null>(null);
-  anchorRef.current = anchorCell;
-
-  const currentHoverRef = useRef<CellCoord | null>(null);
-  currentHoverRef.current = currentHoverCell;
-
-  const isPointerDownRef = useRef<boolean>(false);
-  const pointerDownCellRef = useRef<CellCoord | null>(null);
-  const anchorAtPointerDownRef = useRef<CellCoord | null>(null);
-  const didDragRef = useRef<boolean>(false);
 
   const foundWordIdsRef = useRef<string[]>(foundWordIds);
   foundWordIdsRef.current = foundWordIds;
@@ -93,6 +63,30 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     status === "completed",
     foundWordIds.length > 0,
   );
+
+  const judge = useCallback(
+    (start: CellCoord, end: CellCoord) => {
+      if (status !== "in_progress" || getLinearPath(start, end).length < 2) return null;
+      analytics.start();
+      const verdict = judgeSelection(puzzle, foundWordIdsRef.current, start, end, locale);
+      if (verdict.kind === "found") {
+        const nextFound = [...foundWordIdsRef.current, verdict.wordId];
+        foundWordIdsRef.current = nextFound;
+        setFoundWordIds(nextFound);
+        if (nextFound.length === puzzle.words.length) setStatus("completed");
+      }
+      return verdict;
+    },
+    [puzzle, locale, status]
+  );
+
+  const selection = useSelection({
+    dimensions: puzzle.dimensions,
+    grid: puzzle.grid,
+    playing: status === "in_progress",
+    judge,
+  });
+  const { anchorCell, currentHoverCell, focusedCell } = selection;
 
   const activePath = useMemo(() => {
     if (!anchorCell) return [];
@@ -132,177 +126,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     return cells;
   }, [status, puzzle.words, foundWordIds]);
 
-  const checkSelection = useCallback(
-    (start: CellCoord, end: CellCoord) => {
-      const path = getLinearPath(start, end);
-      if (path.length < 2 || status !== "in_progress") return false;
-      analytics.start();
-
-      const letters = path.map((c) => puzzle.grid[c.row]?.[c.col] ?? "").join("");
-      const revLetters = letters.split("").reverse().join("");
-      const n = ++checkCountRef.current;
-
-      const currentFound = foundWordIdsRef.current;
-      const matches = (w: WordSearchPuzzle["words"][number]) =>
-        path.length >= 3 && isWordMatch(w, start, end, letters, revLetters, locale);
-      const match = puzzle.words.find((w) => !currentFound.includes(w.id) && matches(w));
-
-      if (match) {
-        const nextFound = [...currentFound, match.id];
-        foundWordIdsRef.current = nextFound;
-        setFoundWordIds(nextFound);
-        if (nextFound.length === puzzle.words.length) setStatus("completed");
-        setLastCheck({ kind: "found", wordId: match.id, n });
-        return true;
-      }
-      const again = puzzle.words.find((w) => currentFound.includes(w.id) && matches(w));
-      setLastCheck(again ? { kind: "repeat", wordId: again.id, n } : { kind: "miss", letters, n });
-      return false;
-    },
-    [puzzle, locale, status]
-  );
-
-  const handleCellPointerDown = useCallback((row: number, col: number) => {
-    isPointerDownRef.current = true;
-    pointerDownCellRef.current = { row, col };
-    anchorAtPointerDownRef.current = anchorRef.current;
-    didDragRef.current = false;
-    setLastCheck(null);
-    focusCell({ row, col });
-
-    if (!anchorRef.current) {
-      anchorRef.current = { row, col };
-      setAnchorCell({ row, col });
-      setCurrentHoverCell({ row, col });
-    } else {
-      setCurrentHoverCell({ row, col });
-    }
-  }, []);
-
-  const handleCellPointerEnter = useCallback((row: number, col: number) => {
-    const target = { row, col };
-    focusCell(target);
-
-    if (isPointerDownRef.current) {
-      const downCell = pointerDownCellRef.current;
-      if (downCell && (downCell.row !== row || downCell.col !== col)) {
-        didDragRef.current = true;
-      }
-      setCurrentHoverCell(target);
-    } else if (anchorRef.current) {
-      setCurrentHoverCell(target);
-    }
-  }, []);
-
-  const handleCellPointerUp = useCallback(
-    (row: number, col: number) => {
-      const downCell = pointerDownCellRef.current;
-      const isDrag =
-        didDragRef.current ||
-        (downCell !== null && (downCell.row !== row || downCell.col !== col));
-      const target = { row, col };
-
-      if (isDrag) {
-        const start = downCell ?? pointerDownCellRef.current ?? anchorAtPointerDownRef.current;
-        if (start) {
-          checkSelection(start, target);
-        }
-        anchorRef.current = null;
-        setAnchorCell(null);
-        setCurrentHoverCell(null);
-      } else {
-        const priorAnchor = anchorAtPointerDownRef.current;
-
-        if (!priorAnchor) {
-          anchorRef.current = target;
-          setAnchorCell(target);
-          setCurrentHoverCell(target);
-        } else if (priorAnchor.row === target.row && priorAnchor.col === target.col) {
-          anchorRef.current = null;
-          setAnchorCell(null);
-          setCurrentHoverCell(null);
-        } else {
-          const path = getLinearPath(priorAnchor, target);
-          if (path.length > 0) {
-            checkSelection(priorAnchor, target);
-            anchorRef.current = null;
-            setAnchorCell(null);
-            setCurrentHoverCell(null);
-          } else {
-            anchorRef.current = target;
-            setAnchorCell(target);
-            setCurrentHoverCell(target);
-          }
-        }
-      }
-
-      isPointerDownRef.current = false;
-      pointerDownCellRef.current = null;
-      anchorAtPointerDownRef.current = null;
-      didDragRef.current = false;
-    },
-    [checkSelection]
-  );
-
-  useEffect(() => {
-    const handleGlobalPointerUp = () => {
-      if (!isPointerDownRef.current) return;
-
-      if (didDragRef.current) {
-        const start = pointerDownCellRef.current ?? anchorAtPointerDownRef.current;
-        const end = currentHoverRef.current;
-        if (start && end && (start.row !== end.row || start.col !== end.col)) {
-          checkSelection(start, end);
-        }
-        anchorRef.current = null;
-        setAnchorCell(null);
-        setCurrentHoverCell(null);
-      }
-
-      isPointerDownRef.current = false;
-      pointerDownCellRef.current = null;
-      anchorAtPointerDownRef.current = null;
-      didDragRef.current = false;
-    };
-
-    window.addEventListener("pointerup", handleGlobalPointerUp);
-    return () => {
-      window.removeEventListener("pointerup", handleGlobalPointerUp);
-    };
-  }, [checkSelection]);
-
-  // Keys can arrive faster than re-renders, so the handler reads and writes the
-  // refs instead of the values captured by the last render.
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      handleWordSearchKeyDown(e, {
-        focusedCell: focusedRef.current,
-        anchorCell: anchorRef.current,
-        dimensions: puzzle.dimensions,
-        setFocusedCell: focusCell,
-        setAnchorCell: (cell) => {
-          anchorRef.current = cell;
-          if (cell) setLastCheck(null);
-          setAnchorCell(cell);
-        },
-        setCurrentHoverCell: (cell) => {
-          currentHoverRef.current = cell;
-          setCurrentHoverCell(cell);
-        },
-        checkSelection,
-      });
-    },
-    [puzzle.dimensions, focusCell, checkSelection]
-  );
-
-  const cancelSelection = useCallback(() => {
-    anchorRef.current = null;
-    setAnchorCell(null);
-    setCurrentHoverCell(null);
-    isPointerDownRef.current = false;
-    pointerDownCellRef.current = null;
-    didDragRef.current = false;
-  }, []);
+  const cancelSelection = selection.clear;
 
   const giveUp = useCallback(() => {
     if (status !== "in_progress") return;
@@ -322,15 +146,15 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     clueMode: easyMode,
     setClueMode: setEasyMode,
     focusedCell,
-    setFocusedCell: focusCell,
+    setFocusedCell: selection.setFocusedCell,
     anchorCell,
     activePath,
     foundCellsMap,
-    lastCheck,
-    handleCellPointerDown: whilePlaying(status, handleCellPointerDown),
-    handleCellPointerEnter: whilePlaying(status, handleCellPointerEnter),
-    handleCellPointerUp: whilePlaying(status, handleCellPointerUp),
-    handleKeyDown: whilePlaying(status, handleKeyDown),
+    lastCheck: selection.lastCheck,
+    handleCellPointerDown: whilePlaying(status, selection.handleCellPointerDown),
+    handleCellPointerEnter: whilePlaying(status, selection.handleCellPointerEnter),
+    handleCellPointerUp: whilePlaying(status, selection.handleCellPointerUp),
+    handleKeyDown: whilePlaying(status, selection.handleKeyDown),
     cancelSelection,
     revealedCells,
     giveUp,

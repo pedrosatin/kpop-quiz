@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { CellCoord } from "./types";
+import { sameCell } from "./geometry";
+import { cellClass, pointerPosition, releasePointer } from "./pointer";
 import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
 
@@ -12,9 +14,10 @@ interface WordSearchGridProps {
   activePath: CellCoord[];
   foundCellsMap: Map<string, number>;
   revealedCells?: Set<string>;
-  onCellPointerDown: (row: number, col: number) => void;
-  onCellPointerEnter: (row: number, col: number) => void;
-  onCellPointerUp: (row: number, col: number) => void;
+  /** Positions in cell units; they may fall between cells or off the grid. */
+  onCellPointerDown: (row: number, col: number, pointerId: number) => void;
+  onCellPointerEnter: (row: number, col: number, pointerId: number) => void;
+  onCellPointerUp: (row: number, col: number, pointerId: number) => void;
   onKeyDown: (e: KeyboardEvent) => void;
 }
 
@@ -46,22 +49,26 @@ export function WordSearchGrid({
     }
   }, [focusedCell]);
 
-  // Touch input keeps sending move and up events to the cell where the finger
-  // went down, so the cell under the pointer comes from its coordinates.
-  const cellAtPoint = (x: number, y: number): CellCoord | null => {
-    const cellBtn = document.elementFromPoint?.(x, y)?.closest<HTMLElement>(".word-search-cell");
-    if (!cellBtn || !gridRef.current?.contains(cellBtn)) return null;
-    const row = parseInt(cellBtn.getAttribute("data-row") ?? "-1", 10);
-    const col = parseInt(cellBtn.getAttribute("data-col") ?? "-1", 10);
-    return row >= 0 && col >= 0 ? { row, col } : null;
+  const positionOf = (e: PointerEvent) => pointerPosition(gridRef.current, puzzle.dimensions, e);
+
+  const handleGridPointerDown = (e: PointerEvent) => {
+    const position = positionOf(e);
+    if (!position) return;
+    e.preventDefault();
+    releasePointer(e);
+    // The raw position, so a press tells a tap from a drag by how far it went.
+    onCellPointerDown(position.row, position.col, e.pointerId);
   };
 
   const handleGridPointerMove = (e: PointerEvent) => {
     if (e.buttons === 0 && !anchorCell) return;
-    const cell = cellAtPoint(e.clientX, e.clientY);
-    if (cell) {
-      onCellPointerEnter(cell.row, cell.col);
-    }
+    const position = positionOf(e);
+    if (position) onCellPointerEnter(position.row, position.col, e.pointerId);
+  };
+
+  const handleGridPointerUp = (e: PointerEvent) => {
+    const position = positionOf(e);
+    if (position) onCellPointerUp(position.row, position.col, e.pointerId);
   };
 
   return (
@@ -72,7 +79,9 @@ export function WordSearchGrid({
       aria-label={t.gridLabel}
       tabIndex={-1}
       onKeyDown={onKeyDown}
+      onPointerDown={handleGridPointerDown}
       onPointerMove={handleGridPointerMove}
+      onPointerUp={handleGridPointerUp}
       style={{
         "--grid-rows": rows,
         "--grid-cols": cols,
@@ -82,23 +91,11 @@ export function WordSearchGrid({
         <div class="word-search-row" role="row" key={`row-${r}`}>
           {rowLetters.map((letter, c) => {
             const key = `${r},${c}`;
+            const here = { row: r, col: c };
+            const color = foundCellsMap.get(key);
             const isSelected = activeCoordSet.has(key);
-            const colorIdx = foundCellsMap.get(key);
-            const isFound = colorIdx !== undefined;
-            const isRevealed = !isFound && (revealedCells?.has(key) ?? false);
-            const isFocused = focusedCell.row === r && focusedCell.col === c;
-            const isAnchor = anchorCell?.row === r && anchorCell?.col === c;
-
-            const classes = [
-              "word-search-cell",
-              isSelected ? "is-selected" : "",
-              isFound ? "is-found" : "",
-              isRevealed ? "is-revealed" : "",
-              isAnchor ? "is-anchor" : "",
-              isFound ? `color-${colorIdx}` : "",
-            ]
-              .filter(Boolean)
-              .join(" ");
+            const isRevealed = color === undefined && (revealedCells?.has(key) ?? false);
+            const classes = cellClass({ selected: isSelected, color, revealed: isRevealed, anchor: sameCell(anchorCell, here) });
 
             return (
               <button
@@ -108,28 +105,9 @@ export function WordSearchGrid({
                 class={classes}
                 data-row={r}
                 data-col={c}
-                data-found={isFound ? "true" : undefined}
-                tabIndex={isFocused ? 0 : -1}
-                aria-label={t.cellAria(r, c, letter, isSelected, isFound, isRevealed)}
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  // Touch captures the pointer on the element under the finger,
-                  // often the letter span, so release it wherever it landed.
-                  for (const el of [e.target, e.currentTarget] as Element[]) {
-                    try {
-                      if (el?.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
-                    } catch {}
-                  }
-                  onCellPointerDown(r, c);
-                }}
-                onPointerEnter={() => onCellPointerEnter(r, c)}
-                onPointerUp={(e) => {
-                  // A touch or pen lifted outside the grid is left to the window
-                  // listener in the hook, which ends the drag on the last cell crossed.
-                  const captured = e.pointerType === "touch" || e.pointerType === "pen";
-                  const released = cellAtPoint(e.clientX, e.clientY) ?? (captured ? null : { row: r, col: c });
-                  if (released) onCellPointerUp(released.row, released.col);
-                }}
+                data-found={color !== undefined ? "true" : undefined}
+                tabIndex={sameCell(focusedCell, here) ? 0 : -1}
+                aria-label={t.cellAria(r, c, letter, isSelected, color !== undefined, isRevealed)}
               >
                 <span class="cell-letter">{letter}</span>
               </button>

@@ -1,68 +1,53 @@
 import type { CellCoord } from "./types";
 import type { WordSearchDimensions } from "../../lib/word-search-types";
 
-import { getLinearPath } from "./utils";
-
 export interface KeyboardNavContext {
   focusedCell: CellCoord;
   anchorCell: CellCoord | null;
   dimensions: WordSearchDimensions;
   setFocusedCell: (cell: CellCoord) => void;
-  setAnchorCell: (cell: CellCoord | null) => void;
   setCurrentHoverCell: (cell: CellCoord | null) => void;
-  checkSelection: (start: CellCoord, end: CellCoord) => boolean;
+  /** Enter or Space on a cell: the same as a tap on it. */
+  tap: (cell: CellCoord) => void;
+  /** Drops the start marked so far and says so. */
+  cancel: () => void;
+}
+
+const MOVES: Record<string, [number, number]> = {
+  ArrowUp: [-1, 0],
+  ArrowDown: [1, 0],
+  ArrowLeft: [0, -1],
+  ArrowRight: [0, 1],
+};
+
+function clamp(value: number, size: number): number {
+  return Math.min(size - 1, Math.max(0, value));
 }
 
 export function handleWordSearchKeyDown(e: KeyboardEvent, ctx: KeyboardNavContext): void {
-  const {
-    focusedCell,
-    anchorCell,
-    dimensions,
-    setFocusedCell,
-    setAnchorCell,
-    setCurrentHoverCell,
-    checkSelection,
-  } = ctx;
+  const { focusedCell, anchorCell, dimensions } = ctx;
 
-  const { rows, cols } = dimensions;
-  let newRow = focusedCell.row;
-  let newCol = focusedCell.col;
-
-  if (e.key === "ArrowUp") newRow = Math.max(0, newRow - 1);
-  else if (e.key === "ArrowDown") newRow = Math.min(rows - 1, newRow + 1);
-  else if (e.key === "ArrowLeft") newCol = Math.max(0, newCol - 1);
-  else if (e.key === "ArrowRight") newCol = Math.min(cols - 1, newCol + 1);
-  else if (e.key === "Enter" || e.key === " ") {
+  if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
-    if (!anchorCell) {
-      setAnchorCell({ row: newRow, col: newCol });
-      setCurrentHoverCell({ row: newRow, col: newCol });
-    } else if (anchorCell.row === newRow && anchorCell.col === newCol) {
-      setAnchorCell(null);
-      setCurrentHoverCell(null);
-    } else {
-      const path = getLinearPath(anchorCell, { row: newRow, col: newCol });
-      if (path.length > 0) {
-        checkSelection(anchorCell, { row: newRow, col: newCol });
-        setAnchorCell(null);
-        setCurrentHoverCell(null);
-      } else {
-        setAnchorCell({ row: newRow, col: newCol });
-        setCurrentHoverCell({ row: newRow, col: newCol });
-      }
+    ctx.tap(focusedCell);
+    return;
+  }
+  if (e.key === "Escape") {
+    // Handled here, so the page-wide Esc of the selection skips it.
+    if (anchorCell) {
+      e.preventDefault();
+      ctx.cancel();
     }
     return;
-  } else if (e.key === "Escape") {
-    setAnchorCell(null);
-    setCurrentHoverCell(null);
-    return;
-  } else {
-    return;
   }
+  const move = MOVES[e.key];
+  if (!move) return;
 
   e.preventDefault();
-  setFocusedCell({ row: newRow, col: newCol });
-  if (anchorCell) {
-    setCurrentHoverCell({ row: newRow, col: newCol });
-  }
+  const next = {
+    row: clamp(focusedCell.row + move[0], dimensions.rows),
+    col: clamp(focusedCell.col + move[1], dimensions.cols),
+  };
+  ctx.setFocusedCell(next);
+  if (anchorCell) ctx.setCurrentHoverCell(next);
 }
