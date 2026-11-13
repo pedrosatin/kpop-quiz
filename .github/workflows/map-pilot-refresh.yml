@@ -108,8 +108,11 @@ jobs:
 
       # Branch protection on master requires changes to arrive via pull
       # request. Publish the refreshed dataset on an automation branch, then
-      # open (or reuse) its pull request and merge it, so the deploy
-      # triggered by this workflow's completion still sees the new data.
+      # merge its pull request, so the deploy triggered by this workflow's
+      # completion still sees the new data. The script only merges a pull
+      # request of this repository whose head is the commit pushed here, and
+      # opens one when there is none: a fork's pull request under the same
+      # branch name is never merged (ADR 031).
       - name: Publish via pull request
         env:
           GH_TOKEN: ${{ github.token }}
@@ -122,14 +125,10 @@ jobs:
           git add data/map-pilot
           git commit -m "Refresh map pilot tour dates for ${DATE}"
           git push --force origin "HEAD:refs/heads/${BRANCH}"
-          pr_number=$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number // empty')
-          if [ -z "${pr_number}" ]; then
-            gh pr create --head "${BRANCH}" --base master \
-              --title "Refresh map pilot tour dates for ${DATE}" \
-              --body "Automated refresh of the map pilot tour dataset."
-            pr_number=$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number')
-          fi
-          gh pr merge "${pr_number}" --squash \
-            --subject "Refresh map pilot tour dates for ${DATE}" \
-            --body "" \
-            --delete-branch
+          head_sha="$(git rev-parse HEAD)"
+          python3 scripts/publish_via_pr.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --branch "${BRANCH}" \
+            --head-sha "${head_sha}" \
+            --title "Refresh map pilot tour dates for ${DATE}" \
+            --body "Automated refresh of the map pilot tour dataset."
