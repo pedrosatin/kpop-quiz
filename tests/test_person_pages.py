@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -327,6 +328,37 @@ class PersonPagesPipelineTest(unittest.TestCase):
         self.assertEqual(facts[(WENDY, "born_in")][:2], ("rejected", "missing_evidence"))
         self.assertEqual(facts[(WENDY, "born_on")][:2], ("rejected", "unreliable_reference_source"))
         self.assertEqual(facts[(YERI, "born_on")][:2], ("rejected", "missing_evidence"))
+
+    def test_person_page_with_an_oversize_extract_is_refused_and_the_run_continues(self):
+        class OversizeIntro(FixturePersonClient):
+            def resolve_titles(self, titles):
+                result = super().resolve_titles(titles)
+                result["Wendy (singer)"] = replace(
+                    result["Wendy (singer)"], extract="a" * 33 * 1024
+                )
+                return result
+
+        with self.repository() as repository:
+            build_catalog(repository, self.fixture)
+            self.run_pipeline(repository, OversizeIntro())
+            states = {
+                row["wikidata_id"]: (row["state"], row["reason"], row["source_revision_id"])
+                for row in repository.connection.execute(
+                    """
+                    SELECT e.wikidata_id, p.state, p.reason, p.source_revision_id
+                    FROM person_source_pages p JOIN entities e ON e.id = p.person_entity_id
+                    """
+                )
+            }
+            stored = scalar(
+                repository, "SELECT COUNT(*) FROM source_pages WHERE external_page_id=9002"
+            )
+            facts = self.facts(repository)
+        self.assertEqual(states[WENDY], ("rejected", "page_extract_oversize", None))
+        self.assertEqual(states[YERI][:2], ("accepted", None))
+        self.assertEqual(stored, 0)
+        self.assertEqual(facts[(WENDY, "born_in")][:2], ("rejected", "missing_evidence"))
+        self.assertEqual(facts[(YERI, "born_on")][:3], ("accepted", None, ()))
 
     def test_failed_run_rolls_back_person_pages_too(self):
         class Failing(FixturePersonClient):

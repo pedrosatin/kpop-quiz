@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .mediawiki import Page
+from .mediawiki import EXTRACT_OVERSIZE, MAX_EXTRACT_BYTES, Page
 
 
 class SnapshotIntegrityError(RuntimeError):
@@ -969,17 +969,17 @@ class Repository:
         self.connection.commit()
         return int(cursor.lastrowid)
 
-    def _record_missing_pages(self, missing_pages_params: list[tuple[int, int, str, str]]) -> None:
-        if not missing_pages_params:
+    def _record_collection_issues(self, issues: list[tuple[int, int, str, str, str]]) -> None:
+        if not issues:
             return
         self.connection.executemany(
             """
             INSERT INTO collection_issues(
                 collection_run_id, external_page_id, title, issue_code, detail
-            ) VALUES (?, ?, ?, 'missing_page', ?)
+            ) VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(collection_run_id, external_page_id, issue_code) DO NOTHING
             """,
-            missing_pages_params,
+            issues,
         )
 
     def _has_classification_input_changed(
@@ -1115,17 +1115,34 @@ class Repository:
         language: str = "en",
         create_catalog_entries: bool = True,
     ) -> int:
+        """Store each page revision as a snapshot and return how many were kept.
+
+        A missing page and a page whose extract exceeds ``MAX_EXTRACT_BYTES``
+        are recorded in ``collection_issues`` and skipped: no snapshot, page
+        row or catalog entry is written for them, and what an earlier run
+        stored stays as it was. Group, release and person collection all save
+        through this method. Group and release evidence read the extract back
+        from the snapshot written here. A caller that looks up the stored row
+        afterwards must refuse an oversize page first, as ``_page_rejection``
+        does.
+        """
         fetched_at = utc_now()
         saved = 0
-        missing_pages_params = []
+        issues = []
         regular_pages = []
         for page in pages:
             if page.is_missing:
-                missing_pages_params.append((run_id, page.page_id, page.title, "No source revision was available"))
+                issues.append((run_id, page.page_id, page.title, "missing_page", "No source revision was available"))
+            elif page.is_extract_oversize:
+                issues.append((
+                    run_id, page.page_id, page.title, EXTRACT_OVERSIZE,
+                    f"Extract of revision {page.revision_id} has {page.extract_bytes} "
+                    f"UTF-8 bytes; the limit is {MAX_EXTRACT_BYTES}",
+                ))
             else:
                 regular_pages.append(page)
 
-        self._record_missing_pages(missing_pages_params)
+        self._record_collection_issues(issues)
 
         for page in regular_pages:
             if page.revision_id is None:

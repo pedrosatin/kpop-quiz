@@ -50,6 +50,8 @@ O classificador aceita os tipos diretos grupo musical, boy band, girl group, con
 
 Uma página ausente entre a descoberta e a consulta não possui revisão para análise. O coletor registra `missing_page` em `collection_issues` e não cria uma entrada no catálogo.
 
+Uma página com resumo acima de 32 KiB em UTF-8 (`MAX_EXTRACT_BYTES` em `kpop_scraping/mediawiki.py`) não é gravada. As regras de evidência percorrem o resumo inteiro com regex e laços por frase, então o tamanho do resumo limita o custo delas. O maior resumo do `data/kpop.db` local tinha 3,7 KB em novembro de 2026. `Repository.save_pages` registra `page_extract_oversize` em `collection_issues`, com o `revid` e o tamanho em bytes, e a execução segue com as outras páginas. O grupo que já tinha uma revisão no catálogo continua com ela. As coletas de release e de pessoa aplicam o mesmo limite antes de salvar e gravam o motivo em `release_source_pages` e `person_source_pages`.
+
 Parsers de infoboxes e tabelas devem operar sobre fixtures versionadas. Uma mudança de seletor exige teste com a página que causou a regressão. Valores temporais preservam precisão de dia, mês ou ano.
 
 ## Proveniência

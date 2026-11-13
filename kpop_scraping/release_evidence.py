@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from .evidence import WikipediaPage
-from .mediawiki import MAX_EXTRACTS_PER_REQUEST, MediaWikiClient, Page
+from .mediawiki import EXTRACT_OVERSIZE, MAX_EXTRACTS_PER_REQUEST, MediaWikiClient, Page
 from .storage import utc_now
 
 
@@ -140,6 +140,11 @@ def _store_page_result(repository, pages, item: _PageRequest, page: Page) -> int
           AND sp.external_page_id=? AND sr.external_revision_id=?""",
         (item.language, page.page_id, page.revision_id),
     ).fetchone()
+    if row is None:
+        raise RuntimeError(
+            f"release page {page.page_id} revision {page.revision_id} was not stored; "
+            "_page_rejection must refuse a page that save_pages skips"
+        )
     _record(
         repository, item.entity_id, item.language, item.snapshot_id, "accepted", None,
         int(row["page_id"]), int(row["revision_id"]),
@@ -168,6 +173,9 @@ def _page_rejection(page: Page | None, qid: str) -> str | None:
         return "page_list"
     if page.wikidata_id != qid:
         return "page_wikidata_mismatch"
+    # Checked before any read of the extract: save_pages would not store it.
+    if page.is_extract_oversize:
+        return EXTRACT_OVERSIZE
     if not page.extract.strip():
         return "page_extract_empty"
     lead = page.extract.split(".", 1)[0]
