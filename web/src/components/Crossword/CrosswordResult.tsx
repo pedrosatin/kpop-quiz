@@ -8,7 +8,7 @@ import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
-import { SourceCitation } from "../Source/SourceCitation";
+import { projectSite, SourceCitation } from "../Source/SourceCitation";
 import { isEntrySolved, type CrosswordStatus } from "./crossword-save";
 
 /**
@@ -154,7 +154,13 @@ export function CrosswordResult({
             <ul>
               {entry.sources.map((s) => (
                 <li key={s.locator}>
-                  <SourceCitation url={s.url} revision={new URL(s.url).searchParams.get("oldid")} locator={s.locator} messages={messages} />
+                  <SourceCitation
+                    url={s.url}
+                    revision={new URL(s.url).searchParams.get("oldid")}
+                    locator={s.locator}
+                    fallbackSite={projectSite(s.url, messages)}
+                    messages={messages}
+                  />
                   <span class="crossword-source-snippet">“{s.snippet}”</span>
                 </li>
               ))}

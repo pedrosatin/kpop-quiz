@@ -64,7 +64,13 @@ export function AnswerFeedbackSource({
 function SourceItem({ item, messages }: { item: DisplayEvidence; messages: Messages }) {
   return (
     <p class="quiz-source-item">
-      <SourceCitation url={item.source_url} revision={item.revision_id} locator={item.locator} messages={messages}>
+      <SourceCitation
+        url={item.source_url}
+        revision={item.revision_id}
+        locator={item.locator}
+        fallbackSite={messages.source.project(item.project)}
+        messages={messages}
+      >
         {item.declaredReference && (
           <> {messages.declaredReference}: {item.declaredReference}.</>
         )}

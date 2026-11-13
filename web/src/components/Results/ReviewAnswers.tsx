@@ -65,7 +65,13 @@ export function ReviewAnswers({ items, messages }: ReviewAnswersProps) {
                   <summary>{messages.evidence}</summary>
                   {displayedEvidence.map((ev) => (
                     <p key={`${ev.source_url}-${ev.revision_id}-${ev.locator}`}>
-                      <SourceCitation url={ev.source_url} revision={ev.revision_id} locator={ev.locator} messages={messages}>
+                      <SourceCitation
+                        url={ev.source_url}
+                        revision={ev.revision_id}
+                        locator={ev.locator}
+                        fallbackSite={messages.source.project(ev.project)}
+                        messages={messages}
+                      >
                         {ev.declaredReference && (
                           <> {messages.declaredReference}: {ev.declaredReference}.</>
                         )}

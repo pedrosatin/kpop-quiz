@@ -164,6 +164,14 @@ describe("ReviewAnswers", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
+  it("names the project of a source URL it does not link", () => {
+    const item = sampleItems[0]!;
+    const evidence = [{ ...item.question.evidence[0]!, locator: "wikipedia:en:pageid=1:revid=8#wikitext[0:4]", revision_id: 8, source_url: "https://user:secret@en.wikipedia.org/w/index.php?oldid=8" }];
+    render(<ReviewAnswers items={[{ ...item, question: { ...item.question, evidence } }]} messages={ptMessages} />);
+    expect(screen.getByText("Wikipédia, revisão 8, na caixa de informações do artigo.")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
   it("renders properly with English labels", () => {
     render(<ReviewAnswers items={sampleItems.slice(0, 1)} messages={enMessages} />);
 

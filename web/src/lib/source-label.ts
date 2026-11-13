@@ -16,6 +16,9 @@ export type SourcePlace =
   | { kind: "statement"; property: string }
   | { kind: "unknown" };
 
+/** The project a cited revision belongs to, read from its URL. */
+export type SourceProject = "Wikipedia" | "Wikidata";
+
 export interface SourceTarget {
   href: string;
   site: SourceSite;
@@ -41,12 +44,26 @@ function parseUrl(raw: string): URL | null {
 
 /**
  * The link target of a source, or null when the URL is malformed, is not
- * https or carries credentials: such a URL is shown as text, never linked.
+ * https or carries credentials: such a URL is never linked.
  */
 export function sourceTarget(raw: string): SourceTarget | null {
   const url = parseUrl(raw);
   if (!url || url.protocol !== "https:" || url.username || url.password || !url.hostname) return null;
   return { href: url.href, site: siteOf(url.hostname) };
+}
+
+/**
+ * The project of a source URL, read even from a URL that is not linked (one
+ * that carries credentials, say), so its citation can still name the site.
+ * Null when the URL is malformed or names another site.
+ */
+export function sourceProject(raw: string): SourceProject | null {
+  const url = parseUrl(raw);
+  if (!url) return null;
+  const site = siteOf(url.hostname);
+  if (site.kind === "wikipedia") return "Wikipedia";
+  if (site.kind === "wikidata") return "Wikidata";
+  return null;
 }
 
 /**

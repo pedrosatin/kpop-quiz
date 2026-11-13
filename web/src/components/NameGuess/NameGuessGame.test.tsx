@@ -255,7 +255,7 @@ describe("NameGuessGame component", () => {
       "href",
       puzzle.target.evidence[0]!.source_url,
     );
-    expect(hints).toHaveTextContent("Wikidata, revisão 1234567, na declaração “data de criação”.");
+    expect(hints).toHaveTextContent("Wikidata, revisão 1234567, na declaração \"data de criação\".");
 
     // Click copy results
     advanceClock();

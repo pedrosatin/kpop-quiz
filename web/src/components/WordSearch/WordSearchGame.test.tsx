@@ -390,6 +390,20 @@ describe("WordSearch end of puzzle", () => {
     }
   });
 
+  it("names the project of a source URL it does not link", () => {
+    const [first, ...rest] = puzzle.words;
+    const unsafe = "https://user:secret@en.wikipedia.org/w/index.php?curid=14223397&oldid=1329470742";
+    const words = [{ ...first!, evidence: first!.evidence.map((e) => ({ ...e, source_url: unsafe })) }, ...rest];
+    render(<WordSearchGame locale="pt-BR" puzzle={{ ...puzzle, words }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: pt.showSource }));
+    const panel = document.querySelector<HTMLElement>(".word-search-source")!;
+    const citation = within(panel).getAllByText(/^Wikipédia, revisão 1329470742, no resumo do artigo\.$/)[0]!;
+    expect(citation.querySelector("a")).toBeNull();
+    expect(panel.textContent).not.toContain("secret");
+  });
+
   it("asks for confirmation before giving up and keeps the board on cancel or Escape", () => {
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));

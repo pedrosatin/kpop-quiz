@@ -2,7 +2,7 @@ import type { GridCellData, IntersectionGrid, Locale } from "../../lib/quiz-type
 import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import type { Messages } from "../../i18n/catalog";
 import { cellKey, type GridCellState } from "./types";
-import { SourceLink } from "../Source/SourceCitation";
+import { citedSite, SourceLink } from "../Source/SourceCitation";
 
 export interface GridReviewProps {
   grid: IntersectionGrid;
@@ -157,7 +157,7 @@ export function GridReview({ grid, cellStates, locale, messages }: GridReviewPro
                         <ul>
                           {group.lines.map((line) => (
                             <li key={line.key}>
-                              {`${line.project}, ${messages.revision} ${line.revision}.`}{" "}
+                              {`${citedSite(line.url, messages.source.project(line.project), messages)}, ${messages.revision} ${line.revision}.`}{" "}
                               <SourceLink url={line.url} messages={messages} />
                               <span class="grid-source-locator">
                                 {messages.gridSourceLocator}{" "}

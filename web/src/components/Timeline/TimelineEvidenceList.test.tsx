@@ -14,8 +14,8 @@ describe("timeline evidence links", () => {
   });
 
   it.each([
-    ["pt-BR", "Wikipédia em inglês, revisão 456, na caixa de informações do artigo.", "Abrir esta revisão na Wikipédia em inglês", "Wikidata, revisão 789, na declaração “data de nascimento”.", "Abrir esta revisão no Wikidata"],
-    ["en", "English Wikipedia, revision 456, in the article infobox.", "Open this revision on English Wikipedia", "Wikidata, revision 789, in the “date of birth” statement.", "Open this revision on Wikidata"],
+    ["pt-BR", "Wikipédia em inglês, revisão 456, na caixa de informações do artigo.", "Abrir esta revisão na Wikipédia em inglês", "Wikidata, revisão 789, na declaração \"data de nascimento\".", "Abrir esta revisão no Wikidata"],
+    ["en", "English Wikipedia, revision 456, in the article infobox.", "Open this revision on English Wikipedia", "Wikidata, revision 789, in the \"date of birth\" statement.", "Open this revision on Wikidata"],
   ] as const)("reads each source in words and keeps its locator on the link in %s", (locale, wikipediaText, wikipediaLink, wikidataText, wikidataLink) => {
     const url = "https://en.wikipedia.org/w/index.php?curid=123&oldid=456";
     const wikitext = "wikipedia:en:pageid=123:revid=456#wikitext[10:20]";

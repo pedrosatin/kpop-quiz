@@ -475,6 +475,18 @@ describe("ConnectionsGame component integration", () => {
     }
   });
 
+  it("names a Wikipedia source by site and language in Portuguese", () => {
+    const [first, ...rest] = puzzle.categories;
+    const url = "https://en.wikipedia.org/w/index.php?curid=1&oldid=42";
+    const wikipedia = { ...puzzle, categories: [{ ...first!, evidence: [{ ...first!.evidence[0]!, revision_id: 42, source_url: url }] }, ...rest] };
+    render(<ConnectionsGame locale="pt-BR" puzzle={wikipedia} messages={pt} />);
+    for (const category of wikipedia.categories) guess(category.item_ids);
+    fireEvent.click(screen.getByRole("button", { name: pt.showSource }));
+    const line = screen.getByRole("link", { name: "Abrir esta revisão na Wikipédia em inglês" }).closest("li")!;
+    expect(line.textContent).toMatch(/Wikipédia em inglês, revisão 42\./);
+    expect(line.textContent).not.toContain("Wikipedia,");
+  });
+
   it("does not count a restored game whose finish was already recorded", () => {
     markGameMatchRecorded("connections", `connections-${puzzle.puzzle_id}`);
     localStorage.setItem(

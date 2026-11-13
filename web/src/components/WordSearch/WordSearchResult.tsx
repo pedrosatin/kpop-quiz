@@ -160,7 +160,13 @@ export function WordSearchResult({
                 </li>
                 {wordSources(puzzle, word.id).map((line) => (
                   <li key={line.key}>
-                    <SourceCitation url={line.url} revision={line.revision} locator={line.locator} messages={messages} />
+                    <SourceCitation
+                      url={line.url}
+                      revision={line.revision}
+                      locator={line.locator}
+                      fallbackSite={messages.source.project(line.project)}
+                      messages={messages}
+                    />
                   </li>
                 ))}
               </ul>

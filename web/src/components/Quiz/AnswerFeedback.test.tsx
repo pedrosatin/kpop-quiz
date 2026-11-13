@@ -158,6 +158,17 @@ describe("AnswerFeedback", () => {
     }
   });
 
+  it("names the project of a source URL it does not link, so the citation still reads whole", () => {
+    renderBar({
+      evidence: [{ ...sampleEvidence[0]!, locator: "wikipedia:en:pageid=1:revid=7#extract[0:4]", revision_id: 7, source_key: "wikipedia:en", source_url: "https://user:secret@en.wikipedia.org/w/index.php?oldid=7" }],
+    });
+    const toggle = screen.getByRole("button", { name: "Ver fonte" });
+    fireEvent.click(toggle);
+    const region = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(region).toHaveTextContent("Wikipédia, revisão 7, no resumo do artigo.");
+    expect(region.querySelector("a")).toBeNull();
+  });
+
   it("repeats both answers in the sources panel, since the bar clamps them", () => {
     renderBar({ isCorrect: false, selectedOption: itzy });
     const toggle = screen.getByRole("button", { name: "Ver fonte" });

@@ -483,6 +483,13 @@
   .quiz-actions .btn-primary {
     margin-inline-start: auto;
   }
+
+  /* An open panel grows the bar past a short window. Like the other games'
+     bars, it then stops being sticky, so it never covers the question and
+     the page scrolls to Next. */
+  .quiz-actions:has(.quiz-source:not([hidden])) {
+    position: static;
+  }
 }
 
 @media (max-width: 420px) {

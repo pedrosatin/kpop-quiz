@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getMessages } from "../i18n/catalog";
-import { sourcePlace, sourceTarget, type SourcePlace, type SourceSite } from "./source-label";
+import { sourcePlace, sourceProject, sourceTarget, type SourcePlace, type SourceSite } from "./source-label";
 
 const pt = getMessages("pt-BR").source;
 const en = getMessages("en").source;
@@ -23,6 +23,19 @@ describe("sourceTarget", () => {
       expect(sourceTarget(url)).toBeNull();
     },
   );
+});
+
+describe("sourceProject", () => {
+  it.each([
+    ["https://en.wikipedia.org/w/index.php?oldid=2", "Wikipedia"],
+    ["https://user:pass@ko.wikipedia.org/wiki/X", "Wikipedia"],
+    ["http://www.wikidata.org/wiki/Q1", "Wikidata"],
+    ["https://user@www.wikidata.org/wiki/Q1", "Wikidata"],
+    ["https://www.ygfamily.com/tour", null],
+    ["invalid", null],
+  ] as const)("reads the project of %j, linked or not", (url, project) => {
+    expect(sourceProject(url)).toBe(project);
+  });
 });
 
 describe("sourcePlace", () => {
@@ -61,8 +74,8 @@ describe("source copy", () => {
   const places: [SourcePlace, string, string][] = [
     [{ kind: "summary" }, "no resumo do artigo", "in the article summary"],
     [{ kind: "infobox" }, "na caixa de informações do artigo", "in the article infobox"],
-    [{ kind: "statement", property: "P569" }, "na declaração “data de nascimento”", "in the “date of birth” statement"],
-    [{ kind: "statement", property: "P264" }, "na declaração “gravadora”", "in the “record label” statement"],
+    [{ kind: "statement", property: "P569" }, "na declaração \"data de nascimento\"", "in the \"date of birth\" statement"],
+    [{ kind: "statement", property: "P264" }, "na declaração \"gravadora\"", "in the \"record label\" statement"],
     [{ kind: "statement", property: "P9999" }, "na declaração P9999", "in statement P9999"],
     [{ kind: "unknown" }, "no trecho citado", "in the cited passage"],
   ];
@@ -70,6 +83,17 @@ describe("source copy", () => {
   it.each(places)("names the place %j", (place, ptPlace, enPlace) => {
     expect(pt.place(place)).toBe(ptPlace);
     expect(en.place(place)).toBe(enPlace);
+  });
+
+  it("names a Wikidata date statement as a date in English", () => {
+    expect(en.place({ kind: "statement", property: "P571" })).toBe("in the \"formation date\" statement");
+    expect(en.place({ kind: "statement", property: "P576" })).toBe("in the \"dissolution date\" statement");
+  });
+
+  it("names a project without its language", () => {
+    expect(pt.project("Wikipedia")).toBe("Wikipédia");
+    expect(en.project("Wikipedia")).toBe("Wikipedia");
+    expect(pt.project("Wikidata")).toBe("Wikidata");
   });
 
   it("numbers the revision", () => {

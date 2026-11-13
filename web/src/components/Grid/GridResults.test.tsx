@@ -191,6 +191,16 @@ describe("GridResults component", () => {
     expect(panel).toHaveAttribute("hidden");
   });
 
+  it("names a Wikipedia source by site and language in Portuguese", () => {
+    const url = "https://en.wikipedia.org/w/index.php?curid=1&oldid=77";
+    const [first, ...rest] = validGrid.cells;
+    const cells = [{ ...first!, evidence: first!.evidence.map((e) => ({ ...e, revision_id: 77, source_url: url })) }, ...rest];
+    renderResults({ grid: { ...validGrid, cells } });
+    fireEvent.click(screen.getByRole("button", { name: "Ver fonte" }));
+    const link = screen.getAllByRole("link", { name: "Abrir esta revisão na Wikipédia em inglês" })[0]!;
+    expect(link.closest("li")!.textContent).toMatch(/^Wikipédia em inglês, revisão 77\./);
+  });
+
   it("ignores Ver fonte right after the result appears and on a held Enter", () => {
     render(
       <GridResults

@@ -2,14 +2,14 @@ import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
 import type { ConnectionsResultsProps } from "./types";
 import { DIFFICULTY_COLORS } from "./types";
-import { getMessages } from "../../i18n/catalog";
+import { getMessages, type Messages } from "../../i18n/catalog";
 import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
-import { SourceLink } from "../Source/SourceCitation";
+import { citedSite, SourceLink } from "../Source/SourceCitation";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 export function generateShareText({
@@ -94,6 +94,11 @@ function categorySources(
     });
   }
   return [...lines.values()];
+}
+
+/** The line's site in the page's language: "Wikipédia em inglês", "Wikidata". */
+function lineSite(line: SourceLine, messages: Messages): string {
+  return citedSite(line.url, messages.source.project(line.project), messages);
 }
 
 /**
@@ -207,8 +212,8 @@ export function ConnectionsResults({
               {categorySources(puzzle, category.id, locale).map((line) => (
                 <li key={line.key}>
                   {line.itemName
-                    ? messages.connectionsSourceItem(line.itemName, line.project, line.revision)
-                    : `${line.project}, ${messages.revision} ${line.revision}.`}{" "}
+                    ? messages.connectionsSourceItem(line.itemName, lineSite(line, messages), line.revision)
+                    : `${lineSite(line, messages)}, ${messages.revision} ${line.revision}.`}{" "}
                   <SourceLink url={line.url} messages={messages} />
                 </li>
               ))}

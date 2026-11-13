@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import type { Messages } from "../../i18n/catalog";
-import { sourcePlace, sourceTarget } from "../../lib/source-label";
+import { sourcePlace, sourceProject, sourceTarget } from "../../lib/source-label";
 
 export interface SourceCitationProps {
   url: string;
@@ -14,12 +14,29 @@ export interface SourceCitationProps {
   children?: ComponentChildren;
 }
 
+/**
+ * The site a citation names: the site and language of a linked URL
+ * ("Wikipédia em inglês"), otherwise the caller's fallback.
+ */
+export function citedSite<F extends string | undefined>(url: string, fallbackSite: F, messages: Messages): string | F {
+  const target = sourceTarget(url);
+  return target ? messages.source.site(target.site) : fallbackSite;
+}
+
+/**
+ * The project of a URL in words ("Wikipédia"), the fallback site for a
+ * caller whose source carries no project of its own.
+ */
+export function projectSite(url: string, messages: Messages): string | undefined {
+  const project = sourceProject(url);
+  return project ? messages.source.project(project) : undefined;
+}
+
 function citationText(
   { url, revision, locator, fallbackSite, messages }: SourceCitationProps,
 ): string {
-  const target = sourceTarget(url);
   const parts = [
-    target ? messages.source.site(target.site) : fallbackSite,
+    citedSite(url, fallbackSite, messages),
     revision !== null && revision !== "" ? messages.source.revision(Number(revision)) : undefined,
     locator ? messages.source.place(sourcePlace(locator)) : undefined,
   ];

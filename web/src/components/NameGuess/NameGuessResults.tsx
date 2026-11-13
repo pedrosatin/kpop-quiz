@@ -9,7 +9,7 @@ import { withShareUrl } from "../Results/share-text";
 import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
-import { SourceCitation } from "../Source/SourceCitation";
+import { projectSite, SourceCitation } from "../Source/SourceCitation";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 /** The result as text: header, one row of squares per guess, then the link. */
@@ -222,6 +222,7 @@ function NameGuessDetails({ target, locale, t }: { target: NameGuessPuzzle["targ
             url={primaryEvidence.source_url}
             revision={primaryEvidence.revision_id}
             locator={primaryEvidence.locator}
+            fallbackSite={projectSite(primaryEvidence.source_url, getMessages(locale))}
             messages={getMessages(locale)}
           />
         </p>

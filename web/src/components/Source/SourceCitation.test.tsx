@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, it } from "vitest";
 import { getMessages } from "../../i18n/catalog";
-import { SourceCitation } from "./SourceCitation";
+import { citedSite, projectSite, SourceCitation } from "./SourceCitation";
 
 afterEach(cleanup);
 
@@ -25,7 +25,7 @@ describe("SourceCitation", () => {
   it("reads a Wikidata statement in English", () => {
     const claim = "claims/P569/Q85884933$FA/references/abc";
     render(<SourceCitation url="https://www.wikidata.org/w/index.php?title=Q85884933&oldid=25" revision={25} locator={claim} messages={getMessages("en")} />);
-    expect(screen.getByText("Wikidata, revision 25, in the “date of birth” statement.")).toBeInTheDocument();
+    expect(screen.getByText("Wikidata, revision 25, in the \"date of birth\" statement.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open this revision on Wikidata" })).toHaveAttribute("title", claim);
   });
 
@@ -43,13 +43,30 @@ describe("SourceCitation", () => {
       </SourceCitation>,
     );
     const citation = screen.getByRole("link").closest(".source-citation")!;
-    expect(citation).toHaveTextContent("Wikidata, revisão 9, na declaração “gravadora”. Referência citada: jype.com. Abrir esta revisão no Wikidata");
+    expect(citation).toHaveTextContent("Wikidata, revisão 9, na declaração \"gravadora\". Referência citada: jype.com. Abrir esta revisão no Wikidata");
   });
 
   it("does not link an unsafe URL and names the fallback site instead", () => {
     render(<SourceCitation url="javascript:alert(1)" revision={2} locator="p. 2" fallbackSite="upstream" messages={getMessages("pt-BR")} />);
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     expect(screen.getByText("upstream, revisão 2, no trecho citado.")).toHaveAttribute("title", "p. 2");
+  });
+
+  it("names the project of an https URL with credentials, which it does not link", () => {
+    const pt = getMessages("pt-BR");
+    const withCredentials = "https://user:secret@en.wikipedia.org/w/index.php?oldid=3";
+    render(<SourceCitation url={withCredentials} revision={3} locator={locator} fallbackSite={projectSite(withCredentials, pt)} messages={pt} />);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getByText("Wikipédia, revisão 3, no resumo do artigo.")).toHaveAttribute("title", locator);
+    expect(document.body.textContent).not.toContain("secret");
+  });
+
+  it("names the linked site in words and falls back for a URL it does not link", () => {
+    const pt = getMessages("pt-BR");
+    expect(citedSite(url, "Wikipédia", pt)).toBe("Wikipédia em inglês");
+    expect(citedSite("https://user@www.wikidata.org/wiki/Q1", "Wikidata", pt)).toBe("Wikidata");
+    expect(citedSite("invalid", undefined, pt)).toBeUndefined();
+    expect(projectSite("https://www.ygfamily.com/tour", pt)).toBeUndefined();
   });
 
   it("leaves out a missing revision or locator", () => {

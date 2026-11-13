@@ -1,5 +1,5 @@
 import type { Locale } from "../lib/quiz-types";
-import type { SourcePlace, SourceSite } from "../lib/source-label";
+import type { SourcePlace, SourceProject, SourceSite } from "../lib/source-label";
 
 // Copy for one cited revision, shared by every game's "Ver fonte" panel:
 // "Wikipédia em inglês, revisão 123, no resumo do artigo." and a link that
@@ -9,6 +9,8 @@ import type { SourcePlace, SourceSite } from "../lib/source-label";
 export interface SourceMessages {
   /** The site and its language: "Wikipédia em inglês", "Wikidata". */
   site: (site: SourceSite) => string;
+  /** A project without its language, for a URL that is not linked. */
+  project: (project: SourceProject) => string;
   revision: (id: number) => string;
   place: (place: SourcePlace) => string;
   /** Text of the link to the cited revision, naming its destination. */
@@ -19,6 +21,7 @@ interface SourceCopy {
   languages: Record<string, string>;
   wikipedia: (language: string) => string;
   wikipediaCode: (code: string) => string;
+  projects: Record<SourceProject, string>;
   revision: (id: number) => string;
   places: Record<Exclude<SourcePlace["kind"], "statement">, string>;
   properties: Record<string, string>;
@@ -34,6 +37,7 @@ const copies: Record<Locale, SourceCopy> = {
     languages: { en: "inglês", ko: "coreano", ja: "japonês", pt: "português", zh: "chinês", es: "espanhol", fr: "francês" },
     wikipedia: (language) => `Wikipédia em ${language}`,
     wikipediaCode: (code) => `Wikipédia (${code})`,
+    projects: { Wikipedia: "Wikipédia", Wikidata: "Wikidata" },
     revision: (id) => `revisão ${id}`,
     places: { summary: "no resumo do artigo", infobox: "na caixa de informações do artigo", unknown: "no trecho citado" },
     properties: {
@@ -47,7 +51,7 @@ const copies: Record<Locale, SourceCopy> = {
       P576: "data de dissolução",
       P577: "data de lançamento",
     },
-    statement: (property) => `na declaração “${property}”`,
+    statement: (property) => `na declaração "${property}"`,
     statementCode: (id) => `na declaração ${id}`,
     openWikipedia: (site) => `Abrir esta revisão na ${site}`,
     openWikidata: "Abrir esta revisão no Wikidata",
@@ -57,6 +61,7 @@ const copies: Record<Locale, SourceCopy> = {
     languages: { en: "English", ko: "Korean", ja: "Japanese", pt: "Portuguese", zh: "Chinese", es: "Spanish", fr: "French" },
     wikipedia: (language) => `${language} Wikipedia`,
     wikipediaCode: (code) => `Wikipedia (${code})`,
+    projects: { Wikipedia: "Wikipedia", Wikidata: "Wikidata" },
     revision: (id) => `revision ${id}`,
     places: { summary: "in the article summary", infobox: "in the article infobox", unknown: "in the cited passage" },
     properties: {
@@ -66,11 +71,11 @@ const copies: Record<Locale, SourceCopy> = {
       P463: "member of",
       P527: "members",
       P569: "date of birth",
-      P571: "inception",
-      P576: "dissolved",
+      P571: "formation date",
+      P576: "dissolution date",
       P577: "publication date",
     },
-    statement: (property) => `in the “${property}” statement`,
+    statement: (property) => `in the "${property}" statement`,
     statementCode: (id) => `in statement ${id}`,
     openWikipedia: (site) => `Open this revision on ${site}`,
     openWikidata: "Open this revision on Wikidata",
@@ -101,6 +106,7 @@ function sourceMessages(locale: Locale): SourceMessages {
   const copy = copies[locale];
   return {
     site: (site) => siteLabel(copy, site),
+    project: (project) => copy.projects[project],
     revision: copy.revision,
     place: (place) => placeLabel(copy, place),
     open: (site) => openLabel(copy, site),
