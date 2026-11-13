@@ -58,14 +58,14 @@
 }
 
 /*
-  Phones, measured at 390x844: grid top 316px, bar 70px (123px up to 420px
-  wide, below). Twelve columns leave at most about 28px per cell, so the
-  grid favors cell size over fitting the screen: it takes the card's width
-  and its padding, and the height budget only shrinks it to cells of 26px.
-  The words wrap under the grid and are left out of the budget; scrolling
-  brings every word above the bar. Selection on touch
-  does not rely on cell size alone (geometry.ts): a point in a gap goes to
-  the nearest cell and a drag keeps a straight line.
+  Phones, measured at 390x844: grid top 316px, bar 70px; up to 420px wide
+  it is 123px (see below). Twelve columns leave at most about 28px per cell,
+  so the grid favors cell size over fitting the screen: it takes the card's
+  width and its padding, and the height budget only shrinks it to cells of
+  26px. The words wrap under the grid and are left out of the budget;
+  scrolling brings every word above the bar. Selection on touch does not
+  rely on cell size alone (geometry.ts): a point in a gap goes to the
+  nearest cell and a drag keeps a straight line.
 */
 @media (max-width: 29.99rem) {
   .word-search {

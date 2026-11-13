@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { CellCoord } from "./types";
-import { nearestCell, sameCell } from "./geometry";
+import { sameCell } from "./geometry";
 import { cellClass, pointerPosition, releasePointer } from "./pointer";
 import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
@@ -14,10 +14,10 @@ interface WordSearchGridProps {
   activePath: CellCoord[];
   foundCellsMap: Map<string, number>;
   revealedCells?: Set<string>;
-  onCellPointerDown: (row: number, col: number) => void;
-  /** Position in cell units; it may fall between cells or off the grid. */
-  onCellPointerEnter: (row: number, col: number) => void;
-  onCellPointerUp: (row: number, col: number) => void;
+  /** Positions in cell units; they may fall between cells or off the grid. */
+  onCellPointerDown: (row: number, col: number, pointerId: number) => void;
+  onCellPointerEnter: (row: number, col: number, pointerId: number) => void;
+  onCellPointerUp: (row: number, col: number, pointerId: number) => void;
   onKeyDown: (e: KeyboardEvent) => void;
 }
 
@@ -56,19 +56,19 @@ export function WordSearchGrid({
     if (!position) return;
     e.preventDefault();
     releasePointer(e);
-    const cell = nearestCell(position, puzzle.dimensions);
-    onCellPointerDown(cell.row, cell.col);
+    // The raw position, so a press tells a tap from a drag by how far it went.
+    onCellPointerDown(position.row, position.col, e.pointerId);
   };
 
   const handleGridPointerMove = (e: PointerEvent) => {
     if (e.buttons === 0 && !anchorCell) return;
     const position = positionOf(e);
-    if (position) onCellPointerEnter(position.row, position.col);
+    if (position) onCellPointerEnter(position.row, position.col, e.pointerId);
   };
 
   const handleGridPointerUp = (e: PointerEvent) => {
     const position = positionOf(e);
-    if (position) onCellPointerUp(position.row, position.col);
+    if (position) onCellPointerUp(position.row, position.col, e.pointerId);
   };
 
   return (

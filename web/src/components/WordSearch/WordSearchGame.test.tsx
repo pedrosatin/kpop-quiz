@@ -289,7 +289,7 @@ describe("WordSearch action bar", () => {
 
     fireEvent.pointerDown(cell(target.start_row, target.start_col));
     fireEvent.pointerUp(cell(target.start_row, target.start_col));
-    expect(liveRegion(container)).toHaveTextContent(tPt.anchorHint("S"));
+    expect(liveRegion(container)).toHaveTextContent("Início: S. Marque essa letra de novo para cancelar.");
 
     fireEvent.pointerMove(cell(target.end_row, target.end_col));
     expect(liveRegion(container)).toHaveTextContent("SHINDONG");
@@ -398,7 +398,7 @@ describe("WordSearch action bar", () => {
     const start = container.querySelector<HTMLElement>('[data-row="4"][data-col="4"]')!;
     fireEvent.pointerDown(start);
     fireEvent.pointerUp(start);
-    expect(liveRegion(container)).toHaveTextContent(getMessages("en").wordSearch.anchorHint(puzzle.grid[4]![4]!));
+    expect(liveRegion(container)).toHaveTextContent(`Start: ${puzzle.grid[4]![4]!}. Select that letter again to cancel.`);
 
     fireEvent.keyDown(document.body, { key: "Escape" });
 
@@ -506,6 +506,20 @@ describe("WordSearch end of puzzle", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
+
+  it("leaves the start marked when Esc closes the give-up dialog", () => {
+    render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.pointerDown(cell(4, 4));
+    fireEvent.pointerUp(cell(4, 4));
+    expect(cell(4, 4)).toHaveClass("is-anchor");
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    const dialog = screen.getByRole("dialog", { name: "Desistir da partida?" });
+    fireEvent.keyDown(within(dialog).getByRole("button", { name: "Cancelar" }), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Desistir da partida?" })).not.toBeInTheDocument();
+    expect(cell(4, 4)).toHaveClass("is-anchor");
   });
 
   it("shows English give-up confirmation copy on word search", () => {

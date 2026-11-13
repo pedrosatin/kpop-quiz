@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { WordSearchDimensions } from "../../lib/word-search-types";
 import type { CellCoord, SelectionCheck } from "./types";
-import { nearestCell, sameCell, snapToLine } from "./geometry";
+import { sameCell } from "./geometry";
 import { handleWordSearchKeyDown } from "./keyboard";
 import { resolveTap, type SelectionVerdict } from "./selection";
+import { usePointerGesture, type DragState, type Snapshot } from "./usePointerGesture";
 
 type Report = SelectionVerdict | { kind: "offline"; from: string } | { kind: "cancelled" };
 
-interface DragState {
-  /** Cell where the pointer went down: the start of a drag. */
-  down: CellCoord;
-  /** Start marked by an earlier tap, for a press that turns out to be a tap. */
-  priorAnchor: CellCoord | null;
-  moved: boolean;
+/** Dialogs that take Esc for themselves. */
+const DIALOG = '[role="dialog"], [aria-modal="true"]';
+
+/**
+ * Esc pressed in a dialog, or while a modal one is open, belongs to the
+ * dialog: its own listener may run after this one, and focus reaches it a
+ * moment after it opens.
+ */
+function dialogOwnsEscape(target: EventTarget | null): boolean {
+  const inside = (target as Element | null)?.closest?.(DIALOG);
+  return Boolean(inside ?? document.querySelector('[aria-modal="true"]'));
 }
 
 export interface SelectionOptions {
@@ -38,8 +44,10 @@ export function useSelection({ dimensions, grid, playing, judge }: SelectionOpti
   const [anchorCell, setAnchorState] = useState<CellCoord | null>(null);
   const [currentHoverCell, setHoverState] = useState<CellCoord | null>(null);
   // Verdict of the last selection, cleared when the next one starts.
-  const [lastCheck, setLastCheck] = useState<SelectionCheck | null>(null);
+  const [lastCheck, setCheckState] = useState<SelectionCheck | null>(null);
   const checkCount = useRef(0);
+  const checkRef = useRef<SelectionCheck | null>(lastCheck);
+  checkRef.current = lastCheck;
 
   const focusedRef = useRef<CellCoord>(focusedCell);
   focusedRef.current = focusedCell;
@@ -49,9 +57,14 @@ export function useSelection({ dimensions, grid, playing, judge }: SelectionOpti
   hoverRef.current = currentHoverCell;
   const drag = useRef<DragState | null>(null);
 
+  const setLastCheck = useCallback((check: SelectionCheck | null) => {
+    checkRef.current = check;
+    setCheckState(check);
+  }, []);
+
   const report = useCallback((check: Report) => {
     setLastCheck({ ...check, n: ++checkCount.current } as SelectionCheck);
-  }, []);
+  }, [setLastCheck]);
 
   const focusCell = useCallback((cell: CellCoord) => {
     focusedRef.current = cell;
@@ -101,78 +114,44 @@ export function useSelection({ dimensions, grid, playing, judge }: SelectionOpti
       else setLastCheck(null);
       setAnchor(target);
     }
-  }, [cancel, finish, grid, report, setAnchor]);
+  }, [cancel, finish, grid, report, setAnchor, setLastCheck]);
 
-  const handleCellPointerDown = useCallback((row: number, col: number) => {
-    const cell = { row, col };
-    drag.current = { down: cell, priorAnchor: anchorRef.current, moved: false };
-    setLastCheck(null);
-    focusCell(cell);
-    if (anchorRef.current) setHover(cell);
-    else setAnchor(cell);
-  }, [focusCell, setAnchor, setHover]);
+  const snapshot = useCallback((): Snapshot => ({
+    anchor: anchorRef.current,
+    hover: hoverRef.current,
+    focus: focusedRef.current,
+    check: checkRef.current,
+  }), []);
 
-  /** The pointer moved to a position in cell units, pressed or not. */
-  const handleCellPointerEnter = useCallback((row: number, col: number) => {
-    const position = { row, col };
-    const current = drag.current;
-    if (!current) {
-      if (!anchorRef.current) return;
-      const cell = nearestCell(position, dimensions);
-      focusCell(cell);
-      setHover(cell);
-      return;
-    }
-    const end = snapToLine(current.down, position, dimensions);
-    if (!current.moved && sameCell(end, current.down)) return;
-    if (!current.moved) {
-      // A drag starts its own line, even with a start marked by a tap.
-      current.moved = true;
-      setAnchor(current.down);
-    }
-    focusCell(end);
-    setHover(end);
-  }, [dimensions, focusCell, setAnchor, setHover]);
+  const restore = useCallback((before: Snapshot) => {
+    setAnchor(before.anchor);
+    setHover(before.hover);
+    focusCell(before.focus);
+    setLastCheck(before.check);
+  }, [focusCell, setAnchor, setHover, setLastCheck]);
 
-  const handleCellPointerUp = useCallback((row: number, col: number) => {
-    const current = drag.current;
-    drag.current = null;
-    if (!current) return;
-    const position = { row, col };
-    const target = nearestCell(position, dimensions);
-    if (current.moved || !sameCell(target, current.down)) {
-      finish(current.down, snapToLine(current.down, position, dimensions));
-    } else {
-      tap(target, current.priorAnchor);
-    }
-  }, [dimensions, finish, tap]);
+  const clearCheck = useCallback(() => setLastCheck(null), [setLastCheck]);
 
-  // A drag that ends off the grid stops at the last cell it reached; a
-  // gesture the browser takes over drops the selection.
-  useEffect(() => {
-    const release = () => {
-      const current = drag.current;
-      drag.current = null;
-      if (current?.moved) finish(current.down, hoverRef.current ?? current.down);
-    };
-    const abort = () => {
-      if (drag.current?.moved) cancel();
-      drag.current = null;
-    };
-    window.addEventListener("pointerup", release);
-    window.addEventListener("pointercancel", abort);
-    return () => {
-      window.removeEventListener("pointerup", release);
-      window.removeEventListener("pointercancel", abort);
-    };
-  }, [cancel, finish]);
+  const pointer = usePointerGesture({
+    dimensions,
+    drag,
+    snapshot,
+    restore,
+    focusCell,
+    setHover,
+    setAnchor,
+    clearCheck,
+    finish,
+    tap,
+    cancel,
+  });
 
   // Esc cancels a marked start wherever the focus is: a tap does not move
-  // focus into the grid.
+  // focus into the grid. An open dialog keeps its Esc.
   useEffect(() => {
     if (!anchorCell || !playing) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented) cancel();
+      if (e.key === "Escape" && !e.defaultPrevented && !dialogOwnsEscape(e.target)) cancel();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -196,9 +175,7 @@ export function useSelection({ dimensions, grid, playing, judge }: SelectionOpti
     anchorCell,
     currentHoverCell,
     lastCheck,
-    handleCellPointerDown,
-    handleCellPointerEnter,
-    handleCellPointerUp,
+    ...pointer,
     handleKeyDown,
     clear,
   };

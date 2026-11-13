@@ -464,6 +464,102 @@ describe("useWordSearchGame hook", () => {
     expect(result.current.foundWordIds).toEqual([]);
   });
 
+  it("keeps a tap near a gap a tap when the finger trembles across it", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    // Down at column 5.49 (cell 5), up at 5.51 (nearer cell 6): half a pixel.
+    act(() => {
+      result.current.handleCellPointerDown(5, 5.49);
+      result.current.handleCellPointerEnter(5, 5.51);
+      result.current.handleCellPointerUp(5, 5.51);
+    });
+
+    expect(result.current.anchorCell).toEqual({ row: 5, col: 5 });
+    expect(result.current.activePath).toEqual([{ row: 5, col: 5 }]);
+    expect(result.current.lastCheck).toBeNull();
+  });
+
+  it("starts a drag once the finger travels half a cell from where it went down", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    act(() => {
+      result.current.handleCellPointerDown(5, 5.3);
+      result.current.handleCellPointerEnter(5, 5.7);
+    });
+    expect(result.current.activePath).toHaveLength(1);
+
+    act(() => {
+      result.current.handleCellPointerEnter(5, 6.2);
+    });
+    expect(result.current.activePath).toEqual([{ row: 5, col: 5 }, { row: 5, col: 6 }]);
+  });
+
+  it("follows only the first finger while it is down", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const target = puzzle.words.find((w) => w.word === "SHINDONG")!; // column 10, rows 7 to 0
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    act(() => {
+      result.current.handleCellPointerDown(7, 10, 1);
+      result.current.handleCellPointerEnter(4, 10, 1);
+      // A second finger lands, moves and lifts elsewhere.
+      result.current.handleCellPointerDown(0, 0, 2);
+      result.current.handleCellPointerEnter(0, 3, 2);
+      result.current.handleCellPointerUp(0, 3, 2);
+    });
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 2 }));
+      window.dispatchEvent(new PointerEvent("pointercancel", { pointerId: 2 }));
+    });
+    expect(result.current.anchorCell).toEqual({ row: 7, col: 10 });
+    expect(result.current.activePath).toHaveLength(4);
+
+    act(() => {
+      result.current.handleCellPointerEnter(0.2, 10, 1);
+      result.current.handleCellPointerUp(0.2, 10, 1);
+    });
+    expect(result.current.foundWordIds).toEqual([target.id]);
+  });
+
+  it("leaves the selection as it was when the browser takes a press over before any drag", () => {
+    const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+    const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+
+    // A start marked by a tap, then a press on the same row that the browser cancels.
+    act(() => {
+      result.current.handleCellPointerDown(0, 0);
+      result.current.handleCellPointerUp(0, 0);
+    });
+    act(() => {
+      result.current.handleCellPointerDown(0, 3);
+    });
+    expect(result.current.activePath).toHaveLength(4);
+    act(() => {
+      window.dispatchEvent(new Event("pointercancel"));
+    });
+    expect(result.current.anchorCell).toEqual({ row: 0, col: 0 });
+    expect(result.current.activePath).toEqual([{ row: 0, col: 0 }]);
+    expect(result.current.focusedCell).toEqual({ row: 0, col: 0 });
+    expect(result.current.lastCheck).toBeNull();
+
+    // A verdict in the bar, then a press with no start that the browser cancels.
+    act(() => {
+      result.current.handleCellPointerDown(0, 2);
+      result.current.handleCellPointerUp(0, 2);
+    });
+    expect(result.current.lastCheck).toMatchObject({ kind: "miss" });
+    act(() => {
+      result.current.handleCellPointerDown(5, 5);
+    });
+    act(() => {
+      window.dispatchEvent(new Event("pointercancel"));
+    });
+    expect(result.current.anchorCell).toBeNull();
+    expect(result.current.lastCheck).toMatchObject({ kind: "miss" });
+  });
+
   it("completes game when all words are found", () => {
     const puzzle = validPuzzle as unknown as WordSearchPuzzle;
     const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
