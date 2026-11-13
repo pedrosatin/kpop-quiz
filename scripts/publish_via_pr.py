@@ -146,8 +146,9 @@ def find_pull_request(
     Returns ``None`` when the repository has no pull request for the branch and
     ``required`` is false, which tells the caller to open one. A pull request of
     this repository with another head is listed again, because GitHub may not
-    have applied the push yet; if the head never becomes ``head_sha``, someone
-    else pushed to the branch and the publication stops.
+    have applied the push yet; if the head never becomes ``head_sha``, either
+    someone else pushed to the branch or GitHub is slower than the listings
+    wait, and the publication stops.
     """
     other_heads: list[str] = []
     for attempt in range(attempts):
@@ -169,7 +170,8 @@ def find_pull_request(
     if other_heads:
         raise PublishError(
             f"The pull request of {repository} for {branch} is {', '.join(other_heads)}, "
-            f"not the pushed commit {head_sha}. Another push reached the branch; nothing was merged."
+            f"not the pushed commit {head_sha} after {attempts} listings. Another push reached "
+            "the branch, or GitHub has not applied the push yet; nothing was merged."
         )
     raise PublishError(
         f"No pull request of {repository} from {branch} into {base} has the pushed commit {head_sha}."

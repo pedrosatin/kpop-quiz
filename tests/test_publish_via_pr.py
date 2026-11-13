@@ -289,6 +289,7 @@ class WorkflowTests(unittest.TestCase):
                 self.assertIn("python3 scripts/publish_via_pr.py", text)
                 self.assertIn('head_sha="$(git rev-parse HEAD)"', text)
                 self.assertIn('--head-sha "${head_sha}"', text)
+                self.assertIn('--repo "${GITHUB_REPOSITORY}"', text)
                 for inline in ("gh pr list", "gh pr create", "gh pr merge"):
                     self.assertNotIn(inline, text)
 

@@ -33,7 +33,7 @@ O script abre o PR e lista de novo com o mesmo filtro até o PR aparecer. Um PR 
 
 ### PR do próprio repositório com outro head
 
-O GitHub atualiza o head de um PR aberto logo depois do push, e a listagem pode mostrar o head anterior. Quando existe PR do próprio repositório com outro head, o script lista de novo, até 5 vezes, com 3 segundos de intervalo. Se o head não chegar ao SHA enviado, outro push alcançou a branch, e o passo falha sem abrir PR nem fazer merge.
+O GitHub atualiza o head de um PR aberto logo depois do push, e a listagem pode mostrar o head anterior. Quando existe PR do próprio repositório com outro head, o script lista de novo, até 5 vezes, com 3 segundos de intervalo. Se o head não chegar ao SHA enviado, outro push alcançou a branch ou o GitHub ainda não aplicou o push, e o passo falha sem abrir PR nem fazer merge.
 
 ### Merge
 
@@ -41,7 +41,7 @@ O script chama `gh pr merge <número> --squash --delete-branch --match-head-comm
 
 ### Falha
 
-Toda falha encerra o passo com código 1, e nada entra na `master` naquela execução. A branch e o PR ficam abertos. A execução seguinte envia um commit novo com `--force` e reaproveita o PR quando o head dele chega ao novo SHA.
+Toda falha encerra o passo com código diferente de zero. Antes do merge, nada entra na `master`. Se o `gh` falhar depois do merge (remoção da branch, tempo esgotado), os dados já estão na `master` e o deploy, que exige o workflow concluído com sucesso, espera a execução seguinte. A branch e o PR ficam abertos quando a falha vem antes do merge. A execução seguinte envia um commit novo com `--force` e reaproveita o PR quando o head dele chega ao novo SHA.
 
 ## Alternativas consideradas
 
