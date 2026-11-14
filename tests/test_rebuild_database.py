@@ -252,7 +252,7 @@ class RebuildJobTests(unittest.TestCase):
 
     def test_runner_stopping_the_step_kills_the_attempt(self):
         # The runner signals the shell's PID; with `exec` that is this script.
-        # Without it the signals reach bash alone, SIGKILL ends bash, and the
+        # Without it the signals reach bash alone, SIGTERM ends bash, and the
         # script and the collector keep writing while the restore step runs.
         self.cache_database()
         process = self.start_rebuild_step()

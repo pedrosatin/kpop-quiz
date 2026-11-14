@@ -23,7 +23,7 @@ Em 8 das 10 execuções agendadas anteriores a 2026-11-13, as três tentativas t
 
 `outcome` é o resultado do passo antes do `continue-on-error`. Ele vale `failure` para código de saída diferente de zero e para o timeout do passo. A função `failure()` não serve como condição, porque ela lê o estado do job e o `continue-on-error` mantém o job com sucesso. O job precisa terminar com sucesso por dois motivos. Os passos de "Generate daily puzzles" em diante não têm condição própria e só rodam com o job nesse estado. O deploy do `pages.yml` só publica quando o workflow conclui com sucesso.
 
-No timeout do passo e no cancelamento da execução, o runner envia SIGINT, SIGTERM 7,5 segundos depois e SIGKILL 2,5 segundos depois deste, todos ao PID do shell do passo e a nenhum outro processo (`ProcessInvoker.cs`). Sem `exec`, o script roda como filho do `bash`, nenhum sinal chega a ele e o SIGKILL encerra só o shell. O script e o coletor continuariam gravando enquanto o passo de restauração troca o banco. Com `exec`, o script assume o PID do shell. Ele trata SIGINT e SIGTERM, mata a tentativa em andamento e sai com 130 ou 143.
+No timeout do passo e no cancelamento da execução, o runner envia SIGINT, SIGTERM 7,5 segundos depois e SIGKILL 2,5 segundos depois deste, todos ao PID do shell do passo e a nenhum outro processo (`ProcessInvoker.cs`). Sem `exec`, o script roda como filho do `bash`, nenhum sinal chega a ele e o SIGTERM encerra só o shell. O script e o coletor continuariam gravando enquanto o passo de restauração troca o banco. Com `exec`, o script assume o PID do shell. Ele trata SIGINT e SIGTERM, mata a tentativa em andamento e sai com 130 ou 143.
 
 ### Limites das tentativas
 
