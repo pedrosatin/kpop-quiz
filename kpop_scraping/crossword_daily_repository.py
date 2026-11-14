@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .crossword_cli import normalize, validate_source
-from .quiz_repository import _has_open_conflict
+from .quiz_repository import _has_open_conflict, _open_conflict_index
 from .storage import canonical_json
 
 PREDICATES = {'has_member', 'formed_on', 'record_label'}
@@ -102,7 +102,7 @@ def _read_base(c: sqlite3.Connection) -> FactBase:
             'canonical_name': r['canonical_name'],
             'aliases': sorted(aliases_by_id[r['id']])
         }
-    conflicts = c.execute("SELECT * FROM facts WHERE status='conflict'").fetchall()
+    conflicts = _open_conflict_index(c.execute("SELECT * FROM facts WHERE status='conflict'").fetchall())
     matches, sources = defaultdict(set), defaultdict(list)
     rows = c.execute("""SELECT f.*,e.wikidata_id,coalesce(f.value_time,v.canonical_name) value
         FROM facts f JOIN entities e ON e.id=f.subject_entity_id

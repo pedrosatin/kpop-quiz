@@ -6,6 +6,7 @@ import json
 import sqlite3
 from collections import Counter, defaultdict
 from datetime import date
+from typing import Iterable
 
 from .group_relevance_scoring import load_latest_relevance_scores
 from .quiz_models import Entity, Evidence, Fact, GENERATOR_VERSION
@@ -66,7 +67,7 @@ def _load_facts(
         FROM facts ORDER BY statement_id
         """
     ).fetchall()
-    conflicts = [row for row in rows if row["status"] == "conflict"]
+    conflicts = _open_conflict_index(row for row in rows if row["status"] == "conflict")
     accepted: list[Fact] = []
     for row in rows:
         if row["status"] != "accepted":
@@ -171,21 +172,37 @@ def _load_evidence(connection: sqlite3.Connection) -> dict[int, tuple[Evidence, 
     return {key: tuple(values) for key, values in result.items()}
 
 
-def _has_open_conflict(row: sqlite3.Row, conflicts: list[sqlite3.Row]) -> bool:
+# A conflict on one of these blocks only the accepted fact with its value; a
+# conflict on any other predicate blocks every accepted fact with the same
+# subject and predicate.
+VALUE_SCOPED_CONFLICT_PREDICATES = frozenset(
+    {"has_member", "member_of", "record_label", "performed_by"}
+)
+
+ConflictIndex = dict[tuple[int, str], set[int | None]]
+
+
+def _open_conflict_index(conflicts: Iterable[sqlite3.Row]) -> ConflictIndex:
+    """Index conflict rows by subject and predicate, with their entity values.
+
+    Built once per load, it answers each accepted fact with one lookup, so the
+    cost is one pass over the conflicts plus one lookup per accepted fact.
+    """
+    index: ConflictIndex = defaultdict(set)
     for conflict in conflicts:
-        if (
-            conflict["subject_entity_id"] != row["subject_entity_id"]
-            or conflict["predicate"] != row["predicate"]
-        ):
-            continue
-        if row["predicate"] in {
-            "has_member", "member_of", "record_label", "performed_by"
-        }:
-            if conflict["value_entity_id"] == row["value_entity_id"]:
-                return True
-        else:
-            return True
-    return False
+        index[conflict["subject_entity_id"], conflict["predicate"]].add(
+            conflict["value_entity_id"]
+        )
+    return dict(index)
+
+
+def _has_open_conflict(row: sqlite3.Row, conflicts: ConflictIndex) -> bool:
+    values = conflicts.get((row["subject_entity_id"], row["predicate"]))
+    if values is None:
+        return False
+    if row["predicate"] in VALUE_SCOPED_CONFLICT_PREDICATES:
+        return row["value_entity_id"] in values
+    return True
 
 
 def _dataset_version(
