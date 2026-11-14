@@ -14,6 +14,8 @@ any process whatever ``PYTHONHASHSEED`` is.
 
 from __future__ import annotations
 
+import bisect
+import itertools
 import random
 from math import comb
 from typing import Iterator, Sequence, TypeVar
@@ -48,20 +50,26 @@ def combination_at(rank: int, n: int, k: int) -> tuple[int, ...]:
 
     Ranks follow the combinatorial number system (colex order): the subset
     c_1 < ... < c_k has rank C(c_1, 1) + ... + C(c_k, k). Each rank in
-    ``range(C(n, k))`` names one subset and each subset has one rank. Finding
-    the subset walks the candidates down from n - 1 once, so it costs O(n + k)
-    binomials.
+    ``range(C(n, k))`` names one subset and each subset has one rank. Each
+    element is the largest c with C(c, size) <= rank, found by binary search,
+    so the subset costs O(k log n) binomials.
     """
     if k < 0 or n < 0 or not 0 <= rank < comb(n, k):
         raise ValueError(f"rank {rank} is outside C({n}, {k})")
     positions: list[int] = []
-    candidate = n - 1
+    upper = n - 1
     for size in range(k, 0, -1):
-        while comb(candidate, size) > rank:
-            candidate -= 1
-        positions.append(candidate)
-        rank -= comb(candidate, size)
-        candidate -= 1
+        # C(size - 1, size) = 0 <= rank, so the answer is in [size - 1, upper].
+        low, high = size - 1, upper
+        while low < high:
+            middle = (low + high + 1) // 2
+            if comb(middle, size) <= rank:
+                low = middle
+            else:
+                high = middle - 1
+        positions.append(low)
+        rank -= comb(low, size)
+        upper = low - 1
     positions.reverse()
     return tuple(positions)
 
@@ -78,3 +86,21 @@ def shuffled_combinations(
     n = len(items)
     for rank in shuffled_indices(comb(n, k), rng):
         yield tuple(items[position] for position in combination_at(rank, n, k))
+
+
+def shuffled_blocks(sizes: Sequence[int], rng: random.Random) -> Iterator[tuple[int, int]]:
+    """Yield each ``(block, offset)`` with ``offset < sizes[block]`` once, in an order drawn from ``rng``.
+
+    The blocks are laid end to end and the positions of the whole run are
+    drawn with ``shuffled_indices``, so at every draw each position left has
+    the same chance, whatever block it belongs to, and a large block costs
+    only the draws that land in it. Empty blocks are never yielded. Finding
+    the block of a position is a binary search over the block starts.
+    """
+    sizes = list(sizes)
+    if any(size < 0 for size in sizes):
+        raise ValueError(f"block sizes must be non-negative, got {sizes}")
+    starts = list(itertools.accumulate(sizes, initial=0))
+    for position in shuffled_indices(starts[-1], rng):
+        block = bisect.bisect_right(starts, position) - 1
+        yield block, position - starts[block]
