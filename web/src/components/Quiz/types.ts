@@ -38,7 +38,7 @@ export interface QuizPlayContext {
   question: QuizQuestion | undefined;
   timerSeconds: number | null;
   persistProgress: PersistProgress;
-  analytics: { start: () => void; reset: () => void };
+  analytics: { start: () => void; reset: () => void; resume: () => void };
 }
 
 export interface QuizLoadContext extends QuizPlayContext {

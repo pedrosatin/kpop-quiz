@@ -646,3 +646,62 @@
 }
 .feedback textarea { display: block; width: 100%; min-height: 6rem; margin-block: 0.5rem; }
 .feedback .btn-row { margin-top: 0.75rem; }
+
+/* Below the setup card: a round saved in progress in the other language and
+   the link that resumes it there. It appears after hydration; below the card
+   it moves neither the card nor the action bar. The link keeps the 44px
+   control height and sits 8px under the sentence. */
+.other-locale-round {
+  max-width: 64rem;
+  margin: var(--space-4) auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.other-locale-round p {
+  flex: 1 1 18rem;
+  margin: 0;
+}
+
+@media (max-width: 30rem) {
+  .other-locale-round .btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* The setup's action bar with a round saved in the other language: the link
+   sits over the round rules in one grid cell. The rules stay in the layout,
+   hidden, so the bar keeps the height it had before hydration and Start does
+   not move. The link fills the cell, at least 44px tall, and must not need
+   more lines than the rules (two at 360px in both languages). */
+.setup-hint {
+  display: grid;
+}
+
+.setup-hint > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+/* The rules keep their own margins: .game-actions-message p would add
+   0.1rem above and below and grow the bar by 3px. */
+.setup-hint .setup-rules {
+  margin: 0;
+  visibility: hidden;
+}
+
+.setup-hint-over {
+  display: flex;
+  align-items: center;
+}
+
+.setup-hint-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--control-height);
+  font-weight: 700;
+}

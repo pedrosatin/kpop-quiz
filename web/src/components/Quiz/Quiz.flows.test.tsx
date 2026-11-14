@@ -10,6 +10,7 @@ import type { QuizSession } from "../../lib/quiz-types";
 import { clearCatalogCache } from "../../data/catalog-loader";
 import { CatalogSelectionError, selectCatalogRound } from "../../data/catalog-session";
 import ptSession from "../../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
+import enSession from "../../tests/fixtures/session.en.standard.9c44914efa4be2eee52cf11ea63f542c8e913e01b5a58dc63d3627ed003e8c0e.json";
 import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c1ff312324883f8b724318e6bf7c132293eb9ee53ff8f8e0e5c2072562738f4.json";
 import manifest from "../../tests/fixtures/manifest-v2.json";
 import { NEXT_GUARD_MS } from "./AnswerFeedback";
@@ -43,6 +44,23 @@ const catalogManifest = fs.readFileSync(path.join(CATALOG_DIR, "catalog-manifest
 const catalogFiles = new Map(fs.readdirSync(CATALOG_DIR).map((name) => [name, fs.readFileSync(path.join(CATALOG_DIR, name))]));
 const dailyRaw = `${JSON.stringify(dailyPtSession)}\n`;
 const dailyHash = createHash("sha256").update(dailyRaw).digest("hex");
+
+/**
+ * Today's challenge in another language or mode: the Portuguese standard
+ * fixture relabelled, so each daily slot has a session of the same date.
+ */
+function dailyVariant(locale: "pt-BR" | "en", playMode: "standard" | "assisted") {
+  const session = structuredClone(dailyPtSession) as QuizSession;
+  session.config = { ...session.config, language: locale, play_mode: playMode };
+  session.questions = session.questions.map((question) => ({ ...question, language: locale, play_mode: playMode }));
+  session.session_id = createHash("sha256").update(`${dailyPtSession.session_id}|${locale}|${playMode}`).digest("hex");
+  const raw = `${JSON.stringify(session)}\n`;
+  return { session, raw, hash: createHash("sha256").update(raw).digest("hex") };
+}
+const dailyVariants = {
+  "pt-BR.assisted": dailyVariant("pt-BR", "assisted"),
+  "en.standard": dailyVariant("en", "standard"),
+} as const;
 const ptRaw = `${JSON.stringify(ptSession)}\n`;
 const ptHash = createHash("sha256").update(ptRaw).digest("hex");
 const messages = getMessages("pt-BR");
@@ -74,7 +92,10 @@ function sessionResponse(url: string, sessionsManifest: unknown): Response {
   if (world.sessions === "network-error") throw new TypeError("offline");
   if (url.endsWith("manifest-v3.json")) return new Response(null, { status: 404 });
   if (url.endsWith("manifest-v2.json")) return new Response(JSON.stringify(sessionsManifest));
-  if (url.includes("session.daily") && world.daily === "dated") return new Response(dailyRaw);
+  if (url.includes("session.daily") && world.daily === "dated") {
+    const variant = Object.values(dailyVariants).find(({ hash }) => url.includes(hash));
+    return new Response(variant?.raw ?? dailyRaw);
+  }
   return new Response(ptRaw);
 }
 
@@ -88,6 +109,15 @@ function buildSessionsManifest() {
     sha256: hash,
     session_id: sessionId,
   };
+  if (world.daily === "dated") {
+    for (const [key, variant] of Object.entries(dailyVariants)) {
+      sessions.sessions[`daily.${key}`] = {
+        path: `session.daily.${key}.${variant.hash}.json`,
+        sha256: variant.hash,
+        session_id: variant.session.session_id,
+      };
+    }
+  }
   return sessions;
 }
 
@@ -331,20 +361,6 @@ describe("Quiz flows", () => {
       expect(screen.getByText(/^Novo desafio em \d{2}:\d{2}:\d{2}$/)).toBeInTheDocument();
     });
 
-    it("says in the daily setup that the day is done once its date was counted", async () => {
-      // Counted on another board of the same date, e.g. before a republication.
-      onDailyDate();
-      recordMatchOnce("quiz", "daily-other-board", true, dailySeedDate(dailyPtSession as QuizSession));
-      const before = loadPlayerStats();
-      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
-      await renderSetup();
-      expect(notice()).toHaveTextContent(messages.quizDailyDone);
-
-      startRound();
-      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
-      await playToResults();
-      expect(loadPlayerStats()).toEqual(before);
-    });
   });
 
   describe("resume", () => {
@@ -804,6 +820,347 @@ describe("Quiz flows", () => {
       window.history.replaceState(null, "", "/?mode=standard");
       await renderSetup();
       expect(generalText()).toHaveTextContent(messages.generalGameDescription);
+    });
+  });
+
+  describe("today's daily quiz already finished", () => {
+    const dailyDate = () => dailySeedDate(dailyPtSession as QuizSession)!;
+    const dailyCard = () => screen.getByRole("radio", { name: /Quiz do dia/ });
+
+    function finishedDailySave(session: QuizSession, overrides: Partial<Parameters<typeof buildQuizProgressSave>[0]> = {}) {
+      const total = session.questions.length;
+      return roundSave(session, "published", {
+        theme: "daily",
+        machineState: "results",
+        questionIndex: total - 1,
+        score: 300,
+        elapsedSeconds: 42,
+        history: session.questions.map((question, index) => ({
+          question, selectedOptionId: question.answer_option_id, isCorrect: index < 3, cluesUsedCount: 0,
+        })),
+        ...overrides,
+      });
+    }
+
+    it("plays the day, goes to the general quiz and back, and shows the day's result without a second round", async () => {
+      onDailyDate();
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      startRound();
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      await playToResults();
+      const stats = loadPlayerStats();
+      expect(stats.games.quiz.played).toBe(1);
+      const daySave = readSlot(dailySlot);
+      const correct = screen.getByText(/^\d+\/10$/).textContent!;
+      const starts = () => trackedEvents().filter((name) => name === "game_start").length;
+      const startsBefore = starts();
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      await waitForSetup();
+      expect(window.location.search).toContain("theme=history");
+
+      fireEvent.click(dailyCard());
+      expect(await screen.findByRole("heading", { name: "Fim da partida" })).toBeInTheDocument();
+      expect(screen.getByText(messages.quizDailyDoneResult)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Começar partida" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Responder" })).toBeNull();
+      expect(await screen.findByText(/^Novo desafio em \d{2}:\d{2}:\d{2}$/)).toBeInTheDocument();
+      // The same result, read from the same save: no second daily round and no second count.
+      expect(screen.getByText(correct)).toBeInTheDocument();
+      expect(readSlot(dailySlot)).toEqual(daySave);
+      expect(loadPlayerStats()).toEqual(stats);
+      expect(starts()).toBe(startsBefore);
+      expect(isGameMatchRecorded("quiz", `daily-${dailyDate()}`)).toBe(true);
+    });
+
+    it("shows the result finished in another mode instead of the day in this one", async () => {
+      onDailyDate();
+      saveQuizProgress(finishedDailySave(dailyPtSession as QuizSession));
+      recordMatchOnce("quiz", `daily-${dailyDate()}`, false, dailyDate());
+      const stats = loadPlayerStats();
+      window.history.replaceState(null, "", "/?theme=daily&mode=assisted");
+
+      render(<Quiz locale="pt-BR" />);
+
+      expect(await screen.findByRole("heading", { name: "Fim da partida" })).toBeInTheDocument();
+      expect(screen.getByText(messages.quizDailyDoneResult)).toBeInTheDocument();
+      expect(screen.getByText("3/10")).toBeInTheDocument();
+      expect(screen.queryByTestId("game-start")).toBeNull();
+      expect(window.localStorage.getItem(quizProgressStorageKey({ ...historyConfig, playMode: "assisted", theme: "daily", decades: [] }))).toBeNull();
+      expect(loadPlayerStats()).toEqual(stats);
+    });
+
+    it("says the day is done when it counts and no result is saved here, and still offers the general quiz", async () => {
+      // Counted on another board of the same date, e.g. before a republication.
+      onDailyDate();
+      recordMatchOnce("quiz", "daily-other-board", true, dailyDate());
+      const stats = loadPlayerStats();
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+
+      render(<Quiz locale="pt-BR" />);
+
+      expect(await screen.findByRole("heading", { name: messages.dailyDoneTitle })).toBeInTheDocument();
+      expect(screen.getByText(messages.quizDailyDoneBody)).toBeInTheDocument();
+      expect(screen.queryByTestId("game-start")).toBeNull();
+      expect(await screen.findByRole("link", { name: /Próximo: Grade/ })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      await waitForSetup();
+      startRound();
+      await waitForQuestion();
+      expect(readSlot(dailySlot)).toBeNull();
+      expect(loadPlayerStats()).toEqual(stats);
+    });
+
+    it("sends game_complete for a general round restored after the day's round, without a game_start", async () => {
+      onDailyDate();
+      const round = await drawCatalogRound();
+      const questions = round.session.questions;
+      saveQuizProgress(roundSave(round.session, "catalog", {
+        questionIndex: 9,
+        history: questions.slice(0, 9).map((question) => ({
+          question, selectedOptionId: question.options[0]!.id, isCorrect: false, cluesUsedCount: 0,
+        })),
+        replayNotice: "ok",
+      }));
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      startRound();
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      await playToResults();
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_start", "game_complete"]));
+      gtag.mockClear();
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      const heading = await screen.findByRole("heading", { name: questions[9]!.prompt });
+      // The restored round's question takes the focus from the button that unmounted.
+      await vi.waitFor(() => expect(heading).toHaveFocus());
+      await playToResults(1);
+
+      // The same events as the restore on a new visit: no game_start, one game_complete.
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_complete"]));
+      expect(gtag.mock.calls[0]![2]).toMatchObject({ daily: "no" });
+    });
+
+    it("sends nothing for the day's result picked again and both events for a new general round", async () => {
+      onDailyDate();
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      startRound();
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      await playToResults();
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_start", "game_complete"]));
+      gtag.mockClear();
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      await waitForSetup();
+      fireEvent.click(dailyCard());
+      expect(await screen.findByText(messages.quizDailyDoneResult)).toBeInTheDocument();
+      await act(async () => { await Promise.resolve(); });
+      expect(trackedEvents()).toEqual([]);
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      await waitForSetup();
+      startRound();
+      await waitForQuestion();
+      await playToResults();
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_start", "game_complete"]));
+      expect(gtag.mock.calls.map((call) => call[2])).toEqual([
+        expect.objectContaining({ daily: "no" }),
+        expect.objectContaining({ daily: "no" }),
+      ]);
+    });
+
+    it("focuses the setup title when the general quiz has no round to restore", async () => {
+      onDailyDate();
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      startRound();
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      await playToResults();
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      await waitForSetup();
+
+      await vi.waitFor(() => expect(screen.getByRole("heading", { name: "Monte sua partida" })).toHaveFocus());
+      expect(document.activeElement).not.toBe(document.body);
+    });
+
+    it("does not show the day as done while the daily card loads its saved round", async () => {
+      // The setup still holds the general session for a moment after the
+      // daily card is picked; the day's date must not be read from it.
+      onDailyDate();
+      recordMatchOnce("quiz", `daily-${dailyDate()}`, true, dailyDate());
+      const session = dailyPtSession as QuizSession;
+      saveQuizProgress(roundSave(session, "published", {
+        theme: "daily",
+        questionIndex: 2,
+        history: session.questions.slice(0, 2).map((question) => ({
+          question, selectedOptionId: null, isCorrect: false, cluesUsedCount: 0,
+        })),
+      }));
+      await renderSetup();
+
+      fireEvent.click(dailyCard());
+      expect(screen.queryByTestId("daily-done")).toBeNull();
+      expect(screen.queryByTestId("game-result")).toBeNull();
+
+      expect(await screen.findByRole("heading", { name: session.questions[2]!.prompt })).toBeInTheDocument();
+      expect(screen.queryByTestId("daily-done")).toBeNull();
+    });
+
+    it("still restores a daily round left in progress in this slot", async () => {
+      onDailyDate();
+      recordMatchOnce("quiz", `daily-${dailyDate()}`, true, dailyDate());
+      const session = dailyPtSession as QuizSession;
+      saveQuizProgress(roundSave(session, "published", {
+        theme: "daily",
+        questionIndex: 2,
+        history: session.questions.slice(0, 2).map((question) => ({
+          question, selectedOptionId: null, isCorrect: false, cluesUsedCount: 0,
+        })),
+      }));
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+
+      render(<Quiz locale="pt-BR" />);
+
+      expect(await screen.findByRole("heading", { name: session.questions[2]!.prompt })).toBeInTheDocument();
+    });
+
+    it("shows the saved result in English", async () => {
+      onDailyDate();
+      const en = getMessages("en");
+      const session = dailyVariants["en.standard"].session;
+      saveQuizProgress(finishedDailySave(session, { locale: "en" }));
+      recordMatchOnce("quiz", `daily-${dailyDate()}`, false, dailyDate());
+      window.history.replaceState(null, "", "/en/?theme=daily&mode=standard");
+
+      render(<Quiz locale="en" />);
+
+      expect(await screen.findByRole("heading", { name: en.resultTitle })).toBeInTheDocument();
+      expect(screen.getByText(en.quizDailyDoneResult)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: en.quizPlayGeneral })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: en.start })).toBeNull();
+    });
+
+    it("says the day is done in English when the Portuguese round is the one saved", async () => {
+      onDailyDate();
+      const en = getMessages("en");
+      saveQuizProgress(finishedDailySave(dailyPtSession as QuizSession));
+      recordMatchOnce("quiz", `daily-${dailyDate()}`, false, dailyDate());
+      window.history.replaceState(null, "", "/en/?theme=daily&mode=standard");
+
+      render(<Quiz locale="en" />);
+
+      expect(await screen.findByRole("heading", { name: en.dailyDoneTitle })).toBeInTheDocument();
+      expect(screen.getByText(en.quizDailyDoneBody)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: en.quizPlayGeneral })).toBeInTheDocument();
+    });
+  });
+
+  describe("round in progress in the other language", () => {
+    const enConfig = { ...historyConfig, locale: "en" } as const;
+    const resumeNotice = () => screen.findByTestId("quiz-other-locale-round");
+
+    function enGeneralAt(questionIndex: number, machineState: "question.ready" | "results" = "question.ready") {
+      const session = enSession as QuizSession;
+      return roundSave(session, "published", {
+        locale: "en",
+        machineState,
+        questionIndex,
+        history: session.questions.slice(0, machineState === "results" ? session.questions.length : questionIndex)
+          .map((question) => ({ question, selectedOptionId: null, isCorrect: false, cluesUsedCount: 0 })),
+      });
+    }
+
+    it("tells the Portuguese setup about the English round and links to it there", async () => {
+      saveQuizProgress(enGeneralAt(8));
+      const enSlot = quizProgressStorageKey({ ...enConfig, decades: [] });
+      const saved = window.localStorage.getItem(enSlot);
+
+      await renderSetup();
+
+      expect(await resumeNotice()).toHaveTextContent(messages.quizOtherLocaleRound(false, 9, 10));
+      expect(screen.getByText("Você tem um Quiz geral em andamento em inglês, na pergunta 9 de 10. Começar uma partida aqui não apaga a outra.")).toBeInTheDocument();
+      const resume = screen.getByRole("link", { name: messages.quizOtherLocaleResume });
+      expect(resume).toHaveAttribute("href", "/en/?mode=standard&theme=history");
+      expect(resume).toHaveAttribute("hreflang", "en");
+      // The action bar shows the short link over the round rules.
+      const hint = screen.getByTestId("quiz-other-locale-hint");
+      expect(hint).toHaveTextContent("Partida em inglês na pergunta 9 · Continuar em inglês");
+      expect(hint).toHaveAttribute("href", "/en/?mode=standard&theme=history");
+      expect(hint.closest(".setup-actions")).not.toBeNull();
+
+      // Starting here plays this language's own slot and leaves the English round as it was.
+      startRound();
+      await waitForQuestion();
+      expect(screen.queryByTestId("quiz-other-locale-round")).toBeNull();
+      expect(readSlot()).toMatchObject({ locale: "pt-BR", machine_state: "question.ready" });
+      expect(window.localStorage.getItem(enSlot)).toBe(saved);
+    });
+
+    it("tells the English setup about today's Portuguese daily round", async () => {
+      onDailyDate();
+      const en = getMessages("en");
+      const session = dailyPtSession as QuizSession;
+      saveQuizProgress(roundSave(session, "published", {
+        theme: "daily",
+        questionIndex: 2,
+        history: session.questions.slice(0, 2).map((question) => ({ question, selectedOptionId: null, isCorrect: false, cluesUsedCount: 0 })),
+      }));
+      window.history.replaceState(null, "", "/en/?theme=history");
+
+      render(<Quiz locale="en" />);
+
+      expect(await resumeNotice()).toHaveTextContent(
+        "You have a daily quiz in progress in Portuguese, at question 3 of 10. Starting a game here does not delete it.",
+      );
+      expect(screen.getByRole("link", { name: en.quizOtherLocaleResume })).toHaveAttribute("href", "/pt-br/?mode=standard&theme=daily");
+      expect(readSlot(dailySlot)).toMatchObject({ machine_state: "question.ready", question_index: 2 });
+    });
+
+    it("puts the notice below the setup card, where it moves nothing on screen", async () => {
+      saveQuizProgress(enGeneralAt(8));
+      await renderSetup();
+      const notice = await resumeNotice();
+      expect(screen.getByTestId("game-setup").compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.getByTestId("game-setup").contains(notice)).toBe(false);
+    });
+
+    it("does not flash while this language's own round is being restored", async () => {
+      saveQuizProgress(enGeneralAt(8));
+      const round = await drawCatalogRound();
+      saveQuizProgress(roundSave(round.session, "catalog", { replayNotice: "ok" }));
+
+      render(<Quiz locale="pt-BR" />);
+      expect(screen.queryByTestId("quiz-other-locale-round")).toBeNull();
+
+      expect(await screen.findByRole("heading", { name: round.session.questions[0]!.prompt })).toBeInTheDocument();
+      expect(screen.queryByTestId("quiz-other-locale-round")).toBeNull();
+    });
+
+    it("stays off the finished daily screen, which has no Start button", async () => {
+      onDailyDate();
+      saveQuizProgress(enGeneralAt(8));
+      recordMatchOnce("quiz", "daily-other-board", true, dailySeedDate(dailyPtSession as QuizSession)!);
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+
+      render(<Quiz locale="pt-BR" />);
+
+      expect(await screen.findByRole("heading", { name: messages.dailyDoneTitle })).toBeInTheDocument();
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.queryByTestId("quiz-other-locale-round")).toBeNull();
+    });
+
+    it("says nothing about a finished round or a daily round from an earlier day", async () => {
+      saveQuizProgress(enGeneralAt(9, "results"));
+      onDay(dayAfter(dailySeedDate(dailyPtSession as QuizSession)!));
+      const session = dailyPtSession as QuizSession;
+      saveQuizProgress(roundSave(session, "published", { locale: "en", theme: "daily", questionIndex: 0, history: [] }));
+      await renderSetup();
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.queryByTestId("quiz-other-locale-round")).toBeNull();
     });
   });
 

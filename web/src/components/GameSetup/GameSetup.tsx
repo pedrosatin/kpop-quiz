@@ -1,3 +1,4 @@
+import type { ComponentChildren, RefObject } from "preact";
 import type { PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { DEFAULT_QUIZ_THEME, type QuizDecadeSelection, type QuizTheme } from "../Quiz/url-params";
@@ -35,6 +36,14 @@ export interface GameSetupProps {
    * and the decades is not remounted and stays open or closed.
    */
   choicesKey?: string;
+  /**
+   * Shown in the action bar in place of the round rules, e.g. a link to a
+   * round saved in another language. It may arrive after hydration, so it
+   * sits over the rules in the same grid cell, and they keep the bar's height.
+   */
+  hint?: ComponentChildren;
+  /** Title of the setup, focused when the player arrives from a screen whose control unmounted. */
+  headingRef?: RefObject<HTMLHeadingElement>;
 }
 
 export function GameSetup({
@@ -54,6 +63,8 @@ export function GameSetup({
   notice,
   generalNote,
   choicesKey,
+  headingRef,
+  hint,
 }: GameSetupProps) {
   const hasDecades = Boolean(onSelectDecades && availableDecades.length);
   return (
@@ -61,7 +72,7 @@ export function GameSetup({
       <div class="setup-options">
         <div class="setup-heading">
           <p class="kicker">{messages.setupKicker}</p>
-          <h2 id="difficulty-heading" class="game-card-title">{messages.setupTitle}</h2>
+          <h2 id="difficulty-heading" class="game-card-title" tabIndex={-1} {...(headingRef ? { ref: headingRef } : {})}>{messages.setupTitle}</h2>
         </div>
         {onSelectTheme && (
           <GameCollection
@@ -112,7 +123,14 @@ export function GameSetup({
       {busy && busyLabel && <p class="visually-hidden" role="status">{busyLabel}</p>}
       {notice && <p class="game-actions-message" role="status" data-testid="quiz-replay-notice">{notice}</p>}
       <div class="game-actions setup-actions">
-        <p class="game-actions-message game-actions-hint setup-rules">{messages.roundRules}</p>
+        {hint ? (
+          <div class="game-actions-message setup-hint">
+            <p class="game-actions-hint setup-rules" aria-hidden="true">{messages.roundRules}</p>
+            <div class="setup-hint-over">{hint}</div>
+          </div>
+        ) : (
+          <p class="game-actions-message game-actions-hint setup-rules">{messages.roundRules}</p>
+        )}
         <button
           class="btn btn-primary quiz-start"
           type="button"
