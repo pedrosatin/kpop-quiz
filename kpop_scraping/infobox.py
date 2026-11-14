@@ -16,10 +16,12 @@ INFOBOX_START = re.compile(r"\{\{\s*Infobox[ _]+musical[ _]+artist\s*(?=[|}<\n])
 # Any infobox opening; the name ends at a parameter, the closing braces or a break.
 # The possessive quantifiers read each character once, so the captured name
 # keeps its trailing spaces, which the caller drops. The match ends after the
-# whitespace that leads to a parameter, or else at the last line break of it.
+# whitespace that leads to a parameter, or else just before its last line break.
+# The run of blank lines is greedy, not possessive: Python 3.11.0 to 3.11.4
+# fail a possessive group that repeats zero times.
 _ANY_INFOBOX_START = re.compile(
     r"\{\{\s*+Infobox(?:[ _]++([^|{}<\n]*+))?+"
-    r"(?:\s*+(?=[|}<])|[^\S\n]*+(?:\n[^\S\n]*+(?=\n))*+(?=\n))",
+    r"(?:\s*+(?=[|}<])|[^\S\n]*+(?:\n[^\S\n]*+(?=\n))*(?=\n))",
     re.I,
 )
 _INERT_TEXT = re.compile(r"<!--.*?-->|<nowiki\b[^>]*>.*?</nowiki\s*>", re.I | re.S)

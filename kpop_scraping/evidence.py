@@ -106,8 +106,11 @@ _PERSON_LIST_BEFORE = re.compile(
 # could be both, "a and b and c" would split in exponentially many ways before
 # a list that does not parse is refused.
 _GENRE_WORD = r"(?!and(?![\w&'-]))[\w&'-]+"
+# As _LIST_SEPARATOR, plus "and" followed by a comma, as in "EDM and, more
+# recently, K-pop", which the word rule above would otherwise refuse.
+_GENRE_SEPARATOR = r"(?:\s*,\s*(?:and\s+)?|\s+and(?:\s*,\s*|\s+))"
 _GENRE_LIST_BEFORE = re.compile(
-    rf"\s*(?:{_GENRE_WORD}(?:\s+{_GENRE_WORD}){{0,2}}{_LIST_SEPARATOR})*"
+    rf"\s*(?:{_GENRE_WORD}(?:\s+{_GENRE_WORD}){{0,2}}{_GENRE_SEPARATOR})*"
 )
 _LIST_AFTER = re.compile(r"(?:\s*[,;.]|\s*$|\s+and\b|\s*\()", _I)
 _RELEASE_NOUN = r"(?:album|single|EP|extended play|record|song|álbum|sencillo|음반|싱글)"

@@ -1,9 +1,10 @@
 """Time limits for the group page parsers on text any Wikipedia editor can save.
 
-Each timed input is the shape that made the earlier pattern or loop run for
-seconds, at a fixed size. The comment of each test gives the CPU time that code
-took on a laptop with Python 3.14; the current code takes at most a few
-hundredths of a second, so the one-second limit holds on a slow runner too.
+Each timed input but the chain with "and," is the shape that made the earlier
+pattern or loop run for seconds, at a fixed size. The comment of each test gives
+the CPU time that code took on a laptop with Python 3.14. The current code takes
+under 0.2 s on each of them, also on a loaded machine, so the one-second limit
+is at least five times the slowest of them.
 The other tests pin the output the same rules must keep on ordinary text.
 """
 
@@ -57,6 +58,17 @@ class TimeLimitTest(unittest.TestCase):
             f"{chain} music later influenced by K-pop."
         )
         self.assertEqual(len(extract), 390)
+        found = self.timed(lambda: text_evidence("genre", page(extract), [GROUP], ["K-pop"]))
+        self.assertIsNone(found)
+
+    def test_long_chain_with_and_before_a_comma(self):
+        # Fast before too. "and" may come before a comma, and that separator must
+        # not give a chain more than one way to split.
+        chain = " and, ".join(["pop And rock", "soul and"] * 1000)
+        extract = (
+            f"{GROUP} is a South Korean band. {GROUP} draws on genres including "
+            f"{chain} music later influenced by K-pop."
+        )
         found = self.timed(lambda: text_evidence("genre", page(extract), [GROUP], ["K-pop"]))
         self.assertIsNone(found)
 
@@ -131,6 +143,16 @@ class GenreListTest(unittest.TestCase):
         extract, found = self.genre(f"{GROUP} draws on genres including and-pop, K-pop.")
         start = extract.index("K-pop")
         self.assertEqual(found, f"wikipedia:en:pageid=1:revid=1#extract[{start}:{start + 5}]")
+
+    def test_and_before_a_comma_still_separates(self):
+        for sentence in (
+            f"{GROUP} draws on genres including hip hop, EDM and, more recently, K-pop.",
+            f"{GROUP} draws on genres including pop and, later, K-pop.",
+        ):
+            with self.subTest(sentence=sentence):
+                extract, found = self.genre(sentence)
+                start = extract.index("K-pop")
+                self.assertEqual(found, f"wikipedia:en:pageid=1:revid=1#extract[{start}:{start + 5}]")
 
     def test_and_alone_is_not_an_item(self):
         # "and" only separates items, so a list with it as an item does not parse.
