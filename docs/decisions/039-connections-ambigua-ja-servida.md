@@ -16,7 +16,7 @@ O ADR 037 isolou cada jogo na geração. A checagem da partição roda na promo�
 
 ### Tabuleiro já servido
 
-`_check_connections_partition` registra `{"checked": true, "reason": "ambiguous"}` em `connections_partition` e não levanta erro. O runner instala o conjunto promovido com os bytes já servidos e segue com a revalidação da Grade, a confirmação da Cruzadinha e o `--ahead`. O CLI emite o aviso `Daily connections ambiguous` pelo mesmo `warn` dos outros avisos, com o id do tabuleiro e a data. Os dois valores vêm do conjunto já verificado. O run sai com código 0.
+`_check_connections_partition` captura a `AmbiguousPartitionError` e registra `{"checked": true, "reason": "ambiguous"}` em `connections_partition`. O runner instala o conjunto promovido com os bytes já servidos e segue com a revalidação da Grade, a confirmação da Cruzadinha e o `--ahead`. O CLI emite o aviso `Daily connections ambiguous` pelo mesmo `warn` dos outros avisos, com o id do tabuleiro e a data. Os dois valores vêm do conjunto já verificado. O aviso não sugere comando, porque o `--regenerate` troca todos os jogos da data, e manter o tabuleiro é a decisão deste ADR. O run sai com código 0.
 
 A regra vale também para o tabuleiro mantido no diretório principal, numa segunda execução no mesmo dia, porque ele também já foi servido.
 
@@ -26,11 +26,13 @@ Sem banco, a checagem continua registrada como não executada (`{"checked": fals
 
 ### Tabuleiro novo
 
-O gerador continua recusando um tabuleiro com mais de uma partição. Quando nenhum tabuleiro de partição única cabe no orçamento do [ADR 035](035-busca-preguicosa-da-connections.md), o dia sai sem a Connections, pela regra do ADR 037. Quando o operador pede `--regenerate`, o gerador monta um tabuleiro novo para a data com a mesma checagem.
+O gerador continua recusando um tabuleiro com mais de uma partição. Quando nenhum tabuleiro de partição única cabe no orçamento do [ADR 035](035-busca-preguicosa-da-connections.md), o dia sai sem a Connections, pela regra do ADR 037. Quando o operador pede `--regenerate`, o runner gera de novo todos os jogos da data, e cada troca vale como declarada. A Connections nova passa pela mesma checagem do gerador.
 
 ### Histórico da Cruzadinha
 
-`crossword_publication.confirmed_record` recebe o diretório do conjunto publicado adiantado. Quando o diretório principal não tem o registro de um dia, o runner lê o registro desse dia em `next/`, porque o site serviu o dia de lá. O registro do diretório principal vence quando os dois existem, como em `verify_history`. Um registro ilegível em `next/` conta como ausente, e a Cruzadinha do dia seguinte fica omitida por falta de histórico, como antes. O runner usa essa leitura ao gerar um dia e ao conferir o histórico de um dia mantido ou promovido.
+`crossword_publication.confirmed_record` recebe o diretório do conjunto publicado adiantado. Quando o diretório principal não tem o registro de um dia, o runner lê o registro desse dia em `next/`, porque o site serviu o dia de lá. O registro do diretório principal vence quando os dois existem, como em `verify_history`. Um registro de `next/` que não se lê ou não passa na validação conta como ausente, e a Cruzadinha do dia seguinte fica omitida por falta de histórico, como antes. Um erro de leitura do sistema de arquivos (`OSError`) também conta como ausente. A regra é a mesma do `next/` ilegível, que todo run gera de novo.
+
+O runner usa essa leitura ao gerar um dia e ao conferir o histórico de um dia mantido ou promovido. Nos dois casos, fora do `--dry-run`, o runner grava no diretório principal uma cópia do registro lido de `next/`. Na geração, a cópia chega ao diretório principal antes da instalação do dia que a consome. O histórico do diretório principal guarda então os dois dias, `verify_history` confere a sequência ali, e um `next/` removido depois, por `_drop_unverifiable_next` ou à mão, não leva o dia anterior embora. O runner não grava nada quando o registro de `next/` não se lê, nem sobrescreve um registro que o diretório principal já tenha. O registro do piloto, que vale pelos dias anteriores a qualquer registro, também fica fora da cópia. O gate de troca de tabuleiro compara só os artefatos dos jogos, então o registro copiado não conta como troca.
 
 ## Alternativas consideradas
 
@@ -51,4 +53,5 @@ Uma checagem de um só jogo derrubava os oito jogos de D e o conjunto de D+1.
 - Até o fim do dia, o jogo pode marcar como errado um agrupamento alternativo válido do tabuleiro mantido.
 - Cada run que mantém esse tabuleiro no mesmo dia repete o aviso.
 - O tabuleiro de D+1, gerado no mesmo run, passa pela regra de unicidade do gerador.
-- Reverter este ADR faz a ambiguidade parar o run inteiro de novo e devolve a Cruzadinha sem histórico no dia seguinte a um run que não instalou o dia.
+- O diretório principal pode receber o registro de um dia que ele nunca instalou. Esse registro é o mesmo que `next/` publicou para o dia servido.
+- Reverter este ADR faz a ambiguidade parar o run inteiro de novo e devolve a Cruzadinha sem histórico no dia seguinte a um run que não instalou o dia. Os registros já copiados para o diretório principal continuam válidos.
