@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import ssl
 import time
 from dataclasses import dataclass
+from http.client import HTTPException
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -81,14 +83,27 @@ class WikidataQueryClient:
                 status = exc.code
                 exc.close()
                 if status not in RETRYABLE_HTTP_STATUS or attempt >= self.retries:
-                    raise MediaWikiError(f"WDQS request failed with HTTP {status}") from exc
+                    raise MediaWikiError(
+                        f"WDQS request failed with HTTP {status}",
+                        transient=status in RETRYABLE_HTTP_STATUS,
+                    ) from exc
                 delay = parse_retry_after(headers.get("Retry-After")) or float(2**attempt)
                 if delay > 120:
-                    raise MediaWikiError("WDQS Retry-After exceeds 120 seconds") from exc
+                    raise MediaWikiError("WDQS Retry-After exceeds 120 seconds", transient=True) from exc
                 time.sleep(delay)
-            except (URLError, TimeoutError, json.JSONDecodeError) as exc:
+            # getresponse() and read() raise ConnectionError, HTTPException
+            # (RemoteDisconnected, IncompleteRead) and ssl.SSLError without the
+            # URLError wrapper that urlopen puts on connection failures.
+            except (
+                URLError,
+                TimeoutError,
+                ConnectionError,
+                HTTPException,
+                ssl.SSLError,
+                json.JSONDecodeError,
+            ) as exc:
                 if attempt >= self.retries:
-                    raise MediaWikiError("WDQS request failed") from exc
+                    raise MediaWikiError("WDQS request failed", transient=True) from exc
                 time.sleep(float(2**attempt))
         raise AssertionError("retry loop exited unexpectedly")
 

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .catalog import classify_catalog
 from .collector import collect_category
+from .exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
 from .fact_pipeline import extract_facts
 from .http_request import DEFAULT_USER_AGENT
 from .mediawiki import MediaWikiClient, MediaWikiError
@@ -104,6 +105,13 @@ def _coverage(row) -> str:
     )
 
 
+def _failure_exit_code(exc: Exception) -> int:
+    """Tell a failure that may pass on a later run from one that will repeat."""
+    if isinstance(exc, MediaWikiError) and exc.transient:
+        return EXIT_TRANSIENT
+    return EXIT_DETERMINISTIC
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.limit is not None and args.limit < 1:
@@ -172,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
                 release_rows = export_release_coverage_csv(repository.connection, args.release_report or args.database.parent / "release-coverage.csv")
     except (MediaWikiError, SnapshotIntegrityError, RuntimeError, ValueError) as exc:
         print(f"Pipeline failed: {type(exc).__name__}: {exc}")
-        return 1
+        return _failure_exit_code(exc)
     print(f"Collected {count} pages into {args.database}; snapshots in {raw_dir}")
     print(
         f"Catalog: {stats.accepted} accepted, {stats.rejected} rejected, "
@@ -196,4 +204,4 @@ def main(argv: list[str] | None = None) -> int:
             f"{release_totals.conflict} conflict; "
             f"{release_rows} coverage rows"
         )
-    return 0
+    return EXIT_OK

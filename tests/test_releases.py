@@ -1,8 +1,10 @@
 import json
 import sqlite3
+import ssl
 import tempfile
 import unittest
 from email.message import Message
+from http.client import IncompleteRead, RemoteDisconnected
 from pathlib import Path
 from urllib.error import HTTPError
 from unittest.mock import patch
@@ -119,6 +121,68 @@ class ReleaseFactTest(unittest.TestCase):
         client = WikidataQueryClient(opener=lambda *_args, **_kwargs: Response(payload), max_response_bytes=4)
         with self.assertRaisesRegex(MediaWikiError, "size limit"):
             client.query("SELECT * WHERE {}")
+
+    def test_wdqs_marks_only_errors_that_pass_with_time_as_transient(self):
+        def failing(error):
+            def opener(*_args, **_kwargs):
+                raise error
+            return opener
+
+        def failing_read(error):
+            class Response:
+                status = 200
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_args):
+                    return None
+
+                def read(self, _limit):
+                    raise error
+
+            return lambda *_args, **_kwargs: Response()
+
+        def http_error(status, retry_after=None):
+            headers = Message()
+            if retry_after is not None:
+                headers["Retry-After"] = retry_after
+            return HTTPError("https://query.wikidata.org", status, "error", headers, None)
+
+        # (name, opener, transient, waits before the client gives up)
+        cases = (
+            ("HTTP 503 until the retries end", failing(http_error(503)), True, 1),
+            ("HTTP 429 with a long Retry-After", failing(http_error(429, "3600")), True, 0),
+            ("network failure", failing(TimeoutError("timed out")), True, 1),
+            # getresponse() raises these without the URLError wrapper.
+            ("connection reset", failing(ConnectionResetError(104, "reset by peer")), True, 1),
+            ("server closed the connection", failing(RemoteDisconnected("closed without response")), True, 1),
+            # read() raises these after the status line arrived.
+            ("truncated body", failing_read(IncompleteRead(b"{", 100)), True, 1),
+            ("TLS failure while reading", failing_read(ssl.SSLError("record layer failure")), True, 1),
+            ("body that is not JSON", failing_read(json.JSONDecodeError("Expecting value", "", 0)), True, 1),
+            ("client error", failing(http_error(400)), False, 0),
+        )
+        for name, opener, transient, waits in cases:
+            with (
+                self.subTest(name),
+                patch("kpop_scraping.release_discovery.time.sleep") as sleep,
+            ):
+                with self.assertRaises(MediaWikiError) as raised:
+                    WikidataQueryClient(opener=opener, retries=1).query("SELECT * WHERE {}")
+                self.assertEqual(raised.exception.transient, transient)
+                self.assertEqual(sleep.call_count, waits)
+
+        # A group above the candidate limit fails the same way on every run.
+        binding = {
+            "performer": {"value": "http://www.wikidata.org/entity/Q1"},
+            "release": {"value": "http://www.wikidata.org/entity/Q2"},
+        }
+        other = {**binding, "release": {"value": "http://www.wikidata.org/entity/Q3"}}
+        body = json.dumps({"results": {"bindings": [binding, other]}}).encode()
+        with self.assertRaisesRegex(MediaWikiError, "candidate limit exceeded") as raised:
+            _parse_results(body, {"Q1"}, 1)
+        self.assertFalse(raised.exception.transient)
 
     def test_rejects_invalid_per_group_limit(self):
         with self.assertRaisesRegex(ValueError, "candidate limit"):

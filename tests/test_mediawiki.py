@@ -1,8 +1,9 @@
+import ssl
 import unittest
 from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import patch
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 
 from kpop_scraping.mediawiki import (
     MAX_EXTRACT_BYTES,
@@ -23,6 +24,17 @@ class Response(BytesIO):
 
     def __exit__(self, *_args):
         self.close()
+
+
+class FailingResponse(Response):
+    """A response whose body fails to arrive, as a dropped TLS session does."""
+
+    def __init__(self, error):
+        super().__init__(b"")
+        self.error = error
+
+    def read(self, *_args):
+        raise self.error
 
 
 def http_error(code, headers=None):
@@ -145,6 +157,45 @@ class MediaWikiClientTest(unittest.TestCase):
         with self.assertRaisesRegex(MediaWikiError, "above the 120s limit"):
             MediaWikiClient(retries=3)._get({"action": "query"})
         sleep.assert_not_called()
+
+    @patch("kpop_scraping.mediawiki.time.sleep")
+    @patch("kpop_scraping.http_request.urlopen")
+    def test_errors_that_pass_with_time_are_marked_transient(self, urlopen, _sleep):
+        maxlag = b'{"error":{"code":"maxlag","info":"Waiting for wdqs1011: 9.6 seconds lagged."}}'
+        cases = {
+            "maxlag until the retries end": [Response(maxlag), Response(maxlag)],
+            "HTTP 503 until the retries end": [http_error(503), http_error(503)],
+            "HTTP 429 until the retries end": [http_error(429), http_error(429)],
+            "network failure": [URLError("unreachable"), TimeoutError("timed out")],
+            "truncated response": [Response(b'{"query":'), Response(b'{"query":')],
+            "TLS failure while reading": [
+                FailingResponse(ssl.SSLError("record layer failure")),
+                FailingResponse(ssl.SSLError("record layer failure")),
+            ],
+            "Retry-After above the limit": [http_error(503, {"Retry-After": "3600"})],
+        }
+        for name, responses in cases.items():
+            with self.subTest(name):
+                urlopen.side_effect = responses
+                with self.assertRaises(MediaWikiError) as raised:
+                    MediaWikiClient(retries=1)._get({"action": "query"})
+                self.assertTrue(raised.exception.transient)
+
+    @patch("kpop_scraping.mediawiki.time.sleep")
+    @patch("kpop_scraping.http_request.urlopen")
+    def test_errors_that_repeat_are_not_marked_transient(self, urlopen, _sleep):
+        cases = {
+            "client error": [http_error(404)],
+            "API error": [Response(b'{"error":{"code":"badvalue","info":"Unrecognized value"}}')],
+            "response that is not an object": [Response(b"[]")],
+        }
+        for name, responses in cases.items():
+            with self.subTest(name):
+                urlopen.side_effect = responses
+                with self.assertRaises(MediaWikiError) as raised:
+                    MediaWikiClient(retries=1)._get({"action": "query"})
+                self.assertFalse(raised.exception.transient)
+        self.assertFalse(MediaWikiError("unexpected shape").transient)
 
     def test_parses_retry_after_date(self):
         now = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import ssl
 import time
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
@@ -18,17 +19,26 @@ from .http_request import DEFAULT_USER_AGENT, open_url
 
 
 class MediaWikiError(RuntimeError):
-    """Raised when the MediaWiki API cannot return a valid response."""
+    """Raised when the MediaWiki API cannot return a valid response.
+
+    ``transient`` is true when the client gave up on a condition that passes
+    with time (network, ``maxlag``, HTTP 429 and 5xx, a long ``Retry-After``).
+    The CLI turns it into ``EXIT_TRANSIENT`` (``kpop_scraping/exit_codes.py``),
+    the only failure the nightly rebuild repeats.
+    """
 
     def __init__(
         self,
         message: str,
         code: str | None = None,
         details: dict[str, Any] | None = None,
+        *,
+        transient: bool = False,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.details = details or {}
+        self.transient = transient
 
 
 MAX_EXTRACTS_PER_REQUEST = 20
@@ -134,6 +144,7 @@ class MediaWikiClient:
                         f"MediaWiki request failed with HTTP {exc.code} "
                         f"after {attempt + 1} attempts",
                         code=f"http_{exc.code}",
+                        transient=exc.code in RETRYABLE_HTTP_STATUS,
                     ) from exc
                 time.sleep(self._retry_delay(attempt, error_headers))
                 continue
@@ -142,11 +153,15 @@ class MediaWikiClient:
                 TimeoutError,
                 ConnectionError,
                 HTTPException,
+                # A TLS failure while json.load reads the body; urlopen
+                # wraps only the ones raised while connecting in URLError.
+                ssl.SSLError,
                 json.JSONDecodeError,
             ) as exc:
                 if not can_retry:
                     raise MediaWikiError(
-                        f"MediaWiki request failed after {attempt + 1} attempts"
+                        f"MediaWiki request failed after {attempt + 1} attempts",
+                        transient=True,
                     ) from exc
                 time.sleep(self._retry_delay(attempt, None))
                 continue
@@ -160,6 +175,7 @@ class MediaWikiClient:
                     f"{error.get('info', 'no details')}",
                     code=error.get("code"),
                     details=error,
+                    transient=error.get("code") == "maxlag",
                 )
             if not isinstance(payload, dict):
                 raise MediaWikiError("MediaWiki response is not a JSON object")
@@ -176,7 +192,8 @@ class MediaWikiClient:
         if retry_after > self.max_retry_after:
             raise MediaWikiError(
                 f"server asked to wait {retry_after:.0f}s, above the "
-                f"{self.max_retry_after:.0f}s limit"
+                f"{self.max_retry_after:.0f}s limit",
+                transient=True,
             )
         return max(delay, retry_after)
 
