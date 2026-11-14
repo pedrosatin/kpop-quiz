@@ -103,6 +103,8 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
           // general theme would make useRecordQuizMatch count it again as
           // a general match.
           match.setState("loading");
+          match.focusSetupRef.current = true;
+          match.focusRestoredRef.current = true;
           selectTheme("history");
         },
       }}

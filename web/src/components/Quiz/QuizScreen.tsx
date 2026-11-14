@@ -87,7 +87,7 @@ function resultNoticeText({ resumeNotice, replayStatus, restoredVisit }: QuizMat
 // open if the player opened it first. The summary line may then grow from one
 // line to two (Expert with the timer); on phones it keeps room for two lines,
 // so the cards and Start do not move.
-function QuizSetupScreen({ messages, settings, match, hydrated, actions, generalResume }: QuizScreenProps) {
+function QuizSetupScreen({ messages, settings, match, hydrated, actions, generalResume, focus }: QuizScreenProps) {
   const { state, session, loadedRequestKey } = match;
   return (
     <GameSetup choicesKey={hydrated ? "client" : "ssr"} busy={state === "loading"} busyLabel={messages.loading}
@@ -99,6 +99,7 @@ function QuizSetupScreen({ messages, settings, match, hydrated, actions, general
       onSelectMode={settings.selectMode}
       onTimerChange={settings.changeTimer}
       onStart={actions.start} isReady={state === "setup" && loadedRequestKey === settings.requestKey && session?.config.play_mode === settings.playMode}
+      headingRef={focus.setupHeadingRef}
     />
   );
 }
@@ -218,12 +219,10 @@ function QuizRoundScreen({
 
 /** Renders the screen for the current machine state, under the notice of a daily session from an earlier day. */
 export function QuizScreen(props: QuizScreenProps) {
-  const { locale, messages, settings, match, otherLocaleRound } = props;
-  const onSetup = match.state === "loading" || match.state === "setup";
+  const { locale, settings, match } = props;
   return (
     <>
       {settings.theme === "daily" && <StaleDailyNotice board={match.session} locale={locale} />}
-      {onSetup && otherLocaleRound && <OtherLocaleNotice round={otherLocaleRound} messages={messages} />}
       <QuizStateScreen {...props} />
     </>
   );
@@ -248,7 +247,18 @@ function QuizStateScreen(props: QuizScreenProps) {
   if (state === "unavailable") {
     return <QuizState label={messages.quizReplayUnavailable} action={messages.retry} onAction={actions.retryUnavailable} wide />;
   }
-  if (state === "loading" || state === "setup") return <QuizSetupScreen {...props} />;
+  if (state === "loading" || state === "setup") {
+    // Below the setup card: the notice appears after hydration, and there it
+    // moves neither the card nor its action bar (rule 4 of the UX contract).
+    // While loading, the language's own round may still be restored, so the
+    // notice waits for the setup.
+    return (
+      <>
+        <QuizSetupScreen {...props} />
+        {state === "setup" && props.otherLocaleRound && <OtherLocaleNotice round={props.otherLocaleRound} messages={messages} />}
+      </>
+    );
+  }
   if (state === "empty" || !session || !question) return <QuizState label={messages.empty} wide />;
   if (state === "results") return <QuizResultScreen {...props} session={session} />;
   return <QuizRoundScreen {...props} session={session} question={question} />;

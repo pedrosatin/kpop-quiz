@@ -1,3 +1,4 @@
+import type { RefObject } from "preact";
 import type { PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { DEFAULT_QUIZ_THEME, type QuizDecadeSelection, type QuizTheme } from "../Quiz/url-params";
@@ -35,6 +36,8 @@ export interface GameSetupProps {
    * and the decades is not remounted and stays open or closed.
    */
   choicesKey?: string;
+  /** Title of the setup, focused when the player arrives from a screen whose control unmounted. */
+  headingRef?: RefObject<HTMLHeadingElement>;
 }
 
 export function GameSetup({
@@ -54,6 +57,7 @@ export function GameSetup({
   notice,
   generalNote,
   choicesKey,
+  headingRef,
 }: GameSetupProps) {
   const hasDecades = Boolean(onSelectDecades && availableDecades.length);
   return (
@@ -61,7 +65,7 @@ export function GameSetup({
       <div class="setup-options">
         <div class="setup-heading">
           <p class="kicker">{messages.setupKicker}</p>
-          <h2 id="difficulty-heading" class="game-card-title">{messages.setupTitle}</h2>
+          <h2 id="difficulty-heading" class="game-card-title" tabIndex={-1} {...(headingRef ? { ref: headingRef } : {})}>{messages.setupTitle}</h2>
         </div>
         {onSelectTheme && (
           <GameCollection

@@ -913,6 +913,74 @@ describe("Quiz flows", () => {
       expect(loadPlayerStats()).toEqual(stats);
     });
 
+    it("sends game_complete for a general round restored after the day's round, without a game_start", async () => {
+      onDailyDate();
+      const round = await drawCatalogRound();
+      const questions = round.session.questions;
+      saveQuizProgress(roundSave(round.session, "catalog", {
+        questionIndex: 9,
+        history: questions.slice(0, 9).map((question) => ({
+          question, selectedOptionId: question.options[0]!.id, isCorrect: false, cluesUsedCount: 0,
+        })),
+        replayNotice: "ok",
+      }));
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      startRound();
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      await playToResults();
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_start", "game_complete"]));
+      gtag.mockClear();
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      const heading = await screen.findByRole("heading", { name: questions[9]!.prompt });
+      // The restored round's question takes the focus from the button that unmounted.
+      await vi.waitFor(() => expect(heading).toHaveFocus());
+      await playToResults(1);
+
+      // The same events as the restore on a new visit: no game_start, one game_complete.
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_complete"]));
+      expect(gtag.mock.calls[0]![2]).toMatchObject({ daily: "no" });
+    });
+
+    it("focuses the setup title when the general quiz has no round to restore", async () => {
+      onDailyDate();
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      startRound();
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      await playToResults();
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      await waitForSetup();
+
+      await vi.waitFor(() => expect(screen.getByRole("heading", { name: "Monte sua partida" })).toHaveFocus());
+      expect(document.activeElement).not.toBe(document.body);
+    });
+
+    it("does not show the day as done while the daily card loads its saved round", async () => {
+      // The setup still holds the general session for a moment after the
+      // daily card is picked; the day's date must not be read from it.
+      onDailyDate();
+      recordMatchOnce("quiz", `daily-${dailyDate()}`, true, dailyDate());
+      const session = dailyPtSession as QuizSession;
+      saveQuizProgress(roundSave(session, "published", {
+        theme: "daily",
+        questionIndex: 2,
+        history: session.questions.slice(0, 2).map((question) => ({
+          question, selectedOptionId: null, isCorrect: false, cluesUsedCount: 0,
+        })),
+      }));
+      await renderSetup();
+
+      fireEvent.click(dailyCard());
+      expect(screen.queryByTestId("daily-done")).toBeNull();
+      expect(screen.queryByTestId("game-result")).toBeNull();
+
+      expect(await screen.findByRole("heading", { name: session.questions[2]!.prompt })).toBeInTheDocument();
+      expect(screen.queryByTestId("daily-done")).toBeNull();
+    });
+
     it("still restores a daily round left in progress in this slot", async () => {
       onDailyDate();
       recordMatchOnce("quiz", `daily-${dailyDate()}`, true, dailyDate());
@@ -1016,6 +1084,39 @@ describe("Quiz flows", () => {
       );
       expect(screen.getByRole("link", { name: en.quizOtherLocaleResume })).toHaveAttribute("href", "/pt-br/?mode=standard&theme=daily");
       expect(readSlot(dailySlot)).toMatchObject({ machine_state: "question.ready", question_index: 2 });
+    });
+
+    it("puts the notice below the setup card, where it moves nothing on screen", async () => {
+      saveQuizProgress(enGeneralAt(8));
+      await renderSetup();
+      const notice = await resumeNotice();
+      expect(screen.getByTestId("game-setup").compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.getByTestId("game-setup").contains(notice)).toBe(false);
+    });
+
+    it("does not flash while this language's own round is being restored", async () => {
+      saveQuizProgress(enGeneralAt(8));
+      const round = await drawCatalogRound();
+      saveQuizProgress(roundSave(round.session, "catalog", { replayNotice: "ok" }));
+
+      render(<Quiz locale="pt-BR" />);
+      expect(screen.queryByTestId("quiz-other-locale-round")).toBeNull();
+
+      expect(await screen.findByRole("heading", { name: round.session.questions[0]!.prompt })).toBeInTheDocument();
+      expect(screen.queryByTestId("quiz-other-locale-round")).toBeNull();
+    });
+
+    it("stays off the finished daily screen, which has no Start button", async () => {
+      onDailyDate();
+      saveQuizProgress(enGeneralAt(8));
+      recordMatchOnce("quiz", "daily-other-board", true, dailySeedDate(dailyPtSession as QuizSession)!);
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+
+      render(<Quiz locale="pt-BR" />);
+
+      expect(await screen.findByRole("heading", { name: messages.dailyDoneTitle })).toBeInTheDocument();
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.queryByTestId("quiz-other-locale-round")).toBeNull();
     });
 
     it("says nothing about a finished round or a daily round from an earlier day", async () => {

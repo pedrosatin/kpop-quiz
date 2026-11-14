@@ -647,17 +647,18 @@
 .feedback textarea { display: block; width: 100%; min-height: 6rem; margin-block: 0.5rem; }
 .feedback .btn-row { margin-top: 0.75rem; }
 
-/* Above the setup: a round saved in progress in the other language and the
-   link that resumes it there. The link keeps the 44px control height and
-   sits 8px under the sentence. */
+/* Below the setup card: a round saved in progress in the other language and
+   the link that resumes it there. It appears after hydration; below the card
+   it moves neither the card nor the action bar. The link keeps the 44px
+   control height and sits 8px under the sentence. */
 .other-locale-round {
+  max-width: 64rem;
+  margin: var(--space-4) auto 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2) var(--space-4);
-  max-width: 64rem;
-  margin: 0 auto var(--space-4);
 }
 
 .other-locale-round p {

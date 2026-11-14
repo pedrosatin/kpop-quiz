@@ -25,6 +25,8 @@ export function useQuizMatch() {
   const focusQuestionRef = useRef(false);
   /** Set when the player picks a saved round to continue; its question takes focus once restored. */
   const focusRestoredRef = useRef(false);
+  /** Set when the player leaves the daily result for the general quiz; its setup title takes focus. */
+  const focusSetupRef = useRef(false);
   const loadRequestRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
   const recordedMatchRef = useRef<string | null>(null);
@@ -61,6 +63,7 @@ export function useQuizMatch() {
     answerLockedRef,
     focusQuestionRef,
     focusRestoredRef,
+    focusSetupRef,
     loadRequestRef,
     startTimeRef,
     recordedMatchRef,

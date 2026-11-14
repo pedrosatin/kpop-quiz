@@ -159,5 +159,17 @@ export function useGameAnalytics(context: GameRoundContext, finished: boolean, r
     completed.current = false;
     round.current = null;
   };
-  return { start, reset };
+  /**
+   * A saved round restored later in a visit that already played one, e.g.
+   * the general quiz picked from the daily result. Like a restore on a new
+   * visit, it was started on an earlier visit and sends no game_start, and
+   * it sends game_complete once it is finished here.
+   */
+  const resume = () => {
+    started.current = true;
+    playedHere.current = false;
+    completed.current = false;
+    round.current = null;
+  };
+  return { start, reset, resume };
 }
