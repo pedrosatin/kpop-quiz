@@ -10,7 +10,7 @@ Os dados estruturados do Wikidata são disponibilizados sob [CC0](https://www.wi
 
 ## YouTube Data API
 
-As estatísticas atuais de canal são opcionais e servem apenas para inspeção local. A chave é lida de `YOUTUBE_API_KEY`; não há argumento de linha de comando para a credencial. O relatório não contém a chave.
+As estatísticas atuais de canal são opcionais e servem apenas para inspeção local. A chave é lida de `YOUTUBE_API_KEY`; não há argumento de linha de comando para a credencial. O relatório não contém a chave. A requisição leva a chave no header `X-Goog-Api-Key`. Assim a chave fica fora da URL, que proxies, logs e mensagens de erro podem registrar ([Using API keys](https://cloud.google.com/docs/authentication/api-keys-use)).
 
 Esses dados seguem os [Termos dos Serviços da API do YouTube](https://developers.google.com/youtube/terms/api-services-terms-of-service) e as [Políticas para Desenvolvedores](https://developers.google.com/youtube/terms/developer-policies), não uma licença aberta do projeto. Estatísticas públicas obtidas sem autorização do canal não devem permanecer armazenadas por mais de 30 dias: atualize ou apague o relatório. Elas não entram no cálculo de relevância, não são publicadas no site e não devem ser adicionadas ao Git.
 

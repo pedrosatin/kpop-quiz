@@ -37,7 +37,7 @@ from . import workflow_commands
 from .country_crosswalk import build_country_crosswalk
 from .http_request import DEFAULT_USER_AGENT, open_url
 from .mediawiki import MaxlagBudget
-from .musicbrainz import MusicBrainzClient
+from .musicbrainz import MusicBrainzClient, MusicBrainzError
 from .official_schedule import ScheduleEntry, parse_yg_tour_schedule
 from .tour_events import CountryIdentity, TourEventContext, assess_tour_event_candidate
 from .wikidata import MAX_ENTITIES_PER_REQUEST, EntityProfile, WikidataEntityClient
@@ -56,6 +56,13 @@ WIKIDATA_RETRIES = 8
 # runs this command up to 4 times, 15 minutes apart, in a 90-minute step, so
 # each run waits at most 5 minutes instead of the collector's 15.
 WIKIDATA_MAXLAG_BUDGET_SECONDS = 5 * 60.0
+# A series costs one lookup per event, and each event one per new venue and
+# per new area above it, 1.1 s apart. The dataset of 2026-11-01 accepts 31
+# events of the DEADLINE series. A series above the cap fails before its
+# first event lookup instead of running for hours, and an area chain that
+# never reaches a country stops at MAX_AREA_DEPTH.
+MAX_SERIES_EVENTS = 200
+MAX_AREA_DEPTH = 10
 
 
 @dataclass(frozen=True)
@@ -113,9 +120,15 @@ def collect_musicbrainz(client: MusicBrainzClient, config: PilotConfig) -> Music
         series=client.lookup("series", config.series_mbid, ("event-rels",)),
         artist=client.lookup("artist", config.artist_mbid, ("url-rels",)),
     )
-    for relation in snapshot.series.get("relations", []):
-        if relation.get("target-type") != "event":
-            continue
+    relations = [
+        relation for relation in snapshot.series.get("relations", []) if relation.get("target-type") == "event"
+    ]
+    if len(relations) > MAX_SERIES_EVENTS:
+        raise MusicBrainzError(
+            f"MusicBrainz series {config.series_mbid} lists {len(relations)} events, above the "
+            f"limit of {MAX_SERIES_EVENTS}; check the series and raise MAX_SERIES_EVENTS if it is right"
+        )
+    for relation in relations:
         event_id = relation["event"]["id"]
         event = client.lookup("event", event_id, ("artist-rels", "place-rels"))
         snapshot.events[event_id] = event
@@ -125,7 +138,15 @@ def collect_musicbrainz(client: MusicBrainzClient, config: PilotConfig) -> Music
             place = client.lookup("place", place_id, ("area-rels", "url-rels"))
             snapshot.places[place_id] = place
             area_id = (place.get("area") or {}).get("id")
+            depth = 0
             while area_id and area_id not in snapshot.areas:
+                depth += 1
+                if depth > MAX_AREA_DEPTH:
+                    # The MBID comes from MusicBrainz and ends up in the job log.
+                    raise MusicBrainzError(
+                        f"MusicBrainz area hierarchy of place {workflow_commands.escape_data(place_id)} "
+                        f"is deeper than {MAX_AREA_DEPTH} levels"
+                    )
                 area = client.lookup("area", area_id, ("area-rels", "url-rels"))
                 snapshot.areas[area_id] = area
                 area_id = _parent_area_id(area)

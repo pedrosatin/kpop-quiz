@@ -128,13 +128,16 @@ def fetch_youtube_statistics(
         raise SignalError("YouTube statistics accepts 1 to 50 channel IDs")
     if any(CHANNEL_ID.fullmatch(channel_id) is None for channel_id in channel_ids):
         raise SignalError("YouTube statistics received a channel ID that is not a UC id")
-    url = YOUTUBE_STATISTICS_URL + "?" + urlencode(
-        {"part": "statistics", "id": ",".join(channel_ids), "key": api_key}
-    )
+    # The key goes in a header, so it stays out of the URL that proxies, logs
+    # and exception messages may record.
+    url = YOUTUBE_STATISTICS_URL + "?" + urlencode({"part": "statistics", "id": ",".join(channel_ids)})
     request_failed = False
     try:
         with open_url(
-            url, timeout=timeout, user_agent=DEFAULT_USER_AGENT, headers={"Accept": "application/json"}
+            url,
+            timeout=timeout,
+            user_agent=DEFAULT_USER_AGENT,
+            headers={"Accept": "application/json", "X-Goog-Api-Key": api_key},
         ) as response:
             payload = json.load(response)
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError):

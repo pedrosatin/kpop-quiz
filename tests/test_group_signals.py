@@ -300,6 +300,18 @@ class GroupSignalTest(unittest.TestCase):
         self.assertNotIn("secret-value", repr(caught.exception))
         transport_error.close()
 
+    def test_youtube_key_goes_in_a_header_and_not_in_the_url(self):
+        response = unittest.mock.MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = json.dumps({"items": []}).encode()
+        with patch("kpop_scraping.http_request.urlopen", return_value=response) as urlopen:
+            self.assertEqual(fetch_youtube_statistics([BTS_CHANNEL], "secret-value"), {})
+        request = urlopen.call_args.args[0]
+        self.assertNotIn("secret-value", request.full_url)
+        self.assertNotIn("key=", request.full_url)
+        self.assertEqual(request.get_header("X-goog-api-key"), "secret-value")
+        self.assertIn(f"id={BTS_CHANNEL}", request.full_url)
+
     def test_youtube_response_rejects_an_unrequested_channel(self):
         response = unittest.mock.MagicMock()
         response.__enter__.return_value = response

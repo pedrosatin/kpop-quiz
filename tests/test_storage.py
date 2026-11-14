@@ -19,6 +19,7 @@ from kpop_scraping.storage import (
     Repository,
     SnapshotStore,
     SnapshotIntegrityError,
+    SnapshotPathError,
     apply_migrations,
     canonical_json,
 )
@@ -81,6 +82,113 @@ class DriftClient(SnapshotClient):
                     revision_id=88,
                 ))
         return pages
+
+
+class SnapshotPathContainmentTest(unittest.TestCase):
+    """Snapshot paths stay inside raw_dir, whatever the segments or the database say."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.raw_dir = self.root / "raw"
+        self.store = SnapshotStore(self.raw_dir)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_dot_segments_are_refused_for_every_field(self):
+        for segment in (".", ".."):
+            with self.subTest(segment=segment):
+                with self.assertRaisesRegex(ValueError, "provider"):
+                    self.store.relative_path(segment, "en", 1, 1)
+                with self.assertRaisesRegex(ValueError, "language"):
+                    self.store.relative_path("wikipedia", segment, 1, 1)
+                with self.assertRaisesRegex(ValueError, "provider"):
+                    self.store.entity_relative_path(segment, "subject-v1", "Q1", 1)
+                with self.assertRaisesRegex(ValueError, "profile"):
+                    self.store.entity_relative_path("wikidata", segment, "Q1", 1)
+
+    def test_segments_with_dots_inside_are_still_allowed(self):
+        self.assertEqual(
+            self.store.relative_path("wiki.pedia", "pt-br", 1, 2).as_posix(),
+            "wiki.pedia/pt-br/1/2.json.gz",
+        )
+        self.assertEqual(
+            self.store.entity_relative_path("wikidata", "...", "Q1", 2).as_posix(),
+            "wikidata/.../Q1/2.json.gz",
+        )
+
+    def write_outside(self, content: bytes = b'{"a":1}') -> tuple[Path, str]:
+        outside = self.root / "outside.json.gz"
+        outside.write_bytes(gzip.compress(content))
+        return outside, hashlib.sha256(content).hexdigest()
+
+    def test_read_refuses_a_path_that_climbs_out_of_raw_dir(self):
+        _, digest = self.write_outside()
+        self.raw_dir.mkdir()
+
+        with self.assertRaisesRegex(SnapshotIntegrityError, "outside the raw directory"):
+            self.store.read("../outside.json.gz", digest)
+
+    def test_read_refuses_an_absolute_path(self):
+        outside, digest = self.write_outside()
+        self.raw_dir.mkdir()
+
+        with self.assertRaisesRegex(SnapshotIntegrityError, "outside the raw directory"):
+            self.store.read(str(outside), digest)
+        with self.assertRaisesRegex(SnapshotIntegrityError, "outside the raw directory"):
+            self.store.verify(str(outside), digest)
+
+    def test_read_refuses_a_symbolic_link_out_of_raw_dir(self):
+        outside, digest = self.write_outside()
+        (self.raw_dir / "wikipedia").mkdir(parents=True)
+        (self.raw_dir / "wikipedia" / "en").symlink_to(self.root, target_is_directory=True)
+
+        with self.assertRaisesRegex(SnapshotIntegrityError, "outside the raw directory"):
+            self.store.read(f"wikipedia/en/{outside.name}", digest)
+
+    def link_provider_outside(self) -> Path:
+        """raw/wikipedia is a symbolic link to a directory on another disk."""
+        elsewhere = self.root / "other-disk"
+        elsewhere.mkdir()
+        self.raw_dir.mkdir()
+        (self.raw_dir / "wikipedia").symlink_to(elsewhere, target_is_directory=True)
+        return elsewhere
+
+    def test_write_refuses_a_path_that_a_link_takes_out_of_raw_dir(self):
+        elsewhere = self.link_provider_outside()
+
+        with self.assertRaisesRegex(SnapshotPathError, "outside the raw directory"):
+            self.store.write("wikipedia", "en", 10, 77, b'{"pageid":10}')
+        self.assertEqual(list(elsewhere.iterdir()), [])
+
+    def test_a_snapshot_behind_the_link_is_never_quarantined(self):
+        # A file a run wrote through the link before writes were contained.
+        elsewhere = self.link_provider_outside()
+        content = b'{"pageid":10}'
+        snapshot = elsewhere / "en" / "10" / "77.json.gz"
+        snapshot.parent.mkdir(parents=True)
+        snapshot.write_bytes(gzip.compress(content, mtime=0))
+        stderr = io.StringIO()
+
+        with redirect_stderr(stderr), self.assertRaises(SnapshotPathError):
+            self.store.write("wikipedia", "en", 10, 77, content)
+
+        self.assertTrue(snapshot.is_file())
+        self.assertFalse((self.raw_dir / SnapshotStore.ORPHAN_DIR).exists())
+        self.assertNotIn("differs from the new content", stderr.getvalue())
+
+    def test_the_path_error_is_a_snapshot_integrity_error_for_readers(self):
+        self.assertTrue(issubclass(SnapshotPathError, SnapshotIntegrityError))
+
+    def test_read_accepts_a_path_inside_raw_dir_and_a_raw_dir_behind_a_link(self):
+        relative_path, digest = self.store.write("wikipedia", "en", 10, 77, b'{"pageid":10}')
+        linked = self.root / "linked-raw"
+        linked.symlink_to(self.raw_dir, target_is_directory=True)
+
+        self.assertEqual(self.store.read(relative_path, digest), b'{"pageid":10}')
+        self.assertEqual(SnapshotStore(linked).read(relative_path, digest), b'{"pageid":10}')
+        self.assertEqual(self.store.read(f"wikipedia/../{relative_path}", digest), b'{"pageid":10}')
 
 
 class StorageTest(unittest.TestCase):
