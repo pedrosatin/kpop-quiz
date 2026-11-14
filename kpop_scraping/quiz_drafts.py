@@ -42,8 +42,12 @@ def _build_drafts(
     entities: dict[int, Entity],
     reference_date: date,
 ) -> tuple[list[Draft], Counter[str]]:
+    """Build the drafts of every question type and count rejected candidates.
+
+    Each builder adds its rejections to ``rejected`` in the order it meets
+    them. The drafts are sorted by key at the end.
+    """
     rejected: Counter[str] = Counter()
-    drafts: list[Draft] = []
     formed = [fact for fact in facts if fact.predicate == "formed_on"]
     born = [fact for fact in facts if fact.predicate == "born_on"]
     memberships = _membership_pairs(facts)
@@ -55,21 +59,248 @@ def _build_drafts(
     supported_person_ids = {
         fact.subject.wikidata_id for fact in born
     } | {person.wikidata_id for _group, person, _pair in memberships}
-    groups = sorted(
+    groups = _supported_entities(entities, "group", supported_group_ids)
+    people = _supported_entities(entities, "person", supported_person_ids)
+
+    drafts: list[Draft] = []
+    drafts.extend(_formation_year_drafts(formed, rejected))
+    drafts.extend(_person_drafts(born, memberships, reference_date, rejected))
+    drafts.extend(_membership_drafts(memberships, groups, people, rejected))
+    drafts.extend(_member_for_group_drafts(has_members, rejected))
+    drafts.extend(_group_for_record_label_drafts(record_labels, rejected))
+    drafts.extend(_record_label_for_group_drafts(record_labels, rejected))
+    drafts.extend(_comparison_drafts(formed, "group", memberships))
+    drafts.extend(_comparison_drafts(born, "person", memberships))
+    release_drafts, release_rejections = build_release_drafts(facts)
+    drafts.extend(release_drafts)
+    rejected.update(release_rejections)
+    drafts.sort(key=lambda draft: draft.key)
+    return drafts, rejected
+
+
+def _supported_entities(
+    entities: dict[int, Entity],
+    entity_type: str,
+    supported_ids: set[str],
+) -> list[Entity]:
+    """Return the entities of one type that an accepted fact supports, in QID order."""
+    return sorted(
         (
             entity for entity in entities.values()
-            if entity.entity_type == "group" and entity.wikidata_id in supported_group_ids
-        ),
-        key=lambda entity: entity.wikidata_id,
-    )
-    people = sorted(
-        (
-            entity for entity in entities.values()
-            if entity.entity_type == "person" and entity.wikidata_id in supported_person_ids
+            if entity.entity_type == entity_type and entity.wikidata_id in supported_ids
         ),
         key=lambda entity: entity.wikidata_id,
     )
 
+
+def _formation_year_drafts(formed: list[Fact], rejected: Counter[str]) -> list[Draft]:
+    result = []
+    for fact in formed:
+        alternatives = _year_alternatives(fact, formed)
+        if alternatives is None:
+            rejected["insufficient_formation_year_distractors"] += 1
+            continue
+        result.append(
+            Draft(
+                ("formation_year", fact.statement_id),
+                "formation_year", "history", "easy", (fact.subject.wikidata_id,),
+                ((fact.value_time or "")[:4], "time"), alternatives,
+                {"group_id": fact.subject.wikidata_id}, fact.evidence,
+                (fact.statement_id,),
+            )
+        )
+    return result
+
+
+def _person_drafts(
+    born: list[Fact],
+    memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
+    reference_date: date,
+    rejected: Counter[str],
+) -> list[Draft]:
+    """Build the birth date and the age drafts of each birth fact.
+
+    Both prompts name the person's groups and cite the memberships behind
+    them. The age draft does not depend on the birth date draft.
+    """
+    result = []
+    for fact in born:
+        person_groups = _groups_for_person(fact.subject.wikidata_id, memberships)
+        group_fact_ids, group_evidence = _membership_citation(
+            fact.subject.wikidata_id, memberships
+        )
+        birth_date_draft = _birth_date_draft(
+            fact, born, person_groups, group_fact_ids, group_evidence, rejected
+        )
+        if birth_date_draft is not None:
+            result.append(birth_date_draft)
+        age_draft = _age_on_date_draft(
+            fact, born, reference_date,
+            person_groups, group_fact_ids, group_evidence, rejected,
+        )
+        if age_draft is not None:
+            result.append(age_draft)
+    return result
+
+
+def _birth_date_draft(
+    fact: Fact,
+    born: list[Fact],
+    person_groups: tuple[str, ...],
+    group_fact_ids: tuple[str, ...],
+    group_evidence: tuple[Evidence, ...],
+    rejected: Counter[str],
+) -> Draft | None:
+    alternatives = _time_alternatives(fact, born)
+    if alternatives is None:
+        rejected["insufficient_birth_date_distractors"] += 1
+        return None
+    return Draft(
+        ("birth_date_or_place", fact.statement_id),
+        "birth_date_or_place", "people", "easy",
+        person_groups,
+        (fact.value_time or "", "time"), alternatives,
+        {"person_id": fact.subject.wikidata_id}, fact.evidence,
+        (fact.statement_id,),
+        group_evidence, group_fact_ids,
+    )
+
+
+def _age_on_date_draft(
+    fact: Fact,
+    born: list[Fact],
+    reference_date: date,
+    person_groups: tuple[str, ...],
+    group_fact_ids: tuple[str, ...],
+    group_evidence: tuple[Evidence, ...],
+    rejected: Counter[str],
+) -> Draft | None:
+    if fact.value_precision != 11 or "insufficient_precision_for_age" in fact.flags:
+        rejected["insufficient_precision_for_age"] += 1
+        return None
+    if date.fromisoformat(fact.value_time or "") > reference_date:
+        rejected["birth_after_reference_date"] += 1
+        return None
+    age = _age_on(fact.value_time or "", reference_date)
+    age_values = sorted(
+        {
+            _age_on(other.value_time or "", reference_date)
+            for other in born
+            if other.value_precision == 11
+            and "insufficient_precision_for_age" not in other.flags
+        }
+    )
+    alternatives = _numeric_alternatives(age, age_values)
+    if alternatives is None:
+        rejected["insufficient_age_distractors"] += 1
+        return None
+    return Draft(
+        ("age_on_date", fact.statement_id, reference_date.isoformat()),
+        "age_on_date", "people", "medium",
+        person_groups,
+        (str(age), "number"), alternatives,
+        {
+            "person_id": fact.subject.wikidata_id,
+            "born_on": fact.value_time or "",
+            "date": reference_date.isoformat(),
+        },
+        fact.evidence,
+        (fact.statement_id,),
+        group_evidence, group_fact_ids,
+    )
+
+
+def _membership_drafts(
+    memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
+    groups: list[Entity],
+    people: list[Entity],
+    rejected: Counter[str],
+) -> list[Draft]:
+    """Build the group-for-member and member-at-date drafts of each membership.
+
+    A group whose labels mention the member yields neither draft. The
+    member-at-date draft does not depend on the group-for-member draft.
+    """
+    group_ids_by_person: dict[str, set[str]] = defaultdict(set)
+    for group, person, _pair in memberships:
+        group_ids_by_person[person.wikidata_id].add(group.wikidata_id)
+    result = []
+    for group, person, pair_facts in memberships:
+        if _group_mentions_person(group, person):
+            rejected["group_label_mentions_member"] += 1
+            continue
+        group_draft = _group_for_member_draft(
+            group, person, pair_facts, groups,
+            group_ids_by_person[person.wikidata_id], rejected,
+        )
+        if group_draft is not None:
+            result.append(group_draft)
+        member_draft = _member_at_date_draft(
+            group, person, pair_facts, memberships, people, rejected
+        )
+        if member_draft is not None:
+            result.append(member_draft)
+    return result
+
+
+def _group_for_member_draft(
+    group: Entity,
+    person: Entity,
+    pair_facts: tuple[Fact, ...],
+    groups: list[Entity],
+    person_group_ids: set[str],
+    rejected: Counter[str],
+) -> Draft | None:
+    group_options = _entity_alternatives_excluding(group, groups, person_group_ids)
+    if group_options is None:
+        rejected["insufficient_group_distractors"] += 1
+        return None
+    return Draft(
+        ("group_for_member", group.wikidata_id, person.wikidata_id),
+        "group_for_member", "members", "medium", (group.wikidata_id,),
+        (group.wikidata_id, "group"), group_options,
+        {"person_id": person.wikidata_id}, _merge_evidence(pair_facts),
+        tuple(sorted(fact.statement_id for fact in pair_facts)),
+    )
+
+
+def _member_at_date_draft(
+    group: Entity,
+    person: Entity,
+    pair_facts: tuple[Fact, ...],
+    memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
+    people: list[Entity],
+    rejected: Counter[str],
+) -> Draft | None:
+    dated = _eligible_membership_date(pair_facts)
+    if dated is None:
+        rejected["membership_interval_not_eligible"] += 1
+        return None
+    valid_member_ids = {
+        candidate.wikidata_id
+        for candidate_group, candidate, candidate_facts in memberships
+        if candidate_group.wikidata_id == group.wikidata_id
+        and _membership_contains_date(candidate_facts, dated)
+    }
+    person_options = _entity_alternatives_excluding(
+        person, people, valid_member_ids
+    )
+    if person_options is None:
+        rejected["insufficient_person_distractors"] += 1
+        return None
+    return Draft(
+        ("member_at_date", group.wikidata_id, person.wikidata_id, dated),
+        "member_at_date", "members", "hard", (group.wikidata_id,),
+        (person.wikidata_id, "person"), person_options,
+        {"group_id": group.wikidata_id, "date": dated},
+        _merge_evidence(pair_facts),
+        tuple(sorted(fact.statement_id for fact in pair_facts)),
+    )
+
+
+def _member_for_group_drafts(
+    has_members: list[Fact], rejected: Counter[str]
+) -> list[Draft]:
     member_ids_by_group: dict[str, set[str]] = defaultdict(set)
     for fact in has_members:
         if fact.value_entity is not None:
@@ -84,129 +315,7 @@ def _build_drafts(
         }.values(),
         key=lambda entity: entity.wikidata_id,
     )
-    group_ids_by_person: dict[str, set[str]] = defaultdict(set)
-    for group, person, _pair in memberships:
-        group_ids_by_person[person.wikidata_id].add(group.wikidata_id)
-
-    for fact in formed:
-        alternatives = _year_alternatives(fact, formed)
-        if alternatives is None:
-            rejected["insufficient_formation_year_distractors"] += 1
-            continue
-        drafts.append(
-            Draft(
-                ("formation_year", fact.statement_id),
-                "formation_year", "history", "easy", (fact.subject.wikidata_id,),
-                ((fact.value_time or "")[:4], "time"), alternatives,
-                {"group_id": fact.subject.wikidata_id}, fact.evidence,
-                (fact.statement_id,),
-            )
-        )
-
-    for fact in born:
-        person_groups = _groups_for_person(fact.subject.wikidata_id, memberships)
-        group_fact_ids, group_evidence = _membership_citation(
-            fact.subject.wikidata_id, memberships
-        )
-        alternatives = _time_alternatives(fact, born)
-        if alternatives is None:
-            rejected["insufficient_birth_date_distractors"] += 1
-        else:
-            drafts.append(
-                Draft(
-                    ("birth_date_or_place", fact.statement_id),
-                    "birth_date_or_place", "people", "easy",
-                    person_groups,
-                    (fact.value_time or "", "time"), alternatives,
-                    {"person_id": fact.subject.wikidata_id}, fact.evidence,
-                    (fact.statement_id,),
-                    group_evidence, group_fact_ids,
-                )
-            )
-        if fact.value_precision != 11 or "insufficient_precision_for_age" in fact.flags:
-            rejected["insufficient_precision_for_age"] += 1
-            continue
-        if date.fromisoformat(fact.value_time or "") > reference_date:
-            rejected["birth_after_reference_date"] += 1
-            continue
-        age = _age_on(fact.value_time or "", reference_date)
-        age_values = sorted(
-            {
-                _age_on(other.value_time or "", reference_date)
-                for other in born
-                if other.value_precision == 11
-                and "insufficient_precision_for_age" not in other.flags
-            }
-        )
-        alternatives = _numeric_alternatives(age, age_values)
-        if alternatives is None:
-            rejected["insufficient_age_distractors"] += 1
-            continue
-        drafts.append(
-            Draft(
-                ("age_on_date", fact.statement_id, reference_date.isoformat()),
-                "age_on_date", "people", "medium",
-                person_groups,
-                (str(age), "number"), alternatives,
-                {
-                    "person_id": fact.subject.wikidata_id,
-                    "born_on": fact.value_time or "",
-                    "date": reference_date.isoformat(),
-                },
-                fact.evidence,
-                (fact.statement_id,),
-                group_evidence, group_fact_ids,
-            )
-        )
-
-    for group, person, pair_facts in memberships:
-        if _group_mentions_person(group, person):
-            rejected["group_label_mentions_member"] += 1
-            continue
-        group_options = _entity_alternatives_excluding(
-            group,
-            groups,
-            group_ids_by_person[person.wikidata_id],
-        )
-        if group_options is None:
-            rejected["insufficient_group_distractors"] += 1
-        else:
-            drafts.append(
-                Draft(
-                    ("group_for_member", group.wikidata_id, person.wikidata_id),
-                    "group_for_member", "members", "medium", (group.wikidata_id,),
-                    (group.wikidata_id, "group"), group_options,
-                    {"person_id": person.wikidata_id}, _merge_evidence(pair_facts),
-                    tuple(sorted(fact.statement_id for fact in pair_facts)),
-                )
-            )
-        dated = _eligible_membership_date(pair_facts)
-        if dated is None:
-            rejected["membership_interval_not_eligible"] += 1
-            continue
-        valid_member_ids = {
-            candidate.wikidata_id
-            for candidate_group, candidate, candidate_facts in memberships
-            if candidate_group.wikidata_id == group.wikidata_id
-            and _membership_contains_date(candidate_facts, dated)
-        }
-        person_options = _entity_alternatives_excluding(
-            person, people, valid_member_ids
-        )
-        if person_options is None:
-            rejected["insufficient_person_distractors"] += 1
-            continue
-        drafts.append(
-            Draft(
-                ("member_at_date", group.wikidata_id, person.wikidata_id, dated),
-                "member_at_date", "members", "hard", (group.wikidata_id,),
-                (person.wikidata_id, "person"), person_options,
-                {"group_id": group.wikidata_id, "date": dated},
-                _merge_evidence(pair_facts),
-                tuple(sorted(fact.statement_id for fact in pair_facts)),
-            )
-        )
-
+    result = []
     for fact in has_members:
         person = fact.value_entity
         if person is None:
@@ -222,7 +331,7 @@ def _build_drafts(
         if alternatives is None:
             rejected["insufficient_nonmember_distractors"] += 1
             continue
-        drafts.append(
+        result.append(
             Draft(
                 ("member_for_group", fact.statement_id),
                 "member_for_group", "members", "medium",
@@ -232,20 +341,21 @@ def _build_drafts(
                 (fact.statement_id,),
             )
         )
+    return result
 
+
+def _group_for_record_label_drafts(
+    record_labels: list[Fact], rejected: Counter[str]
+) -> list[Draft]:
     labels_to_facts: dict[str, list[Fact]] = defaultdict(list)
-    label_entities: dict[str, Entity] = {}
     for fact in record_labels:
         if fact.value_entity is not None:
             labels_to_facts[fact.value_entity.wikidata_id].append(fact)
-            label_entities[fact.value_entity.wikidata_id] = fact.value_entity
     label_groups = sorted(
         {fact.subject.wikidata_id: fact.subject for fact in record_labels}.values(),
         key=lambda entity: entity.wikidata_id,
     )
-    record_label_entities = sorted(
-        label_entities.values(), key=lambda entity: entity.wikidata_id
-    )
+    result = []
     for label_id in sorted(labels_to_facts):
         label_facts = labels_to_facts[label_id]
         associated_groups = {fact.subject.wikidata_id for fact in label_facts}
@@ -259,7 +369,7 @@ def _build_drafts(
         if alternatives is None:
             rejected["insufficient_record_label_group_distractors"] += 1
             continue
-        drafts.append(
+        result.append(
             Draft(
                 ("group_for_record_label", fact.statement_id),
                 "group_for_record_label", "industry", "medium",
@@ -269,10 +379,24 @@ def _build_drafts(
                 (fact.statement_id,),
             )
         )
+    return result
 
+
+def _record_label_for_group_drafts(
+    record_labels: list[Fact], rejected: Counter[str]
+) -> list[Draft]:
+    record_label_entities = sorted(
+        {
+            fact.value_entity.wikidata_id: fact.value_entity
+            for fact in record_labels
+            if fact.value_entity is not None
+        }.values(),
+        key=lambda entity: entity.wikidata_id,
+    )
     labels_by_group: dict[str, list[Fact]] = defaultdict(list)
     for fact in record_labels:
         labels_by_group[fact.subject.wikidata_id].append(fact)
+    result = []
     for group_id in sorted(labels_by_group):
         group_facts = labels_by_group[group_id]
         if len(group_facts) != 1:
@@ -288,7 +412,7 @@ def _build_drafts(
         if alternatives is None:
             rejected["insufficient_record_label_distractors"] += 1
             continue
-        drafts.append(
+        result.append(
             Draft(
                 ("record_label_for_group", fact.statement_id),
                 "record_label_for_group", "industry", "easy",
@@ -298,14 +422,7 @@ def _build_drafts(
                 (fact.statement_id,),
             )
         )
-
-    drafts.extend(_comparison_drafts(formed, "group", memberships))
-    drafts.extend(_comparison_drafts(born, "person", memberships))
-    release_drafts, release_rejections = build_release_drafts(facts)
-    drafts.extend(release_drafts)
-    rejected.update(release_rejections)
-    drafts.sort(key=lambda draft: draft.key)
-    return drafts, rejected
+    return result
 
 
 def _membership_pairs(facts: list[Fact]) -> list[tuple[Entity, Entity, tuple[Fact, ...]]]:
