@@ -252,6 +252,30 @@ class BuildGateTest(unittest.TestCase):
         )
         self.assertEqual(read_pool_registry(registry_path), [])
 
+    def test_http_site_base_rejected_before_registry_write(self):
+        verdicts_path = self.root / "verdicts.json"
+        verdicts_path.write_text(
+            json.dumps([make_verdict_for("File:Jennie Kim 2024.png", "Q12345", 480)])
+        )
+        registry_path = self.root / "pool.json"
+        with patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            status = main(
+                [
+                    "build",
+                    "--candidates",
+                    str(self.candidates_path),
+                    "--verdicts",
+                    str(verdicts_path),
+                    "--registry",
+                    str(registry_path),
+                    "--site-base",
+                    "http://kpopquiz.online",
+                ]
+            )
+        self.assertEqual(status, 2)
+        self.assertIn("asset_url must have https scheme", stderr.getvalue())
+        self.assertFalse(registry_path.exists())
+
     def test_subject_mismatch_fails_fast(self):
         verdicts_path = self.root / "verdicts.json"
         verdicts_path.write_text(
