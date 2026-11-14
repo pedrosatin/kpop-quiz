@@ -13,6 +13,7 @@ import sys
 import tempfile
 import zlib
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,42 @@ from .mediawiki import EXTRACT_OVERSIZE, MAX_EXTRACT_BYTES, Page
 
 class SnapshotIntegrityError(RuntimeError):
     """Raised when immutable snapshot content does not match its identity."""
+
+
+# collection_issues code of a page whose fetched extract differs from the
+# stored snapshot of the same revision (ADR 036).
+EXTRACT_DRIFT = "extract_drift"
+
+
+@dataclass(frozen=True)
+class ExtractDrift:
+    """A stored revision whose extract came back different, with no new revision.
+
+    TextExtracts renders the extract from the current parse of the revision,
+    so an edit to a transcluded template or a parser deployment can change it
+    while the ``revid`` stays the same. Every field comes from the code or
+    from integers and hashes the pipeline computed, never from page text, so
+    the CLI may put them in a workflow command.
+    """
+
+    provider: str
+    language: str
+    page_id: int
+    revision_id: int
+    stored_extract_sha256: str
+    fetched_extract_sha256: str
+
+    @property
+    def detail(self) -> str:
+        return (
+            f"Extract of revision {self.revision_id} ({self.language}) differs from "
+            f"the stored snapshot, which was kept; extract SHA-256 "
+            f"{self.stored_extract_sha256} stored, {self.fetched_extract_sha256} fetched"
+        )
+
+
+def _text_sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _revision_content(payload: Any) -> tuple[int, int, str] | None:
@@ -986,6 +1023,9 @@ class Repository:
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.snapshots = SnapshotStore(raw_dir or database_path.parent / "raw")
+        # Pages save_pages skipped for ExtractDrift since this object opened;
+        # the CLI lists them in the run summary.
+        self.extract_drifts: list[ExtractDrift] = []
         self._apply_migrations()
 
     def __enter__(self) -> "Repository":
@@ -1050,26 +1090,58 @@ class Repository:
             (provider, language, page.page_id, page.revision_id),
         ).fetchone()
 
-    def _verify_existing_snapshot(self, existing: sqlite3.Row, digest: str, page: Page, payload: dict) -> None:
-        if existing["content_sha256"] != digest:
-            stored = self.snapshots.read(
-                existing["snapshot_path"], existing["content_sha256"]
-            )
-            try:
-                stored_payload = json.loads(stored)
-            except (TypeError, json.JSONDecodeError) as exc:
-                raise SnapshotIntegrityError(
-                    f"revision {page.revision_id} of page {page.page_id} "
-                    "has an invalid snapshot"
-                ) from exc
-            stored_content = _revision_content(stored_payload)
-            fetched_content = _revision_content(payload)
-            if stored_content is None or stored_content != fetched_content:
-                raise SnapshotIntegrityError(
-                    f"revision {page.revision_id} of page {page.page_id} changed content"
-                )
-        else:
+    def _verify_existing_snapshot(
+        self,
+        existing: sqlite3.Row,
+        digest: str,
+        page: Page,
+        payload: dict,
+        provider: str,
+        language: str,
+    ) -> ExtractDrift | None:
+        """Check a repeated fetch of a stored revision against its snapshot.
+
+        A snapshot that cannot be read, fails its SHA-256 or does not hold
+        this page and revision raises ``SnapshotIntegrityError``, and so does
+        a fetched payload that names another page or revision. A sound
+        snapshot whose extract differs from the fetched one is returned as an
+        ``ExtractDrift``: the snapshot stays the observation of record for the
+        revision, and the caller skips the page.
+        """
+        if existing["content_sha256"] == digest:
             self.snapshots.verify(existing["snapshot_path"], digest)
+            return None
+        stored = self.snapshots.read(
+            existing["snapshot_path"], existing["content_sha256"]
+        )
+        try:
+            stored_payload = json.loads(stored)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise SnapshotIntegrityError(
+                f"revision {page.revision_id} of page {page.page_id} "
+                "has an invalid snapshot"
+            ) from exc
+        stored_content = _revision_content(stored_payload)
+        if stored_content is None or stored_content[:2] != (page.page_id, page.revision_id):
+            raise SnapshotIntegrityError(
+                f"revision {page.revision_id} of page {page.page_id} "
+                "has an invalid snapshot"
+            )
+        fetched_content = _revision_content(payload)
+        if fetched_content is None or fetched_content[:2] != stored_content[:2]:
+            raise SnapshotIntegrityError(
+                f"revision {page.revision_id} of page {page.page_id} changed content"
+            )
+        if fetched_content == stored_content:
+            return None
+        return ExtractDrift(
+            provider,
+            language,
+            page.page_id,
+            page.revision_id,
+            _text_sha256(stored_content[2]),
+            _text_sha256(fetched_content[2]),
+        )
 
     def _upsert_source_page(self, run_id: int, provider: str, language: str, page: Page, fetched_at: str) -> int:
         self.connection.execute(
@@ -1161,6 +1233,12 @@ class Repository:
         from the snapshot written here. A caller that looks up the stored row
         afterwards must refuse an oversize page first, as ``_page_rejection``
         does.
+
+        A stored revision whose extract came back different (``ExtractDrift``)
+        is recorded as ``extract_drift``, appended to ``extract_drifts`` and
+        skipped the same way. Its revision row and snapshot already exist, so
+        a caller that looks the revision up finds them and reads the stored
+        extract, the one its evidence already cites.
         """
         fetched_at = utc_now()
         saved = 0
@@ -1197,7 +1275,16 @@ class Repository:
             existing = self._get_existing_revision(provider, language, page)
 
             if existing is not None:
-                self._verify_existing_snapshot(existing, digest, page, payload)
+                drift = self._verify_existing_snapshot(
+                    existing, digest, page, payload, provider, language
+                )
+                if drift is not None:
+                    self._record_collection_issues(
+                        [(run_id, page.page_id, page.title, EXTRACT_DRIFT, drift.detail)]
+                    )
+                    if drift not in self.extract_drifts:
+                        self.extract_drifts.append(drift)
+                    continue
 
             source_page_id = self._upsert_source_page(run_id, provider, language, page, fetched_at)
 

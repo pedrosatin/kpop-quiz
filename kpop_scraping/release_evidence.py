@@ -132,6 +132,8 @@ def _title_key(title: str) -> str:
 
 
 def _store_page_result(repository, pages, item: _PageRequest, page: Page) -> int:
+    # A page save_pages skipped for extract drift keeps its stored revision:
+    # the row is found and the evidence reads the stored extract, as before.
     row = repository.connection.execute(
         """SELECT sp.id AS page_id,sr.id AS revision_id,
                   sr.snapshot_path,sr.content_sha256

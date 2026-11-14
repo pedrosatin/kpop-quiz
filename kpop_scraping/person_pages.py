@@ -122,7 +122,12 @@ def _page_rejection(page: Page | None, qid: str) -> str | None:
 
 
 def _keep(store: FactStore, run_id: int, request: PersonPageRequest, page: Page) -> _Kept:
-    """Store the revision as an immutable snapshot, without a catalog entry."""
+    """Store the revision as an immutable snapshot, without a catalog entry.
+
+    A revision save_pages skipped for extract drift is already stored, so the
+    lookup finds it. The person page reads only its wikitext, which the
+    extract does not change.
+    """
     store.repository.save_pages(
         run_id, (page,), provider="wikipedia", language=LANGUAGE, create_catalog_entries=False
     )

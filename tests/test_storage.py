@@ -8,12 +8,14 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import redirect_stderr
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping.collector import collect_category
 from kpop_scraping.mediawiki import Page
 from kpop_scraping.storage import (
+    ExtractDrift,
     Repository,
     SnapshotStore,
     SnapshotIntegrityError,
@@ -47,6 +49,38 @@ class SnapshotClient:
             )
             for page_id in page_ids
         ]
+
+
+class DriftClient(SnapshotClient):
+    """Returns revision 77 of page 10 with a new extract, and page 11."""
+
+    def iter_category_members(self, _category):
+        yield {"pageid": 10, "title": "Alpha"}
+        yield {"pageid": 11, "title": "Beta"}
+
+    def get_pages(self, page_ids):
+        pages = []
+        for page_id in page_ids:
+            if page_id == 10:
+                page = super().get_pages([10])[0]
+                pages.append(replace(
+                    page,
+                    extract="Rewritten by a template",
+                    source_payload={
+                        **page.source_payload,
+                        "extract": "Rewritten by a template",
+                        "touched": "later",
+                    },
+                ))
+            else:
+                pages.append(Page(
+                    page_id=page_id,
+                    title="Beta",
+                    canonical_url="https://en.wikipedia.org/wiki/Beta",
+                    extract="Beta is a group.",
+                    revision_id=88,
+                ))
+        return pages
 
 
 class StorageTest(unittest.TestCase):
@@ -222,7 +256,135 @@ class StorageTest(unittest.TestCase):
             self.assertEqual(run_links, 2)
             self.assertEqual([row["status"] for row in runs], ["completed", "completed"])
 
-    def test_changed_content_for_same_revision_is_rejected(self):
+    def test_extract_drift_keeps_the_snapshot_and_the_run_completes_two_days_in_a_row(self):
+        # Day 0 stores revision 77 of page 10. On days 1 and 2 the API returns
+        # the same revision with another extract, as after an edit to a
+        # transcluded template, and page 11 appears with its first revision.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_dir = root / "raw"
+            with Repository(root / "test.db", raw_dir=raw_dir) as repository:
+                collect_category(SnapshotClient(), repository, "Category:Test")
+                snapshot = raw_dir / "wikipedia" / "en" / "10" / "77.json.gz"
+                original = snapshot.read_bytes()
+                stored_row = tuple(repository.connection.execute(
+                    "SELECT id, snapshot_path, content_sha256 FROM source_revisions"
+                ).fetchone())
+                catalog = tuple(repository.connection.execute(
+                    "SELECT * FROM catalog_entries"
+                ).fetchone())
+                page_row = tuple(repository.connection.execute(
+                    "SELECT extract, last_run_id FROM source_pages WHERE external_page_id=10"
+                ).fetchone())
+
+                collected = [
+                    collect_category(DriftClient(), repository, "Category:Test")
+                    for _day in (1, 2)
+                ]
+
+                runs = [tuple(row) for row in repository.connection.execute(
+                    "SELECT id, status, pages_collected FROM collection_runs ORDER BY id"
+                )]
+                issues = [tuple(row) for row in repository.connection.execute(
+                    """SELECT collection_run_id, external_page_id, issue_code, detail
+                    FROM collection_issues ORDER BY id"""
+                )]
+                revisions = [tuple(row) for row in repository.connection.execute(
+                    """SELECT sp.external_page_id, sr.external_revision_id
+                    FROM source_revisions sr JOIN source_pages sp ON sp.id=sr.source_page_id
+                    ORDER BY sr.id"""
+                )]
+                self.assertEqual(
+                    tuple(repository.connection.execute(
+                        "SELECT id, snapshot_path, content_sha256 FROM source_revisions "
+                        "WHERE id=?", (stored_row[0],)
+                    ).fetchone()),
+                    stored_row,
+                )
+                self.assertEqual(
+                    tuple(repository.connection.execute(
+                        "SELECT * FROM catalog_entries WHERE source_page_id=?", (catalog[0],)
+                    ).fetchone()),
+                    catalog,
+                )
+                self.assertEqual(
+                    tuple(repository.connection.execute(
+                        "SELECT extract, last_run_id FROM source_pages WHERE external_page_id=10"
+                    ).fetchone()),
+                    page_row,
+                )
+                drifts = list(repository.extract_drifts)
+
+            self.assertEqual(collected, [1, 1])
+            self.assertEqual(
+                runs, [(1, "completed", 1), (2, "completed", 1), (3, "completed", 1)]
+            )
+            self.assertEqual(snapshot.read_bytes(), original)
+            self.assertEqual(revisions, [(10, 77), (11, 88)])
+            stored_hash = hashlib.sha256("Résumé".encode()).hexdigest()
+            fetched_hash = hashlib.sha256("Rewritten by a template".encode()).hexdigest()
+            detail = (
+                "Extract of revision 77 (en) differs from the stored snapshot, which "
+                f"was kept; extract SHA-256 {stored_hash} stored, {fetched_hash} fetched"
+            )
+            # One issue per run: the second day records its own and adds no other.
+            self.assertEqual(
+                issues,
+                [(2, 10, "extract_drift", detail), (3, 10, "extract_drift", detail)],
+            )
+            self.assertEqual(
+                drifts,
+                [ExtractDrift("wikipedia", "en", 10, 77, stored_hash, fetched_hash)],
+            )
+
+    def test_extract_drift_over_a_damaged_snapshot_still_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_dir = root / "raw"
+            with Repository(root / "test.db", raw_dir=raw_dir) as repository:
+                collect_category(SnapshotClient(), repository, "Category:Test")
+                snapshot = next(raw_dir.rglob("*.json.gz"))
+                snapshot.write_bytes(gzip.compress(b'{"corrupted":true}', mtime=0))
+
+                with self.assertRaisesRegex(
+                    SnapshotIntegrityError, "snapshot hash mismatch"
+                ):
+                    collect_category(DriftClient(), repository, "Category:Test")
+                status = repository.connection.execute(
+                    "SELECT status FROM collection_runs ORDER BY id DESC LIMIT 1"
+                ).fetchone()[0]
+                issues = repository.connection.execute(
+                    "SELECT COUNT(*) FROM collection_issues"
+                ).fetchone()[0]
+            self.assertEqual(status, "failed")
+            self.assertEqual(issues, 0)
+            self.assertEqual(repository.extract_drifts, [])
+
+    def test_stored_snapshot_of_another_revision_fails_as_invalid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_dir = root / "raw"
+            with Repository(root / "test.db", raw_dir=raw_dir) as repository:
+                collect_category(SnapshotClient(), repository, "Category:Test")
+                # A file whose hash matches the database but holds revision 78.
+                content = canonical_json({
+                    "pageid": 10, "title": "Alpha", "extract": "Résumé",
+                    "revisions": [{"revid": 78}],
+                })
+                snapshot = next(raw_dir.rglob("*.json.gz"))
+                snapshot.write_bytes(gzip.compress(content, mtime=0))
+                repository.connection.execute(
+                    "UPDATE source_revisions SET content_sha256=?",
+                    (hashlib.sha256(content).hexdigest(),),
+                )
+                repository.connection.commit()
+
+                with self.assertRaisesRegex(
+                    SnapshotIntegrityError, "revision 77 of page 10 has an invalid snapshot"
+                ):
+                    collect_category(DriftClient(), repository, "Category:Test")
+
+    def test_fetched_payload_of_another_revision_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             with Repository(root / "test.db", raw_dir=root / "raw") as repository:
@@ -231,30 +393,20 @@ class StorageTest(unittest.TestCase):
                 original_get_pages = changed.get_pages
 
                 def get_changed_pages(page_ids):
-                    pages = original_get_pages(page_ids)
-                    page = pages[0]
-                    return [
-                        Page(
-                            page.page_id,
-                            page.title,
-                            page.canonical_url,
-                            "Changed",
-                            page.revision_id,
-                            {**page.source_payload, "extract": "Changed"},
-                        )
-                    ]
+                    page = original_get_pages(page_ids)[0]
+                    return [replace(page, source_payload={
+                        **page.source_payload, "extract": "Changed", "revisions": [{"revid": 78}],
+                    })]
 
                 changed.get_pages = get_changed_pages
-                with self.assertRaises(SnapshotIntegrityError):
+                with self.assertRaisesRegex(
+                    SnapshotIntegrityError, "revision 77 of page 10 changed content"
+                ):
                     collect_category(changed, repository, "Category:Test")
                 failed = repository.connection.execute(
                     "SELECT status FROM collection_runs ORDER BY id DESC LIMIT 1"
                 ).fetchone()["status"]
-                revisions = repository.connection.execute(
-                    "SELECT COUNT(*) FROM source_revisions"
-                ).fetchone()[0]
             self.assertEqual(failed, "failed")
-            self.assertEqual(revisions, 1)
 
     def test_repeated_revision_ignores_mutable_mediawiki_metadata(self):
         with tempfile.TemporaryDirectory() as directory:

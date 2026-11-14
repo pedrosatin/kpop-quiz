@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceito em 2026-09-12.
+Aceito em 2026-09-12. Desde o [ADR 036](036-extract-divergente-em-quarentena.md), um extract baixado diferente do snapshot íntegro da mesma revisão pula a página e grava `extract_drift` em `collection_issues`. O snapshot guardado não muda, e um arquivo corrompido ou de outra revisão continua encerrando a execução.
 
 ## Contexto
 

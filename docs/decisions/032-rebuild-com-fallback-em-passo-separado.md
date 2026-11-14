@@ -2,7 +2,7 @@
 
 ## Status
 
-Aprovado em 2026-11-13. Muda o passo "Rebuild database from Wikipedia and Wikidata" de `daily-puzzles-cron.yml`, acrescenta o passo "Restore cached database" e define os códigos de saída de `python main.py`. Os passos de geração, verificação e publicação continuam como estavam. Desde o [ADR 034](034-descoberta-de-lancamentos-trunca-sem-abortar.md), a descoberta corta em 100 candidatos o grupo acima do limite do WDQS, emite um aviso e o run termina com 0.
+Aprovado em 2026-11-13. Muda o passo "Rebuild database from Wikipedia and Wikidata" de `daily-puzzles-cron.yml`, acrescenta o passo "Restore cached database" e define os códigos de saída de `python main.py`. Os passos de geração, verificação e publicação continuam como estavam. Desde o [ADR 034](034-descoberta-de-lancamentos-trunca-sem-abortar.md), a descoberta corta em 100 candidatos o grupo acima do limite do WDQS, emite um aviso e o run termina com 0. Desde o [ADR 036](036-extract-divergente-em-quarentena.md), uma página cujo extract mudou sem revisão nova fica com o snapshot guardado, o CLI emite um aviso e o run termina com 0. `SnapshotIntegrityError` continua saindo com 65 para o snapshot corrompido.
 
 ## Contexto
 
