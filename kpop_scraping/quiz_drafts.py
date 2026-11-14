@@ -486,21 +486,7 @@ def _comparison_drafts(
             if len(later) < 3:
                 continue
             combo = (answer, *later)
-            group_ids = (
-                tuple(sorted(fact.subject.wikidata_id for fact in combo))
-                if kind == "group"
-                else tuple(
-                    sorted(
-                        {
-                            group_id
-                            for fact in combo
-                            for group_id in _groups_for_person(
-                                fact.subject.wikidata_id, memberships
-                            )
-                        }
-                    )
-                )
-            )
+            group_ids = _comparison_group_ids(combo, kind, memberships)
             result.append(
                 Draft(
                     (
@@ -527,6 +513,31 @@ def _comparison_drafts(
                 )
             )
     return result
+
+
+def _comparison_group_ids(
+    combo: tuple[Fact, ...],
+    kind: str,
+    memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
+) -> tuple[str, ...]:
+    """Return the groups a comparison is about, in QID order.
+
+    A group comparison is about the groups it compares. A person comparison
+    is about every group of the people it compares.
+    """
+    if kind == "group":
+        return tuple(sorted(fact.subject.wikidata_id for fact in combo))
+    return tuple(
+        sorted(
+            {
+                group_id
+                for fact in combo
+                for group_id in _groups_for_person(
+                    fact.subject.wikidata_id, memberships
+                )
+            }
+        )
+    )
 
 
 def _time_alternatives(fact: Fact, candidates: list[Fact]) -> tuple[tuple[str, str], ...] | None:
