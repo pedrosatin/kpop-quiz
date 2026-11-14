@@ -90,7 +90,6 @@ _SHORT_ABBREVIATION = re.compile(
     r"Mr|Mrs|Ms|Dr|Prof|Jr|Sr|St|vs|etc)\.)$",
     _I,
 )
-_CAPITALIZED_BEFORE = re.compile(r"[A-Z][\w'.-]*\s+$")
 _CAPITALIZED_AFTER = re.compile(r"\s+[A-Z]")
 _LIST_SEPARATOR = r"(?:\s*,\s*(?:and\s+)?|\s+and\s+)"
 _PERSON_ITEM = (
@@ -103,7 +102,16 @@ _PERSON_LIST_BEFORE = re.compile(
     rf"\s*(?:[^:;,.]{{0,40}}:\s*)?(?:(?:original\s+|former\s+)?(?:members?|siblings)\s+)?"
     rf"(?:{_PERSON_ITEM}{_LIST_SEPARATOR})*"
 )
-_GENRE_LIST_BEFORE = re.compile(rf"\s*(?:[\w&'-]+(?:\s+[\w&'-]+){{0,2}}{_LIST_SEPARATOR})*")
+# A word of a genre is never "and" alone, which only separates items. If it
+# could be both, "a and b and c" would split in exponentially many ways before
+# a list that does not parse is refused.
+_GENRE_WORD = r"(?!and(?![\w&'-]))[\w&'-]+"
+# As _LIST_SEPARATOR, plus "and" followed by a comma, as in "EDM and, more
+# recently, K-pop", which the word rule above would otherwise refuse.
+_GENRE_SEPARATOR = r"(?:\s*,\s*(?:and\s+)?|\s+and(?:\s*,\s*|\s+))"
+_GENRE_LIST_BEFORE = re.compile(
+    rf"\s*(?:{_GENRE_WORD}(?:\s+{_GENRE_WORD}){{0,2}}{_GENRE_SEPARATOR})*"
+)
 _LIST_AFTER = re.compile(r"(?:\s*[,;.]|\s*$|\s+and\b|\s*\()", _I)
 _RELEASE_NOUN = r"(?:album|single|EP|extended play|record|song|álbum|sencillo|음반|싱글)"
 _PERFORMER_TRIGGER = re.compile(r"\b(?:by|por)\s+", _I)
@@ -990,7 +998,28 @@ def _clean_boundaries(
         return False
     if _CAPITALIZED_AFTER.match(sentence, end):
         return False
-    return not (check_before and _CAPITALIZED_BEFORE.search(sentence[:start]))
+    return not (check_before and _capitalized_word_before(sentence, start))
+
+
+def _capitalized_word_before(sentence: str, start: int) -> bool:
+    """Tell whether ``sentence[:start]`` ends in a capitalized word and whitespace.
+
+    Reads backwards from ``start`` what ``[A-Z][\\w'.-]*\\s+$`` matches, so the
+    cost is the length of that word and not of the sentence before it.
+    """
+    index = start
+    while index > 0 and sentence[index - 1].isspace():
+        index -= 1
+    if index == start:
+        return False
+    while index > 0:
+        character = sentence[index - 1]
+        if "A" <= character <= "Z":
+            return True
+        if not (character.isalnum() or character in "_'.-"):
+            return False
+        index -= 1
+    return False
 
 
 def _prefix_ends(sentence: str, position: int, country: bool) -> list[int]:
@@ -1126,14 +1155,26 @@ def _sentences(text: str) -> list[tuple[int, int]]:
     start = 0
     for boundary in _SENTENCE_BOUNDARY.finditer(text):
         # "Jun. K" and "U.S." do not end a sentence.
-        if "\n" not in boundary.group(0) and _SHORT_ABBREVIATION.search(
-            text[start : boundary.start()]
+        if "\n" not in boundary.group(0) and _ends_in_abbreviation(
+            text, start, boundary.start()
         ):
             continue
         spans.append((start, boundary.start()))
         start = boundary.end()
     spans.append((start, len(text)))
     return [(begin, end) for begin, end in spans if text[begin:end].strip()]
+
+
+def _ends_in_abbreviation(text: str, start: int, end: int) -> bool:
+    """Tell whether ``text[start:end]`` ends in a short abbreviation.
+
+    An abbreviation has no space or parenthesis inside, so the search covers
+    the last word and the character before it, not the whole sentence so far.
+    """
+    word = end
+    while word > start and not (text[word - 1].isspace() or text[word - 1] == "("):
+        word -= 1
+    return _SHORT_ABBREVIATION.search(text[max(word - 1, start) : end]) is not None
 
 
 def _text_evidence(page: WikipediaPage, start: int, end: int) -> EvidenceItem:
