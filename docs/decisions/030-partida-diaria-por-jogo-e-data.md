@@ -28,6 +28,8 @@ O progresso salvo continua chaveado pelo tabuleiro, o que já descarta o progres
 
 O Quiz diário não troca a tela. A configuração inicial também escolhe o tema e o modo, e o desafio diário existe em mais de um modo. Com a data registrada, ela mostra "Você já concluiu o desafio diário de hoje. Uma nova rodada não conta nas estatísticas." e mantém o botão de começar.
 
+**Nota de 14/11/2026.** O Quiz diário passa a trocar a tela, como os outros jogos. No playtest de 11/11/2026, o menu marcava o Quiz como concluído e "Começar partida" abria o mesmo diário de novo. O slot do diário é um por idioma e modo, então isso acontecia sempre que o dia tinha sido jogado em outro modo ou idioma. Com a data registrada e sem rodada daquele slot para retomar, escolher o Quiz do dia mostra o resultado salvo da data no mesmo idioma, de qualquer modo, sem botão de começar e com "Você já concluiu o Quiz do dia de hoje. Este é o resultado salvo, e ele conta uma vez nas estatísticas.". Sem resultado salvo no idioma (dia jogado no outro idioma, tabuleiro republicado, save apagado), aparece `DailyDone` com uma frase própria do Quiz. As duas telas terminam com `DailyNext` e o botão "Jogar o Quiz geral". Uma rodada do diário em andamento no slot continua sendo retomada. A identidade da partida e o que conta não mudam.
+
 O Mapa fica de fora. O tabuleiro dele deriva da data e o save já é da data.
 
 ### Save do Código
@@ -52,6 +54,7 @@ O gate do #359 já recusa a troca não declarada. As trocas declaradas corrigem 
 
 - Uma republicação não muda `played`, `won`, as sequências nem o evento `daily` de quem já terminou a data.
 - Quem terminou o dia no tabuleiro anterior vê o dia concluído, sem o resultado detalhado.
+- Desde 14/11/2026, quem terminou o Quiz do dia em outro modo do mesmo idioma vê aquele resultado. Quem terminou no outro idioma vê o dia concluído, sem o resultado detalhado.
 - Quem estava no meio de uma partida quando o tabuleiro mudou começa o tabuleiro novo do zero, e essa partida conta normalmente.
 - O jogo não distingue tabuleiro trocado de save apagado. Quem apaga o save do tabuleiro e mantém o registro da partida também vê o dia concluído, em vez de uma partida que não contaria.
 - O save do Código gravado antes desta mudança não tem `puzzle_id` e é descartado uma vez. Se a partida já estava registrada, o jogo mostra o dia concluído. Se estava em andamento, o jogador recomeça o dia.
