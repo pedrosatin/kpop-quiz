@@ -941,8 +941,9 @@ class SnapshotStore:
         return path
 
     def _write(self, relative_path: Path, content: bytes) -> tuple[str, str]:
-        # Checked before exists(): a path that leaves raw_dir is refused, so a
-        # file behind a link is neither written over nor quarantined.
+        # A path that leaves raw_dir is refused here, and the quarantine below
+        # re-raises the same error, so a file behind a link is neither written
+        # over nor quarantined.
         target = self._contained(relative_path)
         digest = hashlib.sha256(content).hexdigest()
 

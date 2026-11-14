@@ -30,7 +30,7 @@ O gate faz três comparações:
 
 A terceira é nova. A data precisa ser a mesma dos dois lados, como nas outras. As regras de aceite também são as mesmas: `--regenerate` aceita a troca, e a declaração do runner a aceita para aquele jogo e aquela data. A linha da troca termina com `in web/public/data/next`, que a separa da comparação da promoção.
 
-O gate não compara um `next/` que avança para o dia seguinte nem um `next/` que o run apaga. No segundo caso, nenhum tabuleiro novo vai ao ar para aquela data, e o site serve o diretório principal, com o dia anterior marcado como atrasado. O aviso `StaleDailyNotice` aparece no Quiz, nas Conexões, no Adivinhe, no Caça-palavras, na Linha do Tempo e no Código. A Grade e a Cruzadinha mostram o tabuleiro anterior sem esse aviso.
+O gate não compara um `next/` que avança para o dia seguinte nem um `next/` que o run apaga. No segundo caso, nenhum tabuleiro novo vai ao ar para aquela data, e o site serve o diretório principal, com o dia anterior marcado como atrasado. O aviso `StaleDailyNotice` aparece no Quiz, nas Conexões, no Adivinhe, no Caça-palavras, na Linha do Tempo e no Código. A Grade mostra o tabuleiro anterior sem esse aviso. A Cruzadinha só aceita o tabuleiro do dia e avisa que a cruzadinha de hoje ainda não foi publicada.
 
 ### Relógio explícito
 
@@ -50,7 +50,7 @@ Recusaria todo run que gera de novo o dia seguinte depois que o banco mudou, com
 
 ### Usar a meia-noite sem margem
 
-Deixaria passar um run cujo gate roda às 23:40 e cujo deploy entra no ar depois da meia-noite, com o tabuleiro trocado depois de servido. Com a margem, o risco passa a ser outro. O gate recusa um run às 23:20 em São Paulo que muda o `next/`, mesmo que o deploy talvez terminasse antes da meia-noite. O operador repete o run com `--regenerate` ou espera o dia seguinte.
+Deixaria passar um run cujo gate roda às 23:40 e cujo deploy entra no ar depois da meia-noite, com o tabuleiro trocado depois de servido. A margem cria outro risco. O gate recusa um run às 23:20 em São Paulo que muda o `next/`, mesmo que o deploy talvez terminasse antes da meia-noite. O operador repete o run com `--regenerate` ou espera o dia seguinte.
 
 ### Ler a data de publicação do deploy
 
@@ -60,6 +60,6 @@ O gate roda antes do commit e não tem acesso ao Cloudflare Pages. Uma consulta 
 
 - Um run que gera de novo um dia já servido em `next/` falha antes do upload e cita o jogo, a data e o diretório, a menos que tenha `--regenerate` ou declaração.
 - Os runs de rotina do meio do dia não mudam de resultado, porque o `next/` deles tem a data de amanhã.
-- Um deploy que entra no ar mais de 45 minutos depois do gate, por falha ou cancelamento seguido de outro deploy, fica fora da regra. O gate decide pela hora em que rodou. Entre 2026-11-03 e 2026-11-13, três runs do `pages.yml` disparados pelo cron não chegaram ao job `deploy`. Em 2026-11-05 o `build` estourou o tempo no Playwright. Em 2026-11-08 o push do merge da PR #340 em `master` cancelou o run, porque o `pages.yml` usa o mesmo grupo de concorrência, `cloudflare-pages-refs/heads/master`, para o `workflow_run` e para o push em `master`, com `cancel-in-progress`. Em 2026-11-12 o `build` falhou na verificação Python. Nos três casos o dado do cron entrou no ar com um deploy seguinte. Em 2026-11-13 o `deploy` terminou 25 minutos depois do gate, e só o `smoke-prod` passou do tempo. Por isso a margem de 45 minutos falha mais vezes do que a medida dos deploys bem-sucedidos sugere.
+- Um deploy que entra no ar mais de 45 minutos depois do gate, por falha ou cancelamento seguido de outro deploy, fica fora da regra. O gate decide pela hora em que rodou. Entre 2026-11-03 e 2026-11-13, três runs do `pages.yml` disparados pelo cron não chegaram ao job `deploy`. Em 2026-11-05 o `build` estourou o tempo no Playwright. Em 2026-11-08 o push do merge da PR #340 em `master` cancelou o run, porque o `pages.yml` usa o mesmo grupo de concorrência, `cloudflare-pages-refs/heads/master`, para o `workflow_run` e para o push em `master`, com `cancel-in-progress`. Em 2026-11-12 o `build` falhou na verificação Python. Nos três casos o dado do cron entrou no ar com um deploy seguinte. Em 2026-11-13 o `deploy` terminou 26 minutos depois do gate, e só o `smoke-prod` passou do tempo. Por isso a margem de 45 minutos falha mais vezes do que a medida dos deploys bem-sucedidos sugere.
 - Um aparelho com o relógio adiantado carrega o `next/` antes da meia-noite. O gate não cobre esse jogador.
 - O teste `test_a_change_only_in_next_passes`, que fixava o comportamento anterior, agora fixa a hora antes da meia-noite e se chama `test_a_change_only_in_next_passes_before_the_day_is_served`.
