@@ -2,7 +2,7 @@
 
 ## Status
 
-Aprovado em 2026-11-13. Muda `_parse_results` e `discover_releases` em `kpop_scraping/release_discovery.py`, `_mark_stale_releases` em `kpop_scraping/release_pipeline.py` e o resumo de `python main.py --releases`, e acrescenta a migração 12 (`release_discovery_groups.candidates_discarded` e `release_discovery_groups.last_kept_wikidata_id`). Os limites de 25 grupos por consulta, de 100 candidatos por grupo e de 5 MB por resposta do WDQS continuam como estavam, e a consulta SPARQL também. O status do [ADR 032](032-rebuild-com-fallback-em-passo-separado.md) ganha uma nota: o limite de candidatos não leva mais ao código 65.
+Aprovado em 2026-11-13. Muda `_parse_results` e `discover_releases` em `kpop_scraping/release_discovery.py`, `_mark_stale_releases` em `kpop_scraping/release_pipeline.py` e o resumo de `python main.py --releases`, e acrescenta a migração 12 (`release_discovery_groups.candidates_discarded` e `release_discovery_groups.last_kept_wikidata_id`). Os limites de 25 grupos por consulta, de 100 candidatos por grupo e de 5 MB por resposta do WDQS continuam como estavam, e a consulta SPARQL também. O status do [ADR 032](032-rebuild-com-fallback-em-passo-separado.md) ganha uma nota, segundo a qual o limite de candidatos não leva mais ao código 65.
 
 ## Contexto
 
@@ -17,7 +17,7 @@ Na base local coletada em 2026-10-19, o grupo com mais candidatos numa descobert
 ### Corte por grupo
 
 - `_parse_results` agrupa os candidatos distintos por grupo, ordena os de cada grupo pelo número do QID e mantém os 100 primeiros. O run continua, e os outros grupos da consulta não mudam.
-- A ordem compara o número: `Q123` vem antes de `Q1000`. Pela ordem do texto, `Q1000` viria antes de `Q123` e o corte guardaria itens arbitrários. Como o QID aceito não tem zeros à esquerda, a comparação usa o tamanho do QID e, no empate, o QID como texto. Essa regra dá a ordem numérica sem `int()`, que recusa textos com mais de 4300 dígitos, e um teste a compara com `int()` em QIDs de até 30 dígitos.
+- A ordem compara o número, então `Q123` vem antes de `Q1000`. Pela ordem do texto, `Q1000` viria antes de `Q123` e o corte guardaria itens arbitrários. Como o QID aceito não tem zeros à esquerda, a comparação usa o tamanho do QID e, no empate, o QID como texto. Essa regra dá a ordem numérica sem `int()`, que recusa textos com mais de 4300 dígitos, e um teste a compara com `int()` em QIDs de até 30 dígitos.
 - O resultado depende só do conteúdo da resposta. A ordem das linhas, a ordem de iteração de `set` e `dict` e o `PYTHONHASHSEED` não o alteram, e um teste roda o corte com três sementes de hash diferentes.
 - O Wikidata numera itens novos em ordem crescente. Um lote de itens criados depois da discografia fica com os QIDs mais altos e é o que o corte deixa de fora. Itens antigos têm QID baixo. Um editor que acrescente P175 e P31 a itens antigos que já existem põe esses itens na frente da discografia e empurra lançamentos legítimos para fora dos 100.
 - Um QID de lançamento precisa estar na forma canônica: `Q`, um dígito ASCII de 1 a 9 e outros dígitos ASCII (`Q[1-9][0-9]*`). `str.isdigit()`, usado antes, também aceita dígitos como `²` e `١`, que a ordem numérica não trata, e `Q7`, `Q07` e `Q007` contariam como três candidatos e ocupariam três vagas. Um QID fora desse formato encerra a descoberta como resposta recusada, com código 65. `build_query` aplica a mesma regra aos QIDs dos grupos.
@@ -47,7 +47,7 @@ Uma resposta do WDQS acima de 5 MB continua encerrando a descoberta com `MediaWi
 
 ### Manter o aborto
 
-O run inteiro dependeria de nenhum grupo do lote passar de 100 candidatos, uma condição que qualquer editor do Wikidata controla. Fatos de grupos sem relação com o grupo editado também deixariam de ser atualizados.
+O run inteiro dependeria de nenhum grupo do lote passar de 100 candidatos, uma condição que qualquer editor do Wikidata controla. Fatos de grupos sem relação com o grupo editado também não seriam atualizados.
 
 ### Descartar o grupo inteiro
 
@@ -55,7 +55,7 @@ O grupo cortado ficaria sem nenhum candidato nesse run. A descoberta perderia la
 
 ### Ordenar pelo QID como texto
 
-A consulta já ordena por `?performer ?release`, e o WDQS compara as URIs como texto. O corte guardaria `Q1000` antes de `Q123`, e a escolha deixaria de seguir a ordem de criação dos itens.
+A consulta já ordena por `?performer ?release`, e o WDQS compara as URIs como texto. O corte guardaria `Q1000` antes de `Q123`, e a escolha não seguiria a ordem de criação dos itens.
 
 ### Aumentar o limite de 100
 

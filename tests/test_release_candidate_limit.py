@@ -523,6 +523,21 @@ class StaleReleasesAfterCutTest(unittest.TestCase):
         self.assertEqual(self.candidates(previous), [("Q20", "Q150", "stale"), ("Q7", "Q150", "stale")])
         self.assert_release("Q150", "stale")
 
+    def test_release_kept_through_a_redirect_and_rejected_is_retired(self):
+        # Q900 comes after the last kept candidate (Q300), but the run checked
+        # it: the kept candidate Q50 redirects to Q900 and was rejected.
+        previous = self.discover([("Q20", "Q900")])
+        current = self.discover([("Q20", qid) for qid in ("Q50", "Q60", "Q300", "Q500")])
+        self.connection.execute(
+            "UPDATE release_candidates SET resolved_wikidata_id='Q900',state='rejected',reason='test' "
+            "WHERE run_id=? AND requested_wikidata_id='Q50'",
+            (current,),
+        )
+        self.retire(current)
+
+        self.assertEqual(self.candidates(previous), [("Q20", "Q900", "stale")])
+        self.assert_release("Q900", "stale")
+
     def test_complete_discovery_after_a_cut_retires_missing_releases(self):
         previous = self.discover([("Q20", qid) for qid in ("Q100", "Q200", "Q300", "Q400")])
         current = self.discover([("Q20", "Q200"), ("Q20", "Q300")])
