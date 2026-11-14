@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import date
 from .quiz_schema import write_json_atomic
 from .storage import canonical_json
-from .quiz_repository import _has_open_conflict
+from .quiz_repository import _has_open_conflict, _open_conflict_index
 SCHEMA = 'crossword-pilot-v1'
 MODE = 'pilot'
 PUZZLE_ID = 'crossword-audited-01'
@@ -123,7 +123,7 @@ def select(database: Path, reference_date: str) -> dict:
     with sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True) as c:
         c.row_factory = sqlite3.Row
         entries = []
-        conflicts = c.execute("select * from facts where status='conflict'").fetchall()
+        conflicts = _open_conflict_index(c.execute("select * from facts where status='conflict'").fetchall())
         vocabulary = [r['wikidata_id'] for r in c.execute("select wikidata_id from entities where entity_type='group'")]
         for index, (qid, row, col, direction, predicates) in enumerate(SELECTION):
             entity = c.execute('select * from entities where wikidata_id=?', (qid,)).fetchone()
