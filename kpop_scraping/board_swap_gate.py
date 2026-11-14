@@ -8,8 +8,13 @@ revalidation of a kept or promoted day, a crossword generated again on
 promotion). Any other swap fails the step before the upload, naming the game
 and the date. A date counts as published once the site serves it: in the
 main directory, or in ``next/`` from midnight in Sao Paulo until its promotion.
-``next/`` itself is not compared with its earlier self: the run builds the
-next day's set again until it is served.
+
+``next/`` is compared with its earlier self only for a date already served.
+The run builds the next day's set again on every run, and until midnight no
+player has loaded it. The gate cannot see when the deploy goes live, so it
+asks whether the date will be served ``SERVE_LEAD`` after the check: the
+date of ``next/`` counts as served when it is on or before the Sao Paulo
+date of that moment (ADR 042).
 
 The identity of the "before" side is read from a git ref, the "after" side from
 the working tree, so the check runs on the cron's checkout between generation
@@ -24,10 +29,12 @@ import hashlib
 import json
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 from .daily_set import DAILY_SET_FILENAME
+from .quiz_utils import ReferenceTimezoneError, reference_zone
 from .web_publish import (
     CODE_GROUPS_DAILY_FILENAME,
     CONNECTIONS_DAILY_FILENAME,
@@ -38,6 +45,24 @@ from .web_publish import (
     TIMELINE_DAILY_FILENAME,
     WORD_SEARCH_DAILY_FILENAME,
 )
+
+
+NEXT_DIRNAME = "next"
+# From the gate to a live deploy: under a minute to the publish job's merge,
+# then 30 to 37 minutes for the Cloudflare Pages workflow in the successful
+# runs of 2026-11-03 to 2026-11-11.
+SERVE_LEAD = timedelta(minutes=45)
+
+
+def last_served_day(now: datetime) -> str:
+    """Latest date the site may serve from ``next/`` once this run is live.
+
+    That is the Sao Paulo date ``SERVE_LEAD`` after ``now``, which must be
+    timezone-aware.
+    """
+    if now.tzinfo is None:
+        raise ValueError("the gate's clock needs a time zone")
+    return (now + SERVE_LEAD).astimezone(reference_zone()).date().isoformat()
 
 
 def _quiz_id(manifest: dict[str, Any]) -> str:
@@ -114,37 +139,54 @@ def _read_tree(directory: Path) -> Callable[[str], dict[str, Any] | None]:
 
 
 def check_board_swaps(
-    repo: Path, data_dir: str, base_ref: str, declaration: dict[str, Any]
+    repo: Path,
+    data_dir: str,
+    base_ref: str,
+    declaration: dict[str, Any],
+    now: datetime | None = None,
 ) -> tuple[list[str], list[str]]:
-    """Compare the day the working tree publishes with the same date at ``base_ref``.
+    """Compare the dates the working tree publishes with the same dates at ``base_ref``.
 
-    The date counts at the base when its set was in the main directory or in
-    ``next/``. Returns (accepted, refused): one line per swapped board. A swap
-    is accepted when the run was asked to regenerate or the runner declared it
-    for that game and date. Nothing is compared when the base held no set for
-    the date, as on the first day or when the run moved to a day not served yet.
+    The day of the main directory is compared with the base's main directory
+    and with the base's ``next/``. The day of ``next/`` is compared with the
+    base's ``next/`` only when it is served by ``last_served_day(now)``;
+    ``now`` defaults to the current time. Returns (accepted, refused): one
+    line per swapped board. A swap is accepted when the run was asked to
+    regenerate or the runner declared it for that game and date. Nothing is
+    compared when the base held no set for the date, as on the first day, or
+    when the run moved to a day not served yet.
     """
+    next_dir = f"{data_dir}/{NEXT_DIRNAME}"
     day, after = board_ids(_read_tree(repo / data_dir))
+    next_day, after_next = board_ids(_read_tree(repo / next_dir))
+    served = last_served_day(now or datetime.now(timezone.utc))
     declared = {
         (swap["game"], swap["date"]): swap["reason"] for swap in declaration["swaps"]
     }
+    # (date and boards after the run, where they are published, base directory)
+    comparisons = [(day, after, data_dir, data_dir), (day, after, data_dir, next_dir)]
+    if next_day is not None and next_day <= served:
+        comparisons.append((next_day, after_next, next_dir, next_dir))
+    base = {source: board_ids(_read_base(repo, base_ref, source)) for source in (data_dir, next_dir)}
     accepted, refused = [], []
-    for source in (data_dir, f"{data_dir}/next"):
-        base_day, before = board_ids(_read_base(repo, base_ref, source))
-        if day is None or base_day != day:
+    for after_day, after_ids, target, source in comparisons:
+        base_day, before = base[source]
+        if after_day is None or base_day != after_day:
             continue
         for game, old in before.items():
-            new = after.get(game)
+            new = after_ids.get(game)
             if new == old:
                 continue
             change = (
-                f"{game} for {day} (served from {source}): "
+                f"{game} for {after_day} (served from {source}): "
                 f"board {old[:12]} became {new[:12] if new else 'absent'}"
             )
+            if target != data_dir:
+                change += f" in {target}"
             if declaration["regenerate"]:
                 accepted.append(f"{change} (requested by --regenerate)")
-            elif (game, day) in declared:
-                accepted.append(f"{change} (declared by the runner: {declared[(game, day)]})")
+            elif (game, after_day) in declared:
+                accepted.append(f"{change} (declared by the runner: {declared[(game, after_day)]})")
             else:
                 refused.append(change)
     return accepted, refused
@@ -158,11 +200,17 @@ def main(argv: list[str] | None = None) -> int:
         "--board-swaps-file", type=Path, required=True,
         help="JSON written by daily_puzzles_cli --board-swaps-file",
     )
+    parser.add_argument(
+        "--now", type=datetime.fromisoformat,
+        help="ISO 8601 time with offset that decides which next/ date is served; defaults to now",
+    )
     args = parser.parse_args(argv)
     try:
         declaration = json.loads(args.board_swaps_file.read_text(encoding="utf-8"))
-        accepted, refused = check_board_swaps(Path.cwd(), args.data_dir, args.base_ref, declaration)
-    except (OSError, ValueError, KeyError) as exc:
+        accepted, refused = check_board_swaps(
+            Path.cwd(), args.data_dir, args.base_ref, declaration, now=args.now
+        )
+    except (OSError, ValueError, KeyError, ReferenceTimezoneError) as exc:
         sys.stderr.write(f"Board swap check could not run: {exc}\n")
         return 1
     for line in accepted:

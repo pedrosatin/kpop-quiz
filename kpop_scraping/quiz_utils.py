@@ -30,20 +30,24 @@ class ReferenceTimezoneError(RuntimeError):
     """The reference time zone is missing from the environment."""
 
 
-def reference_date_today() -> str:
-    """Return today as ISO YYYY-MM-DD in America/Sao_Paulo.
+def reference_zone() -> ZoneInfo:
+    """Return America/Sao_Paulo, the time zone of every daily reference date.
 
     A missing time zone raises instead of falling back to UTC, which would
     publish the next day between 21:00 and midnight in Sao Paulo.
     """
     try:
-        zone = ZoneInfo(REFERENCE_TIMEZONE)
+        return ZoneInfo(REFERENCE_TIMEZONE)
     except ZoneInfoNotFoundError as exc:
         raise ReferenceTimezoneError(
             f"time zone {REFERENCE_TIMEZONE} is unavailable; install the tzdata package "
             "or the system time zone database, or pass an explicit date"
         ) from exc
-    return datetime.now(zone).date().isoformat()
+
+
+def reference_date_today() -> str:
+    """Return today as ISO YYYY-MM-DD in America/Sao_Paulo (see ``reference_zone``)."""
+    return datetime.now(reference_zone()).date().isoformat()
 
 
 def display_key(label: str) -> str:
