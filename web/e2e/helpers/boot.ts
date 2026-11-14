@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
-import type { SmokeRoute } from "../fixtures/routes";
+import type { DailyArtifact, SmokeRoute } from "../fixtures/routes";
+import { isPublished } from "./published";
 
 const SETUP_TIMEOUT_MS = 30_000;
 const BOARD_TIMEOUT_MS = 30_000;
@@ -61,19 +62,76 @@ export async function expectPrivacyReady(page: Page): Promise<void> {
   await expect(page.getByTestId("privacy-content")).toBeVisible();
 }
 
-/** Run the boot contract for a smoke route after navigation. */
-export async function bootRoute(page: Page, route: SmokeRoute): Promise<void> {
+/**
+ * The page of a daily file the day may omit: the board when the file is
+ * published, the missing state otherwise. An "invalid" state always fails.
+ */
+async function expectDailyArtifactState(
+  page: Page,
+  artifact: DailyArtifact,
+  baseURL: string,
+): Promise<void> {
+  const board = page.getByTestId("game-board");
+  if (await isPublished(page.request, baseURL, artifact.file)) {
+    await expect(board).toBeVisible({ timeout: BOARD_TIMEOUT_MS });
+    return;
+  }
+  const missing = page.getByTestId("game-missing");
+  if (artifact.fallback) {
+    await expect(board.or(missing)).toBeVisible({ timeout: BOARD_TIMEOUT_MS });
+    if (await board.isVisible()) return;
+  }
+  await expect(missing).toBeVisible({ timeout: BOARD_TIMEOUT_MS });
+  await expect(missing).toHaveAttribute("data-error-kind", "missing");
+  await expect(page.getByTestId("game-retry")).toBeVisible();
+}
+
+/** The quiz home: Start opens the board, or the missing state of a day without the quiz. */
+async function bootQuizSetup(page: Page, artifact: DailyArtifact | undefined, baseURL: string | undefined): Promise<void> {
+  if (artifact && baseURL && !(await isPublished(page.request, baseURL, artifact.file))) {
+    // Without its manifest the daily quiz opens on the missing state; a
+    // general round from the catalog still shows the setup first.
+    await expectShellVisible(page);
+    const setup = page.getByTestId("game-setup");
+    await expect(setup.or(page.getByTestId("game-missing"))).toBeVisible({ timeout: SETUP_TIMEOUT_MS });
+    if (await setup.isVisible()) await page.getByTestId("game-start").click();
+    await expectDailyArtifactState(page, artifact, baseURL);
+    return;
+  }
+  await expectQuizSetupReady(page);
+  await page.getByTestId("game-start").click();
+  await expectQuizBoardVisible(page);
+}
+
+/** A game that mounts its board without a Start click. */
+async function bootBoardDirect(
+  page: Page,
+  route: Extract<SmokeRoute, { kind: "board-direct" }>,
+  baseURL: string | undefined,
+): Promise<void> {
+  if (route.artifact && baseURL) {
+    await expectShellVisible(page);
+    await expectDailyArtifactState(page, route.artifact, baseURL);
+    return;
+  }
+  await expectBoardDirectReady(page, {
+    ...(route.optionalArtifact ? { optionalArtifact: true } : {}),
+    ...(route.missingKinds ? { missingKinds: route.missingKinds } : {}),
+  });
+}
+
+/**
+ * Run the boot contract for a smoke route after navigation. A route with an
+ * artifact needs `baseURL` to learn whether the day published it; without
+ * one, the board is required.
+ */
+export async function bootRoute(page: Page, route: SmokeRoute, baseURL?: string): Promise<void> {
   switch (route.kind) {
     case "quiz-setup":
-      await expectQuizSetupReady(page);
-      await page.getByTestId("game-start").click();
-      await expectQuizBoardVisible(page);
+      await bootQuizSetup(page, route.artifact, baseURL);
       break;
     case "board-direct":
-      await expectBoardDirectReady(page, {
-        ...(route.optionalArtifact ? { optionalArtifact: true } : {}),
-        ...(route.missingKinds ? { missingKinds: route.missingKinds } : {}),
-      });
+      await bootBoardDirect(page, route, baseURL);
       break;
     case "privacy":
       await expectPrivacyReady(page);

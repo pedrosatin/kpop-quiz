@@ -5,6 +5,7 @@ import { expect, type Page } from "@playwright/test";
 import { test } from "./fixtures/consent";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { skipUnlessPublished } from "./helpers/published";
 
 /**
  * Catalog-backed general-quiz replay (Q03). The default dist has no catalog
@@ -85,6 +86,7 @@ test("decade filter with an empty catalog pool shows unavailability", async ({ p
 });
 
 test("daily theme keeps the published session and skips catalog shards", async ({ page, baseURL }) => {
+  await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
   const catalogHits: string[] = [];
   await page.route("**/data/catalog**", (route) => {
     catalogHits.push(route.request().url());
@@ -127,6 +129,7 @@ for (const locale of [
 ] as const) {
   test(`missing catalog falls back to legacy sessions and says so beside Play again (${locale.id})`, async ({ page, baseURL }) => {
     test.setTimeout(90_000);
+    await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
     await page.route("**/data/catalog-manifest-v1.json", (route) =>
       route.fulfill({ status: 404, body: "" }),
     );

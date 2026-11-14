@@ -54,7 +54,7 @@ export function ConnectionsGame({
     const errorMsg = errorKind === "missing" ? messages.artifactMissing : messages.loadError;
     return (
       <div id="connections">
-        <QuizState message={errorMsg} actionLabel={messages.retry} onAction={loadData} wide />
+        <QuizState message={errorMsg} actionLabel={messages.retry} onAction={loadData} wide errorKind={errorKind ?? "invalid"} />
       </div>
     );
   }

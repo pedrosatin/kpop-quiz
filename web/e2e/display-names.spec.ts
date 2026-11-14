@@ -3,6 +3,7 @@ import { test, expect } from "./fixtures/consent";
 import { ConnectionsPage } from "./pages/connections.page";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { expectBoardDirectReady } from "./helpers/boot";
+import { skipUnlessPublished } from "./helpers/published";
 import { NameGuessPage } from "./pages/name-guess.page";
 import { delayPassiveEffects, reloadPersisted } from "./helpers/passive-effects";
 
@@ -33,6 +34,7 @@ for (const viewport of VIEWPORTS) {
   });
 
   test(`en connections ${viewport.name}: tiles show the visible names`, async ({ page, baseURL }) => {
+    await skipUnlessPublished(page, baseURL!, "connections.daily.json");
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto(joinBaseUrl(baseURL!, "/en/connections/"));
     await expectBoardDirectReady(page);
@@ -74,7 +76,7 @@ for (const viewport of VIEWPORTS) {
     await page.route("**/data/connections.daily.json", (request) => request.fulfill({ json: shineeBoard }));
     await page.route("**/data/next/connections.daily.json", (request) => request.fulfill({ status: 404, body: "missing" }));
     const connections = new ConnectionsPage(page, baseURL!);
-    await connections.open();
+    await connections.open({ served: true });
     const board = page.getByTestId("game-board");
     await expect(board.getByRole("button", { name: /^SHINee$/ })).toBeVisible();
     await expect(board.getByRole("button", { name: /^shinee$/ })).toHaveCount(0);

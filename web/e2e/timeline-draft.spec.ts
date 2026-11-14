@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/consent";
 import { expectBoardDirectReady } from "./helpers/boot";
+import { skipUnlessPublished } from "./helpers/published";
 import { reloadPersisted } from "./helpers/passive-effects";
 import { gamePlayed } from "./helpers/player-stats";
 
@@ -16,7 +17,8 @@ function cardTitles(page: Page): Promise<string[]> {
 }
 
 for (const locale of locales) {
-  test(`timeline keeps the order built before a reload and shows it in the result (${locale.id})`, async ({ page }) => {
+  test(`timeline keeps the order built before a reload and shows it in the result (${locale.id})`, async ({ page, baseURL }) => {
+    await skipUnlessPublished(page, baseURL!, "timeline.daily.json");
     await page.goto(`${base}${locale.path}`);
     await expectBoardDirectReady(page);
     const opening = await cardTitles(page);

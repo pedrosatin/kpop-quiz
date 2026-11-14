@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { test, expect } from "./fixtures/consent";
 import { expectBoardDirectReady } from "./helpers/boot";
+import { skipUnlessPublished } from "./helpers/published";
 import { routeCrosswordDaily } from "./helpers/crossword-daily";
 
 // The 8x7 board published on 2026-11-07. The pilot board has 3 columns, so
@@ -158,6 +159,7 @@ for (const board of BOARDS) {
 for (const path of CONNECTIONS_PATHS) {
   for (const width of CONNECTIONS_WIDTHS) {
     test(`connections ${path} at ${width}px: the four controls stay inside the card`, async ({ page, baseURL }) => {
+      await skipUnlessPublished(page, baseURL!, "connections.daily.json");
       await page.setViewportSize({ width, height: PHONE_HEIGHT });
       await page.goto(joinBaseUrl(baseURL!, path));
       await expectBoardDirectReady(page);

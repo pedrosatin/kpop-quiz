@@ -1,5 +1,5 @@
 import type { APIRequestContext } from "@playwright/test";
-import { expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { dailyReferenceDate } from "../../src/data/daily-artifact";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 
@@ -14,6 +14,8 @@ export async function loadPreferNextDaily<T extends { reference_date: string }>(
 ): Promise<T> {
   const mainUrl = joinBaseUrl(baseURL, `/data/${filename}`);
   const mainResponse = await request.get(mainUrl);
+  // A day may be published without this game (see helpers/published.ts).
+  test.skip(mainResponse.status() === 404, `the day was published without data/${filename}`);
   expect(mainResponse.ok(), `expected OK for ${mainUrl}, got ${mainResponse.status()}`).toBeTruthy();
   const current = (await mainResponse.json()) as T;
   expect(typeof current.reference_date, `${filename} reference_date`).toBe("string");

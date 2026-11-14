@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { aloneLabel, hiddenNote, visibleLabels, type PublishedName } from "../../e2e/helpers/visible-names";
@@ -97,9 +97,17 @@ describe("e2e visible-names helper agrees with the product", () => {
     }
   });
 
-  it("shows the same names on the published connections boards", () => {
-    for (const file of ["connections.daily.json", "next/connections.daily.json"]) {
-      const board = JSON.parse(readFileSync(join(DATA_DIR, file), "utf8")) as { items: PublishedName[] };
+  it("shows the same names on the frozen and the published connections boards", () => {
+    // A day may be published without its connections board; the frozen copy
+    // keeps the check running on such a day.
+    const files = [
+      join(import.meta.dirname, "../tests/fixtures/connections.daily.json"),
+      join(DATA_DIR, "connections.daily.json"),
+      join(DATA_DIR, "next/connections.daily.json"),
+    ].filter((file) => existsSync(file));
+    expect(files.length).toBeGreaterThan(0);
+    for (const file of files) {
+      const board = JSON.parse(readFileSync(file, "utf8")) as { items: PublishedName[] };
       for (const locale of ["pt-BR", "en"] as const) {
         const product = buildLocalizedDisplayNames(board.items, locale);
         expect([...visibleLabels(board.items, locale).entries()], `${file} ${locale}`).toEqual([...product.entries()]);

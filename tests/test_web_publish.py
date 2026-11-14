@@ -38,7 +38,11 @@ from tests.test_grid_schema import sample_intersection_grid
 from tests.test_quiz_generator import build_quiz_database
 
 
-FIXTURES = Path(__file__).parents[1] / "web" / "public" / "data"
+# Frozen copies of a published day: the base quiz sessions and four daily
+# boards. The tests must not depend on the files the daily cron publishes,
+# because a day may go out without any one of its games.
+FIXTURES = Path(__file__).parent / "fixtures" / "web_publish"
+PUBLISHED = Path(__file__).parents[1] / "web" / "public" / "data"
 
 
 def build_code_groups_puzzle(seed: str = "kpop-code-groups-daily-2026-10-12"):
@@ -76,14 +80,7 @@ def build_code_groups_puzzle(seed: str = "kpop-code-groups-daily-2026-10-12"):
 
 class WebPublishTests(unittest.TestCase):
     def sessions(self):
-        manifest = json.loads((FIXTURES / "manifest-v2.json").read_text())
-        return {
-            key: json.loads((FIXTURES / item["path"]).read_text())
-            for key, item in manifest["sessions"].items()
-        }
-
-    def grid(self):
-        return json.loads((FIXTURES / GRID_DAILY_FILENAME).read_text(encoding="utf-8"))
+        return json.loads((FIXTURES / "sessions.json").read_text(encoding="utf-8"))
 
     def valid_grid(self):
         # The checked-in grid is the pre-#87 artifact for 2026-09-26 (its
@@ -249,7 +246,7 @@ class WebPublishTests(unittest.TestCase):
         validate_timeline_puzzle(self.timeline())
 
     def test_checked_in_grid_from_2026_09_26_is_known_invalid(self):
-        grid_path = FIXTURES / GRID_DAILY_FILENAME
+        grid_path = PUBLISHED / GRID_DAILY_FILENAME
         if not grid_path.is_file():
             # A daily set publishes without grid.daily.json when the fill fails
             # and no valid previous grid exists; the grid page reports the

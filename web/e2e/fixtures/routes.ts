@@ -4,11 +4,15 @@ export type SmokeRoute =
       name: string;
       path: string;
       kind: "quiz-setup";
+      /** The daily file the route needs; see DailyArtifact. */
+      artifact?: DailyArtifact;
     }
   | {
       name: string;
       path: string;
       kind: "board-direct";
+      /** The daily file the route needs; see DailyArtifact. */
+      artifact?: DailyArtifact;
       /**
        * When the daily artifact may be absent (grid), accept a missing-state
        * region + retry CTA instead of game-board.
@@ -26,6 +30,17 @@ export type SmokeRoute =
       kind: "privacy";
     };
 
+/**
+ * A daily file the partial publish policy may leave out of a day. When it is
+ * published under data/ the page must show its board. When it is not, the
+ * page must show the missing state (data-error-kind "missing"); a loader that
+ * can still find a board elsewhere (fallback) may show that board instead.
+ */
+export interface DailyArtifact {
+  file: string;
+  fallback?: "next" | "catalog";
+}
+
 type LocaleLabel = "pt-BR" | "en";
 
 type SmokePairDef =
@@ -34,6 +49,7 @@ type SmokePairDef =
       kind: "quiz-setup";
       ptPath: string;
       enPath: string;
+      artifact?: DailyArtifact;
     }
   | {
       id: string;
@@ -42,6 +58,7 @@ type SmokePairDef =
       enPath: string;
       optionalArtifact?: boolean;
       missingKinds?: readonly string[];
+      artifact?: DailyArtifact;
     }
   | {
       id: string;
@@ -52,7 +69,14 @@ type SmokePairDef =
 
 /** Locale-paired boot matrix; expand once into SMOKE_ROUTES. */
 const SMOKE_PAIRS: readonly SmokePairDef[] = [
-  { id: "quiz", kind: "quiz-setup", ptPath: "/pt-br/", enPath: "/en/" },
+  {
+    id: "quiz",
+    kind: "quiz-setup",
+    ptPath: "/pt-br/",
+    enPath: "/en/",
+    // A general round may come from the question catalog when it is published.
+    artifact: { file: "manifest-v2.json", fallback: "catalog" },
+  },
   {
     id: "grid",
     kind: "board-direct",
@@ -66,18 +90,21 @@ const SMOKE_PAIRS: readonly SmokePairDef[] = [
     kind: "board-direct",
     ptPath: "/pt-br/conexoes/",
     enPath: "/en/connections/",
+    artifact: { file: "connections.daily.json" },
   },
   {
     id: "name-guess",
     kind: "board-direct",
     ptPath: "/pt-br/adivinhe/",
     enPath: "/en/guess/",
+    artifact: { file: "name-guess.daily.json" },
   },
   {
     id: "word-search",
     kind: "board-direct",
     ptPath: "/pt-br/caca-palavras/",
     enPath: "/en/word-search/",
+    artifact: { file: "word-search.daily.json" },
   },
   {
     id: "map",
@@ -90,6 +117,8 @@ const SMOKE_PAIRS: readonly SmokePairDef[] = [
     kind: "board-direct",
     ptPath: "/pt-br/linha-do-tempo/",
     enPath: "/en/timeline/",
+    // The timeline loader reads data/next/ when data/ has no file.
+    artifact: { file: "timeline.daily.json", fallback: "next" },
   },
   {
     id: "code",
@@ -124,11 +153,13 @@ function smokeRoute(
 ): SmokeRoute {
   const name = `${def.id} ${locale}`;
   if (def.kind === "board-direct") {
+    if (def.artifact) return { name, path, kind: "board-direct", artifact: def.artifact };
     if (!def.optionalArtifact) return { name, path, kind: "board-direct" };
     return def.missingKinds
       ? { name, path, kind: "board-direct", optionalArtifact: true, missingKinds: def.missingKinds }
       : { name, path, kind: "board-direct", optionalArtifact: true };
   }
+  if (def.kind === "quiz-setup" && def.artifact) return { name, path, kind: def.kind, artifact: def.artifact };
   return { name, path, kind: def.kind };
 }
 

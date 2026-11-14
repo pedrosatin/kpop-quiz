@@ -273,6 +273,10 @@ describe("Quiz flows", () => {
       restart();
 
       expect(await screen.findByText(text)).toBeInTheDocument();
+      expect(screen.getByTestId("game-missing")).toHaveAttribute(
+        "data-error-kind", sessions === "missing" ? "missing" : "invalid",
+      );
+      expect(screen.getByTestId("game-retry")).toBeInTheDocument();
     });
 
     it("shows the invalid state for a corrupt catalog without falling back", async () => {

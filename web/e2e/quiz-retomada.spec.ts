@@ -7,6 +7,7 @@ import {
 } from "../src/components/Quiz/storage";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { openQuizCustomize } from "./pages/quiz.page";
+import { skipUnlessPublished } from "./helpers/published";
 import type { Locale } from "../src/lib/quiz-types";
 
 /**
@@ -18,6 +19,13 @@ import type { Locale } from "../src/lib/quiz-types";
  * catalog is published (QUIZ_CATALOG). A visit with no theme opens today's
  * challenge, so these cases open the general quiz by URL.
  */
+
+
+// A day may go out without the quiz sessions; the rounds here then need the
+// question catalog.
+test.beforeEach(async ({ page, baseURL }) => {
+  await skipUnlessPublished(page, baseURL!, "manifest-v2.json", "catalog-manifest-v1.json");
+});
 
 const viewports = [
   { name: "desktop", width: 1280, height: 800 },
