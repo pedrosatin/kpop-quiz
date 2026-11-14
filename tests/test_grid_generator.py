@@ -755,6 +755,15 @@ class ConsecutiveDailyGridTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.connection.close()
 
+    def test_budget_error_of_a_neighbour_reaches_the_caller(self) -> None:
+        # An odd date reads the draws of both neighbours; a neighbour whose
+        # selection runs out of budget is not taken for a neighbour without a grid.
+        odd_day = next(day for day in self.DAYS if day.toordinal() % 2)
+        error = ValueError("Grid axis search budget exhausted with seed 'neighbour'")
+        with patch("kpop_scraping.grid_generator._drawn_criteria", side_effect=error):
+            with self.assertRaisesRegex(ValueError, "budget exhausted"):
+                generate_daily_grid(self.connection, odd_day)
+
     def seed_draw(self, day: date) -> dict:
         return generate_intersection_grid(
             self.connection, seed=f"kpop-grid-daily-{day.isoformat()}", reference_date=day
@@ -971,6 +980,24 @@ class AxisSearchCostTest(unittest.TestCase):
                 generate_intersection_grid(connection, seed="budget-seed", max_search_steps=0)
         finally:
             connection.close()
+
+    def test_curated_search_and_fallback_share_one_budget(self) -> None:
+        # Every curated pair is avoided, so the curated search spends one step
+        # on each and the fallback gets what is left of the same budget.
+        all_criteria, groups = many_labels_catalog("solvable", labels=6)
+        active_by_cat: dict[str, list] = defaultdict(list)
+        for item in sorted(all_criteria.values(), key=lambda c: (c["category"], c["id"])):
+            active_by_cat[item["category"]].append(item)
+        blocks = _curated_pair_blocks(active_by_cat, groups)
+        pairs = sum(block.size for block in blocks)
+        avoid = frozenset(
+            _criteria_set(*block.pair(rank)) for block in blocks for rank in range(block.size)
+        )
+
+        with self.assertRaisesRegex(
+            ValueError, rf"used {pairs + 25} of {pairs + 25} steps \({pairs} axis pairs, [1-9]\d* row axes"
+        ):
+            _select_axes(all_criteria, groups, "shared-budget", avoid, max_search_steps=pairs + 25)
 
     def test_skipping_neighbours_does_not_change_the_order(self) -> None:
         # A pair skipped for a neighbour still consumes its draw, so avoiding

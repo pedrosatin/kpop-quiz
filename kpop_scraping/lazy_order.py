@@ -97,8 +97,9 @@ def shuffled_blocks(sizes: Sequence[int], rng: random.Random) -> Iterator[tuple[
     only the draws that land in it. Empty blocks are never yielded. Finding
     the block of a position is a binary search over the block starts.
     """
+    sizes = list(sizes)
     if any(size < 0 for size in sizes):
-        raise ValueError(f"block sizes must be non-negative, got {list(sizes)}")
+        raise ValueError(f"block sizes must be non-negative, got {sizes}")
     starts = list(itertools.accumulate(sizes, initial=0))
     for position in shuffled_indices(starts[-1], rng):
         block = bisect.bisect_right(starts, position) - 1

@@ -83,6 +83,12 @@ class ShuffledBlocksTest(unittest.TestCase):
         expected = [(block, offset) for block, size in enumerate(sizes) for offset in range(size)]
         self.assertEqual(sorted(drawn), expected)
 
+    def test_sizes_given_as_an_iterator_are_all_drawn(self):
+        # A generator is read once for the check of negative sizes and again
+        # for the block starts, so the sizes are copied first.
+        drawn = list(shuffled_blocks((size for size in [2, 1]), random.Random(b"seed")))
+        self.assertEqual(sorted(drawn), [(0, 0), (0, 1), (1, 0)])
+
     def test_same_seed_same_order(self):
         sizes = [4, 7, 1, 9]
         first = list(shuffled_blocks(sizes, random.Random(b"seed")))
