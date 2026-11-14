@@ -151,7 +151,14 @@ _RELEASE_DESCRIPTION = re.compile(
 # Names may include iKON, (G)I-dle and N.Flying. Require a capital or digit in
 # each name token, rather than allowing arbitrary clauses after the artist.
 _RELEASE_NAME_WORD = r"(?=[\w()’'&.!+-]*[A-Z0-9])[\w()’'&.!+-]+"
-_RELEASE_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & ){_RELEASE_NAME_WORD})*"
+# Only the first token may start with a parenthesis. A later one would also
+# read as the opening of the parenthesis after the artist's name, and a credit
+# that does not match would then try each place to split them.
+_RELEASE_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & )(?![()]){_RELEASE_NAME_WORD})*"
+# A name outside the artist credit has no optional parenthesis after it, so a
+# later token that starts with one cannot be read in two ways. Any token may
+# start with a parenthesis there, as in "WJSN (Cosmic Girls)" or "Foo (Ab) Cd".
+_RELEASE_PLAIN_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & ){_RELEASE_NAME_WORD})*"
 _RELEASE_ARTIST = (
     r"(?:the )?(?:(?:South Korean|Korean|Japanese|Chinese|Thai) )?"
     r"(?:(?:girl|boy|pop|rock) )*(?:group|band|duo|artist|singer|rapper) "
@@ -159,18 +166,19 @@ _RELEASE_ARTIST = (
 )
 _RELEASE_CREDIT = re.compile(
     rf"(?P<artist>\s+(?:by|of) {_RELEASE_ARTIST}"
-    rf"(?:, a sub-unit of (?:{_RELEASE_ARTIST}|{_RELEASE_NAME})"
-    rf"(?: consisting of members {_RELEASE_NAME}, {_RELEASE_NAME}, and {_RELEASE_NAME})?)?)"
+    rf"(?:, a sub-unit of (?:{_RELEASE_ARTIST}|{_RELEASE_PLAIN_NAME})"
+    rf"(?: consisting of members {_RELEASE_PLAIN_NAME}, {_RELEASE_PLAIN_NAME}, "
+    rf"and {_RELEASE_PLAIN_NAME})?)?)"
     r'(?:, featuring (?:two|three|\d+) songs, the only single and title track '
     r'of the same name and "[^".;!?]+")?\.?\s*$'
 )
 _RELEASE_ALBUM_ORIGIN = re.compile(
     rf" from the reissue of (?:their|the) {_RELEASE_ORDINAL} studio album, "
-    rf"{_RELEASE_NAME} \(\d{{4}}\)\.\s*$"
+    rf"{_RELEASE_PLAIN_NAME} \(\d{{4}}\)\.\s*$"
 )
 _RELEASE_DESCRIPTIVE_BRIDGE = re.compile(
     rf"^\s*It is the {_RELEASE_ORDINAL} release of the (?:band|group) "
-    rf"since the departure of {_RELEASE_NAME} on (?:{'|'.join(MONTHS)}) "
+    rf"since the departure of {_RELEASE_PLAIN_NAME} on (?:{'|'.join(MONTHS)}) "
     r"\d{1,2}, \d{4}\.\s*$"
 )
 _PERFORMER_DESCRIPTION = re.compile(
@@ -535,9 +543,12 @@ def release_performer_evidence(
             continue
         if page.language == "ko":
             continue
+        # A name after "with", "including" or "featuring" is a guest, and so
+        # is a name after any later trigger.
+        guest = re.search(r"\b(?:with|including|featuring)\b", sentence, _I)
         for trigger in _PERFORMER_TRIGGER.finditer(sentence):
-            if re.search(r"\b(?:with|including|featuring)\b", sentence[:trigger.start()], _I):
-                continue
+            if guest and guest.start() < trigger.start():
+                break
             relation = sentence[max(0, trigger.start() - 35) : trigger.start()]
             if not re.search(
                 rf"\b{_RELEASE_NOUN}\b(?:\s+recorded)?\s*$", relation, _I
@@ -564,7 +575,8 @@ def release_date_evidence(
     """Accept an unscoped release date attached to an explicit release verb."""
     date = _release_date_pattern(value, page.language)
     date_pattern = re.compile(rf"(?P<date>{date})", _I)
-    for start, sentence in _release_subject_sentences(page, subject_names):
+    spans = _sentences(page.extract)
+    for index, start, sentence in _release_subject_sentences(page, subject_names, spans):
         if page.language == "ko":
             if _KOREAN_RELEASE_SCOPE.search(sentence):
                 continue
@@ -585,7 +597,7 @@ def release_date_evidence(
                     page, start + match.start("date"), start + match.end("date")
                 )
         match = _release_by_date(sentence, page.language, value, date)
-        if match and _release_by_subject(page, subject_names, start):
+        if match and _release_by_subject(page, subject_names, spans, index):
             return _text_evidence(
                 page, start + match.start("date"), start + match.end("date")
             )
@@ -615,10 +627,19 @@ def release_date_evidence(
 
 
 def _release_by_subject(
-    page: WikipediaPage, subject_names: Sequence[str], start: int,
+    page: WikipediaPage,
+    subject_names: Sequence[str],
+    spans: Sequence[tuple[int, int]],
+    index: int,
 ) -> bool:
-    """Keep "It" anchored to a named release across descriptive sentences."""
-    for begin, end in reversed(_sentences(page.extract[:start])):
+    """Keep "It" anchored to a named release across descriptive sentences.
+
+    ``spans`` are the sentences of the whole extract and ``index`` is the one
+    that says "It was released by". The search goes back from the sentence
+    before it.
+    """
+    for position in range(index - 1, -1, -1):
+        begin, end = spans[position]
         previous = page.extract[begin:end]
         # Do not inherit the generic subject helper's "In ...," prefix: it
         # can carry precisely the territorial scope excluded by this rule.
@@ -737,9 +758,11 @@ def _credit_name_pattern(name: str) -> str | None:
 def _release_subject_sentences(
     page: WikipediaPage,
     subject_names: Sequence[str],
-) -> Iterable[tuple[int, str]]:
+    spans: Sequence[tuple[int, int]],
+) -> Iterable[tuple[int, int, str]]:
+    """Yield each sentence led by the release, with its index in ``spans`` and start."""
     subject_nouns = _release_subject_nouns(page, subject_names)
-    for start, end in _sentences(page.extract):
+    for index, (start, end) in enumerate(spans):
         sentence = page.extract[start:end]
         leading = _leading_subject(sentence, subject_names)
         generic = re.match(
@@ -749,7 +772,7 @@ def _release_subject_sentences(
         )
         noun = (generic.group("en") or generic.group("pt")) if generic else None
         if leading or (generic and (noun is None or noun.casefold() in subject_nouns)):
-            yield start, sentence
+            yield index, start, sentence
 
 
 def _release_subject_nouns(
