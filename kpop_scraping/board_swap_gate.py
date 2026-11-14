@@ -27,6 +27,7 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
+from .daily_set import DAILY_SET_FILENAME
 from .web_publish import (
     CODE_GROUPS_DAILY_FILENAME,
     CONNECTIONS_DAILY_FILENAME,
@@ -70,11 +71,14 @@ BOARDS: dict[str, tuple[str, Callable[[dict[str, Any]], str | None]]] = {
 def board_ids(read: Callable[[str], dict[str, Any] | None]) -> tuple[str | None, dict[str, str]]:
     """Return the published day and the identity of each board a directory holds.
 
-    The day is the date of ``connections.daily.json``, as the runner reads it.
-    A game without a file, or without a board, has no entry.
+    The day is the date of ``daily-set.json``, as the runner reads it; a set
+    published before that record is dated by ``connections.daily.json``.
+    A set that omits a game keeps its date, so the boards it does publish
+    are still compared. A game without a file, or without a board, has no
+    entry.
     """
-    connections = read(CONNECTIONS_DAILY_FILENAME)
-    day = connections.get("reference_date") if connections else None
+    record = read(DAILY_SET_FILENAME) or read(CONNECTIONS_DAILY_FILENAME)
+    day = record.get("reference_date") if record else None
     ids = {}
     for game, (filename, identify) in BOARDS.items():
         payload = read(filename)

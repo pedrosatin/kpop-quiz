@@ -125,6 +125,12 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
         self.assertEqual(read(self.out / 'next')['status'], 'ready')
         self.assertEqual(read(self.out / 'next')['previous'], dict(state='omitted', date=AFTER, qids=[]))
         self.assertEqual(verify_cli(self.out), 0)
+        # daily-set.json explains the absence; without it a caller that
+        # requires the crossword refuses the day.
+        self.assertEqual(json.loads((self.out / 'daily-set.json').read_text())['omitted'],
+                         {'crossword': MISSING_CROSSWORD_HISTORY})
+        self.assertEqual(verify_cli(self.out, '--require-crossword'), 0)
+        (self.out / 'daily-set.json').unlink()
         self.assertEqual(verify_cli(self.out, '--require-crossword'), 1)
 
     def test_exhausted_generator_publishes_an_explicit_omission(self):

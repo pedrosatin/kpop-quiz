@@ -109,7 +109,13 @@ jobs:
           REBUILD_FAILURE: ${{ steps.rebuild.outputs.failure }}
         run: python3 scripts/rebuild_database.py restore-cache --database data/kpop.db
 
+      # A normal run takes under a minute. The timeout keeps a stuck
+      # generator from holding the concurrency group, which queues the
+      # following runs (cancel-in-progress is false). A game that fails is
+      # left out of its day and the step still succeeds; it fails only when
+      # no game of the day could be generated (daily_puzzles_runner).
       - name: Generate daily puzzles
+        timeout-minutes: 20
         run: |
           args=(--database data/kpop.db --output-dir web/public/data --ahead
             --board-swaps-file "$RUNNER_TEMP/board-swaps.json")

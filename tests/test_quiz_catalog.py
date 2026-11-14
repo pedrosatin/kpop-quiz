@@ -790,13 +790,18 @@ class DailyRunCatalogTest(unittest.TestCase):
         self.assertTrue((enriched / ENRICHED_MANIFEST_FILENAME).is_file())
         verify(enriched, require_catalog=True)
 
-    def test_an_invalid_catalog_fails_the_run_instead_of_publishing_it(self):
+    def test_an_invalid_catalog_is_withdrawn_instead_of_published(self):
+        # The catalog is not a game of the day: the day still publishes,
+        # without a catalog, and the result says why.
         out = self.root / "out"
         with patch(
             "kpop_scraping.daily_puzzles_runner.build_catalog", side_effect=ValueError("catalog invalid")
-        ), self.assertRaisesRegex(ValueError, "catalog invalid"):
-            self.run_day(out, catalog=True)
+        ):
+            result = self.run_day(out, catalog=True)
+        self.assertEqual(result["catalog_skipped"], {"error": "catalog invalid"})
+        self.assertIsNone(result["catalog"])
         self.assertEqual(self.files(out, catalog=True), {})
+        self.assertTrue((out / "manifest-v2.json").is_file())
 
     def test_a_published_catalog_verifies_through_the_runner(self):
         out = self.root / "out"

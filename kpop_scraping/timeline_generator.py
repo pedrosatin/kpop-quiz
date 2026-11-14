@@ -75,24 +75,30 @@ class CandidateEvent:
 
 
 def format_display_date(date_str: str) -> dict[str, str]:
-    """Format an ISO date string into bilingual display dates."""
+    """Format an ISO date string into bilingual display dates.
+
+    A month outside 1 to 12, or a day the month does not have, raises
+    ``ValueError``: the date comes from Wikidata and may be malformed.
+    """
     parts = date_str.split("-")
     if len(parts) == 1:
         return {"pt-BR": parts[0], "en": parts[0]}
+    if len(parts) not in (2, 3):
+        return {"pt-BR": date_str, "en": date_str}
+    year = parts[0]
+    month = int(parts[1])
+    if not 1 <= month <= 12:
+        raise ValueError(f"invalid month in timeline date {date_str!r}")
     if len(parts) == 2:
-        year = parts[0]
-        month = int(parts[1])
         m_pt = PT_MONTHS[month - 1].capitalize()
         m_en = EN_MONTHS[month - 1]
         return {"pt-BR": f"{m_pt} de {year}", "en": f"{m_en} {year}"}
-    if len(parts) == 3:
-        year = parts[0]
-        month = int(parts[1])
-        day = int(parts[2])
-        m_pt = PT_MONTHS[month - 1]
-        m_en = EN_MONTHS[month - 1]
-        return {"pt-BR": f"{day} de {m_pt} de {year}", "en": f"{m_en} {day}, {year}"}
-    return {"pt-BR": date_str, "en": date_str}
+    day = int(parts[2])
+    # Raises ValueError for a day the month does not have.
+    date(int(year), month, day)
+    m_pt = PT_MONTHS[month - 1]
+    m_en = EN_MONTHS[month - 1]
+    return {"pt-BR": f"{day} de {m_pt} de {year}", "en": f"{m_en} {day}, {year}"}
 
 
 def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
@@ -126,6 +132,11 @@ def _parse_event_date(value_time: str | None) -> tuple[str, int] | None:
         return None
     year = int(date_match.group(1))
     if not (TIMELINE_MIN_YEAR <= year <= TIMELINE_MAX_YEAR):
+        return None
+    try:
+        format_display_date(raw_time)
+    except ValueError:
+        # A malformed date drops only its event, not the day's timeline.
         return None
     return raw_time, year
 

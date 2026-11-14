@@ -11,6 +11,7 @@ from pathlib import Path
 
 from kpop_scraping import timeline_cli
 from kpop_scraping.timeline_generator import (
+    _parse_event_date,
     format_display_date,
     generate_timeline_puzzle,
 )
@@ -34,6 +35,17 @@ class FormatDisplayDateTests(unittest.TestCase):
             format_display_date("2015-07-20"),
             {"pt-BR": "20 de julho de 2015", "en": "July 20, 2015"},
         )
+
+    def test_invalid_month_or_day_raises_value_error(self):
+        # Month 13 used to raise IndexError and month 00 to print December.
+        for value in ("2015-13", "2015-00", "2015-13-01", "2015-00-10", "2015-02-30"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                format_display_date(value)
+
+    def test_event_with_an_invalid_date_is_dropped(self):
+        self.assertIsNone(_parse_event_date("2015-13"))
+        self.assertIsNone(_parse_event_date("2015-02-30"))
+        self.assertEqual(_parse_event_date("2015-02-28"), ("2015-02-28", 2015))
 
 
 class TimelineGeneratorTests(unittest.TestCase):

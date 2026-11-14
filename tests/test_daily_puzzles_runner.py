@@ -712,12 +712,19 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         validate_timeline_puzzle(timeline)
         self.assertEqual(timeline["reference_date"], "2026-09-19")
 
-        # A present code-groups file always validates; an absent one only
-        # fails verification when a caller requires the artifact (the
-        # runner passes require_code_groups=False; strict callers opt in).
+        # A present code-groups file always validates. An absent one passes
+        # a caller that requires it only while daily-set.json explains it.
         verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
+        self.assertEqual(
+            json.loads((output_dir / "daily-set.json").read_text())["omitted"],
+            {"code-groups": "insufficient accepted group coverage: 3 / 6"},
+        )
+        verify_artifacts(output_dir, require_grid=False, require_code_groups=True)
+        record = (output_dir / "daily-set.json").read_bytes()
+        (output_dir / "daily-set.json").unlink()
         with self.assertRaisesRegex(ValueError, "missing required code-groups artifact"):
             verify_artifacts(output_dir, require_grid=False, require_code_groups=True)
+        (output_dir / "daily-set.json").write_bytes(record)
 
         # A kept day without the artifact records only the absence; the
         # generation error belongs to the day that first skipped it.
@@ -975,7 +982,11 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         output_dir = self.temp_path / "promotion_failure"
         run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
         next_dir = output_dir / "next"
-        other_bytes = {p.name: p.read_bytes() for p in next_dir.glob("*.json") if not p.name.startswith("grid")}
+        # daily-set.json changes too: it records the grid the day lost.
+        other_bytes = {
+            p.name: p.read_bytes() for p in next_dir.glob("*.json")
+            if not p.name.startswith("grid") and p.name != "daily-set.json"
+        }
         rejected = json.loads((next_dir / "grid.daily.json").read_text())["grid_id"]
         database = self._database_without_roster_proof("promotion-failure.db")
         result = run_daily_puzzles(database=database, output_dir=output_dir, reference_date="2026-09-19")
@@ -987,6 +998,8 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             self.assertEqual(marker["replaces"], [rejected])
             for name, content in other_bytes.items():
                 self.assertEqual((directory / name).read_bytes(), content)
+            omitted = json.loads((directory / "daily-set.json").read_text())["omitted"]
+            self.assertIn("published grid no longer eligible", omitted["grid"])
             verify_artifacts(directory, require_grid=False)
         again = run_daily_puzzles(database=database, output_dir=output_dir, reference_date="2026-09-19")
         self.assertIsNone(again["grid_id"])
@@ -1517,20 +1530,25 @@ class WordSearchThemeFallbackRunnerTests(unittest.TestCase):
         self.assertIn("::warning title=Word search theme replaced::Word search theme ", stdout.getvalue())
         self.assertIn("WARNING: Word search theme ", stderr.getvalue())
 
-    def test_no_theme_can_be_placed_fails_without_publishing(self):
+    def test_no_theme_can_be_placed_publishes_the_day_without_the_word_search(self):
         # The generator test covers a database whose every theme is
         # unplaceable; here the budget is exhausted for all of this
         # database's themes so the runner's failure path is exercised.
+        # Before the partial publish policy this failed the whole run.
         out = self.out_dir / "published"
         stderr = io.StringIO()
-        with patch("kpop_scraping.word_search_generator._place_theme", return_value=None), redirect_stderr(stderr):
+        with patch("kpop_scraping.word_search_generator._place_theme", return_value=None), redirect_stderr(stderr), redirect_stdout(io.StringIO()):
             code = daily_puzzles_cli.main([
                 "--database", str(self.db_path), "--output-dir", str(out), "--date", "2026-09-18", "--ahead",
             ])
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 0)
         self.assertIn("Failed to place word search grid for theme", stderr.getvalue())
         self.assertRegex(stderr.getvalue(), r"none of the \d+ candidate themes could be placed")
-        self.assertFalse(out.exists(), "a failed generation must not leave a partial publication")
+        for directory in (out, out / "next"):
+            self.assertFalse((directory / "word-search.daily.json").exists())
+            self.assertTrue((directory / "connections.daily.json").is_file())
+            omitted = json.loads((directory / "daily-set.json").read_text())["omitted"]
+            self.assertRegex(omitted["word-search"], r"none of the \d+ candidate themes could be placed")
 
     def test_failed_next_day_leaves_the_published_pair_untouched(self):
         from datetime import timedelta
