@@ -124,7 +124,7 @@ describe("StatsPortability", () => {
         name: "Substituir as estatísticas deste aparelho pelas do arquivo?",
       });
       expect(confirm).toHaveAccessibleDescription(/^Arquivo exportado em 1 de outubro de 2026/);
-      expect(confirm).toHaveAccessibleDescription(/O que estiver só neste aparelho será perdido/);
+      expect(confirm).toHaveAccessibleDescription(/Você perde o que só este aparelho tem\. Um desafio diário que você já jogou aqui não conta de novo\./);
       expect(within(confirm).getByRole("columnheader", { name: "Neste aparelho" })).toBeInTheDocument();
       expect(within(confirm).getByRole("columnheader", { name: "No arquivo" })).toBeInTheDocument();
       expect(rowCells(confirm, "Partidas")).toEqual(["3", "10"]);
@@ -133,7 +133,6 @@ describe("StatsPortability", () => {
       expect(rowCells(confirm, "Maior sequência")).toEqual(["1", "4"]);
       expect(rowCells(confirm, "Último desafio diário")).toEqual(["Nenhum", "1 de out. de 2026"]);
       await waitFor(() => expect(within(confirm).getByRole("button", { name: "Cancelar" })).toHaveFocus());
-      expect(screen.getByRole("button", { name: "Importar estatísticas" })).toHaveAttribute("aria-expanded", "true");
     });
 
     it("leaves local storage untouched until the player confirms", async () => {
@@ -193,7 +192,7 @@ describe("StatsPortability", () => {
       pickFile(container);
 
       const confirm = await screen.findByRole("alertdialog");
-      expect(confirm).toHaveAccessibleDescription(/^O arquivo não informa quando foi exportado\./);
+      expect(confirm).toHaveAccessibleDescription(/^O arquivo não traz a data de exportação\./);
       fireEvent.click(within(confirm).getByRole("button", { name: "Substituir estatísticas" }));
       expect(JSON.parse(localStorage.getItem(PLAYER_STATS_STORAGE_KEY) || "{}").overall.played).toBe(10);
     });
@@ -204,7 +203,7 @@ describe("StatsPortability", () => {
       pickFile(container);
 
       const confirm = await screen.findByRole("alertdialog");
-      expect(confirm).toHaveAccessibleDescription(/^O arquivo não informa quando foi exportado\./);
+      expect(confirm).toHaveAccessibleDescription(/^O arquivo não traz a data de exportação\./);
     });
 
     it("renders the confirmation in English", async () => {
@@ -217,7 +216,7 @@ describe("StatsPortability", () => {
         name: "Replace the stats on this device with the ones in the file?",
       });
       expect(confirm).toHaveAccessibleDescription(/^File exported on October 1, 2026/);
-      expect(confirm).toHaveAccessibleDescription(/Anything that is only on this device will be lost/);
+      expect(confirm).toHaveAccessibleDescription(/You lose anything that is only on this device\. A daily challenge you already played here does not count again\./);
       expect(rowCells(confirm, "Played")).toEqual(["3", "10"]);
       expect(rowCells(confirm, "Wins")).toEqual(["1", "8"]);
       expect(rowCells(confirm, "Last daily challenge")).toEqual(["None", "Oct 1, 2026"]);

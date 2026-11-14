@@ -976,9 +976,9 @@ const catalogs: Record<Locale, Messages> = {
     statsResetSuccess: "Estatísticas apagadas.",
     statsImportConfirmTitle: "Substituir as estatísticas deste aparelho pelas do arquivo?",
     statsImportConfirmWarning:
-      "O que estiver só neste aparelho será perdido, e os desafios diários já contados aqui não contam de novo.",
+      "Você perde o que só este aparelho tem. Um desafio diário que você já jogou aqui não conta de novo.",
     statsImportExportedAt: (date) => `Arquivo exportado em ${date}.`,
-    statsImportExportedAtUnknown: "O arquivo não informa quando foi exportado.",
+    statsImportExportedAtUnknown: "O arquivo não traz a data de exportação.",
     statsImportTotals: "Totais gerais",
     statsImportLocalColumn: "Neste aparelho",
     statsImportFileColumn: "No arquivo",
@@ -1497,9 +1497,9 @@ const catalogs: Record<Locale, Messages> = {
     statsResetSuccess: "Stats cleared.",
     statsImportConfirmTitle: "Replace the stats on this device with the ones in the file?",
     statsImportConfirmWarning:
-      "Anything that is only on this device will be lost, and daily challenges already counted here will not count again.",
+      "You lose anything that is only on this device. A daily challenge you already played here does not count again.",
     statsImportExportedAt: (date) => `File exported on ${date}.`,
-    statsImportExportedAtUnknown: "The file does not say when it was exported.",
+    statsImportExportedAtUnknown: "The file has no export date.",
     statsImportTotals: "Overall totals",
     statsImportLocalColumn: "On this device",
     statsImportFileColumn: "In the file",

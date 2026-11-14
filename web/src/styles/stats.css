@@ -216,3 +216,20 @@
   font-weight: 400;
   text-align: left;
 }
+
+/* Confirm and Cancel of both confirmations keep 8px between them. */
+.stats-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* On phones Export, Import and Clear wrap onto two rows; keep 8px between
+   targets there. Wider screens keep their single row as it was. */
+@media (max-width: 40rem) {
+  .stats-portability-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+}

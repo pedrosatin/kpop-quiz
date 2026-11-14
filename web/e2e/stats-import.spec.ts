@@ -85,7 +85,7 @@ test("en: a file from before exportedAt says the export date is unknown, and Can
 
   await pickStatsFile(page, FILE);
   const confirm = page.getByRole("alertdialog", { name: "Replace the stats on this device with the ones in the file?" });
-  await expect(confirm).toContainText("The file does not say when it was exported.");
+  await expect(confirm).toContainText("The file has no export date.");
   await confirm.getByRole("button", { name: "Cancel" }).click();
   await expect(confirm).toHaveCount(0);
   expect(await storedStats(page)).toBe(before);

@@ -186,8 +186,6 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
           type="button"
           class="btn btn-ghost btn-sm"
           ref={importButtonRef}
-          aria-expanded={pendingImport !== null}
-          aria-controls="stats-import-confirm"
           onClick={() => fileInputRef.current?.click()}
         >
           {messages.statsImport}
@@ -218,7 +216,7 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
       {confirmingReset && (
         <div id="stats-reset-confirm" class="stats-reset-confirm">
           <p id="stats-reset-confirm-text">{messages.statsResetConfirm}</p>
-          <div role="group" aria-labelledby="stats-reset-confirm-text">
+          <div class="stats-confirm-actions" role="group" aria-labelledby="stats-reset-confirm-text">
             <button type="button" class="btn btn-ghost btn-sm" onClick={handleConfirmReset}>
               {messages.statsConfirm}
             </button>
@@ -252,7 +250,7 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
             messages={messages}
           />
           <p id="stats-import-confirm-warning">{messages.statsImportConfirmWarning}</p>
-          <div role="group" aria-labelledby="stats-import-confirm-title">
+          <div class="stats-confirm-actions" role="group" aria-labelledby="stats-import-confirm-title">
             <button type="button" class="btn btn-ghost btn-sm" onClick={handleConfirmImport}>
               {messages.statsImportConfirmAction}
             </button>
