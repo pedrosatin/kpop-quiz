@@ -210,5 +210,35 @@ class MapPilotVerifyTests(unittest.TestCase):
         self.assertEqual(code, 0, output)
 
 
+class MapPilotRefreshLogTests(unittest.TestCase):
+    """The refresh log quotes the schedule page and MusicBrainz on one line each."""
+
+    def test_unmatched_dates_and_excluded_events_are_escaped(self):
+        dataset = {
+            "events": [],
+            "countries": [],
+            "unmatched_schedule_dates": [
+                {"event_date": "2026-01-01", "official_destination": "SEOUL\n::error::destination 100%"}
+            ],
+        }
+        excluded = [{"event_mbid": "mbid\r\n::warning::x", "reason": "cancelled\n::notice::y"}]
+        with tempfile.TemporaryDirectory() as directory, patch.multiple(
+            "kpop_scraping.map_pilot_refresh",
+            fetch_schedule_html=lambda *_args, **_kwargs: "",
+            parse_yg_tour_schedule=lambda _html: [],
+            collect_musicbrainz=lambda *_args: type("Snapshot", (), {"events": []})(),
+            collect_area_countries=lambda *_args: {},
+            area_wikidata_ids=lambda _snapshot: set(),
+            build_map_pilot_dataset=lambda *_args: (dataset, excluded),
+        ):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                code = map_pilot_main(["--output", str(Path(directory, "out.json")), "--map", str(ROOT / DEFAULT_MAP)])
+        self.assertEqual(code, 0)
+        self.assertIn("unmatched schedule date: 2026-01-01 SEOUL%0A::error::destination 100%25\n", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "excluded event mbid%0D%0A::warning::x: cancelled%0A::notice::y\n")
+        self.assertEqual(command_lines(stdout.getvalue() + stderr.getvalue()), [])
+
+
 if __name__ == "__main__":
     unittest.main()

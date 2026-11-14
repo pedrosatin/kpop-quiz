@@ -562,10 +562,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"Schedule dates: {len(schedule)}; MusicBrainz events: {len(snapshot.events)}; "
         f"accepted: {len(dataset['events'])}; countries: {len(dataset['countries'])}"
     )
+    # Destinations come from the schedule page and MBIDs and reasons from
+    # MusicBrainz. Escaped as workflow command data, a value cannot break the
+    # line and start a command of its own in the job log.
+    escape = workflow_commands.escape_data
     for row in dataset["unmatched_schedule_dates"]:
-        print(f"unmatched schedule date: {row['event_date']} {row['official_destination']}")
+        detail = f"{row['event_date']} {row['official_destination']}"
+        print(f"unmatched schedule date: {escape(detail)}")
     for row in excluded:
-        print(f"excluded event {row['event_mbid']}: {row['reason']}", file=sys.stderr)
+        detail = f"{row['event_mbid']}: {row['reason']}"
+        print(f"excluded event {escape(detail)}", file=sys.stderr)
     return 0
 
 
