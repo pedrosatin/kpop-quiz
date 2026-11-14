@@ -19,6 +19,7 @@ from kpop_scraping.storage import (
     Repository,
     SnapshotStore,
     SnapshotIntegrityError,
+    SnapshotPathError,
     apply_migrations,
     canonical_json,
 )
@@ -145,6 +146,40 @@ class SnapshotPathContainmentTest(unittest.TestCase):
 
         with self.assertRaisesRegex(SnapshotIntegrityError, "outside the raw directory"):
             self.store.read(f"wikipedia/en/{outside.name}", digest)
+
+    def link_provider_outside(self) -> Path:
+        """raw/wikipedia is a symbolic link to a directory on another disk."""
+        elsewhere = self.root / "other-disk"
+        elsewhere.mkdir()
+        self.raw_dir.mkdir()
+        (self.raw_dir / "wikipedia").symlink_to(elsewhere, target_is_directory=True)
+        return elsewhere
+
+    def test_write_refuses_a_path_that_a_link_takes_out_of_raw_dir(self):
+        elsewhere = self.link_provider_outside()
+
+        with self.assertRaisesRegex(SnapshotPathError, "outside the raw directory"):
+            self.store.write("wikipedia", "en", 10, 77, b'{"pageid":10}')
+        self.assertEqual(list(elsewhere.iterdir()), [])
+
+    def test_a_snapshot_behind_the_link_is_never_quarantined(self):
+        # A file a run wrote through the link before writes were contained.
+        elsewhere = self.link_provider_outside()
+        content = b'{"pageid":10}'
+        snapshot = elsewhere / "en" / "10" / "77.json.gz"
+        snapshot.parent.mkdir(parents=True)
+        snapshot.write_bytes(gzip.compress(content, mtime=0))
+        stderr = io.StringIO()
+
+        with redirect_stderr(stderr), self.assertRaises(SnapshotPathError):
+            self.store.write("wikipedia", "en", 10, 77, content)
+
+        self.assertTrue(snapshot.is_file())
+        self.assertFalse((self.raw_dir / SnapshotStore.ORPHAN_DIR).exists())
+        self.assertNotIn("differs from the new content", stderr.getvalue())
+
+    def test_the_path_error_is_a_snapshot_integrity_error_for_readers(self):
+        self.assertTrue(issubclass(SnapshotPathError, SnapshotIntegrityError))
 
     def test_read_accepts_a_path_inside_raw_dir_and_a_raw_dir_behind_a_link(self):
         relative_path, digest = self.store.write("wikipedia", "en", 10, 77, b'{"pageid":10}')

@@ -25,6 +25,14 @@ class SnapshotIntegrityError(RuntimeError):
     """Raised when immutable snapshot content does not match its identity."""
 
 
+class SnapshotPathError(SnapshotIntegrityError):
+    """A snapshot path resolves outside the raw directory.
+
+    A reader sees it as a ``SnapshotIntegrityError``. A write never takes it
+    for divergent content, so the file at that path is not quarantined.
+    """
+
+
 # collection_issues code of a page whose fetched extract differs from the
 # stored snapshot of the same revision (ADR 036).
 EXTRACT_DRIFT = "extract_drift"
@@ -921,8 +929,21 @@ class SnapshotStore:
             content,
         )
 
+    def _contained(self, relative_path: str | Path) -> Path:
+        """Return ``raw_dir / relative_path`` once it resolves inside ``raw_dir``.
+
+        ``..``, an absolute path and a symbolic link that leads out of
+        ``raw_dir`` all raise ``SnapshotPathError``.
+        """
+        path = self.raw_dir / relative_path
+        if not path.resolve().is_relative_to(self.raw_dir.resolve()):
+            raise SnapshotPathError(f"snapshot path {str(relative_path)!r} is outside the raw directory")
+        return path
+
     def _write(self, relative_path: Path, content: bytes) -> tuple[str, str]:
-        target = self.raw_dir / relative_path
+        # Checked before exists(): a path that leaves raw_dir is refused, so a
+        # file behind a link is neither written over nor quarantined.
+        target = self._contained(relative_path)
         digest = hashlib.sha256(content).hexdigest()
 
         # Callers write only snapshots their own database does not reference
@@ -938,6 +959,8 @@ class SnapshotStore:
             try:
                 self.verify(relative_path.as_posix(), digest)
                 return relative_path.as_posix(), digest
+            except SnapshotPathError:
+                raise
             except SnapshotIntegrityError:
                 self._quarantine(relative_path, digest)
 
@@ -1006,9 +1029,7 @@ class SnapshotStore:
         outside ``raw_dir``, through ``..``, an absolute path or a symbolic
         link, is refused before anything is read.
         """
-        path = self.raw_dir / relative_path
-        if not path.resolve().is_relative_to(self.raw_dir.resolve()):
-            raise SnapshotIntegrityError(f"snapshot path {relative_path!r} is outside the raw directory")
+        path = self._contained(relative_path)
         try:
             content = gzip.decompress(path.read_bytes())
         except (OSError, EOFError, zlib.error) as exc:
