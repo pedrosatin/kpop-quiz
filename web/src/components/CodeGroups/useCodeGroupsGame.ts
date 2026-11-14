@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { CodeGroupsGuess, CodeGroupsPuzzle } from "../../data/code-groups";
 import { scoreGuess } from "../../data/code-groups";
 import { useGameAnalytics } from "../../lib/game-analytics";
+import { getLocalStorageItem, listLocalStorageKeys, removeLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import { isDailyBoardRound } from "../../lib/player-stats";
 import { codeGroupsMatchId } from "./useRecordCodeGroupsMatch";
 import type { Locale } from "../../lib/quiz-types";
@@ -29,15 +30,10 @@ const ROUND_KEY = /^kpop-code-\d{4}-\d{2}-\d{2}$/;
 
 /** Removes the saves of other days, so old rounds do not pile up in storage. */
 function pruneCodeGroupsSaves(roundDate: string): void {
-  try {
-    const keep = codeGroupsStorageKey(roundDate);
-    const stale: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key !== null && key !== keep && ROUND_KEY.test(key)) stale.push(key);
-    }
-    for (const key of stale) localStorage.removeItem(key);
-  } catch {}
+  const keep = codeGroupsStorageKey(roundDate);
+  for (const key of listLocalStorageKeys()) {
+    if (key !== keep && ROUND_KEY.test(key)) removeLocalStorageItem(key);
+  }
 }
 
 function isSymbolId(id: unknown, puzzle: CodeGroupsPuzzle): id is string {
@@ -52,10 +48,10 @@ function isSymbolId(id: unknown, puzzle: CodeGroupsPuzzle): id is string {
  */
 export function loadCodeGroupsSave(puzzle: CodeGroupsPuzzle): CodeGroupsSave | null {
   pruneCodeGroupsSaves(puzzle.reference_date);
+  const raw = getLocalStorageItem(codeGroupsStorageKey(puzzle.reference_date));
+  if (!raw) return null;
   let saved: unknown;
   try {
-    const raw = localStorage.getItem(codeGroupsStorageKey(puzzle.reference_date));
-    if (!raw) return null;
     saved = JSON.parse(raw);
   } catch {
     return null;
@@ -75,16 +71,12 @@ export function loadCodeGroupsSave(puzzle: CodeGroupsPuzzle): CodeGroupsSave | n
 }
 
 export function storeCodeGroupsSave(puzzle: CodeGroupsPuzzle, save: Omit<CodeGroupsSave, "puzzle_id">): void {
-  try {
-    const stored: CodeGroupsSave = { puzzle_id: puzzle.puzzle_id, ...save };
-    localStorage.setItem(codeGroupsStorageKey(puzzle.reference_date), JSON.stringify(stored));
-  } catch {}
+  const stored: CodeGroupsSave = { puzzle_id: puzzle.puzzle_id, ...save };
+  setLocalStorageItem(codeGroupsStorageKey(puzzle.reference_date), JSON.stringify(stored));
 }
 
 export function clearCodeGroupsSave(puzzle: CodeGroupsPuzzle): void {
-  try {
-    localStorage.removeItem(codeGroupsStorageKey(puzzle.reference_date));
-  } catch {}
+  removeLocalStorageItem(codeGroupsStorageKey(puzzle.reference_date));
 }
 
 const EMPTY_SELECTION = ["", "", "", ""] as const;

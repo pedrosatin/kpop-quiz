@@ -1,4 +1,5 @@
 import { dailyReferenceDate, staleDailyDate } from "../data/daily-artifact";
+import { getLocalStorageItem, setLocalStorageItem } from "./local-storage";
 
 export type GameId = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "map" | "code" | "crossword";
 
@@ -138,12 +139,9 @@ function normalizeOverallStats(raw: Partial<OverallStats> | undefined): OverallS
 }
 
 export function loadPlayerStats(): PlayerStats {
-  if (typeof window === "undefined" || typeof localStorage === "undefined") {
-    return createInitialPlayerStats();
-  }
+  const raw = getLocalStorageItem(PLAYER_STATS_STORAGE_KEY);
+  if (!raw) return createInitialPlayerStats();
   try {
-    const raw = localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
-    if (!raw) return createInitialPlayerStats();
     const parsed = JSON.parse(raw) as Partial<PlayerStats>;
     if (!parsed || parsed.version !== 1 || typeof parsed !== "object") {
       return createInitialPlayerStats();
@@ -168,15 +166,9 @@ export function loadPlayerStats(): PlayerStats {
   }
 }
 
+/** Fails silently when localStorage is disabled or the quota is exceeded. */
 export function savePlayerStats(stats: PlayerStats): void {
-  if (typeof window === "undefined" || typeof localStorage === "undefined") {
-    return;
-  }
-  try {
-    localStorage.setItem(PLAYER_STATS_STORAGE_KEY, JSON.stringify(stats));
-  } catch {
-    // Fail silently when localStorage is disabled or quota exceeded
-  }
+  setLocalStorageItem(PLAYER_STATS_STORAGE_KEY, JSON.stringify(stats));
 }
 
 /**
@@ -470,25 +462,11 @@ export function getMatchRecordKey(gameId: GameId, matchId: string): string {
 }
 
 export function isGameMatchRecorded(gameId: GameId, matchId: string): boolean {
-  if (typeof window === "undefined" || typeof localStorage === "undefined") {
-    return false;
-  }
-  try {
-    return localStorage.getItem(getMatchRecordKey(gameId, matchId)) === "1";
-  } catch {
-    return false;
-  }
+  return getLocalStorageItem(getMatchRecordKey(gameId, matchId)) === "1";
 }
 
 export function markGameMatchRecorded(gameId: GameId, matchId: string): void {
-  if (typeof window === "undefined" || typeof localStorage === "undefined") {
-    return;
-  }
-  try {
-    localStorage.setItem(getMatchRecordKey(gameId, matchId), "1");
-  } catch {
-    // Fail silently
-  }
+  setLocalStorageItem(getMatchRecordKey(gameId, matchId), "1");
 }
 
 /**

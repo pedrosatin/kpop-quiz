@@ -1,4 +1,5 @@
 import type { MapPilotEvent } from "../../data/map-pilot";
+import { getLocalStorageItem, listLocalStorageKeys, removeLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 
 /**
  * What localStorage keeps of one daily round, under `kpop-map-<YYYY-MM-DD>`
@@ -31,15 +32,10 @@ const ROUND_KEY = /^kpop-map-\d{4}-\d{2}-\d{2}$/;
 
 /** Removes the saves of other days, so old rounds do not pile up in storage. */
 function pruneMapPilotSaves(roundDate: string): void {
-  try {
-    const keep = mapPilotStorageKey(roundDate);
-    const stale: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key !== null && key !== keep && ROUND_KEY.test(key)) stale.push(key);
-    }
-    for (const key of stale) localStorage.removeItem(key);
-  } catch {}
+  const keep = mapPilotStorageKey(roundDate);
+  for (const key of listLocalStorageKeys()) {
+    if (key !== keep && ROUND_KEY.test(key)) removeLocalStorageItem(key);
+  }
 }
 
 /**
@@ -54,10 +50,10 @@ export function loadMapPilotSave(
   playableFeatures: ReadonlySet<string>,
 ): MapPilotSave | null {
   pruneMapPilotSaves(roundDate);
+  const raw = getLocalStorageItem(mapPilotStorageKey(roundDate));
+  if (!raw) return null;
   let saved: unknown;
   try {
-    const raw = localStorage.getItem(mapPilotStorageKey(roundDate));
-    if (!raw) return null;
     saved = JSON.parse(raw);
   } catch {
     return null;
@@ -89,7 +85,7 @@ export function loadMapPilotSave(
 /** Whether the save of this round shows its result; the pilot keeps no stats. */
 export function isMapPilotRoundFinished(roundDate: string): boolean {
   try {
-    const saved = JSON.parse(localStorage.getItem(mapPilotStorageKey(roundDate)) ?? "null") as Partial<MapPilotSave> | null;
+    const saved = JSON.parse(getLocalStorageItem(mapPilotStorageKey(roundDate)) ?? "null") as Partial<MapPilotSave> | null;
     return Array.isArray(saved?.events) && saved.events.length > 0 && saved.index === saved.events.length;
   } catch {
     return false;
@@ -97,7 +93,5 @@ export function isMapPilotRoundFinished(roundDate: string): boolean {
 }
 
 export function storeMapPilotSave(roundDate: string, save: MapPilotSave): void {
-  try {
-    localStorage.setItem(mapPilotStorageKey(roundDate), JSON.stringify(save));
-  } catch {}
+  setLocalStorageItem(mapPilotStorageKey(roundDate), JSON.stringify(save));
 }

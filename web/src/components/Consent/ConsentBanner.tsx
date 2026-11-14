@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
+import { getLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 
@@ -85,12 +86,8 @@ function disableGoogleAnalytics(ga4Id: string): void {
 }
 
 function readConsentChoice(): ConsentChoice | null {
-  try {
-    const stored = window.localStorage.getItem(CONSENT_STORAGE_KEY);
-    return stored === "accepted" || stored === "rejected" ? stored : null;
-  } catch {
-    return null;
-  }
+  const stored = getLocalStorageItem(CONSENT_STORAGE_KEY);
+  return stored === "accepted" || stored === "rejected" ? stored : null;
 }
 
 export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps) {
@@ -146,11 +143,8 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
   }
 
   const decide = (next: ConsentChoice) => {
-    try {
-      window.localStorage.setItem(CONSENT_STORAGE_KEY, next);
-    } catch {
-      // Private mode: still honor the in-memory choice for this visit.
-    }
+    // Private mode may not store it: the in-memory choice still holds for this visit.
+    setLocalStorageItem(CONSENT_STORAGE_KEY, next);
     setChoice(next);
     if (next === "accepted") {
       loadGoogleAnalytics(ga4Id);

@@ -1,4 +1,5 @@
 import { entryCellKeys, type CrosswordEntry, type CrosswordPuzzle } from "../../data/crossword";
+import { getLocalStorageItem, listLocalStorageKeys, removeLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 
 export type CrosswordStatus = "playing" | "won" | "revealed";
 
@@ -26,15 +27,10 @@ const BOARD_KEY = /^kpop-crossword-[a-f0-9]{64}$/;
 
 /** Removes the saves of other boards, so replaced boards do not pile up. */
 function pruneCrosswordSaves(puzzle: CrosswordPuzzle): void {
-  try {
-    const keep = crosswordStorageKey(puzzle);
-    const stale: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key !== null && key !== keep && BOARD_KEY.test(key)) stale.push(key);
-    }
-    for (const key of stale) localStorage.removeItem(key);
-  } catch {}
+  const keep = crosswordStorageKey(puzzle);
+  for (const key of listLocalStorageKeys()) {
+    if (key !== keep && BOARD_KEY.test(key)) removeLocalStorageItem(key);
+  }
 }
 
 export function isEntrySolved(entry: CrosswordEntry, values: Readonly<Record<string, string>>): boolean {
@@ -63,10 +59,10 @@ export function wrongSquares(puzzle: CrosswordPuzzle, values: Readonly<Record<st
  */
 export function loadCrosswordSave(puzzle: CrosswordPuzzle): CrosswordSave | null {
   pruneCrosswordSaves(puzzle);
+  const raw = getLocalStorageItem(crosswordStorageKey(puzzle));
+  if (!raw) return null;
   let saved: unknown;
   try {
-    const raw = localStorage.getItem(crosswordStorageKey(puzzle));
-    if (!raw) return null;
     saved = JSON.parse(raw);
   } catch {
     return null;
@@ -85,13 +81,9 @@ export function loadCrosswordSave(puzzle: CrosswordPuzzle): CrosswordSave | null
 }
 
 export function storeCrosswordSave(puzzle: CrosswordPuzzle, save: CrosswordSave): void {
-  try {
-    localStorage.setItem(crosswordStorageKey(puzzle), JSON.stringify(save));
-  } catch {}
+  setLocalStorageItem(crosswordStorageKey(puzzle), JSON.stringify(save));
 }
 
 export function clearCrosswordSave(puzzle: CrosswordPuzzle): void {
-  try {
-    localStorage.removeItem(crosswordStorageKey(puzzle));
-  } catch {}
+  removeLocalStorageItem(crosswordStorageKey(puzzle));
 }

@@ -1,4 +1,5 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
+import { setLocalStorageItem } from "../../lib/local-storage";
 import { isDailyBoardRound } from "../../lib/player-stats";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
@@ -41,15 +42,13 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   }, [status]);
 
   useEffect(() => {
-    try {
-      const state: StoredProgress = {
-        foundWordIds,
-        elapsedSeconds,
-        status,
-        easyMode,
-      };
-      localStorage.setItem(storageKey, JSON.stringify(state));
-    } catch {}
+    const state: StoredProgress = {
+      foundWordIds,
+      elapsedSeconds,
+      status,
+      easyMode,
+    };
+    setLocalStorageItem(storageKey, JSON.stringify(state));
   }, [storageKey, foundWordIds, elapsedSeconds, status, easyMode]);
 
   const analytics = useGameAnalytics(

@@ -1,3 +1,10 @@
+import {
+  getLocalStorageItem,
+  listLocalStorageKeys,
+  readLocalStorage,
+  removeLocalStorageItem,
+  setLocalStorageItem,
+} from "../../lib/local-storage";
 import { isQuizSession, type Locale, type PlayMode, type QuizSession } from "../../lib/quiz-types";
 import type { QuizDecadeSelection, QuizTheme } from "./url-params";
 import type { QuestionResult, QuizMachineState } from "./types";
@@ -436,30 +443,12 @@ export function buildQuizProgressSave(input: {
   };
 }
 
-function readRaw(key: string): { status: "ok"; raw: string | null } | { status: "unavailable" } {
-  try {
-    return { status: "ok", raw: window.localStorage.getItem(key) };
-  } catch {
-    return { status: "unavailable" };
-  }
-}
-
 function writeRaw(key: string, value: string): QuizProgressWriteResult {
-  try {
-    window.localStorage.setItem(key, value);
-    return "ok";
-  } catch {
-    return "unavailable";
-  }
+  return setLocalStorageItem(key, value) ? "ok" : "unavailable";
 }
 
 function removeRaw(key: string): QuizProgressWriteResult {
-  try {
-    window.localStorage.removeItem(key);
-    return "ok";
-  } catch {
-    return "unavailable";
-  }
+  return removeLocalStorageItem(key) ? "ok" : "unavailable";
 }
 
 function parseStored(raw: string): { status: "ok"; save: QuizProgressSave } | { status: "invalid" } {
@@ -482,10 +471,10 @@ function parseStored(raw: string): { status: "ok"; save: QuizProgressSave } | { 
  */
 export function loadQuizProgressSave(config: QuizProgressConfigIdentity): QuizProgressLoadResult {
   const slotKey = quizProgressStorageKey(config);
-  const slotRead = readRaw(slotKey);
+  const slotRead = readLocalStorage(slotKey);
   if (slotRead.status === "unavailable") return { status: "unavailable" };
-  if (slotRead.raw !== null) {
-    const parsed = parseStored(slotRead.raw);
+  if (slotRead.value !== null) {
+    const parsed = parseStored(slotRead.value);
     if (parsed.status === "invalid") {
       removeRaw(slotKey);
       return { status: "invalid" };
@@ -493,11 +482,11 @@ export function loadQuizProgressSave(config: QuizProgressConfigIdentity): QuizPr
     return { status: "ok", save: parsed.save };
   }
 
-  const legacyRead = readRaw(QUIZ_PROGRESS_LEGACY_STORAGE_KEY);
+  const legacyRead = readLocalStorage(QUIZ_PROGRESS_LEGACY_STORAGE_KEY);
   if (legacyRead.status === "unavailable") return { status: "unavailable" };
-  if (legacyRead.raw === null) return { status: "missing" };
+  if (legacyRead.value === null) return { status: "missing" };
 
-  const legacyParsed = parseStored(legacyRead.raw);
+  const legacyParsed = parseStored(legacyRead.value);
   if (legacyParsed.status === "invalid") {
     removeRaw(QUIZ_PROGRESS_LEGACY_STORAGE_KEY);
     return { status: "invalid" };
@@ -519,9 +508,9 @@ export function loadQuizProgressSave(config: QuizProgressConfigIdentity): QuizPr
  * a glance at another config, which loads and cleans its own slot when played.
  */
 export function peekQuizProgressSave(config: QuizProgressConfigIdentity): QuizProgressSave | null {
-  const read = readRaw(quizProgressStorageKey(config));
-  if (read.status !== "ok" || read.raw === null) return null;
-  const parsed = parseStored(read.raw);
+  const read = readLocalStorage(quizProgressStorageKey(config));
+  if (read.status !== "ok" || read.value === null) return null;
+  const parsed = parseStored(read.value);
   return parsed.status === "ok" ? parsed.save : null;
 }
 
@@ -533,18 +522,14 @@ export function peekQuizProgressSave(config: QuizProgressConfigIdentity): QuizPr
  */
 export function listQuizProgressSaves(): QuizProgressSave[] {
   const saves: QuizProgressSave[] = [];
-  try {
-    const storage = window.localStorage;
-    for (let i = 0; i < storage.length; i++) {
-      const key = storage.key(i);
-      if (!key?.startsWith(QUIZ_PROGRESS_STORAGE_PREFIX)) continue;
-      const raw = storage.getItem(key);
-      if (raw === null) continue;
-      const parsed = parseStored(raw);
-      if (parsed.status === "ok" && quizProgressStorageKeyFromSave(parsed.save) === key) saves.push(parsed.save);
-    }
-  } catch {
-    return [];
+  for (const key of listLocalStorageKeys()) {
+    if (!key.startsWith(QUIZ_PROGRESS_STORAGE_PREFIX)) continue;
+    const read = readLocalStorage(key);
+    // Storage that fails partway lists nothing, not a partial set.
+    if (read.status === "unavailable") return [];
+    if (read.value === null) continue;
+    const parsed = parseStored(read.value);
+    if (parsed.status === "ok" && quizProgressStorageKeyFromSave(parsed.save) === key) saves.push(parsed.save);
   }
   return saves;
 }
@@ -557,9 +542,9 @@ export function saveQuizProgress(save: QuizProgressSave): QuizProgressWriteResul
     // Drop the legacy key only when it is invalid or already belongs to this
     // config. A legacy save for another config must survive until that config
     // adopts it.
-    const legacy = readRaw(QUIZ_PROGRESS_LEGACY_STORAGE_KEY);
-    if (legacy.status === "ok" && legacy.raw !== null) {
-      const parsed = parseStored(legacy.raw);
+    const legacy = readLocalStorage(QUIZ_PROGRESS_LEGACY_STORAGE_KEY);
+    if (legacy.status === "ok" && legacy.value !== null) {
+      const parsed = parseStored(legacy.value);
       if (
         parsed.status === "invalid"
         || (
@@ -598,33 +583,22 @@ export function loadStoredPreferences(): {
 } {
   let playMode: PlayMode | null = null;
   let timerEnabled: boolean | null = null;
-  try {
-    const storedMode = window.localStorage.getItem(STORAGE_PLAY_MODE);
-    if (storedMode === "assisted" || storedMode === "standard" || storedMode === "expert") {
-      playMode = storedMode;
-    }
-    const storedTimer = window.localStorage.getItem(STORAGE_TIMER_ENABLED);
-    if (storedTimer !== null) {
-      timerEnabled = storedTimer === "true";
-    }
-  } catch {
-    // Storage is optional; private browsing may deny access.
+  // Storage is optional; private browsing may deny access, which reads as no preference.
+  const storedMode = getLocalStorageItem(STORAGE_PLAY_MODE);
+  if (storedMode === "assisted" || storedMode === "standard" || storedMode === "expert") {
+    playMode = storedMode;
+  }
+  const storedTimer = getLocalStorageItem(STORAGE_TIMER_ENABLED);
+  if (storedTimer !== null) {
+    timerEnabled = storedTimer === "true";
   }
   return { playMode, timerEnabled };
 }
 
 export function saveStoredPlayMode(mode: PlayMode): void {
-  try {
-    window.localStorage.setItem(STORAGE_PLAY_MODE, mode);
-  } catch {
-    // Storage is optional.
-  }
+  setLocalStorageItem(STORAGE_PLAY_MODE, mode);
 }
 
 export function saveStoredTimerEnabled(enabled: boolean): void {
-  try {
-    window.localStorage.setItem(STORAGE_TIMER_ENABLED, String(enabled));
-  } catch {
-    // Storage is optional.
-  }
+  setLocalStorageItem(STORAGE_TIMER_ENABLED, String(enabled));
 }
