@@ -23,7 +23,7 @@ O progresso da rodada fica no `localStorage` do navegador, na chave `kpop-map-<d
 
 ## Atualização
 
-`python -m kpop_scraping.map_pilot_refresh` refaz `data/map-pilot/deadline-events.json` a partir das fontes. O comando baixa a agenda uma vez e consulta o MusicBrainz em sequência, com intervalo mínimo de 1,1 s entre chamadas, timeout de 30 s e `User-Agent` com a URL do repositório. Ao Wikidata, faz uma chamada `wbgetentities` com `maxlag=5`. Se o Wikidata responder que está atrasado, o comando tenta de novo até 8 vezes, com espera dobrada a cada vez, somando até 255 s. Uma execução completa faz cerca de 110 chamadas e termina em aproximadamente dois minutos. A série pode ter até 200 eventos (`MAX_SERIES_EVENTS`). Acima disso, o comando para antes de consultar o primeiro evento, com um erro que cita o MBID da série e a contagem. A subida pela hierarquia de áreas de um local para em 10 níveis (`MAX_AREA_DEPTH`), também com erro. Em 25 de setembro de 2026 a série tinha 31 eventos.
+`python -m kpop_scraping.map_pilot_refresh` refaz `data/map-pilot/deadline-events.json` a partir das fontes. O comando baixa a agenda uma vez e consulta o MusicBrainz em sequência, com intervalo mínimo de 1,1 s entre chamadas, timeout de 30 s e `User-Agent` com a URL do repositório. Ao Wikidata, faz uma chamada `wbgetentities` com `maxlag=5`. Se o Wikidata responder que está atrasado, o comando tenta de novo até 8 vezes, com espera dobrada a cada vez, somando até 255 s. Uma execução completa faz cerca de 110 chamadas e termina em aproximadamente dois minutos. A série pode ter até 200 eventos (`MAX_SERIES_EVENTS`). Acima disso, o comando para antes de consultar o primeiro evento, com um erro que cita o MBID da série e a contagem. A subida pela hierarquia de áreas de um local para em 10 níveis (`MAX_AREA_DEPTH`), também com erro. Em 14 de novembro de 2026, a série tinha 31 eventos no MusicBrainz.
 
 A data é a chave entre a agenda e o MusicBrainz, porque a turnê tem no máximo um show por dia. Um evento entra no conjunto quando todas estas condições valem:
 
@@ -48,7 +48,7 @@ Na primeira execução, o QID associado ao Rogers Stadium no MusicBrainz apontav
 
 ## Mapa de países
 
-`scripts/build_map_pilot_map.py` baixa o GeoJSON Natural Earth 5.1.1 da tag `v5.1.1` do repositório `nvkelso/natural-earth-vector` e gera `web/src/data/map-pilot/world-map.json`. Uma tag do git pode ser movida, por isso o script confere o SHA-256 do arquivo baixado com `SOURCE_SHA256` antes de ler o JSON. Com outro hash, ele para sem gravar nada. Enquanto `SOURCE_SHA256` estiver vazio, o script também para e imprime o hash do arquivo que recebeu. O hash do arquivo da tag `v5.1.1` foi fixado em 2026-11-14: `239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255`. Com ele, o script reproduziu byte a byte o `world-map.json` do repositório.
+`scripts/build_map_pilot_map.py` baixa o GeoJSON Natural Earth 5.1.1 da tag `v5.1.1` do repositório `nvkelso/natural-earth-vector` e gera `web/src/data/map-pilot/world-map.json`. Quem mantém o repositório pode mover uma tag do git, por isso o script confere o SHA-256 do arquivo baixado com `SOURCE_SHA256` antes de ler o JSON. Com outro hash, ele para sem gravar nada. Enquanto `SOURCE_SHA256` estiver vazio, o script também para e imprime o hash do arquivo que recebeu. A PR #398 fixou em 2026-11-14 o hash do arquivo da tag `v5.1.1`, `239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255`. Com ele, o script reproduziu byte a byte o `world-map.json` do repositório.
 
 Para fixar o hash de um arquivo novo:
 
@@ -57,7 +57,7 @@ Para fixar o hash de um arquivo novo:
 3. Rode `git diff --exit-code web/src/data/map-pilot/world-map.json`. Sem diferença, o arquivo baixado gera o mesmo mapa que está no repositório.
 4. Escreva o hash em `SOURCE_SHA256` e faça o commit.
 
-Se o passo 3 mostrar diferença, o arquivo da tag mudou ou o código do script mudou desde o último mapa. Antes de fixar o hash, descubra qual dos dois aconteceu.
+Para fixar de novo a mesma tag, uma diferença no passo 3 indica que o arquivo da tag ou o código do script mudou. Descubra qual dos dois antes de fixar. Para uma versão nova do Natural Earth, a diferença é esperada e entra na revisão da PR.
 
 ## Arquivos
 
