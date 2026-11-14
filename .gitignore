@@ -28,3 +28,8 @@ raw/
 
 # Vitest coverage (local)
 web/coverage/
+
+# Local secrets: environment files, private keys and certificates
+.env*
+*.pem
+*.key

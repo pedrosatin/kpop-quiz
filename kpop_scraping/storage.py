@@ -848,7 +848,9 @@ class SnapshotStore:
 
     ORPHAN_DIR = ".orphans"
 
-    _SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9._-]+$")
+    # A path segment from a fixed alphabet; "." and ".." would name raw_dir
+    # itself or its parent.
+    _SAFE_SEGMENT = re.compile(r"^(?!\.\.?$)[A-Za-z0-9._-]+$")
     _ENTITY_ID = re.compile(r"^Q[1-9][0-9]*$")
 
     def __init__(self, raw_dir: Path) -> None:
@@ -998,8 +1000,15 @@ class SnapshotStore:
             os.close(directory_fd)
 
     def read(self, relative_path: str, expected_digest: str) -> bytes:
-        """Return decompressed snapshot bytes after checking their hash."""
+        """Return decompressed snapshot bytes after checking their hash.
+
+        ``relative_path`` comes from the database. A path that resolves
+        outside ``raw_dir``, through ``..``, an absolute path or a symbolic
+        link, is refused before anything is read.
+        """
         path = self.raw_dir / relative_path
+        if not path.resolve().is_relative_to(self.raw_dir.resolve()):
+            raise SnapshotIntegrityError(f"snapshot path {relative_path!r} is outside the raw directory")
         try:
             content = gzip.decompress(path.read_bytes())
         except (OSError, EOFError, zlib.error) as exc:
