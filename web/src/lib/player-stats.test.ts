@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ALL_GAME_IDS,
+  applyPlayerStatsFile,
   calculateGameStreak,
   calculateOverallStreak,
   createInitialPlayerStats,
@@ -12,6 +13,8 @@ import {
   isGameMatchRecorded,
   loadPlayerStats,
   markGameMatchRecorded,
+  parsePlayerStatsJson,
+  type PlayerStatsFile,
   PLAYER_STATS_STORAGE_KEY,
   recordGameFinish,
   resetPlayerStats,
@@ -574,6 +577,34 @@ describe("player-stats module", () => {
       expect(loadPlayerStats().games.quiz.won).toBe(1);
     });
 
+    it("parses a file without writing it and reads its export date", () => {
+      recordGameFinish("quiz", true, "2026-09-18");
+      const before = localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
+      const stats = createInitialPlayerStats();
+      stats.overall = { played: 4, won: 3, currentStreak: 2, maxStreak: 2, lastPlayedDate: "2026-10-01" };
+      const raw = JSON.stringify({ ...stats, exportedAt: "2026-10-01T12:00:00.000Z" });
+
+      const result = parsePlayerStatsJson(raw, "2026-11-14");
+      expect(result).toEqual({ success: true, file: { stats, exportedAt: "2026-10-01T12:00:00.000Z" } });
+      expect(localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(before);
+
+      expect(applyPlayerStatsFile((result as { file: PlayerStatsFile }).file)).toEqual({ success: true });
+      expect(loadPlayerStats()).toEqual(stats);
+    });
+
+    it("parses a file from before exportedAt with no export date", () => {
+      const result = parsePlayerStatsJson(JSON.stringify(createInitialPlayerStats()), "2026-11-14");
+      expect(result).toEqual({ success: true, file: { stats: createInitialPlayerStats() } });
+    });
+
+    it.each([["yesterday"], [12345], [null]])("treats exportedAt %j as an unknown export date", (exportedAt) => {
+      const raw = JSON.stringify({ ...createInitialPlayerStats(), exportedAt });
+      expect(parsePlayerStatsJson(raw, "2026-11-14")).toEqual({
+        success: true,
+        file: { stats: createInitialPlayerStats() },
+      });
+    });
+
     it("imports an export from before the code game and zeros it", () => {
       const payload = JSON.parse(JSON.stringify(createInitialPlayerStats())) as {
         games: Record<string, unknown>;
@@ -753,6 +784,102 @@ describe("player-stats module", () => {
       };
       const result = importPlayerStatsJson(JSON.stringify(payload));
       expect(result).toEqual({ success: false, error: "invalid-distribution" });
+    });
+
+    it("rejects a lastPlayedDate after today's reference date", () => {
+      const payload = validPayload();
+      const overall = payload["overall"] as Record<string, unknown>;
+      Object.assign(overall, { played: 1, won: 1, currentStreak: 1, maxStreak: 1 });
+      overall["lastPlayedDate"] = "2026-11-15";
+      expect(parsePlayerStatsJson(JSON.stringify(payload), "2026-11-14")).toEqual({
+        success: false,
+        error: "invalid-overall",
+      });
+      overall["lastPlayedDate"] = "2026-11-14";
+      expect(parsePlayerStatsJson(JSON.stringify(payload), "2026-11-14").success).toBe(true);
+    });
+
+    it("rejects a per-game lastPlayedDate after today's reference date", () => {
+      const payload = validPayload();
+      const quiz = (payload["games"] as Record<string, Record<string, unknown>>)["quiz"]!;
+      Object.assign(quiz, { played: 1, won: 1, currentStreak: 1, maxStreak: 1, lastPlayedDate: "2026-11-15" });
+      expect(parsePlayerStatsJson(JSON.stringify(payload), "2026-11-14")).toEqual({
+        success: false,
+        error: "invalid-game-stats",
+      });
+    });
+
+    it("rejects a far-future date against the real reference date and keeps storage", () => {
+      recordGameFinish("quiz", true, dailyReferenceDate());
+      const before = localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
+      const payload = validPayload();
+      const overall = payload["overall"] as Record<string, unknown>;
+      Object.assign(overall, { played: 1, won: 1, currentStreak: 1, maxStreak: 1, lastPlayedDate: "9999-12-31" });
+      expect(importPlayerStatsJson(JSON.stringify(payload))).toEqual({ success: false, error: "invalid-overall" });
+      expect(localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBe(before);
+    });
+
+    it.each(["2026-02-30", "2026-02-29", "2026-13-01", "2026-00-10", "2026-04-31"])(
+      "rejects the date %s, which is not on the calendar",
+      (date) => {
+        const payload = validPayload();
+        (payload["overall"] as Record<string, unknown>)["lastPlayedDate"] = date;
+        expect(parsePlayerStatsJson(JSON.stringify(payload), "2026-11-14")).toEqual({
+          success: false,
+          error: "invalid-overall",
+        });
+      }
+    );
+
+    it("accepts February 29 of a leap year", () => {
+      const payload = validPayload();
+      (payload["overall"] as Record<string, unknown>)["lastPlayedDate"] = "2024-02-29";
+      expect(parsePlayerStatsJson(JSON.stringify(payload), "2026-11-14").success).toBe(true);
+    });
+
+    it.each([
+      ["played", 1e300],
+      ["played", Number.MAX_SAFE_INTEGER + 1],
+      ["maxStreak", 1e300],
+    ])("rejects the overall counter %s = %d, which is past the safe integer range", (key, value) => {
+      const payload = validPayload();
+      (payload["overall"] as Record<string, unknown>)[key] = value;
+      expect(importPlayerStatsJson(JSON.stringify(payload))).toEqual({ success: false, error: "invalid-overall" });
+    });
+
+    it("rejects a per-game counter of 1e300", () => {
+      const payload = validPayload();
+      const quiz = (payload["games"] as Record<string, Record<string, unknown>>)["quiz"]!;
+      quiz["played"] = 1e300;
+      expect(importPlayerStatsJson(JSON.stringify(payload))).toEqual({ success: false, error: "invalid-game-stats" });
+    });
+
+    it("rejects a guessDistribution count of 1e300", () => {
+      const payload = validPayload();
+      const nameGuess = (payload["games"] as Record<string, Record<string, unknown>>)["name-guess"]!;
+      nameGuess["guessDistribution"] = { 1: 1e300, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+      expect(importPlayerStatsJson(JSON.stringify(payload))).toEqual({ success: false, error: "invalid-distribution" });
+    });
+
+    it("accepts the largest safe integer as a counter", () => {
+      const payload = validPayload();
+      (payload["overall"] as Record<string, unknown>)["played"] = Number.MAX_SAFE_INTEGER;
+      expect(parsePlayerStatsJson(JSON.stringify(payload), "2026-11-14").success).toBe(true);
+    });
+
+    it("rejects an overall currentStreak above played with invalid-overall", () => {
+      const payload = validPayload();
+      Object.assign(payload["overall"] as Record<string, unknown>, {
+        played: 2, won: 2, currentStreak: 3, maxStreak: 3,
+      });
+      expect(importPlayerStatsJson(JSON.stringify(payload))).toEqual({ success: false, error: "invalid-overall" });
+    });
+
+    it("rejects a per-game currentStreak above played with invalid-game-stats", () => {
+      const payload = validPayload();
+      const quiz = (payload["games"] as Record<string, Record<string, unknown>>)["quiz"]!;
+      Object.assign(quiz, { played: 1, won: 1, currentStreak: 2, maxStreak: 2 });
+      expect(importPlayerStatsJson(JSON.stringify(payload))).toEqual({ success: false, error: "invalid-game-stats" });
     });
 
     it("returns io-error when the import write does not persist", () => {
