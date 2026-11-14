@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -16,6 +17,11 @@ MIN_NAME_LENGTH = 4
 # Shorter performer names count in a credit only when spelled exactly.
 MIN_CREDIT_NAME_LENGTH = 2
 MAX_SNIPPET_LENGTH = 300
+# Compiled subject patterns kept per list of subject names. One run validates
+# one subject at a time, over at most three pages, so a few entries already
+# hold the working set. The bound holds the name lists kept as cache keys; the
+# compiled patterns are also bounded, by the cache of the ``re`` module.
+SUBJECT_PATTERN_CACHE_SIZE = 16
 MONTHS = (
     "January", "February", "March", "April", "May", "June", "July",
     "August", "September", "October", "November", "December",
@@ -643,10 +649,7 @@ def _release_by_subject(
         previous = page.extract[begin:end]
         # Do not inherit the generic subject helper's "In ...," prefix: it
         # can carry precisely the territorial scope excluded by this rule.
-        subject = re.match(
-            rf"^\s*[\"'“]?(?:{_alternation(subject_names)})[\"'”]?(?![\w'-])",
-            previous, _I,
-        )
+        subject = _named_subject_pattern(tuple(subject_names)).match(previous)
         if subject and not _leading_subject(previous, ()):
             description = previous[subject.end():]
             # Styling/short-title notes are part of the name, not predicates.
@@ -888,7 +891,16 @@ def page_title_name(title: str) -> str:
 
 
 def subject_names_for(page: WikipediaPage, names: Iterable[str]) -> tuple[str, ...]:
-    title = page_title_name(page.title)
+    return _sorted_subject_names(page_title_name(page.title), tuple(names))
+
+
+@functools.lru_cache(maxsize=SUBJECT_PATTERN_CACHE_SIZE)
+def _sorted_subject_names(title: str, names: tuple[str, ...]) -> tuple[str, ...]:
+    """Sort the subject names once per page title and list of names.
+
+    Longer names come first, then the alphabet, whatever the order of the
+    input, so equal sets give one tuple and one compiled pattern.
+    """
     values = {name.strip() for name in names if name.strip()}
     if title:
         values.add(title)
@@ -909,12 +921,30 @@ def _leading_subject(
     sentence: str,
     subject_names: Sequence[str],
 ) -> re.Match[str] | None:
+    return _leading_subject_pattern(tuple(subject_names)).match(sentence)
+
+
+@functools.lru_cache(maxsize=SUBJECT_PATTERN_CACHE_SIZE)
+def _leading_subject_pattern(subject_names: tuple[str, ...]) -> re.Pattern[str]:
+    """Compile the subject pattern once for every sentence of every page.
+
+    The alternation keeps the order of ``subject_names``, which decides the
+    alternative that matches first; ``subject_names_for`` sorts them.
+    """
     names = _alternation(subject_names)
     return re.compile(
         rf"^\s*[\"'“]?{_SUBJECT_PREFIX}(?:{names}|{_GENERIC_SUBJECT})"
         rf"(?:은|는)?[\"'”]?(?![\w'-])",
         _I,
-    ).match(sentence)
+    )
+
+
+@functools.lru_cache(maxsize=SUBJECT_PATTERN_CACHE_SIZE)
+def _named_subject_pattern(subject_names: tuple[str, ...]) -> re.Pattern[str]:
+    """Compile a sentence start that is one of the names, without a prefix."""
+    return re.compile(
+        rf"^\s*[\"'“]?(?:{_alternation(subject_names)})[\"'”]?(?![\w'-])", _I
+    )
 
 
 def _alternation(names: Iterable[str]) -> str:
