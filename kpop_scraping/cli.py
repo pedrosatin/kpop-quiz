@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import sys
 from pathlib import Path
 
 from .catalog import classify_catalog
@@ -11,7 +12,13 @@ from .fact_pipeline import extract_facts
 from .http_request import DEFAULT_USER_AGENT
 from .mediawiki import MaxlagBudget, MediaWikiClient, MediaWikiError
 from .reports import export_fact_coverage_csv, export_release_coverage_csv
-from .release_discovery import MAX_GROUPS_PER_QUERY, WikidataQueryClient, discover_releases
+from .release_discovery import (
+    MAX_CANDIDATES_PER_GROUP,
+    MAX_GROUPS_PER_QUERY,
+    TruncatedGroup,
+    WikidataQueryClient,
+    discover_releases,
+)
 from .release_pipeline import collect_release_facts
 from .storage import Repository, SnapshotIntegrityError
 from .wikidata import WikidataEntityClient, WikidataTypeClient
@@ -106,6 +113,26 @@ def _coverage(row) -> str:
     )
 
 
+def report_truncated_groups(truncated: tuple[TruncatedGroup, ...]) -> None:
+    """Warn about each group the per-group candidate limit cut; the run goes on.
+
+    The message holds only the group QID, which comes from the database and
+    passed ``build_query`` (``Q`` and ASCII digits without leading zeros), and
+    counts: no text from the WDQS answer reaches the workflow command. The
+    annotation is flushed at once: in GitHub Actions stdout is a pipe, so
+    Python buffers it, and the SIGTERM of the rebuild script's attempt timeout
+    would drop a buffered line.
+    """
+    for group in truncated:
+        message = (
+            f"WDQS returned {group.candidates} release candidates for group {group.group_id}; "
+            f"kept the {group.kept} with the lowest QIDs and discarded {group.discarded}"
+        )
+        sys.stderr.write(f"WARNING: {message}\n")
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print(f"::warning title=Release candidates truncated::{message}", flush=True)
+
+
 def _failure_exit_code(exc: Exception) -> int:
     """Tell a failure that may pass on a later run from one that will repeat."""
     if isinstance(exc, MediaWikiError) and exc.transient:
@@ -161,14 +188,15 @@ def main(argv: list[str] | None = None) -> int:
                     person_client=wikipedia if args.person_evidence else None,
                 )
                 fact_rows = export_fact_coverage_csv(repository.connection, facts_report)
-            release_totals = release_rows = None
+            release_totals = release_rows = discovery = None
             if run_releases:
-                discovery_run = discover_releases(
+                discovery = discover_releases(
                     repository,
                     WikidataQueryClient(user_agent=args.user_agent),
                     group_limit=args.release_group_limit,
                     group_offset=args.release_group_offset,
                 )
+                report_truncated_groups(discovery.truncated)
                 wikipedia_clients = {
                     language: MediaWikiClient(
                         api_url=f"https://{language}.wikipedia.org/w/api.php",
@@ -181,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
                 release_totals = collect_release_facts(
                     repository,
                     WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
-                    discovery_run,
+                    discovery.run_id,
                     wikipedia_clients=wikipedia_clients,
                 )
                 release_rows = export_release_coverage_csv(repository.connection, args.release_report or args.database.parent / "release-coverage.csv")
@@ -211,4 +239,10 @@ def main(argv: list[str] | None = None) -> int:
             f"{release_totals.conflict} conflict; "
             f"{release_rows} coverage rows"
         )
+        truncated = len(discovery.truncated)
+        if truncated:
+            print(
+                f"Release discovery: {truncated} group{'s' if truncated > 1 else ''} "
+                f"truncated at {MAX_CANDIDATES_PER_GROUP} candidates"
+            )
     return EXIT_OK

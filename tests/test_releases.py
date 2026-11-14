@@ -90,7 +90,9 @@ class ReleaseFactTest(unittest.TestCase):
             {"performer": {"value": "http://www.wikidata.org/entity/Q1"}, "release": {"value": "http://www.wikidata.org/entity/Q9"}},
             {"performer": {"value": "http://www.wikidata.org/entity/Q1"}, "release": {"value": "http://www.wikidata.org/entity/Q9"}},
         ]}}
-        self.assertEqual(len(_parse_results(json.dumps(payload).encode(), {"Q1"}, 1)), 1)
+        releases, truncated = _parse_results(json.dumps(payload).encode(), {"Q1"}, 1)
+        self.assertEqual(len(releases), 1)
+        self.assertEqual(truncated, ())
 
     def test_wdqs_retries_server_errors_and_limits_response_size(self):
         payload = json.dumps({"results": {"bindings": []}}).encode()
@@ -178,16 +180,6 @@ class ReleaseFactTest(unittest.TestCase):
                 self.assertEqual(raised.exception.transient, transient)
                 self.assertEqual(sleep.call_count, waits)
 
-        # A group above the candidate limit fails the same way on every run.
-        binding = {
-            "performer": {"value": "http://www.wikidata.org/entity/Q1"},
-            "release": {"value": "http://www.wikidata.org/entity/Q2"},
-        }
-        other = {**binding, "release": {"value": "http://www.wikidata.org/entity/Q3"}}
-        body = json.dumps({"results": {"bindings": [binding, other]}}).encode()
-        with self.assertRaisesRegex(MediaWikiError, "candidate limit exceeded") as raised:
-            _parse_results(body, {"Q1"}, 1)
-        self.assertFalse(raised.exception.transient)
 
     def test_rejects_invalid_per_group_limit(self):
         with self.assertRaisesRegex(ValueError, "candidate limit"):
@@ -244,7 +236,7 @@ class ReleaseFactTest(unittest.TestCase):
                     )
                 repository.connection.commit()
                 client = Client()
-                run_id = discover_releases(repository, client, group_limit=1, group_offset=1)
+                run_id = discover_releases(repository, client, group_limit=1, group_offset=1).run_id
                 groups = repository.connection.execute(
                     "SELECT e.wikidata_id FROM release_discovery_groups rdg JOIN entities e ON e.id=rdg.group_entity_id WHERE rdg.run_id=?",
                     (run_id,),
@@ -868,6 +860,55 @@ class ReleasePipelineScopeTest(unittest.TestCase):
             "SELECT group_entity_id,state FROM release_candidates ORDER BY group_entity_id"
         ).fetchall()
         self.assertEqual([tuple(row) for row in states], [(1, "stale"), (2, "accepted")])
+
+    def test_truncated_group_keeps_its_releases_and_facts(self):
+        old_run = self._run(groups=(1, 2))
+        self.connection.executemany(
+            """INSERT INTO release_candidates(
+                run_id,group_entity_id,requested_wikidata_id,resolved_wikidata_id,
+                entity_id,state
+            ) VALUES (?,?,?,?,?,'accepted')""",
+            [(old_run, 1, "Q900", "Q900", 10), (old_run, 2, "Q901", "Q901", 20)],
+        )
+        fact_run = self.connection.execute(
+            """INSERT INTO fact_runs(
+                extractor_version,source_policy_version,started_at,status
+            ) VALUES ('v','v','t','completed')"""
+        ).lastrowid
+        self.connection.executemany(
+            """INSERT INTO facts(
+                subject_entity_id,predicate,property_id,statement_id,rank,
+                value_time,value_precision,value_calendar,value_raw_json,
+                qualifiers_json,references_json,status,quality_flags_json,
+                snapshot_id,fact_run_id,extractor_version,extracted_at
+            ) VALUES (?,'released_on','P577',?,'normal','+2020-01-02T00:00:00Z',11,
+                'http://www.wikidata.org/entity/Q1985727','{}','{}','[]','accepted','[]',1,?,'v','t')""",
+            [(10, "QR1$date", fact_run), (20, "QR2$date", fact_run)],
+        )
+        # Neither release is in the current run; group 1 lost candidates
+        # after Q500 to the limit, so Q900 may be one of them.
+        current_run = self._run(groups=(1, 2))
+        self.connection.execute(
+            """UPDATE release_discovery_groups SET candidates_discarded=4,last_kept_wikidata_id='Q500'
+            WHERE run_id=? AND group_entity_id=1""",
+            (current_run,),
+        )
+        next_fact_run = self.connection.execute(
+            """INSERT INTO fact_runs(
+                extractor_version,source_policy_version,started_at,status
+            ) VALUES ('v','v','t','running')"""
+        ).lastrowid
+
+        _mark_stale_releases(self.connection, current_run, next_fact_run)
+
+        candidates = self.connection.execute(
+            "SELECT group_entity_id,state FROM release_candidates ORDER BY group_entity_id"
+        ).fetchall()
+        self.assertEqual([tuple(row) for row in candidates], [(1, "accepted"), (2, "stale")])
+        facts = self.connection.execute(
+            "SELECT subject_entity_id,status FROM facts ORDER BY subject_entity_id"
+        ).fetchall()
+        self.assertEqual([tuple(row) for row in facts], [(10, "accepted"), (20, "stale")])
 
     def test_staleness_rolls_back_with_the_fact_run(self):
         old_run = self._run(groups=(1,))

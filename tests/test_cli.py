@@ -169,7 +169,7 @@ class CLITest(unittest.TestCase):
         cases = (
             (MediaWikiError("MediaWiki error maxlag: 9.6 seconds lagged", code="maxlag", transient=True), EXIT_TRANSIENT),
             (MediaWikiError("WDQS request failed with HTTP 503", transient=True), EXIT_TRANSIENT),
-            (MediaWikiError("WDQS candidate limit exceeded for Q1"), EXIT_DETERMINISTIC),
+            (MediaWikiError("WDQS response exceeds the configured size limit"), EXIT_DETERMINISTIC),
             (MediaWikiError("MediaWiki request failed with HTTP 404", code="http_404"), EXIT_DETERMINISTIC),
             (SnapshotIntegrityError("snapshot hash differs"), EXIT_DETERMINISTIC),
             (ValueError("no accepted catalog groups are available"), EXIT_DETERMINISTIC),
