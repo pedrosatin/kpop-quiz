@@ -36,10 +36,13 @@ _DISPLAY_OPTIONS = frozenset({"df", "mf"})
 _MARKUP = re.compile(
     r"<!--.*?-->|<ref[^>/]*/>|<ref[^>]*>.*?</ref\s*>|</?[a-z][^>]*>", re.I | re.S
 )
-_TRAILING_NOTE = re.compile(r"\s*\([^()]*\)\s*$")
-_TRAILING_REFS = re.compile(
-    r"(?:\s*(?:<!--.*?-->|<ref[^>/]*/>|<ref[^>]*>.*?</ref\s*>))+\s*$", re.I | re.S
-)
+# Matched at the last "(" only. With a leading \s* and .sub, the earlier pattern
+# was tried at each space that _mask leaves for a reference, and each try read
+# the whole run of spaces.
+_TRAILING_NOTE = re.compile(r"\([^()]*\)\s*$")
+_NOTE_START = re.compile(r"<!--|<ref", re.I)
+_COMMENT_CLOSE = re.compile(r"-->")
+_REF_CLOSE = re.compile(r"</ref\s*>", re.I)
 _PIPED_LINK = re.compile(r"\[\[(?:[^\[\]|]*\|)?([^\[\]|]*)\]\]")
 _MONTH_NUMBER = {name.lower(): number for number, name in enumerate(MONTHS, start=1)}
 _MONTH_NAMES = "|".join(MONTHS)
@@ -207,7 +210,10 @@ def _stated_date(wikitext: str, start: int, end: int) -> tuple[int, ...] | None:
     """Read the one date a ``birth_date`` value states, or None when it is not clear."""
     raw = wikitext[start:end]
     masked = _mask(raw)
-    body = _TRAILING_NOTE.sub("", masked).strip()
+    note = masked.rfind("(")
+    if note < 0 or not _TRAILING_NOTE.match(masked, note):
+        note = len(masked)
+    body = masked[:note].strip()
     if body.startswith("{{"):
         close = _closing_braces(body, 0)
         if close != len(body):
@@ -280,7 +286,67 @@ def _calendar_date(year: int, month: int, day: int) -> tuple[int, ...] | None:
 def _without_trailing_notes(wikitext: str, start: int, end: int) -> tuple[int, int]:
     """Cut the references and comments that follow an item out of its span."""
     chunk = wikitext[start:end]
-    found = _TRAILING_REFS.search(chunk)
-    if found:
-        chunk = chunk[: found.start()]
+    notes = _trailing_notes_start(chunk)
+    if notes is not None:
+        chunk = chunk[:notes]
     return start, start + len(chunk.rstrip())
+
+
+def _trailing_notes_start(text: str) -> int | None:
+    """Return where the comments and references that end ``text`` begin, or None.
+
+    A note is a comment, a self-closing ``<ref .../>`` or a ``<ref ...>`` with
+    a closing tag, and only whitespace may come between notes and after the
+    last one. The result is the first position from which the rest of
+    ``text`` is such a run. A comment may close at any later ``-->`` and a
+    reference at any later ``</ref>``, so "Busan<ref>a</ref>, Korea<ref>b</ref>"
+    is cut after "Busan", as the single pattern this replaces cut it. That
+    pattern tried each way to close each note, which is exponential in the
+    number of notes; read from right to left, each position is decided once.
+    """
+    size = len(text)
+    starts = {found.start() for found in _NOTE_START.finditer(text)}
+    comment_closes = {found.start() for found in _COMMENT_CLOSE.finditer(text)}
+    ref_closes = {found.start(): found.end() for found in _REF_CLOSE.finditer(text)}
+    # rest_is_notes[i]: text[i:] is blank or starts, after spaces, with a note
+    # that can end where the rest is again blank or such a run.
+    rest_is_notes = [False] * size + [True]
+    # The last "-->" and "</ref>" followed by such a rest: a note that opens
+    # before one of them can close there.
+    comment_close = ref_close = None
+    next_bracket = next_bracket_or_slash = None
+    first = None
+    for index in range(size - 1, -1, -1):
+        char = text[index]
+        if char == ">":
+            next_bracket = next_bracket_or_slash = index
+        elif char == "/":
+            next_bracket_or_slash = index
+        if comment_close is None and index in comment_closes and rest_is_notes[index + 3]:
+            comment_close = index
+        if ref_close is None and index in ref_closes and rest_is_notes[ref_closes[index]]:
+            ref_close = index
+        if char.isspace():
+            rest_is_notes[index] = rest_is_notes[index + 1]
+            continue
+        if index not in starts:
+            continue
+        if text.startswith("<!--", index):
+            # The body of a comment starts after "<!--", so "<!-->" does not close it.
+            is_note = comment_close is not None and comment_close >= index + 4
+        else:
+            # "<ref" is followed by its attributes, then "/>" or ">".
+            slash = next_bracket_or_slash
+            is_note = (
+                slash is not None
+                and text.startswith("/>", slash)
+                and rest_is_notes[slash + 2]
+            ) or (
+                next_bracket is not None
+                and ref_close is not None
+                and ref_close > next_bracket
+            )
+        if is_note:
+            rest_is_notes[index] = True
+            first = index
+    return first
