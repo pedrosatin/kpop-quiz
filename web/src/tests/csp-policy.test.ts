@@ -126,6 +126,8 @@ describe("allowsUrl", () => {
     expect(allowsUrl(["https://a.example/gtag/js"], "https://a.example:8443/gtag/js")).toBe(false);
     expect(allowsUrl(["https://a.example:8443"], "https://a.example:8443/x.js")).toBe(true);
     expect(allowsUrl(["https://a.example:*"], "https://a.example:8443/x.js")).toBe(true);
+    expect(allowsUrl(["https://a.example:443"], "https://a.example/x.js")).toBe(true);
+    expect(allowsUrl(["http://a.example:80"], "http://a.example/x.js")).toBe(true);
   });
 
   it("matches host, wildcard, scheme and path sources as CSP does", () => {
