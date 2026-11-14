@@ -2,12 +2,19 @@
 
 Natural Earth country data is public domain. The output stores only feature
 IDs, display labels, Wikidata and ISO identifiers and simplified paths; no schedule source content is copied.
+
+The download must match ``SOURCE_SHA256`` before anything is parsed or
+written. While that pin is empty the script stops and prints the SHA-256 of
+the file it got; ``docs/map-game-pilot.md`` describes how to check that file
+and pin it. ``--sha256`` uses another hash for one run.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import re
 import math
 import sys
 from pathlib import Path
@@ -25,14 +32,37 @@ SOURCE_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
     "v5.1.1/geojson/ne_10m_admin_0_countries.geojson"
 )
+# SHA-256 of the file at SOURCE_URL. A git tag can be moved, so the tag in
+# the URL alone does not fix the bytes. Empty until an operator pins it with
+# the procedure in docs/map-game-pilot.md.
+SOURCE_SHA256: str | None = None
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 WIDTH = 1200
 HEIGHT = 600
 SIMPLIFY_PX = 0.35
 
 
-def download_features() -> dict[str, Any]:
+class SourceHashError(RuntimeError):
+    """The downloaded Natural Earth file has no pin, or not the pinned hash."""
+
+
+def download_features(expected_sha256: str | None = None) -> dict[str, Any]:
+    """Download the GeoJSON and parse it once its SHA-256 matches the pin.
+
+    ``expected_sha256`` defaults to ``SOURCE_SHA256``.
+    """
+    expected = expected_sha256 or SOURCE_SHA256
     with open_url(SOURCE_URL, timeout=30, user_agent=DEFAULT_USER_AGENT) as response:
-        return json.load(response)
+        body = response.read()
+    actual = hashlib.sha256(body).hexdigest()
+    if expected is None:
+        raise SourceHashError(
+            f"SOURCE_SHA256 is not pinned; the downloaded file has SHA-256 {actual}. "
+            "Check it as docs/map-game-pilot.md describes before pinning it."
+        )
+    if actual != expected:
+        raise SourceHashError(f"{SOURCE_URL} has SHA-256 {actual}, expected {expected}")
+    return json.loads(body)
 
 
 def project(point: list[float]) -> tuple[float, float]:
@@ -146,8 +176,19 @@ def main() -> int:
         type=Path,
         default=Path("web/src/data/map-pilot/world-map.json"),
     )
+    parser.add_argument(
+        "--sha256",
+        help="Expected SHA-256 of the download for this run, instead of SOURCE_SHA256",
+    )
     args = parser.parse_args()
-    payload = build_map(download_features())
+    if args.sha256 is not None and not _SHA256.fullmatch(args.sha256):
+        parser.error("--sha256 takes 64 lowercase hexadecimal digits")
+    try:
+        features = download_features(args.sha256)
+    except SourceHashError as exc:
+        print(f"Natural Earth download refused: {exc}", file=sys.stderr)
+        return 1
+    payload = build_map(features)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"Wrote {len(payload['features'])} map features to {args.output}")

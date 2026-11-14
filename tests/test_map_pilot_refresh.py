@@ -11,12 +11,15 @@ from urllib.error import HTTPError
 
 from kpop_scraping.map_pilot_refresh import (
     DEADLINE_TOUR,
+    MAX_AREA_DEPTH,
+    MAX_SERIES_EVENTS,
     WIKIDATA_MAXLAG_BUDGET_SECONDS,
     AreaCountryClaim,
     DatasetError,
     MusicBrainzSnapshot,
     area_wikidata_ids,
     build_map_pilot_dataset,
+    collect_musicbrainz,
     current_item_values,
     validate_map_pilot_dataset,
 )
@@ -165,6 +168,100 @@ class MusicBrainzClientTest(unittest.TestCase):
     def test_rejects_unknown_entity(self):
         with self.assertRaises(ValueError):
             self.make_client().lookup("recording", "x")
+
+
+class FakeMusicBrainz:
+    """Answers lookups from a table and records them."""
+
+    def __init__(self, entities: dict[tuple[str, str], dict]) -> None:
+        self.entities = entities
+        self.lookups: list[tuple[str, str]] = []
+
+    def lookup(self, entity: str, mbid: str, includes: tuple[str, ...] = ()) -> dict:
+        self.lookups.append((entity, mbid))
+        return self.entities[(entity, mbid)]
+
+
+def series_of(event_count: int) -> dict:
+    return {"relations": [
+        {"target-type": "event", "event": {"id": f"event-{index}"}} for index in range(event_count)
+    ]}
+
+
+def event_at(place_id: str) -> dict:
+    return {"relations": [{"target-type": "place", "type": "held at", "place": {"id": place_id}}]}
+
+
+def area_under(parent_id: str | None) -> dict:
+    relations = [] if parent_id is None else [
+        {"target-type": "area", "type": "part of", "direction": "backward", "area": {"id": parent_id}}
+    ]
+    return {"type": "City", "relations": relations}
+
+
+class CollectMusicBrainzLimitTest(unittest.TestCase):
+    def entities(self, event_count: int, area_chain: int = 2) -> dict[tuple[str, str], dict]:
+        entities = {
+            ("series", DEADLINE_TOUR.series_mbid): series_of(event_count),
+            ("artist", DEADLINE_TOUR.artist_mbid): {"relations": []},
+            ("place", "place-0"): {"area": {"id": "area-0"}},
+        }
+        for index in range(event_count):
+            entities[("event", f"event-{index}")] = event_at("place-0")
+        for level in range(area_chain):
+            parent = f"area-{level + 1}" if level + 1 < area_chain else None
+            entities[("area", f"area-{level}")] = area_under(parent)
+        return entities
+
+    def test_a_series_at_the_limit_is_collected(self):
+        client = FakeMusicBrainz(self.entities(MAX_SERIES_EVENTS))
+
+        snapshot = collect_musicbrainz(client, DEADLINE_TOUR)
+
+        self.assertEqual(len(snapshot.events), MAX_SERIES_EVENTS)
+        self.assertEqual(sorted(snapshot.areas), ["area-0", "area-1"])
+
+    def test_a_series_above_the_limit_fails_before_any_event_lookup(self):
+        client = FakeMusicBrainz(self.entities(MAX_SERIES_EVENTS + 1))
+
+        with self.assertRaisesRegex(
+            MusicBrainzError, f"lists {MAX_SERIES_EVENTS + 1} events, above the limit of {MAX_SERIES_EVENTS}"
+        ):
+            collect_musicbrainz(client, DEADLINE_TOUR)
+        self.assertEqual([entity for entity, _ in client.lookups], ["series", "artist"])
+
+    def test_relations_other_than_events_do_not_count(self):
+        entities = self.entities(1)
+        entities[("series", DEADLINE_TOUR.series_mbid)]["relations"].extend(
+            {"target-type": "url", "url": {"id": f"url-{index}"}} for index in range(MAX_SERIES_EVENTS + 1)
+        )
+
+        self.assertEqual(len(collect_musicbrainz(FakeMusicBrainz(entities), DEADLINE_TOUR).events), 1)
+
+    def test_an_area_chain_deeper_than_the_limit_fails(self):
+        self.assertEqual(
+            len(collect_musicbrainz(FakeMusicBrainz(self.entities(1, MAX_AREA_DEPTH)), DEADLINE_TOUR).areas),
+            MAX_AREA_DEPTH,
+        )
+        client = FakeMusicBrainz(self.entities(1, MAX_AREA_DEPTH + 1))
+
+        with self.assertRaisesRegex(MusicBrainzError, f"place place-0 is deeper than {MAX_AREA_DEPTH} levels"):
+            collect_musicbrainz(client, DEADLINE_TOUR)
+        self.assertEqual(sum(entity == "area" for entity, _ in client.lookups), MAX_AREA_DEPTH)
+
+    def test_the_depth_error_escapes_the_place_mbid(self):
+        entities = self.entities(1, MAX_AREA_DEPTH + 1)
+        entities[("event", "event-0")] = event_at("place-0\n::error::x")
+        entities[("place", "place-0\n::error::x")] = entities.pop(("place", "place-0"))
+
+        with self.assertRaises(MusicBrainzError) as caught:
+            collect_musicbrainz(FakeMusicBrainz(entities), DEADLINE_TOUR)
+        self.assertNotIn("\n", str(caught.exception))
+        self.assertIn("place-0%0A::error::x", str(caught.exception))
+
+    def test_the_limit_covers_the_committed_dataset(self):
+        dataset = json.loads(DATASET.read_text(encoding="utf-8"))
+        self.assertLess(len(dataset["events"]) + len(dataset["unmatched_schedule_dates"]), MAX_SERIES_EVENTS)
 
 
 class WikidataCountryTest(unittest.TestCase):

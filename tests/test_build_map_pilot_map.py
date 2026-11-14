@@ -1,3 +1,5 @@
+import hashlib
+import io
 import json
 import math
 import unittest
@@ -5,8 +7,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+from scripts import build_map_pilot_map
 from scripts.build_map_pilot_map import (
     WIDTH,
+    SourceHashError,
     HEIGHT,
     build_map,
     distance_to_segment,
@@ -201,21 +205,57 @@ class TestMapBuildingAndCLI(unittest.TestCase):
         self.assertEqual(feature["iso_a2"], "US")
         self.assertTrue(feature["path"].startswith("M"))
 
+    BODY = b'{"type": "FeatureCollection"}'
+    BODY_SHA256 = hashlib.sha256(BODY).hexdigest()
+
     @mock.patch("kpop_scraping.http_request.urlopen")
     def test_download_features(self, mock_urlopen):
-        mock_response = mock.MagicMock()
-        mock_response.read.return_value = b'{"type": "FeatureCollection"}'
-        mock_response.__enter__.return_value = mock_response
-        mock_urlopen.return_value = mock_response
+        mock_urlopen.return_value = io.BytesIO(self.BODY)
 
-        with mock.patch("scripts.build_map_pilot_map.json.load") as mock_load:
-            mock_load.return_value = {"type": "FeatureCollection"}
-            result = download_features()
-            self.assertEqual(result, {"type": "FeatureCollection"})
+        result = download_features(self.BODY_SHA256)
 
+        self.assertEqual(result, {"type": "FeatureCollection"})
         request = mock_urlopen.call_args[0][0]
         self.assertIn("kpop-quiz", request.get_header("User-agent"))
         self.assertEqual(mock_urlopen.call_args[1]["timeout"], 30)
+
+    @mock.patch("kpop_scraping.http_request.urlopen")
+    def test_download_uses_the_pinned_hash_by_default(self, mock_urlopen):
+        mock_urlopen.return_value = io.BytesIO(self.BODY)
+        with mock.patch.object(build_map_pilot_map, "SOURCE_SHA256", self.BODY_SHA256):
+            self.assertEqual(download_features(), {"type": "FeatureCollection"})
+
+    @mock.patch("kpop_scraping.http_request.urlopen")
+    def test_download_with_another_hash_is_refused(self, mock_urlopen):
+        mock_urlopen.return_value = io.BytesIO(self.BODY)
+        with mock.patch("scripts.build_map_pilot_map.json.loads") as loads:
+            with self.assertRaisesRegex(SourceHashError, f"has SHA-256 {self.BODY_SHA256}, expected 0{{64}}"):
+                download_features("0" * 64)
+        loads.assert_not_called()
+
+    @mock.patch("kpop_scraping.http_request.urlopen")
+    def test_download_without_a_pin_is_refused_and_names_the_hash(self, mock_urlopen):
+        mock_urlopen.return_value = io.BytesIO(self.BODY)
+        with mock.patch.object(build_map_pilot_map, "SOURCE_SHA256", None):
+            with self.assertRaisesRegex(SourceHashError, f"not pinned; the downloaded file has SHA-256 {self.BODY_SHA256}"):
+                download_features()
+
+    @mock.patch("kpop_scraping.http_request.urlopen")
+    def test_main_writes_nothing_when_the_hash_differs(self, mock_urlopen):
+        mock_urlopen.return_value = io.BytesIO(self.BODY)
+        with TemporaryDirectory() as tmp_dir:
+            output_path = Path(tmp_dir) / "output.json"
+            argv = ["script.py", "--output", str(output_path), "--sha256", "0" * 64]
+            with mock.patch("sys.argv", argv), mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+                self.assertEqual(main(), 1)
+            self.assertFalse(output_path.exists())
+            self.assertIn("Natural Earth download refused", stderr.getvalue())
+
+    def test_main_rejects_a_malformed_hash(self):
+        with mock.patch("sys.argv", ["script.py", "--sha256", "ABC"]), mock.patch("sys.stderr", new_callable=io.StringIO):
+            with self.assertRaises(SystemExit) as caught:
+                main()
+        self.assertEqual(caught.exception.code, 2)
 
     @mock.patch("scripts.build_map_pilot_map.download_features")
     def test_main(self, mock_download):

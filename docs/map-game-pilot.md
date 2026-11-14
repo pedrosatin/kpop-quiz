@@ -23,7 +23,7 @@ O progresso da rodada fica no `localStorage` do navegador, na chave `kpop-map-<d
 
 ## Atualização
 
-`python -m kpop_scraping.map_pilot_refresh` refaz `data/map-pilot/deadline-events.json` a partir das fontes. O comando baixa a agenda uma vez e consulta o MusicBrainz em sequência, com intervalo mínimo de 1,1 s entre chamadas, timeout de 30 s e `User-Agent` com a URL do repositório. Ao Wikidata, faz uma chamada `wbgetentities` com `maxlag=5`. Se o Wikidata responder que está atrasado, o comando tenta de novo até 8 vezes, com espera dobrada a cada vez, somando até 255 s. Uma execução completa faz cerca de 110 chamadas e termina em aproximadamente dois minutos.
+`python -m kpop_scraping.map_pilot_refresh` refaz `data/map-pilot/deadline-events.json` a partir das fontes. O comando baixa a agenda uma vez e consulta o MusicBrainz em sequência, com intervalo mínimo de 1,1 s entre chamadas, timeout de 30 s e `User-Agent` com a URL do repositório. Ao Wikidata, faz uma chamada `wbgetentities` com `maxlag=5`. Se o Wikidata responder que está atrasado, o comando tenta de novo até 8 vezes, com espera dobrada a cada vez, somando até 255 s. Uma execução completa faz cerca de 110 chamadas e termina em aproximadamente dois minutos. A série pode ter até 200 eventos (`MAX_SERIES_EVENTS`). Acima disso, o comando para antes de consultar o primeiro evento, com um erro que cita o MBID da série e a contagem. A subida pela hierarquia de áreas de um local para em 10 níveis (`MAX_AREA_DEPTH`), também com erro. Em 25 de setembro de 2026 a série tinha 31 eventos.
 
 A data é a chave entre a agenda e o MusicBrainz, porque a turnê tem no máximo um show por dia. Um evento entra no conjunto quando todas estas condições valem:
 
@@ -45,6 +45,19 @@ A agenda da YG lista 33 datas em 16 destinos. A série da turnê no MusicBrainz 
 Os 31 eventos cobrem 14 países. O MusicBrainz registra Hong Kong como subdivisão da China, e o `P17` da área Kowloon City District no Wikidata é `Q148`. Por isso o jogo aceita China nas datas do Kai Tak Stadium. Taiwan resolve para `TW` e para a feição `TWN`.
 
 Na primeira execução, o QID associado ao Rogers Stadium no MusicBrainz apontava para outro estádio, com país Estados Unidos. O validador consulta o `P17` da área do local, North York, em vez do QID do estádio, e por isso esse vínculo errado não afeta a resposta.
+
+## Mapa de países
+
+`scripts/build_map_pilot_map.py` baixa o GeoJSON Natural Earth 5.1.1 da tag `v5.1.1` do repositório `nvkelso/natural-earth-vector` e gera `web/src/data/map-pilot/world-map.json`. Uma tag do git pode ser movida, por isso o script confere o SHA-256 do arquivo baixado com `SOURCE_SHA256` antes de ler o JSON. Com outro hash, ele para sem gravar nada. Enquanto `SOURCE_SHA256` estiver vazio, o script também para e imprime o hash do arquivo que recebeu.
+
+Para fixar o hash:
+
+1. Rode `python scripts/build_map_pilot_map.py`. O erro traz o SHA-256 do arquivo baixado.
+2. Rode `python scripts/build_map_pilot_map.py --sha256 <hash>` com esse valor. O script grava o mapa.
+3. Rode `git diff --exit-code web/src/data/map-pilot/world-map.json`. Sem diferença, o arquivo baixado gera o mesmo mapa que está no repositório.
+4. Escreva o hash em `SOURCE_SHA256` e faça o commit.
+
+Se o passo 3 mostrar diferença, o arquivo da tag mudou ou o código do script mudou desde o último mapa. Antes de fixar o hash, descubra qual dos dois aconteceu.
 
 ## Arquivos
 
