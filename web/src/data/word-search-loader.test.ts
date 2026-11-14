@@ -78,6 +78,14 @@ describe("published word search puzzle loader and validator", () => {
     expect(isWordSearchPuzzle(invalid)).toBe(false);
   });
 
+  it("rejects evidence whose source URL only looks like https", () => {
+    for (const url of ["https://", "https://exa mple.com/"]) {
+      const invalid = structuredClone(validPuzzle);
+      invalid.words[0]!.evidence[0]!.source_url = url;
+      expect(isWordSearchPuzzle(invalid), url).toBe(false);
+    }
+  });
+
   it("rejects duplicate word IDs", () => {
     const invalid = structuredClone(validPuzzle);
     const duplicated = structuredClone(invalid.words[0]!);

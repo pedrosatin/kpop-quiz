@@ -1,7 +1,9 @@
 """Unit tests for media registry and license validation."""
 
+import json
 import unittest
 from copy import deepcopy
+from pathlib import Path
 
 from kpop_scraping.media_registry import (
     PERMITTED_LICENSES,
@@ -185,7 +187,7 @@ class MediaRegistryTest(unittest.TestCase):
                 self.assertIn("transformations", str(ctx.exception))
 
     def test_invalid_urls(self):
-        # asset_url must be http or https
+        # asset_url must be https
         media = sample_media()
         media["asset_url"] = "ftp://example.com/photo.jpg"
         with self.assertRaises(ValueError) as ctx:
@@ -199,12 +201,35 @@ class MediaRegistryTest(unittest.TestCase):
             validate_licensed_media(media)
         self.assertIn("source_url", str(ctx.exception))
 
-        # license_url must be http or https
+        # license_url must be https
         media = sample_media()
         media["license_url"] = "javascript:alert(1)"
         with self.assertRaises(ValueError) as ctx:
             validate_licensed_media(media)
         self.assertIn("license_url", str(ctx.exception))
+
+    def test_media_urls_accept_only_https(self):
+        # The browser loads asset_url and links license_url, so plain http
+        # would fetch or open them in clear text.
+        insecure = {
+            "asset_url": "http://upload.wikimedia.org/wikipedia/commons/a/a1/Twice_photo.jpg",
+            "license_url": "http://creativecommons.org/licenses/by/3.0/",
+        }
+        for field, url in insecure.items():
+            with self.subTest(field=field):
+                media = sample_media()
+                media[field] = url
+                with self.assertRaises(ValueError) as ctx:
+                    validate_licensed_media(media)
+                self.assertIn(field, str(ctx.exception))
+                self.assertIn("https", str(ctx.exception))
+
+    def test_json_schema_pins_media_urls_to_https(self):
+        schema_path = Path(__file__).resolve().parents[1] / "schemas" / "licensed-media-v1.json"
+        properties = json.loads(schema_path.read_text(encoding="utf-8"))["properties"]
+        for field in ("asset_url", "source_url", "license_url"):
+            with self.subTest(field=field):
+                self.assertEqual(properties[field]["pattern"], "^https://")
 
     def test_empty_creator(self):
         media = sample_media()

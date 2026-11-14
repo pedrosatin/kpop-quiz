@@ -57,13 +57,13 @@ def validate_licensed_media(media: dict[str, Any]) -> None:
     if extra:
         raise ValueError(f"media contains unexpected fields: {sorted(extra)}")
 
-    # asset_url: URI with http/https
+    # asset_url: URI with https
     asset_url = media.get("asset_url")
     if not isinstance(asset_url, str) or not asset_url:
         raise ValueError("media asset_url must be a non-empty string")
     parsed_asset = urlsplit(asset_url)
-    if parsed_asset.scheme not in {"http", "https"} or not parsed_asset.netloc:
-        raise ValueError(f"media asset_url must have http or https scheme: {asset_url}")
+    if parsed_asset.scheme != "https" or not parsed_asset.netloc:
+        raise ValueError(f"media asset_url must have https scheme: {asset_url}")
 
     # source_url: URI with https
     source_url = media.get("source_url")
@@ -88,13 +88,13 @@ def validate_licensed_media(media: dict[str, Any]) -> None:
             f"and commercial/editorial use are allowed ({', '.join(sorted(PERMITTED_LICENSES))})"
         )
 
-    # license_url: URI with http/https
+    # license_url: URI with https
     license_url = media.get("license_url")
     if not isinstance(license_url, str) or not license_url:
         raise ValueError("media license_url must be a non-empty string")
     parsed_license = urlsplit(license_url)
-    if parsed_license.scheme not in {"http", "https"} or not parsed_license.netloc:
-        raise ValueError(f"media license_url must have http or https scheme: {license_url}")
+    if parsed_license.scheme != "https" or not parsed_license.netloc:
+        raise ValueError(f"media license_url must have https scheme: {license_url}")
 
     # subject_qid: Wikidata QID matching ^Q[1-9][0-9]*$
     subject_qid = media.get("subject_qid")

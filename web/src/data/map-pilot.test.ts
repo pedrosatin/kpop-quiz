@@ -43,6 +43,20 @@ describe("map pilot data", () => {
     expect(mapPilotCountryLabel(unitedStates, "en")).toBe("United States of America");
   });
 
+  it("rejects an event whose MusicBrainz link is not https", () => {
+    for (const url of ["javascript:alert(1)", "http://musicbrainz.org/event/1", "https://", ""]) {
+      const invalid = structuredClone(eventData);
+      invalid.events[0]!.musicbrainz_event_url = url;
+      expect(isMapPilotDataset(invalid), url).toBe(false);
+    }
+  });
+
+  it("rejects an event whose source URL only looks like https", () => {
+    const invalid = structuredClone(eventData);
+    invalid.events[0]!.source_url = "https://exa mple.com/";
+    expect(isMapPilotDataset(invalid)).toBe(false);
+  });
+
   it("rejects duplicate event identities", () => {
     const invalid = structuredClone(eventData);
     invalid.events[1]!.event_mbid = invalid.events[0]!.event_mbid;

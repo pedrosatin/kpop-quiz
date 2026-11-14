@@ -5,6 +5,8 @@
  * readable label, never in its place.
  */
 
+import { parseHttpsUrl } from "./https-url";
+
 export type SourceSite =
   | { kind: "wikipedia"; language: string }
   | { kind: "wikidata" }
@@ -47,8 +49,8 @@ function parseUrl(raw: string): URL | null {
  * https or carries credentials: such a URL is never linked.
  */
 export function sourceTarget(raw: string): SourceTarget | null {
-  const url = parseUrl(raw);
-  if (!url || url.protocol !== "https:" || url.username || url.password || !url.hostname) return null;
+  const url = parseHttpsUrl(raw);
+  if (!url || url.username || url.password) return null;
   return { href: url.href, site: siteOf(url.hostname) };
 }
 
