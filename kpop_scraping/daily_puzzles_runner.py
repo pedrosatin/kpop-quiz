@@ -63,6 +63,7 @@ from .crossword_publication import (
     verify_history as verify_crossword_history,
     write_record as write_crossword_record,
 )
+from .evidence import EVIDENCE_RULES_VERSION
 from .grid_generator import generate_daily_grid, grid_incompatibility
 from .grid_publication import publication, read_publication, write_publication
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
@@ -105,6 +106,31 @@ NEXT_DIRNAME = "next"
 # The checksum of every crossword artifact already covers its date.
 CROSSWORD_SEED = "kpop-crossword-daily"
 MISSING_CROSSWORD_HISTORY = "missing previous-day crossword history"
+
+
+def evidence_rules_versions(connection: sqlite3.Connection) -> dict[str, str | None]:
+    """Return the evidence rules version of the code and of the database's facts.
+
+    The database's version is the one the last completed fact run recorded.
+    It is ``None`` when that run predates the record (migration 11), when the
+    database has no completed fact run, and when it predates the column.
+    The cron opens the database read-only and never migrates it, and the
+    database it restores from the cache may be that old.
+    """
+    try:
+        row = connection.execute(
+            """
+            SELECT evidence_rules_version FROM fact_runs
+            WHERE status = 'completed'
+            ORDER BY completed_at DESC, id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+    except sqlite3.OperationalError as exc:
+        if "no such" not in str(exc):
+            raise
+        row = None
+    return {"code": EVIDENCE_RULES_VERSION, "database": row[0] if row else None}
 
 
 def get_reference_date(date_val: str | date | None = None) -> str:
@@ -951,6 +977,7 @@ def run_daily_puzzles(
             )
             result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run, connection=connection)
         result["board_swaps"] = declared_board_swaps(result)
+        result["evidence_rules"] = evidence_rules_versions(connection)
         if ahead:
             next_date = (date.fromisoformat(iso_date) + timedelta(days=1)).isoformat()
             # The day just published or kept is the history of the next one,

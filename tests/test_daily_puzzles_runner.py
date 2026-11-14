@@ -19,7 +19,9 @@ from kpop_scraping import daily_puzzles_cli
 from kpop_scraping.board_swap_gate import check_board_swaps
 from kpop_scraping.code_groups_cli import validate as validate_code_groups_puzzle
 from kpop_scraping.connections_schema import validate_connections_puzzle
+from kpop_scraping.evidence import EVIDENCE_RULES_VERSION
 from kpop_scraping.daily_puzzles_runner import (
+    evidence_rules_versions,
     NEXT_DIRNAME,
     generate_daily_puzzles,
     keep_or_promote_day,
@@ -1568,6 +1570,107 @@ class WordSearchThemeFallbackRunnerTests(unittest.TestCase):
         self.assertEqual(after, {k: v for k, v in before.items() if k.startswith(f"{NEXT_DIRNAME}/")})
         verify_artifacts(self.out_dir, require_grid=False, require_code_groups=False)
         verify_artifacts(self.out_dir / NEXT_DIRNAME, require_grid=False, require_code_groups=False)
+
+
+def record_fact_runs(db_path: Path, *runs: tuple[str, str | None]) -> None:
+    """Add fact runs, as (status, evidence rules version), to a test database."""
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS fact_runs (
+                id INTEGER PRIMARY KEY, status TEXT NOT NULL, completed_at TEXT,
+                evidence_rules_version TEXT
+            )
+            """
+        )
+        for index, (status, version) in enumerate(runs, start=1):
+            conn.execute(
+                "INSERT INTO fact_runs(status, completed_at, evidence_rules_version) VALUES (?, ?, ?)",
+                (status, f"2026-11-{index:02d}T00:00:00+00:00", version),
+            )
+    conn.close()
+
+
+class EvidenceRulesVersionTests(unittest.TestCase):
+    """The run reports which evidence rules decided the facts it published."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.db_path = Path(self.temp_dir.name) / "kpop.db"
+        build_test_database(self.db_path).close()
+        self.out_dir = Path(self.temp_dir.name) / "public_data"
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
+    def _versions(self):
+        with sqlite3.connect(self.db_path) as conn:
+            versions = evidence_rules_versions(conn)
+        conn.close()
+        return versions
+
+    def test_reads_the_last_completed_fact_run(self):
+        record_fact_runs(
+            self.db_path,
+            ("completed", "text-evidence-v7"),
+            ("completed", "text-evidence-v8"),
+            ("failed", EVIDENCE_RULES_VERSION),
+            ("running", EVIDENCE_RULES_VERSION),
+        )
+        self.assertEqual(
+            self._versions(), {"code": EVIDENCE_RULES_VERSION, "database": "text-evidence-v8"}
+        )
+
+    def test_unknown_when_the_database_predates_the_record(self):
+        # build_test_database has no fact_runs table at all.
+        self.assertEqual(self._versions(), {"code": EVIDENCE_RULES_VERSION, "database": None})
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("CREATE TABLE fact_runs (id INTEGER PRIMARY KEY, status TEXT, completed_at TEXT)")
+            conn.execute("INSERT INTO fact_runs(status, completed_at) VALUES ('completed', 't')")
+        conn.close()
+        self.assertIsNone(self._versions()["database"])
+
+    def _cli(self, *extra):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        argv = ["--database", str(self.db_path), "--output-dir", str(self.out_dir), "--date", "2026-09-18", *extra]
+        with patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), redirect_stdout(stdout), redirect_stderr(stderr):
+            code = daily_puzzles_cli.main(argv)
+        self.assertEqual(code, 0, stderr.getvalue())
+        return stdout.getvalue(), stderr.getvalue()
+
+    def test_database_from_older_rules_warns_with_both_versions(self):
+        record_fact_runs(self.db_path, ("completed", "text-evidence-v8"))
+        result = run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18", dry_run=True
+        )
+        self.assertEqual(
+            result["evidence_rules"], {"code": EVIDENCE_RULES_VERSION, "database": "text-evidence-v8"}
+        )
+        stdout, stderr = self._cli("--dry-run")
+        message = (
+            "Facts in the database were decided by evidence rules text-evidence-v8; "
+            f"the code has {EVIDENCE_RULES_VERSION}"
+        )
+        self.assertIn(f"Evidence rules: database text-evidence-v8, code {EVIDENCE_RULES_VERSION}", stdout)
+        self.assertIn(f"::warning title=Evidence rules differ::{message}", stdout)
+        self.assertIn(f"WARNING: {message}", stderr)
+
+    def test_database_from_the_same_rules_does_not_warn(self):
+        record_fact_runs(self.db_path, ("completed", EVIDENCE_RULES_VERSION))
+        stdout, stderr = self._cli("--dry-run")
+        self.assertIn(
+            f"Evidence rules: database {EVIDENCE_RULES_VERSION}, code {EVIDENCE_RULES_VERSION}", stdout
+        )
+        self.assertNotIn("Evidence rules differ", stdout)
+        self.assertNotIn("evidence rules", stderr)
+
+    def test_database_without_a_recorded_version_warns(self):
+        stdout, _ = self._cli("--dry-run")
+        self.assertIn(
+            "::warning title=Evidence rules differ::The last completed fact run in the database "
+            f"recorded no evidence rules version; the code has {EVIDENCE_RULES_VERSION}",
+            stdout,
+        )
 
 
 if __name__ == "__main__":

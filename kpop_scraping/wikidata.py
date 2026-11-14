@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .http_request import DEFAULT_USER_AGENT
-from .mediawiki import MediaWikiClient, MediaWikiError
+from .mediawiki import MaxlagBudget, MediaWikiClient, MediaWikiError
 
 
 MAX_ENTITIES_PER_REQUEST = 50
@@ -82,6 +82,7 @@ class WikidataTypeClient(MediaWikiClient):
         user_agent: str = DEFAULT_USER_AGENT,
         timeout: float = 30,
         retries: int = 3,
+        maxlag_budget: MaxlagBudget | None = None,
     ) -> None:
         super().__init__(
             api_url=api_url,
@@ -90,6 +91,7 @@ class WikidataTypeClient(MediaWikiClient):
             retries=retries,
             provider="wikidata",
             language="mul",
+            maxlag_budget=maxlag_budget,
         )
 
     def get_type_checks(self, wikidata_ids: Iterable[str]) -> Iterator[TypeCheck]:

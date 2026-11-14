@@ -1,5 +1,6 @@
 import argparse
 import io
+import os
 import sys
 import tempfile
 import unittest
@@ -11,6 +12,18 @@ from kpop_scraping.cli import build_parser, main
 from kpop_scraping.exit_codes import EXIT_DETERMINISTIC, EXIT_TRANSIENT
 from kpop_scraping.mediawiki import MediaWikiError
 from kpop_scraping.storage import SnapshotIntegrityError
+
+
+class _JSONResponse(io.BytesIO):
+    def __init__(self, content, headers):
+        super().__init__(content)
+        self.headers = headers
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        self.close()
 
 
 class CLITest(unittest.TestCase):
@@ -169,6 +182,52 @@ class CLITest(unittest.TestCase):
                     exit_code = main(["--database", str(self.database)])
                 self.assertEqual(exit_code, expected)
                 self.assertIn(f"Pipeline failed: {type(error).__name__}: {error}", stdout.getvalue())
+
+    @patch("kpop_scraping.cli.Repository")
+    @patch("kpop_scraping.cli.collect_category", return_value=0)
+    @patch("kpop_scraping.cli.classify_catalog")
+    @patch("kpop_scraping.cli.extract_facts")
+    @patch("kpop_scraping.cli.export_fact_coverage_csv", return_value=0)
+    @patch("kpop_scraping.cli.discover_releases")
+    @patch("kpop_scraping.cli.collect_release_facts")
+    @patch("kpop_scraping.cli.export_release_coverage_csv", return_value=0)
+    @patch("kpop_scraping.cli.WikidataQueryClient")
+    @patch("kpop_scraping.cli.WikidataEntityClient")
+    @patch("kpop_scraping.cli.WikidataTypeClient")
+    @patch("kpop_scraping.cli.MediaWikiClient")
+    def test_every_wikimedia_client_of_the_run_shares_one_maxlag_budget(
+        self, mediawiki, type_client, entity_client, *_mocks
+    ):
+        with patch.dict(os.environ, {"MAXLAG_BUDGET_SECONDS": "120"}), redirect_stdout(io.StringIO()):
+            self.assertEqual(main(["--database", str(self.database), "--releases"]), 0)
+        calls = [*mediawiki.call_args_list, *type_client.call_args_list, *entity_client.call_args_list]
+        # Category, wikitext and the three release languages; types; facts and releases.
+        self.assertEqual(len(calls), 8)
+        budgets = {id(call.kwargs["maxlag_budget"]) for call in calls}
+        self.assertEqual(len(budgets), 1)
+        self.assertEqual(calls[0].kwargs["maxlag_budget"].seconds, 120.0)
+
+    def test_invalid_maxlag_budget_stops_before_the_run(self):
+        with patch.dict(os.environ, {"MAXLAG_BUDGET_SECONDS": "-5"}), self.assertRaises(SystemExit) as raised:
+            main(["--database", str(self.database)])
+        self.assertIn("MAXLAG_BUDGET_SECONDS must be a number of seconds", str(raised.exception))
+
+    @patch("kpop_scraping.mediawiki.time.sleep")
+    @patch("kpop_scraping.http_request.urlopen")
+    def test_maxlag_past_the_budget_exits_as_transient(self, urlopen, sleep):
+        maxlag = b'{"error":{"code":"maxlag","info":"Waiting for wdqs1011: 9.6 seconds lagged."}}'
+        urlopen.side_effect = lambda *_args, **_kwargs: _JSONResponse(maxlag, {"Retry-After": "10"})
+        stdout = io.StringIO()
+        with patch.dict(os.environ, {"MAXLAG_BUDGET_SECONDS": "25"}), redirect_stdout(stdout):
+            exit_code = main(["--database", str(self.database)])
+        self.assertEqual(exit_code, EXIT_TRANSIENT)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [10.0, 10.0, 5.0])
+        self.assertIn(
+            "Pipeline failed: MediaWikiError: MediaWiki maxlag at https://en.wikipedia.org/w/api.php "
+            "did not clear within the run's 25s wait budget (MAXLAG_BUDGET_SECONDS); "
+            "last answer: Waiting for wdqs1011: 9.6 seconds lagged.",
+            stdout.getvalue(),
+        )
 
     @patch("kpop_scraping.cli.Repository")
     def test_unexpected_exception_keeps_the_generic_exit_code(self, mock_repo):

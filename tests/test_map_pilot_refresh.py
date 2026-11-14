@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import io
 import json
+import re
 from pathlib import Path
 import unittest
 from unittest import mock
@@ -10,6 +11,7 @@ from urllib.error import HTTPError
 
 from kpop_scraping.map_pilot_refresh import (
     DEADLINE_TOUR,
+    WIKIDATA_MAXLAG_BUDGET_SECONDS,
     AreaCountryClaim,
     DatasetError,
     MusicBrainzSnapshot,
@@ -181,6 +183,19 @@ class WikidataCountryTest(unittest.TestCase):
     def test_preferred_rank_wins(self):
         entity = {"claims": {"P17": [self.statement("Q1"), self.statement("Q2", rank="preferred")]}}
         self.assertEqual(current_item_values(entity, "P17"), frozenset({"Q2"}))
+
+
+class WorkflowBudgetTest(unittest.TestCase):
+    def test_maxlag_waits_of_every_attempt_fit_in_the_step_timeout(self):
+        workflow = (ROOT / ".github" / "workflows" / "map-pilot-refresh.yml").read_text(encoding="utf-8")
+        timeout_minutes = int(
+            re.search(r"timeout-minutes: (\d+)\n\s+run: \|\n\s+for attempt in", workflow).group(1)
+        )
+        attempts = len(re.search(r"for attempt in ([\d ]+);", workflow).group(1).split())
+        pause = int(re.search(r"sleep (\d+)", workflow).group(1))
+        waits = attempts * WIKIDATA_MAXLAG_BUDGET_SECONDS + (attempts - 1) * pause
+        # At worst 65 of the 90 minutes; the 4 runs need the rest for their work.
+        self.assertLessEqual(waits, (timeout_minutes - 20) * 60)
 
 
 class BuildDatasetTest(unittest.TestCase):

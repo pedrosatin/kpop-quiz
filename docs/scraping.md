@@ -26,8 +26,9 @@ Um QID inexistente faz o Wikibase recusar o lote inteiro com `no-such-entity`. O
 - Fazer requisições em série.
 - Usar `maxlag=5` em jobs não interativos.
 - Aplicar timeout de 30 segundos.
-- Repetir até três vezes erros `maxlag`, HTTP 429, HTTP 500, 502, 503 e 504, timeouts e falhas de conexão.
-- Esperar `2^tentativa` segundos ou o valor de `Retry-After`, o que for maior. `Retry-After` aceita segundos ou data HTTP. Um pedido de espera acima de 120 segundos encerra a execução sem aguardar.
+- Repetir até três vezes erros HTTP 429, HTTP 500, 502, 503 e 504, timeouts e falhas de conexão.
+- Nesses erros, esperar `2^tentativa` segundos ou o valor de `Retry-After`, o que for maior. `Retry-After` aceita segundos ou data HTTP. Um pedido de espera acima de 120 segundos encerra a execução sem aguardar.
+- Diante de `maxlag`, esperar o `Retry-After` da resposta (sem ele, o `lag` informado; sem os dois, 5 segundos), entre 5 e 120 segundos, e repetir a mesma requisição. As esperas saem de um orçamento único por execução do coletor, compartilhado por todos os clientes da Wikipedia e do Wikidata: 15 minutos, ou o valor de `MAXLAG_BUDGET_SECONDS`. Esgotado o orçamento, a execução termina com erro transitório (código 75). Essas esperas não consomem as três repetições de erro de rede ([ADR 033](decisions/033-espera-por-maxlag-e-versao-das-regras.md)).
 - Não repetir outros erros HTTP 4xx.
 - Consultar detalhes em lotes de até 20 páginas e enviar `exlimit` explicitamente. O módulo TextExtracts limita quantos resumos uma consulta retorna.
 - Registrar falha da execução sem apagar uma coleta anterior válida.
@@ -76,7 +77,7 @@ A Wikipedia publica texto sob CC BY-SA, conforme os [termos de uso da Wikimedia]
 
 Os dados do Wikidata extraídos como fatos, rótulos e aliases seguem CC0 e não exigem atribuição. Trechos do resumo da Wikipedia gravados em `fact_evidence.snippet` seguem CC BY-SA 4.0. Qualquer exibição desses trechos precisa citar a Wikipedia, apontar para a revisão (`https://en.wikipedia.org/w/index.php?oldid=<revid>`) e manter a mesma licença.
 
-Os clientes usam requisições sequenciais, `User-Agent`, timeout, `maxlag=5` e até três repetições. A validação atual cobre somente `P31` direto. Ela não percorre a hierarquia `P279` e pode rejeitar um grupo modelado apenas com uma subclasse desconhecida.
+Os clientes usam requisições sequenciais, `User-Agent`, timeout, `maxlag=5`, até três repetições de erro de rede e o orçamento de espera por `maxlag`. A validação atual cobre somente `P31` direto. Ela não percorre a hierarquia `P279` e pode rejeitar um grupo modelado apenas com uma subclasse desconhecida.
 
 ## Validação de fatos
 

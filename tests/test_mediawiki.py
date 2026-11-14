@@ -1,3 +1,4 @@
+import json
 import ssl
 import unittest
 from datetime import datetime, timezone
@@ -6,7 +7,9 @@ from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
 from kpop_scraping.mediawiki import (
+    DEFAULT_MAXLAG_BUDGET_SECONDS,
     MAX_EXTRACT_BYTES,
+    MaxlagBudget,
     MediaWikiClient,
     MediaWikiError,
     Page,
@@ -114,7 +117,8 @@ class MediaWikiClientTest(unittest.TestCase):
         ]
         payload = MediaWikiClient(retries=1)._get({"action": "query"})
         self.assertEqual(payload["query"]["categorymembers"], [])
-        sleep.assert_called_once_with(1)
+        # No Retry-After and no lag: the 5 seconds MediaWiki itself asks for.
+        sleep.assert_called_once_with(5.0)
 
     @patch("kpop_scraping.mediawiki.time.sleep")
     @patch("kpop_scraping.http_request.urlopen")
@@ -163,7 +167,7 @@ class MediaWikiClientTest(unittest.TestCase):
     def test_errors_that_pass_with_time_are_marked_transient(self, urlopen, _sleep):
         maxlag = b'{"error":{"code":"maxlag","info":"Waiting for wdqs1011: 9.6 seconds lagged."}}'
         cases = {
-            "maxlag until the retries end": [Response(maxlag), Response(maxlag)],
+            "maxlag past the wait budget": [Response(maxlag), Response(maxlag)],
             "HTTP 503 until the retries end": [http_error(503), http_error(503)],
             "HTTP 429 until the retries end": [http_error(429), http_error(429)],
             "network failure": [URLError("unreachable"), TimeoutError("timed out")],
@@ -177,8 +181,9 @@ class MediaWikiClientTest(unittest.TestCase):
         for name, responses in cases.items():
             with self.subTest(name):
                 urlopen.side_effect = responses
+                client = MediaWikiClient(retries=1, maxlag_budget=MaxlagBudget(5))
                 with self.assertRaises(MediaWikiError) as raised:
-                    MediaWikiClient(retries=1)._get({"action": "query"})
+                    client._get({"action": "query"})
                 self.assertTrue(raised.exception.transient)
 
     @patch("kpop_scraping.mediawiki.time.sleep")
@@ -196,6 +201,113 @@ class MediaWikiClientTest(unittest.TestCase):
                     MediaWikiClient(retries=1)._get({"action": "query"})
                 self.assertFalse(raised.exception.transient)
         self.assertFalse(MediaWikiError("unexpected shape").transient)
+
+    @patch("kpop_scraping.http_request.urlopen")
+    def test_maxlag_waits_out_the_budget_then_fails_as_transient(self, urlopen):
+        info = "Waiting for wdqs1011: 9.6 seconds lagged."
+        urlopen.side_effect = lambda *_args, **_kwargs: Response(
+            json.dumps({"error": {"code": "maxlag", "info": info, "lag": 9.6}}).encode(),
+            {"Retry-After": "10"},
+        )
+        sleeps = []
+        client = MediaWikiClient(maxlag_budget=MaxlagBudget(35, sleep=sleeps.append))
+        with self.assertRaises(MediaWikiError) as raised:
+            client._get({"action": "wbgetentities"})
+        # Three full waits, then the 5 seconds left, then the error.
+        self.assertEqual(sleeps, [10.0, 10.0, 10.0, 5.0])
+        self.assertEqual(urlopen.call_count, 5)
+        error = raised.exception
+        self.assertTrue(error.transient)
+        self.assertEqual(error.code, "maxlag")
+        self.assertEqual(
+            str(error),
+            "MediaWiki maxlag at https://en.wikipedia.org/w/api.php did not clear within "
+            f"the run's 35s wait budget (MAXLAG_BUDGET_SECONDS); last answer: {info}",
+        )
+        for request in urlopen.call_args_list:
+            self.assertIn("maxlag=5", request.args[0].full_url)
+            self.assertEqual(request.kwargs["timeout"], 30)
+
+    @patch("kpop_scraping.http_request.urlopen")
+    def test_requests_and_clients_of_a_run_share_one_maxlag_budget(self, urlopen):
+        maxlag = b'{"error":{"code":"maxlag","info":"lagged"}}'
+        urlopen.side_effect = [
+            Response(maxlag, {"Retry-After": "20"}),
+            Response(b'{"entities":{}}'),
+            Response(maxlag, {"Retry-After": "20"}),
+            Response(maxlag, {"Retry-After": "20"}),
+        ]
+        sleeps = []
+        budget = MaxlagBudget(30, sleep=sleeps.append)
+        MediaWikiClient(maxlag_budget=budget)._get({"action": "query"})
+        with self.assertRaisesRegex(MediaWikiError, "within the run's 30s wait budget"):
+            MediaWikiClient(maxlag_budget=budget)._get({"action": "query"})
+        self.assertEqual(sleeps, [20.0, 10.0])
+        self.assertEqual(budget.remaining, 0)
+
+    @patch("kpop_scraping.mediawiki.time.sleep")
+    @patch("kpop_scraping.http_request.urlopen")
+    def test_maxlag_does_not_use_up_the_network_retries(self, urlopen, sleep):
+        maxlag = Response(b'{"error":{"code":"maxlag","info":"lagged"}}')
+        urlopen.side_effect = [maxlag, URLError("reset"), Response(b'{"query":{}}')]
+        waits = []
+        client = MediaWikiClient(retries=1, maxlag_budget=MaxlagBudget(60, sleep=waits.append))
+        self.assertEqual(client._get({"action": "query"}), {"query": {}})
+        # The maxlag pause comes from the budget, the network backoff does not.
+        self.assertEqual(waits, [5.0])
+        sleep.assert_called_once_with(1.0)
+        self.assertEqual(client.maxlag_budget.spent, 5.0)
+
+    @patch("kpop_scraping.http_request.urlopen")
+    def test_maxlag_wait_follows_retry_after_then_lag_within_bounds(self, urlopen):
+        cases = (
+            ("Retry-After", {"Retry-After": "12"}, {"lag": 3}, 12.0),
+            ("long Retry-After cut to the per-answer limit", {"Retry-After": "3600"}, {}, 120.0),
+            ("short Retry-After raised to 5 seconds", {"Retry-After": "1"}, {}, 5.0),
+            ("reported lag without Retry-After", {}, {"lag": 13.8}, 13.8),
+            ("invalid Retry-After falls back to the lag", {"Retry-After": "soon"}, {"lag": 9}, 9.0),
+            ("lag that is not a number", {}, {"lag": "high"}, 5.0),
+            ("lag that is a boolean", {}, {"lag": True}, 5.0),
+        )
+        for name, headers, extra, expected in cases:
+            with self.subTest(name):
+                error = {"code": "maxlag", "info": "lagged", **extra}
+                urlopen.side_effect = [
+                    Response(json.dumps({"error": error}).encode(), headers),
+                    Response(b'{"query":{}}'),
+                ]
+                waits = []
+                MediaWikiClient(maxlag_budget=MaxlagBudget(600, sleep=waits.append))._get(
+                    {"action": "query"}
+                )
+                self.assertEqual(waits, [expected])
+
+    @patch("kpop_scraping.http_request.urlopen")
+    def test_zero_budget_fails_on_the_first_maxlag(self, urlopen):
+        urlopen.side_effect = [Response(b'{"error":{"code":"maxlag","info":"lagged"}}')]
+        waits = []
+        with self.assertRaises(MediaWikiError) as raised:
+            MediaWikiClient(maxlag_budget=MaxlagBudget(0, sleep=waits.append))._get({"action": "query"})
+        self.assertTrue(raised.exception.transient)
+        self.assertEqual(waits, [])
+
+    def test_maxlag_budget_reads_the_environment(self):
+        self.assertEqual(MaxlagBudget.from_environment({}).seconds, DEFAULT_MAXLAG_BUDGET_SECONDS)
+        self.assertEqual(DEFAULT_MAXLAG_BUDGET_SECONDS, 15 * 60)
+        self.assertEqual(
+            MaxlagBudget.from_environment({"MAXLAG_BUDGET_SECONDS": " "}).seconds,
+            DEFAULT_MAXLAG_BUDGET_SECONDS,
+        )
+        self.assertEqual(MaxlagBudget.from_environment({"MAXLAG_BUDGET_SECONDS": "90"}).seconds, 90.0)
+        self.assertEqual(MaxlagBudget.from_environment({"MAXLAG_BUDGET_SECONDS": "0"}).seconds, 0.0)
+        for value in ("-1", "nan", "inf", "fifteen minutes"):
+            with self.subTest(value), self.assertRaisesRegex(ValueError, "MAXLAG_BUDGET_SECONDS"):
+                MaxlagBudget.from_environment({"MAXLAG_BUDGET_SECONDS": value})
+
+    def test_client_built_alone_gets_its_own_budget(self):
+        first, second = MediaWikiClient(), MediaWikiClient()
+        self.assertIsNot(first.maxlag_budget, second.maxlag_budget)
+        self.assertEqual(first.maxlag_budget.seconds, DEFAULT_MAXLAG_BUDGET_SECONDS)
 
     def test_parses_retry_after_date(self):
         now = datetime(2026, 9, 12, 12, 0, tzinfo=timezone.utc)

@@ -9,7 +9,12 @@ from pathlib import Path
 from urllib.error import HTTPError
 from unittest.mock import patch
 
-from kpop_scraping.evidence import WikipediaPage, release_date_evidence, release_performer_evidence
+from kpop_scraping.evidence import (
+    EVIDENCE_RULES_VERSION,
+    WikipediaPage,
+    release_date_evidence,
+    release_performer_evidence,
+)
 from kpop_scraping.entities import GREGORIAN_CALENDAR, TimeValue
 from kpop_scraping.mediawiki import MAX_EXTRACT_BYTES, MediaWikiError, Page
 from kpop_scraping.release_evidence import (
@@ -888,6 +893,14 @@ class ReleasePipelineScopeTest(unittest.TestCase):
             "SELECT status,error FROM fact_runs ORDER BY id DESC LIMIT 1"
         ).fetchone()
         self.assertEqual(tuple(fact_run), ("failed", "after staleness"))
+
+    def test_release_run_records_the_evidence_rules_version(self):
+        run_id = self._run(groups=(1,))
+        collect_release_facts(self.repository, object(), run_id)
+        row = self.connection.execute(
+            "SELECT status,evidence_rules_version FROM fact_runs ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        self.assertEqual(tuple(row), ("completed", EVIDENCE_RULES_VERSION))
 
     def test_metrics_count_scope_groups_and_only_saved_release_entities(self):
         run_id = self._run(groups=(1,))

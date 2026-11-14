@@ -693,6 +693,16 @@ MIGRATIONS: tuple[Migration, ...] = (
             "CREATE INDEX person_source_pages_revision_idx ON person_source_pages(source_revision_id)",
         ),
     ),
+    (
+        11,
+        "fact_run_evidence_rules_version",
+        (
+            # EVIDENCE_RULES_VERSION of the code that decided the run's facts.
+            # Runs recorded before this migration keep NULL: their version is
+            # not known.
+            "ALTER TABLE fact_runs ADD COLUMN evidence_rules_version TEXT",
+        ),
+    ),
 )
 
 

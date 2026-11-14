@@ -73,6 +73,36 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
             daily_puzzles_cli.report_revalidated_grid(None)
         self.assertEqual(stdout.getvalue() + stderr.getvalue(), "")
 
+    def test_report_evidence_rules_absent_prints_nothing(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            daily_puzzles_cli.report_evidence_rules(None)
+        self.assertEqual(stdout.getvalue() + stderr.getvalue(), "")
+
+    def test_report_evidence_rules_warns_only_on_a_difference(self):
+        cases = (
+            ({"code": "text-evidence-v9", "database": "text-evidence-v8"}, True),
+            ({"code": "text-evidence-v9", "database": None}, True),
+            ({"code": "text-evidence-v9", "database": "text-evidence-v9"}, False),
+        )
+        for versions, warns in cases:
+            with self.subTest(versions):
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with redirect_stdout(stdout), redirect_stderr(stderr), patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
+                    daily_puzzles_cli.report_evidence_rules(versions)
+                self.assertIn("Evidence rules: database ", stdout.getvalue())
+                self.assertEqual("::warning title=Evidence rules differ::" in stdout.getvalue(), warns)
+                self.assertEqual(stderr.getvalue().startswith("WARNING: "), warns)
+                if versions["database"] and warns:
+                    self.assertIn("text-evidence-v8; the code has text-evidence-v9", stdout.getvalue())
+
+    def test_report_evidence_rules_outside_actions_has_no_annotation(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr), patch.dict(os.environ, {"GITHUB_ACTIONS": ""}):
+            daily_puzzles_cli.report_evidence_rules({"code": "v9", "database": "v8"})
+        self.assertNotIn("::warning", stdout.getvalue())
+        self.assertIn("WARNING: Facts in the database were decided by evidence rules v8", stderr.getvalue())
+
     def test_report_reused_grid_none(self):
         stdout, stderr = io.StringIO(), io.StringIO()
         with redirect_stdout(stdout), redirect_stderr(stderr):

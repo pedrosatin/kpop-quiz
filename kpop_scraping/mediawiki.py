@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import ssl
 import time
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -55,6 +56,20 @@ RETRYABLE_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
 MAX_RETRY_AFTER_SECONDS = 120.0
 _ASCII_SECONDS = re.compile(r"[0-9]+")
 
+# Every request sends maxlag, as Wikimedia asks of bots. When the lag is above
+# it, the API answers with the "maxlag" error, a Retry-After header and the
+# current lag. Wikidata counts the lag of its query service, which stayed
+# between 9 and 14 seconds for hours on most nights of November 2026.
+MAXLAG_SECONDS = 5
+# Total time the clients of one run may wait for maxlag to clear. The nightly
+# rebuild gives each run of the collector 30 minutes
+# (scripts/rebuild_database.py), so the budget keeps half of that for the work
+# itself, which takes about 2 minutes, and for the network backoff.
+DEFAULT_MAXLAG_BUDGET_SECONDS = 15 * 60.0
+MAXLAG_BUDGET_ENV = "MAXLAG_BUDGET_SECONDS"
+# MediaWiki itself never sends a Retry-After below 5 seconds for maxlag.
+MIN_MAXLAG_WAIT_SECONDS = 5.0
+
 
 def parse_retry_after(value: str | None, now: datetime | None = None) -> float | None:
     """Parse Retry-After as seconds or HTTP date; invalid values are ignored."""
@@ -71,6 +86,55 @@ def parse_retry_after(value: str | None, now: datetime | None = None) -> float |
         moment = moment.replace(tzinfo=timezone.utc)
     current = now or datetime.now(timezone.utc)
     return max(0.0, (moment - current).total_seconds())
+
+
+class MaxlagBudget:
+    """Time the clients of one run may spend waiting for ``maxlag`` to clear.
+
+    Every client built with the same budget draws from it, so all the
+    requests of a run share one ceiling. The budget counts the pauses it
+    grants; the network backoff of ``MediaWikiClient`` does not draw from it.
+    """
+
+    def __init__(
+        self,
+        seconds: float = DEFAULT_MAXLAG_BUDGET_SECONDS,
+        sleep: Callable[[float], None] | None = None,
+    ) -> None:
+        if not math.isfinite(seconds) or seconds < 0:
+            raise ValueError("the maxlag budget must be a finite number of seconds, zero or more")
+        self.seconds = float(seconds)
+        self.spent = 0.0
+        self._sleep = sleep
+
+    @classmethod
+    def from_environment(cls, environ: Mapping[str, str]) -> MaxlagBudget:
+        """Read the budget from ``MAXLAG_BUDGET_SECONDS``; empty means the default."""
+        text = environ.get(MAXLAG_BUDGET_ENV, "").strip()
+        if not text:
+            return cls()
+        try:
+            seconds = float(text)
+        except ValueError:
+            seconds = math.nan
+        if not math.isfinite(seconds) or seconds < 0:
+            raise ValueError(
+                f"{MAXLAG_BUDGET_ENV} must be a number of seconds, zero or more, got {text!r}"
+            )
+        return cls(seconds)
+
+    @property
+    def remaining(self) -> float:
+        return max(0.0, self.seconds - self.spent)
+
+    def wait(self, delay: float) -> bool:
+        """Sleep for ``delay``, or what is left of it; false once nothing is left."""
+        pause = min(delay, self.remaining)
+        if pause <= 0:
+            return False
+        (self._sleep or time.sleep)(pause)
+        self.spent += pause
+        return True
 
 
 @dataclass(frozen=True)
@@ -113,6 +177,7 @@ class MediaWikiClient:
         provider: str = "wikipedia",
         language: str = "en",
         max_retry_after: float = MAX_RETRY_AFTER_SECONDS,
+        maxlag_budget: MaxlagBudget | None = None,
     ) -> None:
         self.api_url = api_url
         self.user_agent = user_agent
@@ -121,11 +186,22 @@ class MediaWikiClient:
         self.provider = provider
         self.language = language
         self.max_retry_after = max_retry_after
+        # The CLI hands one budget to every client of the run; a client built
+        # alone gets a budget of its own.
+        self.maxlag_budget = maxlag_budget or MaxlagBudget()
 
     def _get(self, parameters: dict[str, str | int]) -> dict[str, Any]:
-        query = {"format": "json", "formatversion": "2", "maxlag": "5", **parameters}
+        query = {
+            "format": "json",
+            "formatversion": "2",
+            "maxlag": str(MAXLAG_SECONDS),
+            **parameters,
+        }
         url = f"{self.api_url}?{urlencode(query)}"
-        for attempt in range(self.retries + 1):
+        # ``attempt`` counts network and HTTP failures only. A maxlag answer
+        # is retried out of the run's budget and leaves it unchanged.
+        attempt = 0
+        while True:
             can_retry = attempt < self.retries
             try:
                 with open_url(
@@ -147,6 +223,7 @@ class MediaWikiClient:
                         transient=exc.code in RETRYABLE_HTTP_STATUS,
                     ) from exc
                 time.sleep(self._retry_delay(attempt, error_headers))
+                attempt += 1
                 continue
             except (
                 URLError,
@@ -164,23 +241,45 @@ class MediaWikiClient:
                         transient=True,
                     ) from exc
                 time.sleep(self._retry_delay(attempt, None))
+                attempt += 1
                 continue
             if isinstance(payload, dict) and "error" in payload:
                 error = payload["error"]
-                if error.get("code") == "maxlag" and can_retry:
-                    time.sleep(self._retry_delay(attempt, headers))
-                    continue
+                if error.get("code") == "maxlag":
+                    if self.maxlag_budget.wait(self._maxlag_delay(error, headers)):
+                        continue
+                    budget = self.maxlag_budget
+                    raise MediaWikiError(
+                        f"MediaWiki maxlag at {self.api_url} did not clear within the "
+                        f"run's {budget.seconds:.0f}s wait budget ({MAXLAG_BUDGET_ENV}); "
+                        f"last answer: {error.get('info', 'no details')}",
+                        code="maxlag",
+                        details=error,
+                        transient=True,
+                    )
                 raise MediaWikiError(
                     f"MediaWiki error {error.get('code', 'unknown')}: "
                     f"{error.get('info', 'no details')}",
                     code=error.get("code"),
                     details=error,
-                    transient=error.get("code") == "maxlag",
                 )
             if not isinstance(payload, dict):
                 raise MediaWikiError("MediaWiki response is not a JSON object")
             return payload
-        raise AssertionError("retry loop exited unexpectedly")
+
+    def _maxlag_delay(self, error: dict[str, Any], headers: Any) -> float:
+        """Wait the server's Retry-After, else the reported lag, within bounds.
+
+        A long Retry-After is cut to ``max_retry_after`` and the request is
+        tried again: the run's budget, not one answer, decides when to stop.
+        """
+        value = headers.get("Retry-After") if headers is not None else None
+        delay = parse_retry_after(value)
+        if delay is None:
+            lag = error.get("lag")
+            valid_lag = isinstance(lag, (int, float)) and not isinstance(lag, bool)
+            delay = float(lag) if valid_lag and math.isfinite(lag) else MIN_MAXLAG_WAIT_SECONDS
+        return min(self.max_retry_after, max(MIN_MAXLAG_WAIT_SECONDS, delay))
 
     def _retry_delay(self, attempt: int, headers: Any) -> float:
         """Return exponential backoff, extended by a valid Retry-After header."""
