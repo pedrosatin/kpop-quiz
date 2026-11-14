@@ -106,6 +106,13 @@ jobs:
           mkdir -p data
           cp -a "$RUNNER_TEMP/map-pilot-data" data/map-pilot
 
+      # validate_map_pilot_dataset, the check "Validate the refreshed dataset"
+      # runs through tests.test_map_pilot_refresh, run again from master's
+      # code on the files the commit below would hold. A dataset that fails
+      # here stops the job before git add (ADR 040).
+      - name: Verify downloaded dataset
+        run: python3 -m kpop_scraping.map_pilot_refresh --verify --output data/map-pilot/deadline-events.json
+
       # Branch protection on master requires changes to arrive via pull
       # request. Publish the refreshed dataset on an automation branch, then
       # merge its pull request, so the deploy triggered by this workflow's
