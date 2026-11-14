@@ -142,18 +142,33 @@ for (const locale of ["pt-BR", "en"] as const) {
     const saved = await readSlot(page, slot(locale, "history"));
     expect(saved).not.toBeNull();
 
+    // Record where Start sits on every frame from the first paint: the
+    // notice arrives after hydration and must not move it.
+    await page.addInitScript(() => {
+      const w = window as unknown as { __startTops: number[] };
+      w.__startTops = [];
+      const sample = () => {
+        const start = document.querySelector('[data-testid="game-start"]');
+        if (start) w.__startTops.push(Math.round(start.getBoundingClientRect().top));
+        if (performance.now() < 5_000) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
     await page.locator(".language-link").click();
     const there = copy[other(locale)];
     await expect(page).toHaveURL(new RegExp(`${there.path.replace(/\//g, "\\/")}\\?`));
     const notice = page.getByTestId("quiz-other-locale-round");
     await expect(notice).toHaveText(new RegExp(t.otherNotice(3).replace(/[.?]/g, "\\$&")), { timeout: 30_000 });
     await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
+    const startTops = await page.evaluate(() => (window as unknown as { __startTops: number[] }).__startTops);
+    expect(new Set(startTops).size, `Start moved: ${[...new Set(startTops)].join(", ")}`).toBe(1);
+    const setupBox = (await page.getByTestId("game-setup").boundingBox())!;
+    const noticeBox = (await notice.boundingBox())!;
+    expect(noticeBox.y).toBeGreaterThanOrEqual(setupBox.y + setupBox.height);
     const resume = notice.getByRole("link", { name: t.resume });
-    const resumeBox = (await resume.boundingBox())!;
-    const startBox = (await page.getByTestId("game-start").boundingBox())!;
-    expect(resumeBox.height).toBeGreaterThanOrEqual(44);
-    expect(startBox.y - (resumeBox.y + resumeBox.height)).toBeGreaterThanOrEqual(8);
+    expect((await resume.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0);
+    await notice.scrollIntoViewIfNeeded();
     await shot(page, `360-${id(other(locale))}-aviso-partida-em-${id(locale)}`);
     expect(await readSlot(page, slot(locale, "history"))).toBe(saved);
 
