@@ -65,9 +65,22 @@ class EvidenceSearch(NamedTuple):
     observed: EvidenceItem | None = None
 
 
+class _PageSearch(NamedTuple):
+    """What the collected pages say about one value of one subject.
+
+    ``reason`` replaces the reason from the statement's own references when
+    the page contradicts the value or cannot be read.
+    """
+
+    evidence: tuple[EvidenceItem, ...]
+    reason: str | None = None
+    observed: EvidenceItem | None = None
+
+
 def find_evidence(
     candidate: FactCandidate,
     context: ValidationContext,
+    page_searches: dict[tuple, _PageSearch] | None = None,
 ) -> EvidenceSearch:
     """Return evidence and, when there is none, the rejection reason.
 
@@ -76,15 +89,34 @@ def find_evidence(
     ``formed_on`` its formation-year category can prove the year or reject
     it. ``born_on`` and ``born_in`` may fall back to the infobox of the
     person's own page.
+
+    ``page_searches`` keeps the page answer for each value, so duplicate
+    statements of one value read the pages once. References stay per statement.
     """
     assessment = assess_references(candidate.statement)
     reason = assessment.rejection_reason or "missing_evidence"
     if assessment.evidence:
         return EvidenceSearch(assessment.evidence, reason)
     if candidate.predicate in PERSON_BIRTH_FIELDS:
-        return _person_search(candidate, context, reason)
-    if not candidate.spec.wikipedia_evidence:
+        allowed = context.person_evidence_statements
+        if allowed is not None and candidate.statement.statement_id not in allowed:
+            return EvidenceSearch((), reason)
+    elif not candidate.spec.wikipedia_evidence:
         return EvidenceSearch(assessment.evidence, reason)
+    # The page search reads only these fields of the candidate.
+    key = (candidate.spec, candidate.subject_id, candidate.value_id, candidate.time)
+    found = page_searches.get(key) if page_searches is not None else None
+    if found is None:
+        if candidate.predicate in PERSON_BIRTH_FIELDS:
+            found = _person_search(candidate, context)
+        else:
+            found = _wikipedia_search(candidate, context)
+        if page_searches is not None:
+            page_searches[key] = found
+    return EvidenceSearch(found.evidence, found.reason or reason, found.observed)
+
+
+def _wikipedia_search(candidate: FactCandidate, context: ValidationContext) -> _PageSearch:
     predicate = candidate.predicate
     group_id = candidate.value_id if predicate == "member_of" else candidate.subject_id
     if candidate.spec.subject_type == "release":
@@ -93,7 +125,7 @@ def find_evidence(
         page = context.group_pages.get(group_id or "")
         pages = (page,) if page else ()
     if not pages:
-        return EvidenceSearch((), reason)
+        return _PageSearch(())
     person_or_value = candidate.subject_id if predicate == "member_of" else candidate.value_id
     for page in pages:
         item = text_evidence(
@@ -108,24 +140,17 @@ def find_evidence(
             # A formation-year category with another year vetoes the extract too.
             category = formation_category_check(page, candidate.time)
             if category.observed:
-                return EvidenceSearch((), FORMATION_CATEGORY_DIFFERS, category.observed)
+                return _PageSearch((), FORMATION_CATEGORY_DIFFERS, category.observed)
             item = item or category.evidence
         if item:
-            return EvidenceSearch((item,), reason)
-    return EvidenceSearch((), reason)
+            return _PageSearch((item,))
+    return _PageSearch(())
 
 
-def _person_search(
-    candidate: FactCandidate,
-    context: ValidationContext,
-    reason: str,
-) -> EvidenceSearch:
-    allowed = context.person_evidence_statements
-    if allowed is not None and candidate.statement.statement_id not in allowed:
-        return EvidenceSearch((), reason)
+def _person_search(candidate: FactCandidate, context: ValidationContext) -> _PageSearch:
     page = context.person_pages.get(candidate.subject_id)
     if page is None:
-        return EvidenceSearch((), reason)
+        return _PageSearch(())
     check = person_infobox_check(
         candidate.predicate,
         page,
@@ -134,8 +159,8 @@ def _person_search(
         context.names.get(candidate.value_id or "", ()),
     )
     if check.evidence:
-        return EvidenceSearch((check.evidence,), reason)
-    return EvidenceSearch((), check.rejection_reason or reason, check.observed)
+        return _PageSearch((check.evidence,))
+    return _PageSearch((), check.rejection_reason, check.observed)
 
 
 def validate_facts(
@@ -208,8 +233,10 @@ def _validate_group(
         else:
             active.append(candidate)
 
+    # Duplicate statements of one value read the pages once (see find_evidence).
+    page_searches: dict[tuple, _PageSearch] = {}
     for candidate in active:
-        found, reason, seen = find_evidence(candidate, context)
+        found, reason, seen = find_evidence(candidate, context, page_searches)
         evidence[candidate.statement.statement_id] = found
         evidence_reason[candidate.statement.statement_id] = reason
         observed[candidate.statement.statement_id] = seen
