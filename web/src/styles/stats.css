@@ -175,3 +175,44 @@
     color: HighlightText;
   }
 }
+
+/* Import confirmation: the file's totals next to the ones on this device. */
+.stats-import-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+}
+
+.stats-import-confirm p {
+  margin: 0;
+}
+
+.stats-import-confirm-title {
+  font-weight: 600;
+}
+
+.stats-import-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-import-table caption {
+  padding-bottom: var(--space-1);
+  color: var(--color-text-muted);
+  text-align: left;
+}
+
+.stats-import-table th,
+.stats-import-table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+  text-align: right;
+}
+
+.stats-import-table th[scope="row"] {
+  padding-left: 0;
+  font-weight: 400;
+  text-align: left;
+}

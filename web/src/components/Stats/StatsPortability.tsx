@@ -1,12 +1,16 @@
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { Locale } from "../../lib/quiz-types";
-import { getMessages } from "../../i18n/catalog";
+import { getMessages, type Messages } from "../../i18n/catalog";
+import { formatCalendarDate } from "../../lib/format-date";
 import {
+  applyPlayerStatsFile,
   exportPlayerStatsJson,
-  importPlayerStatsJson,
   loadPlayerStats,
+  parsePlayerStatsJson,
   resetPlayerStats,
+  type OverallStats,
   type PlayerStats,
+  type PlayerStatsFile,
 } from "../../lib/player-stats";
 
 export interface StatsPortabilityProps {
@@ -14,12 +18,77 @@ export interface StatsPortabilityProps {
   onStatsChange: (stats: PlayerStats) => void;
 }
 
+interface PendingImport {
+  file: PlayerStatsFile;
+  /** Local stats when the file was picked, shown next to the file's. */
+  local: PlayerStats;
+}
+
+/** The export time in the player's own time zone, where the file was made. */
+function formatExportedAt(exportedAt: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale === "pt-BR" ? "pt-BR" : "en-US", {
+    dateStyle: "long",
+    timeStyle: "short",
+  }).format(new Date(exportedAt));
+}
+
+function ImportComparison({
+  local,
+  file,
+  locale,
+  messages,
+}: {
+  local: OverallStats;
+  file: OverallStats;
+  locale: Locale;
+  messages: Messages;
+}) {
+  const lastPlayed = (stats: OverallStats) =>
+    stats.lastPlayedDate ? formatCalendarDate(stats.lastPlayedDate, locale) : messages.statsLastPlayedNone;
+  const rows: Array<[string, string | number, string | number]> = [
+    [messages.statsPlayed, local.played, file.played],
+    [messages.statsWon, local.won, file.won],
+    [messages.statsCurrentStreak, local.currentStreak, file.currentStreak],
+    [messages.statsMaxStreak, local.maxStreak, file.maxStreak],
+    [messages.statsLastPlayed, lastPlayed(local), lastPlayed(file)],
+  ];
+  return (
+    <table class="stats-import-table">
+      <caption>{messages.statsImportTotals}</caption>
+      <thead>
+        <tr>
+          <td />
+          <th scope="col">{messages.statsImportLocalColumn}</th>
+          <th scope="col">{messages.statsImportFileColumn}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(([label, localValue, fileValue]) => (
+          <tr key={label}>
+            <th scope="row">{label}</th>
+            <td>{localValue}</td>
+            <td>{fileValue}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProps) {
   const messages = getMessages(locale);
   const [statusMessage, setStatusMessage] = useState("");
   const [confirmingReset, setConfirmingReset] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importButtonRef = useRef<HTMLButtonElement>(null);
+  const cancelImportRef = useRef<HTMLButtonElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Cancel takes focus, like ConfirmDialog: Enter must not replace by accident.
+  useEffect(() => {
+    if (pendingImport) cancelImportRef.current?.focus();
+  }, [pendingImport]);
 
   const notify = (message: string) => {
     setStatusMessage(message);
@@ -51,11 +120,14 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
     };
     const reader = new FileReader();
     reader.onload = () => {
-      const result = importPlayerStatsJson(String(reader.result ?? ""));
+      // Nothing is written yet: the player compares and confirms first.
+      const result = parsePlayerStatsJson(String(reader.result ?? ""));
       if (result.success) {
-        onStatsChange(loadPlayerStats());
-        notify(messages.statsImportSuccess);
+        setConfirmingReset(false);
+        notify("");
+        setPendingImport({ file: result.file, local: loadPlayerStats() });
       } else {
+        setPendingImport(null);
         notify(messages.statsImportError);
       }
       input.value = "";
@@ -63,6 +135,32 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
     reader.onerror = handleReadError;
     reader.onabort = handleReadError;
     reader.readAsText(file);
+  };
+
+  const handleCancelImport = () => {
+    setPendingImport(null);
+    importButtonRef.current?.focus();
+  };
+
+  const handleConfirmImport = () => {
+    if (!pendingImport) return;
+    const result = applyPlayerStatsFile(pendingImport.file);
+    setPendingImport(null);
+    if (result.success) {
+      onStatsChange(loadPlayerStats());
+      notify(messages.statsImportSuccess);
+    } else {
+      notify(messages.statsImportError);
+    }
+    importButtonRef.current?.focus();
+  };
+
+  const handleImportKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== "Escape") return;
+    // Escape closes only this confirmation, not the stats window around it.
+    e.preventDefault();
+    e.stopPropagation();
+    handleCancelImport();
   };
 
   const handleCancelReset = () => {
@@ -87,6 +185,9 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
         <button
           type="button"
           class="btn btn-ghost btn-sm"
+          ref={importButtonRef}
+          aria-expanded={pendingImport !== null}
+          aria-controls="stats-import-confirm"
           onClick={() => fileInputRef.current?.click()}
         >
           {messages.statsImport}
@@ -106,7 +207,10 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
           ref={resetButtonRef}
           aria-expanded={confirmingReset}
           aria-controls="stats-reset-confirm"
-          onClick={() => setConfirmingReset(true)}
+          onClick={() => {
+            setPendingImport(null);
+            setConfirmingReset(true);
+          }}
         >
           {messages.statsReset}
         </button>
@@ -119,6 +223,45 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
               {messages.statsConfirm}
             </button>
             <button type="button" class="btn btn-ghost btn-sm" onClick={handleCancelReset}>
+              {messages.statsCancel}
+            </button>
+          </div>
+        </div>
+      )}
+      {pendingImport && (
+        <div
+          id="stats-import-confirm"
+          class="stats-reset-confirm stats-import-confirm"
+          role="alertdialog"
+          aria-labelledby="stats-import-confirm-title"
+          aria-describedby="stats-import-confirm-date stats-import-confirm-warning"
+          onKeyDown={handleImportKeyDown}
+        >
+          <p id="stats-import-confirm-title" class="stats-import-confirm-title">
+            {messages.statsImportConfirmTitle}
+          </p>
+          <p id="stats-import-confirm-date">
+            {pendingImport.file.exportedAt
+              ? messages.statsImportExportedAt(formatExportedAt(pendingImport.file.exportedAt, locale))
+              : messages.statsImportExportedAtUnknown}
+          </p>
+          <ImportComparison
+            local={pendingImport.local.overall}
+            file={pendingImport.file.stats.overall}
+            locale={locale}
+            messages={messages}
+          />
+          <p id="stats-import-confirm-warning">{messages.statsImportConfirmWarning}</p>
+          <div role="group" aria-labelledby="stats-import-confirm-title">
+            <button type="button" class="btn btn-ghost btn-sm" onClick={handleConfirmImport}>
+              {messages.statsImportConfirmAction}
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              ref={cancelImportRef}
+              onClick={handleCancelImport}
+            >
               {messages.statsCancel}
             </button>
           </div>

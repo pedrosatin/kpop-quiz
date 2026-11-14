@@ -443,6 +443,24 @@ export interface Messages {
   statsImportError: string;
   statsImportSuccess: string;
   statsResetSuccess: string;
+  /** Question of the confirmation shown after picking a stats file. */
+  statsImportConfirmTitle: string;
+  /** What replacing loses: day markers stay, so lost days do not count again (ADR 030). */
+  statsImportConfirmWarning: string;
+  /** The file's `exportedAt`, already formatted for the locale. */
+  statsImportExportedAt: (date: string) => string;
+  /** Shown instead of the export date for a file without `exportedAt`. */
+  statsImportExportedAtUnknown: string;
+  /** Caption of the table comparing local and file totals. */
+  statsImportTotals: string;
+  statsImportLocalColumn: string;
+  statsImportFileColumn: string;
+  /** Confirm button of the import confirmation. */
+  statsImportConfirmAction: string;
+  statsWon: string;
+  statsLastPlayed: string;
+  /** Last daily challenge cell when there is none. */
+  statsLastPlayedNone: string;
 }
 
 const catalogs: Record<Locale, Messages> = {
@@ -956,6 +974,18 @@ const catalogs: Record<Locale, Messages> = {
     statsImportError: "O arquivo não está no formato esperado.",
     statsImportSuccess: "Estatísticas importadas.",
     statsResetSuccess: "Estatísticas apagadas.",
+    statsImportConfirmTitle: "Substituir as estatísticas deste aparelho pelas do arquivo?",
+    statsImportConfirmWarning:
+      "O que estiver só neste aparelho será perdido, e os desafios diários já contados aqui não contam de novo.",
+    statsImportExportedAt: (date) => `Arquivo exportado em ${date}.`,
+    statsImportExportedAtUnknown: "O arquivo não informa quando foi exportado.",
+    statsImportTotals: "Totais gerais",
+    statsImportLocalColumn: "Neste aparelho",
+    statsImportFileColumn: "No arquivo",
+    statsImportConfirmAction: "Substituir estatísticas",
+    statsWon: "Vitórias",
+    statsLastPlayed: "Último desafio diário",
+    statsLastPlayedNone: "Nenhum",
   },
   en: {
     meta: {
@@ -1465,6 +1495,18 @@ const catalogs: Record<Locale, Messages> = {
     statsImportError: "The file is not in the expected format.",
     statsImportSuccess: "Stats imported.",
     statsResetSuccess: "Stats cleared.",
+    statsImportConfirmTitle: "Replace the stats on this device with the ones in the file?",
+    statsImportConfirmWarning:
+      "Anything that is only on this device will be lost, and daily challenges already counted here will not count again.",
+    statsImportExportedAt: (date) => `File exported on ${date}.`,
+    statsImportExportedAtUnknown: "The file does not say when it was exported.",
+    statsImportTotals: "Overall totals",
+    statsImportLocalColumn: "On this device",
+    statsImportFileColumn: "In the file",
+    statsImportConfirmAction: "Replace stats",
+    statsWon: "Wins",
+    statsLastPlayed: "Last daily challenge",
+    statsLastPlayedNone: "None",
   },
 };
 
