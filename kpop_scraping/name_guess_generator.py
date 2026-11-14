@@ -8,13 +8,14 @@ import re
 import sqlite3
 from collections import defaultdict
 from datetime import date, datetime, timezone
-from typing import Any, Iterable
+from typing import Any
 
 from .name_guess_schema import (
     NAME_GUESS_SCHEMA_VERSION,
     normalize_name,
     validate_name_guess_puzzle,
 )
+from .puzzle_schema import serialize_evidence
 from .quiz_models import Entity, Evidence, Fact
 from .quiz_repository import _dataset_version, _load_entities, _load_facts
 from .quiz_utils import hash_payload
@@ -94,28 +95,6 @@ CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
 }
 
 
-def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
-    """Deduplicate and sort evidence records canonically."""
-    unique: dict[tuple[str, str, int, str, str], dict[str, Any]] = {}
-    for ev in evidence_items:
-        key = (
-            ev.fact_base_id,
-            ev.locator,
-            ev.revision_id,
-            ev.source_key,
-            ev.source_url,
-        )
-        if key not in unique:
-            unique[key] = {
-                "fact_base_id": ev.fact_base_id,
-                "locator": ev.locator,
-                "revision_id": ev.revision_id,
-                "source_key": ev.source_key,
-                "source_url": ev.source_url,
-            }
-    return [unique[k] for k in sorted(unique.keys())]
-
-
 def _extract_clues_and_evidence(
     entity: Entity,
     entity_facts: list[Fact],
@@ -125,7 +104,7 @@ def _extract_clues_and_evidence(
     for fact in entity_facts:
         all_evidence.extend(fact.evidence)
 
-    serialized_evidence = _serialize_evidence(all_evidence)
+    serialized_evidence = serialize_evidence(all_evidence)
     if not serialized_evidence:
         raise ValueError(f"Target entity {entity.wikidata_id} has no evidence")
 

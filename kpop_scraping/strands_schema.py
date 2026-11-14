@@ -11,10 +11,16 @@ from __future__ import annotations
 
 import re
 from datetime import date
+from functools import partial
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from .puzzle_schema import (
+    EVIDENCE_FIELDS,
+    require_bilingual_text,
+    require_hash,
+)
 from .quiz_schema import write_json_atomic
 from .quiz_utils import hash_payload
 from .word_search_schema import normalize_word
@@ -43,17 +49,12 @@ STRANDS_OPTIONAL_ROOT_FIELDS = frozenset({"theme_description"})
 STRANDS_ALL_ROOT_FIELDS = STRANDS_REQUIRED_ROOT_FIELDS | STRANDS_OPTIONAL_ROOT_FIELDS
 
 DIMENSIONS_FIELDS = frozenset({"rows", "cols"})
-BILINGUAL_FIELDS = frozenset({"pt-BR", "en"})
-EVIDENCE_FIELDS = frozenset(
-    {"fact_base_id", "locator", "revision_id", "source_key", "source_url"}
-)
 
 WORD_COMMON_REQUIRED_FIELDS = frozenset({"word", "labels", "is_spangram", "cells"})
 WORD_ENTITY_FIELDS = frozenset({"id", "canonical_name", "evidence"})
 WORD_ALL_FIELDS = WORD_COMMON_REQUIRED_FIELDS | WORD_ENTITY_FIELDS | {"spangram_kind"}
 SPANGRAM_KINDS = frozenset({"entity", "theme"})
 
-_HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _QID_PATTERN = re.compile(r"^Q[1-9][0-9]*$")
 _DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _WORD_PATTERN = re.compile(r"^[A-Z]{3,}$")
@@ -67,6 +68,10 @@ def _require(condition: bool, message: str) -> None:
         raise ValueError(f"Invalid strands puzzle schema: {message}")
 
 
+_require_hash = partial(require_hash, _require)
+_require_bilingual_text = partial(require_bilingual_text, _require)
+
+
 def _require_date(value: Any, field_name: str) -> None:
     _require(
         isinstance(value, str) and bool(_DATE_PATTERN.match(value)),
@@ -78,18 +83,6 @@ def _require_date(value: Any, field_name: str) -> None:
         raise ValueError(
             f"Invalid strands puzzle schema: {field_name} is not a calendar date"
         ) from exc
-
-
-def _require_bilingual_text(value: Any, field_name: str) -> None:
-    _require(isinstance(value, dict), f"{field_name} must be an object")
-    _require(
-        value.keys() == BILINGUAL_FIELDS, f"{field_name} fields must be pt-BR and en"
-    )
-    for lang in ("pt-BR", "en"):
-        _require(
-            isinstance(value[lang], str) and len(value[lang]) > 0,
-            f"{field_name}.{lang} must be a non-empty string",
-        )
 
 
 def _validate_evidence(evidence: Any, context: str) -> None:
@@ -113,13 +106,6 @@ def _validate_evidence(evidence: Any, context: str) -> None:
         f"{context}.source_url must be an https URL",
     )
     _require(bool(urlsplit(source_url).netloc), f"{context}.source_url netloc cannot be empty")
-
-
-def _require_hash(value: Any, field_name: str) -> None:
-    _require(
-        isinstance(value, str) and bool(_HASH_PATTERN.match(value)),
-        f"{field_name} must be a 64-character lowercase hex string",
-    )
 
 
 def compute_strands_puzzle_id(payload: dict[str, Any]) -> str:

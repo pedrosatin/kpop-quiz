@@ -13,6 +13,7 @@ from typing import Any, Iterable, Iterator
 
 from .connections_schema import CONNECTIONS_SCHEMA_VERSION, validate_connections_puzzle
 from .lazy_order import shuffled_combinations
+from .puzzle_schema import serialize_evidence
 from .quiz_models import Entity, Evidence, Fact
 from .quiz_repository import (
     _dataset_version,
@@ -159,28 +160,6 @@ def _get_record_label_criterion(entity: Entity) -> dict[str, Any]:
         },
         "wikidata_id": entity.wikidata_id,
     }
-
-
-def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
-    """Deduplicate and sort evidence records canonically."""
-    unique: dict[tuple[str, str, int, str, str], dict[str, Any]] = {}
-    for ev in evidence_items:
-        key = (
-            ev.fact_base_id,
-            ev.locator,
-            ev.revision_id,
-            ev.source_key,
-            ev.source_url,
-        )
-        if key not in unique:
-            unique[key] = {
-                "fact_base_id": ev.fact_base_id,
-                "locator": ev.locator,
-                "revision_id": ev.revision_id,
-                "source_key": ev.source_key,
-                "source_url": ev.source_url,
-            }
-    return [unique[k] for k in sorted(unique.keys())]
 
 
 def count_valid_partitions(
@@ -705,7 +684,7 @@ def generate_connections_puzzle(
         for qid in item_ids:
             cat_evidences.extend(group_evidence.get((qid, cat_id), ()))
 
-        serialized_ev = _serialize_evidence(cat_evidences)
+        serialized_ev = serialize_evidence(cat_evidences)
         if not serialized_ev:
             raise ValueError(f"No evidence found for category {cat_id}")
 

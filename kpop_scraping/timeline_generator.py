@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Iterable
 
-from .quiz_models import Entity, Evidence, Fact
+from .puzzle_schema import serialize_evidence
+from .quiz_models import Entity, Fact
 from .quiz_repository import _dataset_version, _load_entities, _load_facts
 from .quiz_utils import ambiguous_release_ids, reference_date_today
 from .timeline_schema import (
@@ -101,28 +102,6 @@ def format_display_date(date_str: str) -> dict[str, str]:
     return {"pt-BR": f"{day} de {m_pt} de {year}", "en": f"{m_en} {day}, {year}"}
 
 
-def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
-    """Deduplicate and canonically sort evidence records."""
-    unique: dict[tuple[str, str, int, str, str], dict[str, Any]] = {}
-    for ev in evidence_items:
-        key = (
-            ev.fact_base_id,
-            ev.locator,
-            ev.revision_id,
-            ev.source_key,
-            ev.source_url,
-        )
-        if key not in unique:
-            unique[key] = {
-                "fact_base_id": ev.fact_base_id,
-                "locator": ev.locator,
-                "revision_id": ev.revision_id,
-                "source_key": ev.source_key,
-                "source_url": ev.source_url,
-            }
-    return [unique[k] for k in sorted(unique.keys())]
-
-
 def _parse_event_date(value_time: str | None) -> tuple[str, int] | None:
     if not value_time:
         return None
@@ -200,7 +179,7 @@ def _build_formation_candidates(facts: list[Fact]) -> list[CandidateEvent]:
                 description={"pt-BR": desc_pt, "en": desc_en},
                 entity_id=qid,
                 entity_name=entity_name,
-                evidence=_serialize_evidence(fact.evidence),
+                evidence=serialize_evidence(fact.evidence),
             )
         )
     return candidates
@@ -260,7 +239,7 @@ def _build_birth_candidates(facts: list[Fact]) -> list[CandidateEvent]:
                 description={"pt-BR": desc_pt, "en": desc_en},
                 entity_id=qid,
                 entity_name=entity_name,
-                evidence=_serialize_evidence(fact.evidence),
+                evidence=serialize_evidence(fact.evidence),
             )
         )
     return candidates
@@ -347,7 +326,7 @@ def _build_release_candidates(facts: list[Fact]) -> list[CandidateEvent]:
             description=description,
             entity_id=qid,
             entity_name=release.canonical_name,
-            evidence=_serialize_evidence(
+            evidence=serialize_evidence(
                 item for fact in evidence_facts for item in fact.evidence
             ),
         )
