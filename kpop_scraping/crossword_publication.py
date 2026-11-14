@@ -153,14 +153,26 @@ def read_pilot(directory: Path) -> dict | None:
     return board
 
 
-def confirmed_record(directory: Path, reference_date: str) -> dict | None:
+def confirmed_record(
+    directory: Path, reference_date: str, served_ahead: Path | None = None
+) -> dict | None:
     """Record of reference_date in directory.
+
+    ``served_ahead`` is the directory of the set published ahead (``next/``).
+    A day that never reached directory was served from there, so its record
+    there stands in when directory has none. An unreadable record there
+    counts as missing, since every run builds that directory again.
 
     Before the first daily record exists, every day served the audited pilot
     board, so a valid ``crossword-pilot.json`` stands for those days. Once any
     record exists, a missing one stays missing.
     """
     record = read_record(directory, reference_date)
+    if record is None and served_ahead is not None:
+        try:
+            record = read_record(served_ahead, reference_date)
+        except ValueError:
+            record = None
     if record is not None or has_history(directory):
         return record
     board = read_pilot(directory)

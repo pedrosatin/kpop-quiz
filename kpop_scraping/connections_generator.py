@@ -580,6 +580,10 @@ def _load_criterion_groups(connection: sqlite3.Connection) -> tuple[
     )
 
 
+class AmbiguousPartitionError(ValueError):
+    """A connections board whose categories split its items in more than one way."""
+
+
 def validate_connections_partition_unique(
     connection: sqlite3.Connection, puzzle: dict[str, Any]
 ) -> None:
@@ -589,13 +593,13 @@ def validate_connections_partition_unique(
     while a second partition may exist among the criteria's other members in
     the database. A database that no longer supports the published categories
     admits no partition at all; that is a stale fact, not an ambiguity, and it
-    passes here. Raises ValueError when two partitions exist.
+    passes here. Raises AmbiguousPartitionError when two partitions exist.
     """
     _, _, criterion_groups, _, _, _ = _load_criterion_groups(connection)
     categories = [(cat["id"], criterion_groups[cat["id"]]) for cat in puzzle["categories"]]
     items = sorted(item["id"] for item in puzzle["items"])
     if count_valid_partitions(items, categories, max_count=2) > 1:
-        raise ValueError(
+        raise AmbiguousPartitionError(
             f"connections puzzle {puzzle['puzzle_id']} has an ambiguous solution "
             "under the database criteria"
         )

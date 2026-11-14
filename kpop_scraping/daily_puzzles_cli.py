@@ -200,6 +200,23 @@ def report_skipped_games(result: dict[str, Any]) -> None:
         warn(title, message)
 
 
+def report_ambiguous_connections(result: dict[str, Any]) -> None:
+    """Make a kept or promoted connections board with a second solution visible.
+
+    The board stays published (see ``_check_connections_partition``). The
+    message names only the board id and the date, both from the verified set.
+    """
+    partition = result.get("connections_partition")
+    if not partition or partition["reason"] != "ambiguous":
+        return
+    warn(
+        "Daily connections ambiguous",
+        f"Connections board {result['connections_id']} of {result['reference_date']} admits "
+        "a second solution under the current database; the board already served is kept "
+        "(--regenerate publishes a new one)",
+    )
+
+
 def report_skipped_next_day(next_skipped: dict[str, Any] | None) -> None:
     """Make a next day that could not be published ahead visible."""
     if not next_skipped:
@@ -331,6 +348,7 @@ def main(argv: list[str] | None = None) -> int:
         report_skipped_grid(result.get("grid_skipped"))
         report_skipped_code_groups(result.get("code_groups_skipped"))
         report_skipped_games(result)
+        report_ambiguous_connections(result)
         report_skipped_crossword(result.get("crossword_skipped"), result.get("crossword_confirmed"))
         report_word_search_fallback(result.get("word_search_fallback"))
         report_evidence_rules(result.get("evidence_rules"))
