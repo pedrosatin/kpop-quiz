@@ -36,8 +36,9 @@ _DISPLAY_OPTIONS = frozenset({"df", "mf"})
 _MARKUP = re.compile(
     r"<!--.*?-->|<ref[^>/]*/>|<ref[^>]*>.*?</ref\s*>|</?[a-z][^>]*>", re.I | re.S
 )
-# Matched from the last "(" only: tried at every space before it, the
-# pattern rereads the whole run of spaces that _mask leaves for a reference.
+# Matched at the last "(" only. With a leading \s* and .sub, the earlier pattern
+# was tried at each space that _mask leaves for a reference, and each try read
+# the whole run of spaces.
 _TRAILING_NOTE = re.compile(r"\([^()]*\)\s*$")
 _NOTE_START = re.compile(r"<!--|<ref", re.I)
 _COMMENT_CLOSE = re.compile(r"-->")

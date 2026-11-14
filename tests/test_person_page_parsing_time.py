@@ -1,7 +1,7 @@
 """Time limits for the person infobox check on text any Wikipedia editor can save.
 
-Each timed input is the shape that made the earlier patterns run for seconds,
-at a fixed size. The comment of each test gives the CPU time that code took on
+Each timed input is the shape that made the earlier patterns run for seconds
+to minutes, at a fixed size. The comment of each test gives the CPU time that code took on
 a loaded laptop with Python 3.14; the same input took about four times longer
 under heavier load. The current code takes under 0.02 s on each of them, so the
 one-second limit leaves a wide margin for a slow machine.
@@ -90,7 +90,8 @@ class TrailingNotesTest(unittest.TestCase):
             "[[Seoul]] <ref>a <!-- b --> c</ref>": "[[Seoul]]",
             "[[Seoul]]<ref>a</ref> ": "[[Seoul]]",
             "<ref>a</ref>": "",
-            # A note may close at a later tag, past the text between two notes.
+            # Kept from the earlier pattern, not intended: a note may close at a
+            # later tag, past the text between two notes.
             "Busan<ref>a</ref>, Korea<ref>b</ref>": "Busan",
             "Busan<!-- a -->, Korea<!-- b -->": "Busan",
             "Busan<ref name=a/>, Korea<ref>b</ref>": "Busan",
