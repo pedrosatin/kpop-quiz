@@ -2,7 +2,7 @@
 
 ## Status
 
-Aprovado em 2026-11-13. Muda a ordem em que o gerador da Connections percorre os critérios e os grupos, e com ela o tabuleiro de datas ainda não publicadas. O contrato do artefato, a regra de unicidade da partição, a regra das categorias "N integrantes" e a ordem de dificuldade continuam iguais.
+Aprovado em 2026-11-13. Muda a ordem em que o gerador da Connections percorre os critérios e os grupos, e com ela o tabuleiro de datas ainda não publicadas. O contrato do artefato, a regra de unicidade da partição, a regra das categorias "N integrantes" e a ordem de dificuldade continuam iguais. Desde o [ADR 037](037-publicacao-parcial-do-dia.md), o `ValueError` do orçamento esgotado tira do dia só a Connections, e os outros jogos saem.
 
 ## Contexto
 
