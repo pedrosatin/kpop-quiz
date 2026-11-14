@@ -9,9 +9,10 @@ import re
 import sqlite3
 from collections import defaultdict
 from datetime import date, datetime, timezone
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 from .connections_schema import CONNECTIONS_SCHEMA_VERSION, validate_connections_puzzle
+from .lazy_order import shuffled_combinations
 from .quiz_models import Entity, Evidence, Fact
 from .quiz_repository import (
     _dataset_version,
@@ -415,6 +416,46 @@ def _rank_difficulty(
     return sorted(chosen_categories, key=sort_key)
 
 
+# Search limits. One step is one set of 4 criteria drawn, one quad of groups
+# drawn at any level of the assignment search, or one uniqueness check. On the
+# catalog of 2026-11-13, the daily seeds of 365 dates used 6 to 1,590 steps per
+# board. When every board splits in more than one way, a uniqueness check took
+# about 4.5 ms on a laptop, so the limit ends such a search in about 21 s
+# in the case measured, a time that does not grow with the size of the catalog
+# but does with the overlap of the criteria; the board is then refused with a
+# ValueError.
+# MAX_DRAWS_PER_COMBO moves the search to the next set of criteria when the
+# quads of one set keep leaving too few groups for the next level.
+MAX_SEARCH_STEPS = 10_000
+MAX_DRAWS_PER_COMBO = 400
+
+
+class _SearchBudget:
+    """Count the steps of one board's search and stop it at ``limit``."""
+
+    KINDS = ("criteria sets", "quads", "uniqueness checks")
+
+    def __init__(self, limit: int = MAX_SEARCH_STEPS, seed: str | None = None) -> None:
+        self.limit = limit
+        self.seed = seed
+        self.spent = dict.fromkeys(self.KINDS, 0)
+
+    @property
+    def used(self) -> int:
+        return sum(self.spent.values())
+
+    def spend(self, kind: str) -> None:
+        """Count one step of ``kind``; raise ValueError when it is over the limit."""
+        if self.used >= self.limit:
+            detail = ", ".join(f"{count} {name}" for name, count in self.spent.items())
+            raise ValueError(
+                f"Connections search budget exhausted with seed {self.seed!r}: "
+                f"used {self.used} of {self.limit} steps ({detail}) "
+                "without a board that has a single solution"
+            )
+        self.spent[kind] += 1
+
+
 def _find_disjoint_assignment(
     combo: tuple[str, ...],
     criterion_groups: dict[str, set[str]],
@@ -422,12 +463,23 @@ def _find_disjoint_assignment(
     max_evaluations: int = 40,
     member_count_bounds: MemberCountBounds | None = None,
     all_criteria: dict[str, dict[str, Any]] | None = None,
+    budget: _SearchBudget | None = None,
+    max_draws: int = MAX_DRAWS_PER_COMBO,
 ) -> tuple[dict[str, tuple[str, ...]], list[str]] | None:
     """Find a unique 4x4 partition assignment for the given combination of 4 criteria.
+
+    The quads of each level are drawn one at a time, in an order taken from
+    ``rng`` (see ``lazy_order``), so the cost follows the draws and not the
+    size of the criteria. The search gives up on this combination (None)
+    after ``max_evaluations`` uniqueness checks or ``max_draws`` quads drawn
+    at any level. Every draw and check is also charged to ``budget``, which
+    raises ValueError at its limit.
 
     With ``member_count_bounds``, a board where an item outside an "N members"
     category may also have N members is skipped (see ``member_count_conflicts``).
     """
+    if budget is None:
+        budget = _SearchBudget()
     c0, c1, c2, c3 = combo
     s0 = criterion_groups[c0]
     s1 = criterion_groups[c1]
@@ -439,39 +491,44 @@ def _find_disjoint_assignment(
 
     ordered_cats = tuple(sorted(combo, key=lambda c: len(criterion_groups[c])))
     k0, k1, k2, k3 = ordered_cats
-
-    combos_0 = list(itertools.combinations(sorted(criterion_groups[k0]), 4))
-    rng.shuffle(combos_0)
+    sorted_groups = {cat: sorted(criterion_groups[cat]) for cat in ordered_cats}
 
     categories_criteria = [(c, criterion_groups[c]) for c in combo]
     eval_count = 0
+    draws = 0
 
-    for a0 in combos_0:
+    def draw(remaining: list[str]) -> Iterator[tuple[str, ...]]:
+        nonlocal draws
+        quads = shuffled_combinations(remaining, 4, rng)
+        while draws < max_draws:
+            quad = next(quads, None)
+            if quad is None:
+                return
+            draws += 1
+            budget.spend("quads")
+            yield quad
+
+    for a0 in draw(sorted_groups[k0]):
         set_a0 = set(a0)
-        rem_1 = [x for x in sorted(criterion_groups[k1]) if x not in set_a0]
+        rem_1 = [x for x in sorted_groups[k1] if x not in set_a0]
         if len(rem_1) < 4:
             continue
-        combos_1 = list(itertools.combinations(rem_1, 4))
-        rng.shuffle(combos_1)
 
-        for a1 in combos_1:
+        for a1 in draw(rem_1):
             set_a01 = set_a0 | set(a1)
-            rem_2 = [x for x in sorted(criterion_groups[k2]) if x not in set_a01]
+            rem_2 = [x for x in sorted_groups[k2] if x not in set_a01]
             if len(rem_2) < 4:
                 continue
-            combos_2 = list(itertools.combinations(rem_2, 4))
-            rng.shuffle(combos_2)
 
-            for a2 in combos_2:
+            for a2 in draw(rem_2):
                 set_a012 = set_a01 | set(a2)
-                rem_3 = [x for x in sorted(criterion_groups[k3]) if x not in set_a012]
+                rem_3 = [x for x in sorted_groups[k3] if x not in set_a012]
                 if len(rem_3) < 4:
                     continue
-                combos_3 = list(itertools.combinations(rem_3, 4))
-                rng.shuffle(combos_3)
 
-                for a3 in combos_3:
+                for a3 in draw(rem_3):
                     eval_count += 1
+                    budget.spend("uniqueness checks")
                     candidate_16 = sorted(set_a012 | set(a3))
                     assignment = {k0: a0, k1: a1, k2: a2, k3: a3}
                     ambiguous_count = member_count_bounds is not None and bool(
@@ -548,8 +605,14 @@ def generate_connections_puzzle(
     connection: sqlite3.Connection,
     seed: str | None = None,
     reference_date: date | None = None,
+    max_search_steps: int = MAX_SEARCH_STEPS,
 ) -> dict[str, Any]:
-    """Generate a deterministic, verified 4x4 connections puzzle from local facts."""
+    """Generate a deterministic, verified 4x4 connections puzzle from local facts.
+
+    The sets of 4 criteria and the quads inside each set are drawn lazily, in
+    an order the seed decides. The whole search shares one budget of
+    ``max_search_steps`` steps; past it, the board is refused with ValueError.
+    """
     if reference_date is None:
         reference_date = datetime.now(timezone.utc).date()
 
@@ -580,13 +643,10 @@ def generate_connections_puzzle(
         )
 
     active_crit_ids = sorted(active_criteria.keys())
-    criteria_combos = list(itertools.combinations(active_crit_ids, 4))
-    criteria_combos.sort()
 
     seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
     rng = random.Random(seed_bytes)
-    shuffled_combos = list(criteria_combos)
-    rng.shuffle(shuffled_combos)
+    budget = _SearchBudget(max_search_steps, seed)
 
     found_puzzle_data: tuple[
         tuple[str, ...],
@@ -594,7 +654,8 @@ def generate_connections_puzzle(
         list[str],
     ] | None = None
 
-    for combo in shuffled_combos:
+    for combo in shuffled_combinations(active_crit_ids, 4, rng):
+        budget.spend("criteria sets")
         c0, c1, c2, c3 = combo
         s0 = criterion_groups[c0]
         s1 = criterion_groups[c1]
@@ -607,6 +668,7 @@ def generate_connections_puzzle(
         result = _find_disjoint_assignment(
             combo, criterion_groups, rng,
             member_count_bounds=member_count_bounds, all_criteria=all_criteria,
+            budget=budget,
         )
         if result is not None:
             assignment_map, candidate_items = result
