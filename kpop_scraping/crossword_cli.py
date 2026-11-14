@@ -41,9 +41,9 @@ def validate_source(source: dict, qid: str) -> None:
 def validate(p: dict) -> None:
     """Domain rules of crossword-pilot-v1; web/src/data/crossword.ts mirrors them.
 
-    Raises ValueError at the first broken rule: metadata, board bounds and the
-    root lists first, then every rule of one entry before the next entry, then
-    the rules that need the whole board.
+    Raises ValueError at the first broken rule. Metadata, board bounds and the
+    root lists come first, then every rule of one entry before the next, and
+    last the rules that need the whole board.
     """
     _check_metadata(p)
     rows, cols = _check_board_bounds(p)
@@ -124,7 +124,10 @@ def _check_entry_identity(e: dict, seen_qids: set) -> None:
         raise ValueError('identity')
 
 def _normalized_answer(e: dict) -> str:
-    """The answer, which must be the non-empty normalization of the canonical name."""
+    """The answer, which must be the non-empty normalization of the canonical name.
+
+    Also requires every alias to be a string.
+    """
     if not isinstance(e['canonical_name'], str) or not isinstance(e['answer'], str) or not all(isinstance(a, str) for a in e['aliases']):
         raise ValueError('normalization')
     word = normalize(e['canonical_name'])
