@@ -75,7 +75,14 @@ class _BoundedResponse:
     http.client knows the body length, which is then within the limit, so a
     body cut short still raises ``IncompleteRead`` as before. Without a known
     length it asks for one byte more than the limit allows.
+
+    ``read`` is the only way to the body. The other readers of the response
+    and its underlying file (``_UNBOUNDED``) raise ``AttributeError``, since
+    they would bypass the count. Every other attribute, such as ``headers``
+    and ``status``, comes from the response.
     """
+
+    _UNBOUNDED = frozenset({"readline", "readlines", "readinto", "readinto1", "read1", "peek", "fp", "file"})
 
     def __init__(self, response: Any, limit: int, host: str) -> None:
         self._response = response
@@ -116,6 +123,8 @@ class _BoundedResponse:
         return self._response.__exit__(*exc_info)
 
     def __getattr__(self, name: str) -> Any:
+        if name in self._UNBOUNDED:
+            raise AttributeError(f"{name} would read past the response limit; use read()")
         return getattr(self._response, name)
 
 

@@ -152,6 +152,39 @@ class ResponseLimitTest(unittest.TestCase):
             with self.assertRaisesRegex(ResponseRefusedError, "example.org has at least 11 bytes, above the 10-byte limit"):
                 bounded.read()
 
+    def test_a_read_without_length_asks_for_one_byte_past_the_limit(self) -> None:
+        class Recording(io.BytesIO):
+            """Records the size of each read, and serves whatever is asked."""
+
+            def __init__(self, body: bytes) -> None:
+                super().__init__(body)
+                self.sizes: list[int | None] = []
+
+            def read(self, size: int | None = -1) -> bytes:
+                self.sizes.append(size)
+                return super().read(size)
+
+        small = Recording(b"x" * 4)
+        with self.fetch(small, 10) as bounded:
+            self.assertEqual(bounded.read(), b"x" * 4)
+        self.assertEqual(small.sizes, [11])
+
+        large = Recording(b"x" * 1000)
+        with self.fetch(large, 10) as bounded:
+            with self.assertRaisesRegex(ResponseRefusedError, "at least 11 bytes"):
+                bounded.read()
+        self.assertEqual(large.sizes, [11])
+        self.assertTrue(large.closed)
+
+    def test_readers_that_bypass_the_limit_are_refused(self) -> None:
+        response = http_response("HTTP/1.1 200 OK\r\nConnection: close", b"line\n" * 5)
+        with self.fetch(response, 10) as bounded:
+            for name in ("readline", "readlines", "readinto", "read1", "peek", "fp"):
+                with self.subTest(name=name), self.assertRaisesRegex(AttributeError, "use read"):
+                    getattr(bounded, name)
+            self.assertEqual(bounded.status, 200)
+            self.assertIsNone(bounded.headers.get("Content-Length"))
+
     def test_a_declared_length_above_the_limit_is_refused_before_reading(self) -> None:
         response = http_response("HTTP/1.1 200 OK\r\nContent-Length: 11", b"x" * 11)
         with self.assertRaisesRegex(ResponseRefusedError, "at least 11 bytes"):
