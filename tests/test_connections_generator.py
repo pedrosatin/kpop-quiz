@@ -642,7 +642,7 @@ class SearchCostTest(unittest.TestCase):
         # the answer. The code that listed every quad of a level before the
         # first check took 15.1 s and 332 MiB (tracemalloc peak) for one check
         # at 100 groups, and stopped with MemoryError under a 2 GiB cap at 300
-        # (C(285, 4) = 269 million quads), on a laptop with Python 3.14. The
+        # (C(300, 4) = 330 million quads), on a laptop with Python 3.14. The
         # lazy draws take about 1 ms and well under 1 MiB.
         groups = {
             "a": {f"A{index:03d}" for index in range(4)},

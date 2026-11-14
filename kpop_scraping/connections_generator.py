@@ -420,8 +420,10 @@ def _rank_difficulty(
 # drawn at any level of the assignment search, or one uniqueness check. On the
 # catalog of 2026-11-13, the daily seeds of 365 dates used 6 to 1,590 steps per
 # board. When every board splits in more than one way, a uniqueness check took
-# about 4.5 ms on a laptop, so the limit ends such a search in about 20 s
-# whatever the size of the catalog; the board is then refused with a ValueError.
+# about 4.5 ms on a laptop, so the limit ends such a search in about 21 s
+# in the case measured, a time that does not grow with the size of the catalog
+# but does with the overlap of the criteria; the board is then refused with a
+# ValueError.
 # MAX_DRAWS_PER_COMBO moves the search to the next set of criteria when the
 # quads of one set keep leaving too few groups for the next level.
 MAX_SEARCH_STEPS = 10_000

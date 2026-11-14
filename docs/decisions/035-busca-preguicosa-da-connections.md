@@ -22,11 +22,11 @@ O gerador usa essa ordem para os conjuntos de critérios e para as quadras de ca
 
 Um passo é um conjunto de critérios sorteado, uma quadra sorteada em qualquer nível ou uma checagem de unicidade. Cada tabuleiro tem um orçamento de 10.000 passos (`MAX_SEARCH_STEPS`). Ao esgotá-lo, `generate_connections_puzzle` levanta `ValueError` com a semente, o limite e os passos gastos de cada tipo. Dentro de um conjunto de critérios, a busca desiste e segue para o próximo depois de 40 checagens de unicidade, como antes, ou de 400 quadras sorteadas (`MAX_DRAWS_PER_COMBO`), o que cobre o caso em que as quadras de um nível deixam menos de 4 grupos para o nível seguinte.
 
-No catálogo de 2026-11-13, as sementes diárias de 365 datas a partir de 2026-11-15 gastaram de 6 a 1.590 passos, sem nenhuma falha. No pior caso medido, em que todo conjunto de 16 grupos admite mais de uma partição, cada checagem de unicidade levou cerca de 4,5 ms e o orçamento se esgotou em cerca de 21 s.
+No catálogo de 2026-11-13, as sementes diárias de 365 datas a partir de 2026-11-15 gastaram de 6 a 1.590 passos, sem nenhuma falha. No pior caso medido, em que todo conjunto de 16 grupos admite mais de uma partição, cada checagem de unicidade levou cerca de 4,5 ms e o orçamento se esgotou em cerca de 21 s. Esse tempo vale para checagens de 4,5 ms. O custo de uma checagem depende de quanto os critérios se sobrepõem entre os 16 itens, então os 21 s não são um teto.
 
 ### Tabuleiros publicados
 
-A ordem nova gera outros tabuleiros para as mesmas datas. Os tabuleiros já publicados em `web/public/data` e em `next/` são mantidos pelo runner, como qualquer dia publicado, e o gate de troca de tabuleiro continua valendo. Uma data gerada de novo com `--regenerate` recebe o tabuleiro da ordem nova.
+A ordem nova gera outros tabuleiros para as mesmas datas. O dia já servido, no diretório principal ou em `next/`, é mantido pelo runner, e o gate de troca de tabuleiro continua valendo. O conjunto de D+1 em `next/`, que o runner refaz a cada execução, sai na ordem nova. Uma data gerada de novo com `--regenerate` recebe o tabuleiro da ordem nova.
 
 ## Alternativas consideradas
 
@@ -45,6 +45,6 @@ Sortear 4 grupos ao acaso a cada passo dispensa o estado da permutação. Esse s
 ## Consequências
 
 - O tempo e a memória da busca acompanham os passos sorteados. Um critério de 300 grupos custa cerca de 1 ms na primeira avaliação.
-- Um catálogo em que nenhum tabuleiro tem solução única em 10.000 passos faz a Connections do dia falhar com `ValueError`, a mesma classe de erro de "Unable to generate a solvable connections puzzle".
+- Um catálogo em que nenhum tabuleiro tem solução única em 10.000 passos faz a geração diária inteira falhar com `ValueError`, como já acontecia com "Unable to generate a solvable connections puzzle".
 - Os limites `MAX_SEARCH_STEPS` e `MAX_DRAWS_PER_COMBO` ficam em `kpop_scraping/connections_generator.py`. Mudar qualquer um deles pode mudar o tabuleiro das datas que estavam perto do limite.
-- `lazy_order.py` não depende da Connections e serve a outros geradores que precisem percorrer combinações ou produtos grandes numa ordem dada pela semente.
+- `lazy_order.py` não depende da Connections e serve a outros geradores que precisem percorram combinações grandes numa ordem dada pela semente.
