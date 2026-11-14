@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -204,13 +205,24 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
         self.assertEqual(
             [(swap['game'], swap['date']) for swap in result['board_swaps']], [('crossword', NEXT)]
         )
-        accepted, refused = check_board_swaps(
-            self.path, 'data', 'HEAD', {'regenerate': False, 'swaps': result['board_swaps']}
-        )
-        self.assertEqual((len(accepted), refused), (1, []))
-        self.assertIn('crossword for 2026-09-19 (served from data/next)', accepted[0])
-        refused = check_board_swaps(self.path, 'data', 'HEAD', {'regenerate': False, 'swaps': []})[1]
-        self.assertEqual(len(refused), 1)
+        # Without --ahead the promoted day stays in next/ too. Once NEXT is on
+        # the air in Sao Paulo the gate also compares next/ (ADR 042), so the
+        # declared swap is accepted for both directories.
+        for now, expected in (
+            (datetime(2026, 9, 18, 15, 0, tzinfo=timezone.utc), 1),
+            (datetime(2026, 9, 19, 15, 0, tzinfo=timezone.utc), 2),
+        ):
+            with self.subTest(now=now.isoformat()):
+                accepted, refused = check_board_swaps(
+                    self.path, 'data', 'HEAD',
+                    {'regenerate': False, 'swaps': result['board_swaps']}, now=now,
+                )
+                self.assertEqual((len(accepted), refused), (expected, []))
+                self.assertIn('crossword for 2026-09-19 (served from data/next)', accepted[0])
+                refused = check_board_swaps(
+                    self.path, 'data', 'HEAD', {'regenerate': False, 'swaps': []}, now=now
+                )[1]
+                self.assertEqual(len(refused), expected)
 
     def test_cli_warns_in_github_actions_when_the_crossword_is_omitted(self):
         stdout, stderr = io.StringIO(), io.StringIO()
