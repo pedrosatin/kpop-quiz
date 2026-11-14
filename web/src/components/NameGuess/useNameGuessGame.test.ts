@@ -1,7 +1,8 @@
 import { renderHook, act } from "@testing-library/preact";
-import { describe, expect, it, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/name-guess.daily.json";
 import type { NameGuessPuzzle } from "../../lib/quiz-types";
+import { throwOnLocalStorage } from "../../test/throwing-storage";
 import { useNameGuessGame } from "./useNameGuessGame";
 
 const puzzle = validPuzzleJson as unknown as NameGuessPuzzle;
@@ -213,5 +214,22 @@ describe("useNameGuessGame hook", () => {
     });
     expect(result.current.status).toBe("playing");
     expect(result.current.guesses).toEqual([]);
+  });
+
+  describe("when localStorage throws", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("plays a round to the win and resets it", () => {
+      throwOnLocalStorage();
+      const { result } = renderHook(() => useNameGuessGame(puzzle));
+      act(() => {
+        ["T", "W", "I", "C", "E"].forEach((l) => result.current.addLetter(l));
+      });
+      act(() => result.current.submitGuess());
+      expect(result.current.status).toBe("won");
+      act(() => result.current.resetGame());
+      expect(result.current.status).toBe("playing");
+      expect(result.current.guesses).toEqual([]);
+    });
   });
 });

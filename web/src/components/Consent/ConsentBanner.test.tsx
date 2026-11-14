@@ -1,5 +1,5 @@
 import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/preact";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CONSENT_BANNER_HEIGHT_VAR,
   CONSENT_STORAGE_KEY,
@@ -8,6 +8,7 @@ import {
 } from "./ConsentBanner";
 import { setGameAnalyticsConsent, useGameAnalytics } from "../../lib/game-analytics";
 import { getMessages } from "../../i18n/catalog";
+import { throwOnLocalStorage } from "../../test/throwing-storage";
 
 const GA_ID = "G-TEST123456";
 const PRIVACY_URL = "/pt-br/privacidade/";
@@ -28,6 +29,7 @@ function openPreferences(): void {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   setGameAnalyticsConsent("", false);
   window.localStorage.clear();
   for (const s of gaScripts()) {
@@ -132,6 +134,14 @@ describe("ConsentBanner", () => {
       expect(Object.prototype.toString.call(entry)).toBe("[object Arguments]");
     }
     expect(Array.from(dataLayer.at(-1) as ArrayLike<unknown>)).toEqual(["config", GA_ID]);
+  });
+
+  it("shows the banner and honors a choice for the visit when localStorage throws", async () => {
+    throwOnLocalStorage();
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    fireEvent.click(await screen.findByRole("button", { name: REJECT }));
+    expect(screen.queryByText(messages.consentText)).not.toBeInTheDocument();
+    expect(gaScripts()).toHaveLength(0);
   });
 
   it("stores rejection and never loads Google Analytics", async () => {

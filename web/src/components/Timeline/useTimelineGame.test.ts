@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/preact";
 import type { TimelinePuzzle, TimelineEvent } from "../../lib/timeline-types";
 import validTimeline from "../../tests/fixtures/timeline.daily.json";
@@ -11,7 +11,10 @@ import {
   getInitialTimelineOrder,
   loadTimelineDraft,
   loadTimelineSavedState,
+  saveTimelineDraft,
+  saveTimelineState,
 } from "./timeline-utils";
+import { throwOnLocalStorage } from "../../test/throwing-storage";
 
 const puzzle = validTimeline as unknown as TimelinePuzzle;
 const reversedPuzzle: TimelinePuzzle = {
@@ -417,5 +420,28 @@ describe("useTimelineGame and timeline utils", () => {
       "🟩 🟩 🟩 🟩 🟩\n" +
       "https://kpopquiz.online/en/timeline/?utm_source=share&utm_medium=social&utm_campaign=timeline"
     );
+  });
+
+  describe("when localStorage throws", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("reads no save, writes nothing and still submits", () => {
+      throwOnLocalStorage();
+      const key = "kpop-timeline-test";
+      expect(loadTimelineDraft(key, puzzle)).toBeNull();
+      expect(loadTimelineSavedState(key, puzzle)).toBeNull();
+      expect(() => saveTimelineDraft(key, puzzle, getInitialTimelineEventIds(puzzle))).not.toThrow();
+      expect(() => saveTimelineState(key, {
+        puzzleId: puzzle.puzzle_id,
+        referenceDate: puzzle.reference_date,
+        orderedEventIds: getInitialTimelineEventIds(puzzle),
+        submitted: true,
+        score: 0,
+        results: [],
+      })).not.toThrow();
+      const { result } = renderHook(() => useTimelineGame(reversedPuzzle, "pt-BR"));
+      act(() => result.current.submit());
+      expect(result.current.gameStatus).toBe("submitted");
+    });
   });
 });

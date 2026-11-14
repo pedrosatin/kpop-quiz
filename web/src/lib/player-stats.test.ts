@@ -22,6 +22,7 @@ import {
   savePlayerStats,
 } from "./player-stats";
 import { dailyReferenceDate } from "../data/daily-artifact";
+import { throwOnLocalStorage } from "../test/throwing-storage";
 
 describe("player-stats module", () => {
   beforeEach(() => {
@@ -914,6 +915,23 @@ describe("player-stats module", () => {
       expect(recordMatchOnce("quiz", "daily-2026-09-19", true, "2026-09-19")).toBe(false);
       const stats = loadPlayerStats();
       expect(stats.games.quiz.played).toBe(1);
+    });
+  });
+
+  describe("when localStorage throws", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("reads zeroed stats, records nothing and never throws", () => {
+      localStorage.setItem(PLAYER_STATS_STORAGE_KEY, JSON.stringify(createInitialPlayerStats()));
+      throwOnLocalStorage();
+      expect(loadPlayerStats()).toEqual(createInitialPlayerStats());
+      expect(() => savePlayerStats(createInitialPlayerStats())).not.toThrow();
+      expect(() => recordGameFinish("quiz", true, "2026-11-14")).not.toThrow();
+      expect(isGameMatchRecorded("quiz", "daily-2026-11-14")).toBe(false);
+      expect(() => markGameMatchRecorded("quiz", "daily-2026-11-14")).not.toThrow();
+      const played = createInitialPlayerStats();
+      played.overall.played = 1;
+      expect(applyPlayerStatsFile({ stats: played })).toEqual({ success: false, error: "io-error" });
     });
   });
 });
