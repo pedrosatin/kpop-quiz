@@ -406,7 +406,59 @@ class StorageTest(unittest.TestCase):
                 failed = repository.connection.execute(
                     "SELECT status FROM collection_runs ORDER BY id DESC LIMIT 1"
                 ).fetchone()["status"]
+                revisions = repository.connection.execute(
+                    "SELECT COUNT(*) FROM source_revisions"
+                ).fetchone()[0]
             self.assertEqual(failed, "failed")
+            self.assertEqual(revisions, 1)
+
+    def test_fetched_payload_of_another_page_or_without_extract_is_rejected(self):
+        cases = {
+            "another page": lambda payload: {**payload, "pageid": 99},
+            "no extract": lambda payload: {
+                key: value for key, value in payload.items() if key != "extract"
+            },
+        }
+        for name, change in cases.items():
+            with self.subTest(name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                with Repository(root / "test.db", raw_dir=root / "raw") as repository:
+                    collect_category(SnapshotClient(), repository, "Category:Test")
+                    changed = SnapshotClient()
+                    original_get_pages = changed.get_pages
+
+                    def get_changed_pages(page_ids, original_get_pages=original_get_pages, change=change):
+                        page = original_get_pages(page_ids)[0]
+                        return [replace(page, source_payload=change(page.source_payload))]
+
+                    changed.get_pages = get_changed_pages
+                    with self.assertRaisesRegex(
+                        SnapshotIntegrityError, "revision 77 of page 10 changed content"
+                    ):
+                        collect_category(changed, repository, "Category:Test")
+                    self.assertEqual(repository.extract_drifts, [])
+
+    def test_stored_snapshot_that_is_not_json_fails_as_invalid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_dir = root / "raw"
+            with Repository(root / "test.db", raw_dir=raw_dir) as repository:
+                collect_category(SnapshotClient(), repository, "Category:Test")
+                # A file whose hash matches the database but is not JSON.
+                content = b"not json"
+                snapshot = next(raw_dir.rglob("*.json.gz"))
+                snapshot.write_bytes(gzip.compress(content, mtime=0))
+                repository.connection.execute(
+                    "UPDATE source_revisions SET content_sha256=?",
+                    (hashlib.sha256(content).hexdigest(),),
+                )
+                repository.connection.commit()
+
+                with self.assertRaisesRegex(
+                    SnapshotIntegrityError, "revision 77 of page 10 has an invalid snapshot"
+                ):
+                    collect_category(DriftClient(), repository, "Category:Test")
+                self.assertEqual(repository.extract_drifts, [])
 
     def test_repeated_revision_ignores_mutable_mediawiki_metadata(self):
         with tempfile.TemporaryDirectory() as directory:

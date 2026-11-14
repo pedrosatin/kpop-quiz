@@ -10,7 +10,7 @@ O coletor guarda um snapshot por provedor, idioma, `pageid` e `revid`. Quando a 
 
 O extract vem do TextExtracts, que o renderiza a partir do parse atual da revisão. Uma edição num template transcluído ou um deploy do parser da Wikipedia muda o texto sem criar revisão. O CLI saía com 65, o script de rebuild do ADR 032 não repetia a tentativa e o dia saía do banco em cache. O banco em cache guarda o mesmo snapshot antigo, então o rebuild do dia seguinte falhava do mesmo jeito, e assim em todos os dias até alguém editar a página. Nesse intervalo os fatos de todos os grupos ficavam parados na última coleta bem-sucedida.
 
-Uma simulação sem rede, com o script de rebuild e um cliente que devolve a mesma revisão com outro extract, reproduziu dois dias seguidos de saída 65 seguidos de restauração do cache, antes da mudança.
+No código anterior, uma simulação sem rede, com o script de rebuild e um cliente que devolve a mesma revisão com outro extract, terminou com saída 65 e restauração do cache em dois dias seguidos.
 
 ## Decisão
 
@@ -18,7 +18,7 @@ Uma simulação sem rede, com o script de rebuild e um cliente que devolve a mes
 
 - `_verify_existing_snapshot` lê o snapshot guardado com o SHA-256 do banco. Um arquivo ilegível, com outro hash ou que não traga o `pageid` e o `revid` da linha continua levantando `SnapshotIntegrityError`, e o run sai com 65. Um JSON baixado que nomeie outra página ou outra revisão também.
 - Com o snapshot íntegro, um extract baixado diferente do guardado vira `ExtractDrift`, com provedor, idioma, `pageid`, `revid` e o SHA-256 UTF-8 dos dois extracts depois do `strip()`.
-- `save_pages` grava em `collection_issues` a linha `extract_drift` do run, com o título da página e um `detail` que traz o `revid`, o idioma e os dois hashes. A página é pulada como a de extract acima de 32 KiB: nenhum snapshot novo, nenhuma atualização em `source_pages`, nenhuma ligação em `collection_run_revisions` e nenhuma mudança na entrada do catálogo. O resto do lote continua.
+- `save_pages` grava em `collection_issues` a linha `extract_drift` do run, com o título da página e um `detail` que traz o `revid`, o idioma e os dois hashes. A página é pulada como a de extract acima de 32 KiB. O run não grava snapshot novo, não atualiza `source_pages`, não liga a revisão em `collection_run_revisions` e não muda a entrada do catálogo. O resto do lote continua.
 - O snapshot guardado continua sendo a observação da revisão. As evidências que já apontam para ele não mudam, e a extração de fatos segue lendo o extract dele.
 - Cada run que encontra a deriva grava a própria linha. A restrição `UNIQUE(collection_run_id, external_page_id, issue_code)` impede duplicata dentro do mesmo run, e o run seguinte grava outra linha com o seu `collection_run_id`.
 
@@ -26,7 +26,7 @@ Uma simulação sem rede, com o script de rebuild e um cliente que devolve a mes
 
 Grupo, lançamento e pessoa gravam páginas pelo mesmo `save_pages`, então os três recebem a quarentena pelo mesmo ponto. A checagem prévia `_page_rejection`, que recusa a página de extract acima de 32 KiB antes da gravação, não se aplica aqui. A página com extract acima do limite não tem revisão guardada, e a busca posterior pela revisão falharia. A página com deriva já tem a revisão no banco, porque a deriva só existe quando a revisão está guardada.
 
-- Em `release_source_pages`, a linha da página fica `accepted` com a mesma `source_revision_id`, e a evidência do lançamento lê o extract do snapshot guardado, como antes da deriva. Gravar a linha como `rejected` com um motivo novo tiraria a evidência do lançamento, o oposto do que esta decisão mantém.
+- Em `release_source_pages`, a linha da página fica `accepted` com a mesma `source_revision_id`, e a evidência do lançamento lê o extract do snapshot guardado, como antes da deriva. O CHECK de `release_source_pages` exige `reason` nulo numa linha `accepted`. Registrar o motivo obrigaria a gravar `rejected`, que tiraria a evidência do lançamento.
 - Em `person_source_pages`, a linha também fica `accepted` com a mesma revisão. A evidência de pessoa lê só o wikitext da revisão em `source_revision_wikitext`, que o extract não altera.
 - A deriva fica registrada em `collection_issues` do run de lançamentos ou de pessoas.
 
@@ -54,9 +54,9 @@ O rebuild diário dependeria de nenhuma página guardada mudar de renderização
 
 ## Consequências
 
-- Uma página cujo extract mudou sem revisão nova não derruba mais o rebuild diário. O dia publica fatos novos dos outros grupos e mostra `Extract changed without a new revision` no resumo da execução.
+- Com uma página em deriva, o rebuild diário termina com 0, publica fatos novos dos outros grupos e mostra `Extract changed without a new revision` no resumo da execução.
 - A página fica congelada na observação guardada até ganhar uma revisão nova. Uma correção feita só num template não chega aos fatos dela nesse intervalo. Uma mudança de `wikidata_id`, título ou marcação de desambiguação na mesma revisão também não é registrada enquanto a deriva persistir, porque a página inteira é pulada.
-- A checagem de assunto de `_page_rejection` em lançamentos lê o extract baixado, e a evidência lê o guardado. Com deriva, a decisão de aceite e a evidência podem vir de textos diferentes da mesma revisão.
+- A checagem de assunto de `_page_rejection` em lançamentos lê o extract baixado, e a evidência lê o guardado. Com deriva, a decisão de aceite e a evidência podem vir de textos diferentes da mesma revisão. Se o extract baixado vier vazio ou falhar a checagem de assunto, `_page_rejection` grava a linha como `rejected` antes de `save_pages`, a evidência do lançamento sai e nenhum `extract_drift` é registrado. Esse caso já existia antes desta decisão.
 - Num run de lançamentos, páginas de wikis diferentes com o mesmo `pageid` dividem a chave única de `collection_issues`, e só a primeira deriva grava a linha. As duas aparecem no aviso, que lê `extract_drifts`.
 - O teste de `tests/test_storage.py` que exigia `SnapshotIntegrityError` para o extract alterado foi substituído por testes de quarentena em dois dias seguidos, de lançamento, de pessoa, de snapshot corrompido e de snapshot ou JSON baixado de outra revisão.
 - Reverter o código volta ao aborto. As linhas `extract_drift` em `collection_issues` ficam no banco sem uso.

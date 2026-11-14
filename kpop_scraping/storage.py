@@ -1103,7 +1103,8 @@ class Repository:
 
         A snapshot that cannot be read, fails its SHA-256 or does not hold
         this page and revision raises ``SnapshotIntegrityError``, and so does
-        a fetched payload that names another page or revision. A sound
+        a fetched payload that names another page or revision or carries no text
+        extract. A sound
         snapshot whose extract differs from the fetched one is returned as an
         ``ExtractDrift``: the snapshot stays the observation of record for the
         revision, and the caller skips the page.
