@@ -274,75 +274,90 @@ def _catalog_group_names(connection, entity_id: int) -> tuple[str, ...]:
     return tuple(aliases)
 
 
+# True when the current discovery may have hidden the release of {row}: the
+# per-group limit cut its group, its QID comes after the last kept one, and
+# the run has no candidate for it in that group. Canonical QIDs (no leading
+# zeros) compare as numbers by length, then text; CAST(... AS INTEGER) would
+# saturate at 2**63 - 1.
+_HIDDEN_BY_CUT = """EXISTS (
+    SELECT 1 FROM release_discovery_groups cut
+    WHERE cut.run_id=:discovery_run AND cut.group_entity_id={row}.group_entity_id
+      AND cut.candidates_discarded>0
+      AND (
+          length({row}.resolved_wikidata_id)>length(cut.last_kept_wikidata_id)
+          OR (
+              length({row}.resolved_wikidata_id)=length(cut.last_kept_wikidata_id)
+              AND {row}.resolved_wikidata_id>cut.last_kept_wikidata_id
+          )
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM release_candidates seen
+          WHERE seen.run_id=:discovery_run AND seen.group_entity_id={row}.group_entity_id
+            AND {row}.resolved_wikidata_id IN (seen.requested_wikidata_id, seen.resolved_wikidata_id)
+      )
+)"""
+
+# Entities of earlier rows in the batch's groups that the current run did not
+# accept and that no accepted row still holds: a row of a group outside the
+# batch, or one the cut may have hidden. Runs after the candidate update, so
+# the accepted rows left in the batch's groups are matched or hidden.
+_RETIRED_RELEASES = f"""
+    SELECT DISTINCT previous.entity_id FROM release_candidates previous
+    WHERE previous.run_id<>:discovery_run AND previous.entity_id IS NOT NULL
+      AND previous.group_entity_id IN (
+          SELECT group_entity_id FROM release_discovery_groups WHERE run_id=:discovery_run
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM release_candidates current
+          WHERE current.run_id=:discovery_run AND current.entity_id=previous.entity_id
+            AND current.state='accepted'
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM release_candidates holder
+          WHERE holder.entity_id=previous.entity_id AND holder.state='accepted'
+            AND (
+                holder.group_entity_id NOT IN (
+                    SELECT group_entity_id FROM release_discovery_groups WHERE run_id=:discovery_run
+                )
+                OR {_HIDDEN_BY_CUT.format(row="holder")}
+            )
+      )"""
+
+
 def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) -> None:
     """Retire accepted releases that the latest discovery of their group no longer found.
 
-    A group whose candidates were cut at the per-group limit stays out of the
-    scope: its missing releases may sit among the discarded candidates, so
-    its releases and facts keep the state of the last complete discovery.
+    When the per-group limit cut a group, a missing release whose QID comes
+    after the last kept candidate may sit among the discarded ones, so it
+    stays accepted with its facts and pages. A missing or rejected release at
+    or below that QID is retired as in a complete discovery.
     """
+    parameters = {"discovery_run": discovery_run_id, "fact_run": fact_run_id}
     connection.execute(
-        """UPDATE release_candidates AS previous
+        f"""UPDATE release_candidates AS previous
         SET state='stale',reason='not_in_latest_discovery'
-        WHERE previous.run_id<>? AND previous.state='accepted'
+        WHERE previous.run_id<>:discovery_run AND previous.state='accepted'
           AND previous.group_entity_id IN (
-              SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0
+              SELECT group_entity_id FROM release_discovery_groups WHERE run_id=:discovery_run
           )
           AND NOT EXISTS (
               SELECT 1 FROM release_candidates current
-              WHERE current.run_id=? AND current.group_entity_id=previous.group_entity_id
+              WHERE current.run_id=:discovery_run AND current.group_entity_id=previous.group_entity_id
                 AND current.resolved_wikidata_id=previous.resolved_wikidata_id
                 AND current.state='accepted'
-          )""",
-        (discovery_run_id, discovery_run_id, discovery_run_id),
+          )
+          AND NOT {_HIDDEN_BY_CUT.format(row="previous")}""",
+        parameters,
     )
     connection.execute(
-        """UPDATE facts SET status='stale',status_reason='release_not_in_latest_discovery',fact_run_id=?
-        WHERE status='accepted' AND subject_entity_id IN (
-            SELECT DISTINCT previous.entity_id FROM release_candidates previous
-            WHERE previous.run_id<>? AND previous.entity_id IS NOT NULL
-              AND previous.group_entity_id IN (SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0)
-              AND NOT EXISTS (
-                SELECT 1 FROM release_candidates current
-                WHERE current.run_id=? AND current.entity_id=previous.entity_id AND current.state='accepted'
-              )
-              AND NOT EXISTS (
-                SELECT 1 FROM release_candidates outside_scope
-                WHERE outside_scope.entity_id=previous.entity_id AND outside_scope.state='accepted'
-                  AND outside_scope.group_entity_id NOT IN (SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0)
-              )
-        )""",
-        (
-            fact_run_id,
-            discovery_run_id,
-            discovery_run_id,
-            discovery_run_id,
-            discovery_run_id,
-        ),
+        f"""UPDATE facts SET status='stale',status_reason='release_not_in_latest_discovery',fact_run_id=:fact_run
+        WHERE status='accepted' AND subject_entity_id IN ({_RETIRED_RELEASES})""",
+        parameters,
     )
     connection.execute(
-        """UPDATE release_source_pages SET state='stale',reason='release_not_in_latest_discovery'
-        WHERE state='accepted' AND release_entity_id IN (
-            SELECT DISTINCT previous.entity_id FROM release_candidates previous
-            WHERE previous.run_id<>? AND previous.entity_id IS NOT NULL
-              AND previous.group_entity_id IN (
-                  SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0
-              )
-              AND NOT EXISTS (
-                  SELECT 1 FROM release_candidates current
-                  WHERE current.run_id=? AND current.entity_id=previous.entity_id
-                    AND current.state='accepted'
-              )
-              AND NOT EXISTS (
-                  SELECT 1 FROM release_candidates outside_scope
-                  WHERE outside_scope.entity_id=previous.entity_id
-                    AND outside_scope.state='accepted'
-                    AND outside_scope.group_entity_id NOT IN (
-                        SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0
-                    )
-              )
-        )""",
-        (discovery_run_id, discovery_run_id, discovery_run_id, discovery_run_id),
+        f"""UPDATE release_source_pages SET state='stale',reason='release_not_in_latest_discovery'
+        WHERE state='accepted' AND release_entity_id IN ({_RETIRED_RELEASES})""",
+        parameters,
     )
 
 

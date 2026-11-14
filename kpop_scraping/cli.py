@@ -117,8 +117,11 @@ def report_truncated_groups(truncated: tuple[TruncatedGroup, ...]) -> None:
     """Warn about each group the per-group candidate limit cut; the run goes on.
 
     The message holds only the group QID, which comes from the database and
-    the query (``build_query`` accepts nothing but ``Q`` and digits), and
-    counts: no text from the WDQS answer reaches the workflow command.
+    passed ``build_query`` (``Q`` and ASCII digits without leading zeros), and
+    counts: no text from the WDQS answer reaches the workflow command. The
+    annotation is flushed at once: in GitHub Actions stdout is a pipe, so
+    Python buffers it, and the SIGTERM of the rebuild script's attempt timeout
+    would drop a buffered line.
     """
     for group in truncated:
         message = (
@@ -127,7 +130,7 @@ def report_truncated_groups(truncated: tuple[TruncatedGroup, ...]) -> None:
         )
         sys.stderr.write(f"WARNING: {message}\n")
         if os.environ.get("GITHUB_ACTIONS") == "true":
-            print(f"::warning title=Release candidates truncated::{message}")
+            print(f"::warning title=Release candidates truncated::{message}", flush=True)
 
 
 def _failure_exit_code(exc: Exception) -> int:

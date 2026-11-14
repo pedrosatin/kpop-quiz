@@ -2,7 +2,7 @@
 
 ## Status
 
-Aprovado em 2026-11-13. Muda `_parse_results` e `discover_releases` em `kpop_scraping/release_discovery.py`, `_mark_stale_releases` em `kpop_scraping/release_pipeline.py` e o resumo de `python main.py --releases`, e acrescenta a migração 12 (`release_discovery_groups.candidates_discarded`). Os limites de 25 grupos por consulta, de 100 candidatos por grupo e de 5 MB por resposta do WDQS continuam como estavam, e a consulta SPARQL também. O status do [ADR 032](032-rebuild-com-fallback-em-passo-separado.md) ganha uma nota: o limite de candidatos não leva mais ao código 65.
+Aprovado em 2026-11-13. Muda `_parse_results` e `discover_releases` em `kpop_scraping/release_discovery.py`, `_mark_stale_releases` em `kpop_scraping/release_pipeline.py` e o resumo de `python main.py --releases`, e acrescenta a migração 12 (`release_discovery_groups.candidates_discarded` e `release_discovery_groups.last_kept_wikidata_id`). Os limites de 25 grupos por consulta, de 100 candidatos por grupo e de 5 MB por resposta do WDQS continuam como estavam, e a consulta SPARQL também. O status do [ADR 032](032-rebuild-com-fallback-em-passo-separado.md) ganha uma nota: o limite de candidatos não leva mais ao código 65.
 
 ## Contexto
 
@@ -17,24 +17,27 @@ Na base local coletada em 2026-10-19, o grupo com mais candidatos numa descobert
 ### Corte por grupo
 
 - `_parse_results` agrupa os candidatos distintos por grupo, ordena os de cada grupo pelo número do QID e mantém os 100 primeiros. O run continua, e os outros grupos da consulta não mudam.
-- A ordem compara o número: `Q123` vem antes de `Q1000`. Pela ordem do texto, `Q1000` viria antes de `Q123` e o corte guardaria itens arbitrários. A comparação usa a quantidade de dígitos sem zeros à esquerda e, no empate, os dígitos como texto. Essa regra dá a ordem numérica sem `int()`, que recusa textos com mais de 4300 dígitos. O QID inteiro desempata grafias do mesmo número, como `Q07` e `Q7`.
+- A ordem compara o número: `Q123` vem antes de `Q1000`. Pela ordem do texto, `Q1000` viria antes de `Q123` e o corte guardaria itens arbitrários. Como o QID aceito não tem zeros à esquerda, a comparação usa o tamanho do QID e, no empate, o QID como texto. Essa regra dá a ordem numérica sem `int()`, que recusa textos com mais de 4300 dígitos, e um teste a compara com `int()` em QIDs de até 30 dígitos.
 - O resultado depende só do conteúdo da resposta. A ordem das linhas, a ordem de iteração de `set` e `dict` e o `PYTHONHASHSEED` não o alteram, e um teste roda o corte com três sementes de hash diferentes.
-- O Wikidata numera itens novos em ordem crescente. Um lote de itens criados depois da discografia fica com os QIDs mais altos e é o que o corte deixa de fora.
-- Um QID de lançamento precisa ser `Q` seguido de dígitos ASCII. `str.isdigit()`, usado antes, também aceita dígitos como `²` e `١`, que a ordem numérica não trata. Um QID fora desse formato encerra a descoberta como resposta recusada, com código 65.
+- O Wikidata numera itens novos em ordem crescente. Um lote de itens criados depois da discografia fica com os QIDs mais altos e é o que o corte deixa de fora. Itens antigos têm QID baixo. Um editor que acrescente P175 e P31 a itens antigos que já existem põe esses itens na frente da discografia e empurra lançamentos legítimos para fora dos 100.
+- Um QID de lançamento precisa estar na forma canônica: `Q`, um dígito ASCII de 1 a 9 e outros dígitos ASCII (`Q[1-9][0-9]*`). `str.isdigit()`, usado antes, também aceita dígitos como `²` e `١`, que a ordem numérica não trata, e `Q7`, `Q07` e `Q007` contariam como três candidatos e ocupariam três vagas. Um QID fora desse formato encerra a descoberta como resposta recusada, com código 65. `build_query` aplica a mesma regra aos QIDs dos grupos.
 
 ### Registro e aviso
 
-- A migração 12 acrescenta `release_discovery_groups.candidates_discarded INTEGER NOT NULL DEFAULT 0`, com `CHECK(candidates_discarded >= 0)`. As descobertas anteriores ficam com 0, que é o valor correto para elas: acima do limite, o run abortava.
-- `discover_releases` devolve `DiscoveryResult(run_id, truncated)`. Cada item de `truncated` traz o QID do grupo, o total de candidatos e quantos ficaram.
+- A migração 12 acrescenta `release_discovery_groups.candidates_discarded INTEGER NOT NULL DEFAULT 0`, com `CHECK(candidates_discarded >= 0)`. As descobertas anteriores ficam com 0, o valor correto para elas, porque acima do limite o run abortava.
+- A mesma migração acrescenta `release_discovery_groups.last_kept_wikidata_id TEXT`, o maior QID que o corte manteve no grupo. A coluna fica preenchida só quando `candidates_discarded > 0`, e um `CHECK` exige nesse caso um QID canônico e, sem corte, `NULL`. As descobertas anteriores ficam com `NULL`.
+- `discover_releases` devolve `DiscoveryResult(run_id, truncated)`. Cada item de `truncated` traz o QID do grupo, o total de candidatos, quantos ficaram e o último QID mantido.
 - Para cada grupo cortado, o CLI escreve em stderr `WARNING: WDQS returned <N> release candidates for group <QID>; kept the 100 with the lowest QIDs and discarded <N - 100>`. No GitHub Actions, imprime o mesmo texto em `::warning title=Release candidates truncated::`, como os avisos de `daily_puzzles_cli`. O script de rebuild roda o coletor com a saída herdada, então a linha chega ao log do job e ao resumo da execução. O resumo final ganha `Release discovery: <n> group(s) truncated at 100 candidates`.
 - A mensagem leva o QID do grupo, que vem do banco e passou pela validação de `build_query`, e números. Nenhum texto da resposta do WDQS entra no comando do workflow.
-- O corte não é falha: o run termina com 0 e o script de rebuild não restaura o cache.
+- Um run com corte termina com 0, e o script de rebuild não restaura o cache.
 
-### Lançamentos de um grupo cortado não ficam obsoletos
+### Lançamentos que o corte pode ter escondido não ficam obsoletos
 
 `_mark_stale_releases` marca como obsoletos (`stale`) os lançamentos aceitos de um grupo do lote que a descoberta atual não encontrou, e com eles os fatos e as páginas da Wikipedia. Num grupo cortado, um lançamento ausente pode estar entre os candidatos descartados. Sem ajuste, cada candidato além do 100º retiraria um lançamento aceito e os fatos dele.
 
-O escopo da marcação considera só os grupos com `candidates_discarded = 0`. Os lançamentos e fatos de um grupo cortado mantêm o estado da última descoberta completa do grupo, como acontecia quando o run abortava e o dia saía do cache. Para um lançamento que também pertence a outro grupo, a linha aceita do grupo cortado conta como fora do escopo e protege os fatos do lançamento.
+Todo candidato descartado tem QID maior que `last_kept_wikidata_id`. Por isso a marcação poupa só a linha aceita de um grupo cortado cujo QID vem depois desse limite e que o run atual não tem entre os candidatos do grupo, porque esse lançamento pode estar entre os descartados. As outras linhas do grupo seguem a regra de uma descoberta completa. Um lançamento ausente com QID até o limite fica obsoleto, porque o corte não o descartou. Um lançamento que o run manteve e rejeitou também fica obsoleto. Os candidatos mantidos passam pela confirmação de `collect_release_facts` como em qualquer run e, se confirmados, entram como aceitos com fatos novos.
+
+A comparação em SQL usa a mesma regra do corte: um QID canônico vem depois de outro quando tem mais caracteres ou, com o mesmo tamanho, quando vem depois como texto. `CAST(... AS INTEGER)` satura em 2^63 - 1 e empataria QIDs maiores. A linha poupada continua aceita e protege os fatos e as páginas do lançamento, mesmo quando outro grupo do lote não encontrou o mesmo lançamento e teve a própria linha marcada como obsoleta.
 
 ### Limite de 5 MB
 
@@ -52,7 +55,7 @@ O grupo cortado ficaria sem nenhum candidato nesse run. A descoberta perderia la
 
 ### Ordenar pelo QID como texto
 
-A consulta já devolve `ORDER BY ?performer ?release`, que no WDQS compara as URIs como texto. O corte guardaria `Q1000` antes de `Q123`, e a escolha deixaria de seguir a ordem de criação dos itens.
+A consulta já ordena por `?performer ?release`, e o WDQS compara as URIs como texto. O corte guardaria `Q1000` antes de `Q123`, e a escolha deixaria de seguir a ordem de criação dos itens.
 
 ### Aumentar o limite de 100
 
@@ -64,7 +67,7 @@ O aviso informa o operador. `_mark_stale_releases` lê o escopo da descoberta no
 
 ## Consequências
 
-- Um grupo com mais de 100 candidatos deixa de derrubar o rebuild diário. O dia publica fatos novos e mostra `Release candidates truncated` no resumo da execução enquanto o estado do Wikidata persistir.
-- Um grupo cortado não ganha nenhum lançamento cujo QID fique acima do 100º, e os lançamentos já aceitos dele não ficam obsoletos até uma descoberta completa.
-- A migração 12 é aditiva. Reverter a decisão exige outra migração para remover a coluna ou deixá-la sem uso.
+- Um grupo com mais de 100 candidatos não derruba mais o rebuild diário. O dia publica fatos novos e mostra `Release candidates truncated` no resumo da execução enquanto o estado do Wikidata persistir.
+- Um grupo cortado não ganha nenhum lançamento cujo QID fique acima do 100º. Os lançamentos já aceitos dele com QID acima do último mantido continuam aceitos até uma descoberta que os alcance. Uma discografia legítima acima de 100 em todo run mantém esses lançamentos aceitos sem nova confirmação.
+- A migração 12 é aditiva. Reverter o código deixa as duas colunas no banco, sem uso. Removê-las exige outra migração.
 - O caso de `tests/test_cli.py` que classificava o erro de limite de candidatos como 65 usa agora o erro de resposta acima de 5 MB.

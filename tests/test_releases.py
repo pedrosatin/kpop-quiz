@@ -868,7 +868,7 @@ class ReleasePipelineScopeTest(unittest.TestCase):
                 run_id,group_entity_id,requested_wikidata_id,resolved_wikidata_id,
                 entity_id,state
             ) VALUES (?,?,?,?,?,'accepted')""",
-            [(old_run, 1, "QR1", "QR1", 10), (old_run, 2, "QR2", "QR2", 20)],
+            [(old_run, 1, "Q900", "Q900", 10), (old_run, 2, "Q901", "Q901", 20)],
         )
         fact_run = self.connection.execute(
             """INSERT INTO fact_runs(
@@ -885,10 +885,12 @@ class ReleasePipelineScopeTest(unittest.TestCase):
                 'http://www.wikidata.org/entity/Q1985727','{}','{}','[]','accepted','[]',1,?,'v','t')""",
             [(10, "QR1$date", fact_run), (20, "QR2$date", fact_run)],
         )
-        # Neither release is in the current run; group 1 lost candidates to the limit.
+        # Neither release is in the current run; group 1 lost candidates
+        # after Q500 to the limit, so Q900 may be one of them.
         current_run = self._run(groups=(1, 2))
         self.connection.execute(
-            "UPDATE release_discovery_groups SET candidates_discarded=4 WHERE run_id=? AND group_entity_id=1",
+            """UPDATE release_discovery_groups SET candidates_discarded=4,last_kept_wikidata_id='Q500'
+            WHERE run_id=? AND group_entity_id=1""",
             (current_run,),
         )
         next_fact_run = self.connection.execute(

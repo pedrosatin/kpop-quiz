@@ -712,6 +712,21 @@ MIGRATIONS: tuple[Migration, ...] = (
             # the limit, so 0 is true for them.
             """ALTER TABLE release_discovery_groups ADD COLUMN candidates_discarded
             INTEGER NOT NULL DEFAULT 0 CHECK(candidates_discarded >= 0)""",
+            # Highest QID the cut kept, set only when candidates were
+            # discarded. Every discarded candidate comes after it in numeric
+            # order, so _mark_stale_releases retires the group's releases at
+            # or below it as usual. Canonical form (no leading zeros) lets SQL
+            # compare QIDs as numbers by length, then text.
+            """ALTER TABLE release_discovery_groups ADD COLUMN last_kept_wikidata_id TEXT
+            CHECK(
+                (candidates_discarded = 0 AND last_kept_wikidata_id IS NULL)
+                OR (
+                    candidates_discarded > 0
+                    AND last_kept_wikidata_id IS NOT NULL
+                    AND last_kept_wikidata_id GLOB 'Q[1-9]*'
+                    AND substr(last_kept_wikidata_id, 2) NOT GLOB '*[^0-9]*'
+                )
+            )""",
         ),
     ),
 )

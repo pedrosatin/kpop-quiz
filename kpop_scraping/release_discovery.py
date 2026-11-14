@@ -25,9 +25,11 @@ MAX_CANDIDATES_PER_GROUP = 100
 MAX_RESPONSE_BYTES = 5_000_000
 RETRYABLE_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
 ALLOWED_DIRECT_TYPES = ("Q482994", "Q169930", "Q134556")
-# ASCII digits only: str.isdigit() also accepts digits such as "²" and "١",
-# and _qid_order compares digit strings as numbers only for 0 to 9.
-_RELEASE_QID = re.compile(r"Q[0-9]+")
+# A canonical item QID: ASCII digits without leading zeros. str.isdigit()
+# also accepts digits such as "²" and "١", and Q7, Q07 and Q007 would be
+# three candidates for one item. _qid_order and the cut boundary that
+# _mark_stale_releases compares in SQL both rely on this form.
+_CANONICAL_QID = re.compile(r"Q[1-9][0-9]*")
 
 
 @dataclass(frozen=True)
@@ -43,6 +45,7 @@ class TruncatedGroup:
     group_id: str
     candidates: int
     kept: int
+    last_kept: str
 
     @property
     def discarded(self) -> int:
@@ -135,7 +138,7 @@ def build_query(group_ids: list[str]) -> str:
     if not 1 <= len(group_ids) <= MAX_GROUPS_PER_QUERY:
         raise ValueError(f"group_ids must contain 1 to {MAX_GROUPS_PER_QUERY} QIDs")
     qids = sorted(set(group_ids))
-    if len(qids) != len(group_ids) or any(not qid.startswith("Q") or not qid[1:].isdigit() for qid in qids):
+    if len(qids) != len(group_ids) or not all(_CANONICAL_QID.fullmatch(qid) for qid in qids):
         raise ValueError("group_ids must be unique Wikidata QIDs")
     groups = " ".join(f"wd:{qid}" for qid in qids)
     types = " ".join(f"wd:{qid}" for qid in ALLOWED_DIRECT_TYPES)
@@ -158,8 +161,9 @@ def discover_releases(
     """Store the WDQS candidates of one batch of accepted groups.
 
     A group with more than ``max_per_group`` candidates keeps the ones with the
-    lowest QIDs; ``DiscoveryResult.truncated`` and
-    ``release_discovery_groups.candidates_discarded`` record the rest.
+    lowest QIDs; ``DiscoveryResult.truncated`` and the
+    ``candidates_discarded`` and ``last_kept_wikidata_id`` columns of
+    ``release_discovery_groups`` record the cut.
     """
     if not 1 <= group_limit <= MAX_GROUPS_PER_QUERY:
         raise ValueError("group_limit is outside the supported WDQS batch")
@@ -208,8 +212,9 @@ def discover_releases(
             [(run_id, by_qid[item.group_id], item.release_id) for item in releases],
         )
         repository.connection.executemany(
-            "UPDATE release_discovery_groups SET candidates_discarded=? WHERE run_id=? AND group_entity_id=?",
-            [(group.discarded, run_id, by_qid[group.group_id]) for group in truncated],
+            """UPDATE release_discovery_groups SET candidates_discarded=?,last_kept_wikidata_id=?
+            WHERE run_id=? AND group_entity_id=?""",
+            [(group.discarded, group.last_kept, run_id, by_qid[group.group_id]) for group in truncated],
         )
         repository.connection.execute(
             "UPDATE release_discovery_runs SET completed_at=?,status='completed',candidates_found=? WHERE id=?",
@@ -227,16 +232,14 @@ def discover_releases(
     return DiscoveryResult(run_id, truncated)
 
 
-def _qid_order(qid: str) -> tuple[int, str, str]:
-    """Sort QIDs by number: Q123 comes before Q1000, which text order reverses.
+def _qid_order(qid: str) -> tuple[int, str]:
+    """Sort canonical QIDs by number: Q123 comes before Q1000, which text order reverses.
 
-    Without leading zeros, a shorter run of ASCII digits is a smaller number,
-    and digit runs of equal length compare as text in numeric order. This
-    avoids int(), which refuses strings above 4300 digits. The full QID breaks
-    ties between spellings of one number, such as Q07 and Q7.
+    Without leading zeros, a shorter QID is a smaller number, and QIDs of
+    equal length compare as text in numeric order. This avoids int(), which
+    refuses strings above 4300 digits.
     """
-    digits = qid[1:].lstrip("0")
-    return len(digits), digits, qid
+    return len(qid), qid
 
 
 def _parse_results(
@@ -259,7 +262,7 @@ def _parse_results(
             release = binding["release"]["value"].rsplit("/", 1)[1]
         except (KeyError, TypeError, IndexError) as exc:
             raise MediaWikiError("WDQS binding has an unexpected shape") from exc
-        if group not in groups or not _RELEASE_QID.fullmatch(release):
+        if group not in groups or not _CANONICAL_QID.fullmatch(release):
             raise MediaWikiError("WDQS binding contains an unexpected entity")
         by_group[group].add(release)
     releases: list[DiscoveredRelease] = []
@@ -268,6 +271,6 @@ def _parse_results(
         ordered = sorted(by_group[group], key=_qid_order)
         kept = ordered[:max_per_group]
         if len(ordered) > len(kept):
-            truncated.append(TruncatedGroup(group, len(ordered), len(kept)))
+            truncated.append(TruncatedGroup(group, len(ordered), len(kept), kept[-1]))
         releases.extend(DiscoveredRelease(group, release) for release in kept)
     return tuple(releases), tuple(truncated)
