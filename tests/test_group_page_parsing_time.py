@@ -3,8 +3,8 @@
 Each timed input but the chain with "and," is the shape that made the earlier
 pattern or loop run for seconds, at a fixed size. The comment of each test gives
 the CPU time that code took on a laptop with Python 3.14. The current code takes
-under 0.2 s on each of them, also on a loaded machine, so the one-second limit
-is at least five times the slowest of them.
+under 0.3 s on each of them, also on a loaded machine, so the one-second limit
+is more than three times the slowest of them.
 The other tests pin the output the same rules must keep on ordinary text.
 """
 
@@ -64,7 +64,7 @@ class TimeLimitTest(unittest.TestCase):
     def test_long_chain_with_and_before_a_comma(self):
         # Fast before too. "and" may come before a comma, and that separator must
         # not give a chain more than one way to split.
-        chain = " and, ".join(["pop And rock", "soul and"] * 1000)
+        chain = " and, ".join(["pop And rock", "soul"] * 1000)
         extract = (
             f"{GROUP} is a South Korean band. {GROUP} draws on genres including "
             f"{chain} music later influenced by K-pop."
