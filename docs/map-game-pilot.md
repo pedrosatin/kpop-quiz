@@ -48,9 +48,9 @@ Na primeira execução, o QID associado ao Rogers Stadium no MusicBrainz apontav
 
 ## Mapa de países
 
-`scripts/build_map_pilot_map.py` baixa o GeoJSON Natural Earth 5.1.1 da tag `v5.1.1` do repositório `nvkelso/natural-earth-vector` e gera `web/src/data/map-pilot/world-map.json`. Uma tag do git pode ser movida, por isso o script confere o SHA-256 do arquivo baixado com `SOURCE_SHA256` antes de ler o JSON. Com outro hash, ele para sem gravar nada. Enquanto `SOURCE_SHA256` estiver vazio, o script também para e imprime o hash do arquivo que recebeu.
+`scripts/build_map_pilot_map.py` baixa o GeoJSON Natural Earth 5.1.1 da tag `v5.1.1` do repositório `nvkelso/natural-earth-vector` e gera `web/src/data/map-pilot/world-map.json`. Uma tag do git pode ser movida, por isso o script confere o SHA-256 do arquivo baixado com `SOURCE_SHA256` antes de ler o JSON. Com outro hash, ele para sem gravar nada. Enquanto `SOURCE_SHA256` estiver vazio, o script também para e imprime o hash do arquivo que recebeu. O hash do arquivo da tag `v5.1.1` foi fixado em 2026-11-14: `239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255`. Com ele, o script reproduziu byte a byte o `world-map.json` do repositório.
 
-Para fixar o hash:
+Para fixar o hash de um arquivo novo:
 
 1. Rode `python scripts/build_map_pilot_map.py`. O erro traz o SHA-256 do arquivo baixado.
 2. Rode `python scripts/build_map_pilot_map.py --sha256 <hash>` com esse valor. O script grava o mapa.

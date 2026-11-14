@@ -33,9 +33,10 @@ SOURCE_URL = (
     "v5.1.1/geojson/ne_10m_admin_0_countries.geojson"
 )
 # SHA-256 of the file at SOURCE_URL. A git tag can be moved, so the tag in
-# the URL alone does not fix the bytes. Empty until an operator pins it with
-# the procedure in docs/map-game-pilot.md.
-SOURCE_SHA256: str | None = None
+# the URL alone does not fix the bytes. Pinned on 2026-11-14 from the file at
+# the v5.1.1 tag, which rebuilt the committed world-map.json byte for byte.
+# docs/map-game-pilot.md describes how to pin a new file.
+SOURCE_SHA256: str | None = "239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 WIDTH = 1200
 HEIGHT = 600
