@@ -19,8 +19,8 @@ MIN_CREDIT_NAME_LENGTH = 2
 MAX_SNIPPET_LENGTH = 300
 # Compiled subject patterns kept per list of subject names. One run validates
 # one subject at a time, over at most three pages, so a few entries already
-# hold the working set. The bound stops a long process from keeping the
-# patterns of every alias list it ever read; the names come from Wikidata.
+# hold the working set. The bound holds the name lists kept as cache keys; the
+# compiled patterns are also bounded, by the cache of the ``re`` module.
 SUBJECT_PATTERN_CACHE_SIZE = 16
 MONTHS = (
     "January", "February", "March", "April", "May", "June", "July",

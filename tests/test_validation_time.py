@@ -5,8 +5,8 @@ to an item. The timed input below is 1000 P577 statements with the same date
 on a release with 1000 short aliases and three pages of ten sentences. The old
 code took 8.7 s of CPU time on a laptop with Python 3.14 and 17.3 s with
 Python 3.12, with 3000 calls of ``text_evidence``: each statement read the
-three pages again, and each sentence sorted, joined and compiled the 1000
-names again. The current code takes about 0.02 s with three calls, so the
+three pages again, each page sorted the 1000 names again, and each sentence
+escaped and joined them again. The current code takes about 0.02 s with three calls, so the
 one-second limit leaves a wide margin for a slow machine.
 The other tests pin the decisions the reused search must keep.
 """
@@ -235,6 +235,13 @@ class SubjectPatternTest(unittest.TestCase):
             with self.subTest(cache=cached.__name__):
                 self.assertEqual(cached.cache_info().maxsize, SUBJECT_PATTERN_CACHE_SIZE)
                 self.assertLessEqual(cached.cache_info().currsize, SUBJECT_PATTERN_CACHE_SIZE)
+
+    def test_a_second_sentence_reuses_the_pattern_of_the_first(self):
+        names = subject_names_for(WikipediaPage(1, "en", 1, 1, "", "Alpha"), ["Reuse Probe Name"])
+        _leading_subject("Reuse Probe Name is a group.", names)
+        hits = _leading_subject_pattern.cache_info().hits
+        _leading_subject("Reuse Probe Name is a band.", names)
+        self.assertGreater(_leading_subject_pattern.cache_info().hits, hits)
 
     def test_decisions_do_not_depend_on_the_hash_seed(self):
         # Names overlap as prefixes, change case and carry regex characters.
