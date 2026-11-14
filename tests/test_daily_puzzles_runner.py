@@ -25,9 +25,12 @@ from kpop_scraping.connections_generator import (
     validate_connections_partition_unique,
 )
 from kpop_scraping.crossword_publication import (
+    confirmed_record as confirmed_crossword_record,
     context_for as crossword_context_for,
+    omission_record as crossword_omission_record,
     read_record as read_crossword_record,
     verify_history as verify_crossword_history,
+    write_record as write_crossword_record,
 )
 from kpop_scraping.daily_set import read_daily_set
 from kpop_scraping.daily_puzzles_runner import (
@@ -1519,6 +1522,111 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         )
         verify_crossword_history(self.out_dir, next_dir)
 
+    def test_another_error_of_the_partition_check_stops_the_run(self):
+        run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
+        )
+        from kpop_scraping import daily_puzzles_runner
+
+        # Only an ambiguity keeps the board; any other failure of the check
+        # leaves the served day as it was and fails the run.
+        with patch.object(
+            daily_puzzles_runner, "validate_connections_partition_unique",
+            side_effect=ValueError("x"),
+        ):
+            code, _, stderr = self.run_cli("--ahead", "--date", "2026-09-18")
+        self.assertEqual(code, 1)
+        self.assertIn("Daily puzzles generation failed: x", stderr)
+        self.assertEqual(read_daily_set(self.out_dir)["reference_date"], "2026-09-17")
+
+    def recover_after_a_missing_day(self) -> tuple[bytes | None, bytes]:
+        """Publish 2026-09-17 with 2026-09-18 ahead, skip the run of 2026-09-18
+        (the site served it from next/) and run 2026-09-19.
+
+        Returns the crossword artifact and record bytes of 2026-09-19.
+        """
+        run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
+        )
+        with redirect_stderr(io.StringIO()):
+            result = run_daily_puzzles(
+                database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-19", ahead=True
+            )
+        self.assertNotEqual((result["crossword_skipped"] or {}).get("reason"), MISSING_CROSSWORD_HISTORY)
+        artifact = self.out_dir / "crossword.daily.json"
+        return (
+            artifact.read_bytes() if artifact.is_file() else None,
+            (self.out_dir / "crossword-publication.2026-09-19.json").read_bytes(),
+        )
+
+    def assert_crossword_kept(self, saved: tuple[bytes | None, bytes]) -> None:
+        with redirect_stderr(io.StringIO()):
+            kept = run_daily_puzzles(
+                database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-19", ahead=True
+            )
+        self.assertTrue(kept["already_published"])
+        self.assertIsNone(kept["crossword_confirmed"])
+        self.assertEqual(kept["board_swaps"], [])
+        artifact = self.out_dir / "crossword.daily.json"
+        self.assertEqual(artifact.read_bytes() if artifact.is_file() else None, saved[0])
+        self.assertEqual(
+            (self.out_dir / "crossword-publication.2026-09-19.json").read_bytes(), saved[1]
+        )
+        verify_crossword_history(self.out_dir, self.out_dir / NEXT_DIRNAME)
+
+    def test_the_record_read_from_next_is_written_to_the_main_directory(self):
+        saved = self.recover_after_a_missing_day()
+        served = read_crossword_record(self.out_dir / NEXT_DIRNAME, "2026-09-18")
+        self.assertEqual(read_crossword_record(self.out_dir, "2026-09-18"), served)
+        self.assert_crossword_kept(saved)
+
+    def test_a_dry_run_reads_the_record_in_next_without_writing_it(self):
+        run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
+        )
+        with redirect_stderr(io.StringIO()):
+            result = run_daily_puzzles(
+                database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-19",
+                dry_run=True,
+            )
+        self.assertNotEqual((result["crossword_skipped"] or {}).get("reason"), MISSING_CROSSWORD_HISTORY)
+        self.assertFalse((self.out_dir / "crossword-publication.2026-09-18.json").exists())
+
+    def test_a_removed_next_does_not_take_the_previous_day_away(self):
+        saved = self.recover_after_a_missing_day()
+        shutil.rmtree(self.out_dir / NEXT_DIRNAME)
+        self.assert_crossword_kept(saved)
+
+    def test_a_kept_day_confirms_its_crossword_from_the_record_in_next(self):
+        saved = self.recover_after_a_missing_day()
+        # A set installed before the main directory kept that record.
+        (self.out_dir / "crossword-publication.2026-09-18.json").unlink()
+        self.assert_crossword_kept(saved)
+        self.assertIsNotNone(read_crossword_record(self.out_dir, "2026-09-18"))
+
+    def test_the_record_of_the_main_directory_wins_over_next(self):
+        run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
+        )
+        main = read_crossword_record(self.out_dir, "2026-09-17")
+        other = crossword_omission_record("2026-09-17", "a record that lost to the main directory")
+        self.assertNotEqual(main, other)
+        write_crossword_record(self.out_dir / NEXT_DIRNAME, other)
+        self.assertEqual(
+            confirmed_crossword_record(self.out_dir, "2026-09-17", self.out_dir / NEXT_DIRNAME), main
+        )
+
+    def test_a_record_in_next_that_is_not_a_file_counts_as_missing(self):
+        run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
+        )
+        record = self.out_dir / NEXT_DIRNAME / "crossword-publication.2026-09-18.json"
+        record.unlink()
+        record.mkdir()
+        self.assertIsNone(
+            confirmed_crossword_record(self.out_dir, "2026-09-18", self.out_dir / NEXT_DIRNAME)
+        )
+
     def test_an_unreadable_record_in_next_counts_as_missing_history(self):
         run_daily_puzzles(
             database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
@@ -1529,6 +1637,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
                 database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-19"
             )
         self.assertEqual(result["crossword_skipped"]["reason"], MISSING_CROSSWORD_HISTORY)
+        self.assertFalse((self.out_dir / "crossword-publication.2026-09-18.json").exists())
 
     def test_kept_board_the_database_no_longer_supports_is_not_an_ambiguity(self):
         run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")

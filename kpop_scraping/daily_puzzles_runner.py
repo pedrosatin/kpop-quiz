@@ -906,9 +906,9 @@ def _check_connections_partition(
     output_dir or from ``next/`` since midnight in Sao Paulo, so it is kept
     and recorded with ``reason: ambiguous``: changing it would cost the players
     of the day their progress. The run goes on with the other games and the
-    next day, and ``--regenerate`` publishes a new board when the operator
-    asks for one. A new board never gets here; the generator refuses an
-    ambiguous one.
+    next day. ``--regenerate``, when the operator asks for it, generates every
+    game of the date again, and each swap counts as declared. A new board
+    never gets here; the generator refuses an ambiguous one.
     """
     if not (directory / CONNECTIONS_DAILY_FILENAME).is_file():
         # The set omits the connections board; there is nothing to check.
@@ -1013,7 +1013,9 @@ def _confirm_crossword_day(
     if record["source"] != "daily" or connection is None:
         return None
     previous_day = (date.fromisoformat(reference_date) - timedelta(days=1)).isoformat()
-    expected = crossword_context_for(reference_date, _served_crossword_record(output_dir, previous_day))
+    expected = crossword_context_for(
+        reference_date, _served_crossword_record(output_dir, previous_day, adopt=True)
+    )
     if expected == record["previous"]:
         return None
     artifact, replacement, public_reason = _generate_crossword(connection, reference_date, expected)
@@ -1032,15 +1034,31 @@ def _confirm_crossword_day(
     }
 
 
-def _served_crossword_record(output_dir: Path, reference_date: str) -> dict[str, Any] | None:
+def _served_crossword_record(
+    output_dir: Path, reference_date: str, adopt: bool = False
+) -> dict[str, Any] | None:
     """Confirmed crossword record of a served day, from ``next/`` when needed.
 
     A day whose own run never installed it in output_dir (the run failed,
     or did not happen) was still served from ``next/`` after midnight in
     Sao Paulo, and the record published there says what it served. The
     record in output_dir wins when both exist, as in ``verify_history``.
+
+    With ``adopt``, a record read from ``next/`` is also written to
+    output_dir, before the day that consumes it is installed: the history of
+    the main directory then holds both days, and a ``next/`` removed later
+    (see ``_drop_unverifiable_next``) cannot take it away. The pilot record,
+    which stands in for days before any record exists, is never written.
     """
-    return confirmed_crossword_record(output_dir, reference_date, output_dir / NEXT_DIRNAME)
+    record = confirmed_crossword_record(output_dir, reference_date, output_dir / NEXT_DIRNAME)
+    if (
+        adopt
+        and record is not None
+        and record["source"] != "pilot"
+        and read_crossword_record(output_dir, reference_date) is None
+    ):
+        write_crossword_record(output_dir, record)
+    return record
 
 
 def _copy_crossword_day(source: Path, target: Path, reference_date: str) -> None:
@@ -1135,7 +1153,8 @@ def run_daily_puzzles(
                 timer_seconds=timer_seconds,
                 related_clues=related_clues,
                 crossword_previous=crossword_context_for(
-                    iso_date, _served_crossword_record(output_dir_path, previous_day)
+                    iso_date,
+                    _served_crossword_record(output_dir_path, previous_day, adopt=not dry_run),
                 ),
             )
             result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run, connection=connection)

@@ -205,6 +205,8 @@ def report_ambiguous_connections(result: dict[str, Any]) -> None:
 
     The board stays published (see ``_check_connections_partition``). The
     message names only the board id and the date, both from the verified set.
+    It points at no command: ``--regenerate`` generates every game of the
+    date again, which the decision to keep the board rules out.
     """
     partition = result.get("connections_partition")
     if not partition or partition["reason"] != "ambiguous":
@@ -212,8 +214,7 @@ def report_ambiguous_connections(result: dict[str, Any]) -> None:
     warn(
         "Daily connections ambiguous",
         f"Connections board {result['connections_id']} of {result['reference_date']} admits "
-        "a second solution under the current database; the board already served is kept "
-        "(--regenerate publishes a new one)",
+        "a second solution under the current database; the board already served is kept",
     )
 
 

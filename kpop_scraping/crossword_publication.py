@@ -160,8 +160,9 @@ def confirmed_record(
 
     ``served_ahead`` is the directory of the set published ahead (``next/``).
     A day that never reached directory was served from there, so its record
-    there stands in when directory has none. An unreadable record there
-    counts as missing, since every run builds that directory again.
+    there stands in when directory has none. A record there that cannot be
+    read or validated counts as missing, since every run builds that
+    directory again.
 
     Before the first daily record exists, every day served the audited pilot
     board, so a valid ``crossword-pilot.json`` stands for those days. Once any
@@ -171,7 +172,7 @@ def confirmed_record(
     if record is None and served_ahead is not None:
         try:
             record = read_record(served_ahead, reference_date)
-        except ValueError:
+        except (OSError, ValueError):
             record = None
     if record is not None or has_history(directory):
         return record
