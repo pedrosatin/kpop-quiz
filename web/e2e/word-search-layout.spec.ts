@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { loadPreferNextDaily } from "./helpers/daily-artifact";
 import { reloadPersisted } from "./helpers/passive-effects";
+import { skipUnlessPublished } from "./helpers/published";
 
 interface Daily {
   reference_date: string;
@@ -34,6 +35,13 @@ for (const locale of ["pt", "en"]) {
   for (const [width, height] of [[360, 800], [390, 844], [1280, 800]] as const) {
     for (const consent of ["open", "rejected"]) {
       test(`${locale} ${width} consent ${consent}: actions, progress and results stay contained`, async ({ browser, baseURL }, testInfo) => {
+        // A day may go out without the word search (helpers/published.ts).
+        const published = await browser.newContext();
+        try {
+          await skipUnlessPublished(await published.newPage(), baseURL!, "word-search.daily.json");
+        } finally {
+          await published.close();
+        }
         const context = await browser.newContext({ viewport: { width, height }, hasTouch: width < 500, isMobile: width < 500, permissions: ["clipboard-read", "clipboard-write"] });
         await context.route("**/*", (route) => new URL(route.request().url()).origin === new URL(baseURL!).origin ? route.continue() : route.abort());
         if (consent === "rejected") await context.addInitScript(() => localStorage.setItem("kpop-quiz-consent", "rejected"));

@@ -165,6 +165,20 @@ describe("ConnectionsGame component integration", () => {
     expect(screen.getByText("3 erros restantes")).toBeInTheDocument();
   });
 
+  it.each([
+    ["missing", new Response("Not Found", { status: 404 })],
+    ["invalid", new Response(JSON.stringify({ schema_version: "broken" }))],
+  ] as const)("marks a %s daily artifact on its error state", async (kind, response) => {
+    // The page tests tell a day published without the game from a broken file
+    // by these marks.
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response));
+    render(<ConnectionsGame locale="pt-BR" />);
+    const state = await screen.findByTestId("game-missing");
+    expect(state).toHaveAttribute("data-error-kind", kind);
+    expect(state).toHaveTextContent(kind === "missing" ? pt.artifactMissing : pt.loadError);
+    expect(screen.getByTestId("game-retry")).toHaveTextContent(pt.retry);
+  });
+
   it("handles async loading lifecycle when puzzle prop is omitted", async () => {
     const messages = getMessages("pt-BR");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(puzzle))));

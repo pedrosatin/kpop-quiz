@@ -1,5 +1,6 @@
 import { expect, test } from "./fixtures/consent";
 import { routeCrosswordDaily } from "./helpers/crossword-daily";
+import { skipUnlessPublished } from "./helpers/published";
 
 const base = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
 
@@ -80,6 +81,7 @@ async function openBoard(
 
 for (const locale of quizLocales) {
   test(`${locale.id} quiz: cancel keeps the round and confirm ends it`, async ({ page, baseURL }) => {
+    await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
     await openBoard(page, baseURL!, locale.quizPath, { width: 360, height: 800 });
     await page.getByTestId("game-start").click();
     await expect(page.getByTestId("game-board")).toBeVisible();

@@ -52,7 +52,7 @@ export function TimelineGame({
     const errorMsg = errorKind === "missing" ? messages.artifactMissing : messages.loadError;
     return (
       <div id="timeline">
-        <QuizState message={errorMsg} actionLabel={messages.retry} onAction={loadData} wide />
+        <QuizState message={errorMsg} actionLabel={messages.retry} onAction={loadData} wide errorKind={errorKind ?? "invalid"} />
       </div>
     );
   }

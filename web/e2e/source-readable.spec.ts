@@ -11,6 +11,7 @@ import { MapPage } from "./pages/map.page";
 import { NameGuessPage } from "./pages/name-guess.page";
 import { TimelinePage } from "./pages/timeline.page";
 import { WordSearchPage } from "./pages/word-search.page";
+import { skipUnlessPublished } from "./helpers/published";
 
 /**
  * Playtest of 11/11/2026: "Ver fonte" scrolled inside a box (68px of the
@@ -101,6 +102,7 @@ async function routeLargestSource(page: Page): Promise<void> {
 }
 
 async function openQuiz(page: Page, baseURL: string): Promise<Locator> {
+  await skipUnlessPublished(page, baseURL, "manifest-v2.json");
   await routeLargestSource(page);
   await page.goto(joinBaseUrl(baseURL, "/pt-br/"));
   await page.getByTestId("game-start").click();
@@ -122,6 +124,7 @@ async function openCrossword(page: Page, baseURL: string): Promise<Locator> {
 }
 
 async function openWordSearch(page: Page, baseURL: string): Promise<Locator> {
+  await skipUnlessPublished(page, baseURL, "word-search.daily.json");
   const game = new WordSearchPage(page, baseURL);
   await game.open();
   await game.completeFromDailyCoords();
@@ -130,6 +133,7 @@ async function openWordSearch(page: Page, baseURL: string): Promise<Locator> {
 }
 
 async function openTimeline(page: Page, baseURL: string): Promise<Locator> {
+  await skipUnlessPublished(page, baseURL, "timeline.daily.json");
   const game = new TimelinePage(page, baseURL);
   await game.open();
   await game.submitDefaultOrder();
@@ -159,6 +163,7 @@ async function openGrid(page: Page, baseURL: string): Promise<Locator> {
 }
 
 async function openConnections(page: Page, baseURL: string): Promise<Locator> {
+  await skipUnlessPublished(page, baseURL, "connections.daily.json");
   const game = new ConnectionsPage(page, baseURL);
   await game.open();
   await game.loseWithWrongGuesses();
@@ -175,6 +180,7 @@ async function openMap(page: Page, baseURL: string): Promise<Locator> {
 }
 
 async function openNameGuess(page: Page, baseURL: string): Promise<Locator> {
+  await skipUnlessPublished(page, baseURL, "name-guess.daily.json");
   const game = new NameGuessPage(page, baseURL);
   await game.open();
   await game.loseWithWrongGuesses();

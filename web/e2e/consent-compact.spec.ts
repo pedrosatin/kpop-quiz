@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { preview } from "astro";
 import { CONSENT_BANNER_HEIGHT_VAR, CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
+import { isPublished, skipUnlessPublished } from "./helpers/published";
 
 // The banner only renders when a GA4 id is built in, which the default dist
 // leaves out. Build one that has it, independently of BASE_URL.
@@ -167,9 +168,17 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(scrollWidth).toBeLessThanOrEqual(innerWidth);
 }
 
+// Daily files the boards below need; the grid and the crossword keep their
+// own missing states.
+const PUBLISHED_FILES: Partial<Record<"guess" | "grid" | "connections" | "crossword", string>> = {
+  guess: "name-guess.daily.json",
+  connections: "connections.daily.json",
+};
+
 for (const locale of locales) {
   for (const viewport of phones) {
     test(`consent ${locale.id} ${viewport.width}x${viewport.height}: compact banner leaves Quiz start in view`, async ({ page, consentURL }) => {
+      await skipUnlessPublished(page, consentURL, "manifest-v2.json");
       await page.setViewportSize(viewport);
       const banner = await openWithBanner(page, consentURL + locale.quiz);
       const box = await bannerBox(page);
@@ -203,6 +212,9 @@ for (const locale of locales) {
   test(`consent ${locale.id} 360x740: boards start in view and their bars stay above the banner`, async ({ page, consentURL }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     for (const game of ["guess", "grid", "connections", "crossword"] as const) {
+      // A day may go out without one of these boards (helpers/published.ts).
+      const file = PUBLISHED_FILES[game];
+      if (file && !(await isPublished(page.request, consentURL, file))) continue;
       await openWithBanner(page, consentURL + locale.games[game]);
       await expect(page.locator(boards[game])).toBeVisible({ timeout: 30_000 });
       expect((await bannerBox(page)).height).toBeLessThanOrEqual(PHONE_BANNER_MAX);
@@ -222,6 +234,7 @@ for (const locale of locales) {
   });
 
   test(`consent ${locale.id} 360x740: keyboard reaches the banner and Reject closes it`, async ({ page, consentURL }) => {
+    await skipUnlessPublished(page, consentURL, "manifest-v2.json");
     await page.setViewportSize({ width: 360, height: 740 });
     const banner = await openWithBanner(page, consentURL + locale.quiz);
     const start = page.getByTestId("game-start");
@@ -265,6 +278,7 @@ for (const locale of locales) {
 
   for (const viewport of [{ width: 1280, height: 800 }, { width: 1440, height: 900 }] as const) {
     test(`consent ${locale.id} ${viewport.width}x${viewport.height}: desktop banner keeps one row`, async ({ page, consentURL }) => {
+      await skipUnlessPublished(page, consentURL, "manifest-v2.json");
       await page.setViewportSize(viewport);
       const banner = await openWithBanner(page, consentURL + locale.quiz);
       // At most two lines of text beside the buttons.

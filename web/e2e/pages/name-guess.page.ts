@@ -4,6 +4,7 @@ import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
 import { loadPreferNextDaily } from "../helpers/daily-artifact";
 import { aloneLabel, type PublishedName } from "../helpers/visible-names";
+import { skipUnlessPublished } from "../helpers/published";
 
 const NAME_GUESS_PATH = "/pt-br/adivinhe/";
 
@@ -21,7 +22,13 @@ export class NameGuessPage {
     private readonly baseURL: string,
   ) {}
 
-  async open(): Promise<void> {
+  /**
+   * Opens the page of the day's board. The test is skipped when the day was
+   * published without data/name-guess.daily.json, unless the test serves the file itself
+   * (`served`).
+   */
+  async open({ served = false }: { served?: boolean } = {}): Promise<void> {
+    if (!served) await skipUnlessPublished(this.page, this.baseURL, "name-guess.daily.json");
     const url = joinBaseUrl(this.baseURL, NAME_GUESS_PATH);
     const response = await this.page.goto(url);
     expect(response, "navigation must return a response").not.toBeNull();

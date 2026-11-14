@@ -59,12 +59,18 @@ export function WordSearchGame({
   if (status === "error" || !loadedPuzzle) {
     const errorMsg = errorKind === "missing" ? t.artifactMissing : t.loadError;
     return (
-      <section id="word-search" class="game-card game-card--wide state word-search-state">
+      <section
+        id="word-search"
+        class="game-card game-card--wide state word-search-state"
+        data-testid="game-missing"
+        data-error-kind={errorKind ?? "invalid"}
+      >
         <p class="state-error">{errorMsg}</p>
         <button
           type="button"
           onClick={loadData}
           class="btn btn-primary"
+          data-testid="game-retry"
         >
           {t.retry}
         </button>

@@ -10,6 +10,7 @@ import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { Locale, PlayMode, QuizOption, QuizQuestion, QuizSession } from "../src/lib/quiz-types";
+import { skipUnlessPublished } from "./helpers/published";
 
 // The real consent island only renders when a GA4 id is built in, which the
 // default dist leaves out. Build one that has it. QUIZ_CLUES_DATA_DIR swaps in
@@ -243,6 +244,9 @@ for (const locale of locales)
         // The refused banner is checked on the daily game; the other scenarios reuse the same board.
         if (consent === "rejected" && scenario.name !== "daily") continue;
         test(`quiz ${locale.id} ${viewport.name} ${mode} ${scenario.name} banner ${consent}: clues and notices match the published session`, async ({ page, context, consentURL }) => {
+          // A day may go out without the quiz (helpers/published.ts); the
+          // tomorrow scenario reads the set published ahead.
+          await skipUnlessPublished(page, consentURL, scenario.tomorrow ? "next/manifest-v2.json" : "manifest-v2.json");
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
           await context.route("**/*", (route) => new URL(route.request().url()).origin === consentURL ? route.continue() : route.abort());
           if (scenario.tomorrow) await page.clock.setFixedTime(Date.now() + 36 * 3_600_000);
@@ -332,6 +336,10 @@ test.describe("a decade round keeps its clue state after a reload", () => {
   for (const locale of locales)
     for (const variant of catalogVariants) {
       test(`quiz ${locale.id} ${variant.name}: the same round gives the same clue state after reload`, async ({ page, baseURL }) => {
+        // The decade round reads the published sessions, or the catalog when
+        // it is published and not blocked here.
+        if (variant.blocked) await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
+        else await skipUnlessPublished(page, baseURL!, "manifest-v2.json", "catalog-manifest-v1.json");
         if (variant.blocked) {
           // This check covers the published decade session, which the general
           // Quiz reads only when the catalog is missing, so answer 404 for the catalog.

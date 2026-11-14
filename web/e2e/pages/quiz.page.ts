@@ -3,6 +3,7 @@ import { expect } from "@playwright/test";
 import { NEXT_GUARD_MS } from "../../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectQuizBoardVisible, expectQuizSetupReady } from "../helpers/boot";
+import { skipUnlessPublished } from "../helpers/published";
 
 /** Buffer past AnswerFeedback NEXT_GUARD_MS so early clicks are not swallowed. */
 const NEXT_CLICK_WAIT_MS = NEXT_GUARD_MS + 50;
@@ -26,7 +27,13 @@ export class QuizPage {
     private readonly baseURL: string,
   ) {}
 
-  async open(): Promise<void> {
+  /**
+   * Opens the page of the day's board. The test is skipped when the day was
+   * published without data/manifest-v2.json, unless the test serves the file itself
+   * (`served`).
+   */
+  async open({ served = false }: { served?: boolean } = {}): Promise<void> {
+    if (!served) await skipUnlessPublished(this.page, this.baseURL, "manifest-v2.json");
     const url = joinBaseUrl(this.baseURL, QUIZ_PATH);
     const response = await this.page.goto(url);
     expect(response, "navigation must return a response").not.toBeNull();

@@ -6,6 +6,7 @@ import type { Locator, Page } from "@playwright/test";
 import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import type { PlayMode, QuizQuestion, QuizSession } from "../src/lib/quiz-types";
 import { expect, test } from "./fixtures/consent-build";
+import { skipUnlessPublished } from "./helpers/published";
 
 /**
  * Two promises of the Quiz screen, measured in the browser:
@@ -82,6 +83,8 @@ const shiftScenarios = [
 for (const viewport of shiftViewports) {
   for (const scenario of shiftScenarios) {
     test(`answering keeps the options in place (${viewport.width}x${viewport.height}, ${scenario.name})`, async ({ page, consentURL }) => {
+      // A day may go out without the quiz (helpers/published.ts).
+      await skipUnlessPublished(page, consentURL, "manifest-v2.json");
       await page.setViewportSize(viewport);
       await refuseConsentBeforeLoad(page);
       const question = scenario.clue === null ? null : await firstQuestionFixture(page, scenario.mode, scenario.clue);
@@ -144,6 +147,8 @@ async function expectAboveTheFold(page: Page, target: Locator, banner: Locator |
 for (const locale of locales) {
   for (const consent of ["open", "rejected"] as const) {
     test(`first visit opens today's challenge with Start above the fold (${locale.id}, 360x740, banner ${consent})`, async ({ page, consentURL }) => {
+      // A day may go out without the quiz (helpers/published.ts).
+      await skipUnlessPublished(page, consentURL, "manifest-v2.json");
       await page.setViewportSize({ width: 360, height: 740 });
       if (consent === "rejected") await refuseConsentBeforeLoad(page);
       const sessions: string[] = [];

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .daily_puzzles_runner import run_daily_puzzles
+from .daily_set import single_line
 from .quiz_clue_coverage import MANIFEST_FILENAME, published_clue_coverage_lines
 
 
@@ -88,6 +89,22 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def warn(title: str, message: str) -> None:
+    """Write a warning to stderr and, in GitHub Actions, to the run summary.
+
+    The message may quote Wikipedia or Wikidata text through an exception.
+    The workflow command format escapes ``%``, CR and LF, so the message
+    stays one annotation and cannot start a command of its own on a new
+    line. The stderr copy gets the same escaping, because the runner reads
+    commands from both streams.
+    """
+    escaped = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    sys.stderr.write(f"WARNING: {escaped}\n")
+    sys.stderr.flush()
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title={title}::{escaped}", flush=True)
+
+
 def report_reused_grid(grid_reused: dict[str, str] | None) -> None:
     """Make a kept grid visible; GitHub Actions shows ::warning:: lines in the run summary."""
     if not grid_reused:
@@ -96,9 +113,7 @@ def report_reused_grid(grid_reused: dict[str, str] | None) -> None:
         f"Grid kept from {grid_reused['reference_date']} because generation failed: "
         f"{grid_reused['error']}"
     )
-    sys.stderr.write(f"WARNING: {message}\n")
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::warning title=Daily grid not updated::{message}")
+    warn("Daily grid not updated", message)
 
 
 def report_revalidated_grid(grid_revalidated: dict[str, Any] | None) -> None:
@@ -114,9 +129,7 @@ def report_revalidated_grid(grid_revalidated: dict[str, Any] | None) -> None:
         f"Published grid {grid_revalidated['previous_grid_id']} no longer meets the "
         f"eligibility policy ({grid_revalidated['reason']}); {outcome}"
     )
-    sys.stderr.write(f"WARNING: {message}\n")
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::warning title=Daily grid revalidated::{message}")
+    warn("Daily grid revalidated", message)
 
 
 def report_skipped_grid(grid_skipped: dict[str, Any] | None) -> None:
@@ -137,9 +150,7 @@ def report_skipped_grid(grid_skipped: dict[str, Any] | None) -> None:
             f"Day published without a grid because generation failed: "
             f"{grid_skipped['error']} ({previous})"
         )
-    sys.stderr.write(f"WARNING: {message}\n")
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::warning title=Daily grid missing::{message}")
+    warn("Daily grid missing", message)
 
 
 def report_skipped_code_groups(code_groups_skipped: dict[str, Any] | None) -> None:
@@ -155,9 +166,48 @@ def report_skipped_code_groups(code_groups_skipped: dict[str, Any] | None) -> No
             "Day published without the group code pilot because generation "
             f"failed: {code_groups_skipped['error']}"
         )
-    sys.stderr.write(f"WARNING: {message}\n")
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::warning title=Daily group code missing::{message}")
+    warn("Daily group code missing", message)
+
+
+# Result key, warning title and published file of each game reported by
+# report_skipped_games; the grid, the group code pilot and the crossword have
+# reporters of their own.
+SKIPPED_GAMES = (
+    ("quiz_skipped", "Daily quiz missing", "the quiz (manifest-v2.json)"),
+    ("connections_skipped", "Daily connections missing", "connections.daily.json"),
+    ("name_guess_skipped", "Daily name guess missing", "name-guess.daily.json"),
+    ("word_search_skipped", "Daily word search missing", "word-search.daily.json"),
+    ("timeline_skipped", "Daily timeline missing", "timeline.daily.json"),
+)
+
+
+def report_skipped_games(result: dict[str, Any]) -> None:
+    """Make each game a day was published without visible in the run summary."""
+    for key, title, artifact in SKIPPED_GAMES:
+        skipped = result.get(key)
+        if not skipped:
+            continue
+        if skipped.get("published_without"):
+            # A kept or promoted set: the reason, when the set recorded one,
+            # belongs to the day that first left the game out.
+            reason = f" ({skipped['error']})" if skipped.get("error") else ""
+            message = f"The published set for {result['reference_date']} carries no {artifact}{reason}"
+        else:
+            message = (
+                f"Day {result['reference_date']} published without {artifact} because "
+                f"generation failed: {skipped['error']}"
+            )
+        warn(title, message)
+
+
+def report_skipped_next_day(next_skipped: dict[str, Any] | None) -> None:
+    """Make a next day that could not be published ahead visible."""
+    if not next_skipped:
+        return
+    warn(
+        "Next day not published ahead",
+        f"No set for {next_skipped['reference_date']} under next/: {next_skipped['error']}",
+    )
 
 
 def report_skipped_crossword(
@@ -169,15 +219,11 @@ def report_skipped_crossword(
             f"Crossword {crossword_confirmed['previous_dataset_version']} was prepared from a "
             f"history the confirmed previous day no longer matches; {crossword_confirmed['action']}"
         )
-        sys.stderr.write(f"WARNING: {message}\n")
-        if os.environ.get("GITHUB_ACTIONS") == "true":
-            print(f"::warning title=Daily crossword replaced::{message}")
+        warn("Daily crossword replaced", message)
     if not crossword_skipped:
         return
     message = f"Day published without a crossword board ({crossword_skipped['reason']})"
-    sys.stderr.write(f"WARNING: {message}\n")
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::warning title=Daily crossword omitted::{message}")
+    warn("Daily crossword omitted", message)
 
 
 def report_word_search_fallback(fallback: dict[str, Any] | None) -> None:
@@ -189,9 +235,7 @@ def report_word_search_fallback(fallback: dict[str, Any] | None) -> None:
         f"published {fallback['used_theme_id']} instead "
         f"(tried and abandoned: {', '.join(fallback['failed_theme_ids'])})"
     )
-    sys.stderr.write(f"WARNING: {message}\n")
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::warning title=Word search theme replaced::{message}")
+    warn("Word search theme replaced", message)
 
 
 def report_evidence_rules(evidence_rules: dict[str, str | None] | None) -> None:
@@ -212,9 +256,7 @@ def report_evidence_rules(evidence_rules: dict[str, str | None] | None) -> None:
         else "The last completed fact run in the database recorded no evidence rules version"
     )
     message = f"{decided_by}; the code has {code}"
-    sys.stderr.write(f"WARNING: {message}\n")
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::warning title=Evidence rules differ::{message}")
+    warn("Evidence rules differ", message)
 
 
 def report_clue_coverage(output_dir: str | Path, prefix: str = "") -> None:
@@ -236,8 +278,12 @@ def report_clue_coverage(output_dir: str | Path, prefix: str = "") -> None:
         print(line)
 
 
-def report_catalog(catalog: dict[str, Any] | None, prefix: str = "") -> None:
+def report_catalog(
+    catalog: dict[str, Any] | None, prefix: str = "", skipped: dict[str, Any] | None = None
+) -> None:
     """Print what the question catalog offers, or that it was withdrawn."""
+    if skipped:
+        warn("Quiz catalog withdrawn", f"The question catalog could not be built: {skipped['error']}")
     if not catalog:
         return
     if catalog.get("withdrawn"):
@@ -284,6 +330,7 @@ def main(argv: list[str] | None = None) -> int:
         report_revalidated_grid(result.get("grid_revalidated"))
         report_skipped_grid(result.get("grid_skipped"))
         report_skipped_code_groups(result.get("code_groups_skipped"))
+        report_skipped_games(result)
         report_skipped_crossword(result.get("crossword_skipped"), result.get("crossword_confirmed"))
         report_word_search_fallback(result.get("word_search_fallback"))
         report_evidence_rules(result.get("evidence_rules"))
@@ -299,18 +346,22 @@ def main(argv: list[str] | None = None) -> int:
             f"{mode_str}Daily puzzles for {result['reference_date']} {action} and verified successfully in {result['output_dir']}"
         )
         report_clue_coverage(result["output_dir"], mode_str)
-        report_catalog(result.get("catalog"), mode_str)
+        report_catalog(result.get("catalog"), mode_str, result.get("catalog_skipped"))
         if "next" in result:
             report_reused_grid(result["next"].get("grid_reused"))
             report_skipped_grid(result["next"].get("grid_skipped"))
             report_skipped_code_groups(result["next"].get("code_groups_skipped"))
+            report_skipped_games(result["next"])
             report_skipped_crossword(result["next"].get("crossword_skipped"))
             report_word_search_fallback(result["next"].get("word_search_fallback"))
             print(f"{mode_str}Daily puzzles for {result['next']['reference_date']} published ahead in {result['next']['output_dir']}")
             report_clue_coverage(result["next"]["output_dir"], mode_str)
+        report_skipped_next_day(result.get("next_skipped"))
         return 0
     except Exception as exc:
-        sys.stderr.write(f"Daily puzzles generation failed: {exc}\n")
+        # Each game is isolated in the runner, so this is a failure of the
+        # whole day: no game generated, or a set that does not verify.
+        sys.stderr.write(f"Daily puzzles generation failed: {single_line(str(exc))}\n")
         return 1
 
 

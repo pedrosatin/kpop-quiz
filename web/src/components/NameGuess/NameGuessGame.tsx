@@ -47,9 +47,14 @@ export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGu
   if (status === "error" || !loadedPuzzle) {
     const errorMsg = errorKind === "missing" ? t.artifactMissing : t.loadError;
     return (
-      <section id="name-guess" class="game-card game-card--wide state">
+      <section
+        id="name-guess"
+        class="game-card game-card--wide state"
+        data-testid="game-missing"
+        data-error-kind={errorKind ?? "invalid"}
+      >
         <p class="state-error">{errorMsg}</p>
-        <button type="button" onClick={loadData} class="btn btn-primary">
+        <button type="button" onClick={loadData} class="btn btn-primary" data-testid="game-retry">
           {t.retry}
         </button>
       </section>

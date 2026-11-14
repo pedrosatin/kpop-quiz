@@ -48,7 +48,9 @@ describe("TimelineGame", () => {
 
     render(<TimelineGame locale="pt-BR" />);
     expect(await screen.findByText(pt.artifactMissing)).toBeInTheDocument();
-    const retryBtn = screen.getByRole("button", { name: pt.retry });
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "missing");
+    const retryBtn = screen.getByTestId("game-retry");
+    expect(retryBtn).toHaveTextContent(pt.retry);
     expect(retryBtn).toBeInTheDocument();
 
     fireEvent.click(retryBtn);

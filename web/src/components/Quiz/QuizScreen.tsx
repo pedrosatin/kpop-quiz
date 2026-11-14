@@ -164,6 +164,7 @@ function QuizStateScreen(props: QuizScreenProps) {
         action={messages.retry}
         onAction={actions.load}
         wide
+        errorKind={state}
       />
     );
   }

@@ -3,6 +3,12 @@ import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { getMessages } from "../src/i18n/catalog";
 import { expect, test } from "./fixtures/consent-build";
 import { loadPreferNextDaily } from "./helpers/daily-artifact";
+import { skipUnlessPublished } from "./helpers/published";
+
+// Every case plays the published word search, which a day may go out without.
+test.beforeEach(async ({ page, consentURL }) => {
+  await skipUnlessPublished(page, consentURL, "word-search.daily.json");
+});
 
 /**
  * Word search on a touch phone: a tap at the center of a cell marks that

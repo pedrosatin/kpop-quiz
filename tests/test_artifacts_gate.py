@@ -17,7 +17,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping import web_publish
-from kpop_scraping.daily_puzzles_runner import run_daily_puzzles
+from kpop_scraping.daily_puzzles_runner import _published_day, run_daily_puzzles
+from kpop_scraping.daily_set import DAILY_SET_FILENAME, daily_set, note_omission, write_daily_set
 from kpop_scraping.grid_publication import filename as grid_publication_filename
 from tests.test_daily_puzzles_runner import build_test_database
 from tests.test_word_search_schema import plant_repeated_word
@@ -42,10 +43,16 @@ def run_gate(data: Path) -> tuple[int, str]:
 
 
 def copy_published(source: Path, target: Path) -> None:
-    """Copy a published set without the orphan sessions no manifest names."""
+    """Copy a published set without the orphan sessions no manifest names.
+
+    A set published without the quiz has no manifest and keeps no session.
+    """
     target.mkdir()
-    manifest = json.loads((source / web_publish.MANIFEST_FILENAME).read_text(encoding="utf-8"))
-    sessions = {item["path"] for item in manifest["sessions"].values()} | {"session.en.json", "session.pt-BR.json"}
+    manifest_path = source / web_publish.MANIFEST_FILENAME
+    sessions = set(web_publish.SESSION_SHORTCUT_FILENAMES)
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        sessions |= {item["path"] for item in manifest["sessions"].values()}
     for path in source.iterdir():
         if path.is_dir():
             copy_published(path, target / path.name)
@@ -162,6 +169,73 @@ class ArtifactsGateTests(unittest.TestCase):
         shutil.rmtree(self.next)
         code, output = self.gate()
         self.assertEqual(code, 0, output)
+
+
+# Files of each game the partial publish policy may leave out of a day.
+GAME_FILES = {
+    "quiz": (
+        web_publish.MANIFEST_FILENAME, web_publish.ENRICHED_MANIFEST_FILENAME,
+        *web_publish.SESSION_SHORTCUT_FILENAMES,
+    ),
+    **{game: (name,) for game, name in web_publish.DAILY_GAME_FILES.items() if game != "quiz"},
+}
+
+
+def omit_game(directory: Path, game: str) -> None:
+    """Leave ``game`` out of the set in ``directory``, as the runner would."""
+    if not (directory / DAILY_SET_FILENAME).is_file():
+        # A set published before the record: the runner dates it by its
+        # connections board.
+        day = _published_day(directory)
+        write_daily_set(directory, daily_set(day, {}))
+    for name in GAME_FILES[game]:
+        (directory / name).unlink(missing_ok=True)
+    note_omission(directory, game, "left out for the test")
+
+
+class PartialDayGateTests(unittest.TestCase):
+    """The deploy gate accepts a day without any one of its games."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls._temp = tempfile.TemporaryDirectory()
+        base = Path(cls._temp.name)
+        database = base / "kpop.db"
+        build_test_database(database).close()
+        cls.generated = base / "generated"
+        run_daily_puzzles(database=database, output_dir=cls.generated, reference_date="2026-09-18", ahead=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._temp.cleanup()
+
+    def assert_gate_accepts_each_omitted_game(self, source: Path) -> None:
+        for game in GAME_FILES:
+            with self.subTest(game=game), tempfile.TemporaryDirectory() as directory:
+                data = Path(directory) / "data"
+                copy_published(source, data)
+                for folder in (data, data / "next"):
+                    if folder.is_dir():
+                        omit_game(folder, game)
+                code, output = run_gate(data)
+                self.assertEqual(code, 0, output)
+                self.assertIn(f"omits {game}: left out for the test", output)
+
+    def test_runner_set_without_each_game_passes(self):
+        self.assert_gate_accepts_each_omitted_game(self.generated)
+
+    def test_checked_in_set_without_each_game_passes(self):
+        self.assert_gate_accepts_each_omitted_game(ROOT / "web" / "public" / "data")
+
+    def test_a_required_game_removed_without_the_record_still_fails(self):
+        for game in ("quiz", "connections", "name-guess", "word-search", "timeline"):
+            with self.subTest(game=game), tempfile.TemporaryDirectory() as directory:
+                data = Path(directory) / "data"
+                copy_published(self.generated, data)
+                for name in GAME_FILES[game]:
+                    (data / name).unlink(missing_ok=True)
+                code, output = run_gate(data)
+                self.assertEqual(code, 1, output)
 
 
 class CheckedInDataGateTests(unittest.TestCase):

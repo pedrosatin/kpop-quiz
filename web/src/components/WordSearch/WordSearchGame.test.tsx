@@ -253,6 +253,8 @@ describe("WordSearchGame component", () => {
       expect(screen.getByText(tPt.artifactMissing)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: tPt.retry })).toBeInTheDocument();
     });
+    expect(screen.getByTestId("game-missing")).toHaveAttribute("data-error-kind", "missing");
+    expect(screen.getByTestId("game-retry")).toHaveTextContent(tPt.retry);
   });
 });
 

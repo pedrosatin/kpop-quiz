@@ -15,6 +15,7 @@ from .code_groups_cli import validate as validate_code_groups_puzzle
 from .crossword_daily import validate_published as validate_crossword_daily
 from .crossword_publication import read_record as read_crossword_record
 from .crossword_publication import verify_history as verify_crossword_history
+from .daily_set import DAILY_SET_FILENAME, read_daily_set
 from .connections_schema import validate_connections_puzzle, write_connections_puzzle_atomic
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_schema import validate_name_guess_puzzle, write_name_guess_puzzle_atomic
@@ -58,6 +59,29 @@ WORD_SEARCH_DAILY_FILENAME = "word-search.daily.json"
 TIMELINE_DAILY_FILENAME = "timeline.daily.json"
 CODE_GROUPS_DAILY_FILENAME = "code-groups.daily.json"
 CROSSWORD_DAILY_FILENAME = "crossword.daily.json"
+SESSION_SHORTCUT_FILENAMES = ("session.pt-BR.json", "session.en.json")
+# Seed of the daily quiz sessions, followed by their date.
+DAILY_SEED_PREFIX = "kpop-daily-"
+# The file whose presence publishes each game of a daily set. The quiz is
+# its manifest: without manifest-v2.json no session is offered.
+DAILY_GAME_FILES = {
+    "quiz": MANIFEST_FILENAME,
+    "grid": GRID_DAILY_FILENAME,
+    "connections": CONNECTIONS_DAILY_FILENAME,
+    "name-guess": NAME_GUESS_DAILY_FILENAME,
+    "word-search": WORD_SEARCH_DAILY_FILENAME,
+    "timeline": TIMELINE_DAILY_FILENAME,
+    "code-groups": CODE_GROUPS_DAILY_FILENAME,
+    "crossword": CROSSWORD_DAILY_FILENAME,
+}
+# Every file a daily set may hold for its games, besides the hash-named
+# sessions. A set that omits one must not keep an earlier day's copy.
+DAILY_SET_FILES = (
+    *DAILY_GAME_FILES.values(),
+    ENRICHED_MANIFEST_FILENAME,
+    *SESSION_SHORTCUT_FILENAMES,
+    DAILY_SET_FILENAME,
+)
 LOCALES = ("pt-BR", "en")
 DIFFICULTIES = ("assisted", "standard", "expert")
 BASE_KEYS = {f"{locale}.{difficulty}" for locale in LOCALES for difficulty in DIFFICULTIES}
@@ -215,7 +239,7 @@ def create_daily_sessions(
 ) -> dict[str, dict[str, Any]]:
     """Create deterministic daily quiz sessions for all locales and difficulties."""
     iso_date = parse_daily_date(date_str)
-    seed = f"kpop-daily-{iso_date}"
+    seed = f"{DAILY_SEED_PREFIX}{iso_date}"
     return {
         f"daily.{locale}.{difficulty}": create_session(
             dataset,
@@ -381,9 +405,26 @@ def validate_enrichment(
                 raise ValueError(f"enriched session {key} changes an existing clue")
 
 
+def validate_quiz_sessions(
+    sessions: dict[str, dict[str, Any]],
+    enriched_sessions: dict[str, dict[str, Any]] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    """Every check ``publish`` makes on the quiz; returns the v2 and v3 manifests."""
+    for session in sessions.values():
+        validate_session(session)
+        validate_legacy_clues(session)
+    enriched_manifest = None
+    if enriched_sessions is not None:
+        for session in enriched_sessions.values():
+            validate_session(session)
+        validate_enrichment(sessions, enriched_sessions)
+        enriched_manifest = build_manifest(enriched_sessions, ENRICHED_MANIFEST_VERSION)
+    return build_manifest(sessions), enriched_manifest
+
+
 def publish(
     output_dir: Path,
-    sessions: dict[str, dict[str, Any]],
+    sessions: dict[str, dict[str, Any]] | None,
     grid: dict[str, Any] | None = None,
     connections: dict[str, Any] | None = None,
     name_guess: dict[str, Any] | None = None,
@@ -399,7 +440,9 @@ def publish(
         output_dir: Target directory where artifacts and manifest are written.
         sessions: Validated locale and difficulty quiz sessions mapping. The
             v2 manifest lists them, so none may carry a clue outside its own
-            question's facts (see ``validate_legacy_clues``).
+            question's facts (see ``validate_legacy_clues``). None omits the
+            quiz: no session and no manifest is written. The daily runner
+            does this when the quiz could not be generated for the day.
         enriched_sessions: Optional copy of ``sessions`` whose questions may
             carry related decade clues (see ``validate_enrichment``). Written
             with ``manifest-v3.json``; when None, no v3 manifest is written.
@@ -427,13 +470,11 @@ def publish(
             the fact base and writes its publication record; here it passes the
             rules that need no base. When None, the artifact is omitted.
     """
-    for session in sessions.values():
-        validate_session(session)
-        validate_legacy_clues(session)
-    if enriched_sessions is not None:
-        for session in enriched_sessions.values():
-            validate_session(session)
-        validate_enrichment(sessions, enriched_sessions)
+    if sessions is None and enriched_sessions is not None:
+        raise ValueError("enriched sessions need the sessions they enrich")
+    manifest = enriched_manifest = None
+    if sessions is not None:
+        manifest, enriched_manifest = validate_quiz_sessions(sessions, enriched_sessions)
     if grid is not None:
         validate_intersection_grid(grid)
     if connections is not None:
@@ -448,12 +489,6 @@ def publish(
         validate_code_groups_puzzle(code_groups)
     if crossword is not None:
         validate_crossword_daily(crossword)
-    manifest = build_manifest(sessions)
-    enriched_manifest = (
-        build_manifest(enriched_sessions, ENRICHED_MANIFEST_VERSION)
-        if enriched_sessions is not None
-        else None
-    )
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
         write_intersection_grid_atomic(output_dir / GRID_DAILY_FILENAME, grid)
@@ -473,6 +508,8 @@ def publish(
         )
     if crossword is not None:
         write_json_atomic(output_dir / CROSSWORD_DAILY_FILENAME, crossword, validate_crossword_daily)
+    if sessions is None or manifest is None:
+        return
     for key in sorted(sessions):
         filename = manifest["sessions"][key]["path"]
         write_json_atomic(output_dir / filename, sessions[key], validate_session)
@@ -503,6 +540,14 @@ def verify(
 ) -> None:
     """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, word-search, timeline, and group code.
 
+    A set the daily runner wrote carries ``daily-set.json`` (see
+    ``daily_set``), which lists the games the day omits and why. A game it
+    lists must have no file, and a required file may be absent only when its
+    game is listed; without the quiz the day has no manifest-v2.json. Every
+    present artifact except the grid, which may be kept from an earlier day,
+    must be for the record's date. A set without the record keeps the rules
+    of each flag below and must carry manifest-v2.json.
+
     Args:
         output_dir: Directory containing manifest-v2.json and artifact files.
         require_grid: Verification policy flag for grid artifact (grid.daily.json).
@@ -511,8 +556,9 @@ def verify(
             When True: grid.daily.json is mandatory and must exist and satisfy
             schema validation, raising ValueError if missing or invalid. The one
             exception is a day the runner published without a grid: its
-            ``grid-publication.<date>.json`` (dated by connections.daily.json)
-            has ``grid_id`` null, and the missing file passes.
+            ``grid-publication.<date>.json`` (dated by daily-set.json, or by
+            connections.daily.json in a set older than that record) has
+            ``grid_id`` null, and the missing file passes.
         require_connections: Verification policy flag for connections puzzle (connections.daily.json).
             When False (default): backwards-compatible policy. If connections.daily.json
             exists on disk, it is schema-validated; if absent, verification passes.
@@ -556,6 +602,119 @@ def verify(
             file is mandatory. Every record in the directory is validated, and
             two consecutive played days may not share a group.
     """
+    day_set = read_daily_set(output_dir)
+    omitted = day_set["omitted"] if day_set is not None else {}
+    _verify_omitted_games_absent(output_dir, omitted)
+    sessions: dict[str, dict[str, Any]] = {}
+    if "quiz" in omitted:
+        verify_question_catalog(output_dir, None, None, require_catalog)
+    else:
+        sessions = _verify_quiz(output_dir, require_catalog)
+    readers = {
+        "connections": _read_connections,
+        "grid": _read_grid,
+        "name-guess": _read_name_guess,
+        "word-search": _read_word_search,
+        "timeline": _read_timeline,
+        "code-groups": _read_code_groups,
+        "crossword": _read_crossword,
+    }
+    payloads = {}
+    for game, reader in readers.items():
+        path = output_dir / DAILY_GAME_FILES[game]
+        if path.is_file():
+            with _located(path):
+                payloads[game] = reader(path)
+    # A set the runner wrote names its date; an older one is dated by its
+    # connections board, which every such set carries.
+    if day_set is not None:
+        day = day_set["reference_date"]
+    else:
+        day = payloads["connections"]["reference_date"] if "connections" in payloads else None
+    grid_publication = None
+    if day is not None:
+        from .grid_publication import read_publication
+        grid_publication = read_publication(output_dir, day)
+    required = {
+        "connections": require_connections,
+        "grid": require_grid,
+        "name-guess": require_name_guess,
+        "word-search": require_word_search,
+        "timeline": require_timeline,
+        "code-groups": require_code_groups,
+        "crossword": require_crossword,
+    }
+    for game, needed in required.items():
+        if not needed or game in payloads or game in omitted:
+            continue
+        # The daily runner may publish a day without a grid (grid_skipped);
+        # its publication record then says so with grid_id null.
+        if game == "grid" and grid_publication is not None and grid_publication["grid_id"] is None:
+            continue
+        raise ValueError(f"missing required {game} artifact: {output_dir / DAILY_GAME_FILES[game]}")
+    shortcuts = {
+        name: _read_session(output_dir / name)
+        for name in SESSION_SHORTCUT_FILENAMES
+        if (output_dir / name).is_file()
+    }
+    if day_set is not None:
+        _verify_dates(output_dir, day, payloads, sessions, shortcuts)
+    verify_crossword_history(output_dir)
+
+
+def _verify_dates(
+    output_dir: Path,
+    day: str,
+    payloads: dict[str, dict[str, Any]],
+    sessions: dict[str, dict[str, Any]],
+    shortcuts: dict[str, dict[str, Any]],
+) -> None:
+    """Every artifact of a recorded set is for the record's date.
+
+    A board carries ``reference_date``; the grid is left out, because it may
+    be an earlier day's, kept when generation failed. A daily quiz session
+    carries its date in the seed, and so do ``session.<locale>.json``. The
+    base and decade sessions have no date.
+    """
+    dated = [
+        (str(output_dir / DAILY_GAME_FILES[game]), payload["reference_date"])
+        for game, payload in payloads.items()
+        if game != "grid"
+    ]
+    dated += [
+        (f"{output_dir}: quiz session {key}", _daily_session_date(session))
+        for key, session in sessions.items()
+        if key.startswith("daily.")
+    ]
+    dated += [(str(output_dir / name), _daily_session_date(session)) for name, session in shortcuts.items()]
+    for where, value in dated:
+        if value != day:
+            raise ValueError(f"{where} is for {value}, but {DAILY_SET_FILENAME} publishes {day}")
+
+
+def _daily_session_date(session: dict[str, Any]) -> str | None:
+    seed = session["config"]["seed"]
+    return seed.removeprefix(DAILY_SEED_PREFIX) if seed.startswith(DAILY_SEED_PREFIX) else None
+
+
+def _verify_omitted_games_absent(output_dir: Path, omitted: dict[str, str]) -> None:
+    """A game the daily set lists as omitted must have no file in the set."""
+    for game in omitted:
+        names = [DAILY_GAME_FILES[game]]
+        if game == "quiz":
+            names += [ENRICHED_MANIFEST_FILENAME, *SESSION_SHORTCUT_FILENAMES]
+        for name in names:
+            if (output_dir / name).exists():
+                raise ValueError(
+                    f"{output_dir / name} is published, but {DAILY_SET_FILENAME} omits {game}"
+                )
+
+
+def _verify_quiz(output_dir: Path, require_catalog: bool) -> dict[str, dict[str, Any]]:
+    """Verify the v2 manifest, its sessions, the v3 manifest and the catalog.
+
+    Returns the sessions the v2 manifest names, by key.
+    """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -573,60 +732,12 @@ def verify(
         validate_legacy_clues(session)
     verify_enriched_manifest(output_dir, sessions)
     verify_question_catalog(output_dir, manifest, sessions, require_catalog)
-    connections_path = output_dir / CONNECTIONS_DAILY_FILENAME
-    grid_publication = None
-    if connections_path.is_file():
-        from .grid_publication import read_publication
-        with _located(connections_path):
-            connections = _read_connections(connections_path)
-        grid_publication = read_publication(output_dir, connections["reference_date"])
-    elif require_connections:
-        raise ValueError(f"missing required connections artifact: {connections_path}")
-    grid_path = output_dir / GRID_DAILY_FILENAME
-    if grid_path.is_file():
-        with _located(grid_path):
-            _read_grid(grid_path)
-    elif require_grid and (grid_publication is None or grid_publication["grid_id"] is not None):
-        # The daily runner may publish a day without a grid (grid_skipped);
-        # its publication record then says so with grid_id null.
-        raise ValueError(f"missing required grid artifact: {grid_path}")
-    name_guess_path = output_dir / NAME_GUESS_DAILY_FILENAME
-    if name_guess_path.is_file():
-        with _located(name_guess_path):
-            _read_name_guess(name_guess_path)
-    elif require_name_guess:
-        raise ValueError(f"missing required name-guess artifact: {name_guess_path}")
-    word_search_path = output_dir / WORD_SEARCH_DAILY_FILENAME
-    if word_search_path.is_file():
-        with _located(word_search_path):
-            _read_word_search(word_search_path)
-    elif require_word_search:
-        raise ValueError(f"missing required word-search artifact: {word_search_path}")
-    timeline_path = output_dir / TIMELINE_DAILY_FILENAME
-    if timeline_path.is_file():
-        with _located(timeline_path):
-            _read_timeline(timeline_path)
-    elif require_timeline:
-        raise ValueError(f"missing required timeline artifact: {timeline_path}")
-    code_groups_path = output_dir / CODE_GROUPS_DAILY_FILENAME
-    if code_groups_path.is_file():
-        with _located(code_groups_path):
-            _read_code_groups(code_groups_path)
-    elif require_code_groups:
-        raise ValueError(f"missing required code-groups artifact: {code_groups_path}")
-    crossword_path = output_dir / CROSSWORD_DAILY_FILENAME
-    if crossword_path.is_file():
-        with _located(crossword_path):
-            _read_crossword(crossword_path)
-    elif require_crossword:
-        raise ValueError(f"missing required crossword artifact: {crossword_path}")
-    verify_crossword_history(output_dir)
-    session_pt_br_path = output_dir / "session.pt-BR.json"
-    if session_pt_br_path.is_file():
-        _read_session(session_pt_br_path)
-    session_en_path = output_dir / "session.en.json"
-    if session_en_path.is_file():
-        _read_session(session_en_path)
+    return sessions
+
+
+def _holds_a_set(directory: Path) -> bool:
+    """Whether ``directory`` holds a published set; a set may omit the quiz."""
+    return (directory / MANIFEST_FILENAME).is_file() or (directory / DAILY_SET_FILENAME).is_file()
 
 
 def verify_enriched_manifest(output_dir: Path, legacy: dict[str, dict[str, Any]]) -> None:
@@ -650,8 +761,8 @@ def verify_enriched_manifest(output_dir: Path, legacy: dict[str, dict[str, Any]]
 
 def verify_question_catalog(
     output_dir: Path,
-    manifest: dict[str, Any],
-    sessions: dict[str, dict[str, Any]],
+    manifest: dict[str, Any] | None,
+    sessions: dict[str, dict[str, Any]] | None,
     required: bool = False,
 ) -> None:
     """Verify the question catalog, when present, and its agreement with the sessions.
@@ -659,14 +770,19 @@ def verify_question_catalog(
     The catalog is refreshed on every run while a day's sessions may be kept or
     promoted from ``next/``, so the two can come from different datasets. Only
     when they share one does every session question have to be an eligible
-    question of the catalog.
+    question of the catalog. A day that omits the quiz has no manifest, and
+    the catalog is then verified on its own.
     """
     if not (output_dir / CATALOG_MANIFEST_FILENAME).is_file():
         if required:
             raise ValueError(f"missing required catalog manifest: {output_dir / CATALOG_MANIFEST_FILENAME}")
         return
     catalog_manifest, shards = read_catalog(output_dir)
-    if catalog_manifest["dataset_version"] == manifest["dataset_version"]:
+    if (
+        manifest is not None
+        and sessions is not None
+        and catalog_manifest["dataset_version"] == manifest["dataset_version"]
+    ):
         validate_sessions_in_catalog(sessions, shards)
 
 
@@ -784,7 +900,7 @@ def main(argv: list[str] | None = None) -> int:
             # next/ holds the following day's set when the daily run publishes ahead.
             next_dir = args.output_dir / "next"
             for directory in (args.output_dir, next_dir):
-                if directory is next_dir and not (next_dir / MANIFEST_FILENAME).is_file():
+                if directory is next_dir and not _holds_a_set(next_dir):
                     continue
                 with _located(directory):
                     verify(
@@ -828,8 +944,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Web publication failed: {exc}")
         return 1
     print(f"Web artifacts {'verified' if args.verify else 'published'} in {args.output_dir}")
-    for line in published_clue_coverage_lines(args.output_dir, "Quiz clues"):
-        print(line)
+    day_set = read_daily_set(args.output_dir)
+    for game, reason in (day_set["omitted"] if day_set is not None else {}).items():
+        print(f"Daily set for {day_set['reference_date']} omits {game}: {reason}")
+    # A day that omits the quiz has no manifest to report on.
+    if (args.output_dir / MANIFEST_FILENAME).is_file():
+        for line in published_clue_coverage_lines(args.output_dir, "Quiz clues"):
+            print(line)
     if (args.output_dir / CATALOG_MANIFEST_FILENAME).is_file():
         for line in published_catalog_coverage_lines(args.output_dir, "Quiz catalog"):
             print(line)
