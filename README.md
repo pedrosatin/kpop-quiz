@@ -64,7 +64,7 @@ python -m unittest discover -v
 python -m compileall -q .
 ```
 
-`python main.py` exits with `0` when the run finished, `75` when a transient error stopped it and `65` for any other handled failure. [Database rebuild and fallback](#database-rebuild-and-fallback) lists what each code means for the daily job.
+`python main.py` exits with `0` when the run finished, `75` when a transient error stopped it and `65` for any other handled failure. [Database rebuild and fallback](#database-rebuild-and-fallback) lists what each code means for the daily job. When Wikipedia or Wikidata answers `maxlag`, the run waits out the lag for up to 15 minutes in total; `MAXLAG_BUDGET_SECONDS` changes that budget (`0` gives up on the first `maxlag`).
 
 ## Web interface
 
@@ -263,16 +263,34 @@ The script reads the exit code of each attempt to decide whether to run another.
 | Exit code | Meaning | What the rebuild does |
 |---|---|---|
 | `0` (`EXIT_OK`) | The database was refreshed | Ends; the restore step is skipped |
-| `75` (`EXIT_TRANSIENT`) | A client gave up on a condition that passes with time: network failure, `maxlag`, HTTP 429 or 5xx, a `Retry-After` above the client's limit | Waits 10 minutes and runs again, up to 3 attempts |
+| `75` (`EXIT_TRANSIENT`) | A client gave up on a condition that passes with time: network failure, `maxlag` past the run's wait budget, HTTP 429 or 5xx, a `Retry-After` above the client's limit | Waits 10 minutes and runs again, up to 3 attempts |
 | `65` (`EXIT_DETERMINISTIC`) | Any other handled failure: `SnapshotIntegrityError`, a validation `ValueError`, a response the parser refuses, the WDQS candidate limit | One attempt, then the cached database |
 | `1` or any other code | Uncaught exception, or an argument refused before the run | One attempt, then the cached database |
 | none (attempt timeout) | The script stopped the attempt and exits with `124` | One attempt, then the cached database |
 
-A client marks an error as transient where it gives up, with `MediaWikiError(..., transient=True)`, and the CLI turns that mark into exit code `75`. The MediaWiki client (Wikipedia and Wikidata) and the WDQS client treat `URLError`, `TimeoutError`, `ConnectionError`, `http.client.HTTPException` and `ssl.SSLError` as network failures. A client that waits longer for `maxlag` needs a wait budget well below the attempt's 30 minutes, because the script stops an attempt at its timeout with `124` and does not repeat it. The two failure codes are `EX_DATAERR` and `EX_TEMPFAIL` from `sysexits.h`. They differ from `1` (Python's generic error), `2` (argparse) and `124`, `137` and `143` (timeout and signals).
+A client marks an error as transient where it gives up, with `MediaWikiError(..., transient=True)`, and the CLI turns that mark into exit code `75`. The MediaWiki client (Wikipedia and Wikidata) and the WDQS client treat `URLError`, `TimeoutError`, `ConnectionError`, `http.client.HTTPException` and `ssl.SSLError` as network failures. The two failure codes are `EX_DATAERR` and `EX_TEMPFAIL` from `sysexits.h`. They differ from `1` (Python's generic error), `2` (argparse) and `124`, `137` and `143` (timeout and signals).
 
 Environment variables replace the limits, and the tests use them to run in seconds: `REBUILD_MAX_ATTEMPTS` (3), `REBUILD_ATTEMPT_TIMEOUT_SECONDS` (1800), `REBUILD_RETRY_WAIT_SECONDS` (600) and `REBUILD_KILL_GRACE_SECONDS` (30). The workflow sets none of them. `tests/test_rebuild_database.py` fails when the worst case of the defaults no longer fits in the step's `timeout-minutes`.
 
 The app stays static: answers and the next day's set, published ahead of time to tolerate scheduler delays, can be read from the public files. Hiding them until game time would require serving the daily set from a backend with a different availability policy.
+
+#### Waiting for `maxlag`
+
+Every request to the Action API of Wikipedia and Wikidata sends `maxlag=5`. While the replicas, or Wikidata's query service, lag more than 5 seconds, the API answers with the `maxlag` error instead of data. In November 2026 Wikidata's lag stayed between 9 and 14 seconds for hours on most nights. The collector then gave up after 3 retries, 5 seconds apart (the `Retry-After` MediaWiki sends), so the 3 attempts of a night failed within about 20 minutes and the day was published from the cached database.
+
+The collector waits the lag out. After a `maxlag` answer the client sleeps for the longer of the answer's `Retry-After` and the `lag` it reports (5 seconds when it gives neither), at least 5 and at most 120 seconds, and sends the same request again. MediaWiki sends `Retry-After: 5` for `maxlag=5`, so in practice the reported `lag` sets the pause. These pauses come from one budget per run of `python main.py`, shared by every Wikipedia and Wikidata client of the run: 15 minutes by default, or `MAXLAG_BUDGET_SECONDS`. When the budget runs out, the client raises `MediaWikiError(..., transient=True)` with the message `MediaWiki maxlag at <API> did not clear within the run's <N>s wait budget (MAXLAG_BUDGET_SECONDS); last answer: <server message>`, and the run exits with `75`. The backoff for network and HTTP errors keeps its own 3 retries and draws nothing from the budget. The WDQS client (`release_discovery.py`) needs no budget: the SPARQL endpoint takes no `maxlag` parameter and never answers with that error; its overload reaches the client as HTTP 429 or 5xx.
+
+The budget fits the attempt and the night:
+
+- One attempt gives up on `maxlag` after 15 minutes of pauses plus the work, which takes about 2 minutes. That is half of the 30-minute attempt timeout, so a persistent lag ends in `75` and gets another attempt. An attempt stopped by its timeout exits `124` and is not repeated. `tests/test_rebuild_database.py` fails when the default budget exceeds half the attempt timeout.
+- With 3 attempts and 2 waits of 10 minutes, the rebuild falls back to the cache only when the lag lasts for about 70 minutes, against about 20 before.
+- The schedule asks for 15:00 UTC and GitHub has been starting the job between 19:00 and 24:00 UTC. Midnight in Sao Paulo is 03:00 UTC. A run that starts at 24:00 UTC and spends the whole budget on all 3 attempts finishes the rebuild at about 01:15 UTC. Even the step's 111.5-minute worst case ends at about 02:00 UTC, an hour before midnight in Sao Paulo, with time left for generation and publication.
+
+The workflow does not set `MAXLAG_BUDGET_SECONDS`, and a test fails if it does. `python -m kpop_scraping.map_pilot_refresh` builds its Wikidata client with a 5-minute budget, because its workflow runs it up to 4 times, 15 minutes apart, inside a 90-minute step. [ADR 033](docs/decisions/033-espera-por-maxlag-e-versao-das-regras.md) records the decision.
+
+#### Evidence rules version
+
+Each fact run records the `EVIDENCE_RULES_VERSION` (`kpop_scraping/evidence.py`) that decided its facts in `fact_runs.evidence_rules_version` (migration 11); the fact stage and the release stage both fill it, and runs from before the migration keep `NULL`. `run_daily_puzzles` returns `evidence_rules`, with the version of the code (`code`) and the version of the last completed fact run in the database (`database`, `None` when the database never recorded one). `daily_puzzles_cli` prints `Evidence rules: database <version>, code <version>`; when the two differ, it writes a warning to stderr and, in GitHub Actions, emits `::warning title=Evidence rules differ::` with both versions. That happens when the run restored a cached database collected before a change of the evidence rules: the day is published with facts decided by the older rules, and the run summary says so. The value lives only in the result of the run and in its log; no published file carries it, and `web/` reads nothing new.
 
 ## Pinned GitHub Actions
 

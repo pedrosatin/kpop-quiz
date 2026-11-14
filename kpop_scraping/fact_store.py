@@ -8,7 +8,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from .entities import Alias, canonical_name, extract_aliases
-from .evidence import WikipediaPage
+from .evidence import EVIDENCE_RULES_VERSION, WikipediaPage
 from .sources import SOURCE_POLICY_VERSION, classify_source
 from .storage import Repository, SnapshotIntegrityError, canonical_json, utc_now
 from .validation import (
@@ -74,10 +74,17 @@ class FactStore:
         cursor = self.connection.execute(
             """
             INSERT INTO fact_runs(
-                extractor_version, source_policy_version, started_at, status, group_limit
-            ) VALUES (?, ?, ?, 'running', ?)
+                extractor_version, source_policy_version, evidence_rules_version,
+                started_at, status, group_limit
+            ) VALUES (?, ?, ?, ?, 'running', ?)
             """,
-            (extractor_version, SOURCE_POLICY_VERSION, utc_now(), group_limit),
+            (
+                extractor_version,
+                SOURCE_POLICY_VERSION,
+                EVIDENCE_RULES_VERSION,
+                utc_now(),
+                group_limit,
+            ),
         )
         self.connection.commit()
         return int(cursor.lastrowid)

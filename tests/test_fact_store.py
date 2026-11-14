@@ -4,7 +4,8 @@ import sqlite3
 from pathlib import Path
 from unittest.mock import Mock
 
-from kpop_scraping.storage import Repository
+from kpop_scraping.evidence import EVIDENCE_RULES_VERSION
+from kpop_scraping.storage import MIGRATIONS, Repository, apply_migrations
 from kpop_scraping.fact_store import FactStore, FactRunTotals, count_statuses, _json, CatalogGroup
 from kpop_scraping.validation import FactDecision, ACCEPTED, REJECTED, CONFLICT, SUPERSEDED
 
@@ -38,6 +39,36 @@ class FactStoreTest(unittest.TestCase):
         row = self.store.connection.execute("SELECT status, error FROM fact_runs WHERE id=?", (run_id2,)).fetchone()
         self.assertEqual(row["status"], "failed")
         self.assertEqual(row["error"], "test error")
+
+    def test_run_records_the_evidence_rules_version(self):
+        run_id = self.store.start_run("1.0.0", None)
+        self.store.complete_run(run_id, FactRunTotals(0, 0, 0, 0, 0, 0, 0, 0))
+        row = self.store.connection.execute(
+            "SELECT evidence_rules_version FROM fact_runs WHERE id=?", (run_id,)
+        ).fetchone()
+        self.assertEqual(row["evidence_rules_version"], EVIDENCE_RULES_VERSION)
+
+    def test_migration_keeps_older_fact_runs_without_a_version(self):
+        database = self.root / "v10.db"
+        connection = sqlite3.connect(database)
+        apply_migrations(connection, [m for m in MIGRATIONS if m[0] <= 10])
+        connection.execute(
+            """INSERT INTO fact_runs(id, extractor_version, source_policy_version,
+                   started_at, completed_at, status, facts_accepted)
+               VALUES (4, 'facts-v1', 'sources-v1', 't0', 't1', 'completed', 12)"""
+        )
+        connection.commit()
+        connection.close()
+        with Repository(database, raw_dir=self.root / "raw10") as repository:
+            row = repository.connection.execute(
+                "SELECT id, status, facts_accepted, evidence_rules_version FROM fact_runs"
+            ).fetchone()
+            new_run = FactStore(repository).start_run("facts-v2", None)
+            recorded = repository.connection.execute(
+                "SELECT evidence_rules_version FROM fact_runs WHERE id=?", (new_run,)
+            ).fetchone()[0]
+        self.assertEqual(tuple(row), (4, "completed", 12, None))
+        self.assertEqual(recorded, EVIDENCE_RULES_VERSION)
 
     def test_accepted_groups(self):
         self.store.connection.executescript("""

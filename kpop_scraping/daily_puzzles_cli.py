@@ -194,6 +194,29 @@ def report_word_search_fallback(fallback: dict[str, Any] | None) -> None:
         print(f"::warning title=Word search theme replaced::{message}")
 
 
+def report_evidence_rules(evidence_rules: dict[str, str | None] | None) -> None:
+    """Print which evidence rules decided the facts, and warn when the code has others.
+
+    A cron run that restored the cached database publishes facts decided by
+    the rules of an earlier run, which a newer release may have changed.
+    """
+    if not evidence_rules:
+        return
+    code, database = evidence_rules["code"], evidence_rules["database"]
+    print(f"Evidence rules: database {database or 'not recorded'}, code {code}")
+    if database == code:
+        return
+    decided_by = (
+        f"Facts in the database were decided by evidence rules {database}"
+        if database
+        else "The last completed fact run in the database recorded no evidence rules version"
+    )
+    message = f"{decided_by}; the code has {code}"
+    sys.stderr.write(f"WARNING: {message}\n")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=Evidence rules differ::{message}")
+
+
 def report_clue_coverage(output_dir: str | Path, prefix: str = "") -> None:
     """Print how many published quiz questions carry a clue.
 
@@ -263,6 +286,7 @@ def main(argv: list[str] | None = None) -> int:
         report_skipped_code_groups(result.get("code_groups_skipped"))
         report_skipped_crossword(result.get("crossword_skipped"), result.get("crossword_confirmed"))
         report_word_search_fallback(result.get("word_search_fallback"))
+        report_evidence_rules(result.get("evidence_rules"))
         mode_str = "[dry-run] " if result.get("dry_run") else ""
         action = (
             "promoted from next/"

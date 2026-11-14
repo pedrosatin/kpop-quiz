@@ -1,6 +1,7 @@
 """CLI for collecting K-pop source pages."""
 
 import argparse
+import os
 from pathlib import Path
 
 from .catalog import classify_catalog
@@ -8,7 +9,7 @@ from .collector import collect_category
 from .exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
 from .fact_pipeline import extract_facts
 from .http_request import DEFAULT_USER_AGENT
-from .mediawiki import MediaWikiClient, MediaWikiError
+from .mediawiki import MaxlagBudget, MediaWikiClient, MediaWikiError
 from .reports import export_fact_coverage_csv, export_release_coverage_csv
 from .release_discovery import MAX_GROUPS_PER_QUERY, WikidataQueryClient, discover_releases
 from .release_pipeline import collect_release_facts
@@ -132,24 +133,29 @@ def main(argv: list[str] | None = None) -> int:
         _check_person_evidence_target(run_facts, args.database, raw_dir)
     catalog_report = args.catalog_report or args.database.parent / "catalog-report.csv"
     try:
+        # One budget for every Wikipedia and Wikidata client of the run.
+        maxlag_budget = MaxlagBudget.from_environment(os.environ)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    try:
         with Repository(args.database, raw_dir=raw_dir) as repository:
             count = collect_category(
-                MediaWikiClient(user_agent=args.user_agent),
+                MediaWikiClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
                 repository,
                 args.category,
                 args.limit,
             )
             stats = classify_catalog(
                 repository,
-                WikidataTypeClient(user_agent=args.user_agent),
+                WikidataTypeClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
             )
             report_rows = repository.export_catalog_csv(catalog_report)
             fact_totals = fact_rows = None
             if run_facts:
-                wikipedia = MediaWikiClient(user_agent=args.user_agent)
+                wikipedia = MediaWikiClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget)
                 fact_totals = extract_facts(
                     repository,
-                    WikidataEntityClient(user_agent=args.user_agent),
+                    WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
                     group_limit=args.facts_limit,
                     wikitext_client=wikipedia,
                     person_client=wikipedia if args.person_evidence else None,
@@ -168,12 +174,13 @@ def main(argv: list[str] | None = None) -> int:
                         api_url=f"https://{language}.wikipedia.org/w/api.php",
                         user_agent=args.user_agent,
                         language=language,
+                        maxlag_budget=maxlag_budget,
                     )
                     for language in ("en", "pt", "ko")
                 }
                 release_totals = collect_release_facts(
                     repository,
-                    WikidataEntityClient(user_agent=args.user_agent),
+                    WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
                     discovery_run,
                     wikipedia_clients=wikipedia_clients,
                 )

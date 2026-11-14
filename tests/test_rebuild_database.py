@@ -26,6 +26,7 @@ from kpop_scraping.exit_codes import (
     EXIT_TRANSIENT,
     RESERVED_EXIT_CODES,
 )
+from kpop_scraping.mediawiki import DEFAULT_MAXLAG_BUDGET_SECONDS, MAXLAG_BUDGET_ENV
 from scripts.rebuild_database import (
     EXIT_ATTEMPT_TIMED_OUT,
     EXIT_COMMAND_NOT_STARTED,
@@ -540,6 +541,12 @@ class WorkflowTests(unittest.TestCase):
         # The workflow does not override the limits the script documents.
         self.assertNotIn("REBUILD_MAX_ATTEMPTS", WORKFLOW.read_text(encoding="utf-8"))
         self.assertNotRegex(WORKFLOW.read_text(encoding="utf-8"), r"REBUILD_\w+_SECONDS")
+
+    def test_maxlag_budget_stays_well_below_the_attempt_timeout(self):
+        # An attempt stopped at its timeout exits 124 and is not repeated, so
+        # the collector must give up on maxlag, with exit 75, long before.
+        self.assertLessEqual(DEFAULT_MAXLAG_BUDGET_SECONDS, Limits().attempt_timeout / 2)
+        self.assertNotIn(MAXLAG_BUDGET_ENV, WORKFLOW.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

@@ -35,6 +35,7 @@ from typing import Any
 
 from .country_crosswalk import build_country_crosswalk
 from .http_request import DEFAULT_USER_AGENT, open_url
+from .mediawiki import MaxlagBudget
 from .musicbrainz import MusicBrainzClient
 from .official_schedule import ScheduleEntry, parse_yg_tour_schedule
 from .tour_events import CountryIdentity, TourEventContext, assess_tour_event_candidate
@@ -47,9 +48,13 @@ MAP_DATASET_VERSION = "5.1.1"
 MAP_SCALE = "1:10m"
 DEFAULT_OUTPUT = Path("data/map-pilot/deadline-events.json")
 DEFAULT_MAP = Path("web/src/data/map-pilot/world-map.json")
-# The monthly job can wait out replication lag: 8 retries back off for up to
-# 255 s in total, while the default 3 give up after 7 s.
+# Network and HTTP errors: 8 retries back off for up to 255 s in total, while
+# the default 3 give up after 7 s.
 WIKIDATA_RETRIES = 8
+# Wikidata's maxlag answers draw from their own budget. map-pilot-refresh.yml
+# runs this command up to 4 times, 15 minutes apart, in a 90-minute step, so
+# each run waits at most 5 minutes instead of the collector's 15.
+WIKIDATA_MAXLAG_BUDGET_SECONDS = 5 * 60.0
 
 
 @dataclass(frozen=True)
@@ -512,7 +517,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     schedule = parse_yg_tour_schedule(fetch_schedule_html(config.schedule_url, args.user_agent))
     snapshot = collect_musicbrainz(MusicBrainzClient(user_agent=args.user_agent), config)
     area_countries = collect_area_countries(
-        WikidataEntityClient(user_agent=args.user_agent, retries=WIKIDATA_RETRIES), area_wikidata_ids(snapshot)
+        WikidataEntityClient(
+            user_agent=args.user_agent,
+            retries=WIKIDATA_RETRIES,
+            maxlag_budget=MaxlagBudget(WIKIDATA_MAXLAG_BUDGET_SECONDS),
+        ),
+        area_wikidata_ids(snapshot),
     )
     dataset, excluded = build_map_pilot_dataset(
         config, schedule, snapshot, area_countries, world_map, checked_at
