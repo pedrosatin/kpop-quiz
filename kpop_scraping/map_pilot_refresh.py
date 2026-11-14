@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import workflow_commands
 from .country_crosswalk import build_country_crosswalk
 from .http_request import DEFAULT_USER_AGENT, open_url
 from .mediawiki import MaxlagBudget
@@ -502,13 +503,40 @@ def _check(condition: bool, message: str) -> None:
 # CLI --------------------------------------------------------------------------
 
 
+def verify_dataset_file(path: Path, map_path: Path) -> int:
+    """Run ``validate_map_pilot_dataset`` on a file; 0 when it passes, 1 otherwise.
+
+    The publish job of ``map-pilot-refresh.yml`` calls it on the downloaded
+    dataset before the commit. The error can quote an event MBID or date from
+    the file, so it goes out through ``workflow_commands``.
+    """
+    try:
+        dataset = json.loads(path.read_text(encoding="utf-8"))
+        world_map = json.loads(map_path.read_text(encoding="utf-8"))
+        validate_map_pilot_dataset(dataset, world_map)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+        # DatasetError and json.JSONDecodeError are ValueErrors; the others
+        # come from a file whose rows lack a field or have the wrong type.
+        workflow_commands.error(f"{path}: {type(error).__name__}: {error}", title="Map pilot dataset invalid")
+        return 1
+    print(f"Verified {path}: {len(dataset['events'])} events, {len(dataset.get('countries', []))} countries")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--map", type=Path, default=DEFAULT_MAP)
     parser.add_argument("--checked-at", help="YYYY-MM-DD; defaults to the current UTC date")
     parser.add_argument("--user-agent", default=DEFAULT_USER_AGENT)
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Check the dataset file at --output against --map offline and exit, without any request",
+    )
     args = parser.parse_args(argv)
+    if args.verify:
+        return verify_dataset_file(args.output, args.map)
 
     checked_at = args.checked_at or datetime.now(timezone.utc).date().isoformat()
     world_map = json.loads(args.map.read_text(encoding="utf-8"))

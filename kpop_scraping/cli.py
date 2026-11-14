@@ -6,6 +6,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from . import workflow_commands
 from .catalog import classify_catalog
 from .collector import collect_category
 from .exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
@@ -133,7 +134,7 @@ def report_truncated_groups(truncated: tuple[TruncatedGroup, ...]) -> None:
         )
         sys.stderr.write(f"WARNING: {message}\n")
         if os.environ.get("GITHUB_ACTIONS") == "true":
-            print(f"::warning title=Release candidates truncated::{message}", flush=True)
+            workflow_commands.warning(message, title="Release candidates truncated")
 
 
 def report_extract_drift(drifts: Sequence[ExtractDrift]) -> None:
@@ -162,11 +163,10 @@ def report_extract_drift(drifts: Sequence[ExtractDrift]) -> None:
         more = len(drifts) - MAX_DRIFT_PAGES_IN_ANNOTATION
         if more > 0:
             listed += f"; and {more} more"
-        print(
-            f"::warning title=Extract changed without a new revision::"
+        workflow_commands.warning(
             f"{len(drifts)} page{'s' if len(drifts) > 1 else ''} kept the stored "
             f"snapshot of their revision: {listed}",
-            flush=True,
+            title="Extract changed without a new revision",
         )
 
 

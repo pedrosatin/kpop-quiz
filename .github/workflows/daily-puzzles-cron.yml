@@ -212,6 +212,13 @@ jobs:
           mkdir -p web/public
           cp -a "$RUNNER_TEMP/daily-puzzles-data" web/public/data
 
+      # The same gate as "Verify published artifacts" (npm run
+      # artifacts:verify), run again from master's code on the files the
+      # commit below would hold. The artifact crossed from one job to another;
+      # a set that fails here stops the job before git add (ADR 040).
+      - name: Verify downloaded data
+        run: python3 -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
+
       # Branch protection on master requires changes to arrive via pull
       # request. Publish the generated data on an automation branch, then
       # merge its pull request, so the deploy triggered by this workflow's

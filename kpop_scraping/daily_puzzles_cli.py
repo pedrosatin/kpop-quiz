@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from . import workflow_commands
 from .daily_puzzles_runner import run_daily_puzzles
 from .daily_set import single_line
 from .quiz_clue_coverage import MANIFEST_FILENAME, published_clue_coverage_lines
@@ -93,16 +94,15 @@ def warn(title: str, message: str) -> None:
     """Write a warning to stderr and, in GitHub Actions, to the run summary.
 
     The message may quote Wikipedia or Wikidata text through an exception.
-    The workflow command format escapes ``%``, CR and LF, so the message
-    stays one annotation and cannot start a command of its own on a new
-    line. The stderr copy gets the same escaping, because the runner reads
-    commands from both streams.
+    ``workflow_commands`` escapes it, so the message stays one annotation
+    and cannot start a command of its own on a new line. The stderr copy
+    gets the same escaping, because the runner reads commands from both
+    streams.
     """
-    escaped = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-    sys.stderr.write(f"WARNING: {escaped}\n")
+    sys.stderr.write(f"WARNING: {workflow_commands.escape_data(message)}\n")
     sys.stderr.flush()
     if os.environ.get("GITHUB_ACTIONS") == "true":
-        print(f"::warning title={title}::{escaped}", flush=True)
+        workflow_commands.warning(message, title=title)
 
 
 def report_reused_grid(grid_reused: dict[str, str] | None) -> None:

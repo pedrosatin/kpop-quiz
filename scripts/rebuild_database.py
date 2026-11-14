@@ -58,6 +58,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from kpop_scraping import workflow_commands
 from kpop_scraping.exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
 
 DEFAULT_MAX_ATTEMPTS = 3
@@ -212,7 +213,7 @@ def restore_cache(database: Path, raw_dir: Path, reason: str) -> int:
     """Put the cached database back after a rebuild that did not finish."""
     backup = backup_path(database)
     if not backup.is_file():
-        print("::error::Rebuild failed and no cached database is available", flush=True)
+        workflow_commands.error("Rebuild failed and no cached database is available")
         return 1
     # The failed attempts wrote raw snapshots that the restored database does
     # not reference. Delete them so they do not reach the cache. Only files
@@ -226,10 +227,7 @@ def restore_cache(database: Path, raw_dir: Path, reason: str) -> int:
     os.replace(backup, database)
     _log(f"Restored {database} from the cached copy; deleted {removed} raw snapshots of the failed rebuild")
     cause = f"Rebuild failed: {reason}" if reason else "Rebuild did not finish"
-    print(
-        f"::warning title=Database not refreshed::{_escape(cause)}; puzzles use the cached database",
-        flush=True,
-    )
+    workflow_commands.warning(f"{cause}; puzzles use the cached database", title="Database not refreshed")
     return EXIT_OK
 
 
@@ -280,11 +278,6 @@ def _duration(seconds: float) -> str:
     return f"{minutes:g} min" if minutes >= 1 and minutes == int(minutes) else f"{seconds:g} s"
 
 
-def _escape(text: str) -> str:
-    """Escape a value for a workflow command, which ends at the line break."""
-    return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-
-
 def _log(message: str) -> None:
     # Flushed so the line lands before the attempt's own output in the log.
     print(message, flush=True)
@@ -331,7 +324,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         limits = limits_from_environment(os.environ)
     except ValueError as error:
-        print(f"::error::{error}", file=sys.stderr)
+        workflow_commands.error(str(error), stream=sys.stderr)
         return EXIT_USAGE
     _stop_attempt_on_signals()
     return rebuild(args.database, command, limits)
