@@ -1627,6 +1627,32 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
             confirmed_crossword_record(self.out_dir, "2026-09-18", self.out_dir / NEXT_DIRNAME)
         )
 
+    def test_an_unreadable_record_in_the_main_directory_fails_closed(self):
+        """Only a record in next/ that cannot be read counts as missing.
+
+        One in the main directory stops the run, so the copy from next/ never
+        writes over it and the history keeps the damaged file in sight.
+        """
+        run_daily_puzzles(
+            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
+        )
+        record = self.out_dir / "crossword-publication.2026-09-18.json"
+        self.assertIsNotNone(read_crossword_record(self.out_dir / NEXT_DIRNAME, "2026-09-18"))
+        for damage in ("invalid json", "directory"):
+            with self.subTest(damage=damage):
+                if record.is_dir():
+                    record.rmdir()
+                else:
+                    record.unlink(missing_ok=True)
+                if damage == "directory":
+                    record.mkdir()
+                else:
+                    record.write_text("{", encoding="utf-8")
+                with self.assertRaises((OSError, ValueError)):
+                    confirmed_crossword_record(
+                        self.out_dir, "2026-09-18", self.out_dir / NEXT_DIRNAME
+                    )
+
     def test_an_unreadable_record_in_next_counts_as_missing_history(self):
         run_daily_puzzles(
             database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True

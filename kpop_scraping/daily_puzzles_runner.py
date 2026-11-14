@@ -1045,9 +1045,11 @@ def _served_crossword_record(
     record in output_dir wins when both exist, as in ``verify_history``.
 
     With ``adopt``, a record read from ``next/`` is also written to
-    output_dir, before the day that consumes it is installed: the history of
-    the main directory then holds both days, and a ``next/`` removed later
-    (see ``_drop_unverifiable_next``) cannot take it away. The pilot record,
+    output_dir. A generation writes it before it installs the day that
+    consumes it, and a promotion writes it right after the install, while
+    ``next/`` still holds the record. The history of the main directory then
+    holds both days, and a ``next/`` removed later (see
+    ``_drop_unverifiable_next``) cannot take it away. The pilot record,
     which stands in for days before any record exists, is never written.
     """
     record = confirmed_crossword_record(output_dir, reference_date, output_dir / NEXT_DIRNAME)
