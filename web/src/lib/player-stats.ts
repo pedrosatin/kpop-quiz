@@ -28,9 +28,10 @@ export interface PlayerStats {
 export const PLAYER_STATS_STORAGE_KEY = "kpop-player-stats-v1";
 export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline", "map", "code", "crossword"];
 /**
- * Stats added after v1. `importPlayerStatsJson` still accepts an export from
- * before the game existed, normalizing the missing entries to zeroed stats,
- * so a stats file keeps importing across graduations.
+ * Stats added after v1. `parsePlayerStatsJson` still accepts an export from
+ * before the game existed, normalizing the missing entries to zeroed stats
+ * that `applyPlayerStatsFile` then writes, so a stats file keeps importing
+ * across graduations.
  */
 const LATER_GAME_IDS: GameId[] = ["map", "code", "crossword"];
 
@@ -447,7 +448,11 @@ export function applyPlayerStatsFile(file: PlayerStatsFile): ImportPlayerStatsRe
   return { success: true };
 }
 
-/** Validates and writes a stats file in one step, without asking. */
+/**
+ * Runs both import steps at once, `parsePlayerStatsJson` and then
+ * `applyPlayerStatsFile`, without asking. The tests use it; the stats
+ * window calls the two steps itself so the player can confirm in between.
+ */
 export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
   const parsed = parsePlayerStatsJson(raw);
   return parsed.success ? applyPlayerStatsFile(parsed.file) : parsed;
