@@ -101,29 +101,48 @@ class PublishVerificationTests(unittest.TestCase):
             "daily-puzzles-cron.yml",
             "Apply generated data",
             "Verify downloaded data",
-            f"python3 -m kpop_scraping.web_publish {shlex.join(gate_arguments())}",
+            [
+                "python3 -m kpop_scraping.publish_file_set web/public/data --suffix .json",
+                f"python3 -m kpop_scraping.web_publish {shlex.join(gate_arguments())}",
+            ],
         ),
         (
             "map-pilot-refresh.yml",
             "Apply refreshed dataset",
             "Verify downloaded dataset",
-            "python3 -m kpop_scraping.map_pilot_refresh --verify --output data/map-pilot/deadline-events.json",
+            [
+                "python3 -m kpop_scraping.publish_file_set data/map-pilot --only deadline-events.json",
+                "python3 -m kpop_scraping.map_pilot_refresh --verify --output data/map-pilot/deadline-events.json",
+            ],
         ),
     )
 
     def test_verification_runs_between_the_download_and_the_commit(self):
-        for workflow, apply, verify, command in self.CASES:
+        for workflow, apply, verify, commands in self.CASES:
             with self.subTest(workflow):
                 steps = job_steps((WORKFLOWS / workflow).read_text(encoding="utf-8"), "publish")
                 names = [name for name, _text in steps]
                 self.assertEqual(names[names.index(apply) + 1], verify, names)
                 self.assertEqual(names[names.index(verify) + 1], "Publish via pull request", names)
                 text = dict(steps)[verify]
-                self.assertIn(f"run: {command}\n", text)
+                # Both commands, in this order and nothing else: the runner's
+                # bash -e stops at the first one that fails.
+                self.assertIn("run: |\n" + "".join(f"          {command}\n" for command in commands), text)
+                self.assertEqual(text.count("python3 "), len(commands), text)
                 # A failed check must fail the job: no condition, no tolerance.
                 self.assertNotRegex(text, r"\n\s+(if|continue-on-error):")
                 # The commit happens in the step right after the check.
                 self.assertIn("\n          git add ", dict(steps)["Publish via pull request"])
+
+    def test_jobs_that_build_the_published_site_install_without_scripts(self):
+        cron = dict(job_steps(CRON.read_text(encoding="utf-8"), "daily-puzzles"))
+        self.assertIn("run: npm ci --ignore-scripts\n", cron["Install web dependencies"])
+        build = job_text(WORKFLOWS / "pages.yml", "build")
+        self.assertIn("- run: npm ci --ignore-scripts\n", build)
+        self.assertNotRegex(build, r"npm ci(?! --ignore-scripts)")
+        # ignore-scripts in an .npmrc would also skip the pretest:e2e build.
+        self.assertFalse((ROOT / "web" / ".npmrc").exists())
+        self.assertFalse((ROOT / ".npmrc").exists())
 
     def test_cron_gate_is_the_one_the_generating_job_runs(self):
         script = json.loads((ROOT / "web" / "package.json").read_text(encoding="utf-8"))["scripts"]
@@ -162,6 +181,26 @@ class DeployToolingTests(unittest.TestCase):
     def test_deploy_checkout_keeps_no_credentials(self):
         self.assertIn("actions/checkout@", self.deploy)
         self.assertIn("persist-credentials: false", self.deploy)
+
+    def test_deploy_downloads_the_site_after_the_checkout(self):
+        # The checkout cleans the workspace; a download before it would be
+        # wiped and the deploy would upload an empty or missing web/dist.
+        checkout = self.deploy.index("uses: actions/checkout@")
+        download = self.deploy.index("uses: actions/download-artifact@")
+        self.assertLess(checkout, download)
+        self.assertIn("name: web-dist\n          path: web/dist\n", self.deploy[download:])
+
+    def test_deploy_step_receives_both_cloudflare_credentials(self):
+        step = self.deploy.split("- name: Deploy to Cloudflare Pages\n", 1)[1].split("\n      - ", 1)[0]
+        env = step.split("\n        env:\n", 1)[1].split("\n        run:", 1)[0]
+        self.assertEqual(
+            sorted(line.strip() for line in env.splitlines()),
+            [
+                "CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}",
+                "CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}",
+            ],
+        )
+        self.assertIn("\n        working-directory: web\n", step)
 
     def test_dependabot_updates_web_npm_dependencies(self):
         config = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")

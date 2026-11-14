@@ -67,7 +67,10 @@ jobs:
         working-directory: .
         # Checks data/ and data/next/. A day the runner published without a grid passes only when its grid-publication record has grid_id null.
         run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
-      - run: npm ci
+      # No install script runs: the build and the tests need none, and
+      # esbuild and workerd take their binaries from the platform packages
+      # in the lockfile (ADR 040).
+      - run: npm ci --ignore-scripts
       - run: npm test
       # The analytics IDs end up in every built page, so they are repository
       # variables. The secret of the same name is the fallback until the
