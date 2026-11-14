@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   allowsUrl,
   enforcingPolicy,
+  injectMetaPolicy,
   pageMetaPolicy,
   scriptSources,
   stagingCsp,
@@ -25,6 +26,8 @@ const STAGING_WORKFLOW = readFileSync(join(WEB, "../.github/workflows/staging.ym
 const INLINE = "console.log(1)";
 const INLINE_HASH = `'sha256-${createHash("sha256").update(INLINE).digest("base64")}'`;
 const POLICY = `default-src 'self'; script-src 'self' ${INLINE_HASH}; object-src 'none'; frame-ancestors 'none'`;
+const GTM_POLICY = `default-src 'self'; script-src 'self' ${INLINE_HASH} https://www.googletagmanager.com/gtag/js; frame-ancestors 'none'`;
+const withScript = (src: string) => PAGE.replace("</head>", `<script async src="${src}"></script></head>`);
 const PAGE = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>t</title><script>${INLINE}</script></head><body></body></html>`;
 
 const dirs: string[] = [];
@@ -74,6 +77,20 @@ describe("csp-verify", () => {
     expect(result.stderr).toContain("missing from script-src");
   });
 
+  it("rejects an external script outside the script-src sources", () => {
+    const dir = site(`/*\n  Content-Security-Policy: ${GTM_POLICY}\n`, {
+      "gtag.html": withScript("https://www.googletagmanager.com/gtag/js?id=G-TEST123"),
+      "gtm.html": withScript("https://www.googletagmanager.com/gtm.js?id=GTM-TEST"),
+    });
+    const errors = verifyDist(dir);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain("gtm.html");
+    expect(errors[0]).toContain("external script https://www.googletagmanager.com/gtm.js?id=GTM-TEST is not allowed by script-src");
+    const result = runVerify(dir);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("gtm.js");
+  });
+
   it("fails with --require-meta when a page has no meta policy", () => {
     const result = runVerify(site(`/*\n  Content-Security-Policy: ${POLICY}\n`), "--require-meta");
     expect(result.status).toBe(1);
@@ -102,6 +119,15 @@ describe("production policy in public/_headers", () => {
 });
 
 describe("allowsUrl", () => {
+  it("matches a source without a port only on the default port", () => {
+    expect(allowsUrl(["https://a.example"], "https://a.example/x.js")).toBe(true);
+    expect(allowsUrl(["https://a.example"], "https://a.example:443/x.js")).toBe(true);
+    expect(allowsUrl(["https://a.example"], "https://a.example:8443/x.js")).toBe(false);
+    expect(allowsUrl(["https://a.example/gtag/js"], "https://a.example:8443/gtag/js")).toBe(false);
+    expect(allowsUrl(["https://a.example:8443"], "https://a.example:8443/x.js")).toBe(true);
+    expect(allowsUrl(["https://a.example:*"], "https://a.example:8443/x.js")).toBe(true);
+  });
+
   it("matches host, wildcard, scheme and path sources as CSP does", () => {
     expect(allowsUrl(["https:"], "https://a.example/x.js")).toBe(true);
     expect(allowsUrl(["https://*.example.com"], "https://cdn.example.com/x.js")).toBe(true);
@@ -160,6 +186,19 @@ describe("staging meta policy", () => {
   it("fails the staging build when the policy would block one of its scripts", async () => {
     const dir = site(`/*\n  Content-Security-Policy: default-src 'self'; script-src 'self'\n`);
     await expect(buildWithBase("/kpop-quiz", dir)).rejects.toThrow(/missing from script-src/);
+  });
+
+  it("checks a page with a meta policy against the meta, which drops the analytics hosts", async () => {
+    const gtag = withScript("https://www.googletagmanager.com/gtag/js?id=G-TEST123");
+    const dir = site(`/*\n  Content-Security-Policy: ${GTM_POLICY}\n`, {
+      "header-only.html": gtag,
+      "with-meta.html": injectMetaPolicy(gtag, stagingMetaPolicy(GTM_POLICY)),
+    });
+    expect(verifyDist(dir)).toEqual([
+      `${join(dir, "with-meta.html")}: external script https://www.googletagmanager.com/gtag/js?id=G-TEST123 is not allowed by script-src in the meta Content-Security-Policy`,
+    ]);
+    const staging = site(`/*\n  Content-Security-Policy: ${GTM_POLICY}\n`, { "index.html": gtag });
+    await expect(buildWithBase("/kpop-quiz/", staging)).rejects.toThrow(/gtag\/js.*in the meta Content-Security-Policy/);
   });
 
   it("rejects a meta policy that differs from _headers or follows a script", () => {

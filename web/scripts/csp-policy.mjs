@@ -125,7 +125,9 @@ export function allowsUrl(sources, raw) {
     if ((scheme ? `${scheme.toLowerCase()}:` : "https:") !== url.protocol) return false;
     const hostname = host.toLowerCase();
     if (wildcard ? !url.hostname.endsWith(`.${hostname}`) : url.hostname !== hostname) return false;
-    if (port && port !== "*" && port !== (url.port || (url.protocol === "https:" ? "443" : "80"))) return false;
+    // Without a port in the source, only the scheme's default port matches,
+    // which URL reports as an empty string.
+    if (!port ? url.port !== "" : port !== "*" && port !== (url.port || (url.protocol === "https:" ? "443" : "80"))) return false;
     if (!path) return true;
     return path.endsWith("/") ? url.pathname.startsWith(path) : url.pathname === path;
   });
@@ -199,8 +201,10 @@ function* htmlFiles(dir) {
  * Checks a built site against the policy in its _headers. Every inline
  * script needs its hash in script-src and every external script an allowed
  * source. A page that carries a meta policy must carry exactly the staging
- * form of the header policy (stagingMetaPolicy), before its first script.
- * With requireMeta, every page must carry it (the staging build).
+ * form of the header policy (stagingMetaPolicy), before its first script,
+ * and its scripts are checked against that meta policy too: the browser
+ * enforces it, and it lists fewer hosts than the header. With requireMeta,
+ * every page must carry it (the staging build).
  * @param {string} dist
  * @param {{ requireMeta?: boolean }} [options]
  * @returns {string[]} errors, empty when the site passes
@@ -224,6 +228,9 @@ export function verifyDist(dist, { requireMeta = false } = {}) {
       continue;
     }
     if (meta !== expectedMeta) errors.push(`${file}: meta Content-Security-Policy differs from _headers`);
+    for (const error of scriptViolations(html, scriptSources(meta))) {
+      errors.push(`${file}: ${error} in the meta Content-Security-Policy`);
+    }
     const script = html.search(/<script[\s>]/);
     if (script !== -1 && script < html.search(META_TAG)) {
       errors.push(`${file}: a script comes before the Content-Security-Policy meta tag`);
