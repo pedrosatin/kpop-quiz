@@ -20,6 +20,11 @@ from kpop_scraping.daily_puzzles_runner import (
     _published_day,
     run_daily_puzzles,
 )
+from kpop_scraping.crossword_publication import (
+    omission_record as crossword_omission_record,
+    read_record as read_crossword_record,
+    write_record as write_crossword_record,
+)
 from kpop_scraping.daily_set import (
     DAILY_SET_FILENAME,
     MAX_REASON_LENGTH,
@@ -66,12 +71,12 @@ def failing_on(games: set[str], dates: set[str], error: BaseException):
     return patch.object(daily_puzzles_runner, "_isolated", side_effect=isolated)
 
 
-def failing_crossword_on(dates: set[str]):
+def failing_crossword_on(dates: set[str], error: BaseException | None = None):
     real = daily_puzzles_runner.generate_daily_crossword
 
     def generate(base, iso_date, seed, previous):
         if iso_date in dates:
-            raise MemoryError()
+            raise error if error is not None else MemoryError()
         return real(base, iso_date, seed, previous)
 
     return patch.object(daily_puzzles_runner, "generate_daily_crossword", side_effect=generate)
@@ -408,6 +413,31 @@ class PublicReasonTests(unittest.TestCase):
             self.assertEqual(
                 result["timeline_skipped"]["error"], "OSError: cannot open /home/someone/private/kpop.db"
             )
+
+    def test_a_failed_crossword_publishes_only_the_category_in_the_daily_set(self):
+        # The crossword's own publication record keeps the generator's message,
+        # as it did before the daily set existed; daily-set.json does not.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            db_path = root / "kpop.db"
+            build_test_database(db_path).close()
+            out = root / "data"
+            out.mkdir()
+            write_crossword_record(out, crossword_omission_record("2026-09-17", "fixture"))
+            leak = ValueError("cannot read /home/someone/private/base.json")
+            with failing_crossword_on({DAY, NEXT_DAY}, leak), redirect_stderr(io.StringIO()):
+                result = run_daily_puzzles(database=db_path, output_dir=out, reference_date=DAY, ahead=True)
+            for directory_, day in ((out, DAY), (out / NEXT_DIRNAME, NEXT_DAY)):
+                with self.subTest(day=day):
+                    self.assertEqual(
+                        read_daily_set(directory_)["omitted"]["crossword"], "generation failed (ValueError)"
+                    )
+                    self.assertNotIn("/home/someone", (directory_ / DAILY_SET_FILENAME).read_text())
+                    self.assertEqual(
+                        read_crossword_record(directory_, day)["reason"],
+                        "generation failed: cannot read /home/someone/private/base.json",
+                    )
+            self.assertEqual(result["crossword_skipped"]["state"], "omitted")
 
     def test_public_reason_names_only_the_type(self):
         self.assertEqual(public_omission_reason(ValueError("Q1 /tmp/x")), "generation failed (ValueError)")

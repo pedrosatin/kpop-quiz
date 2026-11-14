@@ -317,7 +317,11 @@ def generate_daily_puzzles(
     ))
 
     # 8. Crossword. Never an earlier board; its record says why it is absent.
-    crossword, crossword_record = _generate_crossword(connection, iso_date, crossword_previous)
+    crossword, crossword_record, crossword_public = _generate_crossword(
+        connection, iso_date, crossword_previous
+    )
+    if crossword_public is not None:
+        omitted_public["crossword"] = crossword_public
 
     sessions = quiz.get("sessions")
     return {
@@ -366,18 +370,20 @@ def _word_search(
 
 def _generate_crossword(
     connection: sqlite3.Connection, iso_date: str, previous: dict[str, Any] | None
-) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    """Crossword artifact of the day (None when there is none) and its record.
+) -> tuple[dict[str, Any] | None, dict[str, Any], str | None]:
+    """Crossword artifact of the day (None when there is none), its record,
+    and the reason ``daily-set.json`` gets when there is no artifact.
 
     The artifact is validated against the same fact base before it is
     returned, including the previous-day exclusion, so the publisher never
-    writes a board the generator could not prove.
+    writes a board the generator could not prove. The daily-set reason is a
+    short category, never an exception message (see ``public_omission_reason``).
     """
     if previous is None:
         sys.stderr.write(
             f"Daily crossword not generated for {iso_date}: {MISSING_CROSSWORD_HISTORY}\n"
         )
-        return None, crossword_omission_record(iso_date, MISSING_CROSSWORD_HISTORY)
+        return None, crossword_omission_record(iso_date, MISSING_CROSSWORD_HISTORY), MISSING_CROSSWORD_HISTORY
     try:
         base = read_crossword_base(connection)
         artifact = generate_daily_crossword(base, iso_date, CROSSWORD_SEED, previous)
@@ -385,8 +391,8 @@ def _generate_crossword(
         if artifact["previous"] != previous:
             raise ValueError("crossword history differs from the confirmed previous day")
     except Exception as exc:
-        # Same isolation as every other game (see _isolated). The record is
-        # public: it keeps the message of the generator's own failures, as it
+        # Same isolation as every other game (see _isolated). The publication
+        # record keeps the message of the generator's own failures, as it
         # always has, and only the type of any other error.
         sys.stderr.write(f"Daily crossword generation failed for {iso_date}: {omission_reason(exc)}\n")
         public = (
@@ -394,8 +400,8 @@ def _generate_crossword(
             if isinstance(exc, (ValueError, sqlite3.Error))
             else public_omission_reason(exc)
         )
-        return None, crossword_omission_record(iso_date, public)
-    return artifact, crossword_record_from_artifact(artifact)
+        return None, crossword_omission_record(iso_date, public), public_omission_reason(exc)
+    return artifact, crossword_record_from_artifact(artifact), None
 
 
 class NoGamePublishedError(ValueError):
@@ -500,7 +506,7 @@ def publish_daily_puzzles(
         )
         write_daily_set(staging_dir, daily_set(
             puzzles["reference_date"],
-            _omitted_games(staging_dir, puzzles.get("omitted_public", {}), crossword_record),
+            _omitted_games(staging_dir, puzzles.get("omitted_public", {})),
         ))
 
         # 2. Verify all artifacts in staging directory. Every game is
@@ -572,22 +578,16 @@ def _board_id(artifact: dict[str, Any] | None) -> str | None:
     return artifact["puzzle_id"] if artifact is not None else None
 
 
-def _omitted_games(
-    staging_dir: Path, errors: dict[str, str], crossword_record: dict[str, Any] | None
-) -> dict[str, str]:
+def _omitted_games(staging_dir: Path, errors: dict[str, str]) -> dict[str, str]:
     """Public reason of each game the staged set has no file for.
 
     A grid kept from the previous day is published, so it is not omitted.
     """
-    omitted = {}
-    for game in GAMES:
-        if (staging_dir / DAILY_GAME_FILES[game]).is_file():
-            continue
-        reason = errors.get(game)
-        if game == "crossword" and crossword_record is not None:
-            reason = crossword_record["reason"]
-        omitted[game] = single_line(reason or "not generated")
-    return omitted
+    return {
+        game: single_line(errors.get(game) or "not generated")
+        for game in GAMES
+        if not (staging_dir / DAILY_GAME_FILES[game]).is_file()
+    }
 
 
 def declared_board_swaps(result: dict[str, Any]) -> list[dict[str, str]]:
@@ -1012,10 +1012,10 @@ def _confirm_crossword_day(
     )
     if expected == record["previous"]:
         return None
-    artifact, replacement = _generate_crossword(connection, reference_date, expected)
+    artifact, replacement, public_reason = _generate_crossword(connection, reference_date, expected)
     if artifact is None:
         (output_dir / CROSSWORD_DAILY_FILENAME).unlink(missing_ok=True)
-        note_omission(output_dir, "crossword", replacement["reason"])
+        note_omission(output_dir, "crossword", public_reason)
     else:
         # _generate_crossword already validated it against the fact base.
         write_json_atomic(output_dir / CROSSWORD_DAILY_FILENAME, artifact, validate_published_crossword)
