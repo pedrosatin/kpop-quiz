@@ -155,6 +155,9 @@ _RELEASE_NAME_WORD = r"(?=[\w()’'&.!+-]*[A-Z0-9])[\w()’'&.!+-]+"
 # read as the opening of the parenthesis after the artist's name, and a credit
 # that does not match would then try each place to split them.
 _RELEASE_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & )(?![()]){_RELEASE_NAME_WORD})*"
+# A name outside the artist credit has no other name after it to collide with,
+# so it may end in one parenthesis, as in "WJSN (Cosmic Girls)".
+_RELEASE_PLAIN_NAME = rf"{_RELEASE_NAME}(?: \({_RELEASE_NAME}\))?"
 _RELEASE_ARTIST = (
     r"(?:the )?(?:(?:South Korean|Korean|Japanese|Chinese|Thai) )?"
     r"(?:(?:girl|boy|pop|rock) )*(?:group|band|duo|artist|singer|rapper) "
@@ -162,18 +165,19 @@ _RELEASE_ARTIST = (
 )
 _RELEASE_CREDIT = re.compile(
     rf"(?P<artist>\s+(?:by|of) {_RELEASE_ARTIST}"
-    rf"(?:, a sub-unit of (?:{_RELEASE_ARTIST}|{_RELEASE_NAME})"
-    rf"(?: consisting of members {_RELEASE_NAME}, {_RELEASE_NAME}, and {_RELEASE_NAME})?)?)"
+    rf"(?:, a sub-unit of (?:{_RELEASE_ARTIST}|{_RELEASE_PLAIN_NAME})"
+    rf"(?: consisting of members {_RELEASE_PLAIN_NAME}, {_RELEASE_PLAIN_NAME}, "
+    rf"and {_RELEASE_PLAIN_NAME})?)?)"
     r'(?:, featuring (?:two|three|\d+) songs, the only single and title track '
     r'of the same name and "[^".;!?]+")?\.?\s*$'
 )
 _RELEASE_ALBUM_ORIGIN = re.compile(
     rf" from the reissue of (?:their|the) {_RELEASE_ORDINAL} studio album, "
-    rf"{_RELEASE_NAME} \(\d{{4}}\)\.\s*$"
+    rf"{_RELEASE_PLAIN_NAME} \(\d{{4}}\)\.\s*$"
 )
 _RELEASE_DESCRIPTIVE_BRIDGE = re.compile(
     rf"^\s*It is the {_RELEASE_ORDINAL} release of the (?:band|group) "
-    rf"since the departure of {_RELEASE_NAME} on (?:{'|'.join(MONTHS)}) "
+    rf"since the departure of {_RELEASE_PLAIN_NAME} on (?:{'|'.join(MONTHS)}) "
     r"\d{1,2}, \d{4}\.\s*$"
 )
 _PERFORMER_DESCRIPTION = re.compile(

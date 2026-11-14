@@ -37,6 +37,19 @@ def span_locator(extract, text, start=0):
     return f"wikipedia:en:pageid=1:revid=1#extract[{begin}:{begin + len(text)}]"
 
 
+def name_contexts(name):
+    """Leads that hold ``name`` in each place outside the artist credit."""
+    return (
+        f"Alpha is the first EP by the duo Foo, a sub-unit of {name}.",
+        f"Alpha is the first EP by the duo Foo, a sub-unit of Bar consisting of members {name}, Cd, and Ef.",
+        f"Alpha is the first EP by the duo Foo, a sub-unit of Bar consisting of members Cd, {name}, and Ef.",
+        f"Alpha is the first EP by the duo Foo, a sub-unit of Bar consisting of members Cd, Ef, and {name}.",
+        f"Alpha is a song by the group Twice from the reissue of their first studio album, {name} (2011).",
+        "Alpha is the first EP by the band Foo. It is the second release of the band "
+        f"since the departure of {name} on January 1, 2019.",
+    )
+
+
 class TimeLimitTest(unittest.TestCase):
     def timed(self, call):
         """Run ``call`` and fail when it uses more CPU time than the limit."""
@@ -69,13 +82,26 @@ class TimeLimitTest(unittest.TestCase):
         )
         self.assertIsNone(found)
 
+    def test_parentheses_in_names_outside_the_artist_credit(self):
+        # Fast before too, under 0.1 s each. A name there may end in one
+        # parenthesis, which must not bring back the cost of the artist's.
+        for unit, count in (("Ab (", 50000), ("Ab (Cd (", 25000), ("((", 50000), (")(", 50000)):
+            name = f"Ab {unit * count}x"
+            for lead in name_contexts(name):
+                extract = f"{lead} {DATE_SENTENCE}"
+                with self.subTest(unit=unit, lead=lead[:60]):
+                    found = self.timed(
+                        lambda: text_evidence("released_on", page(extract), ["Alpha"], [], DATE)
+                    )
+                    self.assertIsNone(found)
+
 
 class SentenceSpanTest(unittest.TestCase):
     def test_spans_before_a_sentence_are_those_of_its_prefix(self):
         # The date rule once split the text before the date sentence again.
         # The spans of the whole text give the same sentences, apart from the
         # whitespace that ended the prefix.
-        separators = (" ", "  ", " \t", "  ", "\n", "\n\n", " \n", "  \n ", ". ")
+        separators = (" ", "  ", " \t", "\u00a0 ", "\n", "\n\n", " \n", "  \n ", ". ")
         pieces = (
             "Alpha is a single by Group One.",
             '"Alpha" is a song.',
@@ -141,6 +167,22 @@ class ReleaseNameTest(unittest.TestCase):
             "Alpha is the debut single album by the South Korean girl group (G)I-dle.",
             "Alpha is the first EP by the band Day6 (Even of Day).",
             "Alpha is the first EP by the band Day6 (Even of Day), a sub-unit of the band Day6.",
+        ):
+            with self.subTest(lead=lead):
+                extract, found = self.date(lead)
+                self.assertEqual(found, span_locator(extract, "January 2, 2020"))
+
+    def test_name_outside_the_artist_credit_may_end_in_a_parenthesis(self):
+        for lead in (
+            "Alpha is the first EP by the duo Foo, a sub-unit of WJSN (Cosmic Girls).",
+            "Alpha is the first EP by the duo Foo, a sub-unit of Girls' Generation "
+            "consisting of members Taeyeon, Sol (Taeyang), and Tiffany.",
+            "Alpha is a song by the group Twice from the reissue of their first studio "
+            "album, Pinocchio (Danger) (2011).",
+            "Alpha is a song by the group Twice from the reissue of their first studio "
+            "album, Exodus (2015).",
+            "Alpha is the first EP by the band Day6. It is the second release of the band "
+            "since the departure of Jae (Park Jae-hyung) on January 1, 2019.",
         ):
             with self.subTest(lead=lead):
                 extract, found = self.date(lead)
