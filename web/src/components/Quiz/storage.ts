@@ -525,7 +525,7 @@ export function listQuizProgressSaves(): QuizProgressSave[] {
   for (const key of listLocalStorageKeys()) {
     if (!key.startsWith(QUIZ_PROGRESS_STORAGE_PREFIX)) continue;
     const read = readLocalStorage(key);
-    // Storage that fails partway lists nothing, not a partial set.
+    // A read that fails empties the whole list.
     if (read.status === "unavailable") return [];
     if (read.value === null) continue;
     const parsed = parseStored(read.value);

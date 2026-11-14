@@ -143,7 +143,7 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
   }
 
   const decide = (next: ConsentChoice) => {
-    // Private mode may not store it: the in-memory choice still holds for this visit.
+    // The in-memory choice holds for this visit even when private mode does not store it.
     setLocalStorageItem(CONSENT_STORAGE_KEY, next);
     setChoice(next);
     if (next === "accepted") {

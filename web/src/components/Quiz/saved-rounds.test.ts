@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c1ff312324883f8b724318e6bf7c132293eb9ee53ff8f8e0e5c2072562738f4.json";
 import ptSession from "../../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import type { Locale, PlayMode, QuizSession } from "../../lib/quiz-types";
@@ -63,7 +63,10 @@ function save({
   });
 }
 
-afterEach(() => window.localStorage.clear());
+afterEach(() => {
+  vi.restoreAllMocks();
+  window.localStorage.clear();
+});
 
 describe("listQuizProgressSaves", () => {
   it("reads every valid slot and leaves the others alone", () => {
@@ -74,6 +77,21 @@ describe("listQuizProgressSaves", () => {
 
     expect(listQuizProgressSaves().map((s) => `${s.locale}|${s.play_mode}`).sort()).toEqual(["en|expert", "pt-BR|standard"]);
     expect(window.localStorage.getItem(`${QUIZ_PROGRESS_STORAGE_PREFIX}broken`)).toBe("{not json");
+  });
+
+  it("lists nothing when a read fails after an earlier one succeeded", () => {
+    saveQuizProgress(save());
+    saveQuizProgress(save({ locale: "en", playMode: "expert" }));
+    const getItem = Storage.prototype.getItem;
+    let reads = 0;
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (this: Storage, key: string) {
+      reads += 1;
+      if (reads > 1) throw new DOMException("The operation is insecure.", "SecurityError");
+      return getItem.call(this, key);
+    });
+
+    expect(listQuizProgressSaves()).toEqual([]);
+    expect(reads).toBe(2);
   });
 
   it("skips a save sitting in another config's slot", () => {
