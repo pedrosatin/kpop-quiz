@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 import io
+import itertools
 import json
+import os
+import random
 import sqlite3
+import subprocess
+import sys
 import tempfile
+import time
+import tracemalloc
 import unittest
+from collections import defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -14,9 +22,16 @@ from unittest.mock import patch
 from kpop_scraping.grid_cli import main as cli_main
 from kpop_scraping.grid_generator import (
     _groups_with_complete_members,
+    CATEGORY_PARTITIONS,
+    DECADE_CRITERIA,
+    MAX_AXIS_SEARCH_STEPS,
     MEMBER_COUNT_CRITERIA,
+    _AxisSearchBudget,
+    _criteria_set,
+    _curated_pair_blocks,
     _find_mixed_axis_grid,
     _is_valid_axis,
+    _select_axes,
     evaluate_group_criteria,
     generate_intersection_grid,
     generate_daily_grid,
@@ -442,7 +457,7 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         # Simulate a dataset for which none of the curated category partitions
         # are available. The broader search must still use accepted criteria,
         # preserve all nine distinct answers, and pass the unchanged schema.
-        with patch("kpop_scraping.grid_generator._build_axes_for_categories", return_value=[]):
+        with patch("kpop_scraping.grid_generator._curated_pair_blocks", return_value=[]):
             grid = generate_intersection_grid(
                 self.connection, seed="mixed-axis-fallback-regression"
             )
@@ -470,7 +485,7 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
                     f"Cell ({r}, {c}) has identical row and column category",
                 )
 
-    def test_mixed_axis_search_does_not_stop_at_old_attempt_limit(self) -> None:
+    def test_mixed_axis_search_finds_a_late_solution_within_the_budget(self) -> None:
         criteria = [
             {
                 "id": f"criterion_{index:02d}",
@@ -483,11 +498,12 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
         criterion_groups = {criterion["id"]: all_groups for criterion in criteria}
         original_matching = has_distinct_assignment
         calls = 0
+        delayed = MAX_AXIS_SEARCH_STEPS // 2
 
         def delay_acceptance(cell_options: list[list[str]]) -> bool:
             nonlocal calls
             calls += 1
-            if calls <= 50_000:
+            if calls <= delayed:
                 return False
             return original_matching(cell_options)
 
@@ -500,13 +516,38 @@ class IntersectionGridGeneratorTest(unittest.TestCase):
             )
 
         self.assertIsNotNone(result)
-        self.assertGreater(calls, 50_000)
+        self.assertGreater(calls, delayed)
         assert result is not None
         self.assertTrue(
             original_matching(
                 [result[2][(row, col)] for row in range(3) for col in range(3)]
             )
         )
+
+    def test_mixed_axis_search_stops_at_its_budget(self) -> None:
+        criteria = [
+            {
+                "id": f"criterion_{index:02d}",
+                "category": "formed_on" if index < 25 else "record_label",
+                "label": {"pt-BR": f"Critério {index}", "en": f"Criterion {index}"},
+            }
+            for index in range(50)
+        ]
+        all_groups = {f"Q{index}" for index in range(1, 10)}
+        criterion_groups = {criterion["id"]: all_groups for criterion in criteria}
+        budget = _AxisSearchBudget(limit=500, seed="never-solvable")
+
+        with patch("kpop_scraping.grid_generator.has_distinct_assignment", return_value=False):
+            with self.assertRaisesRegex(
+                ValueError,
+                r"Grid axis search budget exhausted with seed 'never-solvable': "
+                r"used 500 of 500 steps \(0 axis pairs, \d+ row axes, \d+ column triples\)",
+            ):
+                _find_mixed_axis_grid(
+                    criteria, criterion_groups, seed="never-solvable", budget=budget
+                )
+        self.assertGreater(budget.spent["row axes"], 0)
+        self.assertGreater(budget.spent["column triples"], 0)
 
     def test_mixed_axis_search_prunes_when_fewer_than_nine_answers_exist(self) -> None:
         criteria = [
@@ -720,11 +761,11 @@ class ConsecutiveDailyGridTest(unittest.TestCase):
         )
 
     def test_seed_draw_alone_repeats_criteria_in_this_window(self) -> None:
-        # Without the neighbour rule, 05/11 and 09/11 draw the criteria of the
+        # Without the neighbour rule, 08/11 and 11/11 draw the criteria of the
         # day before, so this window exercises the regression.
         drawn = [criteria_set(self.seed_draw(day)) for day in self.DAYS]
         repeated = [day for day, before, after in zip(self.DAYS[1:], drawn, drawn[1:]) if before == after]
-        self.assertEqual(repeated, [date(2026, 11, 5), date(2026, 11, 9)])
+        self.assertEqual(repeated, [date(2026, 11, 8), date(2026, 11, 11)])
 
     def test_consecutive_days_never_share_the_six_criteria(self) -> None:
         published = [criteria_set(generate_daily_grid(self.connection, day)) for day in self.DAYS]
@@ -738,7 +779,7 @@ class ConsecutiveDailyGridTest(unittest.TestCase):
                 self.assertEqual(generate_daily_grid(self.connection, day), self.seed_draw(day))
 
     def test_odd_day_skips_both_neighbours_deterministically(self) -> None:
-        day = date(2026, 11, 5)
+        day = date(2026, 11, 11)
         first = generate_daily_grid(self.connection, day)
         self.assertEqual(first, generate_daily_grid(self.connection, day.isoformat()))
         self.assertNotIn(
@@ -749,7 +790,7 @@ class ConsecutiveDailyGridTest(unittest.TestCase):
         validate_intersection_grid(first)
 
     def test_explicit_seed_keeps_the_plain_draw(self) -> None:
-        day = date(2026, 11, 5)
+        day = date(2026, 11, 11)
         self.assertEqual(
             generate_daily_grid(self.connection, day, seed=f"kpop-grid-daily-{day.isoformat()}"),
             self.seed_draw(day),
@@ -766,6 +807,210 @@ class ConsecutiveDailyGridTest(unittest.TestCase):
         finally:
             connection.close()
 
+
+
+def criterion(criterion_id: str, category: str) -> dict:
+    return {
+        "id": criterion_id,
+        "category": category,
+        "label": {"pt-BR": criterion_id, "en": criterion_id},
+    }
+
+
+def many_labels_catalog(layout: str, labels: int = 100) -> tuple[dict, dict]:
+    """The 4 decades, the 12 member counts and ``labels`` record labels of 3 groups.
+
+    ``apart``: the labels share 3 groups that no other criterion has, and each
+    decade and member count has 5 groups of its own, so no grid exists.
+    ``together``: every criterion has the same 3 groups, so every cell is
+    filled and no grid has nine distinct answers.
+    ``solvable``: label i has 3 groups of its own, spread over the decades and
+    member counts.
+    """
+    all_criteria = {**DECADE_CRITERIA, **MEMBER_COUNT_CRITERIA}
+    label_ids = [f"label_q{index:04d}" for index in range(labels)]
+    for label_id in label_ids:
+        all_criteria[label_id] = criterion(label_id, "record_label")
+    fixed_ids = [*DECADE_CRITERIA, *MEMBER_COUNT_CRITERIA]
+    groups: dict[str, set[str]] = defaultdict(set)
+    if layout == "apart":
+        for label_id in label_ids:
+            groups[label_id] = {"QS1", "QS2", "QS3"}
+        for index, criterion_id in enumerate(fixed_ids):
+            groups[criterion_id] = {f"QF{index}_{member}" for member in range(5)}
+    elif layout == "together":
+        for criterion_id in all_criteria:
+            groups[criterion_id] = {"QS1", "QS2", "QS3"}
+    else:
+        decades, members = list(DECADE_CRITERIA), list(MEMBER_COUNT_CRITERIA)
+        for index, label_id in enumerate(label_ids):
+            for offset in range(3):
+                group = f"QL{index}_{offset}"
+                groups[label_id].add(group)
+                groups[decades[(index + offset) % len(decades)]].add(group)
+                groups[members[(index + offset) % len(members)]].add(group)
+    return all_criteria, groups
+
+
+def measure(call):
+    """Return (result or ValueError, CPU seconds, tracemalloc peak) of ``call``.
+
+    Tracing every allocation makes the search several times slower, so the
+    time comes from a run without tracing and the peak from a second run.
+    """
+    def run():
+        try:
+            return call()
+        except ValueError as exc:
+            return exc
+
+    start = time.process_time()
+    outcome = run()
+    elapsed = time.process_time() - start
+    tracemalloc.start()
+    try:
+        tracemalloc.reset_peak()
+        run()
+        _current, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+    return outcome, elapsed, peak
+
+
+def listed_axes(active_by_cat: dict, spec: tuple[str, ...]) -> list[tuple]:
+    """Every valid axis of a category spec, listed as the generator once listed them."""
+    if len(spec) == 1:
+        combos = itertools.combinations(active_by_cat.get(spec[0], []), 3)
+    else:
+        combos = (
+            (*pair, item)
+            for pair in itertools.combinations(active_by_cat.get(spec[0], []), 2)
+            for item in active_by_cat.get(spec[1], [])
+        )
+    return [axis for axis in combos if _is_valid_axis(axis)]
+
+
+class AxisSearchCostTest(unittest.TestCase):
+    """The axis search costs what it draws, whatever the number of record labels."""
+
+    def test_100_record_labels_end_quickly_in_little_memory(self) -> None:
+        # 100 record labels of 3 groups and the 12 member counts. The code
+        # that listed, sorted and shuffled every curated pair before testing
+        # one stopped with MemoryError under a 2 GiB cap: after 65 s of CPU
+        # for "apart" and 21 s for "together", on a laptop with Python 3.14.
+        # Here the budget ends both in about 0.5 s, under 10 MiB.
+        for layout in ("apart", "together"):
+            with self.subTest(layout=layout):
+                all_criteria, groups = many_labels_catalog(layout)
+                outcome, elapsed, peak = measure(
+                    lambda: _select_axes(all_criteria, groups, "many-labels")
+                )
+                self.assertIsInstance(outcome, ValueError)
+                self.assertIn(
+                    f"used {MAX_AXIS_SEARCH_STEPS} of {MAX_AXIS_SEARCH_STEPS} steps", str(outcome)
+                )
+                self.assertLess(elapsed, 2.0)
+                self.assertLess(peak, 64 * 2**20)
+
+    def test_100_record_labels_with_a_grid_find_it_at_once(self) -> None:
+        all_criteria, groups = many_labels_catalog("solvable")
+        outcome, elapsed, peak = measure(
+            lambda: _select_axes(all_criteria, groups, "many-labels")
+        )
+        self.assertIsInstance(outcome, tuple)
+        row_axis, col_axis, cells = outcome
+        self.assertTrue(has_distinct_assignment([cells[(r, c)] for r in range(3) for c in range(3)]))
+        self.assertLess(elapsed, 2.0)
+        self.assertLess(peak, 64 * 2**20)
+
+    def test_blocks_hold_each_pair_with_nine_filled_cells_once(self) -> None:
+        # Against the listing the generator used before: every curated pair
+        # whose nine cells all have a group, each exactly once.
+        rng = random.Random(b"catalog")
+        decades = list(DECADE_CRITERIA)
+        members = ["members_3", "members_4", "members_le_4", "members_le_5", "members_ge_6", "members_ge_8"]
+        labels = [f"label_q{index}" for index in range(9)]
+        all_criteria = {**{key: DECADE_CRITERIA[key] for key in decades},
+                        **{key: MEMBER_COUNT_CRITERIA[key] for key in members},
+                        **{key: criterion(key, "record_label") for key in labels}}
+        groups: dict[str, set[str]] = defaultdict(set)
+        for index in range(60):
+            group = f"Q{index}"
+            groups[rng.choice(decades)].add(group)
+            for member in rng.sample(members, rng.randint(0, 2)):
+                groups[member].add(group)
+            for label in rng.sample(labels, rng.randint(0, 3)):
+                groups[label].add(group)
+        active_by_cat: dict[str, list] = defaultdict(list)
+        for item in sorted(all_criteria.values(), key=lambda c: (c["category"], c["id"])):
+            active_by_cat[item["category"]].append(item)
+
+        def ids(pair):
+            return tuple(c["id"] for c in pair[0]), tuple(c["id"] for c in pair[1])
+
+        listed = [
+            ids((row, col))
+            for row_spec, col_spec in CATEGORY_PARTITIONS
+            for row in listed_axes(active_by_cat, row_spec)
+            for col in listed_axes(active_by_cat, col_spec)
+            if all(groups[r["id"]] & groups[c["id"]] for r in row for c in col)
+        ]
+        blocks = _curated_pair_blocks(active_by_cat, groups)
+        drawn = [ids(block.pair(rank)) for block in blocks for rank in range(block.size)]
+        self.assertGreater(len(listed), 100)
+        self.assertEqual(len(drawn), len(set(drawn)))
+        self.assertEqual(sorted(drawn), sorted(listed))
+
+    def test_grid_over_the_search_budget_is_refused(self) -> None:
+        connection = build_grid_test_database()
+        try:
+            with self.assertRaisesRegex(
+                ValueError,
+                r"Grid axis search budget exhausted with seed 'budget-seed': used 0 of 0 steps",
+            ):
+                generate_intersection_grid(connection, seed="budget-seed", max_search_steps=0)
+        finally:
+            connection.close()
+
+    def test_skipping_neighbours_does_not_change_the_order(self) -> None:
+        # A pair skipped for a neighbour still consumes its draw, so avoiding
+        # a set that the seed never reaches chooses the same pair.
+        all_criteria, groups = many_labels_catalog("solvable", labels=30)
+        plain = _select_axes(all_criteria, groups, "order-seed")
+        assert plain is not None
+        unrelated = frozenset({frozenset({"formed_1990s", "never", "drawn"})})
+        self.assertEqual(_select_axes(all_criteria, groups, "order-seed", unrelated), plain)
+        skipped = _select_axes(
+            all_criteria, groups, "order-seed", frozenset({_criteria_set(plain[0], plain[1])})
+        )
+        assert skipped is not None
+        self.assertNotEqual(_criteria_set(skipped[0], skipped[1]), _criteria_set(plain[0], plain[1]))
+
+    def test_same_grid_in_processes_with_different_hash_seeds(self) -> None:
+        """Set and dict order of strings changes with PYTHONHASHSEED; the grid must not."""
+        script = (
+            "from datetime import date\n"
+            "from tests.test_grid_generator import (\n"
+            "    add_cube_groups, build_grid_test_database, many_labels_catalog)\n"
+            "from kpop_scraping.grid_generator import _select_axes, generate_daily_grid\n"
+            "conn = build_grid_test_database()\n"
+            "add_cube_groups(conn)\n"
+            "for day in (date(2026, 11, 10), date(2026, 11, 11)):\n"
+            "    print(generate_daily_grid(conn, day)['grid_id'])\n"
+            "row, col, _ = _select_axes(*many_labels_catalog('solvable'), 'hash-seed-check')\n"
+            "print(','.join(c['id'] for c in row + col))\n"
+        )
+        root = Path(__file__).resolve().parent.parent
+        outputs = set()
+        for hash_seed in ("0", "1", "4242"):
+            env = {**os.environ, "PYTHONHASHSEED": hash_seed}
+            completed = subprocess.run(
+                [sys.executable, "-c", script], cwd=root, env=env,
+                capture_output=True, text=True, timeout=120, check=True,
+            )
+            outputs.add(completed.stdout)
+        self.assertEqual(len(outputs), 1)
+        self.assertEqual(len(outputs.pop().split()), 3)
 
 if __name__ == "__main__":
     unittest.main()

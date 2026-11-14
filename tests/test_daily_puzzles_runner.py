@@ -600,7 +600,8 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
     def test_fallback_reuses_a_grid_with_the_debut_wording_unchanged(self):
         """Labels are display text: reuse neither rewrites them nor rejects the grid."""
         output_dir = self.temp_path / "legacy_wording"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        # The fixture draws a decade axis on 2026-09-19.
+        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-19")
         grid_file = output_dir / "grid.daily.json"
         grid = json.loads(grid_file.read_text(encoding="utf-8"))
         decades = [
@@ -626,10 +627,10 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             side_effect=ValueError("Unable to generate a solvable 3x3 intersection grid"),
         ):
             result = run_daily_puzzles(
-                database=self.db_path, output_dir=output_dir, reference_date="2026-09-19"
+                database=self.db_path, output_dir=output_dir, reference_date="2026-09-20"
             )
 
-        self.assertEqual(result["grid_reused"]["reference_date"], "2026-09-18")
+        self.assertEqual(result["grid_reused"]["reference_date"], "2026-09-19")
         self.assertIsNone(result["grid_skipped"])
         self.assertEqual(result["grid_id"], grid["grid_id"])
         self.assertEqual(grid_file.read_bytes(), legacy_bytes)

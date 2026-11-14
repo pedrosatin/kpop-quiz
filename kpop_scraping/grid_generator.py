@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import itertools
 import random
@@ -9,10 +10,12 @@ import re
 import sqlite3
 from collections import defaultdict
 from datetime import date, timedelta
+from math import comb
 from typing import Any, Callable, Iterable
 
 from .grid_membership import grid_member_facts
 from .grid_schema import GRID_SCHEMA_VERSION, validate_intersection_grid
+from .lazy_order import combination_at, shuffled_blocks, shuffled_combinations
 from .quiz_models import DEFAULT_REFERENCE_DATE, Entity, Evidence, Fact
 from .quiz_repository import (
     _dataset_version,
@@ -356,6 +359,16 @@ def _are_member_criteria_disjoint(c1: dict[str, Any], c2: dict[str, Any]) -> boo
     pred2: Callable[[int], bool] | None = c2.get("predicate") or MEMBER_COUNT_CRITERIA.get(c2.get("id", ""), {}).get("predicate")
     if pred1 is None or pred2 is None:
         return False
+    return _predicates_disjoint(pred1, pred2)
+
+
+@functools.lru_cache(maxsize=1024)
+def _predicates_disjoint(pred1: Callable[[int], bool], pred2: Callable[[int], bool]) -> bool:
+    """Return True if no member count from 1 to 99 satisfies both predicates.
+
+    The axis searches ask this for the same few predicates many times, so the
+    answer is kept per pair of predicate objects.
+    """
     return not any(pred1(n) and pred2(n) for n in range(1, 100))
 
 
@@ -371,32 +384,187 @@ def _is_valid_axis(axis: tuple[dict[str, Any], ...]) -> bool:
     return True
 
 
-def _build_axes_for_categories(
+# Search limit for one selection of axes. A step is one curated axis pair
+# drawn, one row axis drawn by the mixed-axis fallback or one column triple
+# it tests. Every curated pair drawn already has its nine cells filled. On a
+# copy of the catalog of 2026-10-19 with the formation years of ADR 029, the
+# daily seeds of 365 dates used 1 to 4 steps per selection, and a search with
+# every solvable set avoided, which runs both searches to the end, used 8,518.
+# With 100 record label criteria that share their groups, the limit ends the
+# selection in about 0.5 s on a laptop, where listing every pair ran out of
+# 2 GiB. Past the limit the selection raises ValueError.
+MAX_AXIS_SEARCH_STEPS = 20_000
+
+
+class _AxisSearchBudget:
+    """Count the steps of one selection of axes and stop it at ``limit``."""
+
+    KINDS = ("axis pairs", "row axes", "column triples")
+
+    def __init__(self, limit: int = MAX_AXIS_SEARCH_STEPS, seed: str | None = None) -> None:
+        self.limit = limit
+        self.seed = seed
+        self.spent = dict.fromkeys(self.KINDS, 0)
+
+    @property
+    def used(self) -> int:
+        return sum(self.spent.values())
+
+    def spend(self, kind: str) -> None:
+        """Count one step of ``kind``; raise ValueError when it is over the limit."""
+        if self.used >= self.limit:
+            detail = ", ".join(f"{count} {name}" for name, count in self.spent.items())
+            raise ValueError(
+                f"Grid axis search budget exhausted with seed {self.seed!r}: "
+                f"used {self.used} of {self.limit} steps ({detail}) "
+                "without a solvable 3x3 intersection grid"
+            )
+        self.spent[kind] += 1
+
+
+# Category partitions (row categories, column categories). A one-category
+# side holds three criteria of it; a two-category side holds two of the first
+# and one of the second. No category is on both axes.
+CATEGORY_PARTITIONS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    # Pure category pairs
+    (("record_label",), ("formed_on",)),
+    (("formed_on",), ("record_label",)),
+    (("record_label",), ("has_member",)),
+    (("has_member",), ("record_label",)),
+    (("formed_on",), ("has_member",)),
+    (("has_member",), ("formed_on",)),
+    # Dual-category row / pure col pairs
+    (("formed_on", "has_member"), ("record_label",)),
+    (("has_member", "formed_on"), ("record_label",)),
+    (("record_label", "has_member"), ("formed_on",)),
+    (("has_member", "record_label"), ("formed_on",)),
+    (("formed_on", "record_label"), ("has_member",)),
+    (("record_label", "formed_on"), ("has_member",)),
+    # Pure row / dual-category col pairs
+    (("record_label",), ("formed_on", "has_member")),
+    (("record_label",), ("has_member", "formed_on")),
+    (("formed_on",), ("record_label", "has_member")),
+    (("formed_on",), ("has_member", "record_label")),
+    (("has_member",), ("formed_on", "record_label")),
+    (("has_member",), ("record_label", "formed_on")),
+)
+
+# The facts create one record label criterion per label, with no limit. The
+# decade and member count criteria are the fixed lists above (4 and 12).
+OPEN_CATEGORY = "record_label"
+
+
+def _axis_slots(spec: tuple[str, ...]) -> tuple[tuple[str, int], ...]:
+    """The (category, size) slots of an axis, in the order they appear on it."""
+    if len(spec) == 1:
+        return ((spec[0], 3),)
+    return ((spec[0], 2), (spec[1], 1))
+
+
+class _PairBlock:
+    """Every curated axis pair with one choice of the fixed-list criteria.
+
+    ``fixed`` holds the criteria chosen for each slot of the two axes, with
+    None in the record label slot. ``open_items`` are the record labels whose
+    groups meet every criterion of the other axis, in id order; each
+    ``size``-subset of them completes a pair whose nine cells all have a
+    group. A block without a record label slot holds exactly one pair.
+    """
+
+    def __init__(
+        self,
+        fixed: tuple[tuple[tuple[dict[str, Any], ...] | None, ...], ...],
+        open_items: list[dict[str, Any]],
+        open_size: int,
+    ) -> None:
+        self.fixed = fixed
+        self.open_items = open_items
+        self.open_size = open_size
+        self.size = comb(len(open_items), open_size)
+
+    def pair(self, rank: int) -> tuple[tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
+        """The pair of axes with this rank inside the block."""
+        chosen = tuple(
+            self.open_items[position]
+            for position in combination_at(rank, len(self.open_items), self.open_size)
+        )
+        row_axis, col_axis = (
+            tuple(
+                criterion
+                for part in side
+                for criterion in (chosen if part is None else part)
+            )
+            for side in self.fixed
+        )
+        return row_axis, col_axis
+
+
+def _curated_pair_blocks(
     active_by_cat: dict[str, list[dict[str, Any]]],
-    cat_spec: tuple[str, ...],
-) -> list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
-    """Build valid 3-element axes conforming to the specified category composition."""
-    axes: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]] = []
-    if len(cat_spec) == 1:
-        cat = cat_spec[0]
-        items = active_by_cat.get(cat, [])
-        if len(items) < 3:
-            return axes
-        for combo in itertools.combinations(items, 3):
-            if _is_valid_axis(combo):
-                axes.append(combo)
-    elif len(cat_spec) == 2:
-        cat1, cat2 = cat_spec
-        items1 = active_by_cat.get(cat1, [])
-        items2 = active_by_cat.get(cat2, [])
-        if len(items1) < 2 or len(items2) < 1:
-            return axes
-        for pair1 in itertools.combinations(items1, 2):
-            for item2 in items2:
-                combo = (pair1[0], pair1[1], item2)
-                if _is_valid_axis(combo):
-                    axes.append(combo)
-    return axes
+    criterion_groups: dict[str, set[str]],
+) -> list[_PairBlock]:
+    """Split the curated axis pairs whose nine cells all have a group into blocks.
+
+    The record label criteria are never combined ahead of time: a block keeps
+    the labels that can fill its open slot, and a draw picks one subset of
+    them by rank. The blocks are built in partition order and then in the
+    order of ``itertools.product`` over the fixed slots, so their order
+    depends only on the sorted criteria.
+    """
+    open_items = active_by_cat.get(OPEN_CATEGORY, [])
+    meeting_cache: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+
+    def meets(first: dict[str, Any], second: dict[str, Any]) -> bool:
+        return not criterion_groups[first["id"]].isdisjoint(criterion_groups[second["id"]])
+
+    def labels_meeting(axis: tuple[dict[str, Any], ...]) -> list[dict[str, Any]]:
+        key = tuple(criterion["id"] for criterion in axis)
+        if key not in meeting_cache:
+            meeting_cache[key] = [
+                item for item in open_items
+                if all(meets(item, criterion) for criterion in axis)
+            ]
+        return meeting_cache[key]
+
+    blocks: list[_PairBlock] = []
+    for spec in CATEGORY_PARTITIONS:
+        sides = tuple(_axis_slots(side_spec) for side_spec in spec)
+        open_slot: tuple[int, int] | None = None
+        fixed_choices: list[list[tuple[dict[str, Any], ...]]] = []
+        for side_index, slots in enumerate(sides):
+            for slot_index, (category, size) in enumerate(slots):
+                if category == OPEN_CATEGORY:
+                    open_slot = (side_index, slot_index)
+                    continue
+                fixed_choices.append(
+                    list(itertools.combinations(active_by_cat.get(category, []), size))
+                )
+        for choice in itertools.product(*fixed_choices):
+            remaining = iter(choice)
+            fixed = tuple(
+                tuple(
+                    None if (side_index, slot_index) == open_slot else next(remaining)
+                    for slot_index in range(len(slots))
+                )
+                for side_index, slots in enumerate(sides)
+            )
+            row_fixed, col_fixed = (
+                tuple(criterion for part in side if part is not None for criterion in part)
+                for side in fixed
+            )
+            if not (_is_valid_axis(row_fixed) and _is_valid_axis(col_fixed)):
+                continue
+            if not all(meets(row, col) for row in row_fixed for col in col_fixed):
+                continue
+            if open_slot is None:
+                blocks.append(_PairBlock(fixed, [], 0))
+                continue
+            open_size = sides[open_slot[0]][open_slot[1]][1]
+            other_axis = col_fixed if open_slot[0] == 0 else row_fixed
+            block = _PairBlock(fixed, labels_meeting(other_axis), open_size)
+            if block.size:
+                blocks.append(block)
+    return blocks
 
 
 def _criteria_set(
@@ -412,21 +580,38 @@ def _find_mixed_axis_grid(
     criterion_groups: dict[str, set[str]],
     seed: str,
     avoid: frozenset[frozenset[str]] = frozenset(),
+    budget: _AxisSearchBudget | None = None,
 ) -> tuple[
     tuple[dict[str, Any], ...],
     tuple[dict[str, Any], ...],
     dict[tuple[int, int], list[str]],
 ] | None:
-    """Search all mixed criterion axes for a complete, unique 3x3 grid."""
+    """Search all mixed criterion axes for a complete, unique 3x3 grid.
+
+    The row axes are drawn one at a time in an order the seed decides (see
+    ``lazy_order``). Each row axis drawn and each column triple tested is
+    charged to ``budget``, which raises ValueError at its limit.
+    """
+    if budget is None:
+        budget = _AxisSearchBudget(seed=seed)
     ordered_criteria = sorted(criteria, key=lambda item: item["id"])
-    row_axes = [
-        axis for axis in itertools.combinations(ordered_criteria, 3)
-        if _is_valid_axis(axis)
-    ]
     rng = random.Random(
         hashlib.sha256(f"{seed}|mixed-axis-fallback".encode("utf-8")).digest()
     )
-    rng.shuffle(row_axes)
+    column_rng = random.Random(
+        hashlib.sha256(f"{seed}|mixed-axis-columns".encode("utf-8")).digest()
+    )
+    # Criteria that share a group with each criterion, so the columns of a
+    # row axis come from intersecting three sets instead of scanning them all.
+    criteria_of_group: dict[str, list[str]] = defaultdict(list)
+    for criterion in ordered_criteria:
+        for group in criterion_groups[criterion["id"]]:
+            criteria_of_group[group].append(criterion["id"])
+    meeting: dict[str, set[str]] = defaultdict(set)
+    for ids in criteria_of_group.values():
+        for criterion_id in ids:
+            meeting[criterion_id].update(ids)
+    by_id = {criterion["id"]: criterion for criterion in ordered_criteria}
     intersection_cache: dict[tuple[str, str], list[str]] = {}
 
     def criterion_intersection(row_id: str, col_id: str) -> list[str]:
@@ -437,17 +622,17 @@ def _find_mixed_axis_grid(
             )
         return intersection_cache[key]
 
-    for row_axis in row_axes:
+    for row_axis in shuffled_combinations(ordered_criteria, 3, rng):
+        budget.spend("row axes")
+        shared = set.intersection(*(meeting[criterion["id"]] for criterion in row_axis))
         row_cats = {criterion["category"] for criterion in row_axis}
         compatible_columns = [
-            criterion
-            for criterion in ordered_criteria
-            if criterion["category"] not in row_cats
-            and all(
-                criterion_intersection(row_criterion["id"], criterion["id"])
-                for row_criterion in row_axis
-            )
+            by_id[criterion_id]
+            for criterion_id in sorted(shared)
+            if by_id[criterion_id]["category"] not in row_cats
         ]
+        if len(compatible_columns) < 3 or not _is_valid_axis(row_axis):
+            continue
         possible_entities: set[str] = set()
         for criterion in compatible_columns:
             for row_criterion in row_axis:
@@ -457,9 +642,10 @@ def _find_mixed_axis_grid(
         if len(possible_entities) < 9:
             continue
 
-        rng.shuffle(compatible_columns)
+        column_rng.shuffle(compatible_columns)
 
         for col_axis in itertools.combinations(compatible_columns, 3):
+            budget.spend("column triples")
             if not _is_valid_axis(col_axis) or _criteria_set(row_axis, col_axis) in avoid:
                 continue
             cells_valid = {
@@ -554,6 +740,7 @@ def _select_axes(
     criterion_groups: dict[str, set[str]],
     seed: str,
     avoid: frozenset[frozenset[str]] = frozenset(),
+    max_search_steps: int = MAX_AXIS_SEARCH_STEPS,
 ) -> tuple[
     tuple[dict[str, Any], ...],
     tuple[dict[str, Any], ...],
@@ -562,7 +749,10 @@ def _select_axes(
     """Draw the row and column axes of a solvable grid, or None.
 
     A pair whose six criteria form a set in ``avoid`` is skipped, whatever
-    axis each criterion is on.
+    axis each criterion is on. The curated pairs with nine filled cells are
+    drawn one at a time, in an order the seed decides, and the mixed-axis
+    fallback runs after them. Both share one budget of ``max_search_steps``
+    steps; past it, the selection raises ValueError.
     """
     # A criterion on an axis covers three cells, and the nine answers must be
     # distinct groups, so a criterion with fewer than three groups can never
@@ -577,63 +767,15 @@ def _select_axes(
     for crit in sorted(active_criteria.values(), key=lambda c: (c["category"], c["id"])):
         active_by_cat[crit["category"]].append(crit)
 
-    # Category partition pairs (row_cats, col_cats) ensuring total orthogonality
-    category_partitions: list[tuple[tuple[str, ...], tuple[str, ...]]] = [
-        # Pure category pairs
-        (("record_label",), ("formed_on",)),
-        (("formed_on",), ("record_label",)),
-        (("record_label",), ("has_member",)),
-        (("has_member",), ("record_label",)),
-        (("formed_on",), ("has_member",)),
-        (("has_member",), ("formed_on",)),
-        # Dual-category row / pure col pairs
-        (("formed_on", "has_member"), ("record_label",)),
-        (("has_member", "formed_on"), ("record_label",)),
-        (("record_label", "has_member"), ("formed_on",)),
-        (("has_member", "record_label"), ("formed_on",)),
-        (("formed_on", "record_label"), ("has_member",)),
-        (("record_label", "formed_on"), ("has_member",)),
-        # Pure row / dual-category col pairs
-        (("record_label",), ("formed_on", "has_member")),
-        (("record_label",), ("has_member", "formed_on")),
-        (("formed_on",), ("record_label", "has_member")),
-        (("formed_on",), ("has_member", "record_label")),
-        (("has_member",), ("formed_on", "record_label")),
-        (("has_member",), ("record_label", "formed_on")),
-    ]
-
-    candidate_pairs: list[
-        tuple[
-            tuple[dict[str, Any], dict[str, Any], dict[str, Any]],
-            tuple[dict[str, Any], dict[str, Any], dict[str, Any]],
-        ]
-    ] = []
-
-    for row_spec, col_spec in category_partitions:
-        row_axes = _build_axes_for_categories(active_by_cat, row_spec)
-        col_axes = _build_axes_for_categories(active_by_cat, col_spec)
-        for r_axis in row_axes:
-            r_ids = {c["id"] for c in r_axis}
-            for c_axis in col_axes:
-                c_ids = {c["id"] for c in c_axis}
-                if r_ids.isdisjoint(c_ids):
-                    candidate_pairs.append((r_axis, c_axis))
-
-    # Sort deterministically before pseudo-random shuffle
-    candidate_pairs.sort(
-        key=lambda pair: (
-            tuple(c["id"] for c in pair[0]),
-            tuple(c["id"] for c in pair[1]),
-        )
-    )
-
+    budget = _AxisSearchBudget(max_search_steps, seed)
+    blocks = _curated_pair_blocks(active_by_cat, criterion_groups)
     rng = random.Random(hashlib.sha256(seed.encode("utf-8")).digest())
-    shuffled_pairs = list(candidate_pairs)
-    rng.shuffle(shuffled_pairs)
 
-    for row_criteria, col_criteria in shuffled_pairs:
-        # Skipping a pair consumes no randomness, so an empty ``avoid``
-        # chooses exactly as before.
+    for block_index, rank in shuffled_blocks([block.size for block in blocks], rng):
+        budget.spend("axis pairs")
+        row_criteria, col_criteria = blocks[block_index].pair(rank)
+        # Every draw consumes the same randomness, skipped or not, so an
+        # empty ``avoid`` chooses exactly what the seed alone draws.
         if _criteria_set(row_criteria, col_criteria) in avoid:
             continue
         cells_valid: dict[tuple[int, int], list[str]] = {}
@@ -661,10 +803,11 @@ def _select_axes(
         return row_criteria, col_criteria, cells_valid
 
     # The curated partitions above are preferred because they keep each axis
-    # semantically focused. If none has a solution, exhaustively search all
-    # triples of active evidence-backed criteria before reporting failure.
+    # semantically focused. If none has a solution, search all triples of
+    # active evidence-backed criteria, within what is left of the budget,
+    # before reporting failure.
     return _find_mixed_axis_grid(
-        list(active_criteria.values()), criterion_groups, seed, avoid
+        list(active_criteria.values()), criterion_groups, seed, avoid, budget
     )
 
 
@@ -695,11 +838,14 @@ def generate_intersection_grid(
     seed: str,
     reference_date: date | None = None,
     avoid_criteria_sets: Iterable[frozenset[str]] = (),
+    max_search_steps: int = MAX_AXIS_SEARCH_STEPS,
 ) -> dict[str, Any]:
     """Generate a deterministic, verified 3x3 intersection grid from local facts.
 
     A grid whose six criteria form a set in ``avoid_criteria_sets`` is never
-    chosen. When every solvable grid is in it, the error says so.
+    chosen. When every solvable grid is in it, the error says so. Each
+    selection of axes has a budget of ``max_search_steps`` steps; past it,
+    the grid is refused with ValueError.
     """
     avoid = frozenset(frozenset(criteria) for criteria in avoid_criteria_sets)
     if reference_date is None:
@@ -709,11 +855,12 @@ def generate_intersection_grid(
         _eligible_criteria(connection, reference_date)
     )
 
-    selection = _select_axes(all_criteria, criterion_groups, seed, avoid)
+    selection = _select_axes(all_criteria, criterion_groups, seed, avoid, max_search_steps)
     if (
         selection is None
         and avoid
-        and _select_axes(all_criteria, criterion_groups, seed) is not None
+        and _select_axes(all_criteria, criterion_groups, seed, max_search_steps=max_search_steps)
+        is not None
     ):
         raise ValueError(
             f"Every solvable 3x3 intersection grid with seed {seed!r} repeats the criteria "

@@ -8,6 +8,7 @@ from math import comb
 
 from kpop_scraping.lazy_order import (
     combination_at,
+    shuffled_blocks,
     shuffled_combinations,
     shuffled_indices,
 )
@@ -36,6 +37,11 @@ class CombinationAtTest(unittest.TestCase):
         for n, k in ((10, 3), (9, 4), (5, 5), (5, 0)):
             subsets = [combination_at(rank, n, k) for rank in range(comb(n, k))]
             self.assertEqual(sorted(subsets), list(itertools.combinations(range(n), k)))
+
+    def test_ranks_of_a_large_range_follow_colex_order(self):
+        # Colex order sorts subsets by their largest element first.
+        subsets = [combination_at(rank, 60, 3) for rank in range(comb(60, 3))]
+        self.assertEqual(subsets, sorted(itertools.combinations(range(60), 3), key=lambda s: s[::-1]))
 
     def test_rank_outside_the_range_is_refused(self):
         with self.assertRaises(ValueError):
@@ -69,6 +75,41 @@ class ShuffledCombinationsTest(unittest.TestCase):
         self.assertEqual(len(set(drawn)), 1000)
         self.assertLess(peak, 2 * 2**20)
 
+
+class ShuffledBlocksTest(unittest.TestCase):
+    def test_yields_each_position_of_each_block_once(self):
+        sizes = [3, 0, 1, 5, 0, 2]
+        drawn = list(shuffled_blocks(sizes, random.Random(b"seed")))
+        expected = [(block, offset) for block, size in enumerate(sizes) for offset in range(size)]
+        self.assertEqual(sorted(drawn), expected)
+
+    def test_same_seed_same_order(self):
+        sizes = [4, 7, 1, 9]
+        first = list(shuffled_blocks(sizes, random.Random(b"seed")))
+        self.assertEqual(first, list(shuffled_blocks(sizes, random.Random(b"seed"))))
+        self.assertNotEqual(first, list(shuffled_blocks(sizes, random.Random(b"other"))))
+
+    def test_no_blocks_or_only_empty_ones_yield_nothing(self):
+        self.assertEqual(list(shuffled_blocks([], random.Random(0))), [])
+        self.assertEqual(list(shuffled_blocks([0, 0], random.Random(0))), [])
+
+    def test_negative_size_is_refused(self):
+        with self.assertRaises(ValueError):
+            next(shuffled_blocks([2, -1], random.Random(0)))
+
+    def test_first_draws_of_huge_blocks_cost_only_the_draws(self):
+        sizes = [comb(300, 3), 5, comb(10**6, 3)]
+        tracemalloc.start()
+        try:
+            tracemalloc.reset_peak()
+            positions = shuffled_blocks(sizes, random.Random(b"seed"))
+            drawn = [next(positions) for _ in range(1000)]
+            _current, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        self.assertEqual(len(set(drawn)), 1000)
+        self.assertTrue(all(0 <= offset < sizes[block] for block, offset in drawn))
+        self.assertLess(peak, 2 * 2**20)
 
 if __name__ == "__main__":
     unittest.main()
