@@ -28,9 +28,10 @@ export interface PlayerStats {
 export const PLAYER_STATS_STORAGE_KEY = "kpop-player-stats-v1";
 export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline", "map", "code", "crossword"];
 /**
- * Stats added after v1. `importPlayerStatsJson` still accepts an export from
- * before the game existed, normalizing the missing entries to zeroed stats,
- * so a stats file keeps importing across graduations.
+ * Stats added after v1. `parsePlayerStatsJson` still accepts an export from
+ * before the game existed, normalizing the missing entries to zeroed stats
+ * that `applyPlayerStatsFile` then writes, so a stats file keeps importing
+ * across graduations.
  */
 const LATER_GAME_IDS: GameId[] = ["map", "code", "crossword"];
 
@@ -275,11 +276,26 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null;
 }
 
+/** A non-negative integer small enough that adding to it stays exact. */
 function isValidCounter(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
-function validateStatsBlock(raw: unknown): raw is Record<string, unknown> {
+/** A `YYYY-MM-DD` date that exists on the calendar: "2026-02-30" does not. */
+function isCalendarDate(value: string): boolean {
+  if (!DATE_PATTERN.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number) as [number, number, number];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+/**
+ * The counters and last daily date of one stats block, as the app writes
+ * them. The date is the day of a daily challenge, so it cannot be after
+ * today's (`dailyReferenceDate`): a later date would freeze the streak,
+ * because `recordGameFinish` ignores dates before the last recorded one.
+ */
+function validateStatsBlock(raw: unknown, today: string): raw is Record<string, unknown> {
   if (!isPlainObject(raw)) return false;
   const record = raw as Record<string, unknown>;
   for (const key of ["played", "won", "currentStreak", "maxStreak"]) {
@@ -291,8 +307,12 @@ function validateStatsBlock(raw: unknown): raw is Record<string, unknown> {
   const currentStreak = record["currentStreak"] as number;
   const maxStreak = record["maxStreak"] as number;
   if (maxStreak < currentStreak) return false;
-  if (record["lastPlayedDate"] !== undefined) {
-    if (typeof record["lastPlayedDate"] !== "string" || !DATE_PATTERN.test(record["lastPlayedDate"])) return false;
+  // Each day in a streak is at least one finished game.
+  if (currentStreak > played) return false;
+  const lastPlayedDate = record["lastPlayedDate"];
+  if (lastPlayedDate !== undefined) {
+    if (typeof lastPlayedDate !== "string" || !isCalendarDate(lastPlayedDate)) return false;
+    if (lastPlayedDate > today) return false;
   }
   return true;
 }
@@ -311,12 +331,35 @@ export interface ImportPlayerStatsResult {
   error?: string;
 }
 
+/** A stats file that passed validation and has not been written yet. */
+export interface PlayerStatsFile {
+  stats: PlayerStats;
+  /**
+   * When the file was exported, as an ISO 8601 timestamp. Absent when the
+   * file predates the field or carries a value that is not a date.
+   */
+  exportedAt?: string;
+}
+
+export type ParsePlayerStatsResult =
+  | { success: true; file: PlayerStatsFile }
+  | { success: false; error: string };
+
 export function exportPlayerStatsJson(): string {
   const stats = loadPlayerStats();
   return JSON.stringify({ ...stats, exportedAt: new Date().toISOString() }, null, 2);
 }
 
-export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
+function readExportedAt(value: unknown): string | undefined {
+  return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : undefined;
+}
+
+/**
+ * Validates a stats file without touching storage, so the caller can show
+ * what the file holds before `applyPlayerStatsFile` replaces local stats.
+ * Dates are checked against `today`, the daily reference date.
+ */
+export function parsePlayerStatsJson(raw: string, today: string = dailyReferenceDate()): ParsePlayerStatsResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -325,7 +368,7 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
   }
   if (!isPlainObject(parsed)) return { success: false, error: "invalid-shape" };
   if (parsed["version"] !== 1) return { success: false, error: "invalid-version" };
-  if (!isPlainObject(parsed["overall"]) || !validateStatsBlock(parsed["overall"])) {
+  if (!isPlainObject(parsed["overall"]) || !validateStatsBlock(parsed["overall"], today)) {
     return { success: false, error: "invalid-overall" };
   }
   if (!isPlainObject(parsed["games"])) return { success: false, error: "invalid-games" };
@@ -341,7 +384,7 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
     if (entry === undefined) {
       return { success: false, error: "invalid-games" };
     }
-    if (!isPlainObject(entry) || !validateStatsBlock(entry)) {
+    if (!isPlainObject(entry) || !validateStatsBlock(entry, today)) {
       return { success: false, error: "invalid-game-stats" };
     }
     const distribution = (entry as Record<string, unknown>)["guessDistribution"];
@@ -390,13 +433,29 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
     }
     games[gameId] = game;
   }
-  const imported: PlayerStats = { version: 1, overall, games };
-  savePlayerStats(imported);
+  const stats: PlayerStats = { version: 1, overall, games };
+  const exportedAt = readExportedAt(parsed["exportedAt"]);
+  return { success: true, file: { stats, ...(exportedAt ? { exportedAt } : {}) } };
+}
+
+/** Replaces every local stat with the file's. Day markers stay (ADR 030). */
+export function applyPlayerStatsFile(file: PlayerStatsFile): ImportPlayerStatsResult {
+  savePlayerStats(file.stats);
   // savePlayerStats fails silently by design, so confirm the write landed.
-  if (JSON.stringify(loadPlayerStats()) !== JSON.stringify(imported)) {
+  if (JSON.stringify(loadPlayerStats()) !== JSON.stringify(file.stats)) {
     return { success: false, error: "io-error" };
   }
   return { success: true };
+}
+
+/**
+ * Runs both import steps at once, `parsePlayerStatsJson` and then
+ * `applyPlayerStatsFile`, without asking. The tests use it; the stats
+ * window calls the two steps itself so the player can confirm in between.
+ */
+export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
+  const parsed = parsePlayerStatsJson(raw);
+  return parsed.success ? applyPlayerStatsFile(parsed.file) : parsed;
 }
 
 // Note: exportPlayerStatsJson and resetPlayerStats stay best-effort under
