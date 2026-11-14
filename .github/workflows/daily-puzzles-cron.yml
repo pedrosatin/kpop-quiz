@@ -88,12 +88,14 @@ jobs:
       # continue-on-error keeps the job going when the step fails or times
       # out, so the next step can restore the cached database and the day
       # still gets puzzles built from the previous day's facts (ADR 032).
+      # On timeout or cancel the runner signals only the shell's PID; exec
+      # makes that PID the script's, which then kills the running attempt.
       - name: Rebuild database from Wikipedia and Wikidata
         id: rebuild
         continue-on-error: true
         timeout-minutes: 120
         run: |
-          python3 scripts/rebuild_database.py rebuild --database data/kpop.db -- \
+          exec python3 scripts/rebuild_database.py rebuild --database data/kpop.db -- \
             python main.py --facts --releases --database data/kpop.db
 
       # outcome is the result of the step before continue-on-error applies:

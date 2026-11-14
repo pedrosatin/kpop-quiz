@@ -9,13 +9,14 @@ from __future__ import annotations
 import io
 import os
 import re
+import signal
 import sqlite3
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, suppress
 from pathlib import Path
 from unittest.mock import patch
 
@@ -32,6 +33,7 @@ from scripts.rebuild_database import (
     Limits,
     limits_from_environment,
     main,
+    rebuild,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,6 +46,10 @@ RESTORE_STEP = "Restore cached database"
 WARNING = "::warning title=Database not refreshed::"
 # Long enough to show that a wait which must not happen did not happen.
 LONG_WAIT_SECONDS = "600"
+# What the runner does to a step that passed timeout-minutes or a cancelled
+# run (actions/runner, ProcessInvoker.cs): SIGINT, then SIGTERM, then SIGKILL,
+# each sent to the PID of the step's shell only, with these waits between them.
+RUNNER_STOP_SEQUENCE = ((signal.SIGINT, 7.5), (signal.SIGTERM, 2.5), (signal.SIGKILL, 60))
 
 
 class JobResult:
@@ -171,34 +177,111 @@ class RebuildJobTests(unittest.TestCase):
         self.assert_not_running(self.collector_pids()[0])
         self.assert_published_from_cache(job, "attempt 1 passed its 2 s timeout and was stopped")
 
-    def test_stopping_the_step_stops_the_attempt(self):
-        # The runner ends a step that passed timeout-minutes with a signal.
-        # An attempt left running would write to the database after the
-        # restore step replaced it.
-        self.cache_database()
-        process = subprocess.Popen(
-            [
-                sys.executable, str(SCRIPT), "rebuild", "--database", "data/kpop.db", "--",
-                sys.executable, str(FAKE_COLLECTOR), "--database", "data/kpop.db",
-            ],
-            cwd=self.folder,
-            env={
-                **os.environ,
-                "GITHUB_OUTPUT": str(self.step_output),
-                "FAKE_COLLECTOR_LOG": str(self.log),
-                "FAKE_COLLECTOR_OUTCOMES": "hang",
-            },
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+    def start_rebuild_step(self) -> subprocess.Popen:
+        """Run the rebuild step's ``run:`` text the way the runner does.
+
+        The runner writes the text to a file and runs ``bash -e <file>`` (the
+        workflow sets no ``shell``). ``python3`` and ``python`` resolve to this
+        interpreter, ``scripts/`` is the repository's, and ``main.py`` runs the
+        fake collector, which hangs inside a transaction.
+        """
+        tools = self.folder / "bin"
+        tools.mkdir()
+        for name in ("python", "python3"):
+            wrapper = tools / name
+            wrapper.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n', encoding="utf-8")
+            wrapper.chmod(0o755)
+        (self.folder / "scripts").symlink_to(ROOT / "scripts", target_is_directory=True)
+        (self.folder / "main.py").write_text(
+            f"import runpy\nrunpy.run_path({str(FAKE_COLLECTOR)!r}, run_name='__main__')\n",
+            encoding="utf-8",
         )
-        self.addCleanup(process.kill)
+        script = self.folder / "step.sh"
+        script.write_text(run_block(REBUILD_STEP), encoding="utf-8")
+        self.step_log = self.folder / "step.log"
+        with self.step_log.open("w", encoding="utf-8") as log:
+            process = subprocess.Popen(
+                ["bash", "-e", str(script)],
+                cwd=self.folder,
+                env={
+                    **os.environ,
+                    "PATH": f"{tools}{os.pathsep}{os.environ.get('PATH', '')}",
+                    "GITHUB_OUTPUT": str(self.step_output),
+                    "FAKE_COLLECTOR_LOG": str(self.log),
+                    "FAKE_COLLECTOR_OUTCOMES": "hang",
+                },
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                # Its own process group, so the test can tell whether anything
+                # the step started outlives it, and clean up if it does.
+                start_new_session=True,
+            )
+        self.addCleanup(self.kill_process_group, process.pid)
+        # Wait until the attempt holds an open transaction.
+        journal = self.data / "kpop.db-journal"
         deadline = time.monotonic() + 60
-        while not self.collector_pids() and time.monotonic() < deadline:
+        while not (self.collector_pids() and journal.exists()) and time.monotonic() < deadline:
             time.sleep(0.05)
-        process.terminate()
-        self.assertEqual(process.wait(timeout=60), 143)
+        self.assertTrue(journal.exists(), "the fake collector did not start its transaction")
+        return process
+
+    @staticmethod
+    def kill_process_group(group: int) -> None:
+        with suppress(ProcessLookupError):
+            os.killpg(group, signal.SIGKILL)
+
+    def assert_step_left_nothing_running(self, process: subprocess.Popen) -> None:
         self.assertEqual(len(self.collector_pids()), 1)
         self.assert_not_running(self.collector_pids()[0])
+        # Nothing the step started is left to write to the database after the
+        # restore step replaces it.
+        with self.assertRaises(ProcessLookupError):
+            os.killpg(process.pid, 0)
+        log = self.step_log.read_text(encoding="utf-8")
+        self.assertNotIn("Traceback", log)
+
+    def assert_restore_publishes_the_cache(self) -> None:
+        restore = self.run_script(
+            "restore-cache", "--database", "data/kpop.db",
+            REBUILD_FAILURE=self.step_outputs().get("failure", ""),
+        )
+        self.assertEqual(restore.returncode, 0, restore.stdout + restore.stderr)
+        self.assertIn(f"{WARNING}Rebuild did not finish", restore.stdout)
+        self.assertEqual(self.facts(), ["cached"])
+        self.assertEqual(self.raw_files(), ["cached.json"])
+
+    def test_runner_stopping_the_step_kills_the_attempt(self):
+        # The runner signals the shell's PID; with `exec` that is this script.
+        # Without it the signals reach bash alone, SIGKILL ends bash, and the
+        # script and the collector keep writing while the restore step runs.
+        self.cache_database()
+        process = self.start_rebuild_step()
+
+        sent = []
+        for stop_signal, wait in RUNNER_STOP_SEQUENCE:
+            os.kill(process.pid, stop_signal)
+            sent.append(stop_signal)
+            with suppress(subprocess.TimeoutExpired):
+                process.wait(timeout=wait)
+                break
+
+        self.assertEqual(sent, [signal.SIGINT])
+        self.assertEqual(process.returncode, 128 + signal.SIGINT)
+        self.assertIn(
+            "Rebuild stopped by SIGINT; killing the running attempt",
+            self.step_log.read_text(encoding="utf-8"),
+        )
+        self.assert_step_left_nothing_running(process)
+        self.assert_restore_publishes_the_cache()
+
+    def test_sigterm_to_the_step_shell_kills_the_attempt(self):
+        self.cache_database()
+        process = self.start_rebuild_step()
+        os.kill(process.pid, signal.SIGTERM)
+        self.assertEqual(process.wait(timeout=60), 128 + signal.SIGTERM)
+        self.assertIn("Rebuild stopped by SIGTERM", self.step_log.read_text(encoding="utf-8"))
+        self.assert_step_left_nothing_running(process)
+        self.assert_restore_publishes_the_cache()
 
     def test_deterministic_error_gets_one_attempt_then_the_cache(self):
         self.cache_database()
@@ -279,6 +362,33 @@ class RebuildJobTests(unittest.TestCase):
         self.assertEqual(self.facts(), ["cached"])
         self.assertFalse(orphan.exists())
         self.assertEqual(sorted(path.name for path in self.data.iterdir()), ["kpop.db", "raw"])
+
+    def test_failed_copy_leaves_the_database_and_no_cached_copy(self):
+        # A full disk cuts the copy short. restore-cache would move a partial
+        # copy over the intact database, so none may be left at kpop.db.cached,
+        # not even a stale one from an earlier run.
+        self.cache_database()
+        backup = self.data / "kpop.db.cached"
+        backup.write_bytes(b"stale copy from an earlier run")
+        original = self.database.read_bytes()
+
+        def copy_until_the_disk_fills(_source, target):
+            Path(target).write_bytes(original[: len(original) // 2])
+            raise OSError(28, "No space left on device")
+
+        with (
+            patch("scripts.rebuild_database.shutil.copyfile", copy_until_the_disk_fills),
+            patch("scripts.rebuild_database.run_attempt") as run_attempt,
+            self.assertRaises(OSError),
+        ):
+            rebuild(self.database, ["main.py"], Limits())
+
+        run_attempt.assert_not_called()
+        self.assertEqual(self.database.read_bytes(), original)
+        self.assertEqual(sorted(path.name for path in self.data.iterdir()), ["kpop.db", "raw"])
+        restore = self.run_script("restore-cache", "--database", "data/kpop.db")
+        self.assertEqual(restore.returncode, 1)
+        self.assertEqual(self.database.read_bytes(), original)
 
     def test_missing_command_fails_without_retrying(self):
         self.cache_database()
@@ -362,11 +472,31 @@ def job_steps(workflow: str, job: str) -> list[tuple[str, str]]:
     return [(step.split("\n", 1)[0].strip(), step) for step in steps]
 
 
+def run_block(step_name: str) -> str:
+    """Return the ``run: |`` text of a step of the daily job, as the runner writes it to a file."""
+    step = dict(job_steps(WORKFLOW.read_text(encoding="utf-8"), "daily-puzzles"))[step_name]
+    lines = step.split("\n        run: |\n", 1)[1].split("\n")
+    block = []
+    for line in lines:
+        if line.strip() and not line.startswith(" " * 10):
+            break
+        block.append(line[10:])
+    return "\n".join(block).strip("\n") + "\n"
+
+
 class WorkflowTests(unittest.TestCase):
     def setUp(self):
         self.steps = job_steps(WORKFLOW.read_text(encoding="utf-8"), "daily-puzzles")
         self.names = [name for name, _text in self.steps]
         self.text = dict(self.steps)
+
+    def test_rebuild_step_execs_the_script(self):
+        # The runner stops a step by signalling the shell's PID only. With
+        # exec that PID is the script's, which kills the running attempt.
+        commands = [line for line in run_block(REBUILD_STEP).splitlines() if line.strip()]
+        self.assertTrue(
+            commands[0].startswith("exec python3 scripts/rebuild_database.py rebuild "), commands
+        )
 
     def test_rebuild_step_runs_the_script_and_lets_the_job_continue(self):
         step = self.text[REBUILD_STEP]

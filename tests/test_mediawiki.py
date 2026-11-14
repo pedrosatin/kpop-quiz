@@ -1,3 +1,4 @@
+import ssl
 import unittest
 from datetime import datetime, timezone
 from io import BytesIO
@@ -17,6 +18,17 @@ class Response(BytesIO):
 
     def __exit__(self, *_args):
         self.close()
+
+
+class FailingResponse(Response):
+    """A response whose body fails to arrive, as a dropped TLS session does."""
+
+    def __init__(self, error):
+        super().__init__(b"")
+        self.error = error
+
+    def read(self, *_args):
+        raise self.error
 
 
 def http_error(code, headers=None):
@@ -150,6 +162,10 @@ class MediaWikiClientTest(unittest.TestCase):
             "HTTP 429 until the retries end": [http_error(429), http_error(429)],
             "network failure": [URLError("unreachable"), TimeoutError("timed out")],
             "truncated response": [Response(b'{"query":'), Response(b'{"query":')],
+            "TLS failure while reading": [
+                FailingResponse(ssl.SSLError("record layer failure")),
+                FailingResponse(ssl.SSLError("record layer failure")),
+            ],
             "Retry-After above the limit": [http_error(503, {"Retry-After": "3600"})],
         }
         for name, responses in cases.items():

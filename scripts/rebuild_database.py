@@ -12,19 +12,25 @@ hangs cannot take the fallback down with it
     wait. A deterministic failure, an unknown exit code and an attempt killed
     by its timeout end the step at once, because the same command would fail
     the same way. The step exits with the code of the last attempt, or 124
-    when the timeout killed it.
+    when the timeout killed it. SIGINT or SIGTERM kills the running attempt
+    and ends the script with 130 or 143.
 
 ``restore-cache``
     Runs when the ``rebuild`` step failed or timed out. Deletes the raw
-    snapshots and the SQLite journal the attempts left behind, puts the cached
-    copy back and emits the ``Database not refreshed`` warning. Fails when
-    there is no cached copy.
+    snapshots and the SQLite ``-journal``, ``-wal`` and ``-shm`` files the
+    attempts left behind, puts the cached copy back and emits the
+    ``Database not refreshed`` warning. Fails when there is no cached copy.
 
 The workflow runs::
 
-    python3 scripts/rebuild_database.py rebuild --database data/kpop.db -- \\
+    exec python3 scripts/rebuild_database.py rebuild --database data/kpop.db -- \\
         python main.py --facts --releases --database data/kpop.db
     python3 scripts/rebuild_database.py restore-cache --database data/kpop.db
+
+When a step passes ``timeout-minutes`` or the run is cancelled, the runner
+sends SIGINT, then SIGTERM, then SIGKILL to the PID of the step's shell and to
+no other process. ``exec`` makes that PID this script's, so the signal reaches
+the code that stops the attempt.
 
 The attempt limits come from the environment, so tests do not wait minutes:
 ``REBUILD_MAX_ATTEMPTS`` (3), ``REBUILD_ATTEMPT_TIMEOUT_SECONDS`` (1800),
@@ -66,6 +72,8 @@ EXIT_ATTEMPT_TIMED_OUT = 124  # the code timeout(1) uses
 EXIT_COMMAND_NOT_STARTED = 127  # the code a shell uses for a missing command
 
 BACKUP_SUFFIX = ".cached"
+# Signals that stop this script; each kills the running attempt first.
+STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
 # Files SQLite keeps beside a database while a transaction is open.
 SQLITE_SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
 
@@ -132,9 +140,10 @@ def run_attempt(command: Sequence[str], timeout: float, kill_grace: float) -> in
             process.wait()
         return None
     finally:
-        # Reached with the attempt alive only when this script is being
-        # stopped (a cancelled run, the step timeout). Do not leave it writing
-        # to a database the next step is about to replace.
+        # Reached with the attempt alive only when SIGINT or SIGTERM stopped
+        # this script (a cancelled run, the step timeout; see
+        # _stop_attempt_on_signals). Do not leave it writing to a database the
+        # next step is about to replace.
         if process.poll() is None:
             process.kill()
             process.wait()
@@ -145,9 +154,7 @@ def rebuild(database: Path, command: Sequence[str], limits: Limits) -> int:
     database.parent.mkdir(parents=True, exist_ok=True)
     backup = backup_path(database)
     if database.is_file():
-        # copyfile gives the copy the time it ran as its mtime; restore-cache
-        # relies on that to tell which raw snapshots the attempts wrote.
-        shutil.copyfile(database, backup)
+        _copy_whole(database, backup)
 
     for attempt in range(1, limits.max_attempts + 1):
         label = f"Rebuild attempt {attempt} of {limits.max_attempts}"
@@ -180,6 +187,25 @@ def rebuild(database: Path, command: Sequence[str], limits: Limits) -> int:
         f"all {limits.max_attempts} attempts ended in a transient error (exit {EXIT_TRANSIENT})",
         EXIT_TRANSIENT,
     )
+
+
+def _copy_whole(source: Path, target: Path) -> None:
+    """Copy ``source`` to ``target`` so that ``target`` is either complete or absent.
+
+    A copy cut short (a full disk) would otherwise sit at ``target``, and
+    restore-cache would move it over the intact database.
+    """
+    partial = target.with_name(target.name + ".tmp")
+    # A copy left by an earlier run is stale; it must not survive a failed copy.
+    target.unlink(missing_ok=True)
+    try:
+        # copyfile gives the copy the time it ran as its mtime, and os.replace
+        # keeps it; restore-cache relies on that to tell which raw snapshots
+        # the attempts wrote.
+        shutil.copyfile(source, partial)
+        os.replace(partial, target)
+    finally:
+        partial.unlink(missing_ok=True)
 
 
 def restore_cache(database: Path, raw_dir: Path, reason: str) -> int:
@@ -220,13 +246,23 @@ def _delete_files_newer_than(directory: Path, mtime_ns: int) -> int:
     return removed
 
 
-def _stop_attempt_on_sigterm() -> None:
-    """Turn SIGTERM into ``SystemExit``, so ``run_attempt`` stops the attempt on the way out."""
+def _stop_attempt_on_signals() -> None:
+    """Turn SIGINT and SIGTERM into ``SystemExit(128 + signal)``.
+
+    ``run_attempt`` kills the attempt on the way out, and the script ends with
+    130 (SIGINT) or 143 (SIGTERM) without a traceback. The runner sends SIGINT
+    first when the step times out or the run is cancelled; Python's default
+    would raise ``KeyboardInterrupt`` and print a traceback.
+    """
 
     def handler(signum: int, _frame: object) -> None:
+        name = signal.Signals(signum).name
+        # os.write, because print may be in the middle of a write to stdout.
+        os.write(1, f"Rebuild stopped by {name}; killing the running attempt\n".encode())
         raise SystemExit(128 + signum)
 
-    signal.signal(signal.SIGTERM, handler)
+    for stop_signal in STOP_SIGNALS:
+        signal.signal(stop_signal, handler)
 
 
 def _give_up(reason: str, code: int) -> int:
@@ -297,7 +333,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as error:
         print(f"::error::{error}", file=sys.stderr)
         return EXIT_USAGE
-    _stop_attempt_on_sigterm()
+    _stop_attempt_on_signals()
     return rebuild(args.database, command, limits)
 
 

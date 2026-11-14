@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import ssl
 import time
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
@@ -129,6 +130,9 @@ class MediaWikiClient:
                 TimeoutError,
                 ConnectionError,
                 HTTPException,
+                # A TLS failure while json.load reads the body; urlopen
+                # wraps only the ones raised while connecting in URLError.
+                ssl.SSLError,
                 json.JSONDecodeError,
             ) as exc:
                 if not can_retry:

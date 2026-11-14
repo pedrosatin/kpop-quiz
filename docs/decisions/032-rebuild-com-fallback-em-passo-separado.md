@@ -18,10 +18,12 @@ Em 8 das 10 execuções agendadas anteriores a 2026-11-13, as três tentativas t
 
 ### Dois passos
 
-1. "Rebuild database from Wikipedia and Wikidata" chama `scripts/rebuild_database.py rebuild`, com `id: rebuild`, `continue-on-error: true` e `timeout-minutes: 120`.
+1. "Rebuild database from Wikipedia and Wikidata" chama `exec python3 scripts/rebuild_database.py rebuild`, com `id: rebuild`, `continue-on-error: true` e `timeout-minutes: 120`.
 2. "Restore cached database" chama `scripts/rebuild_database.py restore-cache` com a condição `steps.rebuild.outcome == 'failure'`.
 
 `outcome` é o resultado do passo antes do `continue-on-error`. Ele vale `failure` para código de saída diferente de zero e para o timeout do passo. A função `failure()` não serve como condição, porque ela lê o estado do job e o `continue-on-error` mantém o job com sucesso. O job precisa terminar com sucesso por dois motivos. Os passos de "Generate daily puzzles" em diante não têm condição própria e só rodam com o job nesse estado. O deploy do `pages.yml` só publica quando o workflow conclui com sucesso.
+
+No timeout do passo e no cancelamento da execução, o runner envia SIGINT, SIGTERM 7,5 segundos depois e SIGKILL 2,5 segundos depois deste, todos ao PID do shell do passo e a nenhum outro processo (`ProcessInvoker.cs`). Sem `exec`, o script roda como filho do `bash`, nenhum sinal chega a ele e o SIGKILL encerra só o shell. O script e o coletor continuariam gravando enquanto o passo de restauração troca o banco. Com `exec`, o script assume o PID do shell. Ele trata SIGINT e SIGTERM, mata a tentativa em andamento e sai com 130 ou 143.
 
 ### Limites das tentativas
 
@@ -41,13 +43,13 @@ Os limites vêm das variáveis de ambiente `REBUILD_MAX_ATTEMPTS`, `REBUILD_ATTE
 
 Os dois códigos de falha são `EX_TEMPFAIL` e `EX_DATAERR` do `sysexits.h`. Eles diferem de 1, que o Python usa para exceção não tratada, de 2, que o argparse usa, e de 124, 137 e 143, que indicam timeout e sinais.
 
-O cliente marca o erro no ponto em que desiste, com `MediaWikiError(..., transient=True)`, e o CLI converte a marca no código 75. Um cliente que passe a esperar mais pelo `maxlag` e desista ao fim de um orçamento de tempo levanta o erro com a mesma marca e sai com o mesmo código.
+O cliente marca o erro no ponto em que desiste, com `MediaWikiError(..., transient=True)`, e o CLI converte a marca no código 75. Um cliente que espere mais pelo `maxlag` e desista ao fim de um orçamento de tempo levanta o erro com a mesma marca e sai com o mesmo código. Esse orçamento precisa ficar bem abaixo dos 30 minutos da tentativa. Uma tentativa encerrada pelo timeout sai com 124 e não é repetida.
 
 ### O que o script repete
 
 Só o código 75 leva a outra tentativa. O código 65, o código 1, qualquer outro código e a tentativa encerrada pelo timeout terminam o passo na hora.
 
-Falha de rede e `maxlag` encerram a tentativa pelo próprio cliente, que tem timeout de 30 segundos por requisição e limite de novas tentativas, e saem com 75. Uma reconstrução bem-sucedida leva de 1 a 2 minutos. Uma tentativa que chega aos 30 minutos está fora desses dois casos, e repeti-la somaria até 40,5 minutos por vez antes da publicação.
+Toda requisição do CLI passa pelo cliente MediaWiki, usado para a Wikipedia e o Wikidata, ou pelo cliente do WDQS. Os dois têm timeout de 30 segundos por requisição e limite de novas tentativas. Eles tratam como falha de rede `URLError`, `TimeoutError`, `ConnectionError`, `http.client.HTTPException` e `ssl.SSLError`, levantados ao conectar ou ao ler a resposta. Quando a falha de rede ou o `maxlag` persiste além das novas tentativas, o cliente desiste com a marca de transitório e o CLI sai com 75. Uma reconstrução bem-sucedida leva de 1 a 2 minutos. Uma tentativa que chega aos 30 minutos está fora desses dois casos, e repeti-la somaria até 40,5 minutos por vez antes da publicação.
 
 O passo sai com o código da última tentativa, ou com 124 quando o timeout a encerrou, e grava o motivo na saída `failure` do passo.
 
@@ -79,9 +81,9 @@ O script leria a linha `Pipeline failed` e procuraria `maxlag`. Uma mudança de 
 
 ## Consequências
 
-- Uma tentativa que não termina atrasa a publicação em até 30,5 minutos, e o dia sai do banco em cache.
+- Uma tentativa que não termina soma até 30,5 minutos ao tempo das tentativas anteriores, e o dia sai do banco em cache.
 - Um erro determinístico publica a partir do cache depois de uma tentativa. Antes eram três tentativas e 20 minutos de espera.
 - O passo de rebuild aparece com falha tolerada e o job termina com sucesso. O aviso `Database not refreshed` no resumo da execução indica que o banco não foi atualizado e traz o motivo.
 - Uma exceção que o CLI não trata sai com o código 1 e não é repetida, mesmo quando a causa é temporária. Para ser repetido, o erro precisa ser marcado como transitório na origem.
-- Os códigos 65 e 75 passam a ser contrato de `python main.py`. O script e os testes leem as constantes de `kpop_scraping/exit_codes.py`.
+- `python main.py` sai com 65 ou 75 em falha tratada, e `scripts/rebuild_database.py` decide a nova tentativa por esses valores. O script e os testes leem as constantes de `kpop_scraping/exit_codes.py`.
 - O script roda com o `python3` do runner e depende só da biblioteca padrão.
