@@ -49,6 +49,7 @@ from typing import Any, Callable
 from .code_groups_cli import generate as generate_code_groups_puzzle
 from .code_groups_cli import validate as validate_code_groups_puzzle
 from .connections_generator import (
+    AmbiguousPartitionError,
     generate_connections_puzzle,
     validate_connections_partition_unique,
 )
@@ -897,12 +898,17 @@ def _published_result(output_dir: Path, reference_date: str, **flags: Any) -> di
 def _check_connections_partition(
     directory: Path, connection: sqlite3.Connection | None
 ) -> dict[str, Any]:
-    """Confirm the kept or promoted connections board still has one solution.
+    """Check that the kept or promoted connections board still has one solution.
 
     The check needs the database: the file alone cannot show a second partition
     among the criteria's other members. Without it the check is recorded as not
-    run. An ambiguous board raises, so it is neither kept nor
-    promoted; ``--regenerate`` publishes a new one.
+    run. A board the database now splits in two ways was already served, from
+    output_dir or from ``next/`` since midnight in Sao Paulo, so it is kept
+    and recorded with ``reason: ambiguous``: changing it would cost the players
+    of the day their progress. The run goes on with the other games and the
+    next day. ``--regenerate``, when the operator asks for it, generates every
+    game of the date again, and each swap counts as declared. A new board
+    never gets here; the generator refuses an ambiguous one.
     """
     if not (directory / CONNECTIONS_DAILY_FILENAME).is_file():
         # The set omits the connections board; there is nothing to check.
@@ -915,8 +921,8 @@ def _check_connections_partition(
     puzzle = json.loads((directory / CONNECTIONS_DAILY_FILENAME).read_text(encoding="utf-8"))
     try:
         validate_connections_partition_unique(connection, puzzle)
-    except ValueError as exc:
-        raise ValueError(f"{exc}; publish a new board with --regenerate") from exc
+    except AmbiguousPartitionError:
+        return {"checked": True, "reason": "ambiguous"}
     return {"checked": True, "reason": None}
 
 
@@ -937,7 +943,7 @@ def keep_or_promote_day(
     ``_revalidate_published_grid``); the other artifacts keep their bytes.
     The connections board is also checked against the database for a single
     solution (see ``_check_connections_partition``); the result reports it in
-    ``connections_partition``.
+    ``connections_partition``, and an ambiguous board is kept.
     """
     # A published set may omit any game that daily-set.json lists; verify()
     # still validates every file that is present.
@@ -1008,7 +1014,7 @@ def _confirm_crossword_day(
         return None
     previous_day = (date.fromisoformat(reference_date) - timedelta(days=1)).isoformat()
     expected = crossword_context_for(
-        reference_date, confirmed_crossword_record(output_dir, previous_day)
+        reference_date, _served_crossword_record(output_dir, previous_day, adopt=True)
     )
     if expected == record["previous"]:
         return None
@@ -1026,6 +1032,35 @@ def _confirm_crossword_day(
         "previous_dataset_version": record["dataset_version"],
         "reason": replacement["reason"],
     }
+
+
+def _served_crossword_record(
+    output_dir: Path, reference_date: str, adopt: bool = False
+) -> dict[str, Any] | None:
+    """Confirmed crossword record of a served day, from ``next/`` when needed.
+
+    A day whose own run never installed it in output_dir (the run failed,
+    or did not happen) was still served from ``next/`` after midnight in
+    Sao Paulo, and the record published there says what it served. The
+    record in output_dir wins when both exist, as in ``verify_history``.
+
+    With ``adopt``, a record read from ``next/`` is also written to
+    output_dir. A generation writes it before it installs the day that
+    consumes it, and a promotion writes it right after the install, while
+    ``next/`` still holds the record. The history of the main directory then
+    holds both days, and a ``next/`` removed later (see
+    ``_drop_unverifiable_next``) cannot take it away. The pilot record,
+    which stands in for days before any record exists, is never written.
+    """
+    record = confirmed_crossword_record(output_dir, reference_date, output_dir / NEXT_DIRNAME)
+    if (
+        adopt
+        and record is not None
+        and record["source"] != "pilot"
+        and read_crossword_record(output_dir, reference_date) is None
+    ):
+        write_crossword_record(output_dir, record)
+    return record
 
 
 def _copy_crossword_day(source: Path, target: Path, reference_date: str) -> None:
@@ -1120,7 +1155,8 @@ def run_daily_puzzles(
                 timer_seconds=timer_seconds,
                 related_clues=related_clues,
                 crossword_previous=crossword_context_for(
-                    iso_date, confirmed_crossword_record(output_dir_path, previous_day)
+                    iso_date,
+                    _served_crossword_record(output_dir_path, previous_day, adopt=not dry_run),
                 ),
             )
             result = publish_daily_puzzles(output_dir_path, puzzles, dry_run=dry_run, connection=connection)
