@@ -54,12 +54,12 @@ class PublishedSetTests(unittest.TestCase):
         self.assertEqual(output, f"Checked {self.data}: every file matches *.json\n")
 
     def test_extra_json_file_is_accepted_by_the_suffix_rule(self):
-        # web_publish --verify judges the JSON files; this check covers the rest.
+        # An extra JSON file passes both checks; web_publish reads only the files of the set (ADR 040).
         (self.data / "zz-extra.json").write_text("{}", encoding="utf-8")
         self.assertEqual(self.check()[0], 0)
 
     def test_file_that_is_not_json_fails_at_any_depth(self):
-        for relative in ("zz-extra.txt", "next/run.sh", ".hidden", "next/sub/page.html"):
+        for relative in ("zz-extra.txt", "next/run.sh", "next/run.json.sh", ".hidden", "next/sub/page.html"):
             with self.subTest(relative):
                 path = self.data / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
