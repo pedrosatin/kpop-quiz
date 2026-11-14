@@ -3,6 +3,7 @@
 import argparse
 import os
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 from .catalog import classify_catalog
@@ -20,12 +21,14 @@ from .release_discovery import (
     discover_releases,
 )
 from .release_pipeline import collect_release_facts
-from .storage import Repository, SnapshotIntegrityError
+from .storage import ExtractDrift, Repository, SnapshotIntegrityError
 from .wikidata import WikidataEntityClient, WikidataTypeClient
 
 
 DEFAULT_CATEGORY = "Category:K-pop music groups"
 DEFAULT_DATABASE = Path(__file__).resolve().parent.parent / "data" / "kpop.db"
+# Pages named in the extract drift annotation; stderr lists every page.
+MAX_DRIFT_PAGES_IN_ANNOTATION = 20
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -133,6 +136,40 @@ def report_truncated_groups(truncated: tuple[TruncatedGroup, ...]) -> None:
             print(f"::warning title=Release candidates truncated::{message}", flush=True)
 
 
+def report_extract_drift(drifts: Sequence[ExtractDrift]) -> None:
+    """Warn about pages whose extract changed without a new revision; the run goes on.
+
+    Each page kept the stored snapshot of its revision and was skipped
+    (ADR 036). The messages hold the language code the CLI chose, page and
+    revision IDs and SHA-256 digests: no page title or other text from the
+    wiki reaches the workflow command. The annotation is flushed at once, for
+    the reason ``report_truncated_groups`` gives.
+    """
+    if not drifts:
+        return
+    for drift in drifts:
+        sys.stderr.write(
+            f"WARNING: extract of {drift.language} page {drift.page_id:d} revision "
+            f"{drift.revision_id:d} changed without a new revision; kept the stored "
+            f"snapshot (extract SHA-256 {drift.stored_extract_sha256} stored, "
+            f"{drift.fetched_extract_sha256} fetched)\n"
+        )
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        listed = "; ".join(
+            f"{drift.language} pageid {drift.page_id:d} revid {drift.revision_id:d}"
+            for drift in drifts[:MAX_DRIFT_PAGES_IN_ANNOTATION]
+        )
+        more = len(drifts) - MAX_DRIFT_PAGES_IN_ANNOTATION
+        if more > 0:
+            listed += f"; and {more} more"
+        print(
+            f"::warning title=Extract changed without a new revision::"
+            f"{len(drifts)} page{'s' if len(drifts) > 1 else ''} kept the stored "
+            f"snapshot of their revision: {listed}",
+            flush=True,
+        )
+
+
 def _failure_exit_code(exc: Exception) -> int:
     """Tell a failure that may pass on a later run from one that will repeat."""
     if isinstance(exc, MediaWikiError) and exc.transient:
@@ -213,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
                     wikipedia_clients=wikipedia_clients,
                 )
                 release_rows = export_release_coverage_csv(repository.connection, args.release_report or args.database.parent / "release-coverage.csv")
+            drifts = tuple(repository.extract_drifts)
     except (MediaWikiError, SnapshotIntegrityError, RuntimeError, ValueError) as exc:
         print(f"Pipeline failed: {type(exc).__name__}: {exc}")
         return _failure_exit_code(exc)
@@ -245,4 +283,10 @@ def main(argv: list[str] | None = None) -> int:
                 f"Release discovery: {truncated} group{'s' if truncated > 1 else ''} "
                 f"truncated at {MAX_CANDIDATES_PER_GROUP} candidates"
             )
+    if drifts:
+        report_extract_drift(drifts)
+        print(
+            f"Extract drift: {len(drifts)} page{'s' if len(drifts) > 1 else ''} "
+            "kept the stored snapshot of an unchanged revision"
+        )
     return EXIT_OK

@@ -1134,6 +1134,82 @@ class ReleasePipelineScopeTest(unittest.TestCase):
             ("completed", 1),
         )
 
+    def test_release_page_with_extract_drift_keeps_its_stored_revision_two_days_in_a_row(self):
+        self.connection.executemany(
+            """INSERT INTO entities(
+                id,wikidata_id,entity_type,canonical_name,snapshot_id,created_at,updated_at
+            ) VALUES (?,?,?,?,1,'t','t')""",
+            [(100, "QS0", "album", "Drifting"), (101, "QS1", "album", "Steady")],
+        )
+        releases = tuple(
+            (100 + index, 1, f"QS{index}", object(), {"sitelinks": {"enwiki": {"title": title}}})
+            for index, title in enumerate(("Drifting", "Steady"))
+        )
+
+        class WikiClient:
+            def __init__(self, lead):
+                self.lead = lead
+
+            def get_pages_by_titles(self, titles):
+                return [
+                    Page(
+                        7000 + len(title), title, f"https://en.example/{title}",
+                        (self.lead if title == "Drifting" else "Steady is an album by Group One."),
+                        8000 + len(title),
+                        wikidata_id="QS0" if title == "Drifting" else "QS1",
+                    )
+                    for title in titles
+                ]
+
+        original = "Drifting is an album by Group One."
+        first = collect_release_pages(self.repository, releases, {"en": WikiClient(original)})
+        stored = self.connection.execute(
+            """SELECT release_entity_id,state,reason,source_revision_id
+            FROM release_source_pages WHERE release_entity_id IN (100,101) ORDER BY release_entity_id"""
+        ).fetchall()
+        snapshot = self.root / "raw" / "wikipedia" / "en" / "7008" / "8008.json.gz"
+        snapshot_bytes = snapshot.read_bytes()
+
+        later = [
+            collect_release_pages(
+                self.repository, releases,
+                {"en": WikiClient("Drifting is an album by Group One, released in 2020.")},
+            )
+            for _day in (1, 2)
+        ]
+
+        self.assertEqual(first["QS0"][0].extract, original)
+        for pages in later:
+            # The evidence still reads the extract of the stored snapshot.
+            self.assertEqual(pages["QS0"], first["QS0"])
+            self.assertEqual(pages["QS1"], first["QS1"])
+        self.assertEqual(
+            [tuple(row) for row in self.connection.execute(
+                """SELECT release_entity_id,state,reason,source_revision_id
+                FROM release_source_pages WHERE release_entity_id IN (100,101)
+                ORDER BY release_entity_id"""
+            )],
+            [tuple(row) for row in stored],
+        )
+        self.assertEqual(stored[0][1:3], ("accepted", None))
+        self.assertEqual(snapshot.read_bytes(), snapshot_bytes)
+        runs = [tuple(row) for row in self.connection.execute(
+            """SELECT id,status,pages_collected FROM collection_runs
+            WHERE category='release-wikipedia-evidence' ORDER BY id"""
+        )]
+        self.assertEqual([run[1:] for run in runs], [("completed", 2)] * 3)
+        self.assertEqual(
+            [tuple(row) for row in self.connection.execute(
+                """SELECT collection_run_id,external_page_id,issue_code
+                FROM collection_issues ORDER BY id"""
+            )],
+            [(runs[1][0], 7008, "extract_drift"), (runs[2][0], 7008, "extract_drift")],
+        )
+        self.assertEqual(
+            [(drift.language, drift.page_id, drift.revision_id) for drift in self.repository.extract_drifts],
+            [("en", 7008, 8008)],
+        )
+
     def test_release_page_batch_stops_when_a_request_fails(self):
         self.connection.executemany(
             """INSERT INTO entities(

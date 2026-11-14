@@ -1,17 +1,18 @@
 import argparse
+import hashlib
 import io
 import os
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from kpop_scraping.cli import build_parser, main
-from kpop_scraping.exit_codes import EXIT_DETERMINISTIC, EXIT_TRANSIENT
-from kpop_scraping.mediawiki import MediaWikiError
-from kpop_scraping.storage import SnapshotIntegrityError
+from kpop_scraping.cli import build_parser, main, report_extract_drift
+from kpop_scraping.exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
+from kpop_scraping.mediawiki import MediaWikiError, Page
+from kpop_scraping.storage import ExtractDrift, Repository, SnapshotIntegrityError
 
 
 class _JSONResponse(io.BytesIO):
@@ -24,6 +25,31 @@ class _JSONResponse(io.BytesIO):
 
     def __exit__(self, *_args):
         self.close()
+
+
+# A title that would open a workflow command if it reached the annotation.
+HOSTILE_TITLE = "Alpha\n::error::injected"
+
+
+class _CategoryClient:
+    """Category with page 10 at revision 77, whose extract the test chooses, and page 11."""
+
+    provider = "wikipedia"
+    language = "en"
+
+    def __init__(self, extract):
+        self.extract = extract
+
+    def iter_category_members(self, _category):
+        yield {"pageid": 10, "title": HOSTILE_TITLE}
+        yield {"pageid": 11, "title": "Beta"}
+
+    def get_pages(self, page_ids):
+        pages = {
+            10: Page(10, HOSTILE_TITLE, "https://en.example/Alpha", self.extract, 77),
+            11: Page(11, "Beta", "https://en.example/Beta", "Beta is a group.", 88),
+        }
+        return [pages[page_id] for page_id in page_ids]
 
 
 class CLITest(unittest.TestCase):
@@ -289,6 +315,70 @@ class CLITest(unittest.TestCase):
 
         output = stdout.getvalue()
         self.assertIn("Releases: 3 discovery groups, 10 release entities saved", output)
+
+
+    @patch("kpop_scraping.cli.classify_catalog")
+    @patch("kpop_scraping.cli.MediaWikiClient")
+    def test_extract_drift_completes_with_exit_0_two_days_in_a_row(self, client, classify):
+        classify.return_value = MagicMock(accepted=0, rejected=0, pending=0)
+        outputs = []
+        for extract in ("Alpha is a group.", "Alpha is a group, rewritten.", "Alpha is a group, rewritten."):
+            client.return_value = _CategoryClient(extract)
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), redirect_stdout(stdout), redirect_stderr(stderr):
+                code = main(["--database", str(self.database)])
+            outputs.append((code, stdout.getvalue(), stderr.getvalue()))
+
+        self.assertEqual([code for code, _out, _err in outputs], [EXIT_OK] * 3)
+        self.assertNotIn("Extract", outputs[0][1] + outputs[0][2])
+        stored = hashlib.sha256(b"Alpha is a group.").hexdigest()
+        fetched = hashlib.sha256(b"Alpha is a group, rewritten.").hexdigest()
+        for _code, stdout, stderr in outputs[1:]:
+            self.assertIn(
+                "::warning title=Extract changed without a new revision::"
+                "1 page kept the stored snapshot of their revision: en pageid 10 revid 77\n",
+                stdout,
+            )
+            self.assertIn("Extract drift: 1 page kept the stored snapshot of an unchanged revision", stdout)
+            self.assertIn(
+                "WARNING: extract of en page 10 revision 77 changed without a new revision; "
+                f"kept the stored snapshot (extract SHA-256 {stored} stored, {fetched} fetched)\n",
+                stderr,
+            )
+            self.assertIn("Collected 1 pages", stdout)
+            self.assertNotIn("::error", stdout + stderr)
+        with Repository(self.database) as repository:
+            issues = [tuple(row) for row in repository.connection.execute(
+                "SELECT collection_run_id, external_page_id, issue_code FROM collection_issues ORDER BY id"
+            )]
+            runs = [row[0] for row in repository.connection.execute(
+                "SELECT status FROM collection_runs ORDER BY id"
+            )]
+        self.assertEqual(issues, [(2, 10, "extract_drift"), (3, 10, "extract_drift")])
+        self.assertEqual(runs, ["completed"] * 3)
+
+    def test_extract_drift_annotation_names_at_most_20_pages(self):
+        drifts = [
+            ExtractDrift("wikipedia", "pt", page_id, page_id + 1000, "a" * 64, "b" * 64)
+            for page_id in range(1, 24)
+        ]
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), redirect_stdout(stdout), redirect_stderr(stderr):
+            report_extract_drift(drifts)
+        lines = stdout.getvalue().splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertTrue(lines[0].startswith(
+            "::warning title=Extract changed without a new revision::23 pages kept the stored "
+            "snapshot of their revision: pt pageid 1 revid 1001; pt pageid 2 revid 1002;"
+        ))
+        self.assertIn("pt pageid 20 revid 1020; and 3 more", lines[0])
+        self.assertNotIn("pageid 21", lines[0])
+        self.assertEqual(len(stderr.getvalue().splitlines()), 23)
+
+        stdout = io.StringIO()
+        with patch.dict(os.environ, {"GITHUB_ACTIONS": ""}), redirect_stdout(stdout), redirect_stderr(io.StringIO()):
+            report_extract_drift(drifts)
+        self.assertEqual(stdout.getvalue(), "")
 
 
 if __name__ == "__main__":

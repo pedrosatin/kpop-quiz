@@ -360,6 +360,62 @@ class PersonPagesPipelineTest(unittest.TestCase):
         self.assertEqual(facts[(WENDY, "born_in")][:2], ("rejected", "missing_evidence"))
         self.assertEqual(facts[(YERI, "born_on")][:3], ("accepted", None, ()))
 
+    def test_person_page_with_extract_drift_keeps_its_stored_revision_two_days_in_a_row(self):
+        class DriftedIntro(FixturePersonClient):
+            def resolve_titles(self, titles):
+                result = super().resolve_titles(titles)
+                if "Wendy (singer)" in result:
+                    result["Wendy (singer)"] = replace(
+                        result["Wendy (singer)"], extract="An intro a template rewrote."
+                    )
+                return result
+
+        def states(repository):
+            return {
+                row["wikidata_id"]: (row["state"], row["reason"], row["source_revision_id"])
+                for row in repository.connection.execute(
+                    """
+                    SELECT e.wikidata_id, p.state, p.reason, p.source_revision_id
+                    FROM person_source_pages p JOIN entities e ON e.id = p.person_entity_id
+                    """
+                )
+            }
+
+        with self.repository() as repository:
+            build_catalog(repository, self.fixture)
+            self.run_pipeline(repository, FixturePersonClient())
+            before = states(repository)
+            facts = self.facts(repository)
+            snapshot = self.root / "raw" / "wikipedia" / "en" / "9002" / "91002.json.gz"
+            snapshot_bytes = snapshot.read_bytes()
+
+            for _day in (1, 2):
+                self.run_pipeline(repository, DriftedIntro())
+
+            after = states(repository)
+            issues = [
+                tuple(row) for row in repository.connection.execute(
+                    """
+                    SELECT r.category, r.status, i.external_page_id, i.issue_code
+                    FROM collection_issues i JOIN collection_runs r ON r.id = i.collection_run_id
+                    ORDER BY i.id
+                    """
+                )
+            ]
+            runs = scalar(
+                repository,
+                "SELECT COUNT(*) FROM collection_runs WHERE category='person-wikipedia-evidence' AND status='completed'",
+            )
+            self.assertEqual(self.facts(repository), facts)
+        self.assertEqual(after, before)
+        self.assertEqual(before[WENDY][:2], ("accepted", None))
+        self.assertEqual(snapshot.read_bytes(), snapshot_bytes)
+        self.assertEqual(runs, 3)
+        self.assertEqual(
+            issues,
+            [("person-wikipedia-evidence", "completed", 9002, "extract_drift")] * 2,
+        )
+
     def test_failed_run_rolls_back_person_pages_too(self):
         class Failing(FixturePersonClient):
             def get_revision_wikitext(self, revision_ids):
