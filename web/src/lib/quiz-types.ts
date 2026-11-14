@@ -1,3 +1,5 @@
+import { isHttpsUrl } from "./https-url";
+
 export type Locale = "pt-BR" | "en";
 export type PlayMode = "assisted" | "standard" | "expert";
 export type ChallengeRating = "easy" | "medium" | "hard";
@@ -125,15 +127,6 @@ function isStringArray(value: unknown, allowEmpty = true): value is string[] {
     && new Set(value).size === value.length;
 }
 
-function isHttpsUrl(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  try {
-    return new URL(value).protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 function isOption(value: unknown): value is QuizOption {
   if (!isRecord(value) || !hasExactKeys(value, ["id", "label", "value", "value_type"])) return false;
   return typeof value.id === "string" && HASH.test(value.id)
@@ -190,23 +183,13 @@ const LICENSED_MEDIA_FIELDS = [
 ];
 const QID = /^Q[1-9][0-9]*$/;
 
-function isHttpOrHttpsUrl(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 export function isLicensedMedia(value: unknown): value is LicensedMedia {
   if (!isRecord(value) || !hasExactKeys(value, LICENSED_MEDIA_FIELDS)) return false;
-  return isHttpOrHttpsUrl(value.asset_url)
+  return isHttpsUrl(value.asset_url)
     && isHttpsUrl(value.source_url)
     && typeof value.creator === "string" && value.creator.trim().length > 0
     && typeof value.license_name === "string" && PERMITTED_LICENSES.has(value.license_name)
-    && isHttpOrHttpsUrl(value.license_url)
+    && isHttpsUrl(value.license_url)
     && typeof value.subject_qid === "string" && QID.test(value.subject_qid)
     && isDate(value.verified_at)
     && isStringArray(value.transformations, false);
@@ -413,7 +396,6 @@ function isGridEvidence(value: unknown): value is GridEvidence {
     && typeof value.locator === "string" && value.locator.length > 0
     && Number.isInteger(value.revision_id) && (value.revision_id as number) >= 1
     && typeof value.source_key === "string" && value.source_key.length > 0
-    && typeof value.source_url === "string" && value.source_url.startsWith("https://")
     && isHttpsUrl(value.source_url);
 }
 

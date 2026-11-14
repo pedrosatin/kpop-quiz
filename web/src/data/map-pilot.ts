@@ -1,5 +1,6 @@
 import eventData from "../../../data/map-pilot/deadline-events.json";
 import worldMap from "./map-pilot/world-map.json";
+import { isHttpsUrl } from "../lib/https-url";
 
 export interface MapPilotEvent {
   subject_wikidata_id: string;
@@ -130,8 +131,8 @@ export function isMapPilotDataset(value: unknown): value is MapPilotDataset {
       || typeof event.map_feature_id !== "string"
       || typeof event.source_locator !== "string"
       || event.source_locator.trim().length === 0
-      || typeof event.source_url !== "string"
-      || !event.source_url.startsWith("https://")) return false;
+      || !isHttpsUrl(event.source_url)
+      || !isHttpsUrl(event.musicbrainz_event_url)) return false;
     if (eventIds.has(event.event_mbid)) return false;
     eventIds.add(event.event_mbid);
   }

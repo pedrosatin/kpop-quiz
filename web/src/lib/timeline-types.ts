@@ -1,3 +1,5 @@
+import { isHttpsUrl } from "./https-url";
+
 export type TimelineEventType =
   | "debut"
   | "formation"
@@ -116,16 +118,6 @@ function isBilingualText(value: unknown): value is BilingualText {
     typeof value.en === "string" &&
     value.en.trim().length > 0
   );
-}
-
-function isHttpsUrl(value: unknown): value is string {
-  if (typeof value !== "string" || value.length === 0) return false;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" && Boolean(url.hostname);
-  } catch {
-    return false;
-  }
 }
 
 function isValidTimelineDate(value: unknown): value is string {

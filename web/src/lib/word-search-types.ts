@@ -1,4 +1,5 @@
 import type { GridEvidence } from "./quiz-types";
+import { isHttpsUrl } from "./https-url";
 
 export interface BilingualText {
   "pt-BR": string;
@@ -70,8 +71,7 @@ function isEvidence(value: unknown): value is GridEvidence {
     value.revision_id >= 1 &&
     typeof value.source_key === "string" &&
     value.source_key.length > 0 &&
-    typeof value.source_url === "string" &&
-    value.source_url.startsWith("https://")
+    isHttpsUrl(value.source_url)
   );
 }
 
