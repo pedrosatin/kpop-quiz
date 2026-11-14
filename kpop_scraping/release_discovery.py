@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import ssl
 import time
 from dataclasses import dataclass
@@ -24,12 +25,34 @@ MAX_CANDIDATES_PER_GROUP = 100
 MAX_RESPONSE_BYTES = 5_000_000
 RETRYABLE_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
 ALLOWED_DIRECT_TYPES = ("Q482994", "Q169930", "Q134556")
+# ASCII digits only: str.isdigit() also accepts digits such as "²" and "١",
+# and _qid_order compares digit strings as numbers only for 0 to 9.
+_RELEASE_QID = re.compile(r"Q[0-9]+")
 
 
 @dataclass(frozen=True)
 class DiscoveredRelease:
     group_id: str
     release_id: str
+
+
+@dataclass(frozen=True)
+class TruncatedGroup:
+    """A group whose WDQS answer had more candidates than the per-group limit."""
+
+    group_id: str
+    candidates: int
+    kept: int
+
+    @property
+    def discarded(self) -> int:
+        return self.candidates - self.kept
+
+
+@dataclass(frozen=True)
+class DiscoveryResult:
+    run_id: int
+    truncated: tuple[TruncatedGroup, ...]
 
 
 @dataclass(frozen=True)
@@ -131,7 +154,13 @@ def discover_releases(
     group_limit: int = MAX_GROUPS_PER_QUERY,
     group_offset: int = 0,
     max_per_group: int = MAX_CANDIDATES_PER_GROUP,
-) -> int:
+) -> DiscoveryResult:
+    """Store the WDQS candidates of one batch of accepted groups.
+
+    A group with more than ``max_per_group`` candidates keeps the ones with the
+    lowest QIDs; ``DiscoveryResult.truncated`` and
+    ``release_discovery_groups.candidates_discarded`` record the rest.
+    """
     if not 1 <= group_limit <= MAX_GROUPS_PER_QUERY:
         raise ValueError("group_limit is outside the supported WDQS batch")
     if not 1 <= max_per_group <= MAX_CANDIDATES_PER_GROUP:
@@ -173,10 +202,14 @@ def discover_releases(
             "INSERT INTO release_discovery_snapshots(run_id,snapshot_path,content_sha256,http_status,fetched_at) VALUES (?,?,?,?,?)",
             (run_id, path, digest, result.http_status, utc_now()),
         )
-        releases = _parse_results(body, set(by_qid), max_per_group)
+        releases, truncated = _parse_results(body, set(by_qid), max_per_group)
         repository.connection.executemany(
             "INSERT INTO release_candidates(run_id,group_entity_id,requested_wikidata_id,state) VALUES (?,?,?,'candidate')",
             [(run_id, by_qid[item.group_id], item.release_id) for item in releases],
+        )
+        repository.connection.executemany(
+            "UPDATE release_discovery_groups SET candidates_discarded=? WHERE run_id=? AND group_entity_id=?",
+            [(group.discarded, run_id, by_qid[group.group_id]) for group in truncated],
         )
         repository.connection.execute(
             "UPDATE release_discovery_runs SET completed_at=?,status='completed',candidates_found=? WHERE id=?",
@@ -191,26 +224,50 @@ def discover_releases(
         )
         repository.connection.commit()
         raise
-    return run_id
+    return DiscoveryResult(run_id, truncated)
 
 
-def _parse_results(body: bytes, groups: set[str], max_per_group: int) -> tuple[DiscoveredRelease, ...]:
+def _qid_order(qid: str) -> tuple[int, str, str]:
+    """Sort QIDs by number: Q123 comes before Q1000, which text order reverses.
+
+    Without leading zeros, a shorter run of ASCII digits is a smaller number,
+    and digit runs of equal length compare as text in numeric order. This
+    avoids int(), which refuses strings above 4300 digits. The full QID breaks
+    ties between spellings of one number, such as Q07 and Q7.
+    """
+    digits = qid[1:].lstrip("0")
+    return len(digits), digits, qid
+
+
+def _parse_results(
+    body: bytes, groups: set[str], max_per_group: int
+) -> tuple[tuple[DiscoveredRelease, ...], tuple[TruncatedGroup, ...]]:
+    """Read the WDQS answer and cut each group down to ``max_per_group`` candidates.
+
+    Anyone can add a P175 statement that names a group, so a group may come
+    back with more candidates than the limit. Aborting would fail every run
+    while that edit stands. The group keeps the candidates with the lowest
+    QIDs instead: the cut depends only on the answer's content, never on its
+    order or on set and hash order, and items created after the others, such
+    as a flood of new ones, carry higher QIDs and are the ones left out.
+    """
     payload = json.loads(body)
-    counts = {group: 0 for group in groups}
-    found: set[DiscoveredRelease] = set()
+    by_group: dict[str, set[str]] = {group: set() for group in groups}
     for binding in payload["results"]["bindings"]:
         try:
             group = binding["performer"]["value"].rsplit("/", 1)[1]
             release = binding["release"]["value"].rsplit("/", 1)[1]
         except (KeyError, TypeError, IndexError) as exc:
             raise MediaWikiError("WDQS binding has an unexpected shape") from exc
-        if group not in groups or not release.startswith("Q") or not release[1:].isdigit():
+        if group not in groups or not _RELEASE_QID.fullmatch(release):
             raise MediaWikiError("WDQS binding contains an unexpected entity")
-        item = DiscoveredRelease(group, release)
-        if item in found:
-            continue
-        counts[group] += 1
-        if counts[group] > max_per_group:
-            raise MediaWikiError(f"WDQS candidate limit exceeded for {group}")
-        found.add(item)
-    return tuple(sorted(found, key=lambda item: (item.group_id, item.release_id)))
+        by_group[group].add(release)
+    releases: list[DiscoveredRelease] = []
+    truncated: list[TruncatedGroup] = []
+    for group in sorted(groups):
+        ordered = sorted(by_group[group], key=_qid_order)
+        kept = ordered[:max_per_group]
+        if len(ordered) > len(kept):
+            truncated.append(TruncatedGroup(group, len(ordered), len(kept)))
+        releases.extend(DiscoveredRelease(group, release) for release in kept)
+    return tuple(releases), tuple(truncated)

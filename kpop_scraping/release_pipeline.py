@@ -275,12 +275,18 @@ def _catalog_group_names(connection, entity_id: int) -> tuple[str, ...]:
 
 
 def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) -> None:
+    """Retire accepted releases that the latest discovery of their group no longer found.
+
+    A group whose candidates were cut at the per-group limit stays out of the
+    scope: its missing releases may sit among the discarded candidates, so
+    its releases and facts keep the state of the last complete discovery.
+    """
     connection.execute(
         """UPDATE release_candidates AS previous
         SET state='stale',reason='not_in_latest_discovery'
         WHERE previous.run_id<>? AND previous.state='accepted'
           AND previous.group_entity_id IN (
-              SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?
+              SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0
           )
           AND NOT EXISTS (
               SELECT 1 FROM release_candidates current
@@ -295,7 +301,7 @@ def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) ->
         WHERE status='accepted' AND subject_entity_id IN (
             SELECT DISTINCT previous.entity_id FROM release_candidates previous
             WHERE previous.run_id<>? AND previous.entity_id IS NOT NULL
-              AND previous.group_entity_id IN (SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?)
+              AND previous.group_entity_id IN (SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0)
               AND NOT EXISTS (
                 SELECT 1 FROM release_candidates current
                 WHERE current.run_id=? AND current.entity_id=previous.entity_id AND current.state='accepted'
@@ -303,7 +309,7 @@ def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) ->
               AND NOT EXISTS (
                 SELECT 1 FROM release_candidates outside_scope
                 WHERE outside_scope.entity_id=previous.entity_id AND outside_scope.state='accepted'
-                  AND outside_scope.group_entity_id NOT IN (SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?)
+                  AND outside_scope.group_entity_id NOT IN (SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0)
               )
         )""",
         (
@@ -320,7 +326,7 @@ def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) ->
             SELECT DISTINCT previous.entity_id FROM release_candidates previous
             WHERE previous.run_id<>? AND previous.entity_id IS NOT NULL
               AND previous.group_entity_id IN (
-                  SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?
+                  SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0
               )
               AND NOT EXISTS (
                   SELECT 1 FROM release_candidates current
@@ -332,7 +338,7 @@ def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) ->
                   WHERE outside_scope.entity_id=previous.entity_id
                     AND outside_scope.state='accepted'
                     AND outside_scope.group_entity_id NOT IN (
-                        SELECT group_entity_id FROM release_discovery_groups WHERE run_id=?
+                        SELECT group_entity_id FROM release_discovery_groups WHERE run_id=? AND candidates_discarded=0
                     )
               )
         )""",

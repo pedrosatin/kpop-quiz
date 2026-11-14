@@ -2,7 +2,7 @@
 
 ## Status
 
-Aprovado em 2026-11-13. Muda o passo "Rebuild database from Wikipedia and Wikidata" de `daily-puzzles-cron.yml`, acrescenta o passo "Restore cached database" e define os códigos de saída de `python main.py`. Os passos de geração, verificação e publicação continuam como estavam.
+Aprovado em 2026-11-13. Muda o passo "Rebuild database from Wikipedia and Wikidata" de `daily-puzzles-cron.yml`, acrescenta o passo "Restore cached database" e define os códigos de saída de `python main.py`. Os passos de geração, verificação e publicação continuam como estavam. Desde o [ADR 034](034-descoberta-de-lancamentos-trunca-sem-abortar.md), um grupo acima do limite de candidatos do WDQS deixa de ser falha: a descoberta corta o grupo em 100 candidatos, emite um aviso e o run termina com 0.
 
 ## Contexto
 

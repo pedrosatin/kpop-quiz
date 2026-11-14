@@ -703,6 +703,17 @@ MIGRATIONS: tuple[Migration, ...] = (
             "ALTER TABLE fact_runs ADD COLUMN evidence_rules_version TEXT",
         ),
     ),
+    (
+        12,
+        "release_discovery_discarded_candidates",
+        (
+            # WDQS candidates of the group that the per-group limit left out
+            # of this run. Runs recorded before this migration aborted above
+            # the limit, so 0 is true for them.
+            """ALTER TABLE release_discovery_groups ADD COLUMN candidates_discarded
+            INTEGER NOT NULL DEFAULT 0 CHECK(candidates_discarded >= 0)""",
+        ),
+    ),
 )
 
 
