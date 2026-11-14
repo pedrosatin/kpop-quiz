@@ -66,9 +66,12 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # No install script runs: the build and the tests need none, and
+      # esbuild and workerd take their binaries from the platform packages
+      # in the lockfile (ADR 040).
       - name: Install web dependencies
         working-directory: web
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Restore database cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -211,6 +214,16 @@ jobs:
           rm -rf web/public/data
           mkdir -p web/public
           cp -a "$RUNNER_TEMP/daily-puzzles-data" web/public/data
+
+      # The commit below takes the whole directory, and the gate reads only
+      # the files it knows. The first command refuses any file that is not
+      # a regular *.json; the second is the same gate as "Verify published
+      # artifacts" (npm run artifacts:verify), run again from master's code.
+      # A set that fails here stops the job before git add (ADR 040).
+      - name: Verify downloaded data
+        run: |
+          python3 -m kpop_scraping.publish_file_set web/public/data --suffix .json
+          python3 -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
 
       # Branch protection on master requires changes to arrive via pull
       # request. Publish the generated data on an automation branch, then

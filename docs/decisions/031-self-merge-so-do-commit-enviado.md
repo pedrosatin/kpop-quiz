@@ -4,6 +4,8 @@
 
 Aprovado em 2026-11-13. Muda o passo "Publish via pull request" de `daily-puzzles-cron.yml` e de `map-pilot-refresh.yml`. O ruleset da `master`, o merge por squash e os passos de geração continuam como estavam.
 
+Desde o [ADR 040](040-integridade-da-cadeia-de-publicacao.md), `scripts/publish_via_pr.py` põe a raiz do repositório no `sys.path` e importa `kpop_scraping.workflow_commands` para escapar o erro que imprime. O módulo usa só a biblioteca padrão, então o script continua sem dependência externa.
+
 ## Contexto
 
 Os dois workflows publicam dados gerados na `master`. O ruleset da `master` só aceita mudança por pull request. Por isso o job envia o commit para uma branch de automação (`automation/daily-puzzles` ou `automation/map-pilot-refresh`), abre um PR e faz o merge com o `GITHUB_TOKEN`. Quando o workflow termina, o `pages.yml` roda por `workflow_run` e publica o site a partir da `master`.

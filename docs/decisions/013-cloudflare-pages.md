@@ -4,6 +4,8 @@
 
 Aceita
 
+Desde o [ADR 040](040-integridade-da-cadeia-de-publicacao.md), o job de deploy instala o `wrangler` do `web/package-lock.json` com `npm ci --ignore-scripts` e o chama com `npx --no-install`, sem a `cloudflare/wrangler-action`.
+
 ## Data
 
 2026-09-21

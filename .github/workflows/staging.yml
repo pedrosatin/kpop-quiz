@@ -65,6 +65,12 @@ jobs:
           fi
           missing=$(grep -RL 'name="robots" content="noindex"' --include='*.html' dist/ || true)
           if [ -n "$missing" ]; then
+            # The list holds one path per line, and a path can carry any
+            # character. Escape it as workflow command data (%, CR, LF), so
+            # it stays one annotation.
+            missing=${missing//'%'/'%25'}
+            missing=${missing//$'\r'/'%0D'}
+            missing=${missing//$'\n'/'%0A'}
             echo "::error::Staging HTML missing noindex: $missing"
             exit 1
           fi

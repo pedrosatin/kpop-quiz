@@ -4,6 +4,8 @@
 
 Aceita (revisada em 2026-09-23: acréscimo do GA4)
 
+Desde o [ADR 040](040-integridade-da-cadeia-de-publicacao.md), o `pages.yml` lê `PUBLIC_GA4_ID` e `PUBLIC_CF_BEACON_TOKEN` das variáveis do repositório, com o secret de mesmo nome como reserva enquanto a variável não existe.
+
 ## Data
 
 2026-09-23
