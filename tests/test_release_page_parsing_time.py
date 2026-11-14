@@ -41,9 +41,9 @@ def name_contexts(name):
     """Leads that hold ``name`` in each place outside the artist credit."""
     return (
         f"Alpha is the first EP by the duo Foo, a sub-unit of {name}.",
-        f"Alpha is the first EP by the duo Foo, a sub-unit of Bar consisting of members {name}, Cd, and Ef.",
-        f"Alpha is the first EP by the duo Foo, a sub-unit of Bar consisting of members Cd, {name}, and Ef.",
-        f"Alpha is the first EP by the duo Foo, a sub-unit of Bar consisting of members Cd, Ef, and {name}.",
+        f"Alpha is the first EP by the duo Foo, a sub-unit of Bar consisting of members {name}, Taeyeon, and Tiffany.",
+        f"Alpha is the first EP by the duo Foo, a sub-unit of Bar consisting of members Taeyeon, {name}, and Tiffany.",
+        f"Alpha is the first EP by the duo Foo, a sub-unit of Bar consisting of members Taeyeon, Tiffany, and {name}.",
         f"Alpha is a song by the group Twice from the reissue of their first studio album, {name} (2011).",
         "Alpha is the first EP by the band Foo. It is the second release of the band "
         f"since the departure of {name} on January 1, 2019.",
@@ -83,8 +83,8 @@ class TimeLimitTest(unittest.TestCase):
         self.assertIsNone(found)
 
     def test_parentheses_in_names_outside_the_artist_credit(self):
-        # Fast before too, under 0.1 s each. A name there may end in one
-        # parenthesis, which must not bring back the cost of the artist's.
+        # Fast before too, under 0.1 s each. Any word of a name there may start
+        # with a parenthesis, which must not bring back the cost of the artist's.
         for unit, count in (("Ab (", 50000), ("Ab (Cd (", 25000), ("((", 50000), (")(", 50000)):
             name = f"Ab {unit * count}x"
             for lead in name_contexts(name):
@@ -172,7 +172,26 @@ class ReleaseNameTest(unittest.TestCase):
                 extract, found = self.date(lead)
                 self.assertEqual(found, span_locator(extract, "January 2, 2020"))
 
-    def test_name_outside_the_artist_credit_may_end_in_a_parenthesis(self):
+    def test_any_name_word_outside_the_artist_credit_may_start_with_a_parenthesis(self):
+        # Only the artist credit has another name in parentheses after it, so
+        # these places keep the names they read before.
+        for name in (
+            "WJSN (Cosmic Girls)",
+            "Sol (Taeyang)",
+            "Pinocchio (Danger)",
+            "Jae (Park Jae-hyung)",
+            # "Cd" would read as the CD format, so the names avoid it.
+            "Foo (Ab",
+            "Foo (Ab (Gh))",
+            "Foo (Ab) Gh",
+            "Foo (Ab) (Gh)",
+        ):
+            for lead in name_contexts(name):
+                with self.subTest(lead=lead):
+                    extract, found = self.date(lead)
+                    self.assertEqual(found, span_locator(extract, "January 2, 2020"))
+
+    def test_review_sentences_outside_the_artist_credit(self):
         for lead in (
             "Alpha is the first EP by the duo Foo, a sub-unit of WJSN (Cosmic Girls).",
             "Alpha is the first EP by the duo Foo, a sub-unit of Girls' Generation "

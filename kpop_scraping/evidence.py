@@ -155,9 +155,10 @@ _RELEASE_NAME_WORD = r"(?=[\w()’'&.!+-]*[A-Z0-9])[\w()’'&.!+-]+"
 # read as the opening of the parenthesis after the artist's name, and a credit
 # that does not match would then try each place to split them.
 _RELEASE_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & )(?![()]){_RELEASE_NAME_WORD})*"
-# A name outside the artist credit has no other name after it to collide with,
-# so it may end in one parenthesis, as in "WJSN (Cosmic Girls)".
-_RELEASE_PLAIN_NAME = rf"{_RELEASE_NAME}(?: \({_RELEASE_NAME}\))?"
+# A name outside the artist credit has no optional parenthesis after it, so a
+# later token that starts with one cannot be read in two ways. Any token may
+# start with a parenthesis there, as in "WJSN (Cosmic Girls)" or "Foo (Ab) Cd".
+_RELEASE_PLAIN_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & ){_RELEASE_NAME_WORD})*"
 _RELEASE_ARTIST = (
     r"(?:the )?(?:(?:South Korean|Korean|Japanese|Chinese|Thai) )?"
     r"(?:(?:girl|boy|pop|rock) )*(?:group|band|duo|artist|singer|rapper) "
