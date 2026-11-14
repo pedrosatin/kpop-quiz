@@ -11,6 +11,7 @@ from datetime import date, datetime, timezone
 from typing import Any, Callable, Iterable, NamedTuple
 
 from .connections_generator import KNOWN_RECORD_LABELS
+from .puzzle_schema import serialize_evidence
 from .quiz_models import Entity, Evidence, Fact
 from .quiz_repository import _dataset_version, _load_entities, _load_facts
 from .quiz_utils import hash_payload
@@ -61,28 +62,6 @@ _WEIGHTED_LETTERS = list(LETTER_WEIGHTS.keys())
 _WEIGHTS_LIST = list(LETTER_WEIGHTS.values())
 
 
-
-
-def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
-    """Deduplicate and sort evidence records canonically."""
-    unique: dict[tuple[str, str, int, str, str], dict[str, Any]] = {}
-    for ev in evidence_items:
-        key = (
-            ev.fact_base_id,
-            ev.locator,
-            ev.revision_id,
-            ev.source_key,
-            ev.source_url,
-        )
-        if key not in unique:
-            unique[key] = {
-                "fact_base_id": ev.fact_base_id,
-                "locator": ev.locator,
-                "revision_id": ev.revision_id,
-                "source_key": ev.source_key,
-                "source_url": ev.source_url,
-            }
-    return [unique[k] for k in sorted(unique.keys())]
 
 
 class WordCandidate(NamedTuple):
@@ -203,7 +182,7 @@ def _build_candidate(
     for f in facts:
         all_evidence.extend(f.evidence)
 
-    serialized = _serialize_evidence(all_evidence)
+    serialized = serialize_evidence(all_evidence)
     if not serialized:
         return None
 
@@ -362,7 +341,7 @@ def _assign_clues(
         result.append(
             cand._replace(
                 clue=dict(best.text),
-                clue_evidence=_serialize_evidence(best.evidence),
+                clue_evidence=serialize_evidence(best.evidence),
             )
         )
     return result

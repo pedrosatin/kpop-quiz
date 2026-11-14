@@ -16,6 +16,7 @@ from typing import Any, Callable, Iterable
 from .grid_membership import grid_member_facts
 from .grid_schema import GRID_SCHEMA_VERSION, validate_intersection_grid
 from .lazy_order import combination_at, shuffled_blocks, shuffled_combinations
+from .puzzle_schema import serialize_evidence
 from .quiz_models import DEFAULT_REFERENCE_DATE, Entity, Evidence, Fact
 from .quiz_repository import (
     _dataset_version,
@@ -208,28 +209,6 @@ def _to_criterion_payload(criterion: dict[str, Any]) -> dict[str, Any]:
             "en": criterion["label"]["en"],
         },
     }
-
-
-def _serialize_evidence(evidence_items: Iterable[Evidence]) -> list[dict[str, Any]]:
-    """Deduplicate and sort evidence records canonically."""
-    unique: dict[tuple[str, str, int, str, str], dict[str, Any]] = {}
-    for ev in evidence_items:
-        key = (
-            ev.fact_base_id,
-            ev.locator,
-            ev.revision_id,
-            ev.source_key,
-            ev.source_url,
-        )
-        if key not in unique:
-            unique[key] = {
-                "fact_base_id": ev.fact_base_id,
-                "locator": ev.locator,
-                "revision_id": ev.revision_id,
-                "source_key": ev.source_key,
-                "source_url": ev.source_url,
-            }
-    return [unique[k] for k in sorted(unique.keys())]
 
 
 def has_distinct_assignment(cell_options: list[list[str]]) -> bool:
@@ -898,7 +877,7 @@ def generate_intersection_grid(
             for qid in valid_ids:
                 all_cell_ev.extend(group_evidence.get((qid, r_crit_id), ()))
                 all_cell_ev.extend(group_evidence.get((qid, c_crit_id), ()))
-            serialized_ev = _serialize_evidence(all_cell_ev)
+            serialized_ev = serialize_evidence(all_cell_ev)
             cells_payload.append(
                 {
                     "row_index": r,

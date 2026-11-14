@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import re
 from datetime import date
+from functools import partial
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
+from .puzzle_schema import (
+    require_bilingual_text,
+    require_hash,
+    require_qid,
+    validate_evidence,
+)
 from .quiz_schema import write_json_atomic
 
 CONNECTIONS_SCHEMA_VERSION = "kpop-connections-puzzle-v1"
@@ -29,13 +35,7 @@ CATEGORY_FIELDS = frozenset(
     {"id", "label", "difficulty_level", "item_ids", "explanation", "evidence"}
 )
 ITEM_FIELDS = frozenset({"id", "canonical_name", "labels"})
-BILINGUAL_FIELDS = frozenset({"pt-BR", "en"})
-EVIDENCE_FIELDS = frozenset(
-    {"fact_base_id", "locator", "revision_id", "source_key", "source_url"}
-)
 
-_HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-_QID_PATTERN = re.compile(r"^Q[1-9][0-9]*$")
 _DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -44,18 +44,10 @@ def _require(condition: bool, message: str) -> None:
         raise ValueError(f"Invalid connections puzzle schema: {message}")
 
 
-def _require_hash(value: Any, field_name: str) -> None:
-    _require(
-        isinstance(value, str) and bool(_HASH_PATTERN.match(value)),
-        f"{field_name} must be a 64-character lowercase hex string",
-    )
-
-
-def _require_qid(value: Any, field_name: str) -> None:
-    _require(
-        isinstance(value, str) and bool(_QID_PATTERN.match(value)),
-        f"{field_name} must match pattern ^Q[1-9][0-9]*$",
-    )
+_require_hash = partial(require_hash, _require)
+_require_qid = partial(require_qid, _require)
+_require_bilingual_text = partial(require_bilingual_text, _require)
+_validate_evidence = partial(validate_evidence, _require)
 
 
 def _require_date(value: Any, field_name: str) -> None:
@@ -69,50 +61,6 @@ def _require_date(value: Any, field_name: str) -> None:
         raise ValueError(
             f"Invalid connections puzzle schema: {field_name} is not a calendar date"
         ) from exc
-
-
-def _require_bilingual_text(value: Any, field_name: str) -> None:
-    _require(isinstance(value, dict), f"{field_name} must be an object")
-    _require(
-        set(value.keys()) == BILINGUAL_FIELDS,
-        f"{field_name} fields must be pt-BR and en",
-    )
-    for lang in ("pt-BR", "en"):
-        _require(
-            isinstance(value[lang], str) and len(value[lang]) > 0,
-            f"{field_name}.{lang} must be a non-empty string",
-        )
-
-
-def _validate_evidence(evidence: Any, context: str) -> None:
-    _require(isinstance(evidence, dict), f"{context} evidence item must be an object")
-    _require(
-        set(evidence.keys()) == EVIDENCE_FIELDS,
-        f"{context} evidence item contains unexpected or missing fields",
-    )
-    _require(
-        isinstance(evidence["fact_base_id"], str) and len(evidence["fact_base_id"]) > 0,
-        f"{context} fact_base_id must be a non-empty string",
-    )
-    _require(
-        isinstance(evidence["locator"], str) and len(evidence["locator"]) > 0,
-        f"{context} locator must be a non-empty string",
-    )
-    _require(
-        type(evidence["revision_id"]) is int and evidence["revision_id"] >= 1,
-        f"{context} revision_id must be an integer >= 1",
-    )
-    _require(
-        isinstance(evidence["source_key"], str) and len(evidence["source_key"]) > 0,
-        f"{context} source_key must be a non-empty string",
-    )
-    source_url = evidence["source_url"]
-    _require(
-        isinstance(source_url, str) and source_url.startswith("https://"),
-        f"{context} source_url must be an https URL",
-    )
-    parts = urlsplit(source_url)
-    _require(bool(parts.netloc), f"{context} source_url netloc cannot be empty")
 
 
 def _validate_dimensions(dimensions: Any) -> None:

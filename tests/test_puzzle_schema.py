@@ -16,6 +16,8 @@ from kpop_scraping import (
     grid_schema,
     name_guess_generator,
     name_guess_schema,
+    puzzle_schema,
+    strands_generator,
     strands_schema,
     timeline_generator,
     timeline_schema,
@@ -46,6 +48,7 @@ SERIALIZER_MODULES = (
     connections_generator,
     grid_generator,
     name_guess_generator,
+    strands_generator,
     timeline_generator,
     word_search_generator,
 )
@@ -153,21 +156,22 @@ class SerializeEvidenceTest(unittest.TestCase):
                 "source_url": "https://a.example/2",
             },
         ]
-        for module in SERIALIZER_MODULES:
-            with self.subTest(module=module.__name__):
-                serialized = module._serialize_evidence(
-                    iter([late, early, late, same_fact_other_revision])
-                )
-                self.assertEqual(serialized, expected)
-                self.assertEqual(
-                    [list(item) for item in serialized],
-                    [["fact_base_id", "locator", "revision_id", "source_key", "source_url"]] * 3,
-                )
+        serialized = puzzle_schema.serialize_evidence(
+            iter([late, early, late, same_fact_other_revision])
+        )
+        self.assertEqual(serialized, expected)
+        self.assertEqual(
+            [list(item) for item in serialized],
+            [["fact_base_id", "locator", "revision_id", "source_key", "source_url"]] * 3,
+        )
 
     def test_empty_input_serializes_to_empty_list(self) -> None:
+        self.assertEqual(puzzle_schema.serialize_evidence([]), [])
+
+    def test_every_generator_uses_the_shared_serializer(self) -> None:
         for module in SERIALIZER_MODULES:
             with self.subTest(module=module.__name__):
-                self.assertEqual(module._serialize_evidence([]), [])
+                self.assertIs(module.serialize_evidence, puzzle_schema.serialize_evidence)
 
 
 if __name__ == "__main__":

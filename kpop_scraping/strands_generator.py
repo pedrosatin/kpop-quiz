@@ -48,6 +48,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any, Callable, Iterable, Sequence
 
+from .puzzle_schema import serialize_evidence
 from .quiz_models import Entity, Fact
 from .quiz_repository import _dataset_version, _load_entities, _load_facts
 from .strands_schema import (
@@ -60,7 +61,7 @@ from .strands_schema import (
     compute_strands_puzzle_id,
     validate_strands_puzzle,
 )
-from .word_search_generator import ThemeDefinition, _serialize_evidence, extract_viable_themes
+from .word_search_generator import ThemeDefinition, extract_viable_themes
 from .word_search_schema import normalize_word
 
 # Fixed by docs/strands-benchmark.md.
@@ -250,7 +251,7 @@ def _build_theme(theme: ThemeDefinition, facts: Sequence[Fact]) -> StrandsTheme:
             spangram_problem = "group_not_found"
         else:
             word, reason = classify_name(group.canonical_name)
-            group_evidence = _serialize_evidence(
+            group_evidence = serialize_evidence(
                 ev for _member, member_facts in entries for f in member_facts for ev in f.evidence
             )
             if word is None:

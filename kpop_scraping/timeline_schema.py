@@ -7,10 +7,17 @@ import hashlib
 import json
 import re
 from datetime import date
+from functools import partial
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from .puzzle_schema import (
+    EVIDENCE_FIELDS,
+    require_bilingual_text,
+    require_hash,
+    require_qid,
+)
 from .quiz_schema import write_json_atomic
 
 # The generator writes v2. v1 stays readable because a published day keeps
@@ -56,13 +63,6 @@ EVENT_TYPES_BY_SCHEMA_VERSION = {
     TIMELINE_SCHEMA_VERSION: EVENT_TYPES,
 }
 
-BILINGUAL_FIELDS = frozenset({"pt-BR", "en"})
-EVIDENCE_FIELDS = frozenset(
-    {"fact_base_id", "locator", "revision_id", "source_key", "source_url"}
-)
-
-_HASH_PATTERN = re.compile(r"^[0-9a-f]{64}$")
-_QID_PATTERN = re.compile(r"^Q[1-9][0-9]*$")
 _DATE_PATTERN = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
 
 
@@ -71,18 +71,9 @@ def _require(condition: bool, message: str) -> None:
         raise ValueError(f"Invalid timeline puzzle schema: {message}")
 
 
-def _require_hash(value: Any, field_name: str) -> None:
-    _require(
-        isinstance(value, str) and bool(_HASH_PATTERN.match(value)),
-        f"{field_name} must be a 64-character lowercase hex string",
-    )
-
-
-def _require_qid(value: Any, field_name: str) -> None:
-    _require(
-        isinstance(value, str) and bool(_QID_PATTERN.match(value)),
-        f"{field_name} must match pattern ^Q[1-9][0-9]*$",
-    )
+_require_hash = partial(require_hash, _require)
+_require_qid = partial(require_qid, _require)
+_require_bilingual_text = partial(require_bilingual_text, _require)
 
 
 def _require_date(value: Any, field_name: str) -> None:
@@ -123,16 +114,6 @@ def timeline_date_span(date_str: str) -> tuple[date, date]:
     if len(parts) == 2:
         return date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1])
     return date(year, month, int(parts[2])), date(year, month, int(parts[2]))
-
-
-def _require_bilingual_text(value: Any, field_name: str) -> None:
-    _require(isinstance(value, dict), f"{field_name} must be an object")
-    _require(set(value.keys()) == BILINGUAL_FIELDS, f"{field_name} fields must be pt-BR and en")
-    for lang in ("pt-BR", "en"):
-        _require(
-            isinstance(value[lang], str) and len(value[lang]) > 0,
-            f"{field_name}.{lang} must be a non-empty string",
-        )
 
 
 def _validate_evidence(evidence: Any, context: str) -> None:
