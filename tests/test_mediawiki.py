@@ -259,12 +259,15 @@ class MediaWikiClientTest(unittest.TestCase):
         self.assertEqual(client.maxlag_budget.spent, 5.0)
 
     @patch("kpop_scraping.http_request.urlopen")
-    def test_maxlag_wait_follows_retry_after_then_lag_within_bounds(self, urlopen):
+    def test_maxlag_wait_follows_the_longer_of_retry_after_and_lag_within_bounds(self, urlopen):
         cases = (
             ("Retry-After", {"Retry-After": "12"}, {"lag": 3}, 12.0),
             ("long Retry-After cut to the per-answer limit", {"Retry-After": "3600"}, {}, 120.0),
             ("short Retry-After raised to 5 seconds", {"Retry-After": "1"}, {}, 5.0),
             ("reported lag without Retry-After", {}, {"lag": 13.8}, 13.8),
+            ("lag above the Retry-After MediaWiki sends", {"Retry-After": "5"}, {"lag": 13.8}, 13.8),
+            ("lag far above the per-answer limit", {}, {"lag": 3600}, 120.0),
+            ("integer lag too large for a float", {}, {"lag": 10**400}, 5.0),
             ("invalid Retry-After falls back to the lag", {"Retry-After": "soon"}, {"lag": 9}, 9.0),
             ("lag that is not a number", {}, {"lag": "high"}, 5.0),
             ("lag that is a boolean", {}, {"lag": True}, 5.0),

@@ -268,18 +268,29 @@ class MediaWikiClient:
             return payload
 
     def _maxlag_delay(self, error: dict[str, Any], headers: Any) -> float:
-        """Wait the server's Retry-After, else the reported lag, within bounds.
+        """Wait the longer of the server's Retry-After and the reported lag, within bounds.
 
-        A long Retry-After is cut to ``max_retry_after`` and the request is
-        tried again: the run's budget, not one answer, decides when to stop.
+        MediaWiki sends ``Retry-After: max(maxlag, 5)``, which is always 5 for
+        the ``maxlag=5`` this client asks, so the reported lag is the better
+        hint of when the replicas catch up. A long wait is cut to
+        ``max_retry_after`` and the request is tried again: the run's budget,
+        not one answer, decides when to stop.
         """
         value = headers.get("Retry-After") if headers is not None else None
-        delay = parse_retry_after(value)
-        if delay is None:
-            lag = error.get("lag")
-            valid_lag = isinstance(lag, (int, float)) and not isinstance(lag, bool)
-            delay = float(lag) if valid_lag and math.isfinite(lag) else MIN_MAXLAG_WAIT_SECONDS
+        hints = [hint for hint in (parse_retry_after(value), self._reported_lag(error)) if hint is not None]
+        delay = max(hints) if hints else MIN_MAXLAG_WAIT_SECONDS
         return min(self.max_retry_after, max(MIN_MAXLAG_WAIT_SECONDS, delay))
+
+    @staticmethod
+    def _reported_lag(error: dict[str, Any]) -> float | None:
+        lag = error.get("lag")
+        if not isinstance(lag, (int, float)) or isinstance(lag, bool):
+            return None
+        try:
+            seconds = float(lag)
+        except OverflowError:  # An integer too large for a float.
+            return None
+        return seconds if math.isfinite(seconds) else None
 
     def _retry_delay(self, attempt: int, headers: Any) -> float:
         """Return exponential backoff, extended by a valid Retry-After header."""

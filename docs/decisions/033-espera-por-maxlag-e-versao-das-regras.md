@@ -8,7 +8,7 @@ Aprovado em 2026-11-13. Muda o tratamento de `maxlag` em `kpop_scraping/mediawik
 
 Toda requisição à Action API da Wikipedia e do Wikidata envia `maxlag=5`, como pede a etiqueta da API para robôs e a regra do projeto. Quando o atraso das réplicas, ou do serviço de consulta no caso do Wikidata, passa de 5 segundos, a API responde com o erro `maxlag`, um cabeçalho `Retry-After` e o atraso medido.
 
-O cliente tratava esse erro como uma falha de rede: até 3 novas tentativas, com espera de 1, 2 e 4 segundos ou o `Retry-After`. Em novembro de 2026, o atraso do Wikidata ficou entre 9 e 14 segundos por horas na maioria das noites. Cada tentativa do rebuild desistia em menos de um minuto, as 3 tentativas do ADR 032 terminavam em cerca de 20 minutos e o dia saía do banco em cache. Isso aconteceu em 8 das 10 execuções agendadas anteriores a 2026-11-13. Um rebuild que encontra o Wikidata em dia leva cerca de 2 minutos.
+O cliente tratava esse erro como uma falha de rede: até 3 novas tentativas, com espera de 5 segundos, o `Retry-After` que o MediaWiki envia. Em novembro de 2026, o atraso do Wikidata ficou entre 9 e 14 segundos por horas na maioria das noites. Cada tentativa do rebuild desistia em menos de um minuto, as 3 tentativas do ADR 032 terminavam em cerca de 20 minutos e o dia saía do banco em cache. Isso aconteceu em 8 das 10 execuções agendadas anteriores a 2026-11-13. Um rebuild que encontra o Wikidata em dia leva cerca de 2 minutos.
 
 Nenhuma tabela guardava a versão das regras de evidência (`EVIDENCE_RULES_VERSION`) que decidiu os fatos de uma execução. Um dia publicado a partir do cache usa fatos decididos pelas regras de quando o banco foi coletado. Depois de uma mudança das regras, esse dia saía com as regras antigas sem nenhuma marca no resumo da execução.
 
@@ -20,11 +20,11 @@ Nenhuma tabela guardava a versão das regras de evidência (`EVIDENCE_RULES_VERS
 
 - A espera por `maxlag` sai de um orçamento próprio, `MaxlagBudget`. O orçamento é por execução de `python main.py`: o CLI cria um só e o entrega a todos os clientes da Wikipedia e do Wikidata da execução. Requisições seguidas que recebem `maxlag` dividem o mesmo teto.
 - O padrão é 15 minutos. A variável de ambiente `MAXLAG_BUDGET_SECONDS` troca o valor; `0` desiste no primeiro `maxlag`. Um valor negativo, infinito ou que não seja número encerra o CLI antes de qualquer requisição.
-- Depois de cada `maxlag`, o cliente espera o `Retry-After` da resposta. Sem ele, usa o campo `lag` do erro; sem os dois, 5 segundos, o mínimo que o próprio MediaWiki envia. A espera de uma resposta fica entre 5 e 120 segundos (`MAX_RETRY_AFTER_SECONDS`). Um `Retry-After` maior é cortado para 120 e a requisição é repetida, porque quem decide a desistência é o orçamento da execução.
+- Depois de cada `maxlag`, o cliente espera o maior entre o `Retry-After` da resposta e o campo `lag` do erro; sem nenhum dos dois, 5 segundos, o mínimo que o próprio MediaWiki envia. Com `maxlag=5`, o MediaWiki responde `Retry-After: 5`, então na prática o `lag` define a pausa. A espera de uma resposta fica entre 5 e 120 segundos (`MAX_RETRY_AFTER_SECONDS`). Um `Retry-After` maior é cortado para 120 e a requisição é repetida, porque quem decide a desistência é o orçamento da execução.
 - Quando resta menos que a espera pedida, o cliente espera o que resta e tenta uma última vez. Com o orçamento zerado, levanta `MediaWikiError(..., code="maxlag", transient=True)` com a mensagem `MediaWiki maxlag at <API> did not clear within the run's <N>s wait budget (MAXLAG_BUDGET_SECONDS); last answer: <mensagem do servidor>`. O CLI sai com 75 e o script de rebuild faz outra tentativa.
 - As esperas por `maxlag` não consomem as 3 novas tentativas de erro de rede e de HTTP 429 ou 5xx, e o backoff desses erros não sai do orçamento.
 
-O orçamento conta as pausas concedidas. O tempo das próprias requisições fica de fora; cada pausa dura pelo menos 5 segundos, então uma execução faz no máximo uma requisição atrasada a cada 5 segundos de orçamento.
+O orçamento conta as pausas concedidas. O tempo das próprias requisições fica de fora; cada pausa dura pelo menos 5 segundos, exceto a última, que usa o que resta. Uma execução faz no máximo uma requisição atrasada a cada 5 segundos de orçamento, mais uma.
 
 ### Por que 15 minutos
 
@@ -55,7 +55,7 @@ O valor fica no resultado do runner e no log do job. Nenhum arquivo publicado o 
 
 ### Aumentar `maxlag`
 
-Um `maxlag` de 15 ou 20 segundos faria quase todas as requisições de novembro passarem na primeira tentativa. A etiqueta da API pede `maxlag=5` a robôs justamente para que eles recuem quando o Wikidata está atrasado, e o operador decidiu manter o valor.
+Um `maxlag` de 15 ou 20 segundos faria quase todas as requisições de novembro passarem na primeira tentativa. A etiqueta da API pede `maxlag=5` a robôs para que eles recuem quando o Wikidata está atrasado, e o operador decidiu manter o valor.
 
 ### Mais novas tentativas por requisição
 
