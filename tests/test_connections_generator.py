@@ -4,8 +4,14 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import random
 import sqlite3
+import subprocess
+import sys
 import tempfile
+import time
+import tracemalloc
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -13,7 +19,9 @@ from unittest.mock import patch
 from kpop_scraping.connections_cli import main as cli_main
 from kpop_scraping.connections_generator import (
     MEMBER_COUNT_CRITERIA,
+    _find_disjoint_assignment,
     _load_criterion_groups,
+    _SearchBudget,
     count_valid_partitions,
     evaluate_connections_criteria,
     generate_connections_puzzle,
@@ -624,6 +632,88 @@ class ConnectionsGeneratorTest(unittest.TestCase):
         )
         self.assertIn("members_4", group_criteria["Q101"])
 
+
+
+class SearchCostTest(unittest.TestCase):
+    """The search costs what it draws, whatever the size of the criteria."""
+
+    def test_criterion_with_300_groups_is_cheap(self):
+        # Criteria of 4, 5, 6 and 300 disjoint groups: the first board drawn is
+        # the answer. The code that listed every quad of a level before the
+        # first check took 15.1 s and 332 MiB (tracemalloc peak) for one check
+        # at 100 groups, and stopped with MemoryError under a 2 GiB cap at 300
+        # (C(285, 4) = 269 million quads), on a laptop with Python 3.14. The
+        # lazy draws take about 1 ms and well under 1 MiB.
+        groups = {
+            "a": {f"A{index:03d}" for index in range(4)},
+            "b": {f"B{index:03d}" for index in range(5)},
+            "c": {f"C{index:03d}" for index in range(6)},
+            "d": {f"D{index:03d}" for index in range(300)},
+        }
+        tracemalloc.start()
+        try:
+            tracemalloc.reset_peak()
+            start = time.process_time()
+            result = _find_disjoint_assignment(("a", "b", "c", "d"), groups, random.Random(b"300"))
+            elapsed = time.process_time() - start
+            _current, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        self.assertIsNotNone(result)
+        self.assertLess(elapsed, 2.0)
+        self.assertLess(peak, 100 * 2**20)
+
+    def test_quads_of_every_level_are_charged(self):
+        # Three criteria share the same 11 groups: after two quads, the third
+        # level has 3 groups left, so no board is ever checked. The search
+        # still pays for each quad it draws.
+        shared = {f"Q{index:02d}" for index in range(11)}
+        groups = {"a": shared, "b": shared, "c": shared, "d": shared | {"X1", "X2", "X3", "X4", "X5"}}
+        budget = _SearchBudget(limit=50, seed="levels")
+        with self.assertRaisesRegex(ValueError, r"used 50 of 50 steps \(0 criteria sets, 50 quads, 0 uniqueness checks\)"):
+            _find_disjoint_assignment(("a", "b", "c", "d"), groups, random.Random(b"x"), budget=budget)
+
+        budget = _SearchBudget(limit=10_000, seed="levels")
+        result = _find_disjoint_assignment(
+            ("a", "b", "c", "d"), groups, random.Random(b"x"), budget=budget, max_draws=400
+        )
+        self.assertIsNone(result)
+        self.assertEqual(budget.spent["quads"], 400)
+
+    def test_board_over_the_search_budget_is_refused(self):
+        conn = build_connections_test_database()
+        try:
+            with self.assertRaisesRegex(
+                ValueError,
+                r"Connections search budget exhausted with seed 'budget-seed': used 3 of 3 steps",
+            ):
+                generate_connections_puzzle(conn, seed="budget-seed", max_search_steps=3)
+        finally:
+            conn.close()
+
+    def test_same_board_in_processes_with_different_hash_seeds(self):
+        """Set and dict order of strings changes with PYTHONHASHSEED; the board must not."""
+        script = (
+            "from tests.test_connections_generator import build_connections_test_database\n"
+            "from kpop_scraping.connections_generator import generate_connections_puzzle\n"
+            "conn = build_connections_test_database()\n"
+            "print(generate_connections_puzzle(conn, seed='hash-seed-check')['puzzle_id'])\n"
+        )
+        root = Path(__file__).resolve().parent.parent
+        ids = set()
+        for hash_seed in ("0", "1", "4242"):
+            env = {**os.environ, "PYTHONHASHSEED": hash_seed}
+            completed = subprocess.run(
+                [sys.executable, "-c", script], cwd=root, env=env,
+                capture_output=True, text=True, timeout=120, check=True,
+            )
+            ids.add(completed.stdout.strip())
+        conn = build_connections_test_database()
+        try:
+            ids.add(generate_connections_puzzle(conn, seed="hash-seed-check")["puzzle_id"])
+        finally:
+            conn.close()
+        self.assertEqual(len(ids), 1)
 
 
 class MemberCountCategoryUniquenessTest(unittest.TestCase):
