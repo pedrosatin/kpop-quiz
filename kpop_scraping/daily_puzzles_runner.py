@@ -72,6 +72,7 @@ from .daily_set import (
     daily_set,
     note_omission,
     omission_reason,
+    public_omission_reason,
     read_daily_set,
     single_line,
     write_daily_set,
@@ -204,20 +205,19 @@ def _generate_quiz(
 
 def _isolated(
     game: str, iso_date: str, produce: Callable[[], Any]
-) -> tuple[Any, str | None]:
-    """Run one game's generator; return (artifact, None) or (None, reason).
+) -> tuple[Any, Exception | None]:
+    """Run one game's generator; return (artifact, None) or (None, error).
 
     Any ``Exception`` leaves only this game out of the day, and
     ``MemoryError`` and ``RecursionError`` are ``Exception`` subclasses.
-    ``KeyboardInterrupt`` and ``SystemExit`` are not: they cancel the run,
+    ``KeyboardInterrupt`` and ``SystemExit`` are not. They cancel the run,
     and catching them would publish a partial day nobody asked for.
     """
     try:
         return produce(), None
     except Exception as exc:
-        reason = omission_reason(exc)
-        sys.stderr.write(f"Daily {game} not generated for {iso_date}: {reason}\n")
-        return None, reason
+        sys.stderr.write(f"Daily {game} not generated for {iso_date}: {omission_reason(exc)}\n")
+        return None, exc
 
 
 def _checked(artifact: dict[str, Any], validate: Callable[[dict[str, Any]], None]) -> dict[str, Any]:
@@ -244,7 +244,8 @@ def generate_daily_puzzles(
 
     Each game is generated and validated on its own (see ``_isolated``).
     A game that fails comes back as None, and ``omitted`` maps its name
-    (``daily_set.GAMES``) to the reason; the day publishes without it
+    (``daily_set.GAMES``) to the reason, and ``omitted_public`` to the
+    short reason the public record gets; the day publishes without it
     (partial publish policy, see the module docstring). The crossword is
     generated from ``crossword_previous``, the history context of the
     confirmed day before; None means that history is missing, and the day
@@ -256,11 +257,13 @@ def generate_daily_puzzles(
 
     connection.row_factory = sqlite3.Row
     omitted: dict[str, str] = {}
+    omitted_public: dict[str, str] = {}
 
     def generate(game: str, produce: Callable[[], Any]) -> Any:
-        artifact, reason = _isolated(game, iso_date, produce)
-        if reason is not None:
-            omitted[game] = reason
+        artifact, error = _isolated(game, iso_date, produce)
+        if error is not None:
+            omitted[game] = omission_reason(error)
+            omitted_public[game] = public_omission_reason(error)
         return artifact
 
     # 1. Daily quiz: base, daily and decade sessions, in both languages.
@@ -338,7 +341,10 @@ def generate_daily_puzzles(
         "code_groups": code_groups,
         "crossword": crossword,
         "crossword_record": crossword_record,
+        # Full reasons for the run's log and result; the public record of
+        # the day (daily-set.json) gets the short ones.
         "omitted": omitted,
+        "omitted_public": omitted_public,
     }
 
 
@@ -379,10 +385,16 @@ def _generate_crossword(
         if artifact["previous"] != previous:
             raise ValueError("crossword history differs from the confirmed previous day")
     except Exception as exc:
-        # Same isolation as every other game (see _isolated).
-        reason = omission_reason(exc)
-        sys.stderr.write(f"Daily crossword generation failed for {iso_date}: {reason}\n")
-        return None, crossword_omission_record(iso_date, f"generation failed: {reason}")
+        # Same isolation as every other game (see _isolated). The record is
+        # public: it keeps the message of the generator's own failures, as it
+        # always has, and only the type of any other error.
+        sys.stderr.write(f"Daily crossword generation failed for {iso_date}: {omission_reason(exc)}\n")
+        public = (
+            f"generation failed: {single_line(str(exc))}"
+            if isinstance(exc, (ValueError, sqlite3.Error))
+            else public_omission_reason(exc)
+        )
+        return None, crossword_omission_record(iso_date, public)
     return artifact, crossword_record_from_artifact(artifact)
 
 
@@ -430,7 +442,8 @@ def publish_daily_puzzles(
     """
     output_dir = Path(output_dir)
     if not dry_run:
-        _guard_publication_date(output_dir, puzzles["reference_date"])
+        # A pruned directory is next/, which every run builds again.
+        _guard_publication_date(output_dir, puzzles["reference_date"], unreadable_is_empty=prune)
     previous_grid = previous_grid or output_dir / GRID_DAILY_FILENAME
     errors = puzzles.get("omitted", {})
     crossword = puzzles.get("crossword")
@@ -486,7 +499,8 @@ def publish_daily_puzzles(
             else None
         )
         write_daily_set(staging_dir, daily_set(
-            puzzles["reference_date"], _omitted_games(staging_dir, errors, crossword_record),
+            puzzles["reference_date"],
+            _omitted_games(staging_dir, puzzles.get("omitted_public", {}), crossword_record),
         ))
 
         # 2. Verify all artifacts in staging directory. Every game is
@@ -561,7 +575,7 @@ def _board_id(artifact: dict[str, Any] | None) -> str | None:
 def _omitted_games(
     staging_dir: Path, errors: dict[str, str], crossword_record: dict[str, Any] | None
 ) -> dict[str, str]:
-    """Reason of each game the staged set has no file for.
+    """Public reason of each game the staged set has no file for.
 
     A grid kept from the previous day is published, so it is not omitted.
     """
@@ -701,10 +715,11 @@ def _revalidate_published_grid(
         validate_intersection_grid(grid)
     except Exception as exc:
         # Same isolation as a generated day (see _isolated).
-        reason = omission_reason(exc)
         grid_path.unlink()
-        note_omission(output_dir, "grid", f"published grid no longer eligible: {reason}")
-        return {**outcome, "action": "removed", "error": reason}
+        note_omission(
+            output_dir, "grid", f"published grid no longer eligible; {public_omission_reason(exc)}"
+        )
+        return {**outcome, "action": "removed", "error": omission_reason(exc)}
     write_intersection_grid_atomic(grid_path, grid)
     write_publication(output_dir, publication(reference_date, grid, tombstone))
     return {**outcome, "action": "regenerated", "grid_id": grid["grid_id"]}
@@ -793,16 +808,25 @@ def _copy_files(source_dir: Path, output_dir: Path, prune: bool = False) -> None
         os.close(dir_fd)
 
 
-def _published_day(directory: Path) -> str | None:
+def _published_day(directory: Path, unreadable_is_empty: bool = False) -> str | None:
     """Date of the set in ``directory``, from daily-set.json.
 
     A set published before that record is dated by its connections board,
     which every such set carries. A set that omits a game keeps its date,
-    so it is never taken for a day not published yet.
+    so it is never taken for a day not published yet. An unreadable record
+    raises, so a served day is never generated again over itself; with
+    ``unreadable_is_empty`` (``next/``, which every run builds again) the
+    directory counts as holding no set.
     """
     _recover_installation(directory)
     if (directory / DAILY_SET_FILENAME).is_file():
-        return read_daily_set(directory)["reference_date"]
+        try:
+            return read_daily_set(directory)["reference_date"]
+        except ValueError as exc:
+            if not unreadable_is_empty:
+                raise
+            sys.stderr.write(f"WARNING: {single_line(str(exc))}; treating {directory} as empty\n")
+            return None
     try:
         payload = json.loads((directory / CONNECTIONS_DAILY_FILENAME).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -811,8 +835,10 @@ def _published_day(directory: Path) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _guard_publication_date(output_dir: Path, reference_date: str) -> None:
-    published = _published_day(output_dir)
+def _guard_publication_date(
+    output_dir: Path, reference_date: str, unreadable_is_empty: bool = False
+) -> None:
+    published = _published_day(output_dir, unreadable_is_empty)
     if published is not None and date.fromisoformat(published) > date.fromisoformat(reference_date):
         raise ValueError(f"Cannot publish {reference_date} over newer published day {published}")
 
@@ -929,7 +955,7 @@ def keep_or_promote_day(
         )
     _guard_publication_date(output_dir, reference_date)
     next_dir = output_dir / NEXT_DIRNAME
-    if _published_day(next_dir) != reference_date:
+    if _published_day(next_dir, unreadable_is_empty=True) != reference_date:
         return None
     read_publication(next_dir, reference_date)
     verify_artifacts(next_dir, require_grid=False, require_code_groups=False)
@@ -1101,32 +1127,10 @@ def run_daily_puzzles(
         result["board_swaps"] = declared_board_swaps(result)
         result["evidence_rules"] = evidence_rules_versions(connection)
         if ahead:
-            next_date = (date.fromisoformat(iso_date) + timedelta(days=1)).isoformat()
-            # The day just published or kept is the history of the next one,
-            # also in a dry run, where nothing reached the main directory.
-            next_puzzles = generate_daily_puzzles(
-                connection,
-                reference_date=next_date,
-                base_seed=base_seed,
-                timer_seconds=timer_seconds,
-                related_clues=related_clues,
-                crossword_previous=crossword_context_for(next_date, result["crossword_record"]),
+            next_puzzles = _publish_next_day(
+                output_dir_path, connection, iso_date, result, dry_run,
+                base_seed=base_seed, timer_seconds=timer_seconds, related_clues=related_clues,
             )
-            try:
-                result["next"] = publish_daily_puzzles(
-                    output_dir_path / NEXT_DIRNAME,
-                    next_puzzles,
-                    dry_run=dry_run,
-                    previous_grid=output_dir_path / GRID_DAILY_FILENAME,
-                    prune=True,
-                    connection=connection,
-                )
-            except NoGamePublishedError as exc:
-                # The day already installed in output_dir stands. next/ keeps
-                # what it held, which the site serves only when it is newer.
-                result["next_skipped"] = {"reference_date": next_date, "error": str(exc)}
-            if not dry_run:
-                verify_crossword_history(output_dir_path, output_dir_path / NEXT_DIRNAME)
         # Prefer today's dataset when both exist: the catalog lives in the main
         # directory beside today's sessions. Fall back to next/ or regenerate.
         datasets = [p for p in (puzzles, next_puzzles) if p is not None and p["dataset"] is not None]
@@ -1146,6 +1150,70 @@ def run_daily_puzzles(
     finally:
         connection.close()
     return result
+
+
+def _publish_next_day(
+    output_dir: Path,
+    connection: sqlite3.Connection,
+    iso_date: str,
+    result: dict[str, Any],
+    dry_run: bool,
+    **options: Any,
+) -> dict[str, Any] | None:
+    """Generate and publish the day after ``iso_date`` under ``next/``.
+
+    The reference day is already installed when this runs, and a failure
+    here must not undo it: any ``Exception`` is recorded in
+    ``result["next_skipped"]`` and the run goes on. ``KeyboardInterrupt``
+    and ``SystemExit`` still stop the run (see ``_isolated``). The install
+    into ``next/`` is atomic, so a failure before it leaves ``next/`` as it
+    was; a set that fails verification after it is removed, since every run
+    builds ``next/`` again and the site serves it only when it is newer than
+    the main directory. Returns the generated puzzles, or None on failure.
+    """
+    next_date = (date.fromisoformat(iso_date) + timedelta(days=1)).isoformat()
+    next_dir = output_dir / NEXT_DIRNAME
+    try:
+        # The day just published or kept is the history of the next one,
+        # also in a dry run, where nothing reached the main directory.
+        next_puzzles = generate_daily_puzzles(
+            connection,
+            reference_date=next_date,
+            crossword_previous=crossword_context_for(next_date, result["crossword_record"]),
+            **options,
+        )
+        result["next"] = publish_daily_puzzles(
+            next_dir,
+            next_puzzles,
+            dry_run=dry_run,
+            previous_grid=output_dir / GRID_DAILY_FILENAME,
+            prune=True,
+            connection=connection,
+        )
+        if not dry_run:
+            verify_crossword_history(output_dir, next_dir)
+    except Exception as exc:
+        result.pop("next", None)
+        result["next_skipped"] = {"reference_date": next_date, "error": omission_reason(exc)}
+        sys.stderr.write(f"Next day {next_date} not published ahead: {omission_reason(exc)}\n")
+        if not dry_run:
+            _drop_unverifiable_next(output_dir)
+        return None
+    return next_puzzles
+
+
+def _drop_unverifiable_next(output_dir: Path) -> None:
+    """Remove ``next/`` when what it holds does not verify."""
+    next_dir = output_dir / NEXT_DIRNAME
+    if not next_dir.is_dir():
+        return
+    try:
+        if (next_dir / MANIFEST_FILENAME).is_file() or (next_dir / DAILY_SET_FILENAME).is_file():
+            verify_artifacts(next_dir, require_grid=False, require_code_groups=False)
+        verify_crossword_history(output_dir, next_dir)
+    except Exception as exc:
+        sys.stderr.write(f"Removing {next_dir}, which does not verify: {omission_reason(exc)}\n")
+        shutil.rmtree(next_dir)
 
 
 def _publish_run_catalog(

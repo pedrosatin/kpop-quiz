@@ -60,6 +60,8 @@ TIMELINE_DAILY_FILENAME = "timeline.daily.json"
 CODE_GROUPS_DAILY_FILENAME = "code-groups.daily.json"
 CROSSWORD_DAILY_FILENAME = "crossword.daily.json"
 SESSION_SHORTCUT_FILENAMES = ("session.pt-BR.json", "session.en.json")
+# Seed of the daily quiz sessions, followed by their date.
+DAILY_SEED_PREFIX = "kpop-daily-"
 # The file whose presence publishes each game of a daily set. The quiz is
 # its manifest: without manifest-v2.json no session is offered.
 DAILY_GAME_FILES = {
@@ -237,7 +239,7 @@ def create_daily_sessions(
 ) -> dict[str, dict[str, Any]]:
     """Create deterministic daily quiz sessions for all locales and difficulties."""
     iso_date = parse_daily_date(date_str)
-    seed = f"kpop-daily-{iso_date}"
+    seed = f"{DAILY_SEED_PREFIX}{iso_date}"
     return {
         f"daily.{locale}.{difficulty}": create_session(
             dataset,
@@ -603,10 +605,11 @@ def verify(
     day_set = read_daily_set(output_dir)
     omitted = day_set["omitted"] if day_set is not None else {}
     _verify_omitted_games_absent(output_dir, omitted)
+    sessions: dict[str, dict[str, Any]] = {}
     if "quiz" in omitted:
         verify_question_catalog(output_dir, None, None, require_catalog)
     else:
-        _verify_quiz(output_dir, require_catalog)
+        sessions = _verify_quiz(output_dir, require_catalog)
     readers = {
         "connections": _read_connections,
         "grid": _read_grid,
@@ -649,18 +652,49 @@ def verify(
         if game == "grid" and grid_publication is not None and grid_publication["grid_id"] is None:
             continue
         raise ValueError(f"missing required {game} artifact: {output_dir / DAILY_GAME_FILES[game]}")
+    shortcuts = {
+        name: _read_session(output_dir / name)
+        for name in SESSION_SHORTCUT_FILENAMES
+        if (output_dir / name).is_file()
+    }
     if day_set is not None:
-        # The grid may be an earlier day's, kept when generation failed.
-        for game, payload in payloads.items():
-            if game != "grid" and payload["reference_date"] != day:
-                raise ValueError(
-                    f"{output_dir / DAILY_GAME_FILES[game]} is for {payload['reference_date']}, "
-                    f"but {DAILY_SET_FILENAME} publishes {day}"
-                )
+        _verify_dates(output_dir, day, payloads, sessions, shortcuts)
     verify_crossword_history(output_dir)
-    for name in SESSION_SHORTCUT_FILENAMES:
-        if (output_dir / name).is_file():
-            _read_session(output_dir / name)
+
+
+def _verify_dates(
+    output_dir: Path,
+    day: str,
+    payloads: dict[str, dict[str, Any]],
+    sessions: dict[str, dict[str, Any]],
+    shortcuts: dict[str, dict[str, Any]],
+) -> None:
+    """Every artifact of a recorded set is for the record's date.
+
+    A board carries ``reference_date``; the grid is left out, because it may
+    be an earlier day's, kept when generation failed. A daily quiz session
+    carries its date in the seed, and so do ``session.<locale>.json``. The
+    base and decade sessions have no date.
+    """
+    dated = [
+        (str(output_dir / DAILY_GAME_FILES[game]), payload["reference_date"])
+        for game, payload in payloads.items()
+        if game != "grid"
+    ]
+    dated += [
+        (f"{output_dir}: quiz session {key}", _daily_session_date(session))
+        for key, session in sessions.items()
+        if key.startswith("daily.")
+    ]
+    dated += [(str(output_dir / name), _daily_session_date(session)) for name, session in shortcuts.items()]
+    for where, value in dated:
+        if value != day:
+            raise ValueError(f"{where} is for {value}, but {DAILY_SET_FILENAME} publishes {day}")
+
+
+def _daily_session_date(session: dict[str, Any]) -> str | None:
+    seed = session["config"]["seed"]
+    return seed.removeprefix(DAILY_SEED_PREFIX) if seed.startswith(DAILY_SEED_PREFIX) else None
 
 
 def _verify_omitted_games_absent(output_dir: Path, omitted: dict[str, str]) -> None:
@@ -676,8 +710,11 @@ def _verify_omitted_games_absent(output_dir: Path, omitted: dict[str, str]) -> N
                 )
 
 
-def _verify_quiz(output_dir: Path, require_catalog: bool) -> None:
-    """Verify the v2 manifest, its sessions, the v3 manifest and the catalog."""
+def _verify_quiz(output_dir: Path, require_catalog: bool) -> dict[str, dict[str, Any]]:
+    """Verify the v2 manifest, its sessions, the v3 manifest and the catalog.
+
+    Returns the sessions the v2 manifest names, by key.
+    """
     manifest_path = output_dir / MANIFEST_FILENAME
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -695,6 +732,7 @@ def _verify_quiz(output_dir: Path, require_catalog: bool) -> None:
         validate_legacy_clues(session)
     verify_enriched_manifest(output_dir, sessions)
     verify_question_catalog(output_dir, manifest, sessions, require_catalog)
+    return sessions
 
 
 def _holds_a_set(directory: Path) -> bool:

@@ -25,6 +25,7 @@ from kpop_scraping.daily_set import (
     MAX_REASON_LENGTH,
     daily_set,
     omission_reason,
+    public_omission_reason,
     read_daily_set,
     validate_daily_set,
     write_daily_set,
@@ -115,7 +116,8 @@ class PartialPublicationTests(unittest.TestCase):
         self.assertEqual(result["next"]["connections_skipped"], {"error": BUDGET_ERROR})
         self.assertIsNone(result["connections_id"])
         self.assertIsNone(result["name_guess_skipped"])
-        self.assertEqual(read_daily_set(self.out)["omitted"]["connections"], BUDGET_ERROR)
+        # The public record names the failure; the full reason stays in the result.
+        self.assertEqual(read_daily_set(self.out)["omitted"]["connections"], "generation failed (ValueError)")
         self.assertEqual(self.cron_verify(), 0)
 
     def test_memory_error_in_the_quiz_publishes_the_other_games_of_both_days(self):
@@ -211,7 +213,8 @@ class PartialPublicationTests(unittest.TestCase):
         # before does not stand in for it.
         self.assertFalse((out / "connections.daily.json").exists())
         self.assertEqual(
-            promoted["connections_skipped"], {"error": BUDGET_ERROR, "published_without": True}
+            promoted["connections_skipped"],
+            {"error": "generation failed (ValueError)", "published_without": True},
         )
         self.assertEqual(promoted["connections_partition"]["reason"], "no connections board")
         self.assertEqual(_published_day(out), NEXT_DAY)
@@ -266,6 +269,151 @@ class PartialPublicationTests(unittest.TestCase):
         self.assertFalse(any(line.startswith("::") for line in stderr.getvalue().splitlines()))
 
 
+class NextDayFailureTests(unittest.TestCase):
+    """A failure of the next day, of any kind, leaves the installed day alone."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.db_path = self.root / "kpop.db"
+        build_test_database(self.db_path).close()
+        self.out = self.root / "data"
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def run_cli(self, *extra: str) -> tuple[int, str]:
+        stderr = io.StringIO()
+        with redirect_stderr(stderr), redirect_stdout(io.StringIO()):
+            code = daily_puzzles_cli.main([
+                "--database", str(self.db_path), "--output-dir", str(self.out), "--date", DAY, *extra,
+            ])
+        return code, stderr.getvalue()
+
+    def snapshot(self, directory: Path) -> dict[str, bytes]:
+        return {path.name: path.read_bytes() for path in sorted(directory.glob("*.json"))}
+
+    def assert_day_installed(self) -> None:
+        self.assertEqual(_published_day(self.out), DAY)
+        verify_artifacts(self.out, **STRICT)
+
+    def test_generation_error_of_the_next_day(self):
+        real = daily_puzzles_runner.generate_daily_puzzles
+
+        def generate(connection, reference_date=None, **kwargs):
+            if reference_date == NEXT_DAY:
+                raise RuntimeError("next day exploded")
+            return real(connection, reference_date=reference_date, **kwargs)
+
+        with patch.object(daily_puzzles_runner, "generate_daily_puzzles", side_effect=generate):
+            code, stderr = self.run_cli("--ahead")
+        self.assertEqual(code, 0, stderr)
+        self.assert_day_installed()
+        self.assertFalse((self.out / NEXT_DIRNAME).exists())
+        self.assertIn("Next day 2026-09-19 not published ahead: RuntimeError: next day exploded", stderr)
+
+    def test_os_error_installing_the_next_day_keeps_both_sets(self):
+        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True)
+        day, ahead = self.snapshot(self.out), self.snapshot(self.out / NEXT_DIRNAME)
+        real = daily_puzzles_runner._install_files
+
+        def install(source, output_dir, prune=False):
+            if Path(output_dir).name == NEXT_DIRNAME:
+                raise OSError("No space left on device")
+            return real(source, output_dir, prune=prune)
+
+        with patch.object(daily_puzzles_runner, "_install_files", side_effect=install):
+            result = run_daily_puzzles(
+                database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True
+            )
+        self.assertTrue(result["already_published"])
+        self.assertEqual(result["next_skipped"]["error"], "OSError: No space left on device")
+        self.assertNotIn("next", result)
+        self.assertEqual(self.snapshot(self.out), day)
+        self.assertEqual(self.snapshot(self.out / NEXT_DIRNAME), ahead)
+
+    def test_next_day_that_fails_verification_after_install_is_removed(self):
+        with patch.object(
+            daily_puzzles_runner, "verify_crossword_history", side_effect=ValueError("history broken")
+        ):
+            result = run_daily_puzzles(
+                database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True
+            )
+        self.assertEqual(result["next_skipped"]["error"], "history broken")
+        self.assertFalse((self.out / NEXT_DIRNAME).exists())
+        self.assert_day_installed()
+
+    def test_unreadable_next_record_is_rebuilt(self):
+        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True)
+        (self.out / NEXT_DIRNAME / DAILY_SET_FILENAME).write_text("{", encoding="utf-8")
+        code, stderr = self.run_cli("--ahead")
+        self.assertEqual(code, 0, stderr)
+        self.assertIn("treating", stderr)
+        self.assertEqual(read_daily_set(self.out / NEXT_DIRNAME)["reference_date"], NEXT_DAY)
+        verify_artifacts(self.out / NEXT_DIRNAME, **STRICT)
+
+    def test_unreadable_next_record_is_not_promoted(self):
+        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True)
+        (self.out / NEXT_DIRNAME / DAILY_SET_FILENAME).write_text("{", encoding="utf-8")
+        with redirect_stderr(io.StringIO()):
+            result = run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=NEXT_DAY)
+        self.assertNotIn("promoted_from_next", result)
+        self.assertEqual(_published_day(self.out), NEXT_DAY)
+
+    def test_unreadable_main_record_fails_closed(self):
+        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY)
+        (self.out / DAILY_SET_FILENAME).write_text("{", encoding="utf-8")
+        before = self.snapshot(self.out)
+        code, stderr = self.run_cli()
+        self.assertEqual(code, 1)
+        self.assertIn(f"cannot read daily set {self.out / DAILY_SET_FILENAME}", stderr)
+        self.assertEqual(self.snapshot(self.out), before)
+
+    def test_legacy_next_set_without_a_record_is_promoted(self):
+        # The first run after this change promotes a next/ set published
+        # before daily-set.json existed.
+        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True)
+        (self.out / NEXT_DIRNAME / DAILY_SET_FILENAME).unlink()
+        promoted = run_daily_puzzles(
+            database=self.db_path, output_dir=self.out, reference_date=NEXT_DAY, ahead=True
+        )
+        self.assertTrue(promoted["promoted_from_next"])
+        # The record of the day before does not survive the promotion: the
+        # promoted set is dated by its connections board.
+        self.assertFalse((self.out / DAILY_SET_FILENAME).exists())
+        self.assertEqual(_published_day(self.out), NEXT_DAY)
+        verify_artifacts(self.out, **STRICT)
+        self.assertEqual(read_daily_set(self.out / NEXT_DIRNAME)["reference_date"], AFTER)
+        kept = run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=NEXT_DAY)
+        self.assertTrue(kept["already_published"])
+
+
+class PublicReasonTests(unittest.TestCase):
+    """daily-set.json is public: it never carries an exception's message."""
+
+    def test_a_local_path_in_an_error_stays_out_of_the_public_record(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            db_path = root / "kpop.db"
+            build_test_database(db_path).close()
+            out = root / "data"
+            leak = OSError("cannot open /home/someone/private/kpop.db")
+            with failing_on({"timeline"}, {DAY}, leak), failing_crossword_on({NEXT_DAY}), redirect_stderr(io.StringIO()):
+                result = run_daily_puzzles(database=db_path, output_dir=out, reference_date=DAY, ahead=True)
+            published = "".join(path.read_text() for path in out.rglob("*.json"))
+            self.assertNotIn("/home/someone", published)
+            self.assertEqual(read_daily_set(out)["omitted"]["timeline"], "generation failed (OSError)")
+            self.assertEqual(read_daily_set(out / NEXT_DIRNAME)["omitted"]["crossword"], "generation failed (MemoryError)")
+            # The run's own result keeps the full reason for the log.
+            self.assertEqual(
+                result["timeline_skipped"]["error"], "OSError: cannot open /home/someone/private/kpop.db"
+            )
+
+    def test_public_reason_names_only_the_type(self):
+        self.assertEqual(public_omission_reason(ValueError("Q1 /tmp/x")), "generation failed (ValueError)")
+        self.assertEqual(public_omission_reason(MemoryError()), "generation failed (MemoryError)")
+
+
 class DailySetVerificationTests(unittest.TestCase):
     """The record explains an absence; it never hides a published file."""
 
@@ -308,6 +456,31 @@ class DailySetVerificationTests(unittest.TestCase):
         write_daily_set(self.out, daily_set(NEXT_DAY, read_daily_set(self.out)["omitted"]))
         with self.assertRaisesRegex(ValueError, "is for 2026-09-18, but daily-set.json publishes 2026-09-19"):
             verify_artifacts(self.out, **STRICT)
+
+    def test_a_quiz_session_of_another_day_fails(self):
+        path = self.out / "session.en.json"
+        session = json.loads(path.read_text(encoding="utf-8"))
+        session["config"]["seed"] = "kpop-daily-2026-09-17"
+        path.write_text(json.dumps(session), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "session.en.json is for 2026-09-17, but daily-set.json publishes 2026-09-18"):
+            verify_artifacts(self.out, **STRICT)
+
+    def test_daily_quiz_sessions_are_dated_by_their_seed(self):
+        manifest = json.loads((self.out / "manifest-v2.json").read_text(encoding="utf-8"))
+        daily = [key for key in manifest["sessions"] if key.startswith("daily.")]
+        self.assertTrue(daily)
+        for key in daily:
+            session = json.loads((self.out / manifest["sessions"][key]["path"]).read_text(encoding="utf-8"))
+            self.assertEqual(web_publish._daily_session_date(session), DAY, key)
+        write_daily_set(self.out, daily_set(NEXT_DAY, {"word-search": "x", "connections": "x",
+            "name-guess": "x", "timeline": "x", "code-groups": "x", "crossword": "x"}))
+        for name in ("connections.daily.json", "name-guess.daily.json", "timeline.daily.json",
+                     "code-groups.daily.json", "crossword.daily.json"):
+            (self.out / name).unlink(missing_ok=True)
+        (self.out / "session.en.json").unlink()
+        (self.out / "session.pt-BR.json").unlink()
+        with self.assertRaisesRegex(ValueError, "quiz session daily.* is for 2026-09-18, but daily-set.json publishes 2026-09-19"):
+            verify_artifacts(self.out, require_grid=False)
 
     def test_a_set_without_the_record_keeps_the_strict_rules(self):
         (self.out / DAILY_SET_FILENAME).unlink()

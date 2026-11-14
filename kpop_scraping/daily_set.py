@@ -39,16 +39,28 @@ MAX_REASON_LENGTH = 500
 
 
 def omission_reason(exc: BaseException) -> str:
-    """One bounded line that says why a game was left out.
+    """One bounded line that says why a game was left out, for the run's log.
 
     A ``ValueError`` is the documented failure of the generators, and its
     message is the reason; any other exception is named by its type too,
     because its message alone may be empty (``MemoryError``) or unclear.
+    The line goes to the log, the run summary and the runner result. The
+    public record gets ``public_omission_reason`` instead.
     """
     message = str(exc)
     if not isinstance(exc, ValueError) or not message:
         message = f"{type(exc).__name__}: {message}" if message else type(exc).__name__
     return single_line(message)
+
+
+def public_omission_reason(exc: BaseException) -> str:
+    """The reason ``daily-set.json`` publishes: a short, stable category.
+
+    The record is served by the site and versioned in a public repository.
+    An exception message may carry a local path or internal text, so only
+    the exception type goes there; the full reason stays in the run's log.
+    """
+    return f"generation failed ({type(exc).__name__})"
 
 
 def single_line(text: str) -> str:

@@ -717,7 +717,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
         self.assertEqual(
             json.loads((output_dir / "daily-set.json").read_text())["omitted"],
-            {"code-groups": "insufficient accepted group coverage: 3 / 6"},
+            {"code-groups": "generation failed (ValueError)"},
         )
         verify_artifacts(output_dir, require_grid=False, require_code_groups=True)
         record = (output_dir / "daily-set.json").read_bytes()
@@ -1548,7 +1548,13 @@ class WordSearchThemeFallbackRunnerTests(unittest.TestCase):
             self.assertFalse((directory / "word-search.daily.json").exists())
             self.assertTrue((directory / "connections.daily.json").is_file())
             omitted = json.loads((directory / "daily-set.json").read_text())["omitted"]
-            self.assertRegex(omitted["word-search"], r"none of the \d+ candidate themes could be placed")
+            self.assertEqual(omitted["word-search"], "generation failed (ValueError)")
+            verify_artifacts(directory, require_grid=False, require_word_search=True)
+            # Without the record, a caller that requires the word search
+            # refuses the day.
+            (directory / "daily-set.json").unlink()
+            with self.assertRaisesRegex(ValueError, "missing required word-search artifact"):
+                verify_artifacts(directory, require_grid=False, require_word_search=True)
 
     def test_failed_next_day_leaves_the_published_pair_untouched(self):
         from datetime import timedelta
@@ -1572,13 +1578,17 @@ class WordSearchThemeFallbackRunnerTests(unittest.TestCase):
             "kpop_scraping.daily_puzzles_runner.generate_daily_puzzles",
             side_effect=failing_word_search_for_day_after,
         ):
-            with self.assertRaisesRegex(ValueError, "Failed to place word search grid"):
-                run_daily_puzzles(
+            with redirect_stderr(io.StringIO()):
+                result = run_daily_puzzles(
                     database=self.db_path, output_dir=self.out_dir, reference_date=tomorrow, ahead=True
                 )
 
-        # The day itself is the promoted set; the stale next/ was not touched
-        # and nothing half-written was left behind.
+        # A failure of the next day no longer fails the run: the day is the
+        # promoted set, the result says why next/ was not built, the stale
+        # next/ was not touched and nothing half-written was left behind.
+        self.assertTrue(result["promoted_from_next"])
+        self.assertEqual(result["next_skipped"]["reference_date"], day_after)
+        self.assertIn("Failed to place word search grid", result["next_skipped"]["error"])
         self.assertFalse(list(self.out_dir.rglob("*.tmp")))
         after = {
             path.relative_to(self.out_dir).as_posix(): path.read_bytes()
