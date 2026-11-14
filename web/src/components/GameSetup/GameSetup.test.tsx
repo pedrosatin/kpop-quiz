@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/preact";
+import type { ComponentChildren } from "preact";
 import { describe, expect, it, vi } from "vitest";
 import { GameSetup } from "./GameSetup";
 import { DifficultyPicker } from "./DifficultyPicker";
@@ -59,6 +60,36 @@ describe("GameSetup components", () => {
     expect(nineties).toBeChecked();
     fireEvent.click(twoThousands);
     expect(onSelectDecades).toHaveBeenCalledWith([1990, 2000]);
+  });
+
+  it("lays a hint over the rules in the action bar and keeps the rules for its height", () => {
+    const setup = (hint?: ComponentChildren) => (
+      <GameSetup
+        playMode="standard"
+        onSelectMode={vi.fn()}
+        timerEnabled={false}
+        onTimerChange={vi.fn()}
+        onStart={vi.fn()}
+        isReady
+        messages={messages}
+        {...(hint ? { hint } : {})}
+      />
+    );
+    const { container, rerender } = render(setup());
+    const plain = container.querySelector(".setup-actions")!.innerHTML;
+    expect(container.querySelector(".setup-hint")).toBeNull();
+    expect(screen.getByText(messages.roundRules)).toHaveClass("game-actions-message", "game-actions-hint", "setup-rules");
+
+    rerender(setup(<a href="/en/">{messages.quizOtherLocaleHint(3)}</a>));
+    const rules = container.querySelector(".setup-hint .setup-rules")!;
+    expect(rules).toHaveTextContent(messages.roundRules);
+    expect(rules).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByRole("link", { name: "Partida em inglês na pergunta 3 · Continuar em inglês" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: messages.start })).toBeEnabled();
+
+    // Without a hint the bar is the markup it always was.
+    rerender(setup());
+    expect(container.querySelector(".setup-actions")!.innerHTML).toBe(plain);
   });
 
   it("renders GameSetup with rules and disables start button when not ready", () => {

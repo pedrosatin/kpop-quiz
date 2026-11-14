@@ -943,6 +943,35 @@ describe("Quiz flows", () => {
       expect(gtag.mock.calls[0]![2]).toMatchObject({ daily: "no" });
     });
 
+    it("sends nothing for the day's result picked again and both events for a new general round", async () => {
+      onDailyDate();
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+      await renderSetup();
+      startRound();
+      await screen.findByRole("heading", { name: dailyPtSession.questions[0]!.prompt });
+      await playToResults();
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_start", "game_complete"]));
+      gtag.mockClear();
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      await waitForSetup();
+      fireEvent.click(dailyCard());
+      expect(await screen.findByText(messages.quizDailyDoneResult)).toBeInTheDocument();
+      await act(async () => { await Promise.resolve(); });
+      expect(trackedEvents()).toEqual([]);
+
+      fireEvent.click(screen.getByRole("button", { name: messages.quizPlayGeneral }));
+      await waitForSetup();
+      startRound();
+      await waitForQuestion();
+      await playToResults();
+      await vi.waitFor(() => expect(trackedEvents()).toEqual(["game_start", "game_complete"]));
+      expect(gtag.mock.calls.map((call) => call[2])).toEqual([
+        expect.objectContaining({ daily: "no" }),
+        expect.objectContaining({ daily: "no" }),
+      ]);
+    });
+
     it("focuses the setup title when the general quiz has no round to restore", async () => {
       onDailyDate();
       window.history.replaceState(null, "", "/?theme=daily&mode=standard");
@@ -1057,6 +1086,11 @@ describe("Quiz flows", () => {
       const resume = screen.getByRole("link", { name: messages.quizOtherLocaleResume });
       expect(resume).toHaveAttribute("href", "/en/?mode=standard&theme=history");
       expect(resume).toHaveAttribute("hreflang", "en");
+      // The action bar shows the short link over the round rules.
+      const hint = screen.getByTestId("quiz-other-locale-hint");
+      expect(hint).toHaveTextContent("Partida em inglês na pergunta 9 · Continuar em inglês");
+      expect(hint).toHaveAttribute("href", "/en/?mode=standard&theme=history");
+      expect(hint.closest(".setup-actions")).not.toBeNull();
 
       // Starting here plays this language's own slot and leaves the English round as it was.
       startRound();

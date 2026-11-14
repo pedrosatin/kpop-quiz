@@ -87,7 +87,7 @@ function resultNoticeText({ resumeNotice, replayStatus, restoredVisit }: QuizMat
 // open if the player opened it first. The summary line may then grow from one
 // line to two (Expert with the timer); on phones it keeps room for two lines,
 // so the cards and Start do not move.
-function QuizSetupScreen({ messages, settings, match, hydrated, actions, generalResume, focus }: QuizScreenProps) {
+function QuizSetupScreen({ messages, settings, match, hydrated, actions, generalResume, focus, otherLocaleRound }: QuizScreenProps) {
   const { state, session, loadedRequestKey } = match;
   return (
     <GameSetup choicesKey={hydrated ? "client" : "ssr"} busy={state === "loading"} busyLabel={messages.loading}
@@ -100,6 +100,7 @@ function QuizSetupScreen({ messages, settings, match, hydrated, actions, general
       onTimerChange={settings.changeTimer}
       onStart={actions.start} isReady={state === "setup" && loadedRequestKey === settings.requestKey && session?.config.play_mode === settings.playMode}
       headingRef={focus.setupHeadingRef}
+      hint={state === "setup" && otherLocaleRound ? <OtherLocaleHint round={otherLocaleRound} messages={messages} /> : undefined}
     />
   );
 }
@@ -167,6 +168,19 @@ function QuizDailyDoneScreen({ locale, messages, settings, actions, date }: Quiz
       notice={messages.quizDailyDoneResult}
       onPlayGeneral={actions.playGeneral}
     />
+  );
+}
+
+/**
+ * The same link in the action bar, over the round rules, so a phone shows it
+ * without scrolling. One link holds the whole line, so its target is the
+ * whole hint, at least 44px tall.
+ */
+function OtherLocaleHint({ round, messages }: { round: OtherLocaleRound; messages: Messages }) {
+  return (
+    <a class="setup-hint-link" href={round.href} hreflang={round.locale} data-testid="quiz-other-locale-hint">
+      {messages.quizOtherLocaleHint(round.question)}
+    </a>
   );
 }
 

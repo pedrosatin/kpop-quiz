@@ -237,6 +237,8 @@ export interface Messages {
   quizOtherLocaleRound: (daily: boolean, question: number, total: number) => string;
   /** Link of that notice: resumes the round on the other language's page. */
   quizOtherLocaleResume: string;
+  /** Short form of that notice and link for the setup's action bar; two lines at most at 360px. */
+  quizOtherLocaleHint: (question: number) => string;
   /** On today's finished daily quiz: opens the general quiz setup. */
   quizPlayGeneral: string;
   /** Above the saved result shown when the daily quiz is picked after the day was finished. */
@@ -709,6 +711,7 @@ const catalogs: Record<Locale, Messages> = {
     quizOtherLocaleRound: (daily, question, total) =>
       `Você tem ${daily ? "um Quiz do dia" : "um Quiz geral"} em andamento em inglês, na pergunta ${question} de ${total}. Começar uma partida aqui não apaga a outra.`,
     quizOtherLocaleResume: "Continuar em inglês",
+    quizOtherLocaleHint: (question) => `Partida em inglês na pergunta ${question} · Continuar em inglês`,
     quizPlayGeneral: "Jogar o Quiz geral",
     quizDailyDoneResult: "Você já concluiu o Quiz do dia de hoje. Este é o resultado salvo, e ele conta uma vez nas estatísticas.",
     quizDailyDoneBody: "Você já concluiu o Quiz do dia de hoje, e a partida conta uma vez nas estatísticas. O resultado detalhado não ficou salvo aqui.",
@@ -1236,6 +1239,7 @@ const catalogs: Record<Locale, Messages> = {
     quizOtherLocaleRound: (daily, question, total) =>
       `You have a ${daily ? "daily quiz" : "general quiz"} in progress in Portuguese, at question ${question} of ${total}. Starting a game here does not delete it.`,
     quizOtherLocaleResume: "Continue in Portuguese",
+    quizOtherLocaleHint: (question) => `Game in Portuguese at question ${question} · Continue in Portuguese`,
     quizPlayGeneral: "Play the general quiz",
     quizDailyDoneResult: "You already finished today's daily quiz. This is your saved result, and it counts once in your stats.",
     quizDailyDoneBody: "You already finished today's daily quiz, and it counts once in your stats. The detailed result is not saved here.",

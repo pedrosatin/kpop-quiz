@@ -671,3 +671,37 @@
     flex: 1 1 100%;
   }
 }
+
+/* The setup's action bar with a round saved in the other language: the link
+   sits over the round rules in one grid cell. The rules stay in the layout,
+   hidden, so the bar keeps the height it had before hydration and Start does
+   not move. The link fills the cell, at least 44px tall, and must not need
+   more lines than the rules (two at 360px in both languages). */
+.setup-hint {
+  display: grid;
+}
+
+.setup-hint > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+/* The rules keep their own margins: .game-actions-message p would add
+   0.1rem above and below and grow the bar by 3px. */
+.setup-hint .setup-rules {
+  margin: 0;
+  visibility: hidden;
+}
+
+.setup-hint-over {
+  display: flex;
+  align-items: center;
+}
+
+.setup-hint-link {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--control-height);
+  font-weight: 700;
+}
