@@ -25,6 +25,8 @@ export interface QuizResultProps {
   feedbackEligible?: boolean;
   /** Notice above the actions (e.g. replay will repeat the only ten questions). */
   notice?: string | undefined;
+  /** On the daily result, opens the general quiz setup in place of Play again. */
+  onPlayGeneral?: (() => void) | undefined;
 }
 
 export function QuizResult({
@@ -42,6 +44,7 @@ export function QuizResult({
   dailyDate,
   feedbackEligible = true,
   notice,
+  onPlayGeneral,
 }: QuizResultProps) {
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
   const correct = correctCount ?? history.filter((h) => h.isCorrect).length;
@@ -79,6 +82,11 @@ export function QuizResult({
           {!dailyDate && (
             <button class="btn btn-primary" type="button" onClick={onRestart}>
               {messages.restart}
+            </button>
+          )}
+          {dailyDate && onPlayGeneral && (
+            <button class="btn btn-secondary" type="button" data-testid="quiz-play-general" onClick={onPlayGeneral}>
+              {messages.quizPlayGeneral}
             </button>
           )}
         </div>

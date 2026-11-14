@@ -131,8 +131,6 @@ export interface Messages {
   quizReplayLegacyRepeats: string;
   /** Saved progress exists but does not match the current artifact or config. */
   quizResumeIncompatible: string;
-  /** Setup notice of the daily theme once the day's quiz is counted; a new round does not count. */
-  quizDailyDone: string;
   /** Saved progress is corrupt or fails schema checks. */
   quizResumeInvalid: string;
   /** localStorage is unavailable; the round continues without persistence. */
@@ -235,6 +233,16 @@ export interface Messages {
   generalGameTitle: string;
   /** Description of the general quiz card while a round of it is saved in progress: where it stopped. */
   quizGeneralInProgress: (question: number, total: number) => string;
+  /** Setup notice: a round of the daily or general quiz is saved in progress in the other language. */
+  quizOtherLocaleRound: (daily: boolean, question: number, total: number) => string;
+  /** Link of that notice: resumes the round on the other language's page. */
+  quizOtherLocaleResume: string;
+  /** On today's finished daily quiz: opens the general quiz setup. */
+  quizPlayGeneral: string;
+  /** Above the saved result shown when the daily quiz is picked after the day was finished. */
+  quizDailyDoneResult: string;
+  /** Daily quiz finished today with no saved result to show (another language, an earlier board). */
+  quizDailyDoneBody: string;
   generalGameDescription: string;
   dailyGameTitle: string;
   dailyGameDescription: string;
@@ -561,7 +569,6 @@ const catalogs: Record<Locale, Messages> = {
     quizReplayRepeats: "Só há dez perguntas com estas opções. Jogar novamente repete as perguntas desta rodada.",
     quizReplayLegacyRepeats: "Jogar novamente repete as perguntas desta rodada.",
     quizResumeIncompatible: "Não foi possível retomar a partida salva: ela não combina com os dados atuais. Comece uma nova.",
-    quizDailyDone: "Você já concluiu o desafio diário de hoje. Uma nova rodada não conta nas estatísticas.",
     quizResumeInvalid: "O progresso salvo está inválido e foi descartado. Comece uma nova partida.",
     quizStorageUnavailable: "O armazenamento local está indisponível; o progresso desta partida não será guardado.",
     consentLabel: "Preferências de privacidade",
@@ -699,6 +706,12 @@ const catalogs: Record<Locale, Messages> = {
     collectionTitle: "Escolha o jogo",
     generalGameTitle: "Quiz geral",
     quizGeneralInProgress: (question, total) => `Você parou na pergunta ${question} de ${total}. Escolha para continuar.`,
+    quizOtherLocaleRound: (daily, question, total) =>
+      `Você tem ${daily ? "um Quiz do dia" : "um Quiz geral"} em andamento em inglês, na pergunta ${question} de ${total}. Começar uma partida aqui não apaga a outra.`,
+    quizOtherLocaleResume: "Continuar em inglês",
+    quizPlayGeneral: "Jogar o Quiz geral",
+    quizDailyDoneResult: "Você já concluiu o Quiz do dia de hoje. Este é o resultado salvo, e ele conta uma vez nas estatísticas.",
+    quizDailyDoneBody: "Você já concluiu o Quiz do dia de hoje, e a partida conta uma vez nas estatísticas. O resultado detalhado não ficou salvo aqui.",
     generalGameDescription: "Perguntas sobre história, lançamentos e integrantes.",
     dailyGameTitle: "Quiz do dia",
     dailyGameDescription: "As perguntas de hoje, com resultado para compartilhar.",
@@ -1083,7 +1096,6 @@ const catalogs: Record<Locale, Messages> = {
     quizReplayRepeats: "Only ten questions match these options. Play again repeats this round's questions.",
     quizReplayLegacyRepeats: "Play again repeats this round's questions.",
     quizResumeIncompatible: "Could not resume the saved game: it does not match the current data. Start a new round.",
-    quizDailyDone: "You already finished today's daily challenge. A new round does not count in your stats.",
     quizResumeInvalid: "The saved progress is invalid and was discarded. Start a new game.",
     quizStorageUnavailable: "Local storage is unavailable; progress for this round will not be saved.",
     consentLabel: "Privacy preferences",
@@ -1221,6 +1233,12 @@ const catalogs: Record<Locale, Messages> = {
     collectionTitle: "Choose a game",
     generalGameTitle: "General quiz",
     quizGeneralInProgress: (question, total) => `You stopped at question ${question} of ${total}. Pick it to continue.`,
+    quizOtherLocaleRound: (daily, question, total) =>
+      `You have a ${daily ? "daily quiz" : "general quiz"} in progress in Portuguese, at question ${question} of ${total}. Starting a game here does not delete it.`,
+    quizOtherLocaleResume: "Continue in Portuguese",
+    quizPlayGeneral: "Play the general quiz",
+    quizDailyDoneResult: "You already finished today's daily quiz. This is your saved result, and it counts once in your stats.",
+    quizDailyDoneBody: "You already finished today's daily quiz, and it counts once in your stats. The detailed result is not saved here.",
     generalGameDescription: "Questions about history, releases and members.",
     dailyGameTitle: "Daily quiz",
     dailyGameDescription: "Today's questions, with a result you can share.",

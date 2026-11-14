@@ -21,9 +21,10 @@ import { useQuizMatch } from "./useQuizMatch";
 import { useQuizProgressAutosave, useQuizProgressWriter } from "./useQuizProgress";
 import { useQuizSettings } from "./useQuizSettings";
 import { useGeneralResume } from "./useGeneralResume";
+import { useOtherLocaleRound } from "./useOtherLocaleRound";
 import { useQuizTimer } from "./useQuizTimer";
 import { useRecordQuizMatch } from "./useRecordQuizMatch";
-import type { QuizDecadeValue } from "./url-params";
+import type { QuizDecadeValue, QuizTheme } from "./url-params";
 
 export { groupEvidence };
 
@@ -36,6 +37,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const settings = useQuizSettings(locale, initialAvailableDecades);
   const match = useQuizMatch();
   const generalResume = useGeneralResume(locale, settings);
+  const otherLocaleRound = useOtherLocaleRound(locale);
   const [hydrated, setHydrated] = useState(false);
   const analytics = useQuizAnalytics(locale, settings, match);
   const persistProgress = useQuizProgressWriter(locale, settings, match);
@@ -61,6 +63,12 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   }, [locale, settings.playMode, settings.theme, settings.decadeKey]);
 
   const focus = useQuizFocus(match);
+  // Picking the general quiz while it says where it stopped restores that
+  // round; its question then takes the focus from the card.
+  const selectTheme = (theme: QuizTheme) => {
+    if (theme === "history" && generalResume) match.focusRestoredRef.current = true;
+    settings.selectTheme(theme);
+  };
   useRecordQuizMatch(match.state, match.session, match.history, settings.theme, match.recordedMatchRef);
   useQuizProgressAutosave(match, persistProgress);
 
@@ -76,6 +84,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       secondsLeft={secondsLeft}
       focus={focus}
       generalResume={generalResume}
+      otherLocaleRound={otherLocaleRound}
       actions={{
         load,
         // Clearing filters changes decadeKey and reloads through the effect.
@@ -87,11 +96,14 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
         requestGiveUp: () => requestGiveUp(match),
         confirmGiveUp: () => confirmGiveUp(play),
         revealClue: () => revealClue(play),
-        selectTheme: (theme) => {
-          // Picking the general quiz while it says where it stopped restores
-          // that round; its question then takes the focus from the card.
-          if (theme === "history" && generalResume) match.focusRestoredRef.current = true;
-          settings.selectTheme(theme);
+        selectTheme,
+        playGeneral: () => {
+          // Leave the result in the same render as the theme changes: with
+          // the daily session still on screen as a "results" state, the
+          // general theme would make useRecordQuizMatch count it again as
+          // a general match.
+          match.setState("loading");
+          selectTheme("history");
         },
       }}
     />

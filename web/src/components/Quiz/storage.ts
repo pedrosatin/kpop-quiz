@@ -525,6 +525,30 @@ export function peekQuizProgressSave(config: QuizProgressConfigIdentity): QuizPr
   return parsed.status === "ok" ? parsed.save : null;
 }
 
+/**
+ * Every valid save in a per-config slot, read without adopting the legacy key
+ * or deleting anything. A payload that does not sit in its own config's slot
+ * is skipped, as is an unreadable or invalid one. Empty when storage is
+ * unavailable.
+ */
+export function listQuizProgressSaves(): QuizProgressSave[] {
+  const saves: QuizProgressSave[] = [];
+  try {
+    const storage = window.localStorage;
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (!key?.startsWith(QUIZ_PROGRESS_STORAGE_PREFIX)) continue;
+      const raw = storage.getItem(key);
+      if (raw === null) continue;
+      const parsed = parseStored(raw);
+      if (parsed.status === "ok" && quizProgressStorageKeyFromSave(parsed.save) === key) saves.push(parsed.save);
+    }
+  } catch {
+    return [];
+  }
+  return saves;
+}
+
 /** Persist into the slot for this save's own config. Never touches other slots. */
 export function saveQuizProgress(save: QuizProgressSave): QuizProgressWriteResult {
   const key = quizProgressStorageKeyFromSave(save);

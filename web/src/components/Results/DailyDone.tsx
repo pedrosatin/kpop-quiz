@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import type { SeoRouteKey } from "../../i18n/catalog";
 import { getMessages } from "../../i18n/catalog";
@@ -15,13 +16,24 @@ export function useDailyMatchDone(gameId: GameId, dateStr: string, legacyMatchId
   return counted && !finished;
 }
 
-/** The day's challenge, already finished on an earlier board of the same date. */
-export function DailyDone({ game, locale }: { game: SeoRouteKey; locale: Locale }) {
+/**
+ * The day's challenge, already finished on an earlier board of the same date.
+ * The quiz passes its own sentence (`body`), its wide card and its actions
+ * (`children`, above `DailyNext`).
+ */
+export function DailyDone({ game, locale, body, wide = false, children }: {
+  game: SeoRouteKey;
+  locale: Locale;
+  body?: string;
+  wide?: boolean;
+  children?: ComponentChildren;
+}) {
   const messages = getMessages(locale);
   return (
-    <section class="game-card state daily-done" data-testid="daily-done" aria-labelledby="daily-done-title">
+    <section class={`game-card${wide ? " game-card--wide" : ""} state daily-done`} data-testid="daily-done" aria-labelledby="daily-done-title">
       <h2 id="daily-done-title">{messages.dailyDoneTitle}</h2>
-      <p>{messages.dailyDoneBody}</p>
+      <p>{body ?? messages.dailyDoneBody}</p>
+      {children}
       <DailyNext game={game} locale={locale} />
     </section>
   );

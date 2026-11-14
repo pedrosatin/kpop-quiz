@@ -106,4 +106,18 @@ describe("DailyDone after a republished board", () => {
     expect(screen.getByRole("heading", { level: 2, name: en.dailyDoneTitle })).toBeInTheDocument();
     expect(screen.getByText(en.dailyDoneBody)).toBeInTheDocument();
   });
+
+  it("takes the quiz's own sentence, wide card and actions before DailyNext", () => {
+    render(
+      <DailyDone game="quiz" locale="pt-BR" body={pt.quizDailyDoneBody} wide>
+        <button type="button">{pt.quizPlayGeneral}</button>
+      </DailyDone>,
+    );
+    const card = screen.getByTestId("daily-done");
+    expect(card).toHaveClass("game-card--wide");
+    expect(screen.getByText(pt.quizDailyDoneBody)).toBeInTheDocument();
+    expect(screen.queryByText(pt.dailyDoneBody)).toBeNull();
+    const action = screen.getByRole("button", { name: pt.quizPlayGeneral });
+    expect(action.compareDocumentPosition(screen.getByTestId("daily-next")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
