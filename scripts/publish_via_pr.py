@@ -35,7 +35,16 @@ import re
 import subprocess
 import sys
 import time
+from pathlib import Path
 from typing import Any, Callable, Sequence
+
+# The workflows run this file as scripts/publish_via_pr.py, which puts
+# scripts/ on sys.path; the shared annotation helper lives in the package.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from kpop_scraping import workflow_commands  # noqa: E402
 
 GH_TIMEOUT_SECONDS = 120
 # gh lists 30 pull requests by default. Forks can open that many under the
@@ -255,7 +264,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             attempts=args.attempts, retry_delay=args.retry_delay,
         )
     except PublishError as error:
-        print(f"::error::{error}", file=sys.stderr)
+        # The message can quote the stderr of gh.
+        workflow_commands.error(str(error), stream=sys.stderr)
         return 1
     return 0
 
