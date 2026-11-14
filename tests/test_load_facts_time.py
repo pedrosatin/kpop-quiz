@@ -1,7 +1,6 @@
 """Time limit for loading accepted facts next to many open conflicts.
 
-Every generator loads the facts again, so one day of the cron loads them 13
-times. The timed input below is one group with 5000 accepted members and 5000
+Every generator loads the facts again. The timed input below is one group with 5000 accepted members and 5000
 member statements in conflict, 50 of them on an accepted member. The old code
 compared each accepted fact with every conflict and took 9.4 s of CPU time on a
 laptop with Python 3.12 (10.7 s with Python 3.14). The current code reads the

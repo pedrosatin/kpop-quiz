@@ -173,7 +173,8 @@ def _load_evidence(connection: sqlite3.Connection) -> dict[int, tuple[Evidence, 
 
 
 # A conflict on one of these blocks only the accepted fact with its value; a
-# conflict on any other predicate blocks every accepted fact of the subject.
+# conflict on any other predicate blocks every accepted fact with the same
+# subject and predicate.
 VALUE_SCOPED_CONFLICT_PREDICATES = frozenset(
     {"has_member", "member_of", "record_label", "performed_by"}
 )
@@ -184,9 +185,8 @@ ConflictIndex = dict[tuple[int, str], set[int | None]]
 def _open_conflict_index(conflicts: Iterable[sqlite3.Row]) -> ConflictIndex:
     """Index conflict rows by subject and predicate, with their entity values.
 
-    Built once per load, it answers each accepted fact with one lookup. The
-    scan it replaced compared each of the 2444 accepted facts of the real
-    database with each of its 1129 conflicts, on every load.
+    Built once per load, it answers each accepted fact with one lookup, so the
+    cost is one pass over the conflicts plus one lookup per accepted fact.
     """
     index: ConflictIndex = defaultdict(set)
     for conflict in conflicts:
