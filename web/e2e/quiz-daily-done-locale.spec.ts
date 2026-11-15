@@ -97,7 +97,9 @@ for (const locale of ["pt-BR", "en"] as const) {
     await answer(page, locale, 10);
     const result = page.getByTestId("game-result");
     await expect(result.getByRole("heading", { name: t.result })).toBeVisible();
-    expect(await gamePlayed(page, "quiz")).toBe(1);
+    // The quiz records the match in an effect, after the result is painted.
+    // On a busy machine the heading can be visible before the write.
+    await expect.poll(() => gamePlayed(page, "quiz"), { message: "the finished daily quiz counts once" }).toBe(1);
     const daySave = await readSlot(page, slot(locale, "daily"));
     expect(daySave).not.toBeNull();
 
