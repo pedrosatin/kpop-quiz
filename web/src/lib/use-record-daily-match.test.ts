@@ -1,0 +1,99 @@
+import { renderHook } from "@testing-library/preact";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { noteDailyBoard } from "../data/daily-artifact";
+import { gameCounts, matchMarkers } from "../test/match-records";
+import { dailyBoardRound, useRecordDailyMatch, type DailyRound } from "./use-record-daily-match";
+
+const today = "2026-11-14";
+
+interface Props {
+  round: DailyRound | null;
+  finished: boolean;
+  won: boolean;
+}
+
+function renderRecord(initialProps: Props) {
+  return renderHook((props: Props) => useRecordDailyMatch("code", props.round, props.finished, props.won), {
+    initialProps,
+  });
+}
+
+describe("dailyBoardRound", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(`${today}T15:00:00Z`));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("dates the round with the board's reference date", () => {
+    expect(dailyBoardRound({ reference_date: "2026-11-15" }, "code-p1")).toEqual({ matchId: "code-p1", date: "2026-11-15" });
+  });
+
+  it("dates a board with no date today", () => {
+    expect(dailyBoardRound({ reference_date: "" }, "code-p1")).toEqual({ matchId: "code-p1", date: today });
+  });
+
+  it("has no round for a board the loader served after its day", () => {
+    const board = noteDailyBoard({ reference_date: "2026-11-13" }, "2026-11-13", today);
+    expect(dailyBoardRound(board, "code-p1")).toBeNull();
+  });
+});
+
+describe("useRecordDailyMatch", () => {
+  const round: DailyRound = { matchId: "code-p1", date: today };
+
+  beforeEach(() => { localStorage.clear(); });
+  afterEach(() => { localStorage.clear(); });
+
+  it("records a finished round once, with the outcome it finished with", () => {
+    const { rerender } = renderRecord({ round, finished: false, won: false });
+    expect(gameCounts("code")).toEqual({ played: 0, won: 0 });
+
+    rerender({ round, finished: true, won: true });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 1 });
+    expect(matchMarkers()).toEqual([`kpop-match-recorded-code-daily-${today}`]);
+
+    rerender({ round: { ...round }, finished: true, won: false });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 1 });
+  });
+
+  it("counts a game restored already finished on the first load that finds it uncounted", () => {
+    renderRecord({ round, finished: true, won: false }).unmount();
+    expect(gameCounts("code")).toEqual({ played: 1, won: 0 });
+
+    renderRecord({ round, finished: true, won: false });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 0 });
+  });
+
+  it("does not count a restarted board finished again", () => {
+    const { rerender } = renderRecord({ round, finished: true, won: false });
+    rerender({ round, finished: false, won: false });
+    rerender({ round, finished: true, won: true });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 0 });
+  });
+
+  it("does not count another board for the same date", () => {
+    const { rerender } = renderRecord({ round, finished: true, won: true });
+    rerender({ round: { matchId: "code-p2", date: today }, finished: true, won: true });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 1 });
+    expect(matchMarkers()).toEqual([`kpop-match-recorded-code-daily-${today}`]);
+  });
+
+  it("counts a board for another date on its own", () => {
+    const { rerender } = renderRecord({ round, finished: true, won: true });
+    rerender({ round: { matchId: "code-p2", date: "2026-11-15" }, finished: true, won: true });
+    expect(gameCounts("code")).toEqual({ played: 2, won: 2 });
+  });
+
+  it("does not count a round already counted under its legacy match id", () => {
+    localStorage.setItem("kpop-match-recorded-code-code-p1", "1");
+    renderRecord({ round, finished: true, won: true });
+    expect(gameCounts("code")).toEqual({ played: 0, won: 0 });
+  });
+
+  it("counts nothing without a round", () => {
+    renderRecord({ round: null, finished: true, won: true });
+    expect(gameCounts("code")).toEqual({ played: 0, won: 0 });
+    expect(matchMarkers()).toEqual([]);
+  });
+});

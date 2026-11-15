@@ -1,7 +1,6 @@
-import { useEffect, useRef } from "preact/hooks";
 import type { IntersectionGrid } from "../../lib/quiz-types";
-import { recordMatchOnce } from "../../lib/player-stats";
 import { dailyReferenceDate } from "../../data/daily-artifact";
+import { useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import type { GridGameStatus } from "./types";
 
 export function gridMatchId(grid: IntersectionGrid): string {
@@ -12,25 +11,16 @@ export function isGridWin(solvedCount: number): boolean {
   return solvedCount >= 5;
 }
 
-/** Records one finished match in player stats; ignores restored or restarted boards. */
+/**
+ * Records the finished grid once in player stats (see `useRecordDailyMatch`).
+ * The grid loader never notes a board as stale, so the round skips that check.
+ */
 export function useRecordGridMatch(
   grid: IntersectionGrid | null,
   status: GridGameStatus,
   solvedCount: number,
   gaveUp = false,
 ): void {
-  const recordedMatchRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (status === "complete" && grid) {
-      const matchId = gridMatchId(grid);
-      if (recordedMatchRef.current !== matchId) {
-        const isWin = !gaveUp && isGridWin(solvedCount);
-        recordMatchOnce("grid", matchId, isWin, grid.reference_date || dailyReferenceDate());
-        recordedMatchRef.current = matchId;
-      }
-    } else if (status !== "complete") {
-      recordedMatchRef.current = null;
-    }
-  }, [status, grid, solvedCount, gaveUp]);
+  const round = grid ? { matchId: gridMatchId(grid), date: grid.reference_date || dailyReferenceDate() } : null;
+  useRecordDailyMatch("grid", round, status === "complete", !gaveUp && isGridWin(solvedCount));
 }
