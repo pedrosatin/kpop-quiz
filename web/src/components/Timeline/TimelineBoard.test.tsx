@@ -220,7 +220,7 @@ describe("TimelineBoard", () => {
     expect(live).toHaveTextContent(`${draggedTitle} movido para a posição 2 de 5`);
   });
 
-  it("brings the dropped card into view without moving focus, and only after a drop", () => {
+  it("brings the moved card into view without moving focus, and only after a move", () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     try {
@@ -247,9 +247,12 @@ describe("TimelineBoard", () => {
       expect(within(scrolled).getByText(draggedTitle)).toBeInTheDocument();
       expect(document.activeElement).toBe(focusBefore);
 
-      // The buttons keep their own focus scroll.
+      // A button move brings the card into view too, and focus lands on its button.
       pressKey(screen.getByRole("button", { name: `Mover "${draggedTitle}" para baixo` }), "Enter");
-      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView).toHaveBeenCalledTimes(2);
+      expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" });
+      expect(scrollIntoView.mock.contexts[1]).toBe(screen.getAllByRole("listitem")[4]);
+      expect(document.activeElement).toBe(document.getElementById(`timeline-move-up-${events[0]!.id}`));
     } finally {
       delete (Element.prototype as Partial<Element>).scrollIntoView;
     }

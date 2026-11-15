@@ -24,7 +24,7 @@ interface UseTimelineBoardItemsProps {
 /**
  * The order on screen, which follows `events` and changes at once on a move,
  * the live announcement of the last move, the focus kept on the card moved by
- * a button, and the card moved by a drag kept in view above the action bar.
+ * a button, and the moved card kept in view above the action bar.
  */
 export function useTimelineBoardItems({
   events,
@@ -38,7 +38,7 @@ export function useTimelineBoardItems({
   const [items, setItems] = useState<TimelineEvent[]>(events);
   const [announcement, setAnnouncement] = useState<string>("");
   const [lastMoved, setLastMoved] = useState<{ id: string; direction: MoveDirection } | null>(null);
-  const [lastDropped, setLastDropped] = useState<string | null>(null);
+  const [lastRevealed, setLastRevealed] = useState<string | null>(null);
   const listRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
@@ -57,6 +57,7 @@ export function useTimelineBoardItems({
       const title = timelineEventTitle(currentItem, locale);
       setAnnouncement(messages.itemMoved(title, targetIndex + 1, nextItems.length));
       setLastMoved({ id: currentItem.id, direction });
+      setLastRevealed(currentItem.id);
 
       const onMove = direction === "up" ? onMoveUp : onMoveDown;
       onMove?.(index);
@@ -70,7 +71,7 @@ export function useTimelineBoardItems({
       if (!isBoardIndex(targetIndex, items.length) || !isBoardIndex(from, items.length)) return;
       const currentItem = items[from]!;
       setItems((prev) => moveItem(prev, from, targetIndex));
-      setLastDropped(currentItem.id);
+      setLastRevealed(currentItem.id);
       const title = timelineEventTitle(currentItem, locale);
       setAnnouncement(messages.itemMoved(title, targetIndex + 1, items.length));
     },
@@ -87,16 +88,20 @@ export function useTimelineBoardItems({
     setLastMoved(null);
   }, [items, lastMoved]);
 
-  // A drop can land on the band the hidden action bar covers during the drag.
-  // The bar is back in the same render, so bring the card above it before the
-  // paint. The page's scroll margin keeps the bar's height clear, and
-  // "nearest" leaves a card already in view where it is. Focus stays put.
+  // A move can leave the card under the action bar: a drop on the band the
+  // hidden bar covers during the drag (the bar is back in the same render), or
+  // a button move to the end, where the focused button fits above the bar but
+  // the rest of the card does not, so the browser's focus scroll stops short.
+  // Bring the whole card above the bar before the paint. The page's scroll
+  // margin keeps the bar's height clear, and "nearest" leaves a card already
+  // in view where it is. This does not move focus, and the focus effect above
+  // then finds its button in view.
   useLayoutEffect(() => {
-    if (lastDropped === null) return;
-    const newIndex = items.findIndex((e) => e.id === lastDropped);
+    if (lastRevealed === null) return;
+    const newIndex = items.findIndex((e) => e.id === lastRevealed);
     if (newIndex !== -1) listRef.current?.children[newIndex]?.scrollIntoView?.({ block: "nearest" });
-    setLastDropped(null);
-  }, [items, lastDropped]);
+    setLastRevealed(null);
+  }, [items, lastRevealed]);
 
   return { items, announcement, listRef, moveByButton, moveByDrag };
 }
