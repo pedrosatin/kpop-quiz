@@ -206,6 +206,14 @@ export interface GenerateTimelineShareTextParams {
   locale: Locale;
 }
 
+/** The score line of the share text: the sequence score after a give-up, else the score with a star. */
+function shareScoreLine(isPt: boolean, gaveUp: boolean, score: string): string {
+  if (gaveUp && isPt) return `Desistência · Pontuação da sequência: ${score}`;
+  if (gaveUp) return `Gave up · Sequence score: ${score}`;
+  if (isPt) return `Pontuação: ${score} ⭐️`;
+  return `Score: ${score} ⭐️`;
+}
+
 /**
  * Format spoiler-free timeline share text with score, emojis, and URL.
  */
@@ -221,13 +229,7 @@ export function generateTimelineShareText({
   const title = isPt
     ? `K-pop Quiz • Linha do Tempo ${referenceDate}`
     : `K-pop Quiz • Timeline ${referenceDate}`;
-  const scoreLine = gaveUp
-    ? (isPt
-      ? `Desistência · Pontuação da sequência: ${score}/${totalEvents}`
-      : `Gave up · Sequence score: ${score}/${totalEvents}`)
-    : isPt
-    ? `Pontuação: ${score}/${totalEvents} ⭐️`
-    : `Score: ${score}/${totalEvents} ⭐️`;
+  const scoreLine = shareScoreLine(isPt, gaveUp, `${score}/${totalEvents}`);
   const emojiLine = results.map((r) => (r ? "🟩" : "🟥")).join(" ");
   return withShareUrl(`${title}\n${scoreLine}\n${emojiLine}`, seoShareUrl("timeline", locale));
 }
