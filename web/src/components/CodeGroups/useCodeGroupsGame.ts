@@ -2,84 +2,32 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { CodeGroupsGuess, CodeGroupsPuzzle } from "../../data/code-groups";
 import { scoreGuess } from "../../data/code-groups";
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { getLocalStorageItem, listLocalStorageKeys, removeLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
+import { clearCodeGroupsSave, loadCodeGroupsSave, storeCodeGroupsSave } from "./code-groups-save";
 import { isDailyBoardRound } from "../../lib/player-stats";
 import { codeGroupsMatchId } from "./useRecordCodeGroupsMatch";
 import type { Locale } from "../../lib/quiz-types";
+import {
+  EMPTY_SELECTION,
+  guessEndsRound,
+  guessRejection,
+  hasRoundProgress,
+  isRoundFinished,
+  isRoundWon,
+  isSelectionComplete,
+  roundOutcome,
+  startingHistory,
+  startingSelection,
+  withSlot,
+  type CodeGroupsFeedback,
+} from "./code-groups-state";
 
-/**
- * What localStorage keeps of one daily round, under `kpop-code-<YYYY-MM-DD>`
- * (the puzzle date), following the map save: the board's `puzzle_id`, the
- * QIDs of every submitted guess in order and the current selection. The
- * exact/misplaced counts are recomputed from the secret, so a save never
- * shows a count play did not produce. A save for another date is pruned, and
- * one for another board of the same date (a republished day, or a save from
- * before the id was kept) is dropped instead of resumed.
- */
-export interface CodeGroupsSave {
-  puzzle_id: string;
-  history: string[][];
-  selection: string[];
-}
-
-export function codeGroupsStorageKey(roundDate: string): string {
-  return `kpop-code-${roundDate}`;
-}
-
-const ROUND_KEY = /^kpop-code-\d{4}-\d{2}-\d{2}$/;
-
-/** Removes the saves of other days, so old rounds do not pile up in storage. */
-function pruneCodeGroupsSaves(roundDate: string): void {
-  const keep = codeGroupsStorageKey(roundDate);
-  for (const key of listLocalStorageKeys()) {
-    if (key !== keep && ROUND_KEY.test(key)) removeLocalStorageItem(key);
-  }
-}
-
-function isSymbolId(id: unknown, puzzle: CodeGroupsPuzzle): id is string {
-  return typeof id === "string" && puzzle.symbols.some((s) => s.qid === id);
-}
-
-/**
- * Reads the save of this round and removes the saves of other days. A save
- * with a group outside the six symbols, a repeated group, more guesses than
- * the limit or a selection of the wrong shape is dropped, so a stale or
- * edited save never shows a round the player did not play.
- */
-export function loadCodeGroupsSave(puzzle: CodeGroupsPuzzle): CodeGroupsSave | null {
-  pruneCodeGroupsSaves(puzzle.reference_date);
-  const raw = getLocalStorageItem(codeGroupsStorageKey(puzzle.reference_date));
-  if (!raw) return null;
-  let saved: unknown;
-  try {
-    saved = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (typeof saved !== "object" || saved === null || Array.isArray(saved)) return null;
-  const { puzzle_id, history, selection } = saved as Partial<CodeGroupsSave>;
-  if (puzzle_id !== puzzle.puzzle_id) return null;
-  if (!Array.isArray(history) || history.length > puzzle.max_attempts) return null;
-  for (const ids of history) {
-    if (!Array.isArray(ids) || ids.length !== 4 || new Set(ids).size !== 4) return null;
-    if (!ids.every((id) => isSymbolId(id, puzzle))) return null;
-  }
-  if (!Array.isArray(selection) || selection.length !== 4) return null;
-  if (history.length === puzzle.max_attempts && selection.some((id) => id !== "")) return null;
-  if (!selection.every((id) => id === "" || isSymbolId(id, puzzle))) return null;
-  return { puzzle_id, history: history.map((ids) => [...ids]), selection: [...selection] };
-}
-
-export function storeCodeGroupsSave(puzzle: CodeGroupsPuzzle, save: Omit<CodeGroupsSave, "puzzle_id">): void {
-  const stored: CodeGroupsSave = { puzzle_id: puzzle.puzzle_id, ...save };
-  setLocalStorageItem(codeGroupsStorageKey(puzzle.reference_date), JSON.stringify(stored));
-}
-
-export function clearCodeGroupsSave(puzzle: CodeGroupsPuzzle): void {
-  removeLocalStorageItem(codeGroupsStorageKey(puzzle.reference_date));
-}
-
-const EMPTY_SELECTION = ["", "", "", ""] as const;
+export {
+  clearCodeGroupsSave,
+  codeGroupsStorageKey,
+  loadCodeGroupsSave,
+  storeCodeGroupsSave,
+  type CodeGroupsSave,
+} from "./code-groups-save";
 
 export interface UseCodeGroupsGame {
   selection: string[];
@@ -92,45 +40,36 @@ export interface UseCodeGroupsGame {
   submit: () => void;
   restart: () => void;
   /** String keys or composed messages for the live region; set on rejections and guesses. */
-  feedback: { kind: "chooseAll" | "chooseDistinct" | "alreadyGuessed" | "attempt"; attempt?: CodeGroupsGuess } | null;
-}
-
-/** Whether `selection` repeats, in the same order, a guess already sent. */
-function isRepeatedGuess(history: readonly CodeGroupsGuess[], selection: readonly string[]): boolean {
-  return history.some((guess) => guess.ids.every((id, index) => id === selection[index]));
+  feedback: CodeGroupsFeedback;
 }
 
 export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): UseCodeGroupsGame {
   const initialSave = useRef(loadCodeGroupsSave(puzzle));
 
-  const [selection, setSelection] = useState<string[]>(() => {
-    const saved = initialSave.current?.selection;
-    return saved && saved.some((id) => id !== "") ? [...saved] : [...EMPTY_SELECTION];
-  });
+  const [selection, setSelection] = useState<string[]>(() => startingSelection(initialSave.current?.selection));
   const [history, setHistory] = useState<CodeGroupsGuess[]>(
-    () => initialSave.current?.history.map((ids) => scoreGuess(puzzle, ids)) ?? [],
+    () => startingHistory(puzzle, initialSave.current?.history),
   );
-  const [feedback, setFeedback] = useState<UseCodeGroupsGame["feedback"]>(null);
+  const [feedback, setFeedback] = useState<CodeGroupsFeedback>(null);
 
   const submitLocked = useRef(false);
   useEffect(() => { submitLocked.current = false; }, [history, selection]);
 
-  const won = history.at(-1)?.exact === 4;
-  const finished = won || history.length === puzzle.max_attempts;
+  const won = isRoundWon(history);
+  const finished = isRoundFinished(puzzle, history);
   const analytics = useGameAnalytics(
     {
       game: "code",
       locale,
       isDaily: () => isDailyBoardRound("code", puzzle, codeGroupsMatchId(puzzle)),
-      // The round has no give-up: it ends with the code or out of attempts.
-      outcome: finished ? (won ? "win" : "loss") : null,
+      outcome: roundOutcome(won, finished),
     },
     finished,
     history.length > 0,
   );
 
   useEffect(() => {
-    if (history.length === 0 && selection.every((id) => id === "")) return;
+    if (!hasRoundProgress(history, selection)) return;
     storeCodeGroupsSave(puzzle, { history: history.map((guess) => guess.ids), selection });
   }, [puzzle, history, selection]);
 
@@ -139,41 +78,27 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
       if (finished) return;
       analytics.start();
       setFeedback(null);
-      setSelection((prev) => {
-        const next = [...prev];
-        next[index] = qid;
-        return next;
-      });
+      setSelection((prev) => withSlot(prev, index, qid));
     },
     [finished],
   );
 
   const submit = useCallback(() => {
     if (finished || submitLocked.current) return;
-    if (selection.some((id) => !id)) {
-      setFeedback({ kind: "chooseAll" });
-      return;
-    }
-    if (new Set(selection).size !== 4) {
-      setFeedback({ kind: "chooseDistinct" });
-      return;
-    }
-    // The same guess cannot tell anything new, so it costs no attempt.
-    if (isRepeatedGuess(history, selection)) {
-      setFeedback({ kind: "alreadyGuessed" });
+    const rejection = guessRejection(history, selection);
+    if (rejection) {
+      setFeedback({ kind: rejection });
       return;
     }
     analytics.start();
     submitLocked.current = true;
     const guess = scoreGuess(puzzle, selection);
     setFeedback({ kind: "attempt", attempt: guess });
-    const nextLength = history.length + 1;
-    const willFinish = guess.exact === 4 || nextLength === puzzle.max_attempts;
     setHistory((prev) => [...prev, guess]);
     // Keep the last pick between attempts so one slot can change at a time.
     // Clear only when the round ends, so a finished save stays loadable
     // (history at the limit with empty slots).
-    if (willFinish) setSelection([...EMPTY_SELECTION]);
+    if (guessEndsRound(puzzle, guess, history.length)) setSelection([...EMPTY_SELECTION]);
   }, [finished, history, puzzle, selection]);
 
   const restart = useCallback(() => {
@@ -188,7 +113,7 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
   return {
     selection,
     history,
-    selectionComplete: selection.every((id) => id) && new Set(selection).size === 4,
+    selectionComplete: isSelectionComplete(selection),
     won,
     finished,
     selectValue,
