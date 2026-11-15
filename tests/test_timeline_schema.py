@@ -7,12 +7,14 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
 try:
     import fastjsonschema
 except ImportError:
     fastjsonschema = None
 
+from kpop_scraping import timeline_schema
 from kpop_scraping.timeline_schema import (
     TIMELINE_LEGACY_SCHEMA_VERSION,
     TIMELINE_SCHEMA_VERSION,
@@ -375,6 +377,58 @@ def sample_release_event() -> dict:
         "entity_name": "IVE Empathy",
         "evidence": [sample_evidence("fb-ive-empathy", "Q130283394")],
     }
+
+
+EVIDENCE_CONTEXT = "events[0].evidence[0]"
+
+
+def _evidence_with(**changes) -> dict:
+    return {**sample_evidence(), **changes}
+
+
+class TestTimelineEvidenceOrder(unittest.TestCase):
+    """The local ``_validate_evidence`` keeps its own messages and order."""
+
+    def assertRejects(self, evidence, message: str) -> None:
+        with self.assertRaises(ValueError) as caught:
+            timeline_schema._validate_evidence(evidence, EVIDENCE_CONTEXT)
+        self.assertEqual(
+            str(caught.exception),
+            f"Invalid timeline puzzle schema: {EVIDENCE_CONTEXT}{message}",
+        )
+
+    def test_reports_the_first_of_two_failing_checks(self) -> None:
+        # Each case breaks two neighbouring checks, so swapping any pair of
+        # them changes the message.
+        fields = "['fact_base_id', 'locator', 'revision_id', 'source_key', 'source_url']"
+        cases = (
+            ({**_evidence_with(fact_base_id=""), "extra": "x"}, f" fields must be {fields}"),
+            (_evidence_with(fact_base_id="", locator=""), ".fact_base_id must be non-empty string"),
+            (_evidence_with(locator="", revision_id=0), ".locator must be non-empty string"),
+            (_evidence_with(revision_id=0, source_key=""), ".revision_id must be a positive integer"),
+            (_evidence_with(source_key="", source_url=""), ".source_key must be non-empty string"),
+            (_evidence_with(source_url=""), ".source_url must be non-empty string"),
+            (_evidence_with(source_url="http://insecure.com"), ".source_url must be a valid https URL"),
+            (_evidence_with(source_url="https://"), ".source_url must be a valid https URL"),
+        )
+        timeline_schema._validate_evidence(sample_evidence(), EVIDENCE_CONTEXT)
+        for evidence, message in cases:
+            with self.subTest(evidence=evidence):
+                self.assertRejects(evidence, message)
+
+    def test_patching_require_reaches_the_local_check_only(self) -> None:
+        # The local check reads ``_require`` from the module globals at call
+        # time; the shared checks were bound to the original with ``partial``.
+        with patch.object(timeline_schema, "_require") as require:
+            timeline_schema._validate_evidence(sample_evidence(), EVIDENCE_CONTEXT)
+            self.assertIn(
+                f"{EVIDENCE_CONTEXT}.revision_id must be a positive integer",
+                [call.args[1] for call in require.call_args_list],
+            )
+            require.reset_mock()
+            with self.assertRaises(ValueError):
+                timeline_schema._require_qid("q1", "entity_id")
+            require.assert_not_called()
 
 
 def _load_json_validator(path: Path):
