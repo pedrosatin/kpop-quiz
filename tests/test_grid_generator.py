@@ -909,8 +909,9 @@ class AxisSearchCostTest(unittest.TestCase):
         # for "apart" and 21 s for "together", on a laptop with Python 3.14.
         # Here the budget ends both in about 0.5 s, under 10 MiB. With the
         # laptop at a load average of 32, the same run took 2.3 s and 2.8 s of
-        # CPU, so the limit sits at 10 s: above that noise, below the 21 s of
-        # the old code. The step count and the memory peak stay exact.
+        # CPU, so the limit sits at 10 s. That is above the noise and below
+        # the 21 s of the old code. The step count stays exact, and the memory
+        # peak keeps its 64 MiB ceiling.
         for layout in ("apart", "together"):
             with self.subTest(layout=layout):
                 all_criteria, groups = many_labels_catalog(layout)

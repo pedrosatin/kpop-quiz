@@ -398,10 +398,13 @@ class TestTimelineEvidenceOrder(unittest.TestCase):
         )
 
     def test_reports_the_first_of_two_failing_checks(self) -> None:
-        # Each case breaks two neighbouring checks, so swapping any pair of
-        # them changes the message.
+        # Each case breaks a check and the one after it, so swapping two
+        # neighbouring checks changes the message or the exception. A list
+        # breaks the object check, and the key check would raise
+        # AttributeError on it.
         fields = "['fact_base_id', 'locator', 'revision_id', 'source_key', 'source_url']"
         cases = (
+            ([], " must be an object"),
             ({**_evidence_with(fact_base_id=""), "extra": "x"}, f" fields must be {fields}"),
             (_evidence_with(fact_base_id="", locator=""), ".fact_base_id must be non-empty string"),
             (_evidence_with(locator="", revision_id=0), ".locator must be non-empty string"),

@@ -479,9 +479,12 @@ class TestStrandsEvidenceOrder(unittest.TestCase):
         )
 
     def test_reports_the_first_of_two_failing_checks(self):
-        # Each case breaks two neighbouring checks, so swapping any pair of
-        # them changes the message.
+        # Each case breaks a check and the one after it, so swapping two
+        # neighbouring checks changes the message or the exception. A list
+        # breaks the object check, and the key check would raise
+        # AttributeError on it.
         cases = (
+            ([], " must be an object"),
             (
                 {**_evidence_with(fact_base_id=""), "extra": "x"},
                 " contains unexpected or missing fields",
