@@ -185,6 +185,14 @@ for (const locale of locales) {
         const before = await bar.evaluate((el) => el.getBoundingClientRect().height);
         await bar.locator(".btn-primary").click();
         await expect(bar).toHaveClass(/is-incorrect/);
+        // A wrong check returns focus to the square being typed in, after the
+        // render that marks it, and the grid keeps that square on screen on
+        // the next frame. Scrolling to the clues before that frame lets it
+        // scroll the page back to the square.
+        await expect.poll(() => cells.evaluateAll((inputs) => inputs.includes(document.activeElement as HTMLInputElement)), {
+          message: "the wrong check returns focus to a square",
+        }).toBe(true);
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
         // The verdict takes the line of the hint, so the bar keeps its height.
         expect(await bar.evaluate((el) => el.getBoundingClientRect().height), "the wrong check keeps the bar's height").toBeLessThanOrEqual(before + 0.5);
         await expectUncovered(square, "the lowest square after a wrong check");
