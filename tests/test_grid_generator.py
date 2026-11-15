@@ -907,7 +907,10 @@ class AxisSearchCostTest(unittest.TestCase):
         # that listed, sorted and shuffled every curated pair before testing
         # one stopped with MemoryError under a 2 GiB cap: after 65 s of CPU
         # for "apart" and 21 s for "together", on a laptop with Python 3.14.
-        # Here the budget ends both in about 0.5 s, under 10 MiB.
+        # Here the budget ends both in about 0.5 s, under 10 MiB. With the
+        # laptop at a load average of 32, the same run took 2.3 s and 2.8 s of
+        # CPU, so the limit sits at 10 s: above that noise, below the 21 s of
+        # the old code. The step count and the memory peak stay exact.
         for layout in ("apart", "together"):
             with self.subTest(layout=layout):
                 all_criteria, groups = many_labels_catalog(layout)
@@ -918,7 +921,7 @@ class AxisSearchCostTest(unittest.TestCase):
                 self.assertIn(
                     f"used {MAX_AXIS_SEARCH_STEPS} of {MAX_AXIS_SEARCH_STEPS} steps", str(outcome)
                 )
-                self.assertLess(elapsed, 2.0)
+                self.assertLess(elapsed, 10.0)
                 self.assertLess(peak, 64 * 2**20)
 
     def test_100_record_labels_with_a_grid_find_it_at_once(self) -> None:
