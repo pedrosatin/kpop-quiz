@@ -12,12 +12,16 @@ import {
 } from "./map-pilot-geometry";
 import { shapeOf } from "./map-pilot-targets";
 import { useMapBox } from "./useMapBox";
+import {
+  isMapZoomable,
+  isZoomSettled,
+  revealsFocusedCountry,
+  shownAnswer,
+  zoomsOnClick,
+  type ShownAnswer,
+} from "./map-pilot-zoom";
 
-/**
- * How long the map ignores a pick after it zooms: the second tap of a double
- * tap lands on the zoomed map, where it would pick another country.
- */
-export const ZOOM_GUARD_MS = 300;
+export { ZOOM_GUARD_MS } from "./map-pilot-zoom";
 
 export interface MapZoomTurn {
   /** The date on screen; undefined once the round is over. */
@@ -59,7 +63,7 @@ function anchorOf(featureId: string): MapPoint | undefined {
  * An answer whose country is out of the zoomed view shows on the whole map.
  * It runs once per answer, so the player can zoom again after it.
  */
-function useRevealAnswer(answerKey: string | null, answerFeature: string | null, view: MapRect | null, zoomOut: () => void) {
+function useRevealAnswer({ key: answerKey, feature: answerFeature }: ShownAnswer, view: MapRect | null, zoomOut: () => void) {
   const shown = useRef<string | null>(null);
   useEffect(() => {
     if (answerKey === shown.current) return;
@@ -82,9 +86,7 @@ export function useMapZoom(svg: RefObject<SVGSVGElement>, { current, questionInd
   // cancel. The zoom centers there: Chrome moves a tap's click onto the
   // nearest clickable shape, and a tap on the sea by Luzon zoomed on Taiwan.
   const pointerDown = useRef<MapPoint | null>(null);
-  // Zoom only helps where the list is a select: on wide screens the list
-  // beside the map already reaches every country.
-  const zoomable = narrow && box.width > 0 && current !== undefined;
+  const zoomable = isMapZoomable(narrow, box, current);
   const zoomCenter = zoomable ? center : null;
   const zoomedRect = useMemo(() => (zoomCenter ? zoomedView(zoomCenter, box) : null), [zoomCenter, box]);
   const view = zoomedRect ?? WORLD_VIEW;
@@ -97,15 +99,14 @@ export function useMapZoom(svg: RefObject<SVGSVGElement>, { current, questionInd
     if (!zoomable) zoomOut();
   }, [zoomable]);
 
-  const answerFeature = selectedFeature === null ? null : current?.map_feature_id ?? null;
-  useRevealAnswer(answerFeature && `${questionIndex}:${answerFeature}`, answerFeature, zoomedRect, zoomOut);
+  useRevealAnswer(shownAnswer(current, questionIndex, selectedFeature), zoomedRect, zoomOut);
 
   const isPointerClick = (event: MouseEvent) => pointerDown.current !== null && event.detail > 0;
 
   function zoomAt(event: MouseEvent) {
     const down = pointerDown.current;
     pointerDown.current = null;
-    if (!down || event.detail === 0 || !zoomable || zoomed || !svg.current) return;
+    if (!down || !zoomsOnClick(event.detail, zoomable, zoomed) || !svg.current) return;
     const rect = svg.current.getBoundingClientRect();
     zoomedAt.current = performance.now();
     setCenter(clientToMap(
@@ -116,8 +117,7 @@ export function useMapZoom(svg: RefObject<SVGSVGElement>, { current, questionInd
   }
 
   function revealFocused(feature: { id: string; path: string }) {
-    // A tap or a click focuses the country before its click; only Tab reveals.
-    if (zoomed && pointerDown.current === null && !viewContains(view, shapeOf(feature).anchor)) zoomOut();
+    if (revealsFocusedCountry(zoomed, pointerDown.current, view, feature)) zoomOut();
   }
 
   const clearPointer = () => { pointerDown.current = null; };
@@ -130,7 +130,7 @@ export function useMapZoom(svg: RefObject<SVGSVGElement>, { current, questionInd
     zoomAt,
     zoomOut,
     isPointerClick,
-    settled: () => !zoomed || performance.now() - zoomedAt.current >= ZOOM_GUARD_MS,
+    settled: () => isZoomSettled(zoomed, performance.now() - zoomedAt.current),
     revealFocused,
     pointerHandlers: {
       onPointerDown: (event: PointerEvent) => { pointerDown.current = { x: event.clientX, y: event.clientY }; },

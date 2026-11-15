@@ -136,6 +136,44 @@ function MapOverlay({
   );
 }
 
+/** The date on screen: every country, and a button for each playable one. */
+function PlayPaths({
+  locale,
+  playableFeatures,
+  countryByFeature,
+  ctx,
+  onClick,
+  onPick,
+  onFocus,
+}: {
+  locale: Locale;
+  playableFeatures: Set<string>;
+  countryByFeature: Map<string, MapPilotCountry>;
+  ctx: MapPickContext;
+  onClick: (featureId: string, event: MouseEvent) => void;
+  onPick: (featureId: string) => void;
+  onFocus: (feature: MapFeature) => void;
+}) {
+  return (
+    <>
+      {mapPilotFeatures.map((feature) => {
+        const playable = playableFeatures.has(feature.id);
+        return (
+          <MapFeaturePath
+            key={feature.id}
+            feature={feature}
+            state={pathState(feature.id, playable, ctx)}
+            label={playable ? mapPilotCountryLabel(countryByFeature.get(feature.id)!, locale) : undefined}
+            onClick={onClick}
+            onPick={onPick}
+            onFocus={onFocus}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 function FinishedPaths({ roundFeatures }: { roundFeatures: Set<string> }) {
   // The finished round: the countries of its dates, not playable.
   return (
@@ -206,20 +244,17 @@ export function MapPilotMap({
         {...zoom.pointerHandlers}
       >
         {current
-          ? mapPilotFeatures.map((feature) => {
-            const playable = playableFeatures.has(feature.id);
-            return (
-              <MapFeaturePath
-                key={feature.id}
-                feature={feature}
-                state={pathState(feature.id, playable, ctx)}
-                label={playable ? mapPilotCountryLabel(countryByFeature.get(feature.id)!, locale) : undefined}
-                onClick={pathClick}
-                onPick={onSelect}
-                onFocus={zoom.revealFocused}
-              />
-            );
-          })
+          ? (
+            <PlayPaths
+              locale={locale}
+              playableFeatures={playableFeatures}
+              countryByFeature={countryByFeature}
+              ctx={ctx}
+              onClick={pathClick}
+              onPick={onSelect}
+              onFocus={zoom.revealFocused}
+            />
+          )
           : <FinishedPaths roundFeatures={roundFeatures} />}
         {targetFeatures.map((feature) => (
           <MapTarget key={`target-${feature.id}`} feature={feature} ctx={targetCtx} onPick={pickByPointer} />

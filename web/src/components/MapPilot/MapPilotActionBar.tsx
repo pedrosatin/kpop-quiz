@@ -1,4 +1,4 @@
-import type { Ref } from "preact";
+import type { ComponentChildren, Ref } from "preact";
 import { useRef, useState } from "preact/hooks";
 import type { MapPilotCountry, MapPilotEvent } from "../../data/map-pilot";
 import type { getMessages } from "../../i18n/catalog";
@@ -47,6 +47,51 @@ export function MapPilotActionBar({
   const notices = useRef(0);
   const { isComplete, answerState, questionIndex } = turn;
 
+  // One slot of the bar holds the result, Next or the answer controls.
+  let controls: ComponentChildren;
+  if (isComplete) {
+    controls = (
+      <MapPilotResult
+        roundDate={game.date}
+        round={round}
+        answers={game.answers}
+        countryByFeature={countryByFeature}
+        locale={locale}
+        gaveUp={game.gaveUp === true || game.answers.length < round.length}
+        onCopied={() => setNotice({ kind: "copied", n: ++notices.current })}
+        onShareFailed={() => setNotice({ kind: "shareFailed", n: ++notices.current })}
+        titleRef={resultTitle}
+      />
+    );
+  } else if (answerState) {
+    controls = (
+      <MapPilotNextButton
+        buttonRef={nextButton}
+        label={questionIndex + 1 === round.length ? copy.finish : copy.next}
+        onNext={actions.nextQuestion}
+      />
+    );
+  } else {
+    controls = (
+      <>
+        <MapPilotPickForm
+          listChoice={listChoice}
+          sortedCountries={sortedCountries}
+          locale={locale}
+          copy={copy}
+          onListChoice={setListChoice}
+          onClearPickPrompt={actions.clearPickPrompt}
+          onChooseCountry={actions.submitAnswer}
+          onEmptySubmit={actions.promptPick}
+        />
+        {/* After an answer the bar keeps only Next: giving up waits for the next date. */}
+        <button type="button" class="btn btn-secondary" onClick={actions.requestGiveUp}>
+          {messages.giveUp}
+        </button>
+      </>
+    );
+  }
+
   return (
     // Only the message is a live region, so the buttons and links are not announced.
     <div class={`game-actions map-pilot-actions${mapPilotBarState(answerState)}`}>
@@ -68,42 +113,7 @@ export function MapPilotActionBar({
           messages={messages}
         />
       </div>
-      {isComplete ? (
-        <MapPilotResult
-          roundDate={game.date}
-          round={round}
-          answers={game.answers}
-          countryByFeature={countryByFeature}
-          locale={locale}
-          gaveUp={game.gaveUp === true || game.answers.length < round.length}
-          onCopied={() => setNotice({ kind: "copied", n: ++notices.current })}
-          onShareFailed={() => setNotice({ kind: "shareFailed", n: ++notices.current })}
-          titleRef={resultTitle}
-        />
-      ) : answerState ? (
-        <MapPilotNextButton
-          buttonRef={nextButton}
-          label={questionIndex + 1 === round.length ? copy.finish : copy.next}
-          onNext={actions.nextQuestion}
-        />
-      ) : (
-        <>
-          <MapPilotPickForm
-            listChoice={listChoice}
-            sortedCountries={sortedCountries}
-            locale={locale}
-            copy={copy}
-            onListChoice={setListChoice}
-            onClearPickPrompt={actions.clearPickPrompt}
-            onChooseCountry={actions.submitAnswer}
-            onEmptySubmit={actions.promptPick}
-          />
-          {/* After an answer the bar keeps only Next: giving up waits for the next date. */}
-          <button type="button" class="btn btn-secondary" onClick={actions.requestGiveUp}>
-            {messages.giveUp}
-          </button>
-        </>
-      )}
+      {controls}
     </div>
   );
 }

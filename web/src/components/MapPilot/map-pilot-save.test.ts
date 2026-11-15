@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { throwOnLocalStorage } from "../../test/throwing-storage";
-import { isMapPilotRoundFinished, loadMapPilotSave, mapPilotStorageKey, storeMapPilotSave } from "./map-pilot-save";
+import { isMapPilotRoundFinished, mapPilotStorageKey, storeMapPilotSave } from "./map-pilot-save";
+import { loadMapPilotSave } from "./map-pilot-progress";
 
 const DATE = "2026-09-24";
 
