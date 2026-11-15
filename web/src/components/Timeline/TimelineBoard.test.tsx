@@ -220,6 +220,38 @@ describe("TimelineBoard", () => {
     expect(live).toHaveTextContent(`${draggedTitle} movido para a posição 2 de 5`);
   });
 
+  it("marks the board while a card is dragged and clears it on drop and on a cancelled drag", () => {
+    const { container } = render(<TimelineBoard events={events} locale="pt-BR" onSubmit={vi.fn()} onGiveUp={vi.fn()} />);
+    const board = container.querySelector(".timeline-board-wrapper")!;
+    const controls = container.querySelector(".timeline-controls")!;
+    const controlsHtml = controls.outerHTML;
+    const dt = () => ({ effectAllowed: "", dropEffect: "", setData: vi.fn(), getData: vi.fn().mockReturnValue("0") });
+    const expectBarAsBefore = () => {
+      expect(board).not.toHaveClass("is-dragging");
+      expect(container.querySelector(".timeline-controls")!.outerHTML).toBe(controlsHtml);
+      expect(screen.getByRole("button", { name: "Verificar ordem" })).toBeEnabled();
+    };
+    expectBarAsBefore();
+
+    // Cancelled: dragend with no drop, as when the mouse is released off the board or Escape is pressed.
+    let transfer = dt();
+    fireEvent.dragStart(screen.getAllByRole("listitem")[0]!, { dataTransfer: transfer });
+    expect(board).toHaveClass("is-dragging");
+    // Only the class on the board changes; the bar keeps its markup, roles and labels.
+    expect(container.querySelector(".timeline-controls")!.outerHTML).toBe(controlsHtml);
+    fireEvent.dragEnd(screen.getAllByRole("listitem")[0]!, { dataTransfer: transfer });
+    expectBarAsBefore();
+
+    transfer = dt();
+    fireEvent.dragStart(screen.getAllByRole("listitem")[0]!, { dataTransfer: transfer });
+    expect(board).toHaveClass("is-dragging");
+    fireEvent.dragOver(screen.getAllByRole("listitem")[2]!, { dataTransfer: transfer });
+    fireEvent.drop(screen.getAllByRole("listitem")[2]!, { dataTransfer: transfer });
+    expect(board).not.toHaveClass("is-dragging");
+    fireEvent.dragEnd(screen.getAllByRole("listitem")[2]!, { dataTransfer: transfer });
+    expectBarAsBefore();
+  });
+
   it("disables submit button and locks duplicate clicks on submit", () => {
     const onSubmit = vi.fn();
     render(<TimelineBoard events={events} locale="pt-BR" onSubmit={onSubmit} />);

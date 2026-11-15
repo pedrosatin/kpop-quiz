@@ -8,6 +8,12 @@
   max-width: var(--game-max);
   margin-inline: auto;
 }
+/*
+  A drop reorders the cards, and scroll anchoring would then scroll the page
+  back by one card, leaving the dropped card under the sticky bar. The list
+  is no anchor, so the dropped card stays under the pointer.
+*/
+.timeline-board-list { overflow-anchor: none; }
 .timeline-board-list,
 .timeline-results-list {
   display: flex;
@@ -133,6 +139,14 @@
   gap: var(--space-2);
   padding-top: var(--space-2);
 }
+/*
+  During a drag the sticky bar covers the bottom of the window, where the
+  browser autoscrolls, and it takes no drop. Hiding it there lets the drag
+  scroll and drop on the cards under it. visibility keeps its box, so nothing
+  moves. The bar is back on drop and on dragend, and outside a drag its focus
+  and ARIA do not change.
+*/
+.timeline-board-wrapper.is-dragging .timeline-controls { visibility: hidden; }
 .timeline-btn-submit,
 .timeline-share-btn {
   min-width: 12rem;
