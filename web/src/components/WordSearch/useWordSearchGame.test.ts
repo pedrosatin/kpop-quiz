@@ -1,7 +1,8 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/preact";
 import { useWordSearchGame } from "./useWordSearchGame";
-import { getLinearPath, formatTime, generateWordSearchShareSummary } from "./utils";
+import { getLinearPath, formatTime, generateWordSearchShareSummary, loadStoredProgress } from "./utils";
+import { throwOnLocalStorage } from "../../test/throwing-storage";
 import validPuzzle from "../../tests/fixtures/word-search.daily.json";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import { getMessages } from "../../i18n/catalog";
@@ -599,5 +600,25 @@ describe("restored word search invariants", () => {
     });
     expect(result.current.anchorCell).toBeNull();
     expect(result.current.lastCheck).toBeNull();
+  });
+
+  describe("when localStorage throws", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("starts empty and still finds a word", () => {
+      throwOnLocalStorage();
+      const puzzle = validPuzzle as unknown as WordSearchPuzzle;
+      expect(loadStoredProgress("kpop-word-search-test")).toEqual({
+        foundWordIds: [], elapsedSeconds: 0, status: "in_progress", easyMode: false, clueMode: false,
+      });
+      const target = puzzle.words.find((w) => w.word === "SHINDONG")!;
+      const { result } = renderHook(() => useWordSearchGame(puzzle, "pt-BR"));
+      act(() => result.current.handleCellPointerDown(target.start_row, target.start_col));
+      act(() => {
+        result.current.handleCellPointerEnter(target.end_row, target.end_col);
+        result.current.handleCellPointerUp(target.end_row, target.end_col);
+      });
+      expect(result.current.foundWordIds).toContain(target.id);
+    });
   });
 });

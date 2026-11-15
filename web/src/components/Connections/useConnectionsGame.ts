@@ -1,4 +1,5 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
+import { getLocalStorageItem, removeLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
 import { isDailyBoardRound } from "../../lib/player-stats";
@@ -20,9 +21,9 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export function loadSavedState(key: string | null): ConnectionsStoredState | null {
   if (!key) return null;
+  const saved = getLocalStorageItem(key);
+  if (!saved) return null;
   try {
-    const saved = localStorage.getItem(key);
-    if (!saved) return null;
     const p: ConnectionsStoredState = JSON.parse(saved);
     if (
       !Array.isArray(p.boardItemIds) ||
@@ -81,12 +82,10 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
   // Sync to localStorage
   useEffect(() => {
     if (!storageKey || !puzzle) return;
-    try {
-      const stateToStore: ConnectionsStoredState = {
-        solvedCategoryIds, mistakesRemaining, guessHistory, gameStatus, boardItemIds,
-      };
-      localStorage.setItem(storageKey, JSON.stringify(stateToStore));
-    } catch {}
+    const stateToStore: ConnectionsStoredState = {
+      solvedCategoryIds, mistakesRemaining, guessHistory, gameStatus, boardItemIds,
+    };
+    setLocalStorageItem(storageKey, JSON.stringify(stateToStore));
   }, [storageKey, puzzle, solvedCategoryIds, mistakesRemaining, guessHistory, gameStatus, boardItemIds]);
 
   const toggleSelectItem = useCallback((id: string) => {
@@ -168,7 +167,7 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
     analytics.reset();
     if (!puzzle) return;
     if (storageKey) {
-      try { localStorage.removeItem(storageKey); } catch {}
+      removeLocalStorageItem(storageKey);
     }
     setBoardItemIds(shuffleArray(puzzle.items.map((i) => i.id)));
     setSolvedCategoryIds([]);

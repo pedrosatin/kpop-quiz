@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { getLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import type { Locale } from "../../lib/quiz-types";
 
 const API = "https://tbbc.app/api/rating";
@@ -21,7 +22,7 @@ export function Feedback({ locale, site = import.meta.env.PUBLIC_TBBC_SITE_KEY |
   const voteControl = useRef<Element | null>(null);
   const attempt = useRef<{ comment: string; nonce: string } | null>(null);
   useEffect(() => {
-    try { setVisible(Boolean(site) && localStorage.getItem(STORAGE) !== "1"); } catch { setVisible(Boolean(site)); }
+    setVisible(Boolean(site) && getLocalStorageItem(STORAGE) !== "1");
     return () => { const current = request.current; request.current = null; current?.abort(); };
   }, [site]);
   useEffect(() => {
@@ -30,7 +31,7 @@ export function Feedback({ locale, site = import.meta.env.PUBLIC_TBBC_SITE_KEY |
     }
   }, [id, pending]);
   function dismiss() {
-    try { localStorage.setItem(STORAGE, "1"); } catch { /* storage is optional */ }
+    setLocalStorageItem(STORAGE, "1");
     setVisible(false);
   }
   async function send(path: string, body: object, status: number, accept: (id: string) => void, failure: string) {
@@ -54,13 +55,13 @@ export function Feedback({ locale, site = import.meta.env.PUBLIC_TBBC_SITE_KEY |
   function vote(vote: 1 | -1) {
     if (id) return;
     voteControl.current = document.activeElement;
-    void send("", { site, vote, section: "quiz-result", app: "ponder-club", lang: locale === "pt-BR" ? "pt-BR" : "en" }, 201, (receivedId) => { setId(receivedId); try { localStorage.setItem(STORAGE, "1"); } catch { /* optional */ } }, t.voteError);
+    void send("", { site, vote, section: "quiz-result", app: "ponder-club", lang: locale === "pt-BR" ? "pt-BR" : "en" }, 201, (receivedId) => { setId(receivedId); setLocalStorageItem(STORAGE, "1"); }, t.voteError);
   }
   function comment() {
     const text = value.trim();
     if (!id || !text || pending) return;
     if (attempt.current?.comment !== text) attempt.current = { comment: text, nonce: crypto.randomUUID() };
-    void send(`/${encodeURIComponent(id)}`, attempt.current, 200, () => { setDone(true); try { localStorage.setItem(STORAGE, "1"); } catch { /* optional */ } }, t.commentError);
+    void send(`/${encodeURIComponent(id)}`, attempt.current, 200, () => { setDone(true); setLocalStorageItem(STORAGE, "1"); }, t.commentError);
   }
   if (!visible || !site) return null;
   return <section class="feedback" aria-label={t.question}>

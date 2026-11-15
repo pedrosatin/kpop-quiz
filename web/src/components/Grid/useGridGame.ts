@@ -1,4 +1,5 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
+import { getLocalStorageItem, removeLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import { isDailyMatchRecorded } from "../../lib/player-stats";
 import { gridMatchId, isGridWin } from "./useRecordGridMatch";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
@@ -63,10 +64,10 @@ function nameCells(
  * edited save never shows a board the player did not reach.
  */
 function loadSavedGrid(grid: IntersectionGrid): GridStoredState | null {
+  const raw = getLocalStorageItem(gridStorageKey(grid));
+  if (!raw) return null;
   let saved: unknown;
   try {
-    const raw = localStorage.getItem(gridStorageKey(grid));
-    if (!raw) return null;
     saved = JSON.parse(raw);
   } catch {
     return null;
@@ -239,10 +240,8 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   // is saved even with zero guesses, so the result survives a reload.
   useEffect(() => {
     if (!grid || status === "loading" || status === "error" || (guessesUsed === 0 && !gaveUp)) return;
-    try {
-      const state: GridStoredState = { guessesUsed, cells: storedCells, ...(gaveUp ? { gaveUp: true as const } : {}) };
-      localStorage.setItem(gridStorageKey(grid), JSON.stringify(state));
-    } catch {}
+    const state: GridStoredState = { guessesUsed, cells: storedCells, ...(gaveUp ? { gaveUp: true as const } : {}) };
+    setLocalStorageItem(gridStorageKey(grid), JSON.stringify(state));
   }, [grid, status, guessesUsed, gaveUp, storedCells]);
 
   const selectCell = useCallback((row: number, col: number) => {
@@ -310,9 +309,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   const restartGame = useCallback(() => {
     analytics.reset();
     if (grid) {
-      try {
-        localStorage.removeItem(gridStorageKey(grid));
-      } catch {}
+      removeLocalStorageItem(gridStorageKey(grid));
     }
     setCells(createEmptyCells());
     setUsedEntityIds(new Set());

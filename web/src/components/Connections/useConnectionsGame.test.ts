@@ -2,7 +2,10 @@ import { renderHook, act } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/connections.daily.json";
 import type { ConnectionsPuzzle } from "../../lib/quiz-types";
+import { createInitialPlayerStats, loadPlayerStats } from "../../lib/player-stats";
+import { throwOnLocalStorage } from "../../test/throwing-storage";
 import { loadSavedState, useConnectionsGame } from "./useConnectionsGame";
+import { useRecordConnectionsMatch } from "./useRecordConnectionsMatch";
 
 const puzzle = validPuzzleJson as unknown as ConnectionsPuzzle;
 
@@ -230,5 +233,20 @@ describe("useConnectionsGame state machine", () => {
     act(() => { res = result.current.submitGuess(); });
     expect(res).toEqual({ success: false, oneAway: false, alreadyGuessed: true });
     expect(result.current.mistakesRemaining).toBe(3);
+  });
+
+  it("plays a round to the win and records it when localStorage throws", () => {
+    throwOnLocalStorage();
+    expect(loadSavedState(`kpop-connections-${puzzle.puzzle_id}`)).toBeNull();
+    const { result } = renderHook(() => {
+      const game = useConnectionsGame(puzzle);
+      useRecordConnectionsMatch(puzzle, game.gameStatus, game.gameStatus !== "in_progress");
+      return game;
+    });
+    puzzle.categories.forEach((category) => submitIds(result, category.item_ids));
+    expect(result.current.gameStatus).toBe("won");
+    expect(loadPlayerStats()).toEqual(createInitialPlayerStats());
+    act(() => result.current.restartGame());
+    expect(result.current.gameStatus).toBe("in_progress");
   });
 });

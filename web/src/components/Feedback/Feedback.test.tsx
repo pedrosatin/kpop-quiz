@@ -1,9 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { throwOnLocalStorage } from "../../test/throwing-storage";
 import { Feedback } from "./Feedback";
 const reply = (status: number, body: object) => ({ status, json: async () => body });
 beforeEach(() => localStorage.clear());
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe("quiz feedback", () => {
   it("does nothing without a key and remembers dismissal", async () => {
     const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher);
@@ -14,6 +15,12 @@ describe("quiz feedback", () => {
     view.unmount(); render(<Feedback locale="en" site="k_test" />);
     expect(screen.queryByText("Did you enjoy this game?")).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("asks and dismisses when localStorage throws", async () => {
+    throwOnLocalStorage();
+    render(<Feedback locale="en" site="k_test" />);
+    fireEvent.click(await screen.findByText("Dismiss"));
+    expect(screen.queryByText("Did you enjoy this game?")).toBeNull();
   });
   it.each([["pt-BR", /serviço de avaliações/], ["en", /rating service/]] as const)("explains in plain words who records the answer in %s", async (locale, notice) => {
     render(<Feedback locale={locale} site="k_test" />);

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { dailyReferenceDate } from "../data/daily-artifact";
+import { getLocalStorageItem } from "./local-storage";
 import { getDaysDifference, loadPlayerStats } from "./player-stats";
 import type { Locale, PlayMode } from "./quiz-types";
 
@@ -38,11 +39,9 @@ function sendGameEvent(
 ): void {
   if (typeof window === "undefined" || !accepted || !measurementId) return;
   try {
-    // Honor a rejection made in another tab, too. Private-mode storage may
-    // throw; the explicit in-memory choice still applies to this visit.
-    try {
-      if (window.localStorage.getItem("kpop-quiz-consent") === "rejected") return;
-    } catch { /* storage is optional */ }
+    // Honor a rejection made in another tab, too. Private-mode storage reads
+    // as no choice; the explicit in-memory choice still applies to this visit.
+    if (getLocalStorageItem("kpop-quiz-consent") === "rejected") return;
     const w = window as unknown as Record<string, unknown>;
     if (w[`ga-disable-${measurementId}`] === true || typeof w.gtag !== "function") return;
     const params = {

@@ -1,6 +1,7 @@
 import type { TimelineEvent, TimelinePuzzle } from "../../lib/timeline-types";
 import type { Locale } from "../../lib/quiz-types";
 import type { TimelineDraftState, TimelineStoredState } from "./types";
+import { getLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 
@@ -96,7 +97,7 @@ export function isEventOrderOf(ids: unknown, puzzle: TimelinePuzzle): ids is str
 }
 
 function readStoredObject(storageKey: string): Record<string, unknown> | null {
-  const raw = localStorage.getItem(storageKey);
+  const raw = getLocalStorageItem(storageKey);
   if (!raw) return null;
   const parsed: unknown = JSON.parse(raw);
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
@@ -131,11 +132,7 @@ export function saveTimelineDraft(storageKey: string, puzzle: TimelinePuzzle, or
     orderedEventIds,
     submitted: false,
   };
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(draft));
-  } catch {
-    // Ignore storage quota and permission errors.
-  }
+  setLocalStorageItem(storageKey, JSON.stringify(draft));
 }
 
 /**
@@ -146,10 +143,9 @@ export function loadTimelineSavedState(
   puzzle: TimelinePuzzle
 ): TimelineStoredState | null {
   if (!storageKey) return null;
+  const raw = getLocalStorageItem(storageKey);
+  if (!raw) return null;
   try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return null;
-
     const parsed = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
     if (parsed.puzzleId !== puzzle.puzzle_id) return null;
@@ -194,11 +190,7 @@ export function loadTimelineSavedState(
  * Persist timeline state to localStorage.
  */
 export function saveTimelineState(storageKey: string, state: TimelineStoredState): void {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(state));
-  } catch {
-    // Ignore storage quota and permission errors.
-  }
+  setLocalStorageItem(storageKey, JSON.stringify(state));
 }
 
 export interface GenerateTimelineShareTextParams {

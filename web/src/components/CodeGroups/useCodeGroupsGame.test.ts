@@ -1,10 +1,12 @@
 import { act, renderHook } from "@testing-library/preact";
-import { beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import fixture from "../../../public/data/code-groups.pilot.json";
 import type { CodeGroupsPuzzle } from "../../data/code-groups";
-import { useCodeGroupsGame } from "./useCodeGroupsGame";
+import { throwOnLocalStorage } from "../../test/throwing-storage";
+import { clearCodeGroupsSave, codeGroupsStorageKey, loadCodeGroupsSave, storeCodeGroupsSave, useCodeGroupsGame } from "./useCodeGroupsGame";
 
 beforeEach(() => localStorage.clear());
+afterEach(() => vi.restoreAllMocks());
 it("counts same-turn duplicate submission once and refuses a later repeat without an attempt", () => {
   const puzzle = fixture as CodeGroupsPuzzle;
   const { result } = renderHook(() => useCodeGroupsGame(puzzle, "pt-BR"));
@@ -24,4 +26,18 @@ it("counts same-turn duplicate submission once and refuses a later repeat withou
   act(() => result.current.submit());
   expect(result.current.history).toHaveLength(2);
   expect(result.current.feedback?.kind).toBe("attempt");
+});
+
+it("plays a guess without a save when localStorage throws", () => {
+  const puzzle = fixture as CodeGroupsPuzzle;
+  localStorage.setItem(codeGroupsStorageKey("2000-01-01"), "{}");
+  throwOnLocalStorage();
+  expect(loadCodeGroupsSave(puzzle)).toBeNull();
+  expect(() => storeCodeGroupsSave(puzzle, { history: [], selection: [] })).not.toThrow();
+  expect(() => clearCodeGroupsSave(puzzle)).not.toThrow();
+  const { result } = renderHook(() => useCodeGroupsGame(puzzle, "pt-BR"));
+  const guess = [...puzzle.secret].reverse();
+  act(() => { guess.forEach((id, index) => result.current.selectValue(index, id)); });
+  act(() => result.current.submit());
+  expect(result.current.history).toHaveLength(1);
 });

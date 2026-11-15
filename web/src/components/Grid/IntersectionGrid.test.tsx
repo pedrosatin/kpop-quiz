@@ -7,6 +7,7 @@ import { setGameAnalyticsConsent } from "../../lib/game-analytics";
 import { createInitialPlayerStats, loadPlayerStats, markGameMatchRecorded, savePlayerStats } from "../../lib/player-stats";
 import validGridJson from "../../tests/fixtures/grid.daily.json";
 import legacyGridJson from "../../tests/fixtures/grid.published-legacy-20261026.json";
+import { throwOnLocalStorage } from "../../test/throwing-storage";
 import { cellKey, type GridCellState } from "./types";
 
 const ptMessages = getMessages("pt-BR");
@@ -253,6 +254,15 @@ describe("IntersectionGrid orchestrator component", () => {
     expect(status()).toHaveTextContent("8 palpites restantes. 1 de 9 casas certas.");
     expect(document.querySelector(".game-actions")).toHaveClass("is-correct");
     await waitFor(() => expect(cellButton(0, 1)).toHaveFocus());
+  });
+
+  it("loads and takes a guess when localStorage throws", async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 1, cells: {} }));
+    throwOnLocalStorage();
+    await renderReady();
+    pick(0, 0, "TWICE");
+    await waitFor(() => expect(screen.getByText("1 de 9 casas certas")).toBeInTheDocument());
+    expect(screen.getByText("8 palpites restantes")).toBeInTheDocument();
   });
 
   it("keeps a solved cell focusable but closed to new guesses", async () => {

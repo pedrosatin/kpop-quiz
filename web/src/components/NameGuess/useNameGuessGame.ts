@@ -1,4 +1,5 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
+import { getLocalStorageItem, removeLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import { useCallback, useEffect, useMemo, useReducer } from "preact/hooks";
 import { isDailyBoardRound } from "../../lib/player-stats";
 import type { NameGuessPuzzle, Locale } from "../../lib/quiz-types";
@@ -171,17 +172,16 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-B
 
   // Restore saved state
   useEffect(() => {
+    const raw = getLocalStorageItem(storageKey);
+    if (!raw) return;
     try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as SavedGameState;
-        if (Array.isArray(parsed.guesses) && Array.isArray(parsed.feedbacks)
-          && ["playing", "won", "lost"].includes(parsed.status)) {
-          dispatch({ type: "restore", saved: parsed });
-        }
+      const parsed = JSON.parse(raw) as SavedGameState;
+      if (Array.isArray(parsed.guesses) && Array.isArray(parsed.feedbacks)
+        && ["playing", "won", "lost"].includes(parsed.status)) {
+        dispatch({ type: "restore", saved: parsed });
       }
     } catch {
-      // Ignore storage errors
+      // Ignore a save that is not JSON or not an object.
     }
   }, [storageKey]);
 
@@ -189,12 +189,8 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-B
   // so a give-up before the first guess survives a reload.
   useEffect(() => {
     if (guesses.length === 0 && !highContrast && status === "playing") return;
-    try {
-      const payload: SavedGameState = { guesses, feedbacks, status, highContrast };
-      localStorage.setItem(storageKey, JSON.stringify(payload));
-    } catch {
-      // Ignore storage errors
-    }
+    const payload: SavedGameState = { guesses, feedbacks, status, highContrast };
+    setLocalStorageItem(storageKey, JSON.stringify(payload));
   }, [guesses, feedbacks, status, highContrast, storageKey]);
 
   // Clear transient error message after delay
@@ -226,11 +222,7 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-B
   const resetGame = useCallback(() => {
     analytics.reset();
     dispatch({ type: "reset" });
-    try {
-      localStorage.removeItem(storageKey);
-    } catch {
-      // Ignore storage errors
-    }
+    removeLocalStorageItem(storageKey);
   }, [storageKey]);
 
   // Key status mapping for virtual keyboard

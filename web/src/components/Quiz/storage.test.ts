@@ -6,7 +6,9 @@ import {
   checkQuizProgressCompatibility,
   clearQuizProgress,
   expandHistory,
+  listQuizProgressSaves,
   loadQuizProgressSave,
+  loadStoredPreferences,
   parseQuizProgressSave,
   QUIZ_PROGRESS_LEGACY_STORAGE_KEY,
   QUIZ_PROGRESS_SCHEMA,
@@ -14,8 +16,12 @@ import {
   quizProgressConfigKey,
   quizProgressSlotId,
   quizProgressStorageKey,
+  peekQuizProgressSave,
   saveQuizProgress,
+  saveStoredPlayMode,
+  saveStoredTimerEnabled,
 } from "./storage";
+import { throwOnLocalStorage } from "../../test/throwing-storage";
 import type { QuizSession } from "../../lib/quiz-types";
 
 const session = ptSession as QuizSession;
@@ -207,6 +213,19 @@ describe("quiz progress storage", () => {
       throw new Error("blocked");
     });
     expect(loadQuizProgressSave(ptConfig)).toEqual({ status: "unavailable" });
+  });
+
+  it("reports every slot as unavailable or empty when localStorage throws", () => {
+    localStorage.setItem(quizProgressStorageKey(ptConfig), JSON.stringify(baseSave()));
+    throwOnLocalStorage();
+    expect(loadQuizProgressSave(ptConfig)).toEqual({ status: "unavailable" });
+    expect(peekQuizProgressSave(ptConfig)).toBeNull();
+    expect(listQuizProgressSaves()).toEqual([]);
+    expect(saveQuizProgress(baseSave())).toBe("unavailable");
+    expect(clearQuizProgress(ptConfig)).toBe("unavailable");
+    expect(loadStoredPreferences()).toEqual({ playMode: null, timerEnabled: null });
+    expect(() => saveStoredPlayMode("expert")).not.toThrow();
+    expect(() => saveStoredTimerEnabled(true)).not.toThrow();
   });
 
   it("accepts a compatible published save and rejects identity drift", () => {

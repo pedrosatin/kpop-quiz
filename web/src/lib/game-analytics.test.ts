@@ -10,6 +10,7 @@ import {
   type GameRoundContext,
 } from "./game-analytics";
 import { createInitialPlayerStats, recordGameFinish, savePlayerStats, type GameId, type GameStats } from "./player-stats";
+import { throwOnLocalStorage } from "../test/throwing-storage";
 import { useCodeGroupsGame } from "../components/CodeGroups/useCodeGroupsGame";
 import { useConnectionsGame } from "../components/Connections/useConnectionsGame";
 import { useRecordConnectionsMatch } from "../components/Connections/useRecordConnectionsMatch";
@@ -100,6 +101,14 @@ describe("consented game measurement", () => {
     localStorage.clear();
     vi.stubGlobal("gtag", undefined);
     expect(() => trackGameEvent("game_start", context)).not.toThrow();
+  });
+
+  it("still sends the event when localStorage throws", () => {
+    throwOnLocalStorage();
+    trackGameEvent("game_start", context);
+    expect(gtag).toHaveBeenCalledWith("event", "game_start", {
+      game: "quiz", locale: "en", mode: "expert", send_to: "G-TEST",
+    });
   });
 
   it("consumes pre-consent start, emits only new completion, and never replays after reacceptance", () => {

@@ -2,6 +2,7 @@ import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-typ
 import type { CellCoord, GameStatus } from "./types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
+import { getLocalStorageItem } from "../../lib/local-storage";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 
@@ -14,8 +15,8 @@ export interface StoredProgress {
 }
 
 export function loadStoredProgress(key: string, validWordIds?: ReadonlySet<string>): StoredProgress {
+  const raw = getLocalStorageItem(key);
   try {
-    const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object") throw new Error("Invalid progress");
