@@ -1,5 +1,15 @@
 import type { Locale } from "../lib/quiz-types";
 import { preferNextDaily } from "./daily-artifact";
+import {
+  ISO_DATE_PATTERN,
+  hasDistinctItems,
+  hasExactKeys,
+  isHash,
+  isIntegerInRange,
+  isNonBlankString,
+  isQid,
+  isRecord,
+} from "../lib/guards";
 
 export interface CodeGroupsSource {
   revision_id: number;
@@ -37,9 +47,37 @@ export class CodeGroupsArtifactError extends Error {
   }
 }
 
-const HASH = /^[a-f0-9]{64}$/;
-const QID = /^Q[1-9][0-9]*$/;
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const PUZZLE_FIELDS = [
+  "schema_version", "mode", "puzzle_id", "dataset_version", "reference_date", "seed", "symbols", "secret", "max_attempts",
+];
+
+/**
+ * The reference date as the generator writes it. A month or day no month has
+ * makes toISOString throw RangeError, which the guard does not catch. That
+ * happens with a month 00 or 13, or a day 00 or 32.
+ */
+function isGeneratorDate(value: string): boolean {
+  return ISO_DATE_PATTERN.test(value)
+    && new Date(`${value}T12:00:00Z`).toISOString().slice(0, 10) === value;
+}
+
+/** A Wikidata revision of the symbol's P31 claim, linked by its permanent URL. */
+function isSymbolSource(value: unknown, qid: string): boolean {
+  // The revision must be a safe integer, unlike the revision ids of the other games.
+  return isRecord(value)
+    && hasExactKeys(value, ["revision_id", "locator", "url"])
+    && isIntegerInRange(value.revision_id, 1, Number.MAX_SAFE_INTEGER)
+    && value.locator === "claims.P31"
+    && value.url === `https://www.wikidata.org/w/index.php?title=${qid}&oldid=${value.revision_id}`;
+}
+
+function isSymbol(value: unknown): value is CodeGroupsSymbol {
+  return isRecord(value)
+    && hasExactKeys(value, ["qid", "name", "source"])
+    && isQid(value.qid)
+    && isNonBlankString(value.name)
+    && isSymbolSource(value.source, value.qid);
+}
 
 /**
  * Structural contract of the generator (kpop_scraping/code_groups_cli.py),
@@ -47,26 +85,23 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
  * identity of both the main and the next/ copy is verified afterwards.
  */
 export function isCodeGroupsPuzzle(value: unknown): value is CodeGroupsPuzzle {
-  const p = value as CodeGroupsPuzzle;
-  if (!p || typeof p !== "object" || Array.isArray(p)) return false;
+  if (!isRecord(value)) return false;
+  const p = value as unknown as CodeGroupsPuzzle;
   if (p.schema_version !== "code-groups-pilot-v1" || p.mode !== "pilot" || p.max_attempts !== 10) return false;
-  if (Object.keys(p).length !== 9) return false;
-  if (![p.puzzle_id, p.dataset_version, p.seed, p.reference_date].every((s) => typeof s === "string" && s.trim().length > 0)) return false;
-  if (!HASH.test(p.puzzle_id) || !HASH.test(p.dataset_version)) return false;
-  if (!DATE.test(p.reference_date) || new Date(`${p.reference_date}T12:00:00Z`).toISOString().slice(0, 10) !== p.reference_date) return false;
+  // The root is counted and its names are not checked. With hasExactKeys, a root
+  // with two misnamed keys and month 13 would be refused before the date check
+  // instead of throwing RangeError, so counting keeps the old behaviour.
+  if (Object.keys(value).length !== PUZZLE_FIELDS.length) return false;
+  if (![p.puzzle_id, p.dataset_version, p.seed, p.reference_date].every(isNonBlankString)) return false;
+  if (!isHash(p.puzzle_id) || !isHash(p.dataset_version)) return false;
+  if (!isGeneratorDate(p.reference_date)) return false;
   if (!Array.isArray(p.symbols) || p.symbols.length !== 6) return false;
-  for (const s of p.symbols) {
-    if (!s || typeof s !== "object" || Object.keys(s).length !== 3) return false;
-    if (typeof s.qid !== "string" || !QID.test(s.qid)) return false;
-    if (typeof s.name !== "string" || !s.name.trim()) return false;
-    if (!s.source || typeof s.source !== "object" || Object.keys(s.source).length !== 3) return false;
-    if (!Number.isSafeInteger(s.source.revision_id) || s.source.revision_id < 1) return false;
-    if (s.source.locator !== "claims.P31") return false;
-    if (s.source.url !== `https://www.wikidata.org/w/index.php?title=${s.qid}&oldid=${s.source.revision_id}`) return false;
+  for (const symbol of p.symbols) {
+    if (!isSymbol(symbol)) return false;
   }
   const ids = new Set(p.symbols.map((s) => s.qid));
   if (ids.size !== 6) return false;
-  if (!Array.isArray(p.secret) || p.secret.length !== 4 || new Set(p.secret).size !== 4) return false;
+  if (!Array.isArray(p.secret) || p.secret.length !== 4 || !hasDistinctItems(p.secret)) return false;
   return p.secret.every((id) => ids.has(id));
 }
 

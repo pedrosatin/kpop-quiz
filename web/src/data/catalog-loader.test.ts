@@ -271,6 +271,16 @@ describe("published question catalog", () => {
       ["pool repeats an index", (s) => { s.pools.all[1] = s.pools.all[0]; }, /shard pool all/],
       ["pool of another decade", (s) => { s.pools["decade.1990"] = [0]; }, /decade/],
       ["missing pool", (s) => { delete s.pools["decade.2010"]; }, /shard pools/],
+      ["extra pool", (s) => { s.pools["decade.1980"] = []; }, /shard pools$/],
+      ["pools that are a list", (s) => { s.pools = []; }, /shard pools$/],
+      ["pool that is not a list", (s) => { s.pools.all = {}; }, /shard pool all$/],
+      ["fractional pool index", (s) => { s.pools.all[0] = 0.5; }, /shard pool all$/],
+      ["negative pool index", (s) => { s.pools.all[0] = -1; }, /shard pool all$/],
+      ["empty generator version", (s) => { s.generator_version = ""; }, /shard generator_version$/],
+      ["numeric template version", (s) => { s.template_version = 1; }, /shard template_version$/],
+      ["missing source policy version", (s) => { s.source_policy_version = null; }, /shard source_policy_version$/],
+      ["questions that are not a list", (s) => { s.questions = {}; }, /shard questions$/],
+      ["question reference date", (s) => { s.questions[0].reference_date = "2020-01-01"; }, /shard question reference date$/],
       ["question outside every pool", (s) => { s.pools.all.pop(); s.pools["decade.2000"].pop(); }, /outside every pool/, false],
     ])("refuses a shard with a bad %s even if the manifest hashes it", async (_name, change, reason, keepCounts = true) => {
       const world = publishedWorld();

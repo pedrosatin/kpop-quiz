@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConnectionsArtifactError, loadConnectionsPuzzle } from "./connections-loader";
 import { isConnectionsPuzzle } from "../lib/quiz-types";
 import validPuzzle from "../tests/fixtures/connections.daily.json";
+import { guardAfterChange, guardRows, withoutEachField, type GuardCase } from "../test/guard-table";
 
 describe("published connections puzzle loader and validator", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -89,5 +90,42 @@ describe("published connections puzzle loader and validator", () => {
   it("rejects when fetch throws a network error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network offline")));
     await expect(loadConnectionsPuzzle("pt-BR")).rejects.toEqual(new ConnectionsArtifactError("invalid"));
+  });
+});
+
+const CONNECTIONS_CASES: GuardCase[] = [
+  ["the fixture", () => {}, true],
+  ["an extra key", (p) => { p.extra = 1; }, false],
+  ...withoutEachField(["schema_version", "puzzle_id", "dataset_version", "reference_date", "dimensions", "categories", "items"]),
+  ["a short puzzle id", (p) => { p.puzzle_id = "abc"; }, false],
+  ["an uppercase dataset version", (p) => { p.dataset_version = "A".repeat(64); }, false],
+  ["a reference date before year 100", (p) => { p.reference_date = "0099-01-01"; }, false],
+  ["dimensions with an extra key", (p) => { p.dimensions.extra = 1; }, false],
+  ["16 items given as text", (p) => { p.dimensions.total_items = "16"; }, false],
+  ["a category with an empty id", (p) => { p.categories[0].id = ""; }, false],
+  ["a category with a blank id", (p) => { p.categories[0].id = " "; }, true],
+  ["a category label without English", (p) => { delete p.categories[0].label.en; }, false],
+  ["a category explanation with an extra key", (p) => { p.categories[0].explanation.es = "x"; }, false],
+  ["a category explanation with an empty text", (p) => { p.categories[0].explanation["pt-BR"] = ""; }, false],
+  ["difficulty 5", (p) => { p.categories[0].difficulty_level = 5; }, false],
+  ["difficulty 0", (p) => { p.categories[0].difficulty_level = 0; }, false],
+  ["difficulty as text", (p) => { p.categories[0].difficulty_level = String(p.categories[0].difficulty_level); }, false],
+  ["a category with three items", (p) => { p.categories[0].item_ids.pop(); }, false],
+  ["a category repeating an item", (p) => { p.categories[0].item_ids[1] = p.categories[0].item_ids[0]; }, false],
+  ["a category with an item that is not a QID", (p) => { p.categories[0].item_ids[0] = "Q0"; }, false],
+  ["a category without evidence", (p) => { p.categories[0].evidence = []; }, false],
+  ["category evidence with an empty locator", (p) => { p.categories[0].evidence[0].locator = ""; }, false],
+  ["category evidence revision 0", (p) => { p.categories[0].evidence[0].revision_id = 0; }, false],
+  ["a category with an extra key", (p) => { p.categories[0].extra = 1; }, false],
+  ["an item whose id is not a QID", (p) => { p.items[0].id = "x"; }, false],
+  ["an item with an empty name", (p) => { p.items[0].canonical_name = ""; }, false],
+  ["an item without English label", (p) => { delete p.items[0].labels.en; }, false],
+  ["an item with an extra key", (p) => { p.items[0].extra = 1; }, false],
+  ["a repeated item", (p) => { p.items[1] = structuredClone(p.items[0]); }, false],
+];
+
+describe("isConnectionsPuzzle fields", () => {
+  it.each(guardRows(CONNECTIONS_CASES))("with $label: accepted is $accepted", ({ change, accepted }) => {
+    expect(guardAfterChange(validPuzzle, change, isConnectionsPuzzle)).toBe(accepted);
   });
 });

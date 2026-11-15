@@ -1,5 +1,6 @@
 import eventData from "../../../data/map-pilot/deadline-events.json";
 import worldMap from "./map-pilot/world-map.json";
+import { ISO_DATE_PATTERN, isNonBlankString, isRecord, matchesPattern } from "../lib/guards";
 import { isHttpsUrl } from "../lib/https-url";
 
 export interface MapPilotEvent {
@@ -94,21 +95,54 @@ export function mapPilotCountryLabel(country: MapPilotCountry, locale: "pt-BR" |
     : country.label;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isIsoDate(value: unknown): value is string {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+/**
+ * A YYYY-MM-DD date that reads back the same through Date. Unlike `isIsoDate`
+ * in the shared guards, it accepts the years 0000 to 0099.
+ */
+function isParsedIsoDate(value: unknown): value is string {
+  if (!matchesPattern(value, ISO_DATE_PATTERN)) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
+/** A listed concert the artist headlines. It accepts extra keys. */
+function isListedConcert(event: Record<string, unknown>): boolean {
+  return event.predicate === "announced_performance_city"
+    && event.schedule_status === "listed"
+    && event.status === "accepted"
+    && event.event_type === "concert"
+    && (event.billing_role === "headliner" || event.billing_role === "co_headliner")
+    && isParsedIsoDate(event.event_date);
+}
+
+/** The ids that place the event on the map, and the sources that cite it. */
+function hasEventPlaceAndSources(event: Record<string, unknown>): boolean {
+  return isParsedIsoDate(event.source_checked_at)
+    && typeof event.event_mbid === "string"
+    && typeof event.country_wikidata_id === "string"
+    && typeof event.country_iso_3166_1 === "string"
+    && typeof event.map_feature_id === "string"
+    && isNonBlankString(event.source_locator)
+    && isHttpsUrl(event.source_url)
+    && isHttpsUrl(event.musicbrainz_event_url);
+}
+
+function isMapPilotEvent(value: unknown): value is Record<string, unknown> & { event_mbid: string } {
+  return isRecord(value) && isListedConcert(value) && hasEventPlaceAndSources(value);
+}
+
+function isMapPilotCountry(value: unknown): value is Omit<MapPilotCountry, "label"> {
+  return isRecord(value)
+    && typeof value.wikidata_id === "string"
+    && typeof value.iso_3166_1 === "string"
+    && typeof value.map_feature_id === "string";
 }
 
 export function isMapPilotDataset(value: unknown): value is MapPilotDataset {
   if (!isRecord(value)) return false;
   if (
     value.schema_version !== "kpop-map-pilot-events-v2"
-    || !isIsoDate(value.reference_date)
+    || !isParsedIsoDate(value.reference_date)
     || typeof value.country_crosswalk_id !== "string"
     || !Array.isArray(value.events)
     || value.events.length === 0
@@ -117,33 +151,13 @@ export function isMapPilotDataset(value: unknown): value is MapPilotDataset {
 
   const eventIds = new Set<string>();
   for (const event of value.events) {
-    if (!isRecord(event)
-      || event.predicate !== "announced_performance_city"
-      || event.schedule_status !== "listed"
-      || event.status !== "accepted"
-      || event.event_type !== "concert"
-      || (event.billing_role !== "headliner" && event.billing_role !== "co_headliner")
-      || !isIsoDate(event.event_date)
-      || !isIsoDate(event.source_checked_at)
-      || typeof event.event_mbid !== "string"
-      || typeof event.country_wikidata_id !== "string"
-      || typeof event.country_iso_3166_1 !== "string"
-      || typeof event.map_feature_id !== "string"
-      || typeof event.source_locator !== "string"
-      || event.source_locator.trim().length === 0
-      || !isHttpsUrl(event.source_url)
-      || !isHttpsUrl(event.musicbrainz_event_url)) return false;
-    if (eventIds.has(event.event_mbid)) return false;
+    if (!isMapPilotEvent(event) || eventIds.has(event.event_mbid)) return false;
     eventIds.add(event.event_mbid);
   }
 
   const countryIds = new Set<string>();
   for (const country of value.countries) {
-    if (!isRecord(country)
-      || typeof country.wikidata_id !== "string"
-      || typeof country.iso_3166_1 !== "string"
-      || typeof country.map_feature_id !== "string"
-      || countryIds.has(country.map_feature_id)) return false;
+    if (!isMapPilotCountry(country) || countryIds.has(country.map_feature_id)) return false;
     countryIds.add(country.map_feature_id);
   }
 

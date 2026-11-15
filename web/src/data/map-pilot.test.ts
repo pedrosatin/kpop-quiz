@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import eventData from "../../../data/map-pilot/deadline-events.json";
+import { guardAfterChange, guardRows, type GuardCase } from "../test/guard-table";
 import {
   isBundledMapPilotDatasetValid,
   isMapPilotDataset,
@@ -61,5 +62,48 @@ describe("map pilot data", () => {
     const invalid = structuredClone(eventData);
     invalid.events[1]!.event_mbid = invalid.events[0]!.event_mbid;
     expect(isMapPilotDataset(invalid)).toBe(false);
+  });
+});
+
+const MAP_CASES: GuardCase[] = [
+  ["the bundled data", () => {}, true],
+  ["an extra key", (d) => { d.extra = 1; }, true],
+  ["another schema", (d) => { d.schema_version = "kpop-map-pilot-events-v1"; }, false],
+  ["a reference date that does not exist", (d) => { d.reference_date = "2026-02-30"; }, false],
+  ["a reference date before year 100", (d) => { d.reference_date = "0099-01-01"; }, true],
+  ["a numeric crosswalk", (d) => { d.country_crosswalk_id = 1; }, false],
+  ["an empty crosswalk", (d) => { d.country_crosswalk_id = ""; }, true],
+  ["no event", (d) => { d.events = []; }, false],
+  ["events that are not a list", (d) => { d.events = {}; }, false],
+  ["countries that are not a list", (d) => { d.countries = {}; }, false],
+  ["no country", (d) => { d.countries = []; }, false],
+  ["an event that is null", (d) => { d.events[0] = null; }, false],
+  ["an event with an extra key", (d) => { d.events[0].extra = 1; }, true],
+  ["an event without tour", (d) => { delete d.events[0].tour_mbid; }, true],
+  ["another predicate", (d) => { d.events[0].predicate = "performed_in_city"; }, false],
+  ["a schedule not listed", (d) => { d.events[0].schedule_status = "rumored"; }, false],
+  ["an event not accepted", (d) => { d.events[0].status = "pending"; }, false],
+  ["a festival", (d) => { d.events[0].event_type = "festival"; }, false],
+  ["a co-headliner", (d) => { d.events[0].billing_role = "co_headliner"; }, true],
+  ["a support act", (d) => { d.events[0].billing_role = "support"; }, false],
+  ["an event date that does not exist", (d) => { d.events[0].event_date = "2026-13-01"; }, false],
+  ["a check date before year 100", (d) => { d.events[0].source_checked_at = "0099-01-01"; }, true],
+  ["a numeric event id", (d) => { d.events[0].event_mbid = 1; }, false],
+  ["a numeric country id", (d) => { d.events[0].country_wikidata_id = 1; }, false],
+  ["a numeric country code", (d) => { d.events[0].country_iso_3166_1 = 1; }, false],
+  ["a numeric map feature", (d) => { d.events[0].map_feature_id = 1; }, false],
+  ["an event on a map feature without country", (d) => { d.events[0].map_feature_id = "ATA"; }, false],
+  ["an empty locator", (d) => { d.events[0].source_locator = ""; }, false],
+  ["a blank locator", (d) => { d.events[0].source_locator = " "; }, false],
+  ["a country with an extra key", (d) => { d.countries[0].extra = 1; }, true],
+  ["a numeric country QID", (d) => { d.countries[0].wikidata_id = 1; }, false],
+  ["a numeric country ISO code", (d) => { d.countries[0].iso_3166_1 = 1; }, false],
+  ["a numeric country map feature", (d) => { d.countries[0].map_feature_id = 1; }, false],
+  ["a repeated country", (d) => { d.countries.push(structuredClone(d.countries[0])); }, false],
+];
+
+describe("isMapPilotDataset fields", () => {
+  it.each(guardRows(MAP_CASES))("with $label: accepted is $accepted", ({ change, accepted }) => {
+    expect(guardAfterChange(eventData, change, isMapPilotDataset)).toBe(accepted);
   });
 });

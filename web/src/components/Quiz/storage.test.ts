@@ -23,6 +23,7 @@ import {
 } from "./storage";
 import { throwOnLocalStorage } from "../../test/throwing-storage";
 import type { QuizSession } from "../../lib/quiz-types";
+import { guardAfterChange, guardRows, type GuardCase } from "../../test/guard-table";
 
 const session = ptSession as QuizSession;
 
@@ -348,5 +349,89 @@ describe("quiz progress storage", () => {
     expect(loadQuizProgressSave(ptConfig).status).toBe("ok");
     expect(localStorage.getItem(QUIZ_PROGRESS_LEGACY_STORAGE_KEY)).toBeNull();
     expect(localStorage.getItem(quizProgressStorageKey(ptConfig))).toBeTruthy();
+  });
+});
+
+const HASH_B = "b".repeat(64);
+const isParsedSave = (value: unknown) => parseQuizProgressSave(value) !== null;
+
+/** Turns the save into a catalog round of `catalogVersion`. */
+const asCatalogRound = (save: any, catalogVersion = HASH_B) => {
+  save.session_source = "catalog";
+  save.catalog_version = catalogVersion;
+  save.session.catalog_version = catalogVersion;
+};
+
+// The fixture save waits on question 2 of a published round, with question 1 answered.
+const PROGRESS_SAVE_CASES: GuardCase[] = [
+  ["the fixture", () => {}, true],
+  ["an extra key", (s) => { s.extra = 1; }, true],
+  ["another schema", (s) => { s.schema_version = "kpop-quiz-progress-v2"; }, false],
+  ["an empty session id", (s) => { s.session_id = ""; }, false],
+  ["a numeric session id", (s) => { s.session_id = 1; }, false],
+  ["an empty dataset version", (s) => { s.dataset_version = ""; }, false],
+  ["a session id other than the session's", (s) => { s.session_id = HASH_B; }, false],
+  ["a dataset version other than the session's", (s) => { s.dataset_version = HASH_B; }, false],
+  ["an unknown session source", (s) => { s.session_source = "imported"; }, false],
+  ["a catalog version on a published round", (s) => { s.catalog_version = HASH_B; }, false],
+  ["an empty catalog version", (s) => { s.catalog_version = ""; }, false],
+  ["a catalog round", (s) => { asCatalogRound(s); }, true],
+  ["a catalog round whose version is not a hash", (s) => { asCatalogRound(s, "b"); }, false],
+  ["a catalog round without version", (s) => { asCatalogRound(s); delete s.catalog_version; }, false],
+  ["a catalog round whose session has another version", (s) => { asCatalogRound(s); s.session.catalog_version = "c".repeat(64); }, false],
+  ["an unknown locale", (s) => { s.locale = "fr"; }, false],
+  ["an unknown play mode", (s) => { s.play_mode = "casual"; }, false],
+  ["an unknown theme", (s) => { s.theme = "members"; }, false],
+  ["a decade", (s) => { s.decades = [2000]; }, true],
+  ["an unknown decade", (s) => { s.decades = [1980]; }, false],
+  ["decades that are not a list", (s) => { s.decades = 2000; }, false],
+  ["a timer flag as text", (s) => { s.timer_enabled = "true"; }, false],
+  ["a session that is not valid", (s) => { s.session = {}; }, false],
+  ["an unknown machine state", (s) => { s.machine_state = "intro"; }, false],
+  ["the answered state", (s) => { s.machine_state = "question.answered"; s.question_index = 0; }, true],
+  ["question index -1", (s) => { s.question_index = -1; }, false],
+  ["a fractional question index", (s) => { s.question_index = 1.5; }, false],
+  ["a question index past the history", (s) => { s.question_index = 2; }, false],
+  ["a numeric selection", (s) => { s.selected_id = 1; }, false],
+  ["a selection outside the options", (s) => { s.selected_id = HASH_B; }, false],
+  ["a selection among the options", (s) => { s.selected_id = s.session.questions[1].options[0].id; }, true],
+  ["a timeout flag as text", (s) => { s.timed_out = "no"; }, false],
+  ["a negative score", (s) => { s.score = -5; }, true],
+  ["an infinite score", (s) => { s.score = Infinity; }, false],
+  ["a score as text", (s) => { s.score = "1"; }, false],
+  ["revealed clues that are not a list", (s) => { s.revealed_clues = "x"; }, false],
+  ["an empty revealed clue", (s) => { s.revealed_clues = [""]; }, false],
+  ["a revealed clue the question lacks", (s) => { s.revealed_clues = ["x"]; }, false],
+  ["history that is not a list", (s) => { s.history = {}; }, false],
+  ["a history entry without question", (s) => { s.history[0].question_id = ""; }, false],
+  ["a history entry for another question", (s) => { s.history[0].question_id = s.session.questions[1].id; }, false],
+  ["a history entry with a numeric choice", (s) => { s.history[0].selected_option_id = 1; }, false],
+  ["a history entry with a choice outside the options", (s) => { s.history[0].selected_option_id = HASH_B; }, false],
+  ["a history entry without choice", (s) => { s.history[0].selected_option_id = null; }, true],
+  ["a history entry with a result as text", (s) => { s.history[0].is_correct = "no"; }, false],
+  ["a history entry with -1 clues", (s) => { s.history[0].clues_used_count = -1; }, false],
+  ["a history entry with fractional clues", (s) => { s.history[0].clues_used_count = 0.5; }, false],
+  ["a history entry with an extra key", (s) => { s.history[0].extra = 1; }, true],
+  ["no deadline", (s) => { s.question_deadline_ms = null; }, true],
+  ["a deadline as text", (s) => { s.question_deadline_ms = "1"; }, false],
+  ["an infinite deadline", (s) => { s.question_deadline_ms = Infinity; }, false],
+  ["a start time as text", (s) => { s.started_at_ms = "1"; }, false],
+  ["a negative start time", (s) => { s.started_at_ms = -1; }, true],
+  ["negative elapsed seconds", (s) => { s.elapsed_seconds = -1; }, false],
+  ["fractional elapsed seconds", (s) => { s.elapsed_seconds = 0.5; }, true],
+  ["a give-up flag as number", (s) => { s.gave_up = 1; }, false],
+  ["replay notice ok", (s) => { s.replay_notice = "ok"; }, true],
+  ["replay notice repeats", (s) => { s.replay_notice = "repeats"; }, true],
+  ["no replay notice", (s) => { s.replay_notice = null; }, true],
+  ["an unknown replay notice", (s) => { s.replay_notice = "fresh"; }, false],
+];
+
+describe("parseQuizProgressSave fields", () => {
+  it.each(guardRows(PROGRESS_SAVE_CASES))("with $label: accepted is $accepted", ({ change, accepted }) => {
+    expect(guardAfterChange(baseSave(), change, isParsedSave)).toBe(accepted);
+  });
+
+  it.each([null, [], "save"])("refuses %j", (value) => {
+    expect(parseQuizProgressSave(value)).toBeNull();
   });
 });
