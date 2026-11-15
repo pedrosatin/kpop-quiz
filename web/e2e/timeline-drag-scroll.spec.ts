@@ -11,7 +11,7 @@ import { cardIds, savedOrder } from "./helpers/timeline-board";
 // In a 500 px window the sticky action bar (.timeline-controls) covers the
 // bottom 117 px, so the browser's drag autoscroll zone at the bottom edge sits
 // on the bar, and the last card scrolls in from under it. The bar does not
-// accept a drop: its dragover is not cancelled, so releasing there fires
+// cancel dragover, so it does not accept a drop, and releasing there fires
 // dragend and no drop. A drag that aims at a card point measured inside the
 // viewport but under the bar, while the page is still scrolling, ends on the
 // bar and leaves the order alone. That is how a synthetic drag failed in the
@@ -122,7 +122,7 @@ for (const locale of locales) {
   });
 
   test(`timeline drops the first card on the last one after the bottom edge autoscrolls the page (${locale.id})`, async ({ page, baseURL, browserName }) => {
-    test.skip(browserName !== "chromium", "Firefox under Playwright does not autoscroll during a drag");
+    test.skip(browserName !== "chromium", "Only Chromium autoscrolls at the edge under Playwright; WebKit is not measured");
     const { opening, scrollY } = await openBoardAtFirstCard(page, baseURL!, locale.path);
 
     const pointer = await startDrag(page, 0);
