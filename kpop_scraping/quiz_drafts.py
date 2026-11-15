@@ -166,6 +166,15 @@ def _birth_date_draft(
     )
 
 
+def _born_after(fact: Fact, reference_date: date) -> bool:
+    """Return whether a day-precision birth falls after the reference date.
+
+    Such a birth yields neither the answer nor a distractor of an age draft,
+    so no alternative is a negative age.
+    """
+    return date.fromisoformat(fact.value_time or "") > reference_date
+
+
 def _age_on_date_draft(
     fact: Fact,
     born: list[Fact],
@@ -178,7 +187,7 @@ def _age_on_date_draft(
     if fact.value_precision != 11 or "insufficient_precision_for_age" in fact.flags:
         rejected["insufficient_precision_for_age"] += 1
         return None
-    if date.fromisoformat(fact.value_time or "") > reference_date:
+    if _born_after(fact, reference_date):
         rejected["birth_after_reference_date"] += 1
         return None
     age = _age_on(fact.value_time or "", reference_date)
@@ -188,6 +197,7 @@ def _age_on_date_draft(
             for other in born
             if other.value_precision == 11
             and "insufficient_precision_for_age" not in other.flags
+            and not _born_after(other, reference_date)
         }
     )
     alternatives = _numeric_alternatives(age, age_values)
