@@ -1,3 +1,4 @@
+import { isIntegerInRange, isNonEmptyString, isRecord, isStringList } from "../../lib/guards";
 import {
   getLocalStorageItem,
   listLocalStorageKeys,
@@ -182,10 +183,6 @@ export function buildQuizProgressEnvelope(
   return envelope;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function isLocale(value: unknown): value is Locale {
   return value === "pt-BR" || value === "en";
 }
@@ -205,94 +202,78 @@ function isDecadeSelection(value: unknown): value is QuizDecadeSelection {
   );
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 function isHistoryEntry(value: unknown): value is QuizProgressHistoryEntry {
   if (!isRecord(value)) return false;
   return (
-    typeof value.question_id === "string"
-    && value.question_id.length > 0
+    isNonEmptyString(value.question_id)
     && (value.selected_option_id === null || typeof value.selected_option_id === "string")
     && typeof value.is_correct === "boolean"
-    && typeof value.clues_used_count === "number"
-    && Number.isInteger(value.clues_used_count)
-    && value.clues_used_count >= 0
+    && isIntegerInRange(value.clues_used_count, 0)
   );
+}
+
+const MACHINE_STATES = new Set(["question.ready", "question.answered", "results"]);
+const REPLAY_NOTICES = new Set([null, "ok", "repeats", "legacy-repeats"]);
+
+/** Schema, session identity and where the session came from. */
+function hasEnvelopeFields(raw: Record<string, unknown>): boolean {
+  return raw.schema_version === QUIZ_PROGRESS_SCHEMA
+    && isNonEmptyString(raw.session_id)
+    && isNonEmptyString(raw.dataset_version)
+    && (raw.session_source === "catalog" || raw.session_source === "published")
+    && (raw.catalog_version === undefined || isNonEmptyString(raw.catalog_version));
+}
+
+/** The config the round was set up with. */
+function hasRoundConfig(raw: Record<string, unknown>): boolean {
+  return isLocale(raw.locale)
+    && isPlayMode(raw.play_mode)
+    && isTheme(raw.theme)
+    && isDecadeSelection(raw.decades)
+    && typeof raw.timer_enabled === "boolean";
+}
+
+/** Where the player is in the round: question, choice, score, clues and history. */
+function hasRoundPosition(raw: Record<string, unknown>): boolean {
+  return typeof raw.machine_state === "string" && MACHINE_STATES.has(raw.machine_state)
+    && isIntegerInRange(raw.question_index, 0)
+    && (raw.selected_id === null || typeof raw.selected_id === "string")
+    && typeof raw.timed_out === "boolean"
+    && isFiniteNumber(raw.score)
+    && isStringList(raw.revealed_clues)
+    && Array.isArray(raw.history) && raw.history.every(isHistoryEntry);
+}
+
+/** Deadline, start, elapsed time and how the round ended. */
+function hasRoundClock(raw: Record<string, unknown>): boolean {
+  return (raw.question_deadline_ms === null || isFiniteNumber(raw.question_deadline_ms))
+    && isFiniteNumber(raw.started_at_ms)
+    && isFiniteNumber(raw.elapsed_seconds) && raw.elapsed_seconds >= 0
+    && typeof raw.gave_up === "boolean"
+    && REPLAY_NOTICES.has(raw.replay_notice as string | null);
+}
+
+/** The envelope names the embedded session, and a catalog round its catalog version. */
+function envelopeMatchesSession(save: QuizProgressSave): boolean {
+  if (save.session.session_id !== save.session_id) return false;
+  if (save.session.dataset_version !== save.dataset_version) return false;
+  if (save.session_source === "catalog") {
+    return isNonEmptyString(save.catalog_version) && save.session.catalog_version === save.catalog_version;
+  }
+  return save.catalog_version === undefined;
 }
 
 /** Parse and structurally validate a progress payload (no artifact check yet). */
 export function parseQuizProgressSave(raw: unknown): QuizProgressSave | null {
   if (!isRecord(raw)) return null;
-  if (raw.schema_version !== QUIZ_PROGRESS_SCHEMA) return null;
-  if (typeof raw.session_id !== "string" || raw.session_id.length === 0) return null;
-  if (typeof raw.dataset_version !== "string" || raw.dataset_version.length === 0) return null;
-  if (raw.session_source !== "catalog" && raw.session_source !== "published") return null;
-  if (
-    raw.catalog_version !== undefined
-    && (typeof raw.catalog_version !== "string" || raw.catalog_version.length === 0)
-  ) {
-    return null;
-  }
-  if (!isLocale(raw.locale) || !isPlayMode(raw.play_mode) || !isTheme(raw.theme)) return null;
-  if (!isDecadeSelection(raw.decades) || typeof raw.timer_enabled !== "boolean") return null;
-  if (!isQuizSession(raw.session)) return null;
-  if (
-    raw.machine_state !== "question.ready"
-    && raw.machine_state !== "question.answered"
-    && raw.machine_state !== "results"
-  ) {
-    return null;
-  }
-  if (
-    typeof raw.question_index !== "number"
-    || !Number.isInteger(raw.question_index)
-    || raw.question_index < 0
-  ) {
-    return null;
-  }
-  if (raw.selected_id !== null && typeof raw.selected_id !== "string") return null;
-  if (typeof raw.timed_out !== "boolean" || typeof raw.score !== "number" || !Number.isFinite(raw.score)) {
-    return null;
-  }
-  if (
-    !Array.isArray(raw.revealed_clues)
-    || !raw.revealed_clues.every((id) => typeof id === "string" && id.length > 0)
-  ) {
-    return null;
-  }
-  if (!Array.isArray(raw.history) || !raw.history.every(isHistoryEntry)) return null;
-  if (
-    raw.question_deadline_ms !== null
-    && (typeof raw.question_deadline_ms !== "number" || !Number.isFinite(raw.question_deadline_ms))
-  ) {
-    return null;
-  }
-  if (typeof raw.started_at_ms !== "number" || !Number.isFinite(raw.started_at_ms)) return null;
-  if (
-    typeof raw.elapsed_seconds !== "number"
-    || !Number.isFinite(raw.elapsed_seconds)
-    || raw.elapsed_seconds < 0
-  ) {
-    return null;
-  }
-  if (typeof raw.gave_up !== "boolean") return null;
-  if (
-    raw.replay_notice !== null
-    && raw.replay_notice !== "ok"
-    && raw.replay_notice !== "repeats"
-    && raw.replay_notice !== "legacy-repeats"
-  ) {
-    return null;
-  }
-
+  if (!hasEnvelopeFields(raw) || !hasRoundConfig(raw) || !isQuizSession(raw.session)) return null;
+  if (!hasRoundPosition(raw) || !hasRoundClock(raw)) return null;
   const save = raw as unknown as QuizProgressSave;
-  if (save.session.session_id !== save.session_id) return null;
-  if (save.session.dataset_version !== save.dataset_version) return null;
-  if (save.session_source === "catalog") {
-    if (typeof save.catalog_version !== "string" || save.catalog_version.length === 0) return null;
-    if (save.session.catalog_version !== save.catalog_version) return null;
-  } else if (save.catalog_version !== undefined) {
-    return null;
-  }
-  if (!progressMatchesSession(save)) return null;
+  if (!envelopeMatchesSession(save) || !progressMatchesSession(save)) return null;
   return save;
 }
 

@@ -1,4 +1,14 @@
 import type { GridEvidence } from "./quiz-types";
+import {
+  ISO_DATE_PATTERN,
+  isHash,
+  isIntegerInRange,
+  isNonBlankString,
+  isNonEmptyString,
+  isQid,
+  isRecord,
+  matchesPattern,
+} from "./guards";
 import { isHttpsUrl } from "./https-url";
 
 export interface BilingualText {
@@ -36,8 +46,8 @@ export interface WordSearchPuzzle {
   words: WordSearchWord[];
 }
 
-const HASH_REGEX = /^[0-9a-f]{64}$/;
-const QID_REGEX = /^Q[1-9][0-9]*$/;
+// The word search keeps rules of its own: objects may carry extra keys, and
+// the reference date is only checked for its YYYY-MM-DD shape.
 const WORD_REGEX = /^[A-Z]{3,16}$/;
 const SINGLE_LETTER_REGEX = /^[A-Z]$/;
 
@@ -45,91 +55,43 @@ function normalizeWord(name: string): string {
   return name.normalize("NFKD").toUpperCase().replace(/[^A-Z]/g, "");
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function isBilingualText(value: unknown): value is BilingualText {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value["pt-BR"] === "string" &&
-    value["pt-BR"].trim().length > 0 &&
-    typeof value.en === "string" &&
-    value.en.trim().length > 0
-  );
+  return isRecord(value)
+    && isNonBlankString(value["pt-BR"])
+    && isNonBlankString(value.en);
 }
 
 function isEvidence(value: unknown): value is GridEvidence {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.fact_base_id === "string" &&
-    value.fact_base_id.length > 0 &&
-    typeof value.locator === "string" &&
-    value.locator.length > 0 &&
-    typeof value.revision_id === "number" &&
-    Number.isInteger(value.revision_id) &&
-    value.revision_id >= 1 &&
-    typeof value.source_key === "string" &&
-    value.source_key.length > 0 &&
-    isHttpsUrl(value.source_url)
-  );
+  return isRecord(value)
+    && isNonEmptyString(value.fact_base_id)
+    && isNonEmptyString(value.locator)
+    && isIntegerInRange(value.revision_id, 1)
+    && isNonEmptyString(value.source_key)
+    && isHttpsUrl(value.source_url);
 }
 
-function isValidWordEntry(
-  value: unknown,
-  rows: number,
-  cols: number,
-  grid: string[][]
-): value is WordSearchWord {
-  if (!isRecord(value)) return false;
-  const {
-    id,
-    word,
-    canonical_name,
-    labels,
-    start_row,
-    start_col,
-    end_row,
-    end_col,
-    clue,
-    evidence,
-  } = value;
+/** Id, word, names, clue and evidence: what a word says about itself. */
+function hasWordFields(value: Record<string, unknown>): boolean {
+  const { id, word, canonical_name, labels, clue, evidence } = value;
+  return isQid(id)
+    && matchesPattern(word, WORD_REGEX)
+    && isNonBlankString(canonical_name)
+    && isBilingualText(labels)
+    && normalizeWord(labels["pt-BR"]) === word
+    && normalizeWord(labels.en) === word
+    && (clue === undefined || isBilingualText(clue))
+    && Array.isArray(evidence) && evidence.length >= 1 && evidence.every(isEvidence);
+}
 
-  if (typeof id !== "string" || !QID_REGEX.test(id)) return false;
-  if (typeof word !== "string" || !WORD_REGEX.test(word)) return false;
-  if (typeof canonical_name !== "string" || canonical_name.trim().length === 0) return false;
-  if (!isBilingualText(labels)) return false;
-  if (normalizeWord(labels["pt-BR"]) !== word || normalizeWord(labels.en) !== word) return false;
-  if (clue !== undefined && !isBilingualText(clue)) return false;
-  if (!Array.isArray(evidence) || evidence.length < 1 || !evidence.every(isEvidence)) return false;
-
-  if (
-    typeof start_row !== "number" ||
-    !Number.isInteger(start_row) ||
-    start_row < 0 ||
-    start_row >= rows
-  ) return false;
-  if (
-    typeof start_col !== "number" ||
-    !Number.isInteger(start_col) ||
-    start_col < 0 ||
-    start_col >= cols
-  ) return false;
-  if (
-    typeof end_row !== "number" ||
-    !Number.isInteger(end_row) ||
-    end_row < 0 ||
-    end_row >= rows
-  ) return false;
-  if (
-    typeof end_col !== "number" ||
-    !Number.isInteger(end_col) ||
-    end_col < 0 ||
-    end_col >= cols
-  ) return false;
-
-  const dr = end_row - start_row;
-  const dc = end_col - start_col;
+/** Whether the word reads from start to end along a row, a column or a diagonal. */
+function spellsWordOnGrid(
+  word: string,
+  start: { row: number; col: number },
+  end: { row: number; col: number },
+  grid: string[][],
+): boolean {
+  const dr = end.row - start.row;
+  const dc = end.col - start.col;
   const isLinear =
     (dr === 0 && dc !== 0) ||
     (dc === 0 && dr !== 0) ||
@@ -139,57 +101,69 @@ function isValidWordEntry(
   const length = Math.max(Math.abs(dr), Math.abs(dc)) + 1;
   if (length !== word.length) return false;
 
-  const stepR = dr === 0 ? 0 : dr > 0 ? 1 : -1;
-  const stepC = dc === 0 ? 0 : dc > 0 ? 1 : -1;
-
+  const stepR = Math.sign(dr);
+  const stepC = Math.sign(dc);
   for (let i = 0; i < length; i++) {
-    const r = start_row + i * stepR;
-    const c = start_col + i * stepC;
-    if (grid[r]?.[c] !== word[i]) {
-      return false;
-    }
+    if (grid[start.row + i * stepR]?.[start.col + i * stepC] !== word[i]) return false;
   }
-
   return true;
 }
 
+function isValidWordEntry(
+  value: unknown,
+  rows: number,
+  cols: number,
+  grid: string[][]
+): value is WordSearchWord {
+  if (!isRecord(value) || !hasWordFields(value)) return false;
+  const { start_row, start_col, end_row, end_col } = value;
+  if (
+    !isIntegerInRange(start_row, 0, rows - 1)
+    || !isIntegerInRange(start_col, 0, cols - 1)
+    || !isIntegerInRange(end_row, 0, rows - 1)
+    || !isIntegerInRange(end_col, 0, cols - 1)
+  ) return false;
+  return spellsWordOnGrid(
+    value.word as string,
+    { row: start_row, col: start_col },
+    { row: end_row, col: end_col },
+    grid,
+  );
+}
+
+/** A grid of `rows` by `cols` single capital letters. */
+function isLetterGrid(value: unknown, rows: number, cols: number): value is string[][] {
+  if (!Array.isArray(value) || value.length !== rows) return false;
+  for (let r = 0; r < rows; r++) {
+    const row = value[r];
+    if (!Array.isArray(row) || row.length !== cols) return false;
+    for (let c = 0; c < cols; c++) {
+      if (!matchesPattern(row[c], SINGLE_LETTER_REGEX)) return false;
+    }
+  }
+  return true;
+}
+
+/** Schema, ids, date and theme of the puzzle. */
+function hasPuzzleHeader(value: Record<string, unknown>): boolean {
+  return value.schema_version === "kpop-word-search-puzzle-v1"
+    && isHash(value.puzzle_id)
+    && isHash(value.dataset_version)
+    && matchesPattern(value.reference_date, ISO_DATE_PATTERN)
+    && isBilingualText(value.theme)
+    && (value.theme_description === undefined || isBilingualText(value.theme_description));
+}
+
 export function isWordSearchPuzzle(value: unknown): value is WordSearchPuzzle {
-  if (!isRecord(value)) return false;
-  if (value.schema_version !== "kpop-word-search-puzzle-v1") return false;
-  if (typeof value.puzzle_id !== "string" || !HASH_REGEX.test(value.puzzle_id)) return false;
-  if (typeof value.dataset_version !== "string" || !HASH_REGEX.test(value.dataset_version)) return false;
-  if (typeof value.reference_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value.reference_date)) return false;
-  if (!isBilingualText(value.theme)) return false;
-  if (value.theme_description !== undefined && !isBilingualText(value.theme_description)) return false;
+  if (!isRecord(value) || !hasPuzzleHeader(value)) return false;
 
   const dims = value.dimensions;
   if (!isRecord(dims)) return false;
   const { rows, cols } = dims;
-  if (
-    typeof rows !== "number" ||
-    !Number.isInteger(rows) ||
-    rows < 8 ||
-    rows > 16 ||
-    typeof cols !== "number" ||
-    !Number.isInteger(cols) ||
-    cols < 8 ||
-    cols > 16
-  ) {
-    return false;
-  }
+  if (!isIntegerInRange(rows, 8, 16) || !isIntegerInRange(cols, 8, 16)) return false;
 
   const { grid, words } = value;
-  if (!Array.isArray(grid) || grid.length !== rows) return false;
-  for (let r = 0; r < rows; r++) {
-    const row = grid[r];
-    if (!Array.isArray(row) || row.length !== cols) return false;
-    for (let c = 0; c < cols; c++) {
-      if (typeof row[c] !== "string" || !SINGLE_LETTER_REGEX.test(row[c])) {
-        return false;
-      }
-    }
-  }
-
+  if (!isLetterGrid(grid, rows, cols)) return false;
   if (!Array.isArray(words) || words.length < 3 || words.length > 20) return false;
 
   const seenIds = new Set<string>();

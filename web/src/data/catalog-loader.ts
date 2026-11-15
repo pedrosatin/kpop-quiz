@@ -1,3 +1,4 @@
+import { hasExactKeys, isHash, isIntegerInRange, isIsoDate, isNonEmptyString, isRecord } from "../lib/guards";
 import { isQuestion, type Locale, type PlayMode, type QuizQuestion } from "../lib/quiz-types";
 import type { QuizDecadeValue } from "../components/Quiz/url-params";
 import { QuizArtifactError } from "./session-loader";
@@ -29,7 +30,6 @@ const MODES = ["assisted", "standard", "expert"] as const;
 const DECADES = [1990, 2000, 2010, 2020] as const;
 const POOL_KEYS = ["all", ...DECADES.map((decade) => `decade.${decade}`)] as const;
 const SESSION_SIZE = 10;
-const HASH = /^[0-9a-f]{64}$/;
 
 export type CatalogPoolKey = (typeof POOL_KEYS)[number];
 export type ReplayStatus = "ok" | "repeats" | "unavailable";
@@ -60,26 +60,6 @@ export interface QuizCatalog {
   pools: Readonly<Record<CatalogPoolKey, readonly number[]>>;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
-  const actual = Object.keys(value).sort();
-  return actual.length === keys.length && [...keys].sort().every((key, index) => key === actual[index]);
-}
-
-function isHash(value: unknown): value is string {
-  return typeof value === "string" && HASH.test(value);
-}
-
-function isIsoDate(value: unknown): value is string {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const [year, month, day] = value.split("-").map(Number);
-  const parsed = new Date(Date.UTC(year!, month! - 1, day!));
-  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month! - 1 && parsed.getUTCDate() === day;
-}
-
 async function sha256(bytes: ArrayBuffer | Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -105,10 +85,11 @@ async function expectedCatalogVersion(datasetVersion: string, shards: Record<str
 function isEntry(key: string, value: unknown): value is ManifestEntry {
   if (!isRecord(value) || !hasExactKeys(value, ["path", "pools", "questions", "sha256"])) return false;
   if (!isHash(value.sha256) || value.path !== `catalog.${key}.${value.sha256}.json`) return false;
-  if (!Number.isInteger(value.questions) || (value.questions as number) < 1) return false;
+  const questions = value.questions;
+  if (!isIntegerInRange(questions, 1)) return false;
   const pools = value.pools;
   return isRecord(pools) && hasExactKeys(pools, POOL_KEYS)
-    && POOL_KEYS.every((pool) => Number.isInteger(pools[pool]) && (pools[pool] as number) >= 0 && (pools[pool] as number) <= (value.questions as number))
+    && POOL_KEYS.every((pool) => isIntegerInRange(pools[pool], 0, questions))
     && (pools.all as number) > 0;
 }
 
@@ -167,59 +148,86 @@ export async function loadCatalogAvailability(baseUrl?: string) {
   return { catalogVersion: manifest.catalog_version, datasetVersion: manifest.dataset_version, shards };
 }
 
-function parseShard(
-  payload: unknown, manifest: CatalogManifest, entry: ManifestEntry, locale: Locale, playMode: PlayMode,
-): QuizCatalog {
-  const invalid = (reason: string) => new CatalogArtifactError("invalid", reason);
+function invalidShard(reason: string): CatalogArtifactError {
+  return new CatalogArtifactError("invalid", reason);
+}
+
+/** The shard's own fields, and the dataset, date, language and mode it must belong to. */
+function checkShardHeader(
+  payload: unknown, manifest: CatalogManifest, locale: Locale, playMode: PlayMode,
+): asserts payload is Record<string, unknown> {
   if (!isRecord(payload) || !hasExactKeys(payload, [
     "dataset_version", "generator_version", "language", "play_mode", "pools", "questions",
     "reference_date", "schema_version", "source_policy_version", "template_version",
-  ])) throw invalid("shard fields");
-  if (payload.schema_version !== SHARD_SCHEMA) throw invalid("shard schema");
-  if (payload.dataset_version !== manifest.dataset_version) throw invalid("shard dataset version");
-  if (payload.reference_date !== manifest.reference_date) throw invalid("shard reference date");
-  if (payload.language !== locale) throw invalid("shard language");
-  if (payload.play_mode !== playMode) throw invalid("shard play mode");
+  ])) throw invalidShard("shard fields");
+  if (payload.schema_version !== SHARD_SCHEMA) throw invalidShard("shard schema");
+  if (payload.dataset_version !== manifest.dataset_version) throw invalidShard("shard dataset version");
+  if (payload.reference_date !== manifest.reference_date) throw invalidShard("shard reference date");
+  if (payload.language !== locale) throw invalidShard("shard language");
+  if (payload.play_mode !== playMode) throw invalidShard("shard play mode");
   for (const field of ["generator_version", "template_version", "source_policy_version"] as const) {
-    if (typeof payload[field] !== "string" || !payload[field]) throw invalid(`shard ${field}`);
+    if (!isNonEmptyString(payload[field])) throw invalidShard(`shard ${field}`);
   }
-  const questions = payload.questions;
-  if (!Array.isArray(questions) || questions.length !== entry.questions) throw invalid("shard questions");
+}
+
+/** The questions the manifest counts, valid, in logical id order, none repeated. */
+function checkShardQuestions(
+  questions: unknown, manifest: CatalogManifest, entry: ManifestEntry, locale: Locale, playMode: PlayMode,
+): asserts questions is QuizQuestion[] {
+  if (!Array.isArray(questions) || questions.length !== entry.questions) throw invalidShard("shard questions");
   const ids = new Set<string>();
   const semanticIds = new Set<string>();
   let previousLogicalId = "";
   for (const question of questions) {
-    if (!isQuestion(question, locale) || question.play_mode !== playMode) throw invalid("shard question");
-    if (question.reference_date !== manifest.reference_date) throw invalid("shard question reference date");
-    if (ids.has(question.id) || semanticIds.has(question.semantic_id)) throw invalid("shard question identity");
-    if (question.logical_id <= previousLogicalId) throw invalid("shard question order");
+    if (!isQuestion(question, locale) || question.play_mode !== playMode) throw invalidShard("shard question");
+    if (question.reference_date !== manifest.reference_date) throw invalidShard("shard question reference date");
+    if (ids.has(question.id) || semanticIds.has(question.semantic_id)) throw invalidShard("shard question identity");
+    if (question.logical_id <= previousLogicalId) throw invalidShard("shard question order");
     ids.add(question.id);
     semanticIds.add(question.semantic_id);
     previousLogicalId = question.logical_id;
   }
-  const pools = payload.pools;
-  if (!isRecord(pools) || !hasExactKeys(pools, POOL_KEYS)) throw invalid("shard pools");
+}
+
+/**
+ * Every pool the manifest counts, as ascending indexes into the questions,
+ * each decade pool holding only questions of that decade, and no question
+ * left out of all of them.
+ */
+function checkShardPools(
+  pools: unknown, questions: QuizQuestion[], entry: ManifestEntry,
+): asserts pools is Record<CatalogPoolKey, number[]> {
+  if (!isRecord(pools) || !hasExactKeys(pools, POOL_KEYS)) throw invalidShard("shard pools");
   const referenced = new Set<number>();
   for (const key of POOL_KEYS) {
     const indexes = pools[key];
-    if (!Array.isArray(indexes) || indexes.length !== entry.pools[key]) throw invalid(`shard pool ${key}`);
+    if (!Array.isArray(indexes) || indexes.length !== entry.pools[key]) throw invalidShard(`shard pool ${key}`);
     const decade = key === "all" ? null : Number(key.slice("decade.".length));
     indexes.forEach((index, position) => {
-      if (!Number.isInteger(index) || index < 0 || index >= questions.length
-        || (position > 0 && (indexes[position - 1] as number) >= index)) throw invalid(`shard pool ${key}`);
-      if (decade !== null && !(questions[index] as QuizQuestion).decades?.includes(decade)) throw invalid(`shard pool ${key} decade`);
+      if (!isIntegerInRange(index, 0, questions.length - 1)
+        || (position > 0 && (indexes[position - 1] as number) >= index)) throw invalidShard(`shard pool ${key}`);
+      if (decade !== null && !questions[index]!.decades?.includes(decade)) throw invalidShard(`shard pool ${key} decade`);
       referenced.add(index);
     });
   }
-  if (referenced.size !== questions.length) throw invalid("shard question outside every pool");
+  if (referenced.size !== questions.length) throw invalidShard("shard question outside every pool");
+}
+
+function parseShard(
+  payload: unknown, manifest: CatalogManifest, entry: ManifestEntry, locale: Locale, playMode: PlayMode,
+): QuizCatalog {
+  checkShardHeader(payload, manifest, locale, playMode);
+  const { questions, pools } = payload;
+  checkShardQuestions(questions, manifest, entry, locale, playMode);
+  checkShardPools(pools, questions, entry);
   return {
     catalogVersion: manifest.catalog_version,
     datasetVersion: manifest.dataset_version,
     referenceDate: manifest.reference_date,
     locale,
     playMode,
-    questions: questions as QuizQuestion[],
-    pools: pools as Record<CatalogPoolKey, number[]>,
+    questions,
+    pools,
   };
 }
 

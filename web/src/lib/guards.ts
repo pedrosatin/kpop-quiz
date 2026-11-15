@@ -1,0 +1,91 @@
+/**
+ * Checks shared by the guards that validate published data and local saves.
+ * Each answers one question about a value read from JSON, and a guard reads
+ * as a list of them, one group of fields at a time.
+ *
+ * The guards do not all follow one rule for the same idea, and these checks
+ * keep each rule apart instead of merging them: a text may need one character
+ * or one character besides whitespace, a key set may be exact or open, and a
+ * date may be a real day or only the YYYY-MM-DD shape. A guard picks the rule
+ * it has always used.
+ */
+
+export const HASH_PATTERN = /^[0-9a-f]{64}$/;
+export const QID_PATTERN = /^Q[1-9][0-9]*$/;
+export const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A plain object: not null and not an array. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** A string that `pattern` matches. */
+export function matchesPattern(value: unknown, pattern: RegExp): value is string {
+  return typeof value === "string" && pattern.test(value);
+}
+
+/** A SHA-256 in lowercase hex, the form of every published id and version. */
+export function isHash(value: unknown): value is string {
+  return matchesPattern(value, HASH_PATTERN);
+}
+
+/** A Wikidata item id such as Q42. */
+export function isQid(value: unknown): value is string {
+  return matchesPattern(value, QID_PATTERN);
+}
+
+/** A string with at least one character, even if all of them are whitespace. */
+export function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
+/** A string with at least one character that is not whitespace. */
+export function isNonBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * Whether the object has every `required` key and no key outside `required`
+ * and `optional`. Only own enumerable keys count, which are all the keys a
+ * value parsed from JSON has.
+ */
+export function hasExactKeys(
+  value: Record<string, unknown>,
+  required: readonly string[],
+  optional: readonly string[] = [],
+): boolean {
+  return required.every((key) => Object.hasOwn(value, key))
+    && Object.keys(value).every((key) => required.includes(key) || optional.includes(key));
+}
+
+/** An integer from `min` to `max`, both included. */
+export function isIntegerInRange(value: unknown, min: number, max = Infinity): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+}
+
+/**
+ * A day of the calendar written YYYY-MM-DD. Years 0000 to 0099 are refused:
+ * Date.UTC reads them as 1900 to 1999, so the day it builds never matches.
+ */
+export function isIsoDate(value: unknown): value is string {
+  if (!matchesPattern(value, ISO_DATE_PATTERN)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year!, month! - 1, day!));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month! - 1 && parsed.getUTCDate() === day;
+}
+
+/**
+ * A list whose every item passes `isItem`, non-empty strings by default. Like
+ * `Array.prototype.every`, it skips the holes of a sparse array.
+ */
+export function isStringList(
+  value: unknown,
+  isItem: (item: unknown) => item is string = isNonEmptyString,
+): value is string[] {
+  return Array.isArray(value) && value.every((item) => isItem(item));
+}
+
+/** Whether no item appears twice, by SameValueZero as a Set compares. */
+export function hasDistinctItems(values: readonly unknown[]): boolean {
+  return new Set(values).size === values.length;
+}

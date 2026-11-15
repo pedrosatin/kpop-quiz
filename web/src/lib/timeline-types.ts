@@ -1,3 +1,13 @@
+import {
+  hasExactKeys,
+  isHash,
+  isIntegerInRange,
+  isIsoDate,
+  isNonBlankString,
+  isNonEmptyString,
+  isQid,
+  isRecord,
+} from "./guards";
 import { isHttpsUrl } from "./https-url";
 
 export type TimelineEventType =
@@ -48,9 +58,6 @@ export interface TimelinePuzzle {
   events: TimelineEvent[];
 }
 
-const HASH_REGEX = /^[0-9a-f]{64}$/;
-const QID_REGEX = /^Q[1-9][0-9]*$/;
-const REFERENCE_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const TIMELINE_DATE_REGEX = /^\d{4}(-\d{2}(-\d{2})?)?$/;
 const TIMELINE_MIN_YEAR = 1980;
 const TIMELINE_MAX_YEAR = 2035;
@@ -101,23 +108,12 @@ const EVIDENCE_REQUIRED_KEYS = [
   "source_url",
 ];
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function hasExactKeys(value: Record<string, unknown>, fields: readonly string[]): boolean {
-  const keys = Object.keys(value);
-  return keys.length === fields.length && fields.every((f) => Object.hasOwn(value, f));
-}
-
+// Unlike the other games, a timeline text needs a character besides whitespace.
 function isBilingualText(value: unknown): value is BilingualText {
-  if (!isRecord(value) || !hasExactKeys(value, BILINGUAL_KEYS)) return false;
-  return (
-    typeof value["pt-BR"] === "string" &&
-    value["pt-BR"].trim().length > 0 &&
-    typeof value.en === "string" &&
-    value.en.trim().length > 0
-  );
+  return isRecord(value)
+    && hasExactKeys(value, BILINGUAL_KEYS)
+    && isNonBlankString(value["pt-BR"])
+    && isNonBlankString(value.en);
 }
 
 function isValidTimelineDate(value: unknown): value is string {
@@ -144,60 +140,33 @@ function isValidTimelineDate(value: unknown): value is string {
   return true;
 }
 
-function isValidReferenceDate(value: unknown): value is string {
-  if (typeof value !== "string" || !REFERENCE_DATE_REGEX.test(value)) return false;
-  const [year, month, day] = value.split("-").map(Number);
-  const parsed = new Date(Date.UTC(year!, month! - 1, day!));
-  return (
-    parsed.getUTCFullYear() === year &&
-    parsed.getUTCMonth() === month! - 1 &&
-    parsed.getUTCDate() === day
-  );
-}
-
 function isTimelineEvidence(value: unknown): value is TimelineEvidence {
-  if (!isRecord(value) || !hasExactKeys(value, EVIDENCE_REQUIRED_KEYS)) return false;
-  return (
-    typeof value.fact_base_id === "string" &&
-    value.fact_base_id.length > 0 &&
-    typeof value.locator === "string" &&
-    value.locator.length > 0 &&
-    typeof value.revision_id === "number" &&
-    Number.isInteger(value.revision_id) &&
-    value.revision_id >= 1 &&
-    typeof value.source_key === "string" &&
-    value.source_key.length > 0 &&
-    isHttpsUrl(value.source_url)
-  );
+  return isRecord(value)
+    && hasExactKeys(value, EVIDENCE_REQUIRED_KEYS)
+    && isNonEmptyString(value.fact_base_id)
+    && isNonEmptyString(value.locator)
+    && isIntegerInRange(value.revision_id, 1)
+    && isNonEmptyString(value.source_key)
+    && isHttpsUrl(value.source_url);
 }
 
 function isTimelineEvent(value: unknown, eventTypes: ReadonlySet<string>): value is TimelineEvent {
   if (!isRecord(value) || !hasExactKeys(value, EVENT_REQUIRED_KEYS)) return false;
-  if (typeof value.id !== "string" || value.id.length === 0) return false;
-  if (typeof value.event_type !== "string" || !eventTypes.has(value.event_type)) {
-    return false;
-  }
+  if (!isNonEmptyString(value.id)) return false;
+  if (typeof value.event_type !== "string" || !eventTypes.has(value.event_type)) return false;
   if (!isValidTimelineDate(value.date)) return false;
-  if (
-    typeof value.year !== "number" ||
-    !Number.isInteger(value.year) ||
-    value.year < TIMELINE_MIN_YEAR ||
-    value.year > TIMELINE_MAX_YEAR
-  ) {
-    return false;
-  }
+  if (!isIntegerInRange(value.year, TIMELINE_MIN_YEAR, TIMELINE_MAX_YEAR)) return false;
   const dateYear = parseInt(value.date.split("-")[0]!, 10);
   if (dateYear !== value.year) return false;
 
-  if (!isBilingualText(value.display_date)) return false;
-  if (!isBilingualText(value.title)) return false;
-  if (!isBilingualText(value.description)) return false;
-  if (typeof value.entity_id !== "string" || !QID_REGEX.test(value.entity_id)) return false;
-  if (typeof value.entity_name !== "string" || value.entity_name.length === 0) return false;
-  if (!Array.isArray(value.evidence) || value.evidence.length < 1 || !value.evidence.every(isTimelineEvidence)) {
-    return false;
-  }
-  return true;
+  return isBilingualText(value.display_date)
+    && isBilingualText(value.title)
+    && isBilingualText(value.description)
+    && isQid(value.entity_id)
+    && isNonEmptyString(value.entity_name)
+    && Array.isArray(value.evidence)
+    && value.evidence.length >= 1
+    && value.evidence.every(isTimelineEvidence);
 }
 
 export function isTimelinePuzzle(value: unknown): value is TimelinePuzzle {
@@ -210,9 +179,8 @@ export function isTimelinePuzzle(value: unknown): value is TimelinePuzzle {
     return false;
   }
   const eventTypes = TIMELINE_EVENT_TYPES_BY_VERSION[value.schema_version as TimelineSchemaVersion];
-  if (typeof value.puzzle_id !== "string" || !HASH_REGEX.test(value.puzzle_id)) return false;
-  if (typeof value.dataset_version !== "string" || !HASH_REGEX.test(value.dataset_version)) return false;
-  if (!isValidReferenceDate(value.reference_date)) return false;
+  if (!isHash(value.puzzle_id) || !isHash(value.dataset_version)) return false;
+  if (!isIsoDate(value.reference_date)) return false;
   if (!isBilingualText(value.theme)) return false;
   if (!isBilingualText(value.theme_description)) return false;
 
