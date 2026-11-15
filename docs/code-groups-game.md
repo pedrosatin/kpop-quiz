@@ -104,7 +104,10 @@ link do jogo no idioma do jogador
   rodada e aplica essas regras.
 - `web/src/components/CodeGroups/CodeGroupsGameContent.tsx` monta o jogo com
   `CodeGroupsGuessForm`, `CodeGroupsHistory` e `CodeGroupsResult`, e cuida do
-  foco no resultado e da rolagem depois de cada envio.
+  foco no resultado.
+- `web/src/components/CodeGroups/useCodeGroupsFeedbackScroll.ts` rola até o
+  resultado ou até a frase de retorno depois de cada envio, e
+  `useCodeGroupsShare.ts` cuida do botão Compartilhar.
 - `web/src/components/CodeGroups/CodeGroupsGame.tsx` carrega o artefato e
   apresenta os estados de carregando, indisponível e erro.
 

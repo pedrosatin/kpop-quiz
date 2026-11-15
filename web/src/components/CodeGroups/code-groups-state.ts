@@ -58,7 +58,7 @@ export function isSelectionComplete(selection: readonly string[]): boolean {
 
 /**
  * Why `selection` cannot be sent, checked in this order: an empty slot, a
- * repeated group, then a guess already sent (which cannot tell anything new).
+ * repeated group, then a guess already sent, since it cannot tell anything new.
  * Null when the guess may spend an attempt.
  */
 export function guessRejection(history: readonly CodeGroupsGuess[], selection: readonly string[]): CodeGroupsRejection | null {
