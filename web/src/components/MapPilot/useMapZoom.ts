@@ -21,7 +21,6 @@ import {
   type ShownAnswer,
 } from "./map-pilot-zoom";
 
-export { ZOOM_GUARD_MS } from "./map-pilot-zoom";
 
 export interface MapZoomTurn {
   /** The date on screen; undefined once the round is over. */

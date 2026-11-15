@@ -41,9 +41,9 @@ export function shownAnswer(
 }
 
 /**
- * A pointer click zooms when it counts a press and the whole map shows on a
- * screen that zooms. Assistive technology sends a click with a detail of 0,
- * and that click selects the country.
+ * A click with nonzero detail zooms when zooming is enabled and the whole
+ * map is visible. Clicks with detail 0, including keyboard and assistive
+ * technology activation, select the country instead.
  */
 export function zoomsOnClick(detail: number, zoomable: boolean, zoomed: boolean): boolean {
   return detail !== 0 && zoomable && !zoomed;
