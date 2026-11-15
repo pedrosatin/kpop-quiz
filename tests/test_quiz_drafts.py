@@ -3,7 +3,12 @@ import unittest
 from collections import Counter
 from datetime import date
 
-from kpop_scraping.quiz_drafts import _age_on_date_draft, _build_drafts
+from kpop_scraping.quiz_drafts import (
+    _age_on_date_draft,
+    _born_after,
+    _build_drafts,
+    _person_drafts,
+)
 from kpop_scraping.quiz_models import Entity, Evidence, Fact
 from kpop_scraping.quiz_repository import _load_entities, _load_facts
 from tests.test_quiz_generator import build_quiz_database
@@ -85,6 +90,26 @@ def sparse_facts():
     return facts, entities
 
 
+def future_birth_pool():
+    """Return the births of ``sparse_facts`` plus two past day-precision births.
+
+    ``b6`` and ``b7`` give each day-precision draft enough distractors once
+    ``b2`` (born 2030) leaves the pool.
+    """
+    facts, _entities = sparse_facts()
+    extra = (
+        make_fact(
+            "b6", make_entity("QP5", "person", "Dani"), "born_on",
+            value_time="2000-01-01", value_precision=11,
+        ),
+        make_fact(
+            "b7", make_entity("QP6", "person", "Eli"), "born_on",
+            value_time="2010-01-01", value_precision=11,
+        ),
+    )
+    return [fact for fact in facts if fact.predicate == "born_on"] + list(extra)
+
+
 class BuildDraftsCharacterizationTest(unittest.TestCase):
     """Pin the drafts and rejections that ``_build_drafts`` produces today.
 
@@ -143,9 +168,9 @@ class BuildDraftsCharacterizationTest(unittest.TestCase):
             list(rejected.items()),
             [
                 ("insufficient_formation_year_distractors", 1),
-                ("insufficient_birth_date_distractors", 5),
+                ("insufficient_birth_date_distractors", 4),
                 ("insufficient_age_distractors", 2),
-                ("birth_after_reference_date", 1),
+                ("birth_after_reference_date", 2),
                 ("insufficient_precision_for_age", 2),
                 ("insufficient_group_distractors", 3),
                 ("insufficient_person_distractors", 2),
@@ -181,20 +206,7 @@ class BuildDraftsCharacterizationTest(unittest.TestCase):
                 self.assertEqual(list(rejected.items()), [(reason, 1)])
 
     def test_future_birth_never_becomes_a_negative_age_option(self):
-        facts, _entities = sparse_facts()
-        # Two more day-precision births give each age draft enough
-        # distractors once b2 (born 2030, age -4) leaves the pool.
-        extra = (
-            make_fact(
-                "b6", make_entity("QP5", "person", "Dani"), "born_on",
-                value_time="2000-01-01", value_precision=11,
-            ),
-            make_fact(
-                "b7", make_entity("QP6", "person", "Eli"), "born_on",
-                value_time="2010-01-01", value_precision=11,
-            ),
-        )
-        born = [fact for fact in facts if fact.predicate == "born_on"] + list(extra)
+        born = future_birth_pool()
         rejected: Counter[str] = Counter()
 
         drafts = {
@@ -227,6 +239,59 @@ class BuildDraftsCharacterizationTest(unittest.TestCase):
             list(rejected.items()),
             [("birth_after_reference_date", 1), ("insufficient_precision_for_age", 2)],
         )
+
+    def test_future_birth_never_becomes_a_birth_date_option(self):
+        born = future_birth_pool()
+        rejected: Counter[str] = Counter()
+
+        drafts = _person_drafts(born, [], REFERENCE_DATE, rejected)
+
+        options = {
+            draft.key[1]: (
+                draft.answer[0],
+                tuple(value for value, _type in draft.alternatives),
+            )
+            for draft in drafts
+            if draft.question_type == "birth_date_or_place"
+        }
+        self.assertEqual(
+            options,
+            {
+                "b1": ("1990-01-01", ("1990-01-01", "2000-01-01", "2010-01-01", "2026-09-13")),
+                "b4": ("2026-09-13", ("2026-09-13", "2010-01-01", "2000-01-01", "1990-01-01")),
+                "b6": ("2000-01-01", ("2000-01-01", "1990-01-01", "2010-01-01", "2026-09-13")),
+                "b7": ("2010-01-01", ("2010-01-01", "2000-01-01", "2026-09-13", "1990-01-01")),
+            },
+        )
+        self.assertEqual(
+            list(rejected.items()),
+            [
+                ("birth_after_reference_date", 2),
+                ("insufficient_birth_date_distractors", 2),
+                ("insufficient_precision_for_age", 2),
+            ],
+        )
+
+    def test_born_after_never_compares_a_birth_without_day_precision(self):
+        # A year-precision value is not an ISO date; b5 stores a full date
+        # with year precision. Neither counts as after the reference date.
+        cases = (
+            ("1997", 9, False),
+            ("2031-01-01", 9, False),
+            ("2030-01", 10, False),
+            (None, 11, False),
+            ("2030-01-01", 11, True),
+            (REFERENCE_DATE.isoformat(), 11, False),
+        )
+        person = make_entity("QP9", "person", "Fia")
+        for value_time, precision, expected in cases:
+            with self.subTest(value_time=value_time, precision=precision):
+                fact = make_fact(
+                    "b9", person, "born_on",
+                    value_time=value_time, value_precision=precision,
+                )
+
+                self.assertIs(_born_after(fact, REFERENCE_DATE), expected)
 
 
 if __name__ == "__main__":
