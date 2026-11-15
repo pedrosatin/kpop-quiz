@@ -42,6 +42,16 @@ export function barTone(lastCheck: SelectionCheck | null): string {
 }
 
 /**
+ * The bar's tone class: green once the round is over, neutral while a
+ * selection is under way, otherwise the tone of the last verdict.
+ */
+export function actionBarTone(completed: boolean, lastCheck: SelectionCheck | null, selecting: boolean): string {
+  if (completed) return " is-correct";
+  if (selecting) return "";
+  return barTone(lastCheck);
+}
+
+/**
  * One message at a time, in two reserved lines: the selection in progress,
  * then the start marked by a tap, then the verdict of the last selection,
  * then the instructions. A new key per verdict replaces the paragraph, so

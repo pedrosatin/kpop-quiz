@@ -1,142 +1,12 @@
-import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
-import type { CellCoord, GameStatus } from "./types";
+import type { WordSearchPuzzle } from "../../lib/word-search-types";
+import type { CellCoord } from "./types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
-import { getLocalStorageItem } from "../../lib/local-storage";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 
-export interface StoredProgress {
-  foundWordIds: string[];
-  elapsedSeconds: number;
-  status: GameStatus;
-  easyMode: boolean;
-  clueMode?: boolean;
-}
-
-export function loadStoredProgress(key: string, validWordIds?: ReadonlySet<string>): StoredProgress {
-  const raw = getLocalStorageItem(key);
-  try {
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object") throw new Error("Invalid progress");
-      if (!Array.isArray(parsed.foundWordIds) || parsed.foundWordIds.some((id: unknown) =>
-        typeof id !== "string" || (validWordIds !== undefined && !validWordIds.has(id)))) throw new Error("Invalid words");
-      if (new Set(parsed.foundWordIds).size !== parsed.foundWordIds.length) throw new Error("Repeated words");
-      const isEasy = Boolean(parsed.easyMode ?? parsed.clueMode);
-      return {
-        foundWordIds: Array.isArray(parsed.foundWordIds) ? parsed.foundWordIds : [],
-        elapsedSeconds: Number.isFinite(parsed.elapsedSeconds) && parsed.elapsedSeconds >= 0 ? parsed.elapsedSeconds : 0,
-        status: parsed.status === "completed" ? "completed" : "in_progress",
-        easyMode: isEasy,
-        clueMode: isEasy,
-      };
-    }
-  } catch {}
-  return { foundWordIds: [], elapsedSeconds: 0, status: "in_progress", easyMode: false, clueMode: false };
-}
-
-function normalizeWord(name: string): string {
-  return name
-    .normalize("NFKD")
-    .toUpperCase()
-    .replace(/[^A-Z]/g, "");
-}
-
-export function isWordMatch(
-  word: WordSearchWord,
-  start: CellCoord,
-  end: CellCoord,
-  letters: string,
-  revLetters: string,
-  locale: Locale
-): boolean {
-  const fullWordPath = getLinearPath(
-    { row: word.start_row, col: word.start_col },
-    { row: word.end_row, col: word.end_col }
-  );
-
-  const candidateSet = new Set<string>();
-  candidateSet.add(word.word);
-
-  const rawNames = [
-    word.canonical_name,
-    word.labels?.[locale],
-    word.labels?.["pt-BR"],
-    word.labels?.["en"],
-  ].filter(Boolean) as string[];
-
-  for (const name of rawNames) {
-    const norm = normalizeWord(name);
-    if (norm.length >= 3) {
-      candidateSet.add(norm);
-    }
-    const tokens = name.trim().split(/[\s-]+/);
-    if (tokens.length > 1) {
-      const lastToken = tokens[tokens.length - 1];
-      if (lastToken) {
-        const lastTokenNorm = normalizeWord(lastToken);
-        if (lastTokenNorm.length >= 3) {
-          candidateSet.add(lastTokenNorm);
-        }
-      }
-      const afterFirst = tokens.slice(1).join("");
-      const afterFirstNorm = normalizeWord(afterFirst);
-      if (afterFirstNorm.length >= 3) {
-        candidateSet.add(afterFirstNorm);
-      }
-    }
-  }
-
-  for (const cand of candidateSet) {
-    if (cand.length < 3 || cand.length > word.word.length) continue;
-
-    // Direct full-word match
-    if (word.word === cand) {
-      const fwd =
-        word.start_row === start.row &&
-        word.start_col === start.col &&
-        word.end_row === end.row &&
-        word.end_col === end.col &&
-        letters === cand;
-      const rev =
-        word.start_row === end.row &&
-        word.start_col === end.col &&
-        word.end_row === start.row &&
-        word.end_col === start.col &&
-        revLetters === cand;
-      if (fwd || rev) return true;
-    }
-
-    // Subsegment match inside word.word
-    let searchFrom = 0;
-    while (searchFrom <= word.word.length - cand.length) {
-      const idx = word.word.indexOf(cand, searchFrom);
-      if (idx === -1) break;
-      searchFrom = idx + 1;
-
-      const subStart = fullWordPath[idx];
-      const subEnd = fullWordPath[idx + cand.length - 1];
-      if (!subStart || !subEnd) continue;
-
-      const fwd =
-        start.row === subStart.row &&
-        start.col === subStart.col &&
-        end.row === subEnd.row &&
-        end.col === subEnd.col &&
-        letters === cand;
-      const rev =
-        start.row === subEnd.row &&
-        start.col === subEnd.col &&
-        end.row === subStart.row &&
-        end.col === subStart.col &&
-        revLetters === cand;
-      if (fwd || rev) return true;
-    }
-  }
-
-  return false;
-}
+// The save moved to word-search-save; older imports still find it here.
+export { loadStoredProgress, type StoredProgress } from "./word-search-save";
 
 export function getLinearPath(start: CellCoord, end: CellCoord): CellCoord[] {
   const dr = end.row - start.row;
@@ -148,8 +18,8 @@ export function getLinearPath(start: CellCoord, end: CellCoord): CellCoord[] {
   if (!isLinear) return [];
 
   const length = Math.max(absR, absC) + 1;
-  const stepR = dr === 0 ? 0 : dr > 0 ? 1 : -1;
-  const stepC = dc === 0 ? 0 : dc > 0 ? 1 : -1;
+  const stepR = Math.sign(dr);
+  const stepC = Math.sign(dc);
 
   const path: CellCoord[] = [];
   for (let i = 0; i < length; i++) {

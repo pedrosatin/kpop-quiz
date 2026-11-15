@@ -2,16 +2,14 @@ import type { Locale } from "../../lib/quiz-types";
 import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
 import type { CellCoord } from "./types";
 import { sameCell } from "./geometry";
-import { getLinearPath, isWordMatch } from "./utils";
+import { getLinearPath } from "./utils";
+import { isWordMatch } from "./word-search-match";
+import { wordPath } from "./word-search-state";
 
 /** What a finished selection means, before it is numbered for the live region. */
 export type SelectionVerdict =
   | { kind: "found" | "repeat"; wordId: string }
   | { kind: "partial" | "miss"; letters: string };
-
-function wordPath(word: WordSearchWord): CellCoord[] {
-  return getLinearPath({ row: word.start_row, col: word.start_col }, { row: word.end_row, col: word.end_col });
-}
 
 /** Both ends on the word's line, so every cell between them is too. */
 function liesWithin(word: WordSearchWord, start: CellCoord, end: CellCoord): boolean {

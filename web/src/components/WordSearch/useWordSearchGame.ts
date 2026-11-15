@@ -1,10 +1,11 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { setLocalStorageItem } from "../../lib/local-storage";
 import { isDailyBoardRound } from "../../lib/player-stats";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { CellCoord, GameStatus } from "./types";
-import { getLinearPath, loadStoredProgress, type StoredProgress } from "./utils";
+import { getLinearPath } from "./utils";
+import { loadStoredProgress, storeProgress, wordSearchStorageKey } from "./word-search-save";
+import { foundCellColors, revealedCellKeys, roundOutcome, selectionPath } from "./word-search-state";
 import { judgeSelection } from "./selection";
 import { useSelection } from "./useSelection";
 import type { Locale } from "../../lib/quiz-types";
@@ -22,7 +23,7 @@ function whilePlaying<A extends unknown[]>(status: GameStatus, handler: (...args
 }
 
 export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
-  const storageKey = `kpop-word-search-${puzzle.puzzle_id}`;
+  const storageKey = wordSearchStorageKey(puzzle.puzzle_id);
 
   const initial = useMemo(() => loadStoredProgress(storageKey, new Set(puzzle.words.map((word) => word.id))), [storageKey, puzzle]);
   const [foundWordIds, setFoundWordIds] = useState<string[]>(initial.foundWordIds);
@@ -42,13 +43,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   }, [status]);
 
   useEffect(() => {
-    const state: StoredProgress = {
-      foundWordIds,
-      elapsedSeconds,
-      status,
-      easyMode,
-    };
-    setLocalStorageItem(storageKey, JSON.stringify(state));
+    storeProgress(storageKey, { foundWordIds, elapsedSeconds, status, easyMode });
   }, [storageKey, foundWordIds, elapsedSeconds, status, easyMode]);
 
   const analytics = useGameAnalytics(
@@ -56,8 +51,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
       game: "word-search",
       locale,
       isDaily: () => isDailyBoardRound("word-search", puzzle, wordSearchMatchId(puzzle)),
-      // The round has no failure state: it ends with every word found or a give-up.
-      outcome: status !== "completed" ? null : foundWordIds.length >= puzzle.words.length ? "win" : "give_up",
+      outcome: roundOutcome(status, foundWordIds.length, puzzle.words.length),
     },
     status === "completed",
     foundWordIds.length > 0,
@@ -87,43 +81,18 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
   });
   const { anchorCell, currentHoverCell, focusedCell } = selection;
 
-  const activePath = useMemo(() => {
-    if (!anchorCell) return [];
-    const target = currentHoverCell ?? focusedCell;
-    return getLinearPath(anchorCell, target);
-  }, [anchorCell, currentHoverCell, focusedCell]);
+  const activePath = useMemo(
+    () => selectionPath(anchorCell, currentHoverCell, focusedCell),
+    [anchorCell, currentHoverCell, focusedCell]
+  );
 
-  const foundCellsMap = useMemo(() => {
-    const map = new Map<string, number>();
-    puzzle.words.forEach((word, wordIndex) => {
-      if (foundWordIds.includes(word.id)) {
-        const path = getLinearPath(
-          { row: word.start_row, col: word.start_col },
-          { row: word.end_row, col: word.end_col }
-        );
-        path.forEach((c) => {
-          map.set(`${c.row},${c.col}`, wordIndex % 6);
-        });
-      }
-    });
-    return map;
-  }, [puzzle.words, foundWordIds]);
+  const foundCellsMap = useMemo(() => foundCellColors(puzzle.words, foundWordIds), [puzzle.words, foundWordIds]);
 
-  // Cells of words the player never found, marked after give-up. A natural
-  // finish always finds every word, so a partial board means give-up.
-  const revealedCells = useMemo(() => {
-    if (status !== "completed" || foundWordIds.length >= puzzle.words.length) return new Set<string>();
-    const cells = new Set<string>();
-    for (const word of puzzle.words) {
-      if (foundWordIds.includes(word.id)) continue;
-      const path = getLinearPath(
-        { row: word.start_row, col: word.start_col },
-        { row: word.end_row, col: word.end_col }
-      );
-      path.forEach((c) => cells.add(`${c.row},${c.col}`));
-    }
-    return cells;
-  }, [status, puzzle.words, foundWordIds]);
+  // Cells of words the player never found, marked after give-up.
+  const revealedCells = useMemo(
+    () => revealedCellKeys(status, puzzle.words, foundWordIds),
+    [status, puzzle.words, foundWordIds]
+  );
 
   const cancelSelection = selection.clear;
 
