@@ -1,0 +1,161 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`feedback characterization > renders every state the same way in en > 01 initial 1`] = `
+{
+  "comment": null,
+  "focus": "body",
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><h3>Did you enjoy this game?</h3><p>Your response is recorded by a rating service so we can improve the games. Please don't include personal information in your comment.</p><div class="btn-row"><button class="btn btn-secondary">Yes</button><button class="btn btn-secondary">No</button><button class="btn btn-secondary">Dismiss</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in en > 02 voting 1`] = `
+{
+  "comment": null,
+  "focus": "button "Yes"",
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><h3>Did you enjoy this game?</h3><p>Your response is recorded by a rating service so we can improve the games. Please don't include personal information in your comment.</p><div class="btn-row"><button class="btn btn-secondary" disabled="">Yes</button><button class="btn btn-secondary" disabled="">No</button><button class="btn btn-secondary" disabled="">Dismiss</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in en > 03 vote error 1`] = `
+{
+  "comment": null,
+  "focus": "button "Yes"",
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><h3>Did you enjoy this game?</h3><p>Your response is recorded by a rating service so we can improve the games. Please don't include personal information in your comment.</p><div class="btn-row"><button class="btn btn-secondary">Yes</button><button class="btn btn-secondary">No</button><button class="btn btn-secondary">Dismiss</button></div><p role="alert">We couldn't confirm your vote. You can try again, but this may record a duplicate vote.</p></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in en > 04 vote retry 1`] = `
+{
+  "comment": null,
+  "focus": "button "Yes"",
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><h3>Did you enjoy this game?</h3><p>Your response is recorded by a rating service so we can improve the games. Please don't include personal information in your comment.</p><div class="btn-row"><button class="btn btn-secondary" disabled="">Yes</button><button class="btn btn-secondary" disabled="">No</button><button class="btn btn-secondary" disabled="">Dismiss</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in en > 05 voted 1`] = `
+{
+  "comment": "",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><h3>Did you enjoy this game?</h3><p>Your response is recorded by a rating service so we can improve the games. Please don't include personal information in your comment.</p><label for="feedback-comment">Optional comment</label><textarea id="feedback-comment" maxlength="1000"></textarea><div class="btn-row"><button class="btn btn-secondary" disabled="">Send comment</button><button class="btn btn-secondary">Finish without a comment</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in en > 06 commenting 1`] = `
+{
+  "comment": "  Adorei  ",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><h3>Did you enjoy this game?</h3><p>Your response is recorded by a rating service so we can improve the games. Please don't include personal information in your comment.</p><label for="feedback-comment">Optional comment</label><textarea id="feedback-comment" maxlength="1000"></textarea><div class="btn-row"><button class="btn btn-secondary">Send comment</button><button class="btn btn-secondary">Finish without a comment</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in en > 07 sending 1`] = `
+{
+  "comment": "  Adorei  ",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><h3>Did you enjoy this game?</h3><p>Your response is recorded by a rating service so we can improve the games. Please don't include personal information in your comment.</p><label for="feedback-comment">Optional comment</label><textarea id="feedback-comment" maxlength="1000" disabled=""></textarea><div class="btn-row"><button class="btn btn-secondary" disabled="">Send comment</button><button class="btn btn-secondary" disabled="">Finish without a comment</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in en > 08 comment error 1`] = `
+{
+  "comment": "  Adorei  ",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><h3>Did you enjoy this game?</h3><p>Your response is recorded by a rating service so we can improve the games. Please don't include personal information in your comment.</p><label for="feedback-comment">Optional comment</label><textarea id="feedback-comment" maxlength="1000"></textarea><div class="btn-row"><button class="btn btn-secondary">Send comment</button><button class="btn btn-secondary">Finish without a comment</button></div><p role="alert">We couldn't confirm your comment. Please try again.</p></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in en > 09 comment retry 1`] = `
+{
+  "comment": "  Adorei  ",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><h3>Did you enjoy this game?</h3><p>Your response is recorded by a rating service so we can improve the games. Please don't include personal information in your comment.</p><label for="feedback-comment">Optional comment</label><textarea id="feedback-comment" maxlength="1000" disabled=""></textarea><div class="btn-row"><button class="btn btn-secondary" disabled="">Send comment</button><button class="btn btn-secondary" disabled="">Finish without a comment</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in en > 10 sent 1`] = `
+{
+  "comment": null,
+  "focus": "body",
+  "html": "<section class="feedback" aria-label="Did you enjoy this game?"><p role="status">Thanks for your feedback!</p></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 01 initial 1`] = `
+{
+  "comment": null,
+  "focus": "body",
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><h3>Você gostou desta partida?</h3><p>Sua resposta é registrada por um serviço de avaliações, para melhorarmos os jogos. Não inclua dados pessoais no comentário.</p><div class="btn-row"><button class="btn btn-secondary">Gostei</button><button class="btn btn-secondary">Não gostei</button><button class="btn btn-secondary">Dispensar</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 02 voting 1`] = `
+{
+  "comment": null,
+  "focus": "button "Gostei"",
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><h3>Você gostou desta partida?</h3><p>Sua resposta é registrada por um serviço de avaliações, para melhorarmos os jogos. Não inclua dados pessoais no comentário.</p><div class="btn-row"><button class="btn btn-secondary" disabled="">Gostei</button><button class="btn btn-secondary" disabled="">Não gostei</button><button class="btn btn-secondary" disabled="">Dispensar</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 03 vote error 1`] = `
+{
+  "comment": null,
+  "focus": "button "Gostei"",
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><h3>Você gostou desta partida?</h3><p>Sua resposta é registrada por um serviço de avaliações, para melhorarmos os jogos. Não inclua dados pessoais no comentário.</p><div class="btn-row"><button class="btn btn-secondary">Gostei</button><button class="btn btn-secondary">Não gostei</button><button class="btn btn-secondary">Dispensar</button></div><p role="alert">Não foi possível confirmar o voto. Você pode tentar novamente, mas isso pode registrar um voto duplicado.</p></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 04 vote retry 1`] = `
+{
+  "comment": null,
+  "focus": "button "Gostei"",
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><h3>Você gostou desta partida?</h3><p>Sua resposta é registrada por um serviço de avaliações, para melhorarmos os jogos. Não inclua dados pessoais no comentário.</p><div class="btn-row"><button class="btn btn-secondary" disabled="">Gostei</button><button class="btn btn-secondary" disabled="">Não gostei</button><button class="btn btn-secondary" disabled="">Dispensar</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 05 voted 1`] = `
+{
+  "comment": "",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><h3>Você gostou desta partida?</h3><p>Sua resposta é registrada por um serviço de avaliações, para melhorarmos os jogos. Não inclua dados pessoais no comentário.</p><label for="feedback-comment">Comentário opcional</label><textarea id="feedback-comment" maxlength="1000"></textarea><div class="btn-row"><button class="btn btn-secondary" disabled="">Enviar comentário</button><button class="btn btn-secondary">Concluir sem comentário</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 06 commenting 1`] = `
+{
+  "comment": "  Adorei  ",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><h3>Você gostou desta partida?</h3><p>Sua resposta é registrada por um serviço de avaliações, para melhorarmos os jogos. Não inclua dados pessoais no comentário.</p><label for="feedback-comment">Comentário opcional</label><textarea id="feedback-comment" maxlength="1000"></textarea><div class="btn-row"><button class="btn btn-secondary">Enviar comentário</button><button class="btn btn-secondary">Concluir sem comentário</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 07 sending 1`] = `
+{
+  "comment": "  Adorei  ",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><h3>Você gostou desta partida?</h3><p>Sua resposta é registrada por um serviço de avaliações, para melhorarmos os jogos. Não inclua dados pessoais no comentário.</p><label for="feedback-comment">Comentário opcional</label><textarea id="feedback-comment" maxlength="1000" disabled=""></textarea><div class="btn-row"><button class="btn btn-secondary" disabled="">Enviar comentário</button><button class="btn btn-secondary" disabled="">Concluir sem comentário</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 08 comment error 1`] = `
+{
+  "comment": "  Adorei  ",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><h3>Você gostou desta partida?</h3><p>Sua resposta é registrada por um serviço de avaliações, para melhorarmos os jogos. Não inclua dados pessoais no comentário.</p><label for="feedback-comment">Comentário opcional</label><textarea id="feedback-comment" maxlength="1000"></textarea><div class="btn-row"><button class="btn btn-secondary">Enviar comentário</button><button class="btn btn-secondary">Concluir sem comentário</button></div><p role="alert">Não foi possível confirmar o comentário. Tente novamente.</p></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 09 comment retry 1`] = `
+{
+  "comment": "  Adorei  ",
+  "focus": "textarea#feedback-comment """,
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><h3>Você gostou desta partida?</h3><p>Sua resposta é registrada por um serviço de avaliações, para melhorarmos os jogos. Não inclua dados pessoais no comentário.</p><label for="feedback-comment">Comentário opcional</label><textarea id="feedback-comment" maxlength="1000" disabled=""></textarea><div class="btn-row"><button class="btn btn-secondary" disabled="">Enviar comentário</button><button class="btn btn-secondary" disabled="">Concluir sem comentário</button></div></section>",
+}
+`;
+
+exports[`feedback characterization > renders every state the same way in pt-BR > 10 sent 1`] = `
+{
+  "comment": null,
+  "focus": "body",
+  "html": "<section class="feedback" aria-label="Você gostou desta partida?"><p role="status">Obrigado pela resposta!</p></section>",
+}
+`;
