@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/preact";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Locale, TimelinePuzzle } from "../../lib/quiz-types";
 import fixture from "../../tests/fixtures/timeline.daily.json";
@@ -7,6 +7,7 @@ import { TimelineBoard } from "./TimelineBoard";
 import { TimelineCard } from "./TimelineCard";
 import { TimelineGame } from "./TimelineGame";
 import { getCanonicalChronologicalOrder } from "./timeline-utils";
+import { RESULT_GUARD_MS } from "./TimelineShare";
 
 // Pins the rendered DOM, the focused element and the saved board of every
 // timeline state, so splitting the board and the cards can be checked against
@@ -19,6 +20,8 @@ const labels = {
   "pt-BR": { submit: "Verificar ordem", giveUp: "Desistir", confirmGiveUp: "Sim, desistir", up: "para cima", down: "para baixo" },
   en: { submit: "Check order", giveUp: "Give up", confirmGiveUp: "Yes, give up", up: "up", down: "down" },
 } as const;
+
+const shareLabels = { "pt-BR": "Compartilhar", en: "Share" } as const;
 
 function describeFocus(): string {
   const element = document.activeElement;
@@ -51,6 +54,16 @@ function dataTransfer(from: number) {
     },
   };
   return { dt, writes };
+}
+
+/** The text the share button copies, read from a clipboard stub once the click guard is over. */
+async function copiedShareText(locale: Locale): Promise<string> {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal("navigator", { clipboard: { writeText } });
+  vi.spyOn(performance, "now").mockReturnValue(1000 + RESULT_GUARD_MS);
+  fireEvent.click(screen.getByRole("button", { name: shareLabels[locale] }));
+  await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+  return writeText.mock.calls[0]![0] as string;
 }
 
 /** Enter on a button as a browser delivers it: keydown, then click unless prevented. */
@@ -138,6 +151,7 @@ describe("timeline characterization", () => {
     fireEvent.click(screen.getByRole("button", { name: l.submit }));
     await screen.findByTestId("game-result");
     expect(capture(first.container)).toMatchSnapshot("10 check wrong");
+    expect(await copiedShareText(locale)).toMatchSnapshot("10 share text");
     first.unmount();
 
     const second = render(<TimelineGame locale={locale} puzzle={puzzle} />);
@@ -154,6 +168,7 @@ describe("timeline characterization", () => {
     fireEvent.click(screen.getByRole("button", { name: l.submit }));
     await screen.findByTestId("game-result");
     expect(capture(first.container)).toMatchSnapshot("13 check right");
+    expect(await copiedShareText(locale)).toMatchSnapshot("13 share text");
     first.unmount();
 
     const second = render(<TimelineGame locale={locale} puzzle={puzzle} />);
@@ -172,6 +187,7 @@ describe("timeline characterization", () => {
     fireEvent.click(screen.getByRole("button", { name: l.confirmGiveUp }));
     await screen.findByTestId("game-result");
     expect(capture(container)).toMatchSnapshot("16 gave up");
+    expect(await copiedShareText(locale)).toMatchSnapshot("16 share text");
   });
 });
 
