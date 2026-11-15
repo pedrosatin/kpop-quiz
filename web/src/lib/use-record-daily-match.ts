@@ -6,17 +6,17 @@ import { recordMatchOnce, type GameId } from "./player-stats";
 export interface DailyRound {
   /**
    * The game's own id for the round (`code-<puzzle_id>`, `map-<date>`). A
-   * match counted under it before ADR 030 still counts as counted.
+   * match counted under this id before ADR 030 is not counted again.
    */
   matchId: string;
-  /** The challenge's day: the daily match counts once per game and date. */
+  /** The challenge's day. The daily match counts once per game and date. */
   date: string;
 }
 
 /**
  * The round on a daily board; a board with no date counts for today. Null for
- * a board the loader served after its day (`staleDailyDate`): it is not
- * today's challenge and counts nothing.
+ * a board the loader served after its day (`staleDailyDate`). That board is
+ * not today's challenge and counts nothing.
  */
 export function dailyBoardRound(board: { reference_date: string }, matchId: string): DailyRound | null {
   if (staleDailyDate(board)) return null;
