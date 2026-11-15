@@ -1,3 +1,4 @@
+import { drainRenderFrame } from "../../test/drain-render-frame";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { throwOnLocalStorage } from "../../test/throwing-storage";
@@ -63,6 +64,18 @@ describe("quiz feedback", () => {
     const elsewhere = screen.getByText("Elsewhere"); elsewhere.focus();
     resolve(reply(201, {ok:true,id:"vote-id"}));
     await screen.findByLabelText("Optional comment");
+    await drainRenderFrame();
+    expect(document.activeElement).toBe(elsewhere);
+  });
+  it("keeps external focus when a vote is clicked programmatically", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(reply(201, {ok:true,id:"vote-id"})));
+    render(<><button>Elsewhere</button><Feedback locale="en" site="k_test" /></>);
+    const vote = await screen.findByText("Yes");
+    const elsewhere = screen.getByText("Elsewhere");
+    elsewhere.focus();
+    fireEvent.click(vote);
+    await screen.findByLabelText("Optional comment");
+    await drainRenderFrame();
     expect(document.activeElement).toBe(elsewhere);
   });
   it("suppresses the next prompt after a confirmed vote even without a comment", async () => {

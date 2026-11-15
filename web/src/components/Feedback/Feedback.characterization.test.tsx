@@ -1,3 +1,4 @@
+import { act } from "preact/test-utils";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Locale } from "../../lib/quiz-types";
@@ -51,6 +52,23 @@ afterEach(() => {
 });
 
 describe("feedback characterization", () => {
+  it("sends one vote for two clicks before rendering pending state", async () => {
+    const { fetcher, call } = heldFetch();
+    render(<Feedback locale="en" site="k_test" />);
+    const yes = await screen.findByText("Yes");
+    act(() => {
+      fireEvent.click(yes);
+      fireEvent.click(yes);
+    });
+    const count = fetcher.mock.calls.length;
+    // Release every response, including duplicates if the request guard breaks.
+    for (let index = 0; index < count; index += 1) {
+      call(index).resolve(reply(201, { ok: true, id: "vote-id" }));
+    }
+    await screen.findByLabelText("Optional comment");
+    expect(count).toBe(1);
+  });
+
   it.each(["pt-BR", "en"] as const)("renders every state the same way in %s", async (locale: Locale) => {
     const l = labels[locale];
     const { call } = heldFetch();

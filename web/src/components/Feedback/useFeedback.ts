@@ -25,7 +25,7 @@ export function useFeedback(locale: Locale, site: string) {
     setVisible(Boolean(site) && getLocalStorageItem(STORAGE) !== "1");
     return () => { const current = request.current; request.current = null; current?.abort(); };
   }, [site]);
-  const { commentInput, voteControl } = useCommentFocus(state.voteId, state.pending);
+  const { commentInput } = useCommentFocus(state.voteId, state.pending);
 
   function dismiss() {
     setLocalStorageItem(STORAGE, "1");
@@ -55,7 +55,6 @@ export function useFeedback(locale: Locale, site: string) {
 
   function vote(vote: 1 | -1) {
     if (!canVote(state)) return;
-    voteControl.current = document.activeElement;
     void send("", voteBody(site, vote, locale), { status: VOTE_CREATED, voteId: "" }, (voteId) => {
       dispatch({ type: "voteConfirmed", voteId });
       setLocalStorageItem(STORAGE, "1");
