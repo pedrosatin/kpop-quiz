@@ -1,6 +1,6 @@
 import { useId } from "preact/hooks";
 import type { WordSearchPuzzle, WordSearchWord } from "../../lib/word-search-types";
-import { getMessages } from "../../i18n/catalog";
+import { getMessages, type Messages } from "../../i18n/catalog";
 import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import type { Locale } from "../../lib/quiz-types";
 
@@ -13,6 +13,45 @@ interface WordSearchListProps {
   onToggleEasyMode?: () => void;
   /** Hides the toggle once every name is on the list. */
   completed?: boolean;
+}
+
+function clueFor(word: WordSearchWord, locale: Locale): string {
+  return word.clue?.[locale] || word.clue?.en || "";
+}
+
+/** A clue shared by every word repeats the theme and tells the player nothing. */
+export function cluesAreIdentical(words: readonly WordSearchWord[], locale: Locale): boolean {
+  return words.length > 1 && words.every((word) => clueFor(word, locale) === clueFor(words[0]!, locale));
+}
+
+interface WordSearchChipProps {
+  t: Messages["wordSearch"];
+  word: WordSearchWord;
+  index: number;
+  name: string;
+  /** Empty when the clues say nothing; the letter count stands alone then. */
+  clue: string;
+  found: boolean;
+  /** Easy mode lists every name before it is found. */
+  showName: boolean;
+}
+
+function WordSearchChip({ t, word, index, name, clue, found, showName }: WordSearchChipProps) {
+  // The count wraps as a whole when a clue fills the chip.
+  const pendingHint = clue
+    ? <>{clue} <span class="word-search-count">({t.lettersCount(word.word.length)})</span></>
+    : t.lettersCount(word.word.length);
+
+  return (
+    <li
+      class={`word-search-item${found ? ` is-found color-${index % 6}` : ""}`}
+      data-word-id={word.id}
+    >
+      {found && <span class="found-check" aria-hidden="true">✓</span>}
+      <span class={found ? "text-found" : "text-pending"}>{found || showName ? name : pendingHint}</span>
+      {found && <span class="visually-hidden">{`, ${t.foundState}`}</span>}
+    </li>
+  );
 }
 
 /**
@@ -34,37 +73,24 @@ export function WordSearchList({
   const displayNames = buildLocalizedDisplayNames(puzzle.words, locale);
   const headingId = useId();
   const isEasy = easyMode ?? clueMode ?? false;
-  const clueFor = (word: WordSearchWord) => word.clue?.[locale] || word.clue?.en || "";
-  // A clue shared by every word repeats the theme and tells the player nothing.
-  const cluesAreIdentical =
-    puzzle.words.length > 1 && puzzle.words.every((word) => clueFor(word) === clueFor(puzzle.words[0]!));
+  const hideClues = cluesAreIdentical(puzzle.words, locale);
 
   return (
     <aside class="word-search-list-section" aria-label={t.wordsHeading}>
       <h2 id={headingId} class="word-search-list-heading">{t.wordsHeading}</h2>
       <ul class="word-search-words" role="list" aria-labelledby={headingId}>
-        {puzzle.words.map((word, index) => {
-          const isFound = foundWordIds.includes(word.id);
-          const localizedName = displayNames.get(word.id) ?? word.canonical_name;
-          const localizedClue = cluesAreIdentical ? "" : clueFor(word);
-          // The count wraps as a whole when a clue fills the chip.
-          const pendingHint = localizedClue
-            ? <>{localizedClue} <span class="word-search-count">({t.lettersCount(word.word.length)})</span></>
-            : t.lettersCount(word.word.length);
-          const displayText = isFound || isEasy ? localizedName : pendingHint;
-
-          return (
-            <li
-              key={word.id}
-              class={`word-search-item${isFound ? ` is-found color-${index % 6}` : ""}`}
-              data-word-id={word.id}
-            >
-              {isFound && <span class="found-check" aria-hidden="true">✓</span>}
-              <span class={isFound ? "text-found" : "text-pending"}>{displayText}</span>
-              {isFound && <span class="visually-hidden">{`, ${t.foundState}`}</span>}
-            </li>
-          );
-        })}
+        {puzzle.words.map((word, index) => (
+          <WordSearchChip
+            key={word.id}
+            t={t}
+            word={word}
+            index={index}
+            name={displayNames.get(word.id) ?? word.canonical_name}
+            clue={hideClues ? "" : clueFor(word, locale)}
+            found={foundWordIds.includes(word.id)}
+            showName={isEasy}
+          />
+        ))}
       </ul>
       {/* After the chips, so on phones the first row sits right under the grid. */}
       {!completed && onToggleEasyMode && (

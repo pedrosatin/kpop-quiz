@@ -2,9 +2,11 @@ import { useEffect, useRef } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { CellCoord } from "./types";
 import { sameCell } from "./geometry";
-import { cellClass, pointerPosition, releasePointer } from "./pointer";
+import { pointerPosition, releasePointer } from "./pointer";
 import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
+import { WordSearchCell } from "./word-search-cell";
+import { cellKey } from "./word-search-state";
 
 interface WordSearchGridProps {
   puzzle: WordSearchPuzzle;
@@ -38,7 +40,7 @@ export function WordSearchGrid({
   const { rows, cols } = puzzle.dimensions;
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const activeCoordSet = new Set(activePath.map((c) => `${c.row},${c.col}`));
+  const activeCoordSet = new Set(activePath.map(cellKey));
 
   useEffect(() => {
     const focusedEl = gridRef.current?.querySelector<HTMLElement>(
@@ -90,27 +92,22 @@ export function WordSearchGrid({
       {puzzle.grid.map((rowLetters, r) => (
         <div class="word-search-row" role="row" key={`row-${r}`}>
           {rowLetters.map((letter, c) => {
-            const key = `${r},${c}`;
             const here = { row: r, col: c };
+            const key = cellKey(here);
             const color = foundCellsMap.get(key);
-            const isSelected = activeCoordSet.has(key);
-            const isRevealed = color === undefined && (revealedCells?.has(key) ?? false);
-            const classes = cellClass({ selected: isSelected, color, revealed: isRevealed, anchor: sameCell(anchorCell, here) });
-
             return (
-              <button
-                type="button"
-                role="gridcell"
+              <WordSearchCell
                 key={key}
-                class={classes}
-                data-row={r}
-                data-col={c}
-                data-found={color !== undefined ? "true" : undefined}
-                tabIndex={sameCell(focusedCell, here) ? 0 : -1}
-                aria-label={t.cellAria(r, c, letter, isSelected, color !== undefined, isRevealed)}
-              >
-                <span class="cell-letter">{letter}</span>
-              </button>
+                t={t}
+                row={r}
+                col={c}
+                letter={letter}
+                color={color}
+                selected={activeCoordSet.has(key)}
+                revealed={color === undefined && (revealedCells?.has(key) ?? false)}
+                anchor={sameCell(anchorCell, here)}
+                focused={sameCell(focusedCell, here)}
+              />
             );
           })}
         </div>

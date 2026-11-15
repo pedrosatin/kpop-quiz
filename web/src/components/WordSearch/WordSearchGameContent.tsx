@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
@@ -8,8 +8,11 @@ import { WordSearchHeader } from "./WordSearchHeader";
 import { WordSearchGrid } from "./WordSearchGrid";
 import { WordSearchList } from "./WordSearchList";
 import { WordSearchResult } from "./WordSearchResult";
-import { WordSearchBarMessage, barTone } from "./WordSearchBarMessage";
-import { formatTime } from "./utils";
+import { WordSearchBarMessage, actionBarTone } from "./WordSearchBarMessage";
+import { WordSearchProgress } from "./word-search-progress";
+import { WordSearchShareNote, useShareNote } from "./word-search-share-note";
+import { useWordSearchGiveUp } from "./useWordSearchGiveUp";
+import { hasGivenUp } from "./word-search-state";
 import { recordDailyBoardMatch } from "../../lib/player-stats";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
@@ -45,7 +48,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   const totalWords = puzzle.words.length;
   const foundCount = foundWordIds.length;
   const completed = status === "completed";
-  const gaveUp = completed && foundCount < totalWords;
+  const gaveUp = hasGivenUp(status, foundCount, totalWords);
 
   // Only a puzzle finished in this visit moves focus to the result; one
   // restored from storage leaves focus where the page put it.
@@ -53,28 +56,8 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   const resultTitle = useRef<HTMLHeadingElement>(null);
   useFocusOnChange(resultTitle, completed && !finishedOnLoad.current);
 
-  // n changes on every share, so the same message is announced again.
-  const [shareNote, setShareNote] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
-  const shares = useRef(0);
-
-  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
-  const confirmGiveUpOpenRef = useRef(false);
-
-  const closeGiveUpConfirm = useCallback(() => {
-    confirmGiveUpOpenRef.current = false;
-    setConfirmGiveUpOpen(false);
-  }, []);
-
-  const requestGiveUp = useCallback(() => {
-    confirmGiveUpOpenRef.current = true;
-    setConfirmGiveUpOpen(true);
-  }, []);
-
-  const confirmGiveUp = useCallback(() => {
-    if (!confirmGiveUpOpenRef.current) return;
-    closeGiveUpConfirm();
-    giveUp();
-  }, [closeGiveUpConfirm, giveUp]);
+  const { shareNote, onCopied, onShareFailed } = useShareNote();
+  const { confirmGiveUpOpen, requestGiveUp, confirmGiveUp, closeGiveUpConfirm } = useWordSearchGiveUp(giveUp);
 
   const recordedMatchRef = useRef<string | null>(null);
 
@@ -96,29 +79,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   const displayNames = buildLocalizedDisplayNames(puzzle.words, locale);
   const wordName = (id: string) => displayNames.get(id) ?? "";
 
-  // While playing the bar says what the selection is doing (WordSearchBarMessage);
-  // at the end it only announces a copy, and the result title takes its place.
-  let message = null;
-  let barState = barTone(lastCheck);
-  if (completed) {
-    // A new key replaces the paragraph, so a second copy is announced again.
-    if (shareNote?.kind === "copied") message = <p key={shareNote.n}>{messages.copiedToClipboard}</p>;
-    else if (shareNote?.kind === "shareFailed") message = <p key={shareNote.n}>{messages.shareFailed}</p>;
-    barState = " is-correct";
-  } else {
-    if (activePath.length > 1 || anchorCell) barState = "";
-    message = (
-      <WordSearchBarMessage
-        puzzle={puzzle}
-        t={t}
-        activePath={activePath}
-        anchorCell={anchorCell}
-        lastCheck={lastCheck}
-        foundCount={foundCount}
-        wordName={wordName}
-      />
-    );
-  }
+  const barState = actionBarTone(completed, lastCheck, activePath.length > 1 || anchorCell !== null);
 
   if (dayDone) return <DailyDone game="wordSearch" locale={locale} />;
 
@@ -163,7 +124,21 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
           role="status"
           aria-live="polite"
         >
-          {message}
+          {/* While playing it says what the selection is doing; at the end
+              it only announces a copy, and the result title takes its place. */}
+          {completed ? (
+            <WordSearchShareNote note={shareNote} messages={messages} />
+          ) : (
+            <WordSearchBarMessage
+              puzzle={puzzle}
+              t={t}
+              activePath={activePath}
+              anchorCell={anchorCell}
+              lastCheck={lastCheck}
+              foundCount={foundCount}
+              wordName={wordName}
+            />
+          )}
         </div>
         {completed ? (
           <WordSearchResult
@@ -173,21 +148,12 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
             foundCount={foundCount}
             gaveUp={gaveUp}
             titleRef={resultTitle}
-            onCopied={() => setShareNote({ kind: "copied", n: ++shares.current })}
-            onShareFailed={() => setShareNote({ kind: "shareFailed", n: ++shares.current })}
+            onCopied={onCopied}
+            onShareFailed={onShareFailed}
           />
         ) : (
           <>
-            <dl class="word-search-progress">
-              <div>
-                <dt>{t.wordsFound}</dt>
-                <dd data-testid="found-counter">{t.progress(foundCount, totalWords)}</dd>
-              </div>
-              <div>
-                <dt>{t.timerLabel}</dt>
-                <dd class="timer-display" data-testid="timer-display">{formatTime(elapsedSeconds)}</dd>
-              </div>
-            </dl>
+            <WordSearchProgress t={t} foundCount={foundCount} totalWords={totalWords} elapsedSeconds={elapsedSeconds} />
             <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
               {messages.giveUp}
             </button>
