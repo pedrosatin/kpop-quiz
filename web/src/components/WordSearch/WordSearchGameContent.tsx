@@ -11,10 +11,10 @@ import { WordSearchResult } from "./WordSearchResult";
 import { WordSearchBarMessage, actionBarTone } from "./WordSearchBarMessage";
 import { WordSearchProgress } from "./word-search-progress";
 import { WordSearchShareNote, useShareNote } from "./word-search-share-note";
-import { useWordSearchGiveUp } from "./useWordSearchGiveUp";
 import { hasGivenUp } from "./word-search-state";
 import { dailyBoardRound, useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { useGiveUpConfirm } from "../../lib/use-give-up-confirm";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 
@@ -57,7 +57,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   useFocusOnChange(resultTitle, completed && !finishedOnLoad.current);
 
   const { shareNote, onCopied, onShareFailed } = useShareNote();
-  const { confirmGiveUpOpen, requestGiveUp, confirmGiveUp, closeGiveUpConfirm } = useWordSearchGiveUp(giveUp);
+  const { confirmGiveUpOpen, requestGiveUp, closeGiveUpConfirm, confirmGiveUp } = useGiveUpConfirm();
 
   useRecordDailyMatch("word-search", dailyBoardRound(puzzle, wordSearchMatchId(puzzle)), completed, foundCount >= totalWords);
   const dayDone = useDailyMatchDone("word-search", puzzle.reference_date, wordSearchMatchId(puzzle), completed);
@@ -155,7 +155,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
         body={messages.giveUpConfirmBody}
         confirmLabel={messages.giveUpConfirmAction}
         cancelLabel={messages.cancel}
-        onConfirm={confirmGiveUp}
+        onConfirm={() => confirmGiveUp(giveUp)}
         onCancel={closeGiveUpConfirm}
       />
     </section>

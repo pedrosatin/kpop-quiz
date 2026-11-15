@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from "preact/hooks";
+import { useCallback, useRef } from "preact/hooks";
 import type { Locale, TimelinePuzzle } from "../../lib/quiz-types";
 import { dailyBoardRound, useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { timelineMatchId, useTimelineGame } from "./useTimelineGame";
 import { TimelineBoard } from "./TimelineBoard";
 import { TimelineResults } from "./TimelineResults";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { useGiveUpConfirm } from "../../lib/use-give-up-confirm";
 import { getMessages } from "../../i18n/catalog";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
@@ -78,25 +79,11 @@ export function TimelineGameContent({
     submit();
   }, [submit]);
 
-  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
-  const confirmGiveUpOpenRef = useRef(false);
-
-  const closeGiveUpConfirm = useCallback(() => {
-    confirmGiveUpOpenRef.current = false;
-    setConfirmGiveUpOpen(false);
-  }, []);
-
-  const requestGiveUp = useCallback(() => {
-    confirmGiveUpOpenRef.current = true;
-    setConfirmGiveUpOpen(true);
-  }, []);
-
-  const confirmGiveUp = useCallback(() => {
-    if (!confirmGiveUpOpenRef.current) return;
-    closeGiveUpConfirm();
+  const { confirmGiveUpOpen, requestGiveUp, closeGiveUpConfirm, confirmGiveUp } = useGiveUpConfirm();
+  const giveUpHere = () => {
     playedHere.current = true;
     submit(true);
-  }, [closeGiveUpConfirm, submit]);
+  };
 
   // A give-up reveals the canonical order, so a correct board after one still
   // counts as played without a win.
@@ -139,7 +126,7 @@ export function TimelineGameContent({
         body={messages.giveUpConfirmBody}
         confirmLabel={messages.giveUpConfirmAction}
         cancelLabel={messages.cancel}
-        onConfirm={confirmGiveUp}
+        onConfirm={() => confirmGiveUp(giveUpHere)}
         onCancel={closeGiveUpConfirm}
       />
     </section>
