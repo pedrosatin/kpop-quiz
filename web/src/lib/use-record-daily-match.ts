@@ -38,19 +38,17 @@ export function useRecordDailyMatch(
   won: boolean,
   guessCount?: number,
 ): void {
+  // The match this view already passed to recordMatchOnce. It holds through a
+  // restart, so a marker that could not be stored does not let the round count
+  // twice.
   const recordedMatchRef = useRef<string | null>(null);
   // Primitives, so a round rebuilt on each render does not rerun the effect.
   const matchId = round?.matchId ?? null;
   const date = round?.date;
 
   useEffect(() => {
-    if (finished && matchId !== null) {
-      if (recordedMatchRef.current !== matchId) {
-        recordMatchOnce(gameId, matchId, won, date, guessCount);
-        recordedMatchRef.current = matchId;
-      }
-    } else if (!finished) {
-      recordedMatchRef.current = null;
-    }
+    if (!finished || matchId === null || recordedMatchRef.current === matchId) return;
+    recordMatchOnce(gameId, matchId, won, date, guessCount);
+    recordedMatchRef.current = matchId;
   }, [gameId, matchId, date, finished, won, guessCount]);
 }
