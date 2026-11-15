@@ -3,6 +3,7 @@ import { expect, test } from "./fixtures/consent";
 import { expectBoardDirectReady } from "./helpers/boot";
 import { skipUnlessPublished } from "./helpers/published";
 import { settleEffects } from "./helpers/passive-effects";
+import { cardIds, savedOrder } from "./helpers/timeline-board";
 
 // Drags a card with the mouse, the way a desktop player does, and checks the
 // order on screen and the draft the board saves.
@@ -15,7 +16,6 @@ import { settleEffects } from "./helpers/passive-effects";
 // `dragTo` works in both, so the helper fails here and the game works.
 
 const base = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
-const DRAFT_KEY_PREFIX = "kpop-timeline-";
 
 const locales = [
   { id: "pt", path: "/pt-br/linha-do-tempo/" },
@@ -26,21 +26,6 @@ const moves = [
   { from: 0, to: 2 },
   { from: 2, to: 0 },
 ] as const;
-
-function cardIds(page: Page): Promise<string[]> {
-  return page
-    .locator(".timeline-card")
-    .evaluateAll((cards) => cards.map((card) => card.getAttribute("data-testid")!.replace("timeline-card-", "")));
-}
-
-/** The board order saved as the draft, or null before the first move. */
-function savedOrder(page: Page): Promise<string[] | null> {
-  return page.evaluate((prefix) => {
-    const key = Object.keys(localStorage).find((name) => name.startsWith(prefix));
-    const saved = key ? localStorage.getItem(key) : null;
-    return saved ? (JSON.parse(saved).orderedEventIds as string[]) : null;
-  }, DRAFT_KEY_PREFIX);
-}
 
 /** The center of a card's title, asserted to sit inside the viewport so the mouse can reach it. */
 async function cardPoint(page: Page, index: number): Promise<{ x: number; y: number }> {
