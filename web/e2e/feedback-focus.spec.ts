@@ -7,7 +7,7 @@ import type { QuizSession } from "../src/lib/quiz-types";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { expect, test } from "./fixtures/feedback-build";
 
-const dataDir = fileURLToPath(new URL("../public/data/", import.meta.url));
+const dataDir = fileURLToPath(new URL("../src/tests/fixtures/", import.meta.url));
 
 async function sessionFixture(page: Page) {
   const manifest = JSON.parse(readFileSync(join(dataDir, "manifest-v2.json"), "utf8"));

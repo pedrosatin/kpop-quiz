@@ -29,6 +29,9 @@ export const test = base.extend<{}, { feedbackURL: string }>({
         },
         timeout: 120_000,
       });
+      // The rating scenarios must run even when publication omits the quiz.
+      await Promise.all(["manifest-v2.json", "manifest-v3.json"].map(name =>
+        rm(join(outDir, "data", name), { force: true })));
       server = await preview({ root, outDir, base: "/", server: { host: "127.0.0.1", port: 0 }, logLevel: "error" });
       await use(`http://127.0.0.1:${server.port}`);
     } finally {
