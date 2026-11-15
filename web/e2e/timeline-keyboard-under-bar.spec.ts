@@ -9,10 +9,11 @@ import { cardIds, savedOrder } from "./helpers/timeline-board";
 //
 // The card moved by a ↑ or ↓ button keeps focus on its own button. In
 // 1280x720 the sticky action bar (.timeline-controls) covers the bottom of
-// the screen, and the last card used to end under it: the focused ↑ button
-// sat just above the bar, so the browser left the page where it was, and the
-// card's title stayed under the bar. The board now scrolls the moved card into
-// view above the bar, and a card already in view leaves the page where it is.
+// the screen. A card moved to the end used to stay partly under it, because
+// the browser scrolled the page only until the focused ↑ button fitted above
+// the bar, and the card's title, lower down, stayed under the bar. The board
+// now scrolls the whole moved card into view above the bar, and a card already
+// in view leaves the page where it is.
 
 const base = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
 const PATH = "/pt-br/linha-do-tempo/";
@@ -115,6 +116,11 @@ for (const viewport of viewports) {
 
       expect((await cardIds(page))[0]).toBe(id);
       await expectCardAboveBar(page, id, `timeline-move-down-${id}`);
+      // The page scrolls only until the card's top reaches the top of the
+      // screen. Going back to the top of the page would also show the card,
+      // lower down.
+      const card = await rectOf(page, `[data-testid="timeline-card-${id}"]`);
+      expect(card.top, "the page scrolled only as far as the card's top").toBeLessThanOrEqual(EPSILON_PX);
     });
 
     test(`timeline leaves the page where it is on a keyboard move between cards in view (${viewport.width}x${viewport.height})`, async ({ page, baseURL }) => {
