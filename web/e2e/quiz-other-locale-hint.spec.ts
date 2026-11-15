@@ -39,14 +39,16 @@ const rounds = [
   },
 ] as const;
 
-type Frame = { top: number; hint: boolean; banner: boolean };
+/**
+ * One animation frame: Start's top, the action bar's height and Start's
+ * offset inside it, whether the link is in the page, and the banner height
+ * the page has applied to the bar (`--consent-banner-height`, empty until the
+ * banner publishes it).
+ */
+type Frame = { top: number; barHeight: number; offset: number; hint: boolean; bannerHeight: string };
 type Trace = { frames: Frame[]; cls: number };
 
-/**
- * Start's top on every frame, with whether the link and the consent banner
- * were in the page, and the layout shift without recent input, from the
- * first paint.
- */
+/** Every frame from the first paint, and the layout shift without recent input. */
 async function traceLayout(page: Page) {
   await page.addInitScript(() => {
     const w = window as unknown as { __trace: Trace };
@@ -58,11 +60,16 @@ async function traceLayout(page: Page) {
     }).observe({ type: "layout-shift", buffered: true });
     const sample = () => {
       const start = document.querySelector('[data-testid="game-start"]');
-      if (start) {
+      const bar = start?.closest(".setup-actions");
+      if (start && bar) {
+        const startTop = start.getBoundingClientRect().top;
+        const barRect = bar.getBoundingClientRect();
         w.__trace.frames.push({
-          top: Math.round(start.getBoundingClientRect().top),
+          top: Math.round(startTop),
+          barHeight: Math.round(barRect.height),
+          offset: Math.round(startTop - barRect.top),
           hint: Boolean(document.querySelector('[data-testid="quiz-other-locale-hint"]')),
-          banner: Boolean(document.querySelector(".consent-banner")),
+          bannerHeight: getComputedStyle(document.documentElement).getPropertyValue("--consent-banner-height").trim(),
         });
       }
       if (performance.now() < 6_000) requestAnimationFrame(sample);
@@ -129,19 +136,21 @@ for (const viewport of viewports) {
       expect(box.height).toBeLessThanOrEqual(Math.max(rules.height, 44) + 1);
 
       const trace = await page.evaluate(() => (window as unknown as { __trace: Trace }).__trace);
-      // The link never moves Start: the frame before it arrives and every
-      // frame after it share one position. Without the banner that is every
-      // frame from the first paint. With it, the bar first rises above the
-      // banner once its height is known, before the link arrives; that move
-      // belongs to the banner and happens on any visit.
-      const firstHint = trace.frames.findIndex((frame) => frame.hint);
-      expect(firstHint, "a frame before the link arrives").toBeGreaterThan(0);
-      const tops = [...new Set(trace.frames.slice(firstHint - 1).map((frame) => frame.top))];
-      expect(tops, `Start moved with the link: ${tops.join(", ")}`).toHaveLength(1);
-      if (!viewport.banner) {
-        const all = [...new Set(trace.frames.map((frame) => frame.top))];
-        expect(all, `Start moved: ${all.join(", ")}`).toHaveLength(1);
-      }
+      // Two things may move Start, and only one is allowed. The banner and
+      // the quiz are separate islands that hydrate in either order; once the
+      // banner publishes its height, the bar rises above it as a whole. The
+      // link must never move Start: from the first paint the bar keeps its
+      // height and Start its offset inside it, and Start's top changes only
+      // on the frame where the banner height changes.
+      const frames = trace.frames;
+      expect(frames.some((frame) => !frame.hint), "a frame before the link arrives").toBe(true);
+      const shapes = [...new Set(frames.map((frame) => `${frame.barHeight}/${frame.offset}`))];
+      expect(shapes, `the bar changed shape (height/offset of Start): ${shapes.join(", ")}`).toHaveLength(1);
+      const moves = frames.flatMap((frame, i) =>
+        i > 0 && frame.top !== frames[i - 1]!.top ? [{ before: frames[i - 1]!, after: frame }] : []);
+      const linkMoves = moves.filter(({ before, after }) => before.bannerHeight === after.bannerHeight);
+      expect(linkMoves, `Start moved without a banner height change: ${JSON.stringify(linkMoves)}`).toEqual([]);
+      if (!viewport.banner) expect(moves, "Start moved").toEqual([]);
       expect(trace.cls).toBeLessThanOrEqual(0.1);
       test.info().annotations.push({
         type: "layout",
