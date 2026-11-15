@@ -30,7 +30,7 @@ export function feedbackReducer(state: FeedbackState, event: FeedbackEvent): Fee
   }
 }
 
-/** A confirmed vote is never sent again; an unconfirmed one can be retried. */
+/** The player can retry a vote until the service confirms one. */
 export function canVote(state: FeedbackState): boolean {
   return !state.voteId;
 }

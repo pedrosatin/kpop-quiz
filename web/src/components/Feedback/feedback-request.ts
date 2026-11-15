@@ -2,15 +2,18 @@ import { isRecord } from "../../lib/guards";
 import type { Locale } from "../../lib/quiz-types";
 
 export const RATING_API = "https://tbbc.app/api/rating";
-/** The rating service gives up on its side long before this. */
+/** The widget aborts a request that takes longer than this. */
 export const RATING_TIMEOUT_MS = 10000;
-/** A new vote answers 201 and a comment on it answers 200. */
+/** The service answers 201 to a new vote and 200 to a comment on it. */
 export const VOTE_CREATED = 201;
 export const COMMENT_SAVED = 200;
 
 export type CommentAttempt = { comment: string; nonce: string };
 
-/** Only generic metadata goes with a vote: no score, round or player data. */
+/**
+ * A vote carries the site key, the vote, a fixed section and app, and the
+ * language. Score, round and player data stay out.
+ */
 export function voteBody(site: string, vote: 1 | -1, locale: Locale) {
   return { site, vote, section: "quiz-result", app: "ponder-club", lang: locale === "pt-BR" ? "pt-BR" : "en" };
 }
@@ -21,8 +24,8 @@ export function commentPath(voteId: string): string {
 }
 
 /**
- * Retrying the same text keeps its nonce, so the service can drop a comment
- * it already saved. Edited text is a new comment with a new nonce.
+ * Retrying the same text keeps its nonce, so the service can tell a retry
+ * from a new comment. Edited text is a new comment with a new nonce.
  */
 export function nextCommentAttempt(previous: CommentAttempt | null, comment: string, newNonce: () => string): CommentAttempt {
   if (previous?.comment === comment) return previous;
@@ -31,8 +34,8 @@ export function nextCommentAttempt(previous: CommentAttempt | null, comment: str
 
 /**
  * A reply confirms only with the expected status, `ok: true` and a non-blank
- * id. A comment reply must also name the vote it was sent to; a vote reply
- * passes an empty `voteId` and accepts any id.
+ * id. A comment reply must also name the vote it was sent to. For a vote, the
+ * caller passes an empty `voteId`, and any id confirms.
  */
 export function isConfirmedReply(status: number, reply: unknown, expected: { status: number; voteId: string }): reply is { ok: true; id: string } {
   if (status !== expected.status) return false;

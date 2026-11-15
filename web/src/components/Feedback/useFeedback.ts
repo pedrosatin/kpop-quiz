@@ -6,7 +6,10 @@ import { COMMENT_SAVED, RATING_TIMEOUT_MS, VOTE_CREATED, commentPath, isConfirme
 import { canSendComment, canVote, feedbackReducer, initialFeedbackState } from "./feedback-state";
 import { useCommentFocus } from "./useCommentFocus";
 
-/** Set once the player votes or dismisses, so later results do not ask again. */
+/**
+ * Set when the service confirms a vote or a comment, or when the player
+ * dismisses, so later results do not ask again.
+ */
 const STORAGE = "ponder-feedback-dismissed";
 
 /** Visibility, the typed comment and the rating requests of the widget. */
