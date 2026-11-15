@@ -3,7 +3,7 @@ import unittest
 from collections import Counter
 from datetime import date
 
-from kpop_scraping.quiz_drafts import _build_drafts
+from kpop_scraping.quiz_drafts import _age_on_date_draft, _build_drafts
 from kpop_scraping.quiz_models import Entity, Evidence, Fact
 from kpop_scraping.quiz_repository import _load_entities, _load_facts
 from tests.test_quiz_generator import build_quiz_database
@@ -37,7 +37,13 @@ def make_fact(
 
 
 def sparse_facts():
-    """Facts too few or too conflicting to yield drafts, one per rejection path."""
+    """Facts too few or too conflicting to yield drafts, one per rejection path.
+
+    Two births pin the age edges: ``b4`` falls on the reference date with day
+    precision, and ``b5`` has year precision and a future date. They reuse
+    people that memberships already support, so the pool of person
+    distractors stays the same.
+    """
     alpha = make_entity("QG1", "group", "Alpha")
     rhythm = make_entity("QG2", "group", "Rhythm Power", ("Hangzoo",))
     gamma = make_entity("QG3", "group", "Gamma")
@@ -52,6 +58,11 @@ def sparse_facts():
         make_fact("b1", ana, "born_on", value_time="1990-01-01", value_precision=11),
         make_fact("b2", bia, "born_on", value_time="2030-01-01", value_precision=11),
         make_fact("b3", cris, "born_on", value_time="1995-01-01", value_precision=9),
+        make_fact(
+            "b4", hangzoo, "born_on",
+            value_time=REFERENCE_DATE.isoformat(), value_precision=11,
+        ),
+        make_fact("b5", bia, "born_on", value_time="2031-01-01", value_precision=9),
         make_fact("m1", alpha, "has_member", ana, interval=SPARSE_INTERVAL),
         make_fact("o1", ana, "member_of", alpha, interval=SPARSE_INTERVAL),
         make_fact("m2", alpha, "has_member", bia),
@@ -132,10 +143,10 @@ class BuildDraftsCharacterizationTest(unittest.TestCase):
             list(rejected.items()),
             [
                 ("insufficient_formation_year_distractors", 1),
-                ("insufficient_birth_date_distractors", 3),
-                ("insufficient_age_distractors", 1),
+                ("insufficient_birth_date_distractors", 5),
+                ("insufficient_age_distractors", 2),
                 ("birth_after_reference_date", 1),
-                ("insufficient_precision_for_age", 1),
+                ("insufficient_precision_for_age", 2),
                 ("insufficient_group_distractors", 3),
                 ("insufficient_person_distractors", 2),
                 ("membership_interval_not_eligible", 1),
@@ -147,6 +158,27 @@ class BuildDraftsCharacterizationTest(unittest.TestCase):
                 ("insufficient_record_label_distractors", 1),
             ],
         )
+
+    def test_age_edges_reject_each_birth_for_its_own_reason(self):
+        facts, _entities = sparse_facts()
+        born = [fact for fact in facts if fact.predicate == "born_on"]
+        by_id = {fact.statement_id: fact for fact in born}
+        # b4 reaches the distractor check, so a birth on the reference date
+        # passes the future-date check; b5 stops at precision before any date.
+        cases = (
+            ("b4", "insufficient_age_distractors"),
+            ("b5", "insufficient_precision_for_age"),
+        )
+        for statement_id, reason in cases:
+            with self.subTest(statement_id=statement_id):
+                rejected: Counter[str] = Counter()
+
+                draft = _age_on_date_draft(
+                    by_id[statement_id], born, REFERENCE_DATE, (), (), (), rejected
+                )
+
+                self.assertIsNone(draft)
+                self.assertEqual(list(rejected.items()), [(reason, 1)])
 
 
 if __name__ == "__main__":
