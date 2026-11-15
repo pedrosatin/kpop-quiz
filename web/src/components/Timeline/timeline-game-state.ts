@@ -76,7 +76,10 @@ export function eventsInOrder(ids: readonly string[], eventMap: Map<string, Time
     .filter((event): event is TimelineEvent => Boolean(event));
 }
 
-/** The save written on submit, with the fields in the order the stored JSON has always had. */
+/**
+ * The save `submit` writes, with its fields in the same order as before the
+ * split, so the stored JSON does not change.
+ */
 export function submittedTimelineState(
   puzzle: TimelinePuzzle,
   orderedEventIds: string[],

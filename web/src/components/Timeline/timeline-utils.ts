@@ -136,10 +136,10 @@ export function saveTimelineDraft(storageKey: string, puzzle: TimelinePuzzle, or
   setLocalStorageItem(storageKey, JSON.stringify(draft));
 }
 
-/** A stored object with every field of a submitted save, before its score is checked. */
+/** A stored object with every field of a submitted save, before `matchesItsScore` checks its score. */
 type SubmittedSaveFields = Record<string, unknown> & Omit<TimelineStoredState, "submitted"> & { submitted: true };
 
-/** Whether `parsed` has the fields of a submitted save of this board, in the order they are checked. */
+/** Whether `parsed` has every field of a submitted save of this board. */
 function isSubmittedSaveOf(parsed: Record<string, unknown>, puzzle: TimelinePuzzle): parsed is SubmittedSaveFields {
   if (parsed.puzzleId !== puzzle.puzzle_id) return false;
   if (parsed.referenceDate !== puzzle.reference_date) return false;
