@@ -12,7 +12,7 @@ import { settleEffects } from "./helpers/passive-effects";
 // into view. Chromium starts the HTML5 drag on that first move and hit-tests the
 // press point in the scrolled page, so it drags whichever card sits there now,
 // or none. Firefox keeps the pressed card. With the whole board in view,
-// `dragTo` works in both, so the failure belongs to the helper, not to the game.
+// `dragTo` works in both, so the helper fails here and the game works.
 
 const base = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
 const DRAFT_KEY_PREFIX = "kpop-timeline-";
@@ -70,7 +70,8 @@ for (const locale of locales) {
       await skipUnlessPublished(page, baseURL!, "timeline.daily.json");
       await page.goto(`${base}${locale.path}`);
       await expectBoardDirectReady(page);
-      // Bring the first cards into view without scrolling once the button is down.
+      // The moves stay within the first three cards, which fit in the default
+      // 720 px window, so the page does not scroll while the button is down.
       await page.locator(".timeline-card").first().evaluate((card) => card.scrollIntoView({ block: "start" }));
 
       const opening = await cardIds(page);

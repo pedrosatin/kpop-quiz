@@ -206,7 +206,7 @@ export interface GenerateTimelineShareTextParams {
   locale: Locale;
 }
 
-/** The score line of the share text: the sequence score after a give-up, else the score with a star. */
+/** The share text's score line. A give-up shows the sequence score, and any other round the starred score. */
 function shareScoreLine(isPt: boolean, gaveUp: boolean, score: string): string {
   if (gaveUp && isPt) return `Desistência · Pontuação da sequência: ${score}`;
   if (gaveUp) return `Gave up · Sequence score: ${score}`;
