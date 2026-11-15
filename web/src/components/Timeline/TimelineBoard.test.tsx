@@ -220,9 +220,10 @@ describe("TimelineBoard", () => {
     expect(live).toHaveTextContent(`${draggedTitle} movido para a posição 2 de 5`);
   });
 
-  it("brings the moved card into view without moving focus, and only after a move", () => {
+  it("brings the moved card into view only after a move, where a drop keeps focus and a button move focuses its button", () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
     try {
       render(<TimelineBoard events={events} locale="pt-BR" onSubmit={vi.fn()} onGiveUp={vi.fn()} />);
       const draggedTitle = events[0]!.title["pt-BR"];
@@ -252,8 +253,15 @@ describe("TimelineBoard", () => {
       expect(scrollIntoView).toHaveBeenCalledTimes(2);
       expect(scrollIntoView).toHaveBeenLastCalledWith({ block: "nearest" });
       expect(scrollIntoView.mock.contexts[1]).toBe(screen.getAllByRole("listitem")[4]);
-      expect(document.activeElement).toBe(document.getElementById(`timeline-move-up-${events[0]!.id}`));
+      const upButton = document.getElementById(`timeline-move-up-${events[0]!.id}`);
+      expect(document.activeElement).toBe(upButton);
+      // The card scrolls into view before its button takes focus, so the
+      // browser's focus scroll finds the button already in view.
+      const focusCall = focus.mock.contexts.lastIndexOf(upButton!);
+      expect(focusCall).not.toBe(-1);
+      expect(scrollIntoView.mock.invocationCallOrder[1]).toBeLessThan(focus.mock.invocationCallOrder[focusCall]!);
     } finally {
+      focus.mockRestore();
       delete (Element.prototype as Partial<Element>).scrollIntoView;
     }
   });
