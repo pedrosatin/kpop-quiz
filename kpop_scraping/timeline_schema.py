@@ -2,6 +2,8 @@
 
 The shared checks from ``puzzle_schema`` are bound to ``_require`` with
 ``partial`` at import time, so patching ``_require`` does not reach them.
+The local checks, ``_validate_evidence`` and ``_require_date``, look up
+``_require`` in the module globals on every call, so a patch does reach them.
 """
 
 from __future__ import annotations
