@@ -5,7 +5,7 @@ import { NameGuessResults } from "./NameGuessResults";
 import { VirtualKeyboard } from "./VirtualKeyboard";
 import type { NameGuessTranslations } from "./types";
 import { nameGuessMatchId, useNameGuessGame, type ErrorCode } from "./useNameGuessGame";
-import { recordDailyBoardMatch } from "../../lib/player-stats";
+import { dailyBoardRound, useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { getMessages } from "../../i18n/catalog";
 import { formatCalendarDate } from "../../lib/format-date";
@@ -115,21 +115,8 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
   const [shareFeedback, setShareFeedback] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
   const shares = useRef(0);
 
-  const recordedMatchRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (isGameOver && puzzle) {
-      const matchId = nameGuessMatchId(puzzle);
-      if (recordedMatchRef.current !== matchId) {
-        const isWin = status === "won";
-        const guessCount = guesses.length;
-        recordDailyBoardMatch("name-guess", puzzle, matchId, isWin, guessCount);
-        recordedMatchRef.current = matchId;
-      }
-    } else if (!isGameOver) {
-      recordedMatchRef.current = null;
-    }
-  }, [isGameOver, status, puzzle, guesses.length]);
+  const round = dailyBoardRound(puzzle, nameGuessMatchId(puzzle));
+  useRecordDailyMatch("name-guess", round, isGameOver, status === "won", guesses.length);
 
   const errorDisplay = errorMessage ? errorText(errorMessage, t, puzzle.word_length) : null;
 

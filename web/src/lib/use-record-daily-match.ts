@@ -28,9 +28,16 @@ export function dailyBoardRound(board: { reference_date: string }, matchId: stri
  * (ADR 030). A finished game restored from storage counts on the first load
  * that finds it uncounted; a restarted board finished again, or another
  * board for the same date, counts nothing. `round` is null while there is
- * nothing to count: no board yet, a stale board or a replay.
+ * nothing to count: no board yet, a stale board or a replay. `guessCount` is
+ * the Name game's attempts, kept in its guess distribution on a win.
  */
-export function useRecordDailyMatch(gameId: GameId, round: DailyRound | null, finished: boolean, won: boolean): void {
+export function useRecordDailyMatch(
+  gameId: GameId,
+  round: DailyRound | null,
+  finished: boolean,
+  won: boolean,
+  guessCount?: number,
+): void {
   const recordedMatchRef = useRef<string | null>(null);
   // Primitives, so a round rebuilt on each render does not rerun the effect.
   const matchId = round?.matchId ?? null;
@@ -39,11 +46,11 @@ export function useRecordDailyMatch(gameId: GameId, round: DailyRound | null, fi
   useEffect(() => {
     if (finished && matchId !== null) {
       if (recordedMatchRef.current !== matchId) {
-        recordMatchOnce(gameId, matchId, won, date);
+        recordMatchOnce(gameId, matchId, won, date, guessCount);
         recordedMatchRef.current = matchId;
       }
     } else if (!finished) {
       recordedMatchRef.current = null;
     }
-  }, [gameId, matchId, date, finished, won]);
+  }, [gameId, matchId, date, finished, won, guessCount]);
 }
