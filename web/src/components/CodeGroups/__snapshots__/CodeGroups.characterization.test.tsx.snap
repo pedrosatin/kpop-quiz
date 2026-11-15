@@ -1,0 +1,752 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`code characterization > pins the raw save written after each step 1`] = `
+[
+  null,
+  "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[],"selection":["Q124162611","","",""]}",
+  "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"]],"selection":["Q124162611","Q96401398","Q12621720","Q41949104"]}",
+  "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"]],"selection":["Q124162611","Q96401398","Q12621720","Q41949104"]}",
+  "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"],["Q96401398","Q124162611","Q132861244","Q41949104"]],"selection":["","","",""]}",
+]
+`;
+
+exports[`code characterization > pins the share text of a win and a loss in both languages 1`] = `
+{
+  "lostEn": "K-pop Code 2026-10-12
+Code not found in 10 attempts.
+Attempts: 10
+
+🟩🟩🟨🟨
+🟩🟩🟨🟨
+🟩🟨🟨🟨
+🟩🟨🟨🟨
+🟩🟩🟨🟨
+🟩🟩🟨🟨
+🟨🟨🟨🟨
+🟩🟨🟨🟨
+🟨🟨🟨🟨
+🟨🟨🟨🟨
+https://kpopquiz.online/en/code/?utm_source=share&utm_medium=social&utm_campaign=code",
+  "lostPt": "Código de grupos de K-pop 2026-10-12
+Código não descoberto nas 10 tentativas.
+Tentativas: 10
+
+🟩🟩🟨🟨
+🟩🟩🟨🟨
+🟩🟨🟨🟨
+🟩🟨🟨🟨
+🟩🟩🟨🟨
+🟩🟩🟨🟨
+🟨🟨🟨🟨
+🟩🟨🟨🟨
+🟨🟨🟨🟨
+🟨🟨🟨🟨
+https://kpopquiz.online/pt-br/codigo/?utm_source=share&utm_medium=social&utm_campaign=code",
+  "wonEn": "K-pop Code 2026-10-12
+Code solved in 2 attempts.
+Attempts: 2
+
+🟩🟨🟨⬜
+🟩🟩🟩🟩
+https://kpopquiz.online/en/code/?utm_source=share&utm_medium=social&utm_campaign=code",
+  "wonPt": "Código de grupos de K-pop 2026-10-12
+Código descoberto em 2 tentativas.
+Tentativas: 2
+
+🟩🟨🟨⬜
+🟩🟩🟩🟩
+https://kpopquiz.online/pt-br/codigo/?utm_source=share&utm_medium=social&utm_campaign=code",
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 01 loading 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" class="game-card game-card--wide state" aria-live="polite" aria-busy="true"><span class="loader" aria-hidden="true"></span><p class="text-muted">Loading the game...</p></section>",
+  "saved": null,
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 02 initial 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 10/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Guess history</h2><ol class="code-history"></ol></section>",
+  "saved": null,
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 03 empty slots refused 1`] = `
+{
+  "focus": "button "Submit guess"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 10/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Choose all four groups. No attempt used.</p><h2>Guess history</h2><ol class="code-history"></ol></section>",
+  "saved": null,
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 04 repeated group refused 1`] = `
+{
+  "focus": "button "Submit guess"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 10/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Choose four different groups. No attempt used.</p><h2>Guess history</h2><ol class="code-history"></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[],"selection":["Q96401398","Q96401398","Q124162611","Q132861244"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 05 valid wrong attempt 1`] = `
+{
+  "focus": "button "Submit guess"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 9/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Attempt 1: 1 exact, 2 misplaced. 9 attempts remaining.</p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exact · 2 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"]],"selection":["Q124162611","Q96401398","Q12621720","Q41949104"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 06 guess already sent refused 1`] = `
+{
+  "focus": "button "Submit guess"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 9/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">You already tried that guess. No attempt used.</p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exact · 2 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"]],"selection":["Q124162611","Q96401398","Q12621720","Q41949104"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 07 slot changed after the feedback 1`] = `
+{
+  "focus": "select "Position 3"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 9/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exact · 2 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"]],"selection":["Q124162611","Q96401398","Q132861244","Q41949104"]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 08 second attempt 1`] = `
+{
+  "focus": "button "Submit guess"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 8/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Attempt 2: 2 exact, 2 misplaced. 8 attempts remaining.</p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exact · 2 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"],["Q124162611","Q96401398","Q132861244","Q41949104"]],"selection":["Q124162611","Q96401398","Q132861244","Q41949104"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 09 won 1`] = `
+{
+  "focus": "section[game-result] "Code solved!Secret sequence: Redsquare / Geenius / 1Verse / The BoyzAttempts used: 3/10Share resultNew puzzle in 12:00:00Next: Quiz →About the groupsGeenius · Wikidata · revision 25479479111Verse · Wikidata · revision 2528925987Redsquare · Wikidata · revision 2469251158The Boyz · Wikidata · revision 2547903189Page · Wikidata · revision 2351265721Kiss of Life · Wikidata · revision 2547903414Wikidata · CC0"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-won">Code solved!</h2><p>Secret sequence: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Attempts used: 3/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Share result</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">New puzzle in 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/en/?theme=daily">Next: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"></div><h3>About the groups</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revision 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revision 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revision 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revision 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revision 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revision 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Attempt 3: 4 exact, 0 misplaced. 7 attempts remaining.</p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / Geenius / 1Verse / The Boyz</span><strong>4 exact · 0 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q96401398","Q124162611","Q132861244","Q41949104"]],"selection":["","","",""]}",
+  "scrolls": [
+    [
+      "scrollIntoView",
+      "game-result",
+      {
+        "block": "start",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 10 clipboard text 1`] = `
+[
+  [
+    "K-pop Code 2026-10-12
+Code solved in 3 attempts.
+Attempts: 3
+
+🟩🟨🟨⬜
+🟩🟩🟨🟨
+🟩🟩🟩🟩
+https://kpopquiz.online/en/code/?utm_source=share&utm_medium=social&utm_campaign=code",
+  ],
+]
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 10 share copied 1`] = `
+{
+  "focus": "button "Result copied."",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-won">Code solved!</h2><p>Secret sequence: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Attempts used: 3/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Result copied.</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">New puzzle in 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/en/?theme=daily">Next: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"><p>Result copied.</p></div><h3>About the groups</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revision 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revision 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revision 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revision 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revision 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revision 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Attempt 3: 4 exact, 0 misplaced. 7 attempts remaining.</p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / Geenius / 1Verse / The Boyz</span><strong>4 exact · 0 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q96401398","Q124162611","Q132861244","Q41949104"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 11 share failed 1`] = `
+{
+  "focus": "button "Result copied."",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-won">Code solved!</h2><p>Secret sequence: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Attempts used: 3/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Result copied.</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">New puzzle in 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/en/?theme=daily">Next: Quiz<span aria-hidden="true"> →</span></a></div><div class="code-share-fallback"><p id="P0-1">Could not copy. Select the text below and copy it.</p><textarea id="P0-0" class="share-preview" readonly="" rows="4" aria-label="Result text" aria-describedby="P0-1"></textarea></div><div class="visually-hidden" role="status" aria-live="polite"><p>Could not copy. Select the text below and copy it.</p></div><h3>About the groups</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revision 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revision 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revision 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revision 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revision 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revision 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Attempt 3: 4 exact, 0 misplaced. 7 attempts remaining.</p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / Geenius / 1Verse / The Boyz</span><strong>4 exact · 0 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q96401398","Q124162611","Q132861244","Q41949104"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in en > 12 analytics events 1`] = `
+[
+  [
+    "event",
+    "game_start",
+    {
+      "daily": "yes",
+      "game": "code",
+      "locale": "en",
+      "send_to": "G-TEST",
+    },
+  ],
+  [
+    "event",
+    "game_complete",
+    {
+      "daily": "yes",
+      "days_since_last": "first",
+      "game": "code",
+      "locale": "en",
+      "outcome": "win",
+      "send_to": "G-TEST",
+      "streak_bucket": "1",
+    },
+  ],
+  [
+    "event",
+    "share",
+    {
+      "content_type": "game_result",
+      "game": "code",
+      "item_id": "code",
+      "locale": "en",
+      "method": "clipboard",
+      "send_to": "G-TEST",
+    },
+  ],
+]
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 01 loading 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" class="game-card game-card--wide state" aria-live="polite" aria-busy="true"><span class="loader" aria-hidden="true"></span><p class="text-muted">Carregando o jogo...</p></section>",
+  "saved": null,
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 02 initial 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativas restantes: 10/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Histórico de palpites</h2><ol class="code-history"></ol></section>",
+  "saved": null,
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 03 empty slots refused 1`] = `
+{
+  "focus": "button "Enviar palpite"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativas restantes: 10/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Escolha os quatro grupos. Nenhuma tentativa usada.</p><h2>Histórico de palpites</h2><ol class="code-history"></ol></section>",
+  "saved": null,
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 04 repeated group refused 1`] = `
+{
+  "focus": "button "Enviar palpite"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativas restantes: 10/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Escolha quatro grupos diferentes. Nenhuma tentativa usada.</p><h2>Histórico de palpites</h2><ol class="code-history"></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[],"selection":["Q96401398","Q96401398","Q124162611","Q132861244"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 05 valid wrong attempt 1`] = `
+{
+  "focus": "button "Enviar palpite"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativas restantes: 9/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Tentativa 1: 1 exato, 2 deslocados. 9 tentativas restantes.</p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exato · 2 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"]],"selection":["Q124162611","Q96401398","Q12621720","Q41949104"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 06 guess already sent refused 1`] = `
+{
+  "focus": "button "Enviar palpite"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativas restantes: 9/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Você já tentou esse palpite. Nenhuma tentativa usada.</p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exato · 2 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"]],"selection":["Q124162611","Q96401398","Q12621720","Q41949104"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 07 slot changed after the feedback 1`] = `
+{
+  "focus": "select "Posição 3"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativas restantes: 9/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exato · 2 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"]],"selection":["Q124162611","Q96401398","Q132861244","Q41949104"]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 08 second attempt 1`] = `
+{
+  "focus": "button "Enviar palpite"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativas restantes: 8/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Tentativa 2: 2 exatos, 2 deslocados. 8 tentativas restantes.</p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exato · 2 deslocados</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"],["Q124162611","Q96401398","Q132861244","Q41949104"]],"selection":["Q124162611","Q96401398","Q132861244","Q41949104"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 09 won 1`] = `
+{
+  "focus": "section[game-result] "Código descoberto!Sequência secreta: Redsquare / Geenius / 1Verse / The BoyzTentativas usadas: 3/10Compartilhar resultadoNovo desafio em 12:00:00Próximo: Quiz →Sobre os gruposGeenius · Wikidata · revisão 25479479111Verse · Wikidata · revisão 2528925987Redsquare · Wikidata · revisão 2469251158The Boyz · Wikidata · revisão 2547903189Page · Wikidata · revisão 2351265721Kiss of Life · Wikidata · revisão 2547903414Wikidata · CC0"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-won">Código descoberto!</h2><p>Sequência secreta: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Tentativas usadas: 3/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Compartilhar resultado</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">Novo desafio em 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/pt-br/?theme=daily">Próximo: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"></div><h3>Sobre os grupos</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revisão 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revisão 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revisão 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revisão 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revisão 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revisão 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Tentativa 3: 4 exatos, 0 deslocados. 7 tentativas restantes.</p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exato · 2 deslocados</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / Geenius / 1Verse / The Boyz</span><strong>4 exatos · 0 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q96401398","Q124162611","Q132861244","Q41949104"]],"selection":["","","",""]}",
+  "scrolls": [
+    [
+      "scrollIntoView",
+      "game-result",
+      {
+        "block": "start",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 10 clipboard text 1`] = `
+[
+  [
+    "Código de grupos de K-pop 2026-10-12
+Código descoberto em 3 tentativas.
+Tentativas: 3
+
+🟩🟨🟨⬜
+🟩🟩🟨🟨
+🟩🟩🟩🟩
+https://kpopquiz.online/pt-br/codigo/?utm_source=share&utm_medium=social&utm_campaign=code",
+  ],
+]
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 10 share copied 1`] = `
+{
+  "focus": "button "Resultado copiado."",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-won">Código descoberto!</h2><p>Sequência secreta: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Tentativas usadas: 3/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Resultado copiado.</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">Novo desafio em 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/pt-br/?theme=daily">Próximo: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"><p>Resultado copiado.</p></div><h3>Sobre os grupos</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revisão 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revisão 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revisão 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revisão 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revisão 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revisão 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Tentativa 3: 4 exatos, 0 deslocados. 7 tentativas restantes.</p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exato · 2 deslocados</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / Geenius / 1Verse / The Boyz</span><strong>4 exatos · 0 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q96401398","Q124162611","Q132861244","Q41949104"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 11 share failed 1`] = `
+{
+  "focus": "button "Resultado copiado."",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-won">Código descoberto!</h2><p>Sequência secreta: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Tentativas usadas: 3/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Resultado copiado.</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">Novo desafio em 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/pt-br/?theme=daily">Próximo: Quiz<span aria-hidden="true"> →</span></a></div><div class="code-share-fallback"><p id="P0-1">Não deu para copiar. Selecione o texto abaixo e copie.</p><textarea id="P0-0" class="share-preview" readonly="" rows="4" aria-label="Texto do resultado" aria-describedby="P0-1"></textarea></div><div class="visually-hidden" role="status" aria-live="polite"><p>Não deu para copiar. Selecione o texto abaixo e copie.</p></div><h3>Sobre os grupos</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revisão 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revisão 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revisão 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revisão 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revisão 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revisão 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Tentativa 3: 4 exatos, 0 deslocados. 7 tentativas restantes.</p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / Redsquare / Page / The Boyz</span><strong>1 exato · 2 deslocados</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / Geenius / 1Verse / The Boyz</span><strong>4 exatos · 0 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q96401398","Q12621720","Q41949104"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q96401398","Q124162611","Q132861244","Q41949104"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > renders the play, win and share states the same way in pt-BR > 12 analytics events 1`] = `
+[
+  [
+    "event",
+    "game_start",
+    {
+      "daily": "yes",
+      "game": "code",
+      "locale": "pt-BR",
+      "send_to": "G-TEST",
+    },
+  ],
+  [
+    "event",
+    "game_complete",
+    {
+      "daily": "yes",
+      "days_since_last": "first",
+      "game": "code",
+      "locale": "pt-BR",
+      "outcome": "win",
+      "send_to": "G-TEST",
+      "streak_bucket": "1",
+    },
+  ],
+  [
+    "event",
+    "share",
+    {
+      "content_type": "game_result",
+      "game": "code",
+      "item_id": "code",
+      "locale": "pt-BR",
+      "method": "clipboard",
+      "send_to": "G-TEST",
+    },
+  ],
+]
+`;
+
+exports[`code characterization > restores saved rounds the same way in en > 01 restored open round with a partial pick 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 9/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exact · 4 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q132861244","Q41949104","Q96401398"]],"selection":["Q96401398","Q12621720","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > restores saved rounds the same way in en > 02 restored open round with empty slots 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 9/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exact · 4 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q132861244","Q41949104","Q96401398"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > restores saved rounds the same way in en > 03 restored win 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-won">Code solved!</h2><p>Secret sequence: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Attempts used: 2/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Share result</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">New puzzle in 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/en/?theme=daily">Next: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"></div><h3>About the groups</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revision 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revision 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revision 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revision 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revision 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revision 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Your guess</legend><div class="code-slots"><label>Position 1<select disabled="" aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select disabled="" aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select disabled="" aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select disabled="" aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Guess history</h2><ol class="code-history"><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exact · 4 misplaced</strong></li><li><span>Redsquare / Geenius / 1Verse / The Boyz</span><strong>4 exact · 0 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q132861244","Q41949104","Q96401398"],["Q96401398","Q124162611","Q132861244","Q41949104"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > restores saved rounds the same way in en > 04 restored loss 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-lost">Attempts exhausted</h2><p>Secret sequence: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Attempts used: 10/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Share result</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">New puzzle in 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/en/?theme=daily">Next: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"></div><h3>About the groups</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revision 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revision 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revision 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revision 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revision 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revision 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Your guess</legend><div class="code-slots"><label>Position 1<select disabled="" aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select disabled="" aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select disabled="" aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select disabled="" aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Guess history</h2><ol class="code-history"><li><span>Redsquare / Geenius / The Boyz / 1Verse</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / 1Verse / Geenius / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / 1Verse / The Boyz / Geenius</span><strong>1 exact · 3 misplaced</strong></li><li><span>Redsquare / The Boyz / Geenius / 1Verse</span><strong>1 exact · 3 misplaced</strong></li><li><span>Redsquare / The Boyz / 1Verse / Geenius</span><strong>2 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / The Boyz / 1Verse</span><strong>0 exact · 4 misplaced</strong></li><li><span>Geenius / 1Verse / Redsquare / The Boyz</span><strong>1 exact · 3 misplaced</strong></li><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exact · 4 misplaced</strong></li><li><span>Geenius / The Boyz / Redsquare / 1Verse</span><strong>0 exact · 4 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q96401398","Q124162611","Q41949104","Q132861244"],["Q96401398","Q132861244","Q124162611","Q41949104"],["Q96401398","Q132861244","Q41949104","Q124162611"],["Q96401398","Q41949104","Q124162611","Q132861244"],["Q96401398","Q41949104","Q132861244","Q124162611"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q124162611","Q96401398","Q41949104","Q132861244"],["Q124162611","Q132861244","Q96401398","Q41949104"],["Q124162611","Q132861244","Q41949104","Q96401398"],["Q124162611","Q41949104","Q96401398","Q132861244"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > restores saved rounds the same way in en > 05 day already recorded for a dropped save 1`] = `
+{
+  "focus": "body",
+  "html": "<section class="game-card state daily-done" data-testid="daily-done" aria-labelledby="daily-done-title"><h2 id="daily-done-title">Today's challenge is done</h2><p>Today's board was updated after you played it. Your game stays in your stats, and the new version does not count as another game.</p><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">New puzzle in 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/en/?theme=daily">Next: Quiz<span aria-hidden="true"> →</span></a></div></section>",
+  "saved": null,
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > restores saved rounds the same way in pt-BR > 01 restored open round with a partial pick 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativas restantes: 9/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exatos · 4 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q132861244","Q41949104","Q96401398"]],"selection":["Q96401398","Q12621720","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > restores saved rounds the same way in pt-BR > 02 restored open round with empty slots 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativas restantes: 9/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exatos · 4 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q132861244","Q41949104","Q96401398"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > restores saved rounds the same way in pt-BR > 03 restored win 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-won">Código descoberto!</h2><p>Sequência secreta: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Tentativas usadas: 2/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Compartilhar resultado</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">Novo desafio em 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/pt-br/?theme=daily">Próximo: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"></div><h3>Sobre os grupos</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revisão 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revisão 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revisão 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revisão 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revisão 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revisão 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select disabled="" aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select disabled="" aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select disabled="" aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select disabled="" aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exatos · 4 deslocados</strong></li><li><span>Redsquare / Geenius / 1Verse / The Boyz</span><strong>4 exatos · 0 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q124162611","Q132861244","Q41949104","Q96401398"],["Q96401398","Q124162611","Q132861244","Q41949104"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > restores saved rounds the same way in pt-BR > 04 restored loss 1`] = `
+{
+  "focus": "body",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-lost">Tentativas esgotadas</h2><p>Sequência secreta: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Tentativas usadas: 10/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Compartilhar resultado</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">Novo desafio em 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/pt-br/?theme=daily">Próximo: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"></div><h3>Sobre os grupos</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revisão 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revisão 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revisão 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revisão 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revisão 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revisão 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select disabled="" aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select disabled="" aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select disabled="" aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select disabled="" aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback"></p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Redsquare / Geenius / The Boyz / 1Verse</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / 1Verse / Geenius / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / 1Verse / The Boyz / Geenius</span><strong>1 exato · 3 deslocados</strong></li><li><span>Redsquare / The Boyz / Geenius / 1Verse</span><strong>1 exato · 3 deslocados</strong></li><li><span>Redsquare / The Boyz / 1Verse / Geenius</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Geenius / Redsquare / The Boyz / 1Verse</span><strong>0 exatos · 4 deslocados</strong></li><li><span>Geenius / 1Verse / Redsquare / The Boyz</span><strong>1 exato · 3 deslocados</strong></li><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exatos · 4 deslocados</strong></li><li><span>Geenius / The Boyz / Redsquare / 1Verse</span><strong>0 exatos · 4 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q96401398","Q124162611","Q41949104","Q132861244"],["Q96401398","Q132861244","Q124162611","Q41949104"],["Q96401398","Q132861244","Q41949104","Q124162611"],["Q96401398","Q41949104","Q124162611","Q132861244"],["Q96401398","Q41949104","Q132861244","Q124162611"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q124162611","Q96401398","Q41949104","Q132861244"],["Q124162611","Q132861244","Q96401398","Q41949104"],["Q124162611","Q132861244","Q41949104","Q96401398"],["Q124162611","Q41949104","Q96401398","Q132861244"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > restores saved rounds the same way in pt-BR > 05 day already recorded for a dropped save 1`] = `
+{
+  "focus": "body",
+  "html": "<section class="game-card state daily-done" data-testid="daily-done" aria-labelledby="daily-done-title"><h2 id="daily-done-title">Desafio de hoje concluído</h2><p>O tabuleiro de hoje foi atualizado depois da sua partida. Ela continua nas suas estatísticas, e a nova versão não conta como outra partida.</p><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">Novo desafio em 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/pt-br/?theme=daily">Próximo: Quiz<span aria-hidden="true"> →</span></a></div></section>",
+  "saved": null,
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > reveals the code when the attempts run out in en > 01 one attempt left 1`] = `
+{
+  "focus": "button "Submit guess"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><p class="code-hud" data-testid="code-remaining">Guesses left: 1/10</p><form><fieldset><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4"><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Attempt 9: 0 exact, 4 misplaced. 1 attempt remaining.</p><h2>Guess history</h2><ol class="code-history"><li><span>Redsquare / Geenius / The Boyz / 1Verse</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / 1Verse / Geenius / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / 1Verse / The Boyz / Geenius</span><strong>1 exact · 3 misplaced</strong></li><li><span>Redsquare / The Boyz / Geenius / 1Verse</span><strong>1 exact · 3 misplaced</strong></li><li><span>Redsquare / The Boyz / 1Verse / Geenius</span><strong>2 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / The Boyz / 1Verse</span><strong>0 exact · 4 misplaced</strong></li><li><span>Geenius / 1Verse / Redsquare / The Boyz</span><strong>1 exact · 3 misplaced</strong></li><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exact · 4 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q96401398","Q124162611","Q41949104","Q132861244"],["Q96401398","Q132861244","Q124162611","Q41949104"],["Q96401398","Q132861244","Q41949104","Q124162611"],["Q96401398","Q41949104","Q124162611","Q132861244"],["Q96401398","Q41949104","Q132861244","Q124162611"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q124162611","Q96401398","Q41949104","Q132861244"],["Q124162611","Q132861244","Q96401398","Q41949104"],["Q124162611","Q132861244","Q41949104","Q96401398"]],"selection":["Q124162611","Q132861244","Q41949104","Q96401398"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > reveals the code when the attempts run out in en > 02 lost with the code revealed 1`] = `
+{
+  "focus": "section[game-result] "Attempts exhaustedSecret sequence: Redsquare / Geenius / 1Verse / The BoyzAttempts used: 10/10Share resultNew puzzle in 12:00:00Next: Quiz →About the groupsGeenius · Wikidata · revision 25479479111Verse · Wikidata · revision 2528925987Redsquare · Wikidata · revision 2469251158The Boyz · Wikidata · revision 2547903189Page · Wikidata · revision 2351265721Kiss of Life · Wikidata · revision 2547903414Wikidata · CC0"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-lost">Attempts exhausted</h2><p>Secret sequence: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Attempts used: 10/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Share result</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">New puzzle in 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/en/?theme=daily">Next: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"></div><h3>About the groups</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revision 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revision 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revision 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revision 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revision 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revision 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Attempt 10: 0 exact, 4 misplaced. 0 attempts remaining.</p><h2>Guess history</h2><ol class="code-history"><li><span>Redsquare / Geenius / The Boyz / 1Verse</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / 1Verse / Geenius / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / 1Verse / The Boyz / Geenius</span><strong>1 exact · 3 misplaced</strong></li><li><span>Redsquare / The Boyz / Geenius / 1Verse</span><strong>1 exact · 3 misplaced</strong></li><li><span>Redsquare / The Boyz / 1Verse / Geenius</span><strong>2 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / The Boyz / 1Verse</span><strong>0 exact · 4 misplaced</strong></li><li><span>Geenius / 1Verse / Redsquare / The Boyz</span><strong>1 exact · 3 misplaced</strong></li><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exact · 4 misplaced</strong></li><li><span>Geenius / The Boyz / Redsquare / 1Verse</span><strong>0 exact · 4 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q96401398","Q124162611","Q41949104","Q132861244"],["Q96401398","Q132861244","Q124162611","Q41949104"],["Q96401398","Q132861244","Q41949104","Q124162611"],["Q96401398","Q41949104","Q124162611","Q132861244"],["Q96401398","Q41949104","Q132861244","Q124162611"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q124162611","Q96401398","Q41949104","Q132861244"],["Q124162611","Q132861244","Q96401398","Q41949104"],["Q124162611","Q132861244","Q41949104","Q96401398"],["Q124162611","Q41949104","Q96401398","Q132861244"]],"selection":["","","",""]}",
+  "scrolls": [
+    [
+      "scrollIntoView",
+      "game-result",
+      {
+        "block": "start",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > reveals the code when the attempts run out in en > 03 lost share failed 1`] = `
+{
+  "focus": "button "Share result"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="K-pop Group Code" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">The sequence is the same in every game you play that day.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-lost">Attempts exhausted</h2><p>Secret sequence: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Attempts used: 10/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Share result</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">New puzzle in 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/en/?theme=daily">Next: Quiz<span aria-hidden="true"> →</span></a></div><div class="code-share-fallback"><p id="P0-1">Could not copy. Select the text below and copy it.</p><textarea id="P0-0" class="share-preview" readonly="" rows="4" aria-label="Result text" aria-describedby="P0-1"></textarea></div><div class="visually-hidden" role="status" aria-live="polite"><p>Could not copy. Select the text below and copy it.</p></div><h3>About the groups</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revision 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revision 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revision 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revision 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revision 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revision 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Your guess</legend><div class="code-slots"><label>Position 1<select aria-label="Position 1" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 2<select aria-label="Position 2" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 3<select aria-label="Position 3" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Position 4<select aria-label="Position 4" disabled=""><option value="">Choose a group</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Submit guess</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Attempt 10: 0 exact, 4 misplaced. 0 attempts remaining.</p><h2>Guess history</h2><ol class="code-history"><li><span>Redsquare / Geenius / The Boyz / 1Verse</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / 1Verse / Geenius / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Redsquare / 1Verse / The Boyz / Geenius</span><strong>1 exact · 3 misplaced</strong></li><li><span>Redsquare / The Boyz / Geenius / 1Verse</span><strong>1 exact · 3 misplaced</strong></li><li><span>Redsquare / The Boyz / 1Verse / Geenius</span><strong>2 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exact · 2 misplaced</strong></li><li><span>Geenius / Redsquare / The Boyz / 1Verse</span><strong>0 exact · 4 misplaced</strong></li><li><span>Geenius / 1Verse / Redsquare / The Boyz</span><strong>1 exact · 3 misplaced</strong></li><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exact · 4 misplaced</strong></li><li><span>Geenius / The Boyz / Redsquare / 1Verse</span><strong>0 exact · 4 misplaced</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q96401398","Q124162611","Q41949104","Q132861244"],["Q96401398","Q132861244","Q124162611","Q41949104"],["Q96401398","Q132861244","Q41949104","Q124162611"],["Q96401398","Q41949104","Q124162611","Q132861244"],["Q96401398","Q41949104","Q132861244","Q124162611"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q124162611","Q96401398","Q41949104","Q132861244"],["Q124162611","Q132861244","Q96401398","Q41949104"],["Q124162611","Q132861244","Q41949104","Q96401398"],["Q124162611","Q41949104","Q96401398","Q132861244"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > reveals the code when the attempts run out in en > 04 analytics events 1`] = `
+[
+  [
+    "event",
+    "game_start",
+    {
+      "daily": "yes",
+      "game": "code",
+      "locale": "en",
+      "send_to": "G-TEST",
+    },
+  ],
+  [
+    "event",
+    "game_complete",
+    {
+      "daily": "yes",
+      "days_since_last": "first",
+      "game": "code",
+      "locale": "en",
+      "outcome": "loss",
+      "send_to": "G-TEST",
+      "streak_bucket": "0",
+    },
+  ],
+]
+`;
+
+exports[`code characterization > reveals the code when the attempts run out in pt-BR > 01 one attempt left 1`] = `
+{
+  "focus": "button "Enviar palpite"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><p class="code-hud" data-testid="code-remaining">Tentativa restante: 1/10</p><form><fieldset><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4"><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Tentativa 9: 0 exatos, 4 deslocados. 1 tentativa restante.</p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Redsquare / Geenius / The Boyz / 1Verse</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / 1Verse / Geenius / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / 1Verse / The Boyz / Geenius</span><strong>1 exato · 3 deslocados</strong></li><li><span>Redsquare / The Boyz / Geenius / 1Verse</span><strong>1 exato · 3 deslocados</strong></li><li><span>Redsquare / The Boyz / 1Verse / Geenius</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Geenius / Redsquare / The Boyz / 1Verse</span><strong>0 exatos · 4 deslocados</strong></li><li><span>Geenius / 1Verse / Redsquare / The Boyz</span><strong>1 exato · 3 deslocados</strong></li><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exatos · 4 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q96401398","Q124162611","Q41949104","Q132861244"],["Q96401398","Q132861244","Q124162611","Q41949104"],["Q96401398","Q132861244","Q41949104","Q124162611"],["Q96401398","Q41949104","Q124162611","Q132861244"],["Q96401398","Q41949104","Q132861244","Q124162611"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q124162611","Q96401398","Q41949104","Q132861244"],["Q124162611","Q132861244","Q96401398","Q41949104"],["Q124162611","Q132861244","Q41949104","Q96401398"]],"selection":["Q124162611","Q132861244","Q41949104","Q96401398"]}",
+  "scrolls": [
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+    [
+      "scrollBy",
+      0,
+      -12,
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > reveals the code when the attempts run out in pt-BR > 02 lost with the code revealed 1`] = `
+{
+  "focus": "section[game-result] "Tentativas esgotadasSequência secreta: Redsquare / Geenius / 1Verse / The BoyzTentativas usadas: 10/10Compartilhar resultadoNovo desafio em 12:00:00Próximo: Quiz →Sobre os gruposGeenius · Wikidata · revisão 25479479111Verse · Wikidata · revisão 2528925987Redsquare · Wikidata · revisão 2469251158The Boyz · Wikidata · revisão 2547903189Page · Wikidata · revisão 2351265721Kiss of Life · Wikidata · revisão 2547903414Wikidata · CC0"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-lost">Tentativas esgotadas</h2><p>Sequência secreta: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Tentativas usadas: 10/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Compartilhar resultado</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">Novo desafio em 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/pt-br/?theme=daily">Próximo: Quiz<span aria-hidden="true"> →</span></a></div><div class="visually-hidden" role="status" aria-live="polite"></div><h3>Sobre os grupos</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revisão 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revisão 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revisão 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revisão 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revisão 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revisão 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Tentativa 10: 0 exatos, 4 deslocados. 0 tentativas restantes.</p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Redsquare / Geenius / The Boyz / 1Verse</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / 1Verse / Geenius / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / 1Verse / The Boyz / Geenius</span><strong>1 exato · 3 deslocados</strong></li><li><span>Redsquare / The Boyz / Geenius / 1Verse</span><strong>1 exato · 3 deslocados</strong></li><li><span>Redsquare / The Boyz / 1Verse / Geenius</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Geenius / Redsquare / The Boyz / 1Verse</span><strong>0 exatos · 4 deslocados</strong></li><li><span>Geenius / 1Verse / Redsquare / The Boyz</span><strong>1 exato · 3 deslocados</strong></li><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exatos · 4 deslocados</strong></li><li><span>Geenius / The Boyz / Redsquare / 1Verse</span><strong>0 exatos · 4 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q96401398","Q124162611","Q41949104","Q132861244"],["Q96401398","Q132861244","Q124162611","Q41949104"],["Q96401398","Q132861244","Q41949104","Q124162611"],["Q96401398","Q41949104","Q124162611","Q132861244"],["Q96401398","Q41949104","Q132861244","Q124162611"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q124162611","Q96401398","Q41949104","Q132861244"],["Q124162611","Q132861244","Q96401398","Q41949104"],["Q124162611","Q132861244","Q41949104","Q96401398"],["Q124162611","Q41949104","Q96401398","Q132861244"]],"selection":["","","",""]}",
+  "scrolls": [
+    [
+      "scrollIntoView",
+      "game-result",
+      {
+        "block": "start",
+      },
+    ],
+  ],
+}
+`;
+
+exports[`code characterization > reveals the code when the attempts run out in pt-BR > 03 lost share failed 1`] = `
+{
+  "focus": "button "Compartilhar resultado"",
+  "html": "<section id="code-groups" tabindex="-1" aria-label="Código de grupos de K-pop" class="game-card game-card--wide code-groups" data-testid="game-board"><p class="code-sequence-note">A sequência é a mesma em todas as partidas do dia.</p><section class="game-result code-result" data-testid="game-result" aria-labelledby="code-result-title" tabindex="-1"><h2 id="code-result-title" class="result-title is-lost">Tentativas esgotadas</h2><p>Sequência secreta: <strong>Redsquare / Geenius / 1Verse / The Boyz</strong></p><p>Tentativas usadas: 10/10</p><div class="code-result-buttons"><button type="button" class="btn btn-primary">Compartilhar resultado</button></div><div class="daily-next" data-testid="daily-next"><p class="daily-next-countdown" aria-live="off">Novo desafio em 12:00:00</p><a class="btn btn-secondary daily-next-link" href="/pt-br/?theme=daily">Próximo: Quiz<span aria-hidden="true"> →</span></a></div><div class="code-share-fallback"><p id="P0-1">Não deu para copiar. Selecione o texto abaixo e copie.</p><textarea id="P0-0" class="share-preview" readonly="" rows="4" aria-label="Texto do resultado" aria-describedby="P0-1"></textarea></div><div class="visually-hidden" role="status" aria-live="polite"><p>Não deu para copiar. Selecione o texto abaixo e copie.</p></div><h3>Sobre os grupos</h3><ul><li><a href="https://www.wikidata.org/w/index.php?title=Q124162611&amp;oldid=2547947911">Geenius · Wikidata</a> · revisão 2547947911</li><li><a href="https://www.wikidata.org/w/index.php?title=Q132861244&amp;oldid=2528925987">1Verse · Wikidata</a> · revisão 2528925987</li><li><a href="https://www.wikidata.org/w/index.php?title=Q96401398&amp;oldid=2469251158">Redsquare · Wikidata</a> · revisão 2469251158</li><li><a href="https://www.wikidata.org/w/index.php?title=Q41949104&amp;oldid=2547903189">The Boyz · Wikidata</a> · revisão 2547903189</li><li><a href="https://www.wikidata.org/w/index.php?title=Q12621720&amp;oldid=2351265721">Page · Wikidata</a> · revisão 2351265721</li><li><a href="https://www.wikidata.org/w/index.php?title=Q118314702&amp;oldid=2547903414">Kiss of Life · Wikidata</a> · revisão 2547903414</li></ul><p>Wikidata · CC0</p></section><form><fieldset disabled=""><legend>Seu palpite</legend><div class="code-slots"><label>Posição 1<select aria-label="Posição 1" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 2<select aria-label="Posição 2" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 3<select aria-label="Posição 3" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label><label>Posição 4<select aria-label="Posição 4" disabled=""><option value="">Escolha um grupo</option><option value="Q124162611">Geenius</option><option value="Q132861244">1Verse</option><option value="Q96401398">Redsquare</option><option value="Q41949104">The Boyz</option><option value="Q12621720">Page</option><option value="Q118314702">Kiss of Life</option></select></label></div><button class="btn btn-primary" type="submit" disabled="">Enviar palpite</button></fieldset></form><p role="status" aria-live="polite" aria-atomic="true" class="code-feedback">Tentativa 10: 0 exatos, 4 deslocados. 0 tentativas restantes.</p><h2>Histórico de palpites</h2><ol class="code-history"><li><span>Redsquare / Geenius / The Boyz / 1Verse</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / 1Verse / Geenius / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Redsquare / 1Verse / The Boyz / Geenius</span><strong>1 exato · 3 deslocados</strong></li><li><span>Redsquare / The Boyz / Geenius / 1Verse</span><strong>1 exato · 3 deslocados</strong></li><li><span>Redsquare / The Boyz / 1Verse / Geenius</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Geenius / Redsquare / 1Verse / The Boyz</span><strong>2 exatos · 2 deslocados</strong></li><li><span>Geenius / Redsquare / The Boyz / 1Verse</span><strong>0 exatos · 4 deslocados</strong></li><li><span>Geenius / 1Verse / Redsquare / The Boyz</span><strong>1 exato · 3 deslocados</strong></li><li><span>Geenius / 1Verse / The Boyz / Redsquare</span><strong>0 exatos · 4 deslocados</strong></li><li><span>Geenius / The Boyz / Redsquare / 1Verse</span><strong>0 exatos · 4 deslocados</strong></li></ol></section>",
+  "saved": "{"puzzle_id":"1e42121e89881e97399407b3b1f8bb772f8acb48619bf008170cb50c28133afe","history":[["Q96401398","Q124162611","Q41949104","Q132861244"],["Q96401398","Q132861244","Q124162611","Q41949104"],["Q96401398","Q132861244","Q41949104","Q124162611"],["Q96401398","Q41949104","Q124162611","Q132861244"],["Q96401398","Q41949104","Q132861244","Q124162611"],["Q124162611","Q96401398","Q132861244","Q41949104"],["Q124162611","Q96401398","Q41949104","Q132861244"],["Q124162611","Q132861244","Q96401398","Q41949104"],["Q124162611","Q132861244","Q41949104","Q96401398"],["Q124162611","Q41949104","Q96401398","Q132861244"]],"selection":["","","",""]}",
+  "scrolls": [],
+}
+`;
+
+exports[`code characterization > reveals the code when the attempts run out in pt-BR > 04 analytics events 1`] = `
+[
+  [
+    "event",
+    "game_start",
+    {
+      "daily": "yes",
+      "game": "code",
+      "locale": "pt-BR",
+      "send_to": "G-TEST",
+    },
+  ],
+  [
+    "event",
+    "game_complete",
+    {
+      "daily": "yes",
+      "days_since_last": "first",
+      "game": "code",
+      "locale": "pt-BR",
+      "outcome": "loss",
+      "send_to": "G-TEST",
+      "streak_bucket": "0",
+    },
+  ],
+]
+`;
