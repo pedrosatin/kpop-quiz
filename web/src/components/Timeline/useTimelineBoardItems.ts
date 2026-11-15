@@ -88,11 +88,11 @@ export function useTimelineBoardItems({
     setLastMoved(null);
   }, [items, lastMoved]);
 
-  // A move can leave the card under the action bar: a drop on the band the
-  // hidden bar covers during the drag (the bar is back in the same render), or
-  // a button move to the end, where the focused button fits above the bar but
-  // the rest of the card does not, so the browser's focus scroll stops short.
-  // Bring the whole card above the bar before the paint. The page's scroll
+  // A drop can land on the band the hidden bar covers during the drag, and the
+  // bar comes back in the same render. A button move to the end leaves the
+  // focused button above the bar but the rest of the card under it, because
+  // the browser's focus scroll stops once the button fits. In both cases,
+  // bring the whole card above the bar before the paint. The page's scroll
   // margin keeps the bar's height clear, and "nearest" leaves a card already
   // in view where it is. This does not move focus, and the focus effect above
   // then finds its button in view.
