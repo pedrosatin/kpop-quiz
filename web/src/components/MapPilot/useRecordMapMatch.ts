@@ -1,5 +1,4 @@
-import { useEffect } from "preact/hooks";
-import { recordMatchOnce } from "../../lib/player-stats";
+import { useRecordDailyMatch } from "../../lib/use-record-daily-match";
 
 export function mapMatchId(roundDate: string): string {
   return `map-${roundDate}`;
@@ -10,7 +9,6 @@ export function mapMatchId(roundDate: string): string {
  * replay (an older save) is free play and is not counted.
  */
 export function useRecordMapMatch(roundDate: string, isComplete: boolean, isWin: boolean, isReplay: boolean): void {
-  useEffect(() => {
-    if (isComplete && !isReplay) recordMatchOnce("map", mapMatchId(roundDate), isWin, roundDate);
-  }, [roundDate, isComplete, isWin, isReplay]);
+  const round = isReplay ? null : { matchId: mapMatchId(roundDate), date: roundDate };
+  useRecordDailyMatch("map", round, isComplete, isWin);
 }
