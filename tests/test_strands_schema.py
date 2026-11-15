@@ -8,12 +8,14 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
 try:
     import fastjsonschema
 except ImportError:
     fastjsonschema = None
 
+from kpop_scraping import strands_schema
 from kpop_scraping.strands_schema import (
     STRANDS_SCHEMA_VERSION,
     are_neighbors,
@@ -449,6 +451,72 @@ class TestStrandsSchemaValidation(unittest.TestCase):
 
         rehash(puzzle)
         validate_strands_puzzle(puzzle)
+
+
+EVIDENCE_CONTEXT = "words[1].evidence[0]"
+VALID_EVIDENCE = {
+    "fact_base_id": "fact-1",
+    "locator": "infobox.label",
+    "revision_id": 1,
+    "source_key": "enwiki:1",
+    "source_url": "https://en.wikipedia.org/w/index.php?oldid=1",
+}
+
+
+def _evidence_with(**changes) -> dict:
+    return {**VALID_EVIDENCE, **changes}
+
+
+class TestStrandsEvidenceOrder(unittest.TestCase):
+    """The local ``_validate_evidence`` keeps its own messages and order."""
+
+    def assertRejects(self, evidence, message: str) -> None:
+        with self.assertRaises(ValueError) as caught:
+            strands_schema._validate_evidence(evidence, EVIDENCE_CONTEXT)
+        self.assertEqual(
+            str(caught.exception),
+            f"Invalid strands puzzle schema: {EVIDENCE_CONTEXT}{message}",
+        )
+
+    def test_reports_the_first_of_two_failing_checks(self):
+        # Each case breaks a check and the one after it, so swapping two
+        # neighbouring checks changes the message or the exception. A list
+        # breaks the object check, and the key check would raise
+        # AttributeError on it.
+        cases = (
+            ([], " must be an object"),
+            (
+                {**_evidence_with(fact_base_id=""), "extra": "x"},
+                " contains unexpected or missing fields",
+            ),
+            (_evidence_with(fact_base_id="", locator=""), ".fact_base_id must be a non-empty string"),
+            (_evidence_with(locator="", source_key=""), ".locator must be a non-empty string"),
+            (_evidence_with(source_key="", revision_id=0), ".source_key must be a non-empty string"),
+            (
+                _evidence_with(revision_id=0, source_url="http://"),
+                ".revision_id must be an integer >= 1",
+            ),
+            (_evidence_with(source_url="http://"), ".source_url must be an https URL"),
+            (_evidence_with(source_url="https://"), ".source_url netloc cannot be empty"),
+        )
+        strands_schema._validate_evidence(dict(VALID_EVIDENCE), EVIDENCE_CONTEXT)
+        for evidence, message in cases:
+            with self.subTest(message=message):
+                self.assertRejects(evidence, message)
+
+    def test_patching_require_reaches_the_local_check_only(self):
+        # The local check reads ``_require`` from the module globals at call
+        # time; the shared checks were bound to the original with ``partial``.
+        with patch.object(strands_schema, "_require") as require:
+            strands_schema._validate_evidence(dict(VALID_EVIDENCE), EVIDENCE_CONTEXT)
+            self.assertIn(
+                f"{EVIDENCE_CONTEXT}.revision_id must be an integer >= 1",
+                [call.args[1] for call in require.call_args_list],
+            )
+            require.reset_mock()
+            with self.assertRaises(ValueError):
+                strands_schema._require_hash("not-a-hash", "puzzle_id")
+            require.assert_not_called()
 
 
 class TestStrandsPathHelpers(unittest.TestCase):
