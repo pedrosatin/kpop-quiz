@@ -42,8 +42,7 @@ export function resetRound(
   match.setElapsedSeconds(0);
   match.answerLockedRef.current = false;
   match.setDeadlineMs(nextDeadline);
-  match.setConfirmGiveUpOpen(false);
-  match.confirmGiveUpOpenRef.current = false;
+  match.closeGiveUpConfirm();
   match.setState(count > 0 ? nextState : "empty");
 }
 

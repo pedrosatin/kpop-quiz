@@ -15,6 +15,7 @@ import { useConnectionsGame } from "./useConnectionsGame";
 import { connectionsMatchId, useRecordConnectionsMatch } from "./useRecordConnectionsMatch";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { useGiveUpConfirm } from "../../lib/use-give-up-confirm";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 
 export interface ConnectionsGameContentProps {
@@ -94,26 +95,12 @@ export function ConnectionsGameContent({
     if (next.kind === "solved") setSolvedHere((n) => n + 1);
   }, [submitGuess]);
 
-  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
-  const confirmGiveUpOpenRef = useRef(false);
-
-  const closeGiveUpConfirm = useCallback(() => {
-    confirmGiveUpOpenRef.current = false;
-    setConfirmGiveUpOpen(false);
-  }, []);
-
-  const requestGiveUp = useCallback(() => {
-    confirmGiveUpOpenRef.current = true;
-    setConfirmGiveUpOpen(true);
-  }, []);
-
-  const confirmGiveUp = useCallback(() => {
-    if (!confirmGiveUpOpenRef.current) return;
-    closeGiveUpConfirm();
+  const { confirmGiveUpOpen, requestGiveUp, closeGiveUpConfirm, confirmGiveUp } = useGiveUpConfirm();
+  const giveUpHere = () => {
     playedHere.current = true;
     setFeedback(null);
     giveUp();
-  }, [closeGiveUpConfirm, giveUp]);
+  };
 
   // A solved group takes its four tiles and disables Submit, so focus moves
   // to the first tile left instead of falling to the page.
@@ -208,7 +195,7 @@ export function ConnectionsGameContent({
         body={messages.giveUpConfirmBody}
         confirmLabel={messages.giveUpConfirmAction}
         cancelLabel={messages.cancel}
-        onConfirm={confirmGiveUp}
+        onConfirm={() => confirmGiveUp(giveUpHere)}
         onCancel={closeGiveUpConfirm}
       />
     </section>

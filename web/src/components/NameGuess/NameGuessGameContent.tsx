@@ -7,6 +7,7 @@ import type { NameGuessTranslations } from "./types";
 import { nameGuessMatchId, useNameGuessGame, type ErrorCode } from "./useNameGuessGame";
 import { dailyBoardRound, useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { useGiveUpConfirm } from "../../lib/use-give-up-confirm";
 import { getMessages } from "../../i18n/catalog";
 import { formatCalendarDate } from "../../lib/format-date";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
@@ -120,25 +121,11 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
 
   const errorDisplay = errorMessage ? errorText(errorMessage, t, puzzle.word_length) : null;
 
-  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
-  const confirmGiveUpOpenRef = useRef(false);
-
-  const closeGiveUpConfirm = useCallback(() => {
-    confirmGiveUpOpenRef.current = false;
-    setConfirmGiveUpOpen(false);
-  }, []);
-
-  const requestGiveUp = useCallback(() => {
-    confirmGiveUpOpenRef.current = true;
-    setConfirmGiveUpOpen(true);
-  }, []);
-
-  const confirmGiveUp = useCallback(() => {
-    if (!confirmGiveUpOpenRef.current) return;
-    closeGiveUpConfirm();
+  const { confirmGiveUpOpen, requestGiveUp, closeGiveUpConfirm, confirmGiveUp } = useGiveUpConfirm();
+  const giveUpHere = () => {
     playedHere.current = true;
     giveUp();
-  }, [closeGiveUpConfirm, giveUp]);
+  };
 
   let shareMessage = null;
   if (isGameOver && shareFeedback) {
@@ -256,7 +243,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
         body={messages.giveUpConfirmBody}
         confirmLabel={messages.giveUpConfirmAction}
         cancelLabel={messages.cancel}
-        onConfirm={confirmGiveUp}
+        onConfirm={() => confirmGiveUp(giveUpHere)}
         onCancel={closeGiveUpConfirm}
       />
     </section>

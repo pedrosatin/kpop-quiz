@@ -106,6 +106,20 @@ describe("useRecordDailyMatch", () => {
     expect(gameCounts("code")).toEqual({ played: 1, won: 1 });
   });
 
+  it("does not count a restarted board finished again when its marker cannot be stored", () => {
+    const setItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key: string, value: string) {
+      if (key.startsWith("kpop-match-recorded-")) throw new DOMException("Storage is full", "QuotaExceededError");
+      setItem.call(this, key, value);
+    });
+    const { rerender } = renderRecord({ round, finished: true, won: false });
+    rerender({ round, finished: false, won: false });
+    rerender({ round, finished: true, won: true });
+
+    expect(gameCounts("code")).toEqual({ played: 1, won: 0 });
+    expect(matchMarkers()).toEqual([]);
+  });
+
   it("keeps the guess count of a win in the Name game's distribution", () => {
     renderHook(() => useRecordDailyMatch("name-guess", round, true, true, 3));
     expect(loadPlayerStats().games["name-guess"].guessDistribution).toEqual({ 1: 0, 2: 0, 3: 1, 4: 0, 5: 0, 6: 0 });

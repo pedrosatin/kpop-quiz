@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "preact/hooks";
+import { useGiveUpConfirm } from "../../lib/use-give-up-confirm";
 import type { QuizSession } from "../../lib/quiz-types";
 import type { QuestionResult, QuizMachineState, ReplayNotice, ResumeNotice, SessionSource } from "./types";
 
@@ -14,7 +15,6 @@ export function useQuizMatch() {
   const [score, setScore] = useState(0);
   const [history, setHistory] = useState<QuestionResult[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
   const [sessionSource, setSessionSource] = useState<SessionSource>("published");
   const [replayStatus, setReplayStatus] = useState<ReplayNotice>(null);
   const [resumeNotice, setResumeNotice] = useState<ResumeNotice>(null);
@@ -30,14 +30,10 @@ export function useQuizMatch() {
   const loadRequestRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
   const recordedMatchRef = useRef<string | null>(null);
-  const confirmGiveUpOpenRef = useRef(false);
   const gaveUpRef = useRef(false);
   const persistReadyRef = useRef(false);
 
-  const closeGiveUpConfirm = useCallback(() => {
-    confirmGiveUpOpenRef.current = false;
-    setConfirmGiveUpOpen(false);
-  }, []);
+  const giveUpConfirm = useGiveUpConfirm();
 
   const markStorageUnavailable = useCallback(() => {
     setResumeNotice("storage-unavailable");
@@ -54,7 +50,6 @@ export function useQuizMatch() {
     score, setScore,
     history, setHistory,
     elapsedSeconds, setElapsedSeconds,
-    confirmGiveUpOpen, setConfirmGiveUpOpen,
     sessionSource, setSessionSource,
     replayStatus, setReplayStatus,
     resumeNotice, setResumeNotice,
@@ -67,10 +62,9 @@ export function useQuizMatch() {
     loadRequestRef,
     startTimeRef,
     recordedMatchRef,
-    confirmGiveUpOpenRef,
     gaveUpRef,
     persistReadyRef,
-    closeGiveUpConfirm,
+    ...giveUpConfirm,
     markStorageUnavailable,
   };
 }

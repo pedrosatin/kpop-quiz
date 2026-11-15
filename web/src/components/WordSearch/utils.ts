@@ -5,9 +5,6 @@ import { getMessages } from "../../i18n/catalog";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
 
-// The save moved to word-search-save; older imports still find it here.
-export { loadStoredProgress, type StoredProgress } from "./word-search-save";
-
 export function getLinearPath(start: CellCoord, end: CellCoord): CellCoord[] {
   const dr = end.row - start.row;
   const dc = end.col - start.col;

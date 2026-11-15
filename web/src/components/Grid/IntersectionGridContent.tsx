@@ -15,6 +15,7 @@ import { gridMatchId, useRecordGridMatch } from "./useRecordGridMatch";
 import { useGridGame } from "./useGridGame";
 import { cellKey, type CellCoordinates, type GridCellState, type GridGameStatus } from "./types";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
+import { useGiveUpConfirm } from "../../lib/use-give-up-confirm";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 
@@ -135,27 +136,13 @@ export function IntersectionGridContent({
     }
   }, [makeGuess, messages, close]);
 
-  const [confirmGiveUpOpen, setConfirmGiveUpOpen] = useState(false);
-  const confirmGiveUpOpenRef = useRef(false);
-
-  const closeGiveUpConfirm = useCallback(() => {
-    confirmGiveUpOpenRef.current = false;
-    setConfirmGiveUpOpen(false);
-  }, []);
-
-  const requestGiveUp = useCallback(() => {
-    confirmGiveUpOpenRef.current = true;
-    setConfirmGiveUpOpen(true);
-  }, []);
-
-  const confirmGiveUp = useCallback(() => {
-    if (!confirmGiveUpOpenRef.current) return;
-    closeGiveUpConfirm();
+  const { confirmGiveUpOpen, requestGiveUp, closeGiveUpConfirm, confirmGiveUp } = useGiveUpConfirm();
+  const giveUpHere = () => {
     playedHere.current = true;
     setFeedback(null);
     setFinalVerdict(null);
     giveUp();
-  }, [closeGiveUpConfirm, giveUp]);
+  };
 
   const triedHere = useMemo(() => triedInCell(cells, selectedCell), [cells, selectedCell]);
 
@@ -249,7 +236,7 @@ export function IntersectionGridContent({
         body={messages.giveUpConfirmBody}
         confirmLabel={messages.giveUpConfirmAction}
         cancelLabel={messages.cancel}
-        onConfirm={confirmGiveUp}
+        onConfirm={() => confirmGiveUp(giveUpHere)}
         onCancel={closeGiveUpConfirm}
       />
     </section>

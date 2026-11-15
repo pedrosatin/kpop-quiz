@@ -149,17 +149,9 @@ function giveUp({ match, question, persistProgress, analytics }: QuizPlayContext
   });
 }
 
-/** Open confirmation is never persisted as an authorized action. */
-export function requestGiveUp({ confirmGiveUpOpenRef, setConfirmGiveUpOpen }: QuizMatch): void {
-  confirmGiveUpOpenRef.current = true;
-  setConfirmGiveUpOpen(true);
-}
-
 export function confirmGiveUp(ctx: QuizPlayContext): void {
   // A delayed click after timeout (or Escape) must not end the round.
-  if (!ctx.match.confirmGiveUpOpenRef.current) return;
-  ctx.match.closeGiveUpConfirm();
-  giveUp(ctx);
+  ctx.match.confirmGiveUp(() => giveUp(ctx));
 }
 
 export function revealClue({ match, question, persistProgress }: QuizPlayContext): void {
