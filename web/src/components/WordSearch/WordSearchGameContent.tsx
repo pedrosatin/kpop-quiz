@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useRef } from "preact/hooks";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
@@ -13,7 +13,7 @@ import { WordSearchProgress } from "./word-search-progress";
 import { WordSearchShareNote, useShareNote } from "./word-search-share-note";
 import { useWordSearchGiveUp } from "./useWordSearchGiveUp";
 import { hasGivenUp } from "./word-search-state";
-import { recordDailyBoardMatch } from "../../lib/player-stats";
+import { dailyBoardRound, useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
@@ -59,19 +59,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   const { shareNote, onCopied, onShareFailed } = useShareNote();
   const { confirmGiveUpOpen, requestGiveUp, confirmGiveUp, closeGiveUpConfirm } = useWordSearchGiveUp(giveUp);
 
-  const recordedMatchRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (completed && puzzle) {
-      const matchId = wordSearchMatchId(puzzle);
-      if (recordedMatchRef.current !== matchId) {
-        recordDailyBoardMatch("word-search", puzzle, matchId, foundWordIds.length >= puzzle.words.length);
-        recordedMatchRef.current = matchId;
-      }
-    } else if (!completed) {
-      recordedMatchRef.current = null;
-    }
-  }, [completed, puzzle, foundWordIds.length]);
+  useRecordDailyMatch("word-search", dailyBoardRound(puzzle, wordSearchMatchId(puzzle)), completed, foundCount >= totalWords);
   const dayDone = useDailyMatchDone("word-search", puzzle.reference_date, wordSearchMatchId(puzzle), completed);
 
   // Names are resolved against the whole list, so two words that differ only

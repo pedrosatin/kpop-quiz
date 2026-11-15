@@ -487,22 +487,6 @@ export function isDailyMatchRecorded(gameId: GameId, dateStr: string, legacyMatc
     || (legacyMatchId !== undefined && isGameMatchRecorded(gameId, legacyMatchId));
 }
 
-/**
- * Counts a finished round on a daily board once for its date. A board the
- * loader served after its day (`staleDailyDate`) is not today's challenge
- * and counts nothing.
- */
-export function recordDailyBoardMatch(
-  gameId: GameId,
-  board: { reference_date: string },
-  matchId: string,
-  isWin: boolean,
-  guessCount?: number,
-): boolean {
-  if (staleDailyDate(board)) return false;
-  return recordMatchOnce(gameId, matchId, isWin, board.reference_date || dailyReferenceDate(), guessCount);
-}
-
 /** Whether a round on a daily board is the day's challenge, not counted yet: the analytics `daily` flag. */
 export function isDailyBoardRound(gameId: GameId, board: { reference_date: string }, legacyMatchId: string): boolean {
   return !staleDailyDate(board) && !isDailyMatchRecorded(gameId, board.reference_date, legacyMatchId);

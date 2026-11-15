@@ -1,6 +1,7 @@
 import { renderHook } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { noteDailyBoard } from "../data/daily-artifact";
+import { loadPlayerStats } from "./player-stats";
 import { gameCounts, matchMarkers } from "../test/match-records";
 import { dailyBoardRound, useRecordDailyMatch, type DailyRound } from "./use-record-daily-match";
 
@@ -43,7 +44,7 @@ describe("useRecordDailyMatch", () => {
   const round: DailyRound = { matchId: "code-p1", date: today };
 
   beforeEach(() => { localStorage.clear(); });
-  afterEach(() => { localStorage.clear(); });
+  afterEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
 
   it("records a finished round once, with the outcome it finished with", () => {
     const { rerender } = renderRecord({ round, finished: false, won: false });
@@ -89,6 +90,25 @@ describe("useRecordDailyMatch", () => {
     localStorage.setItem("kpop-match-recorded-code-code-p1", "1");
     renderRecord({ round, finished: true, won: true });
     expect(gameCounts("code")).toEqual({ played: 0, won: 0 });
+  });
+
+  it("does not count the round again on a rerender when its marker cannot be stored", () => {
+    const setItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key: string, value: string) {
+      if (key.startsWith("kpop-match-recorded-")) throw new DOMException("Storage is full", "QuotaExceededError");
+      setItem.call(this, key, value);
+    });
+    const { rerender } = renderRecord({ round, finished: true, won: true });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 1 });
+    expect(matchMarkers()).toEqual([]);
+
+    rerender({ round, finished: true, won: false });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 1 });
+  });
+
+  it("keeps the guess count of a win in the Name game's distribution", () => {
+    renderHook(() => useRecordDailyMatch("name-guess", round, true, true, 3));
+    expect(loadPlayerStats().games["name-guess"].guessDistribution).toEqual({ 1: 0, 2: 0, 3: 1, 4: 0, 5: 0, 6: 0 });
   });
 
   it("counts nothing without a round", () => {

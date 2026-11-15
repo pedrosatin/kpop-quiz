@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useState } from "preact/hooks";
 import type { CrosswordPuzzle } from "../../data/crossword";
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { isDailyMatchRecorded, recordMatchOnce } from "../../lib/player-stats";
+import { isDailyMatchRecorded } from "../../lib/player-stats";
 import type { Locale } from "../../lib/quiz-types";
+import { useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import {
   clearCrosswordSave,
   isEntrySolved,
@@ -80,18 +81,9 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
     storeCrosswordSave(puzzle, { values, status, checks });
   }, [puzzle, values, status, checks, finished]);
 
-  // A restored finished round is counted once, on the first load that finds it uncounted.
-  const recorded = useRef<string | null>(null);
-  useEffect(() => {
-    if (!finished) {
-      recorded.current = null;
-      return;
-    }
-    const matchId = crosswordMatchId(puzzle);
-    if (recorded.current === matchId) return;
-    recordMatchOnce("crossword", matchId, status === "won", puzzle.reference_date);
-    recorded.current = matchId;
-  }, [finished, status, puzzle]);
+  // The crossword loader never serves an earlier day's board, so the round
+  // skips the stale check of `dailyBoardRound`.
+  useRecordDailyMatch("crossword", { matchId: crosswordMatchId(puzzle), date: puzzle.reference_date }, finished, status === "won");
 
   const setLetters = useCallback(
     (updates: Record<string, string>) => {
