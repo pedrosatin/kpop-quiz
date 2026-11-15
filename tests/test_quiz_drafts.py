@@ -180,6 +180,54 @@ class BuildDraftsCharacterizationTest(unittest.TestCase):
                 self.assertIsNone(draft)
                 self.assertEqual(list(rejected.items()), [(reason, 1)])
 
+    def test_future_birth_never_becomes_a_negative_age_option(self):
+        facts, _entities = sparse_facts()
+        # Two more day-precision births give each age draft enough
+        # distractors once b2 (born 2030, age -4) leaves the pool.
+        extra = (
+            make_fact(
+                "b6", make_entity("QP5", "person", "Dani"), "born_on",
+                value_time="2000-01-01", value_precision=11,
+            ),
+            make_fact(
+                "b7", make_entity("QP6", "person", "Eli"), "born_on",
+                value_time="2010-01-01", value_precision=11,
+            ),
+        )
+        born = [fact for fact in facts if fact.predicate == "born_on"] + list(extra)
+        rejected: Counter[str] = Counter()
+
+        drafts = {
+            fact.statement_id: _age_on_date_draft(
+                fact, born, REFERENCE_DATE, (), (), (), rejected
+            )
+            for fact in born
+        }
+
+        options = {
+            statement_id: (
+                draft.answer[0],
+                tuple(value for value, _type in draft.alternatives),
+            )
+            for statement_id, draft in drafts.items()
+            if draft is not None
+        }
+        self.assertEqual(
+            options,
+            {
+                "b1": ("36", ("36", "26", "16", "0")),
+                "b4": ("0", ("0", "16", "26", "36")),
+                "b6": ("26", ("26", "16", "36", "0")),
+                "b7": ("16", ("16", "26", "0", "36")),
+            },
+        )
+        for _answer, alternatives in options.values():
+            self.assertTrue(all(int(value) >= 0 for value in alternatives))
+        self.assertEqual(
+            list(rejected.items()),
+            [("birth_after_reference_date", 1), ("insufficient_precision_for_age", 2)],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
