@@ -192,6 +192,26 @@ describe("StatsModal component", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("focuses Close once opened, unless a control inside already took the focus", () => {
+    vi.useFakeTimers();
+    try {
+      const view = render(<StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />);
+      vi.advanceTimersByTime(30);
+      expect(screen.getByRole("button", { name: "Fechar estatísticas" })).toHaveFocus();
+      view.unmount();
+
+      // A busy device fires the timer late, after the player picked a file
+      // and the import confirmation focused its Cancel.
+      render(<StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />);
+      const inside = screen.getByRole("button", { name: "Apagar dados" });
+      inside.focus();
+      vi.advanceTimersByTime(30);
+      expect(inside).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("wraps keyboard focus between the first and last controls", () => {
     render(<StatsModal isOpen={true} onClose={vi.fn()} locale="pt-BR" stats={sampleStats} />);
     const first = screen.getByRole("button", { name: "Fechar estatísticas" });

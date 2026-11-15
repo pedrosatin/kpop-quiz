@@ -127,6 +127,25 @@ describe("consented game measurement", () => {
     expect(names()).toEqual(["game_start", "game_complete"]);
   });
 
+  it("resume() treats a restored result as not played here, so the round played after it completes once", () => {
+    // A finished round played in the visit, then a saved result restored.
+    const { result, rerender } = renderHook(({ finished }) => useGameAnalytics(round, finished), { initialProps: { finished: false } });
+    act(() => result.current.start());
+    rerender({ finished: true });
+    expect(names()).toEqual(["game_start", "game_complete"]);
+    gtag.mockClear();
+    rerender({ finished: false });
+    act(() => result.current.resume());
+    rerender({ finished: true });
+    expect(names()).toEqual([]);
+
+    // The saved round continues and ends: it was started on an earlier visit.
+    rerender({ finished: false });
+    act(() => result.current.start());
+    rerender({ finished: true });
+    expect(names()).toEqual(["game_complete"]);
+  });
+
   it("drops completion during revoked consent and does not replay it", () => {
     const { result, rerender } = renderHook(({ finished }) => useGameAnalytics(round, finished), { initialProps: { finished: false } });
     act(() => result.current.start());
