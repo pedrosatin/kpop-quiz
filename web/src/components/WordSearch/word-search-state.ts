@@ -16,14 +16,14 @@ export function wordPath(word: WordSearchWord): CellCoord[] {
 }
 
 /**
- * A finished round with words left means the player gave up: a natural
- * finish always finds every word.
+ * A finished round with words left is a give-up. A round only ends by itself
+ * once every word is found.
  */
 export function hasGivenUp(status: GameStatus, foundCount: number, totalCount: number): boolean {
   return status === "completed" && foundCount < totalCount;
 }
 
-/** The outcome for the analytics; the round has no failure state, only a win or a give-up. */
+/** The analytics outcome of a finished round, a win or a give-up. Null while the round goes on. */
 export function roundOutcome(status: GameStatus, foundCount: number, totalCount: number): "win" | "give_up" | null {
   if (status !== "completed") return null;
   return hasGivenUp(status, foundCount, totalCount) ? "give_up" : "win";

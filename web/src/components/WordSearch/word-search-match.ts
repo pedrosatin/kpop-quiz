@@ -7,7 +7,7 @@ import { getLinearPath } from "./utils";
 /** Shorter names would match too many stray letters on the grid. */
 const MIN_NAME_LENGTH = 3;
 
-/** Letters only, without accents, in upper case: the form names take on the grid. */
+/** Keeps the letters of a name, without accents and in upper case, as names appear on the grid. */
 export function normalizeWord(name: string): string {
   return name
     .normalize("NFKD")

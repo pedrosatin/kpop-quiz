@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/preact";
 import { useWordSearchGame } from "./useWordSearchGame";
-import { getLinearPath, formatTime, generateWordSearchShareSummary, loadStoredProgress } from "./utils";
+import { getLinearPath, formatTime, generateWordSearchShareSummary } from "./utils";
+import { loadStoredProgress } from "./word-search-save";
 import { throwOnLocalStorage } from "../../test/throwing-storage";
 import validPuzzle from "../../tests/fixtures/word-search.daily.json";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";

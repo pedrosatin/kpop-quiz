@@ -33,7 +33,7 @@ function storage(): Record<string, string | null> {
   return Object.fromEntries(keys.map((key) => [key, localStorage.getItem(key)]));
 }
 
-/** The game as the player meets it: markup, focus and what is stored. */
+/** The game as the player meets it, with its markup, the focused element and what is stored. */
 function capture(container: Element) {
   return {
     html: container.innerHTML,
@@ -216,7 +216,7 @@ describe("word search characterization", () => {
     click(t.hideWords);
     expect(capture(container)).toMatchSnapshot("16 words hidden");
 
-    // Keyboard: Tab reaches the cell that holds the roving tabindex.
+    // From here the keyboard plays. Tab reaches the cell that holds the roving tabindex.
     const leeteuk = word("LEETEUK");
     const start = { row: leeteuk.start_row, col: leeteuk.start_col };
     container.querySelector<HTMLElement>('[role="gridcell"][tabindex="0"]')!.focus();
@@ -409,12 +409,12 @@ describe("word search characterization", () => {
       fireEvent.pointerUp(startCell, { clientX: center(10) - 8, clientY: -20, pointerId: 3 });
       steps.push(capture(container));
 
-      // The browser takes a press over before it drags: the selection stays as it was.
+      // When the browser takes a press over before it drags, the selection stays as it was.
       fireEvent.pointerDown(at(container, 2, 2), { clientX: center(2), clientY: center(2), buttons: 1, pointerId: 5 });
       fireEvent.pointerCancel(window, { pointerId: 5 });
       steps.push(capture(container));
 
-      // ...and during a drag: the selection is dropped.
+      // When it takes the press over during a drag, the selection is dropped.
       fireEvent.pointerDown(at(container, 2, 2), { clientX: center(2), clientY: center(2), buttons: 1, pointerId: 6 });
       fireEvent.pointerMove(grid, { clientX: center(5), clientY: center(2), buttons: 1, pointerId: 6 });
       fireEvent.pointerCancel(window, { pointerId: 6 });
