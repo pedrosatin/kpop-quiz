@@ -10,7 +10,7 @@ import { cardIds, savedOrder } from "./helpers/timeline-board";
 // The card moved by a ↑ or ↓ button keeps focus on its own button. In
 // 1280x720 the sticky action bar (.timeline-controls) covers the bottom of
 // the screen. A card moved to the end used to stay partly under it, because
-// the browser scrolled the page only until the focused ↑ button fitted above
+// Chromium scrolled the page only until the focused ↑ button fitted above
 // the bar, and the card's title, lower down, stayed under the bar. The board
 // now scrolls the whole moved card into view above the bar, and a card already
 // in view leaves the page where it is.
