@@ -40,7 +40,7 @@ Perguntas de grupo para integrante excluem dos distratores todas as pessoas que 
 
 Perguntas de idade tiram os distratores das idades de outros nascimentos com precisão de dia, na mesma data de referência. Um nascimento posterior a essa data não vira resposta (`birth_after_reference_date`) nem distrator, e nenhuma alternativa sai negativa.
 
-Perguntas de data de nascimento seguem a mesma regra. Um nascimento com precisão de dia posterior à data de referência não vira resposta (`birth_after_reference_date`) nem distrator. Só datas com precisão de dia entram nessa comparação. Um nascimento com precisão de ano ou mês nunca conta como posterior à data de referência.
+Perguntas de data de nascimento seguem a mesma regra. Um nascimento com precisão de dia posterior à data de referência não vira resposta (`birth_after_reference_date`) nem distrator. Um nascimento com precisão de ano ou mês fica fora dessa comparação.
 
 ## Hints de paráfrase
 

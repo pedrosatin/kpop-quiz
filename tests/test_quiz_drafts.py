@@ -240,7 +240,6 @@ class BuildDraftsCharacterizationTest(unittest.TestCase):
             [("birth_after_reference_date", 1), ("insufficient_precision_for_age", 2)],
         )
 
-
     def test_future_birth_never_becomes_a_birth_date_option(self):
         born = future_birth_pool()
         rejected: Counter[str] = Counter()
