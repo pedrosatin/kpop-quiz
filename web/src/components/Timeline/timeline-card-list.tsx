@@ -1,3 +1,4 @@
+import type { Ref } from "preact";
 import type { Locale, TimelineEvent } from "../../lib/quiz-types";
 import { TimelineCard } from "./TimelineCard";
 import type { MoveDirection } from "./timeline-board-state";
@@ -11,13 +12,14 @@ interface TimelineCardListProps {
   messages: TimelineBoardMessages;
   drag: ReturnType<typeof useTimelineBoardDrag>;
   onMove: (index: number, direction: MoveDirection) => void;
+  listRef: Ref<HTMLOListElement>;
 }
 
 /** The ordered list of cards, each with its move limits and drag state. */
-export function TimelineCardList({ items, locale, gameStatus, messages, drag, onMove }: TimelineCardListProps) {
+export function TimelineCardList({ items, locale, gameStatus, messages, drag, onMove, listRef }: TimelineCardListProps) {
   const isPlaying = gameStatus === "in_progress";
   return (
-    <ol class="timeline-board-list" role="list" aria-label={messages.boardAria}>
+    <ol ref={listRef} class="timeline-board-list" role="list" aria-label={messages.boardAria}>
       {items.map((event, index) => (
         <TimelineCard
           key={event.id}
