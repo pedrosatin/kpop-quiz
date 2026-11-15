@@ -1,6 +1,7 @@
 import type { TimelineEvent, TimelinePuzzle } from "../../lib/timeline-types";
 import type { Locale } from "../../lib/quiz-types";
 import type { TimelineDraftState, TimelineStoredState } from "./types";
+import { isIntegerInRange } from "../../lib/guards";
 import { getLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import { seoShareUrl } from "../../lib/seo-routes";
 import { withShareUrl } from "../Results/share-text";
@@ -135,6 +136,34 @@ export function saveTimelineDraft(storageKey: string, puzzle: TimelinePuzzle, or
   setLocalStorageItem(storageKey, JSON.stringify(draft));
 }
 
+/** A stored object with every field of a submitted save, before its score is checked. */
+type SubmittedSaveFields = Record<string, unknown> & Omit<TimelineStoredState, "submitted"> & { submitted: true };
+
+/** Whether `parsed` has the fields of a submitted save of this board, in the order they are checked. */
+function isSubmittedSaveOf(parsed: Record<string, unknown>, puzzle: TimelinePuzzle): parsed is SubmittedSaveFields {
+  if (parsed.puzzleId !== puzzle.puzzle_id) return false;
+  if (parsed.referenceDate !== puzzle.reference_date) return false;
+  if (parsed.submitted !== true) return false;
+  if (parsed.gaveUp !== undefined && typeof parsed.gaveUp !== "boolean") return false;
+  if (!isIntegerInRange(parsed.score, 0)) return false;
+  if (!Array.isArray(parsed.results) || !parsed.results.every((r: unknown) => typeof r === "boolean")) return false;
+  return isEventOrderOf(parsed.orderedEventIds, puzzle);
+}
+
+/** Whether the stored score and results are the ones the stored order earns. */
+function matchesItsScore(save: SubmittedSaveFields, puzzle: TimelinePuzzle): boolean {
+  const canonical = getCanonicalChronologicalOrder(puzzle.events);
+  const currentEvents = save.orderedEventIds.map((id: string) =>
+    puzzle.events.find((e) => e.id === id)!
+  );
+  const evaluated = calculateScore(currentEvents, canonical);
+  return (
+    save.score === evaluated.score &&
+    save.results.length === evaluated.results.length &&
+    save.results.every((r: boolean, i: number) => r === evaluated.results[i])
+  );
+}
+
 /**
  * Validate and restore saved timeline game state from localStorage.
  */
@@ -143,34 +172,9 @@ export function loadTimelineSavedState(
   puzzle: TimelinePuzzle
 ): TimelineStoredState | null {
   if (!storageKey) return null;
-  const raw = getLocalStorageItem(storageKey);
-  if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
-    if (parsed.puzzleId !== puzzle.puzzle_id) return null;
-    if (parsed.referenceDate !== puzzle.reference_date) return null;
-    if (typeof parsed.submitted !== "boolean") return null;
-    if (!parsed.submitted) return null;
-    if (parsed.gaveUp !== undefined && typeof parsed.gaveUp !== "boolean") return null;
-    if (typeof parsed.score !== "number" || !Number.isInteger(parsed.score) || parsed.score < 0) return null;
-    if (!Array.isArray(parsed.results) || !parsed.results.every((r: unknown) => typeof r === "boolean")) {
-      return null;
-    }
-    if (!isEventOrderOf(parsed.orderedEventIds, puzzle)) return null;
-
-    const canonical = getCanonicalChronologicalOrder(puzzle.events);
-    const currentEvents = parsed.orderedEventIds.map((id: string) =>
-      puzzle.events.find((e) => e.id === id)!
-    );
-    const evaluated = calculateScore(currentEvents, canonical);
-    if (
-      parsed.score !== evaluated.score ||
-      parsed.results.length !== evaluated.results.length ||
-      !parsed.results.every((r: boolean, i: number) => r === evaluated.results[i])
-    ) {
-      return null;
-    }
+    const parsed = readStoredObject(storageKey);
+    if (!parsed || !isSubmittedSaveOf(parsed, puzzle) || !matchesItsScore(parsed, puzzle)) return null;
 
     return {
       puzzleId: parsed.puzzleId,

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "preact/hooks";
 import type { TimelineEvent } from "../../lib/timeline-types";
+import { dropSourceIndex, isBoardIndex } from "./timeline-board-state";
 
 interface UseTimelineBoardDragProps {
   items: TimelineEvent[];
@@ -50,18 +51,12 @@ export function useTimelineBoardDrag({
     (targetIndex: number, e: DragEvent) => {
       if (isSubmitted) return;
       e.preventDefault();
-      const raw = e.dataTransfer?.getData("text/plain");
-      const from = raw !== undefined && raw !== "" ? parseInt(raw, 10) : dragIndex;
+      const from = dropSourceIndex(e.dataTransfer?.getData("text/plain"), dragIndex);
       setDragIndex(null);
       setDragOverIndex(null);
 
-      if (from === null || isNaN(from) || from === targetIndex || from < 0 || from >= items.length) {
-        return;
-      }
-
-      if (targetIndex < 0 || targetIndex >= items.length || isNaN(targetIndex)) {
-        return;
-      }
+      if (from === null || from === targetIndex || !isBoardIndex(from, items.length)) return;
+      if (!isBoardIndex(targetIndex, items.length)) return;
 
       onMoved(from, targetIndex);
       onReorder?.(from, targetIndex);

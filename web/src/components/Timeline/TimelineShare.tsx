@@ -1,10 +1,29 @@
 import { trackGameEvent } from "../../lib/game-analytics";
 import { useEffect, useId, useRef, useState } from "preact/hooks";
-import type { TimelineShareProps } from "./types";
-import { DEFAULT_TIMELINE_MESSAGES } from "./types";
+import type { Locale } from "../../lib/quiz-types";
+import type { TimelineShareMessages, TimelineShareProps } from "./types";
+import { defaultTimelineMessages } from "./types";
 import { shareTextToUser } from "../Results/share-text";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
+
+/** The share copy: each custom message, else the built-in one for `locale`. */
+function shareCopy(locale: Locale, messages: Partial<TimelineShareMessages> | undefined): TimelineShareMessages {
+  const defaults = defaultTimelineMessages(locale);
+  return {
+    share: messages?.share ?? defaults.share,
+    copiedToClipboard: messages?.copiedToClipboard ?? defaults.copiedToClipboard,
+    shareFailed: messages?.shareFailed ?? defaults.shareFailed,
+    shareTextLabel: messages?.shareTextLabel ?? defaults.shareTextLabel,
+  };
+}
+
+/** What the live region reads after the last share: the copy, the failure or nothing. */
+function shareAnnouncement(copied: boolean, shareFailed: boolean, copy: TimelineShareMessages): string {
+  if (copied) return copy.copiedToClipboard;
+  if (shareFailed) return copy.shareFailed;
+  return "";
+}
 
 export function TimelineShare({
   shareText,
@@ -21,11 +40,7 @@ export function TimelineShare({
   const shareFailedId = useId();
   const { guarded, ignoreRepeat } = useResultActionGuard();
 
-  const defaultMsgs = DEFAULT_TIMELINE_MESSAGES[locale] || DEFAULT_TIMELINE_MESSAGES["pt-BR"];
-  const shareLabel = messages?.share ?? defaultMsgs.share;
-  const copiedMsg = messages?.copiedToClipboard ?? defaultMsgs.copiedToClipboard;
-  const failedMsg = messages?.shareFailed ?? defaultMsgs.shareFailed;
-  const previewLabel = messages?.shareTextLabel ?? defaultMsgs.shareTextLabel;
+  const copy = shareCopy(locale, messages);
 
   useEffect(() => {
     return () => {
@@ -72,7 +87,7 @@ export function TimelineShare({
         onClick={guarded(() => { void handleShare(); })}
         onKeyDown={ignoreRepeat}
       >
-        {shareLabel}
+        {copy.share}
       </button>
 
       <div
@@ -82,14 +97,14 @@ export function TimelineShare({
         class="timeline-share-live"
       >
         <span key={announcementKey}>
-          {copied ? copiedMsg : shareFailed ? failedMsg : ""}
+          {shareAnnouncement(copied, shareFailed, copy)}
         </span>
       </div>
 
       {shareFailed && (
         <div class="timeline-share-fallback">
           <p id={shareFailedId} class="timeline-share-fallback-msg">
-            {failedMsg}
+            {copy.shareFailed}
           </p>
           <textarea
             id={shareTextId}
@@ -97,7 +112,7 @@ export function TimelineShare({
             readOnly
             rows={4}
             value={shareText}
-            aria-label={previewLabel}
+            aria-label={copy.shareTextLabel}
             aria-describedby={shareFailedId}
             onFocus={(event) => (event.currentTarget as HTMLTextAreaElement).select()}
             onClick={(event) => (event.currentTarget as HTMLTextAreaElement).select()}

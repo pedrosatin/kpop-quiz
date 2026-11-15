@@ -108,6 +108,11 @@ export const DEFAULT_TIMELINE_MESSAGES: Record<Locale, TimelineMessages> = {
   },
 };
 
+/** Built-in copy for `locale`, the Portuguese copy when the locale has none. */
+export function defaultTimelineMessages(locale: Locale): TimelineMessages {
+  return DEFAULT_TIMELINE_MESSAGES[locale] || DEFAULT_TIMELINE_MESSAGES["pt-BR"];
+}
+
 export interface TimelineCardProps {
   event: TimelineEvent;
   index: number;

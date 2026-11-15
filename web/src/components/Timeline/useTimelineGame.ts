@@ -1,14 +1,22 @@
 import { useGameAnalytics } from "../../lib/game-analytics";
 import { isDailyBoardRound } from "../../lib/player-stats";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
-import type { Locale, TimelineEvent, TimelinePuzzle } from "../../lib/quiz-types";
+import type { Locale, TimelinePuzzle } from "../../lib/quiz-types";
 import type { TimelineGameStatus } from "./types";
+import { swapItems } from "./timeline-board-state";
+import {
+  canMoveDownAt,
+  canMoveUpAt,
+  eventsInOrder,
+  indexTimelineEvents,
+  isNewTimelineOrder,
+  startingTimelineGame,
+  submittedTimelineState,
+} from "./timeline-game-state";
 import {
   calculateScore,
   generateTimelineShareText,
   getCanonicalChronologicalOrder,
-  getInitialTimelineEventIds,
-  isEventOrderOf,
   loadTimelineDraft,
   loadTimelineSavedState,
   saveTimelineDraft,
@@ -43,15 +51,12 @@ export function useTimelineGame(
     [initialSaved, storageKey, puzzle]
   );
 
-  const [orderedEventIds, setOrderedEventIds] = useState<string[]>(
-    () => initialSaved?.orderedEventIds ?? initialDraft ?? getInitialTimelineEventIds(puzzle)
-  );
-  const [gameStatus, setGameStatus] = useState<TimelineGameStatus>(
-    () => (initialSaved?.submitted ? "submitted" : "in_progress")
-  );
-  const [gaveUp, setGaveUp] = useState(initialSaved?.gaveUp === true);
-  const [score, setScore] = useState<number>(() => initialSaved?.score ?? 0);
-  const [results, setResults] = useState<boolean[]>(() => initialSaved?.results ?? []);
+  const [start] = useState(() => startingTimelineGame(puzzle, initialSaved, initialDraft));
+  const [orderedEventIds, setOrderedEventIds] = useState<string[]>(start.orderedEventIds);
+  const [gameStatus, setGameStatus] = useState<TimelineGameStatus>(start.gameStatus);
+  const [gaveUp, setGaveUp] = useState(start.gaveUp);
+  const [score, setScore] = useState<number>(start.score);
+  const [results, setResults] = useState<boolean[]>(start.results);
 
   const analytics = useGameAnalytics(
     {
@@ -73,19 +78,12 @@ export function useTimelineGame(
     saveTimelineDraft(storageKey, puzzle, orderedEventIds);
   }, [gameStatus, orderedEventIds, storageKey, puzzle]);
 
-  const eventMap = useMemo(() => {
-    const map = new Map<string, TimelineEvent>();
-    for (const event of puzzle.events) {
-      map.set(event.id, event);
-    }
-    return map;
-  }, [puzzle.events]);
+  const eventMap = useMemo(() => indexTimelineEvents(puzzle.events), [puzzle.events]);
 
-  const orderedEvents = useMemo(() => {
-    return orderedEventIds
-      .map((id) => eventMap.get(id))
-      .filter((event): event is TimelineEvent => Boolean(event));
-  }, [orderedEventIds, eventMap]);
+  const orderedEvents = useMemo(
+    () => eventsInOrder(orderedEventIds, eventMap),
+    [orderedEventIds, eventMap]
+  );
 
   const canonicalOrder = useMemo(
     () => getCanonicalChronologicalOrder(puzzle.events),
@@ -93,20 +91,12 @@ export function useTimelineGame(
   );
 
   const canMoveUp = useCallback(
-    (index: number): boolean => {
-      return gameStatus === "in_progress" && index > 0 && index < orderedEvents.length;
-    },
+    (index: number): boolean => canMoveUpAt(gameStatus, index, orderedEvents.length),
     [gameStatus, orderedEvents.length]
   );
 
   const canMoveDown = useCallback(
-    (index: number): boolean => {
-      return (
-        gameStatus === "in_progress" &&
-        index >= 0 &&
-        index < orderedEvents.length - 1
-      );
-    },
+    (index: number): boolean => canMoveDownAt(gameStatus, index, orderedEvents.length),
     [gameStatus, orderedEvents.length]
   );
 
@@ -115,13 +105,7 @@ export function useTimelineGame(
       if (!canMoveUp(index)) return;
       analytics.start();
       movedHere.current = true;
-      setOrderedEventIds((prev) => {
-        const next = [...prev];
-        const current = next[index]!;
-        next[index] = next[index - 1]!;
-        next[index - 1] = current;
-        return next;
-      });
+      setOrderedEventIds((prev) => swapItems(prev, index, index - 1));
     },
     [canMoveUp]
   );
@@ -131,21 +115,14 @@ export function useTimelineGame(
       if (!canMoveDown(index)) return;
       analytics.start();
       movedHere.current = true;
-      setOrderedEventIds((prev) => {
-        const next = [...prev];
-        const current = next[index]!;
-        next[index] = next[index + 1]!;
-        next[index + 1] = current;
-        return next;
-      });
+      setOrderedEventIds((prev) => swapItems(prev, index, index + 1));
     },
     [canMoveDown]
   );
 
   const setOrder = useCallback(
     (eventIds: string[]) => {
-      if (gameStatus !== "in_progress" || !isEventOrderOf(eventIds, puzzle)) return;
-      if (eventIds.every((id, index) => id === orderedEventIds[index])) return;
+      if (!isNewTimelineOrder(gameStatus, eventIds, orderedEventIds, puzzle)) return;
       analytics.start();
       movedHere.current = true;
       setOrderedEventIds(eventIds);
@@ -161,15 +138,7 @@ export function useTimelineGame(
     setScore(evaluation.score);
     setResults(evaluation.results);
     setGameStatus("submitted");
-    saveTimelineState(storageKey, {
-      puzzleId: puzzle.puzzle_id,
-      referenceDate: puzzle.reference_date,
-      orderedEventIds,
-      submitted: true,
-      gaveUp: abandoned,
-      score: evaluation.score,
-      results: evaluation.results,
-    });
+    saveTimelineState(storageKey, submittedTimelineState(puzzle, orderedEventIds, evaluation, abandoned));
   }, [gameStatus, orderedEvents, canonicalOrder, storageKey, puzzle, orderedEventIds]);
 
   const shareText = useMemo(() => {
