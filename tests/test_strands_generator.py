@@ -300,6 +300,11 @@ class TestGenerateStrandsPuzzle(unittest.TestCase):
         self.conn.close()
 
     def _generate(self, seed: str, **kwargs):
+        # These tests pin the artifact, not the wall clock: with the laptop
+        # under load, one generation went past the 30 s default. The node
+        # budgets still bound the search, and the deadline keeps its own
+        # tests with time_limit_seconds=0 and a patched clock.
+        kwargs.setdefault("time_limit_seconds", 300.0)
         return generate_strands_puzzle(
             self.conn,
             seed=seed,
