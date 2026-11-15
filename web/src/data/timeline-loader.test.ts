@@ -5,6 +5,7 @@ import { staleDailyDate } from "./daily-artifact";
 import { dayAfter } from "../test/stale-daily";
 import validTimeline from "../tests/fixtures/timeline.daily.json";
 import releaseTimeline from "../tests/fixtures/timeline-releases.daily.json";
+import { guardAfterChange, guardRows, type GuardCase } from "../test/guard-table";
 
 describe("published timeline puzzle loader and validator", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -312,5 +313,41 @@ describe("published timeline puzzle loader and validator", () => {
     const invalidEvent = structuredClone(validTimeline);
     (invalidEvent.events[0]! as Record<string, unknown>).extra_property = "unrecognized";
     expect(isTimelinePuzzle(invalidEvent)).toBe(false);
+  });
+});
+
+const TIMELINE_CASES: GuardCase[] = [
+  ["the fixture", () => {}, true],
+  ["a numeric schema", (t) => { t.schema_version = 1; }, false],
+  ["an uppercase dataset version", (t) => { t.dataset_version = "A".repeat(64); }, false],
+  ["a reference date before year 100", (t) => { t.reference_date = "0099-01-01"; }, false],
+  ["a blank theme", (t) => { t.theme.en = " "; }, false],
+  ["a theme with an extra key", (t) => { t.theme.es = "x"; }, false],
+  ["events that are not a list", (t) => { t.events = {}; }, false],
+  ["an event with an empty id", (t) => { t.events[0].id = ""; }, false],
+  ["a numeric event type", (t) => { t.events[0].event_type = 1; }, false],
+  ["a year as text", (t) => { t.events[0].year = "1997"; }, false],
+  ["a fractional year", (t) => { t.events[0].year = 1997.5; }, false],
+  ["a numeric date", (t) => { t.events[0].date = 1997; }, false],
+  ["month 00", (t) => { t.events[0].date = "1997-00"; }, false],
+  ["a date and year of 1980", (t) => { t.events[0].date = "1980"; t.events[0].year = 1980; }, true],
+  ["a date and year of 2035", (t) => { t.events[0].date = "2035-12-31"; t.events[0].year = 2035; }, true],
+  ["a blank display date", (t) => { t.events[0].display_date["pt-BR"] = " "; }, false],
+  ["a title with an extra key", (t) => { t.events[0].title.es = "x"; }, false],
+  ["a description without English", (t) => { delete t.events[0].description.en; }, false],
+  ["an empty entity name", (t) => { t.events[0].entity_name = ""; }, false],
+  ["a blank entity name", (t) => { t.events[0].entity_name = " "; }, true],
+  ["an event without evidence", (t) => { t.events[0].evidence = []; }, false],
+  ["evidence revision as text", (t) => { t.events[0].evidence[0].revision_id = "1"; }, false],
+  ["evidence revision 0", (t) => { t.events[0].evidence[0].revision_id = 0; }, false],
+  ["evidence with an empty locator", (t) => { t.events[0].evidence[0].locator = ""; }, false],
+  ["evidence with an empty source key", (t) => { t.events[0].evidence[0].source_key = ""; }, false],
+  ["evidence with an extra key", (t) => { t.events[0].evidence[0].extra = 1; }, false],
+  ["evidence without its fact", (t) => { delete t.events[0].evidence[0].fact_base_id; }, false],
+];
+
+describe("isTimelinePuzzle fields", () => {
+  it.each(guardRows(TIMELINE_CASES))("with $label: accepted is $accepted", ({ change, accepted }) => {
+    expect(guardAfterChange(validTimeline, change, isTimelinePuzzle)).toBe(accepted);
   });
 });

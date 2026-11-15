@@ -3,6 +3,7 @@ import { GridArtifactError, loadIntersectionGrid } from "./grid-loader";
 import { staleDailyDate } from "./daily-artifact";
 import { isIntersectionGrid } from "../lib/quiz-types";
 import validGrid from "../tests/fixtures/grid.daily.json";
+import { guardAfterChange, guardRows, withoutEachField, type GuardCase } from "../test/guard-table";
 import legacyMain from "../tests/fixtures/grid.published-legacy-20261026.json";
 import legacyNext from "../tests/fixtures/grid.published-legacy-20261027.json";
 
@@ -271,5 +272,56 @@ describe("published intersection grid loader and validator", () => {
   it("rejects when fetch throws a network error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network offline")));
     await expect(loadIntersectionGrid("pt-BR")).rejects.toEqual(new GridArtifactError("invalid"));
+  });
+});
+
+const GRID_CASES: GuardCase[] = [
+  ["the fixture", () => {}, true],
+  ["an extra key", (g) => { g.extra = 1; }, false],
+  ...withoutEachField([
+    "schema_version", "grid_id", "dataset_version", "reference_date", "dimensions",
+    "row_criteria", "col_criteria", "cells", "candidate_pool",
+  ]),
+  ["a short grid id", (g) => { g.grid_id = "abc"; }, false],
+  ["a numeric dataset version", (g) => { g.dataset_version = 1; }, false],
+  ["a reference date before year 100", (g) => { g.reference_date = "0099-01-01"; }, false],
+  ["dimensions with an extra key", (g) => { g.dimensions.extra = 1; }, false],
+  ["dimensions as text", (g) => { g.dimensions.rows = "3"; }, false],
+  ["dimensions that are a list", (g) => { g.dimensions = [3, 3]; }, false],
+  ["two row criteria", (g) => { g.row_criteria.pop(); }, false],
+  ["a criterion with an empty id", (g) => { g.row_criteria[0].id = ""; }, false],
+  ["a criterion of an unknown category", (g) => { g.row_criteria[0].category = "debut_year"; }, false],
+  ["a criterion with an extra key", (g) => { g.row_criteria[0].extra = 1; }, false],
+  ["a label with an empty Portuguese text", (g) => { g.row_criteria[0].label["pt-BR"] = ""; }, false],
+  ["a label with a blank Portuguese text", (g) => { g.row_criteria[0].label["pt-BR"] = " "; }, true],
+  ["a label with an extra key", (g) => { g.row_criteria[0].label.es = "x"; }, false],
+  ["a column criterion of an unknown category", (g) => { g.col_criteria[2].category = "debut_year"; }, false],
+  ["four column criteria", (g) => { g.col_criteria.push(structuredClone(g.col_criteria[0])); }, false],
+  ["no candidate", (g) => { g.candidate_pool = []; }, false],
+  ["a candidate with an empty name", (g) => { g.candidate_pool[0].canonical_name = ""; }, false],
+  ["a candidate with an empty English name", (g) => { g.candidate_pool[0].names.en = ""; }, false],
+  ["a candidate with an extra key", (g) => { g.candidate_pool[0].extra = 1; }, false],
+  ["a candidate with no alias", (g) => { g.candidate_pool[0].aliases = []; }, true],
+  ["a candidate with a blank alias", (g) => { g.candidate_pool[0].aliases = ["  "]; }, false],
+  ["a cell in row 3", (g) => { g.cells[0].row_index = 3; }, false],
+  ["a cell in row -1", (g) => { g.cells[0].row_index = -1; }, false],
+  ["a cell in a fractional row", (g) => { g.cells[0].row_index = 0.5; }, false],
+  ["a cell in column 3", (g) => { g.cells[0].col_index = 3; }, false],
+  ["a cell with no answer", (g) => { g.cells[0].valid_entity_ids = []; }, false],
+  ["a cell with a repeated answer", (g) => { g.cells[0].valid_entity_ids.push(g.cells[0].valid_entity_ids[0]); }, false],
+  ["a cell with an extra key", (g) => { g.cells[0].extra = 1; }, false],
+  ["a cell without evidence", (g) => { g.cells[0].evidence = []; }, false],
+  ["cell evidence revision 0", (g) => { g.cells[0].evidence[0].revision_id = 0; }, false],
+  ["cell evidence revision 1", (g) => { g.cells[0].evidence[0].revision_id = 1; }, true],
+  ["cell evidence with an empty fact id", (g) => { g.cells[0].evidence[0].fact_base_id = ""; }, false],
+  ["cell evidence with an empty locator", (g) => { g.cells[0].evidence[0].locator = ""; }, false],
+  ["cell evidence with an empty source key", (g) => { g.cells[0].evidence[0].source_key = ""; }, false],
+  ["cell evidence with an extra key", (g) => { g.cells[0].evidence[0].extra = 1; }, false],
+  ["cell evidence with an http source", (g) => { g.cells[0].evidence[0].source_url = "http://www.wikidata.org/"; }, false],
+];
+
+describe("isIntersectionGrid fields", () => {
+  it.each(guardRows(GRID_CASES))("with $label: accepted is $accepted", ({ change, accepted }) => {
+    expect(guardAfterChange(validGrid, change, isIntersectionGrid)).toBe(accepted);
   });
 });
