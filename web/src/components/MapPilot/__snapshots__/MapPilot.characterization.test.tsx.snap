@@ -1059,7 +1059,7 @@ exports[`map characterization > starts over from saves it refuses and drops the 
     "progress": "Pergunta 1 de 10",
     "result": null,
     "storage": {
-      "kpop-map-2026-09-24": "{"events":["8e7882d6-a5f9-4c35-9ce8-b33a9e502c5d","27264d4f-ff76-47a9-b8a4-5cbaad538b3f","b341a09f-4691-433c-8852-6139230f031d","9a1d6660-404a-4466-ae07-14ca668ef1c2","f9c143ad-ac9b-4021-80a7-304e3533d97e","22a092a8-2873-4e44-8bbf-109332a6117f","39db6fca-1970-4bc7-a01b-3344f9f749f2","3a7bdbad-16f7-437d-88d1-f6e6744f4a55","0aedf22a-99f9-4ad9-8f8a-0d9d6073ee75","9f7c7532-763a-4bbe-a713-de889af3c2e2"],"answers":[],"index":0}",
+      "kpop-map-2026-09-24": "{"events":["8e7882d6-a5f9-4c35-9ce8-b33a9e502c5d","27264d4f-ff76-47a9-b8a4-5cbaad538b3f","b341a09f-4691-433c-8852-6139230f031d","9a1d6660-404a-4466-ae07-14ca668ef1c2","f9c143ad-ac9b-4021-80a7-304e3533d97e","22a092a8-2873-4e44-8bbf-109332a6117f","39db6fca-1970-4bc7-a01b-3344f9f749f2","3a7bdbad-16f7-437d-88d1-f6e6744f4a55","0aedf22a-99f9-4ad9-8f8a-0d9d6073ee75","9f7c7532-763a-4bbe-a713-de889af3c2e2"],"answers":["ESP","JPN"],"index":2}",
       "kpop-map-settings": "keep",
     },
   },
@@ -1068,7 +1068,7 @@ exports[`map characterization > starts over from saves it refuses and drops the 
     "progress": "Pergunta 1 de 10",
     "result": null,
     "storage": {
-      "kpop-map-2026-09-24": "{"events":["0aedf22a-99f9-4ad9-8f8a-0d9d6073ee75","3a7bdbad-16f7-437d-88d1-f6e6744f4a55","39db6fca-1970-4bc7-a01b-3344f9f749f2","22a092a8-2873-4e44-8bbf-109332a6117f","f9c143ad-ac9b-4021-80a7-304e3533d97e","9a1d6660-404a-4466-ae07-14ca668ef1c2","b341a09f-4691-433c-8852-6139230f031d","27264d4f-ff76-47a9-b8a4-5cbaad538b3f","8e7882d6-a5f9-4c35-9ce8-b33a9e502c5d"],"answers":[],"index":0}",
+      "kpop-map-2026-09-24": "{"events":["0aedf22a-99f9-4ad9-8f8a-0d9d6073ee75","3a7bdbad-16f7-437d-88d1-f6e6744f4a55","39db6fca-1970-4bc7-a01b-3344f9f749f2","22a092a8-2873-4e44-8bbf-109332a6117f","f9c143ad-ac9b-4021-80a7-304e3533d97e","9a1d6660-404a-4466-ae07-14ca668ef1c2","b341a09f-4691-433c-8852-6139230f031d","27264d4f-ff76-47a9-b8a4-5cbaad538b3f","8e7882d6-a5f9-4c35-9ce8-b33a9e502c5d"],"answers":["ESP","JPN"],"index":2}",
       "kpop-map-settings": "keep",
     },
   },
@@ -1077,7 +1077,7 @@ exports[`map characterization > starts over from saves it refuses and drops the 
     "progress": "Pergunta 1 de 10",
     "result": null,
     "storage": {
-      "kpop-map-2026-09-24": "{"events":["9f7c7532-763a-4bbe-a713-de889af3c2e2","0aedf22a-99f9-4ad9-8f8a-0d9d6073ee75","3a7bdbad-16f7-437d-88d1-f6e6744f4a55","39db6fca-1970-4bc7-a01b-3344f9f749f2","22a092a8-2873-4e44-8bbf-109332a6117f","f9c143ad-ac9b-4021-80a7-304e3533d97e","9a1d6660-404a-4466-ae07-14ca668ef1c2","b341a09f-4691-433c-8852-6139230f031d","27264d4f-ff76-47a9-b8a4-5cbaad538b3f","8e7882d6-a5f9-4c35-9ce8-b33a9e502c5d","extra"],"answers":[],"index":0}",
+      "kpop-map-2026-09-24": "{"events":["9f7c7532-763a-4bbe-a713-de889af3c2e2","0aedf22a-99f9-4ad9-8f8a-0d9d6073ee75","3a7bdbad-16f7-437d-88d1-f6e6744f4a55","39db6fca-1970-4bc7-a01b-3344f9f749f2","22a092a8-2873-4e44-8bbf-109332a6117f","f9c143ad-ac9b-4021-80a7-304e3533d97e","9a1d6660-404a-4466-ae07-14ca668ef1c2","b341a09f-4691-433c-8852-6139230f031d","27264d4f-ff76-47a9-b8a4-5cbaad538b3f","8e7882d6-a5f9-4c35-9ce8-b33a9e502c5d","extra"],"answers":["ESP","JPN"],"index":2}",
       "kpop-map-settings": "keep",
     },
   },
@@ -1086,7 +1086,7 @@ exports[`map characterization > starts over from saves it refuses and drops the 
     "progress": "Pergunta 1 de 10",
     "result": null,
     "storage": {
-      "kpop-map-2026-09-24": "{"events":"x","answers":[],"index":0}",
+      "kpop-map-2026-09-24": "{"events":"x","answers":["ESP","JPN"],"index":2}",
       "kpop-map-settings": "keep",
     },
   },

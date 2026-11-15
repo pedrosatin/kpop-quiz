@@ -28,7 +28,7 @@ function parseJson(raw: string): unknown {
   }
 }
 
-/** The MBIDs of the round's events, in order: a data refresh that changed the round drops the save. */
+/** Checks the round's event MBIDs in order. A data refresh that changes the round invalidates the save. */
 function isRoundEvents(events: unknown, round: readonly MapPilotEvent[]): events is string[] {
   return Array.isArray(events)
     && events.length === round.length

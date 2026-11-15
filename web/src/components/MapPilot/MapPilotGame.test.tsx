@@ -6,7 +6,7 @@ import { mapShareText, readableScheduleLocator, RESULT_GUARD_MS, wikidataRevisio
 import { mapPilotStorageKey } from "./map-pilot-save";
 import { featureShape } from "./map-pilot-geometry";
 import { MAP_ZOOM_QUERY } from "./useMapBox";
-import { ZOOM_GUARD_MS } from "./useMapZoom";
+import { ZOOM_GUARD_MS } from "./map-pilot-zoom";
 import {
   mapPilotCountries,
   mapPilotCountryLabel,
