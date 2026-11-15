@@ -48,7 +48,11 @@ const rounds = [
 type Frame = { top: number; barHeight: number; offset: number; hint: boolean; bannerHeight: string };
 type Trace = { frames: Frame[]; cls: number };
 
-/** Every frame from the first paint, and the layout shift without recent input. */
+/**
+ * Every frame from the first paint, and the layout shift without recent
+ * input. Sampling has no time limit, because on a busy machine the first
+ * frame of the page can come after several seconds.
+ */
 async function traceLayout(page: Page) {
   await page.addInitScript(() => {
     const w = window as unknown as { __trace: Trace };
@@ -72,7 +76,7 @@ async function traceLayout(page: Page) {
           bannerHeight: getComputedStyle(document.documentElement).getPropertyValue("--consent-banner-height").trim(),
         });
       }
-      if (performance.now() < 6_000) requestAnimationFrame(sample);
+      requestAnimationFrame(sample);
     };
     requestAnimationFrame(sample);
   });
@@ -141,15 +145,22 @@ for (const viewport of viewports) {
       // banner publishes its height, the bar rises above it as a whole. The
       // link must never move Start: from the first paint the bar keeps its
       // height and Start its offset inside it, and Start's top changes only
-      // on the frame where the banner height changes.
+      // on the frame where the banner height changes, by exactly that change
+      // the other way. A link that arrives on the same frame and moves the
+      // whole bar shows up as a difference from that amount.
       const frames = trace.frames;
       expect(frames.some((frame) => !frame.hint), "a frame before the link arrives").toBe(true);
       const shapes = [...new Set(frames.map((frame) => `${frame.barHeight}/${frame.offset}`))];
       expect(shapes, `the bar changed shape (height/offset of Start): ${shapes.join(", ")}`).toHaveLength(1);
-      const moves = frames.flatMap((frame, i) =>
-        i > 0 && frame.top !== frames[i - 1]!.top ? [{ before: frames[i - 1]!, after: frame }] : []);
+      const steps = frames.slice(1).map((after, i) => ({ before: frames[i]!, after }));
+      const moves = steps.filter(({ before, after }) => after.top !== before.top);
       const linkMoves = moves.filter(({ before, after }) => before.bannerHeight === after.bannerHeight);
       expect(linkMoves, `Start moved without a banner height change: ${JSON.stringify(linkMoves)}`).toEqual([]);
+      // An unset variable is a banner of 0px; the banner publishes whole pixels.
+      const px = (height: string) => parseFloat(height) || 0;
+      const offBanner = steps.filter(({ before, after }) => before.bannerHeight !== after.bannerHeight
+        && after.top - before.top !== px(before.bannerHeight) - px(after.bannerHeight));
+      expect(offBanner, `Start moved by other than the banner height change: ${JSON.stringify(offBanner)}`).toEqual([]);
       if (!viewport.banner) expect(moves, "Start moved").toEqual([]);
       expect(trace.cls).toBeLessThanOrEqual(0.1);
       test.info().annotations.push({
