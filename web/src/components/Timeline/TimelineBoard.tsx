@@ -36,8 +36,10 @@ export function TimelineBoard({
     onMoved: moveByDrag,
   });
 
+  // While a card is dragged, timeline.css hides the sticky action bar so the
+  // browser's autoscroll zone and the drop land on the cards under it.
   return (
-    <div class="timeline-board-wrapper">
+    <div class={drag.dragIndex === null ? "timeline-board-wrapper" : "timeline-board-wrapper is-dragging"}>
       <div class="timeline-live-region visually-hidden" role="status" aria-live="polite" aria-atomic="true">
         {announcement}
       </div>
