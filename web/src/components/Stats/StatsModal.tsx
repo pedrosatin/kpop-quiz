@@ -75,7 +75,11 @@ export function StatsModal({
 
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
 
+    // Focus goes to Close only if nothing inside the dialog has it yet. On a
+    // busy device the timer may fire after the player picked a stats file,
+    // and the import confirmation has already put focus on its Cancel.
     const timer = setTimeout(() => {
+      if (modalRef.current?.contains(document.activeElement)) return;
       closeBtnRef.current?.focus();
     }, 30);
 
