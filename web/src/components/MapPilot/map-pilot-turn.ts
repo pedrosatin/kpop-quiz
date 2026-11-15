@@ -10,11 +10,20 @@ export interface RoundState {
   index: number;
 }
 
+/** Whether the answer given for a date is its country. */
+export function isRightAnswer(event: MapPilotEvent, answer: string | undefined): boolean {
+  return answer === event.map_feature_id;
+}
+
+/** How many dates of the round have the right answer; a date with no answer is wrong. */
+export function countRightAnswers(round: readonly MapPilotEvent[], answers: readonly string[]): number {
+  return round.filter((event, index) => isRightAnswer(event, answers[index])).length;
+}
+
 /** The Map shows only a score, so a win follows the Quiz rule: at least half right. */
 export function mapRoundOutcome(round: MapPilotEvent[], answers: string[], gaveUp: boolean): GameOutcome {
   if (gaveUp || answers.length < round.length) return "give_up";
-  const correct = round.filter((event, index) => answers[index] === event.map_feature_id).length;
-  return correct >= Math.ceil(round.length / 2) ? "win" : "loss";
+  return countRightAnswers(round, answers) >= Math.ceil(round.length / 2) ? "win" : "loss";
 }
 
 /** The date on screen and what the player did with it, read from the save and the pending pick. */

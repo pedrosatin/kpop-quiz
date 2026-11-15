@@ -1,5 +1,4 @@
-import type { MapPilotEvent } from "../../data/map-pilot";
-import { getLocalStorageItem, listLocalStorageKeys, removeLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
+import { getLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 
 /**
  * What localStorage keeps of one daily round, under `kpop-map-<YYYY-MM-DD>`
@@ -15,6 +14,7 @@ import { getLocalStorageItem, listLocalStorageKeys, removeLocalStorageItem, setL
  * result, so a finished round may hold fewer answers than dates. `replay`
  * marks a round started with Play again, which analytics counts as free play;
  * the result no longer offers Play again, but older saves may keep the mark.
+ * The game reads and checks a save in map-pilot-progress.ts.
  */
 export interface MapPilotSave {
   events: string[];
@@ -26,60 +26,6 @@ export interface MapPilotSave {
 
 export function mapPilotStorageKey(roundDate: string): string {
   return `kpop-map-${roundDate}`;
-}
-
-const ROUND_KEY = /^kpop-map-\d{4}-\d{2}-\d{2}$/;
-
-/** Removes the saves of other days, so old rounds do not pile up in storage. */
-function pruneMapPilotSaves(roundDate: string): void {
-  const keep = mapPilotStorageKey(roundDate);
-  for (const key of listLocalStorageKeys()) {
-    if (key !== keep && ROUND_KEY.test(key)) removeLocalStorageItem(key);
-  }
-}
-
-/**
- * Reads the save of this round and removes the saves of other days. A save for other events, with a feature
- * outside the playable countries, or with a count that play cannot reach
- * is dropped, so a stale or edited save never shows a round the player did
- * not play.
- */
-export function loadMapPilotSave(
-  roundDate: string,
-  round: readonly MapPilotEvent[],
-  playableFeatures: ReadonlySet<string>,
-): MapPilotSave | null {
-  pruneMapPilotSaves(roundDate);
-  const raw = getLocalStorageItem(mapPilotStorageKey(roundDate));
-  if (!raw) return null;
-  let saved: unknown;
-  try {
-    saved = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (typeof saved !== "object" || saved === null || Array.isArray(saved)) return null;
-  const { events, answers, index, replay, gaveUp } = saved as Partial<MapPilotSave>;
-  if (!Array.isArray(events) || events.length !== round.length) return null;
-  if (events.some((id, i) => id !== round[i]!.event_mbid)) return null;
-  if (!Array.isArray(answers) || answers.some((id) => typeof id !== "string" || !playableFeatures.has(id))) return null;
-  if (!Number.isInteger(index) || (index as number) < 0 || (index as number) > round.length) return null;
-  if (gaveUp !== undefined && typeof gaveUp !== "boolean") return null;
-  if (gaveUp === true && index !== round.length) return null;
-  const count = answers.length;
-  const valid: MapPilotSave = {
-    events: [...events],
-    answers: [...answers],
-    index: index as number,
-    ...(gaveUp === true ? { gaveUp: true } : {}),
-    ...(replay === true ? { replay: true } : {}),
-  };
-  if (count > round.length) return null;
-  // A give-up jumps straight to the result, so a finished round may hold
-  // fewer answers than dates.
-  if ((index as number) === round.length) return valid;
-  if (count !== index && count !== (index as number) + 1) return null;
-  return valid;
 }
 
 /** Whether the save of this round shows its result; the pilot keeps no stats. */

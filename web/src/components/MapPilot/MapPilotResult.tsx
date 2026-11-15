@@ -10,6 +10,7 @@ import { useGameShareAction } from "../Results/use-game-share-action";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { DailyNext } from "../Results/DailyNext";
 import { SourceLink } from "../Source/SourceCitation";
+import { countRightAnswers, isRightAnswer } from "./map-pilot-turn";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 interface ResultCopy {
@@ -101,12 +102,75 @@ export function mapShareText(
   answers: readonly string[],
   locale: Locale,
 ): string {
-  const marks = round.map((event, i) => (answers[i] === event.map_feature_id ? "🟩" : "⬛")).join("");
-  const correct = round.filter((event, i) => answers[i] === event.map_feature_id).length;
+  const marks = round.map((event, i) => (isRightAnswer(event, answers[i]) ? "🟩" : "⬛")).join("");
+  const correct = countRightAnswers(round, answers);
   const messages = getMessages(locale);
   return withShareUrl(
     `${messages.mapShareHeader(roundDate)}\n${COPY[locale].shareLine(correct, round.length)}\n${marks}`,
     seoShareUrl("mapPilot", locale),
+  );
+}
+
+/** The name of the answered country, or "no answer" for a date the player did not answer. */
+function answerLabel(
+  featureId: string | undefined,
+  countryByFeature: ReadonlyMap<string, MapPilotCountry>,
+  locale: Locale,
+): string {
+  const country = featureId ? countryByFeature.get(featureId) : undefined;
+  return country ? mapPilotCountryLabel(country, locale) : getMessages(locale).noAnswer;
+}
+
+/** One date of the round with both answers and the three sources behind it. */
+function MapPilotReviewItem({
+  event,
+  answer,
+  countryByFeature,
+  locale,
+}: {
+  event: MapPilotEvent;
+  answer: string | undefined;
+  countryByFeature: ReadonlyMap<string, MapPilotCountry>;
+  locale: Locale;
+}) {
+  const copy = COPY[locale];
+  const messages = getMessages(locale);
+  const isRight = isRightAnswer(event, answer);
+  return (
+    <li class={`review-item ${isRight ? "is-correct" : "is-wrong"}`}>
+      <div class="review-item-header">
+        <span class={`badge ${isRight ? "badge-success" : "badge-failure"}`}>
+          {isRight ? copy.right : copy.wrong}
+        </span>
+      </div>
+      <h4 class="review-item-title">{formatMapDate(event.event_date, locale)}</h4>
+      <p>
+        <span class="review-label">{copy.answerWas}: </span>
+        <strong>{answerLabel(event.map_feature_id, countryByFeature, locale)}</strong>
+      </p>
+      <p>
+        <span class="review-label">{copy.yourAnswer}: </span>
+        <strong class={isRight ? "text-success" : "text-error"}>{answerLabel(answer, countryByFeature, locale)}</strong>
+      </p>
+      <ul class="map-pilot-review-sources">
+        <li>
+          {copy.scheduleSource}{" "}
+          <a href={event.source_url} target="_blank" rel="noreferrer">{copy.openSchedule}</a>
+          <span class="map-pilot-source-locator" title={event.source_locator}>
+            {copy.locator} {readableScheduleLocator(event.source_locator, event.event_date)}
+          </span>
+        </li>
+        <li>
+          {copy.musicBrainzEvent}{" "}
+          <a href={event.musicbrainz_event_url} target="_blank" rel="noreferrer">{copy.openMusicBrainz}</a>
+        </li>
+        <li>
+          {copy.wikidataCheck(event.country_check_wikidata_id, event.country_check_wikidata_revid)}{" "}
+          <SourceLink url={wikidataRevisionUrl(event)} messages={messages} />
+        </li>
+        <li class="map-pilot-source-locator">{copy.checkedAt(formatMapDate(event.source_checked_at, locale, "short"))}</li>
+      </ul>
+    </li>
   );
 }
 
@@ -158,12 +222,8 @@ export function MapPilotResult({
     if (sourceOpen) source.current?.scrollIntoView?.({ block: "nearest" });
   }, [sourceOpen]);
 
-  const correct = round.filter((event, i) => answers[i] === event.map_feature_id).length;
+  const correct = countRightAnswers(round, answers);
   const shareText = mapShareText(roundDate, round, answers, locale);
-  const label = (featureId: string | undefined) => {
-    const country = featureId ? countryByFeature.get(featureId) : undefined;
-    return country ? mapPilotCountryLabel(country, locale) : messages.noAnswer;
-  };
 
   return (
     <section class="map-pilot-result" data-testid="game-result" aria-labelledby={titleId}>
@@ -220,45 +280,15 @@ export function MapPilotResult({
             <h3 id={`${sourceId}-title`} class="review-section-title">{copy.reviewTitle}</h3>
             <p class="map-pilot-review-note">{copy.scheduleNote}</p>
             <ol class="review-list">
-              {round.map((event, i) => {
-                const isRight = answers[i] === event.map_feature_id;
-                return (
-                  <li key={event.event_mbid} class={`review-item ${isRight ? "is-correct" : "is-wrong"}`}>
-                    <div class="review-item-header">
-                      <span class={`badge ${isRight ? "badge-success" : "badge-failure"}`}>
-                        {isRight ? copy.right : copy.wrong}
-                      </span>
-                    </div>
-                    <h4 class="review-item-title">{formatMapDate(event.event_date, locale)}</h4>
-                    <p>
-                      <span class="review-label">{copy.answerWas}: </span>
-                      <strong>{label(event.map_feature_id)}</strong>
-                    </p>
-                    <p>
-                      <span class="review-label">{copy.yourAnswer}: </span>
-                      <strong class={isRight ? "text-success" : "text-error"}>{label(answers[i])}</strong>
-                    </p>
-                    <ul class="map-pilot-review-sources">
-                      <li>
-                        {copy.scheduleSource}{" "}
-                        <a href={event.source_url} target="_blank" rel="noreferrer">{copy.openSchedule}</a>
-                        <span class="map-pilot-source-locator" title={event.source_locator}>
-                          {copy.locator} {readableScheduleLocator(event.source_locator, event.event_date)}
-                        </span>
-                      </li>
-                      <li>
-                        {copy.musicBrainzEvent}{" "}
-                        <a href={event.musicbrainz_event_url} target="_blank" rel="noreferrer">{copy.openMusicBrainz}</a>
-                      </li>
-                      <li>
-                        {copy.wikidataCheck(event.country_check_wikidata_id, event.country_check_wikidata_revid)}{" "}
-                        <SourceLink url={wikidataRevisionUrl(event)} messages={messages} />
-                      </li>
-                      <li class="map-pilot-source-locator">{copy.checkedAt(formatMapDate(event.source_checked_at, locale, "short"))}</li>
-                    </ul>
-                  </li>
-                );
-              })}
+              {round.map((event, i) => (
+                <MapPilotReviewItem
+                  key={event.event_mbid}
+                  event={event}
+                  answer={answers[i]}
+                  countryByFeature={countryByFeature}
+                  locale={locale}
+                />
+              ))}
             </ol>
           </section>
         )}

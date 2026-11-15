@@ -70,7 +70,10 @@ Para fixar de novo a mesma tag, uma diferença no passo 3 indica que o arquivo d
 - `web/src/data/map-pilot.ts` valida o conjunto no build e sorteia as datas da rodada.
 - `web/src/components/MapPilot/MapPilotGame.tsx` é o jogo em PT e EN.
 - `web/src/components/MapPilot/MapPilotMap.tsx` desenha o mapa, o zoom das telas menores e os alvos de toque; `map-pilot-geometry.ts` calcula as vistas e a posição de cada alvo.
+- `web/src/components/MapPilot/map-pilot-zoom.ts` decide quando o mapa aproxima, quando aceita o toque depois do zoom e quando volta ao mapa inteiro. `useMapZoom.ts` guarda o estado e trata os eventos.
+- `web/src/components/MapPilot/map-pilot-turn.ts` deriva a data na tela, conta os acertos e decide vitória, derrota ou desistência.
 - `web/src/components/MapPilot/MapPilotResult.tsx` mostra o resultado na barra, o compartilhamento e o painel de fontes.
-- `web/src/components/MapPilot/map-pilot-save.ts` define, lê e valida o progresso salvo.
+- `web/src/components/MapPilot/map-pilot-save.ts` define o formato e a chave do progresso salvo, grava a rodada e diz se ela terminou. As outras páginas importam esse arquivo para marcar o jogo do dia.
+- `web/src/components/MapPilot/map-pilot-progress.ts` lê e valida o progresso salvo, remove os saves de outros dias e decide quando gravar. Só o Mapa usa esse arquivo.
 
 Os testes em `tests/test_map_pilot_refresh.py` usam uma amostra real de três eventos do MusicBrainz e uma agenda sintética com o layout da página da YG. Eles cobrem o leitor da agenda, o intervalo e as novas tentativas do cliente, a leitura do `P17` e as regras de exclusão. Os testes em `web/src` cobrem o formato do conjunto, o sorteio diário, o fluxo da rodada e a renderização do jogo.
