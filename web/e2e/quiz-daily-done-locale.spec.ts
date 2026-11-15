@@ -145,14 +145,16 @@ for (const locale of ["pt-BR", "en"] as const) {
     expect(saved).not.toBeNull();
 
     // Record where Start sits on every frame from the first paint: the
-    // notice arrives after hydration and must not move it.
+    // notice arrives after hydration and must not move it. Sampling has no
+    // time limit, because on a busy machine the first frame of the new page
+    // can come after several seconds.
     await page.addInitScript(() => {
       const w = window as unknown as { __startTops: number[] };
       w.__startTops = [];
       const sample = () => {
         const start = document.querySelector('[data-testid="game-start"]');
         if (start) w.__startTops.push(Math.round(start.getBoundingClientRect().top));
-        if (performance.now() < 5_000) requestAnimationFrame(sample);
+        requestAnimationFrame(sample);
       };
       requestAnimationFrame(sample);
     });
@@ -163,6 +165,7 @@ for (const locale of ["pt-BR", "en"] as const) {
     await expect(notice).toHaveText(new RegExp(t.otherNotice(3).replace(/[.?]/g, "\\$&")), { timeout: 30_000 });
     await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
     const startTops = await page.evaluate(() => (window as unknown as { __startTops: number[] }).__startTops);
+    expect(startTops.length, "frames sampled since the first paint").toBeGreaterThan(0);
     expect(new Set(startTops).size, `Start moved: ${[...new Set(startTops)].join(", ")}`).toBe(1);
     const setupBox = (await page.getByTestId("game-setup").boundingBox())!;
     const noticeBox = (await notice.boundingBox())!;
