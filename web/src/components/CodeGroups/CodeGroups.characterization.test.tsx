@@ -8,7 +8,7 @@ import type { Locale } from "../../lib/quiz-types";
 import { onDay } from "../../test/stale-daily";
 import { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 import { CodeGroupsGame } from "./CodeGroupsGame";
-import { generateShareText } from "./CodeGroupsGameContent";
+import { generateShareText } from "./code-groups-text";
 
 // Pins the rendered DOM, the focused element, the scroll calls, the raw save
 // and the analytics events of every Code state, so splitting the game can be

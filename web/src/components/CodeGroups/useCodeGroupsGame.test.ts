@@ -3,7 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import fixture from "../../../public/data/code-groups.pilot.json";
 import type { CodeGroupsPuzzle } from "../../data/code-groups";
 import { throwOnLocalStorage } from "../../test/throwing-storage";
-import { clearCodeGroupsSave, codeGroupsStorageKey, loadCodeGroupsSave, storeCodeGroupsSave, useCodeGroupsGame } from "./useCodeGroupsGame";
+import { clearCodeGroupsSave, codeGroupsStorageKey, loadCodeGroupsSave, storeCodeGroupsSave } from "./code-groups-save";
+import { useCodeGroupsGame } from "./useCodeGroupsGame";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());

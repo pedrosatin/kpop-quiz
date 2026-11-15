@@ -21,14 +21,6 @@ import {
   type CodeGroupsFeedback,
 } from "./code-groups-state";
 
-export {
-  clearCodeGroupsSave,
-  codeGroupsStorageKey,
-  loadCodeGroupsSave,
-  storeCodeGroupsSave,
-  type CodeGroupsSave,
-} from "./code-groups-save";
-
 export interface UseCodeGroupsGame {
   selection: string[];
   history: CodeGroupsGuess[];

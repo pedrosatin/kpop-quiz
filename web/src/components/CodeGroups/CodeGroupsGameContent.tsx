@@ -14,8 +14,6 @@ import { useCodeGroupsFeedbackScroll } from "./useCodeGroupsFeedbackScroll";
 import { CodeGroupsGuessForm } from "./code-groups-guess-form";
 import { CodeGroupsHistory } from "./code-groups-history";
 
-export { generateShareText } from "./code-groups-text";
-
 export interface CodeGroupsGameContentProps {
   puzzle: CodeGroupsPuzzle;
   locale: Locale;
@@ -71,7 +69,6 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
           won={won}
           attemptsUsed={history.length}
           nameByQid={nameByQid}
-          label={label}
           resultRef={resultRef}
           share={{
             text: shareText,

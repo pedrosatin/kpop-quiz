@@ -12,7 +12,6 @@ export interface CodeGroupsResultProps {
   won: boolean;
   attemptsUsed: number;
   nameByQid: ReadonlyMap<string, string>;
-  label: (id: string) => string;
   resultRef: Ref<HTMLElement>;
   share: {
     text: string;
@@ -61,7 +60,8 @@ function GroupSources({ puzzle, nameByQid, messages }: Pick<CodeGroupsResultProp
 }
 
 /** The finished round: verdict, revealed code, Share and the cited groups. */
-export function CodeGroupsResult({ puzzle, locale, messages, won, attemptsUsed, nameByQid, label, resultRef, share }: CodeGroupsResultProps) {
+export function CodeGroupsResult({ puzzle, locale, messages, won, attemptsUsed, nameByQid, resultRef, share }: CodeGroupsResultProps) {
+  const label = (id: string) => nameByQid.get(id) ?? id;
   return (
     <section
       class="game-result code-result"
