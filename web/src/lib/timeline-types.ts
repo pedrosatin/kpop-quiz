@@ -108,7 +108,8 @@ const EVIDENCE_REQUIRED_KEYS = [
   "source_url",
 ];
 
-// Unlike the other games, a timeline text needs a character besides whitespace.
+// Like the word search and unlike the other games, a timeline text needs a
+// character besides whitespace.
 function isBilingualText(value: unknown): value is BilingualText {
   return isRecord(value)
     && hasExactKeys(value, BILINGUAL_KEYS)

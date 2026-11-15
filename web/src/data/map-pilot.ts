@@ -105,7 +105,7 @@ function isParsedIsoDate(value: unknown): value is string {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
 }
 
-/** A listed concert the artist headlines. Extra keys are allowed. */
+/** A listed concert the artist headlines. It accepts extra keys. */
 function isListedConcert(event: Record<string, unknown>): boolean {
   return event.predicate === "announced_performance_city"
     && event.schedule_status === "listed"

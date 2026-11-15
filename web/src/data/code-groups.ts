@@ -53,7 +53,8 @@ const PUZZLE_FIELDS = [
 
 /**
  * The reference date as the generator writes it. A month or day no month has
- * (00, 13, 32) makes toISOString throw RangeError, which the guard does not catch.
+ * makes toISOString throw RangeError, which the guard does not catch. That
+ * happens with a month 00 or 13, or a day 00 or 32.
  */
 function isGeneratorDate(value: string): boolean {
   return ISO_DATE_PATTERN.test(value)
@@ -87,7 +88,9 @@ export function isCodeGroupsPuzzle(value: unknown): value is CodeGroupsPuzzle {
   if (!isRecord(value)) return false;
   const p = value as unknown as CodeGroupsPuzzle;
   if (p.schema_version !== "code-groups-pilot-v1" || p.mode !== "pilot" || p.max_attempts !== 10) return false;
-  // Counted, not named: each of the nine fields is read by name below.
+  // The root is counted and its names are not checked. With hasExactKeys, a root
+  // with two misnamed keys and month 13 would be refused before the date check
+  // instead of throwing RangeError, so counting keeps the old behaviour.
   if (Object.keys(value).length !== PUZZLE_FIELDS.length) return false;
   if (![p.puzzle_id, p.dataset_version, p.seed, p.reference_date].every(isNonBlankString)) return false;
   if (!isHash(p.puzzle_id) || !isHash(p.dataset_version)) return false;

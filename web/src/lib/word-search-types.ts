@@ -46,8 +46,8 @@ export interface WordSearchPuzzle {
   words: WordSearchWord[];
 }
 
-// The word search keeps rules of its own: objects may carry extra keys, and
-// the reference date is only checked for its YYYY-MM-DD shape.
+// Like the map, the word search accepts extra keys, and it checks only the
+// YYYY-MM-DD shape of the reference date.
 const WORD_REGEX = /^[A-Z]{3,16}$/;
 const SINGLE_LETTER_REGEX = /^[A-Z]$/;
 

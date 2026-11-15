@@ -4,8 +4,8 @@
  * as a list of them, one group of fields at a time.
  *
  * The guards do not all follow one rule for the same idea, and these checks
- * keep each rule apart instead of merging them: a text may need one character
- * or one character besides whitespace, a key set may be exact or open, and a
+ * keep each rule apart. A text may need one character or one character
+ * besides whitespace, a key set may be exact or open, and a
  * date may be a real day or only the YYYY-MM-DD shape. A guard picks the rule
  * it has always used.
  */
@@ -14,7 +14,7 @@ export const HASH_PATTERN = /^[0-9a-f]{64}$/;
 export const QID_PATTERN = /^Q[1-9][0-9]*$/;
 export const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/** A plain object: not null and not an array. */
+/** An object that is not null and not an array. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -46,8 +46,9 @@ export function isNonBlankString(value: unknown): value is string {
 
 /**
  * Whether the object has every `required` key and no key outside `required`
- * and `optional`. Only own enumerable keys count, which are all the keys a
- * value parsed from JSON has.
+ * and `optional`. Required keys are tested with `Object.hasOwn`, and extra
+ * keys come from `Object.keys`. A value parsed from JSON has only own
+ * enumerable keys, so both agree on it.
  */
 export function hasExactKeys(
   value: Record<string, unknown>,
@@ -64,8 +65,9 @@ export function isIntegerInRange(value: unknown, min: number, max = Infinity): v
 }
 
 /**
- * A day of the calendar written YYYY-MM-DD. Years 0000 to 0099 are refused:
- * Date.UTC reads them as 1900 to 1999, so the day it builds never matches.
+ * A day of the calendar written YYYY-MM-DD. It refuses the years 0000 to
+ * 0099, because Date.UTC reads them as 1900 to 1999 and the day it builds
+ * never matches.
  */
 export function isIsoDate(value: unknown): value is string {
   if (!matchesPattern(value, ISO_DATE_PATTERN)) return false;
