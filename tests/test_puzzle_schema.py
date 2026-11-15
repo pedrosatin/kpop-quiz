@@ -127,7 +127,6 @@ class SharedSchemaChecksTest(unittest.TestCase):
                         module, module._validate_evidence, (evidence, "cell[0]"), message
                     )
 
-
     def test_validate_evidence_checks_revision_then_source_key_then_source_url(self) -> None:
         cases = (
             (
@@ -145,6 +144,7 @@ class SharedSchemaChecksTest(unittest.TestCase):
                     self.assert_rejects(
                         module, module._validate_evidence, (evidence, "cell[0]"), message
                     )
+
 
 class SerializeEvidenceTest(unittest.TestCase):
     def test_deduplicates_and_sorts_by_every_field(self) -> None:
