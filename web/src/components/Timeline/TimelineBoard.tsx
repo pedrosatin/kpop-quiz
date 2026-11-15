@@ -19,7 +19,7 @@ export function TimelineBoard({
   const messages = timelineBoardMessages(locale, customMessages);
   const isSubmitted = gameStatus === "submitted";
 
-  const { items, announcement, moveByButton, moveByDrag } = useTimelineBoardItems({
+  const { items, announcement, listRef, moveByButton, moveByDrag } = useTimelineBoardItems({
     events,
     locale,
     isSubmitted,
@@ -54,6 +54,7 @@ export function TimelineBoard({
         messages={messages}
         drag={drag}
         onMove={moveByButton}
+        listRef={listRef}
       />
 
       {onSubmit && (

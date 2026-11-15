@@ -220,6 +220,41 @@ describe("TimelineBoard", () => {
     expect(live).toHaveTextContent(`${draggedTitle} movido para a posição 2 de 5`);
   });
 
+  it("brings the dropped card into view without moving focus, and only after a drop", () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      render(<TimelineBoard events={events} locale="pt-BR" onSubmit={vi.fn()} onGiveUp={vi.fn()} />);
+      const draggedTitle = events[0]!.title["pt-BR"];
+      const dt = () => ({ effectAllowed: "", dropEffect: "", setData: vi.fn(), getData: vi.fn().mockReturnValue("0") });
+
+      // A cancelled drag moves nothing, so nothing scrolls.
+      let transfer = dt();
+      fireEvent.dragStart(screen.getAllByRole("listitem")[0]!, { dataTransfer: transfer });
+      fireEvent.dragEnd(screen.getAllByRole("listitem")[0]!, { dataTransfer: transfer });
+      expect(scrollIntoView).not.toHaveBeenCalled();
+
+      const focusBefore = document.activeElement;
+      transfer = dt();
+      fireEvent.dragStart(screen.getAllByRole("listitem")[0]!, { dataTransfer: transfer });
+      fireEvent.dragOver(screen.getAllByRole("listitem")[3]!, { dataTransfer: transfer });
+      fireEvent.drop(screen.getAllByRole("listitem")[3]!, { dataTransfer: transfer });
+      fireEvent.dragEnd(screen.getAllByRole("listitem")[3]!, { dataTransfer: transfer });
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
+      const scrolled = scrollIntoView.mock.contexts[0] as HTMLElement;
+      expect(scrolled).toBe(screen.getAllByRole("listitem")[3]);
+      expect(within(scrolled).getByText(draggedTitle)).toBeInTheDocument();
+      expect(document.activeElement).toBe(focusBefore);
+
+      // The buttons keep their own focus scroll.
+      pressKey(screen.getByRole("button", { name: `Mover "${draggedTitle}" para baixo` }), "Enter");
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    } finally {
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    }
+  });
+
   it("marks the board while a card is dragged and clears it on drop and on a cancelled drag", () => {
     const { container } = render(<TimelineBoard events={events} locale="pt-BR" onSubmit={vi.fn()} onGiveUp={vi.fn()} />);
     const board = container.querySelector(".timeline-board-wrapper")!;

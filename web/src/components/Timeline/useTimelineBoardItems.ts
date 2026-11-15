@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "preact/hooks";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { Locale, TimelineEvent } from "../../lib/quiz-types";
 import type { TimelineBoardMessages } from "./types";
 import {
@@ -23,7 +23,8 @@ interface UseTimelineBoardItemsProps {
 
 /**
  * The order on screen, which follows `events` and changes at once on a move,
- * the live announcement of the last move, and the focus kept on the moved card.
+ * the live announcement of the last move, the focus kept on the card moved by
+ * a button, and the card moved by a drag kept in view above the action bar.
  */
 export function useTimelineBoardItems({
   events,
@@ -37,6 +38,8 @@ export function useTimelineBoardItems({
   const [items, setItems] = useState<TimelineEvent[]>(events);
   const [announcement, setAnnouncement] = useState<string>("");
   const [lastMoved, setLastMoved] = useState<{ id: string; direction: MoveDirection } | null>(null);
+  const [lastDropped, setLastDropped] = useState<string | null>(null);
+  const listRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
     setItems(events);
@@ -67,6 +70,7 @@ export function useTimelineBoardItems({
       if (!isBoardIndex(targetIndex, items.length) || !isBoardIndex(from, items.length)) return;
       const currentItem = items[from]!;
       setItems((prev) => moveItem(prev, from, targetIndex));
+      setLastDropped(currentItem.id);
       const title = timelineEventTitle(currentItem, locale);
       setAnnouncement(messages.itemMoved(title, targetIndex + 1, items.length));
     },
@@ -83,5 +87,16 @@ export function useTimelineBoardItems({
     setLastMoved(null);
   }, [items, lastMoved]);
 
-  return { items, announcement, moveByButton, moveByDrag };
+  // A drop can land on the band the hidden action bar covers during the drag.
+  // The bar is back in the same render, so bring the card above it before the
+  // paint. The page's scroll margin keeps the bar's height clear, and
+  // "nearest" leaves a card already in view where it is. Focus stays put.
+  useLayoutEffect(() => {
+    if (lastDropped === null) return;
+    const newIndex = items.findIndex((e) => e.id === lastDropped);
+    if (newIndex !== -1) listRef.current?.children[newIndex]?.scrollIntoView?.({ block: "nearest" });
+    setLastDropped(null);
+  }, [items, lastDropped]);
+
+  return { items, announcement, listRef, moveByButton, moveByDrag };
 }
