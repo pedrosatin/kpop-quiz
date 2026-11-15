@@ -93,10 +93,18 @@ link do jogo no idioma do jogador
 - `web/src/data/code-groups.ts` valida a estrutura, recalcula o hash de
   identidade e carrega o artefato diário (com `preferNextDaily` para o
   conjunto do dia seguinte em `data/next/`).
-- `web/src/components/CodeGroups/useCodeGroupsGame.ts` guarda a máquina de
-  estados e a persistência.
-- `web/src/components/CodeGroups/CodeGroupsGameContent.tsx` renderiza o jogo
-  e o resultado, com o texto de compartilhamento.
+- `web/src/components/CodeGroups/code-groups-state.ts` reúne as regras da
+  rodada em funções puras: começo da partida, recusa de palpite, fim da
+  rodada e resultado.
+- `web/src/components/CodeGroups/code-groups-save.ts` lê, confere e grava o
+  save `kpop-code-<data>` e apaga os saves de outros dias.
+- `web/src/components/CodeGroups/code-groups-text.ts` monta os nomes dos
+  grupos, a frase da região viva e o texto de compartilhamento.
+- `web/src/components/CodeGroups/useCodeGroupsGame.ts` guarda o estado da
+  rodada e aplica essas regras.
+- `web/src/components/CodeGroups/CodeGroupsGameContent.tsx` monta o jogo com
+  `CodeGroupsGuessForm`, `CodeGroupsHistory` e `CodeGroupsResult`, e cuida do
+  foco no resultado e da rolagem depois de cada envio.
 - `web/src/components/CodeGroups/CodeGroupsGame.tsx` carrega o artefato e
   apresenta os estados de carregando, indisponível e erro.
 
