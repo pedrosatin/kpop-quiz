@@ -130,7 +130,8 @@ def _person_drafts(
             fact.subject.wikidata_id, memberships
         )
         birth_date_draft = _birth_date_draft(
-            fact, born, person_groups, group_fact_ids, group_evidence, rejected
+            fact, born, reference_date,
+            person_groups, group_fact_ids, group_evidence, rejected,
         )
         if birth_date_draft is not None:
             result.append(birth_date_draft)
@@ -146,12 +147,22 @@ def _person_drafts(
 def _birth_date_draft(
     fact: Fact,
     born: list[Fact],
+    reference_date: date,
     person_groups: tuple[str, ...],
     group_fact_ids: tuple[str, ...],
     group_evidence: tuple[Evidence, ...],
     rejected: Counter[str],
 ) -> Draft | None:
-    alternatives = _time_alternatives(fact, born)
+    """Build the birth date draft of one birth fact.
+
+    A birth after the reference date yields neither the answer nor a
+    distractor, as in the age draft.
+    """
+    if _born_after(fact, reference_date):
+        rejected["birth_after_reference_date"] += 1
+        return None
+    candidates = [other for other in born if not _born_after(other, reference_date)]
+    alternatives = _time_alternatives(fact, candidates)
     if alternatives is None:
         rejected["insufficient_birth_date_distractors"] += 1
         return None
@@ -169,10 +180,14 @@ def _birth_date_draft(
 def _born_after(fact: Fact, reference_date: date) -> bool:
     """Return whether a day-precision birth falls after the reference date.
 
-    Such a birth yields neither the answer nor a distractor of an age draft,
-    so no alternative is a negative age.
+    Such a birth yields neither the answer nor a distractor of an age or a
+    birth date draft, so no alternative is a negative age or a future birth.
+    A birth without a day-precision date never counts as after the reference
+    date: a year such as ``"1997"`` is not an ISO date to compare.
     """
-    return date.fromisoformat(fact.value_time or "") > reference_date
+    if fact.value_precision != 11 or not fact.value_time:
+        return False
+    return date.fromisoformat(fact.value_time) > reference_date
 
 
 def _age_on_date_draft(

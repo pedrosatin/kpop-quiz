@@ -40,6 +40,8 @@ Perguntas de grupo para integrante excluem dos distratores todas as pessoas que 
 
 Perguntas de idade tiram os distratores das idades de outros nascimentos com precisão de dia, na mesma data de referência. Um nascimento posterior a essa data não vira resposta (`birth_after_reference_date`) nem distrator, e nenhuma alternativa sai negativa.
 
+Perguntas de data de nascimento seguem a mesma regra. Um nascimento com precisão de dia posterior à data de referência não vira resposta (`birth_after_reference_date`) nem distrator. Só datas com precisão de dia entram nessa comparação. Um nascimento com precisão de ano ou mês nunca conta como posterior à data de referência.
+
 ## Hints de paráfrase
 
 Perguntas sobre lançamentos aceitam um hint de uma frase com a ideia geral da faixa, sem citar letra ou tradução. O hint não entra nos fatos graduados. A resposta continua nos fatos `performed_by` ou `released_on` aceitos. O hint tem no máximo 140 caracteres, sem sequência de 3 ou mais palavras da letra, sem hooks, slogans ou nomes próprios inventados na música, e sem números de charts. O review log registra editor, data, fontes consultadas, busca exata com zero acertos, slide de 3-gramas sem sobreposição e segunda leitura. O hint só publica com zero acertos, zero sobreposições e aprovação registrada. Os hints seguem o versionamento do bundle de templates.
