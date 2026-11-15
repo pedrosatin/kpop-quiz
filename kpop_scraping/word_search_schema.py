@@ -1,4 +1,8 @@
-"""Schema checks and validation for word search puzzle artifacts."""
+"""Schema checks and validation for word search puzzle artifacts.
+
+The shared checks from ``puzzle_schema`` are bound to ``_require`` with
+``partial`` at import time, so patching ``_require`` does not reach them.
+"""
 
 from __future__ import annotations
 

@@ -5,6 +5,9 @@ path steps between the 8 neighbours of a cell, no cell belongs to two paths
 and every cell belongs to one.  Exactly one path, the spangram, touches two
 opposite sides of the grid.  Solution uniqueness is proved by the generator;
 this module checks the structural contract only.
+
+The shared checks from ``puzzle_schema`` are bound to ``_require`` with
+``partial`` at import time, so patching ``_require`` does not reach them.
 """
 
 from __future__ import annotations

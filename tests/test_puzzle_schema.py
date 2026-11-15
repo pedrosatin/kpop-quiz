@@ -127,6 +127,24 @@ class SharedSchemaChecksTest(unittest.TestCase):
                         module, module._validate_evidence, (evidence, "cell[0]"), message
                     )
 
+    def test_validate_evidence_checks_revision_then_source_key_then_source_url(self) -> None:
+        cases = (
+            (
+                _with(revision_id=0, source_key=""),
+                "cell[0] revision_id must be an integer >= 1",
+            ),
+            (
+                _with(source_key="", source_url="http://x"),
+                "cell[0] source_key must be a non-empty string",
+            ),
+        )
+        for module in EVIDENCE_MODULES:
+            with self.subTest(module=module.__name__):
+                for evidence, message in cases:
+                    self.assert_rejects(
+                        module, module._validate_evidence, (evidence, "cell[0]"), message
+                    )
+
 
 class SerializeEvidenceTest(unittest.TestCase):
     def test_deduplicates_and_sorts_by_every_field(self) -> None:
@@ -163,6 +181,32 @@ class SerializeEvidenceTest(unittest.TestCase):
         self.assertEqual(
             [list(item) for item in serialized],
             [["fact_base_id", "locator", "revision_id", "source_key", "source_url"]] * 3,
+        )
+
+    def test_sorts_one_fact_by_locator_revision_source_key_then_source_url(self) -> None:
+        # Each neighbouring pair differs first in one key component and is
+        # ordered against the next component, so dropping or swapping any
+        # component of the sort key changes the result.
+        body = Evidence("fact-1", "enwiki:9", "body", "https://a.example/9", 8)
+        old_revision = Evidence("fact-1", "enwiki:9", "infobox", "https://a.example/9", 2)
+        low_key = Evidence("fact-1", "enwiki:0", "infobox", "https://a.example/2", 5)
+        low_url = Evidence("fact-1", "enwiki:1", "infobox", "https://a.example/1", 5)
+        high_url = Evidence("fact-1", "enwiki:1", "infobox", "https://a.example/2", 5)
+        serialized = puzzle_schema.serialize_evidence(
+            [high_url, low_url, low_key, old_revision, body]
+        )
+        self.assertEqual(
+            [
+                (item["locator"], item["revision_id"], item["source_key"], item["source_url"])
+                for item in serialized
+            ],
+            [
+                ("body", 8, "enwiki:9", "https://a.example/9"),
+                ("infobox", 2, "enwiki:9", "https://a.example/9"),
+                ("infobox", 5, "enwiki:0", "https://a.example/2"),
+                ("infobox", 5, "enwiki:1", "https://a.example/1"),
+                ("infobox", 5, "enwiki:1", "https://a.example/2"),
+            ],
         )
 
     def test_empty_input_serializes_to_empty_list(self) -> None:
