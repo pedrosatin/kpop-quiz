@@ -123,6 +123,7 @@ def _person_drafts(
     Both prompts name the person's groups and cite the memberships behind
     them. The age draft does not depend on the birth date draft.
     """
+    candidates = [fact for fact in born if not _born_after(fact, reference_date)]
     result = []
     for fact in born:
         person_groups = _groups_for_person(fact.subject.wikidata_id, memberships)
@@ -130,7 +131,7 @@ def _person_drafts(
             fact.subject.wikidata_id, memberships
         )
         birth_date_draft = _birth_date_draft(
-            fact, born, reference_date,
+            fact, candidates, reference_date,
             person_groups, group_fact_ids, group_evidence, rejected,
         )
         if birth_date_draft is not None:
@@ -146,7 +147,7 @@ def _person_drafts(
 
 def _birth_date_draft(
     fact: Fact,
-    born: list[Fact],
+    candidates: list[Fact],
     reference_date: date,
     person_groups: tuple[str, ...],
     group_fact_ids: tuple[str, ...],
@@ -161,7 +162,6 @@ def _birth_date_draft(
     if _born_after(fact, reference_date):
         rejected["birth_after_reference_date"] += 1
         return None
-    candidates = [other for other in born if not _born_after(other, reference_date)]
     alternatives = _time_alternatives(fact, candidates)
     if alternatives is None:
         rejected["insufficient_birth_date_distractors"] += 1
@@ -178,16 +178,22 @@ def _birth_date_draft(
 
 
 def _born_after(fact: Fact, reference_date: date) -> bool:
-    """Return whether a day-precision birth falls after the reference date.
+    """Compare a birth with the reference date at its recorded precision.
 
-    Such a birth yields neither the answer nor a distractor of an age or a
-    birth date draft, so no alternative is a negative age or a future birth.
-    A birth without a day-precision date never counts as after the reference
-    date: a year such as ``"1997"`` is not an ISO date to compare.
+    The reference year or month is not future, even if a stored full date
+    falls later within that period. Only day precision compares whole dates.
     """
-    if fact.value_precision != 11 or not fact.value_time:
+    if not fact.value_time:
         return False
-    return date.fromisoformat(fact.value_time) > reference_date
+    if fact.value_precision == 9:
+        return int(fact.value_time[:4]) > reference_date.year
+    if fact.value_precision == 10:
+        return (int(fact.value_time[:4]), int(fact.value_time[5:7])) > (
+            reference_date.year, reference_date.month,
+        )
+    if fact.value_precision == 11:
+        return date.fromisoformat(fact.value_time) > reference_date
+    return False
 
 
 def _age_on_date_draft(

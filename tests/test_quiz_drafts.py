@@ -2,6 +2,7 @@ import hashlib
 import unittest
 from collections import Counter
 from datetime import date
+from unittest.mock import patch
 
 from kpop_scraping.quiz_drafts import (
     _age_on_date_draft,
@@ -168,9 +169,9 @@ class BuildDraftsCharacterizationTest(unittest.TestCase):
             list(rejected.items()),
             [
                 ("insufficient_formation_year_distractors", 1),
-                ("insufficient_birth_date_distractors", 4),
+                ("insufficient_birth_date_distractors", 3),
                 ("insufficient_age_distractors", 2),
-                ("birth_after_reference_date", 2),
+                ("birth_after_reference_date", 3),
                 ("insufficient_precision_for_age", 2),
                 ("insufficient_group_distractors", 3),
                 ("insufficient_person_distractors", 2),
@@ -266,19 +267,58 @@ class BuildDraftsCharacterizationTest(unittest.TestCase):
         self.assertEqual(
             list(rejected.items()),
             [
-                ("birth_after_reference_date", 2),
-                ("insufficient_birth_date_distractors", 2),
+                ("birth_after_reference_date", 3),
+                ("insufficient_birth_date_distractors", 1),
                 ("insufficient_precision_for_age", 2),
             ],
         )
 
-    def test_born_after_never_compares_a_birth_without_day_precision(self):
-        # A year-precision value is not an ISO date; b5 stores a full date
-        # with year precision. Neither counts as after the reference date.
+    def test_partial_precision_births_exclude_future_answers_and_distractors(self):
+        cases = (
+            (9, ("1997", "2024", "2025", "2026", "2031-01-01")),
+            (10, ("2025-12", "2026-07", "2026-08", "2026-09", "2026-10")),
+            (10, ("2025-09", "2025-10", "2025-11", "2025-12", "2026-01")),
+        )
+        for precision, values in cases:
+            reference = date(2025, 12, 15) if values[-1] == "2026-01" else REFERENCE_DATE
+            with self.subTest(precision=precision, reference=reference):
+                born = [
+                    make_fact(
+                        f"birth-{index}", make_entity(f"QP{index}", "person", str(index)),
+                        "born_on", value_time=value, value_precision=precision,
+                    )
+                    for index, value in enumerate(values)
+                ]
+                rejected = Counter()
+                with patch("kpop_scraping.quiz_drafts._born_after", wraps=_born_after) as check:
+                    drafts = _person_drafts(born, [], reference, rejected)
+                # One pool pass and one answer check per birth; age rejects
+                # these precisions before checking the date.
+                self.assertEqual(check.call_count, 2 * len(born))
+                self.assertEqual(len(drafts), 4)
+                self.assertEqual({draft.answer[0] for draft in drafts}, set(values[:-1]))
+                for draft in drafts:
+                    self.assertEqual(
+                        {value for value, _kind in draft.alternatives}, set(values[:-1])
+                    )
+                self.assertEqual(rejected["birth_after_reference_date"], 1)
+                self.assertEqual(rejected["insufficient_precision_for_age"], 5)
+
+    def test_born_after_compares_at_recorded_precision(self):
         cases = (
             ("1997", 9, False),
-            ("2031-01-01", 9, False),
-            ("2030-01", 10, False),
+            ("2031-01-01", 9, True),
+            ("2031", 9, True),
+            ("2026", 9, False),
+            ("2026-12-31", 9, False),
+            ("2030-01", 10, True),
+            ("2026-10", 10, True),
+            ("2026-09", 10, False),
+            ("2026-09-30", 10, False),
+            ("2026-08", 10, False),
+            ("2025-12", 10, False),
+            ("2027-01", 10, True),
+            ("2025", 9, False),
             (None, 11, False),
             ("2030-01-01", 11, True),
             (REFERENCE_DATE.isoformat(), 11, False),
