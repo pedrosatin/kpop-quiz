@@ -157,6 +157,15 @@ async function expectEndReachable(page: Page, what: string, options: { tap?: boo
   if (options.horizontal !== false) await expectNoHorizontalScroll(page);
 }
 
+/** Clue scrolling must survive a delayed return to the active square. */
+async function expectClueScrollStaysPut(page: Page) {
+  const scrollY = await page.evaluate(() => window.scrollY);
+  // Cover a focus callback delayed by 100ms before measuring again.
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => window.scrollY), "scrolling to the clues stays put").toBe(scrollY);
+  await expectUncovered(await lastControlBeforeBar(page), "the last clue after settling");
+}
+
 for (const locale of locales) {
   for (const phone of phones) {
     test.describe(`sticky bar ${locale.id} ${phone.width}x${phone.height}`, () => {
@@ -168,6 +177,7 @@ for (const locale of locales) {
         const cells = page.locator(".crossword-grid input");
         await expect(cells.first()).toBeVisible();
         await expectEndReachable(page, "the last clue");
+        await expectClueScrollStaysPut(page);
 
         // The lowest square of the grid, scrolled to sit right above the bar.
         const lowest = await cells.evaluateAll((inputs) => {
@@ -197,6 +207,7 @@ for (const locale of locales) {
         expect(await bar.evaluate((el) => el.getBoundingClientRect().height), "the wrong check keeps the bar's height").toBeLessThanOrEqual(before + 0.5);
         await expectUncovered(square, "the lowest square after a wrong check");
         await expectEndReachable(page, "the last clue after a wrong check");
+        await expectClueScrollStaysPut(page);
       });
 
       for (const banner of ["open", "rejected"] as const) {
