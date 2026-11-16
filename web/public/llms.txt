@@ -1,55 +1,49 @@
 # K-pop Quiz — llms.txt
 
-K-pop Quiz em https://kpopquiz.online: jogos diários de K-pop em
-português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
+> K-pop Quiz em https://kpopquiz.online: jogos diários de K-pop em
+> português (pt-BR) e inglês (en), com fontes verificáveis a cada resposta.
 
 ## Jogos
 
-- Quiz (múltipla escolha): https://kpopquiz.online/pt-br/ ·
-  https://kpopquiz.online/en/
-- Grade de Interseções / Intersection Grid:
-  https://kpopquiz.online/pt-br/grid/ · https://kpopquiz.online/en/grid/
-- Palavras Conectadas / Connections:
-  https://kpopquiz.online/pt-br/conexoes/ ·
-  https://kpopquiz.online/en/connections/
-- Adivinhe o Nome / Guess the Name:
-  https://kpopquiz.online/pt-br/adivinhe/ ·
-  https://kpopquiz.online/en/guess/
-- Caça-Palavras / Word Search:
-  https://kpopquiz.online/pt-br/caca-palavras/ ·
-  https://kpopquiz.online/en/word-search/
-- Quiz de mapa / Map quiz (turnê DEADLINE de BLACKPINK):
-  https://kpopquiz.online/pt-br/mapa/ · https://kpopquiz.online/en/map/
-- Linha do Tempo / Timeline:
-  https://kpopquiz.online/pt-br/linha-do-tempo/ ·
-  https://kpopquiz.online/en/timeline/
-- Código de Grupos / Group Code:
-  https://kpopquiz.online/pt-br/codigo/ ·
-  https://kpopquiz.online/en/code/
-- Cruzadinha / Crossword:
-  https://kpopquiz.online/pt-br/cruzadinha/ ·
-  https://kpopquiz.online/en/crossword/
+- [Quiz em português](https://kpopquiz.online/pt-br/): Quiz (múltipla escolha).
+- [Quiz in English](https://kpopquiz.online/en/): Quiz (múltipla escolha).
+- [Grade de Interseções em português](https://kpopquiz.online/pt-br/grid/): Grade de Interseções / Intersection Grid.
+- [Intersection Grid in English](https://kpopquiz.online/en/grid/): Grade de Interseções / Intersection Grid.
+- [Palavras Conectadas em português](https://kpopquiz.online/pt-br/conexoes/): Palavras Conectadas / Connections.
+- [Connections in English](https://kpopquiz.online/en/connections/): Palavras Conectadas / Connections.
+- [Adivinhe o Nome em português](https://kpopquiz.online/pt-br/adivinhe/): Adivinhe o Nome / Guess the Name.
+- [Guess the Name in English](https://kpopquiz.online/en/guess/): Adivinhe o Nome / Guess the Name.
+- [Caça-Palavras em português](https://kpopquiz.online/pt-br/caca-palavras/): Caça-Palavras / Word Search.
+- [Word Search in English](https://kpopquiz.online/en/word-search/): Caça-Palavras / Word Search.
+- [Quiz de mapa em português](https://kpopquiz.online/pt-br/mapa/): Quiz de mapa / Map quiz (turnê DEADLINE de BLACKPINK).
+- [Map quiz in English](https://kpopquiz.online/en/map/): Quiz de mapa / Map quiz (turnê DEADLINE de BLACKPINK).
+- [Linha do Tempo em português](https://kpopquiz.online/pt-br/linha-do-tempo/): Linha do Tempo / Timeline.
+- [Timeline in English](https://kpopquiz.online/en/timeline/): Linha do Tempo / Timeline.
+- [Código de Grupos em português](https://kpopquiz.online/pt-br/codigo/): Código de Grupos / Group Code.
+- [Group Code in English](https://kpopquiz.online/en/code/): Código de Grupos / Group Code.
+- [Cruzadinha em português](https://kpopquiz.online/pt-br/cruzadinha/): Cruzadinha / Crossword.
+- [Crossword in English](https://kpopquiz.online/en/crossword/): Cruzadinha / Crossword.
 
 ## Resumos por rota (Markdown)
 
-- llms/pt-br-quiz.md
-- llms/pt-br-grid.md
-- llms/pt-br-conexoes.md
-- llms/pt-br-adivinhe.md
-- llms/pt-br-caca-palavras.md
-- llms/pt-br-mapa.md
-- llms/pt-br-linha-do-tempo.md
-- llms/pt-br-codigo.md
-- llms/pt-br-cruzadinha.md
-- llms/en-quiz.md
-- llms/en-grid.md
-- llms/en-connections.md
-- llms/en-guess.md
-- llms/en-word-search.md
-- llms/en-map.md
-- llms/en-timeline.md
-- llms/en-code.md
-- llms/en-crossword.md
+- [Resumo: Quiz em português](https://kpopquiz.online/llms/pt-br-quiz.md)
+- [Resumo: Grade de Interseções em português](https://kpopquiz.online/llms/pt-br-grid.md)
+- [Resumo: Palavras Conectadas em português](https://kpopquiz.online/llms/pt-br-conexoes.md)
+- [Resumo: Adivinhe o Nome em português](https://kpopquiz.online/llms/pt-br-adivinhe.md)
+- [Resumo: Caça-Palavras em português](https://kpopquiz.online/llms/pt-br-caca-palavras.md)
+- [Resumo: Quiz de mapa em português](https://kpopquiz.online/llms/pt-br-mapa.md)
+- [Resumo: Linha do Tempo em português](https://kpopquiz.online/llms/pt-br-linha-do-tempo.md)
+- [Resumo: Código de Grupos em português](https://kpopquiz.online/llms/pt-br-codigo.md)
+- [Resumo: Cruzadinha em português](https://kpopquiz.online/llms/pt-br-cruzadinha.md)
+- [Summary: Quiz in English](https://kpopquiz.online/llms/en-quiz.md)
+- [Summary: Intersection Grid in English](https://kpopquiz.online/llms/en-grid.md)
+- [Summary: Connections in English](https://kpopquiz.online/llms/en-connections.md)
+- [Summary: Guess the Name in English](https://kpopquiz.online/llms/en-guess.md)
+- [Summary: Word Search in English](https://kpopquiz.online/llms/en-word-search.md)
+- [Summary: Map quiz in English](https://kpopquiz.online/llms/en-map.md)
+- [Summary: Timeline in English](https://kpopquiz.online/llms/en-timeline.md)
+- [Summary: Group Code in English](https://kpopquiz.online/llms/en-code.md)
+- [Summary: Crossword in English](https://kpopquiz.online/llms/en-crossword.md)
 
 ## Proveniência e licença
 
