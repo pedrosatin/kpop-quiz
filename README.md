@@ -124,6 +124,8 @@ A nightly workflow (`.github/workflows/e2e-nightly.yml`) runs at 06:00 UTC on `m
 
 Suite decisions are in `.scratch/e2e-playwright-v2/spec.md`. The earlier boot-only contract is in `.scratch/e2e-playwright-smoke/spec.md`.
 
+Astro embeds stylesheets in the generated HTML with `build.inlineStylesheets: "always"` so game introductions can paint without a blocking CSS request. CSS is repeated in each page instead of cached as a shared stylesheet. The existing `style-src` permits inline styles; script hashes and `script-src` remain unchanged.
+
 Styles live in `web/src/styles/`. `global.css` only imports the other files, in this order:
 
 | File | Contents |

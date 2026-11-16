@@ -11,6 +11,8 @@ export default defineConfig({
   site,
   base,
   output: "static",
+  // Embed CSS so the opening text can paint without a stylesheet request.
+  build: { inlineStylesheets: "always" },
   // stagingCsp copies the _headers policy into a meta tag when base is set (ADR 041).
   integrations: [preact(), stagingCsp()],
 });
