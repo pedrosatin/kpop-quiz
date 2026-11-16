@@ -7,6 +7,7 @@ import json
 import random
 import sqlite3
 import tempfile
+import time
 import unittest
 from datetime import date
 from pathlib import Path
@@ -305,13 +306,18 @@ class TestGenerateStrandsPuzzle(unittest.TestCase):
         # budgets still bound the search, and the deadline keeps its own
         # tests with time_limit_seconds=0 and a patched clock.
         kwargs.setdefault("time_limit_seconds", 300.0)
-        return generate_strands_puzzle(
+        start = time.process_time()
+        puzzle = generate_strands_puzzle(
             self.conn,
             seed=seed,
             reference_date=date(2026, 10, 21),
             theme_filter=ROSTER_THEME_ID,
             **kwargs,
         )
+        # The slowest fixture seed used 7.7 s of CPU on Python 3.14.
+        # Allow about 4x that cost, independently of scheduler delays.
+        self.assertLess(time.process_time() - start, 30.0)
+        return puzzle
 
     def test_generated_puzzle_is_valid_and_unique(self) -> None:
         puzzle = self._generate("strands-valid")
@@ -444,7 +450,9 @@ class TestStrandsRealDatabase(unittest.TestCase):
         try:
             puzzles = [
                 generate_strands_puzzle(
-                    conn, seed="kpop-strands-daily-2026-10-21", reference_date=date(2026, 10, 21)
+                    conn, seed="kpop-strands-daily-2026-10-21", reference_date=date(2026, 10, 21),
+                    # This optional catalog test checks determinism under load.
+                    time_limit_seconds=300.0,
                 )
                 for _ in range(2)
             ]

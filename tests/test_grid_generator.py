@@ -911,7 +911,7 @@ class AxisSearchCostTest(unittest.TestCase):
         # laptop at a load average of 32, the same run took 2.3 s and 2.8 s of
         # CPU, so the limit sits at 10 s. That is above the noise and below
         # the 21 s of the old code. The step count stays exact, and the memory
-        # peak keeps its 64 MiB ceiling.
+        # peak stays below 16 MiB, over 4x the measured 3.6 MiB peak.
         for layout in ("apart", "together"):
             with self.subTest(layout=layout):
                 all_criteria, groups = many_labels_catalog(layout)
@@ -923,7 +923,7 @@ class AxisSearchCostTest(unittest.TestCase):
                     f"used {MAX_AXIS_SEARCH_STEPS} of {MAX_AXIS_SEARCH_STEPS} steps", str(outcome)
                 )
                 self.assertLess(elapsed, 10.0)
-                self.assertLess(peak, 64 * 2**20)
+                self.assertLess(peak, 16 * 2**20)
 
     def test_100_record_labels_with_a_grid_find_it_at_once(self) -> None:
         all_criteria, groups = many_labels_catalog("solvable")
@@ -933,8 +933,10 @@ class AxisSearchCostTest(unittest.TestCase):
         self.assertIsInstance(outcome, tuple)
         row_axis, col_axis, cells = outcome
         self.assertTrue(has_distinct_assignment([cells[(r, c)] for r in range(3) for c in range(3)]))
-        self.assertLess(elapsed, 2.0)
-        self.assertLess(peak, 64 * 2**20)
+        # About 0.064 s without load. Allow CPU slowdown under contention;
+        # the 16 MiB cap also rejects materializing the axis pairs.
+        self.assertLess(elapsed, 5.0)
+        self.assertLess(peak, 16 * 2**20)
 
     def test_blocks_hold_each_pair_with_nine_filled_cells_once(self) -> None:
         # Against the listing the generator used before: every curated pair

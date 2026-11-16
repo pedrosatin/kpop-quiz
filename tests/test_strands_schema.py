@@ -504,6 +504,19 @@ class TestStrandsEvidenceOrder(unittest.TestCase):
             with self.subTest(message=message):
                 self.assertRejects(evidence, message)
 
+    def test_invalid_calendar_date_raises_directly_even_when_require_is_patched(self):
+        with patch.object(strands_schema, "_require") as require:
+            with self.assertRaises(ValueError) as caught:
+                strands_schema._require_date("2026-02-30", "reference_date")
+        self.assertEqual(
+            str(caught.exception),
+            "Invalid strands puzzle schema: reference_date is not a calendar date",
+        )
+        self.assertIsInstance(caught.exception.__cause__, ValueError)
+        require.assert_called_once_with(
+            True, "reference_date must be a valid ISO date YYYY-MM-DD"
+        )
+
     def test_patching_require_reaches_the_local_check_only(self):
         # The local check reads ``_require`` from the module globals at call
         # time; the shared checks were bound to the original with ``partial``.
