@@ -17,6 +17,7 @@ const SHOTS = process.env.QUIZ_DAILY_SHOTS_DIR;
 
 const viewports = [
   { name: "360x740-banner", width: 360, height: 740, banner: true },
+  { name: "360x740-banner-dpr1.33", width: 360, height: 740, banner: true, dpr: 1.33 },
   { name: "390x844", width: 390, height: 844, banner: false },
 ] as const;
 
@@ -99,78 +100,82 @@ async function leaveRoundAtQuestion3(page: Page, url: string, round: (typeof rou
 }
 
 for (const viewport of viewports) {
-  for (const round of rounds) {
-    test(`the action bar offers the ${round.id} round back on the ${round.to.id} setup without scrolling (${viewport.name})`, async ({ page, consentURL }) => {
-      test.setTimeout(90_000);
-      await skipUnlessPublished(page, consentURL, "manifest-v2.json", "catalog-manifest-v1.json");
-      await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      if (!viewport.banner) {
-        await page.addInitScript((key) => window.localStorage.setItem(key, "rejected"), CONSENT_STORAGE_KEY);
-      }
-      await leaveRoundAtQuestion3(page, `${consentURL}${round.path}?theme=history&mode=standard`, round);
+  test.describe(viewport.name, () => {
+    if ("dpr" in viewport) test.use({ deviceScaleFactor: viewport.dpr });
+    for (const round of rounds) {
+      test(`the action bar offers the ${round.id} round back on the ${round.to.id} setup without scrolling (${viewport.name})`, async ({ page, consentURL }) => {
+        test.setTimeout(90_000);
+        await skipUnlessPublished(page, consentURL, "manifest-v2.json", "catalog-manifest-v1.json");
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        if (!viewport.banner) {
+          await page.addInitScript((key) => window.localStorage.setItem(key, "rejected"), CONSENT_STORAGE_KEY);
+        }
+        await leaveRoundAtQuestion3(page, `${consentURL}${round.path}?theme=history&mode=standard`, round);
 
-      await traceLayout(page);
-      await page.goto(`${consentURL}${round.to.path}?mode=standard&theme=history`);
-      const banner = page.locator(".consent-banner");
-      if (viewport.banner) await expect(banner).toBeVisible();
-      else await expect(banner).toHaveCount(0);
+        await traceLayout(page);
+        await page.goto(`${consentURL}${round.to.path}?mode=standard&theme=history`);
+        const banner = page.locator(".consent-banner");
+        if (viewport.banner) await expect(banner).toBeVisible();
+        else await expect(banner).toHaveCount(0);
 
-      const hint = page.getByTestId("quiz-other-locale-hint");
-      await expect(hint).toHaveText(round.to.hint, { timeout: 30_000 });
-      await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
-      await page.waitForTimeout(1_000);
+        const hint = page.getByTestId("quiz-other-locale-hint");
+        await expect(hint).toHaveText(round.to.hint, { timeout: 30_000 });
+        await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
+        await page.waitForTimeout(1_000);
 
-      // On screen without scrolling, above the banner, and nothing covers it.
-      expect(await page.evaluate(() => window.scrollY)).toBe(0);
-      const fold = viewport.banner ? (await banner.boundingBox())!.y : viewport.height;
-      const box = (await hint.boundingBox())!;
-      const startBox = (await page.getByTestId("game-start").boundingBox())!;
-      expect(box.y).toBeGreaterThanOrEqual(0);
-      expect(box.y + box.height, "the link ends above the fold").toBeLessThanOrEqual(fold);
-      expect(box.height).toBeGreaterThanOrEqual(44);
-      expect(startBox.y - (box.y + box.height), "8px between the link and Start").toBeGreaterThanOrEqual(8);
-      const covered = await hint.evaluate((element) => {
-        const rect = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-        return !(hit && (hit === element || element.contains(hit)));
+        // On screen without scrolling, above the banner, and nothing covers it.
+        expect(await page.evaluate(() => window.scrollY)).toBe(0);
+        const fold = viewport.banner ? (await banner.boundingBox())!.y : viewport.height;
+        const box = (await hint.boundingBox())!;
+        const startBox = (await page.getByTestId("game-start").boundingBox())!;
+        expect(box.y).toBeGreaterThanOrEqual(0);
+        expect(box.y + box.height, "the link ends above the fold").toBeLessThanOrEqual(fold);
+        expect(box.height).toBeGreaterThanOrEqual(44);
+        expect(startBox.y - (box.y + box.height), "8px between the link and Start").toBeGreaterThanOrEqual(8);
+        const covered = await hint.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          return !(hit && (hit === element || element.contains(hit)));
+        });
+        expect(covered, "nothing covers the link").toBe(false);
+        // The rules under it keep the bar's height: two lines of link at most.
+        const rules = (await page.locator(".setup-hint .setup-rules").boundingBox())!;
+        expect(box.height).toBeLessThanOrEqual(Math.max(rules.height, 44) + 1);
+
+        const trace = await page.evaluate(() => (window as unknown as { __trace: Trace }).__trace);
+        // Two things may move Start, and only one is allowed. The banner and
+        // the quiz are separate islands that hydrate in either order; once the
+        // banner publishes its height, the bar rises above it as a whole. The
+        // link must never move Start: from the first paint the bar keeps its
+        // height and Start its offset inside it, and Start's top changes only
+        // on the frame where the banner height changes, by exactly that change
+        // the other way. A link that arrives on the same frame and moves the
+        // whole bar shows up as a difference from that amount.
+        const frames = trace.frames;
+        expect(frames.some((frame) => !frame.hint), "a frame before the link arrives").toBe(true);
+        const shapes = [...new Set(frames.map((frame) => `${frame.barHeight}/${frame.offset}`))];
+        expect(shapes, `the bar changed shape (height/offset of Start): ${shapes.join(", ")}`).toHaveLength(1);
+        const steps = frames.slice(1).map((after, i) => ({ before: frames[i]!, after }));
+        const moves = steps.filter(({ before, after }) => after.top !== before.top);
+        const linkMoves = moves.filter(({ before, after }) => before.bannerHeight === after.bannerHeight);
+        expect(linkMoves, `Start moved without a banner height change: ${JSON.stringify(linkMoves)}`).toEqual([]);
+        // An unset variable is a banner of 0px. Fractional DPR can round
+        // the sampled positions 1px apart from the published height change.
+        const px = (height: string) => parseFloat(height) || 0;
+        const offBanner = steps.filter(({ before, after }) => before.bannerHeight !== after.bannerHeight
+          && Math.abs(after.top - before.top - (px(before.bannerHeight) - px(after.bannerHeight))) > 1);
+        expect(offBanner, `Start moved by other than the banner height change: ${JSON.stringify(offBanner)}`).toEqual([]);
+        if (!viewport.banner) expect(moves, "Start moved").toEqual([]);
+        expect(trace.cls).toBeLessThanOrEqual(0.1);
+        test.info().annotations.push({
+          type: "layout",
+          description: `link ${Math.round(box.y)}-${Math.round(box.y + box.height)}, Start ${Math.round(startBox.y)}-${Math.round(startBox.y + startBox.height)}, fold ${Math.round(fold)}, CLS ${trace.cls.toFixed(4)}`,
+        });
+        if (SHOTS) await page.screenshot({ path: `${SHOTS}/barra-${viewport.name}-${round.to.id}.png` });
+
+        await hint.click();
+        await expect(page.getByTestId("game-board").getByText(round.question3)).toBeVisible({ timeout: 30_000 });
       });
-      expect(covered, "nothing covers the link").toBe(false);
-      // The rules under it keep the bar's height: two lines of link at most.
-      const rules = (await page.locator(".setup-hint .setup-rules").boundingBox())!;
-      expect(box.height).toBeLessThanOrEqual(Math.max(rules.height, 44) + 1);
-
-      const trace = await page.evaluate(() => (window as unknown as { __trace: Trace }).__trace);
-      // Two things may move Start, and only one is allowed. The banner and
-      // the quiz are separate islands that hydrate in either order; once the
-      // banner publishes its height, the bar rises above it as a whole. The
-      // link must never move Start: from the first paint the bar keeps its
-      // height and Start its offset inside it, and Start's top changes only
-      // on the frame where the banner height changes, by exactly that change
-      // the other way. A link that arrives on the same frame and moves the
-      // whole bar shows up as a difference from that amount.
-      const frames = trace.frames;
-      expect(frames.some((frame) => !frame.hint), "a frame before the link arrives").toBe(true);
-      const shapes = [...new Set(frames.map((frame) => `${frame.barHeight}/${frame.offset}`))];
-      expect(shapes, `the bar changed shape (height/offset of Start): ${shapes.join(", ")}`).toHaveLength(1);
-      const steps = frames.slice(1).map((after, i) => ({ before: frames[i]!, after }));
-      const moves = steps.filter(({ before, after }) => after.top !== before.top);
-      const linkMoves = moves.filter(({ before, after }) => before.bannerHeight === after.bannerHeight);
-      expect(linkMoves, `Start moved without a banner height change: ${JSON.stringify(linkMoves)}`).toEqual([]);
-      // An unset variable is a banner of 0px; the banner publishes whole pixels.
-      const px = (height: string) => parseFloat(height) || 0;
-      const offBanner = steps.filter(({ before, after }) => before.bannerHeight !== after.bannerHeight
-        && after.top - before.top !== px(before.bannerHeight) - px(after.bannerHeight));
-      expect(offBanner, `Start moved by other than the banner height change: ${JSON.stringify(offBanner)}`).toEqual([]);
-      if (!viewport.banner) expect(moves, "Start moved").toEqual([]);
-      expect(trace.cls).toBeLessThanOrEqual(0.1);
-      test.info().annotations.push({
-        type: "layout",
-        description: `link ${Math.round(box.y)}-${Math.round(box.y + box.height)}, Start ${Math.round(startBox.y)}-${Math.round(startBox.y + startBox.height)}, fold ${Math.round(fold)}, CLS ${trace.cls.toFixed(4)}`,
-      });
-      if (SHOTS) await page.screenshot({ path: `${SHOTS}/barra-${viewport.name}-${round.to.id}.png` });
-
-      await hint.click();
-      await expect(page.getByTestId("game-board").getByText(round.question3)).toBeVisible({ timeout: 30_000 });
-    });
-  }
+    }
+  });
 }
