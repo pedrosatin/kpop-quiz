@@ -888,6 +888,30 @@ describe("Quiz", () => {
     expect(screen.getByRole("heading", { name: prompt })).toBeInTheDocument();
   });
 
+  it("preserves give-up confirmation focus while the question timer ticks", async () => {
+    vi.useFakeTimers();
+    mockSessionFetch();
+    render(<Quiz locale="pt-BR" />);
+    await vi.waitFor(() => expect(screen.getByTestId("game-start")).toBeEnabled());
+    fireEvent.click(screen.getByRole("checkbox", { name: "Limitar cada pergunta a 20 segundos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar partida" }));
+    await vi.waitFor(() => expect(screen.getByRole("timer")).toHaveTextContent("20s"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    // Let the dialog's initial focus settle before the player moves it.
+    await act(async () => { await vi.advanceTimersByTimeAsync(30); });
+    expect(screen.getByRole("button", { name: "Cancelar" })).toHaveFocus();
+    const confirm = screen.getByRole("button", { name: "Sim, desistir" });
+    confirm.focus();
+    expect(confirm).toHaveFocus();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+
+    expect(screen.getByRole("timer")).toHaveTextContent("19s");
+    expect(screen.getByRole("dialog", { name: "Desistir da partida?" })).toBeInTheDocument();
+    expect(confirm).toHaveFocus();
+  });
+
   it("closes a pending give-up confirm when the timer expires and ignores a delayed confirm", async () => {
     vi.useFakeTimers();
     mockSessionFetch();
