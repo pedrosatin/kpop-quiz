@@ -22,6 +22,7 @@ on:
       - "tests/**"
       - "schemas/**"
       - "requirements.txt"
+      - "requirements-ci.txt"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
   workflow_run:
@@ -57,11 +58,18 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
+      # This job builds the published site, so the runner comes pinned by
+      # hash and as wheels only: nothing runs at install time.
+      - name: Install Python test runner
+        if: github.event_name != 'pull_request'
+        working-directory: .
+        run: python -m pip install --require-hashes --only-binary ':all:' -r requirements-ci.txt
+      # One worker per vCPU, single tests handed out, slowest tests listed.
       - name: Run Python verification
         if: github.event_name != 'pull_request'
         working-directory: .
         run: |
-          python -m unittest discover -v
+          python -m pytest tests -n logical --dist load --durations=20 -rfEs -p no:cacheprovider
           python -m compileall -q .
       - name: Verify published quiz artifacts
         working-directory: .

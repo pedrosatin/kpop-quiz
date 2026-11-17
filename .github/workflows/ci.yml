@@ -44,10 +44,16 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Python test runner
+        run: python -m pip install --require-hashes --only-binary ':all:' -r requirements-ci.txt
+
+      # pytest runs the unittest suite on every vCPU of the runner and hands
+      # out single tests, not files: one file holds most of the run time.
+      # --durations lists the slowest tests in every run.
       - name: Run Python verification
         run: |
           python -m compileall -q .
-          python -m unittest discover -v
+          python -m pytest tests -n logical --dist load --durations=20 -rfEs -p no:cacheprovider
 
       - name: Install Web dependencies
         working-directory: web
