@@ -25,19 +25,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Verify Python & Web
+  # Python and web share nothing, so they run as separate jobs and the pull
+  # request waits only for the slower one.
+  python:
+    name: Verify Python
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: web/package-lock.json
 
       - name: Setup Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -54,6 +49,20 @@ jobs:
         run: |
           python -m compileall -q .
           python -m pytest tests -n logical --dist load --durations=20 -rfEs -p no:cacheprovider
+
+  web:
+    name: Verify Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - name: Install Web dependencies
         working-directory: web

@@ -37,6 +37,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The checks run as parallel jobs, so a run takes as long as the slowest
+  # one. deploy needs all of them and publishes the dist/ of the build job.
+  python:
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      # This workflow builds the published site, so the runner comes pinned
+      # by hash and as wheels only: nothing runs at install time.
+      - name: Install Python test runner
+        run: python -m pip install --require-hashes --only-binary ':all:' -r requirements-ci.txt
+      # One worker per vCPU, single tests handed out, slowest tests listed.
+      - name: Run Python verification
+        run: |
+          python -m pytest tests -n logical --dist load --durations=20 -rfEs -p no:cacheprovider
+          python -m compileall -q .
+
+  vitest:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      # No install script runs, as in the build job (ADR 040).
+      - run: npm ci --ignore-scripts
+      - run: npm test
+
   build:
     if: >-
       github.event_name != 'workflow_run' ||
@@ -58,19 +106,6 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
-      # This job builds the published site, so the runner comes pinned by
-      # hash and as wheels only: nothing runs at install time.
-      - name: Install Python test runner
-        if: github.event_name != 'pull_request'
-        working-directory: .
-        run: python -m pip install --require-hashes --only-binary ':all:' -r requirements-ci.txt
-      # One worker per vCPU, single tests handed out, slowest tests listed.
-      - name: Run Python verification
-        if: github.event_name != 'pull_request'
-        working-directory: .
-        run: |
-          python -m pytest tests -n logical --dist load --durations=20 -rfEs -p no:cacheprovider
-          python -m compileall -q .
       - name: Verify published quiz artifacts
         working-directory: .
         # Checks data/ and data/next/. A day the runner published without a grid passes only when its grid-publication record has grid_id null.
@@ -79,7 +114,6 @@ jobs:
       # esbuild and workerd take their binaries from the platform packages
       # in the lockfile (ADR 040).
       - run: npm ci --ignore-scripts
-      - run: npm test
       # The analytics IDs end up in every built page, so they are repository
       # variables. The secret of the same name is the fallback until the
       # variable exists; then the secret can go (ADR 040).
@@ -91,7 +125,47 @@ jobs:
         run: npm run build
       - run: npm run seo:verify -- --env prod
       - run: npm run csp:verify
-      # Full Chromium suite (boot smoke + playthrough) against dist/ already built above.
+      # deploy publishes this dist/ as it is, so the artifact exists only
+      # when deploy runs. upload-artifact skips dotfiles by default; with
+      # include-hidden-files the artifact holds the whole dist/.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        with:
+          name: web-dist
+          path: web/dist
+          include-hidden-files: true
+          retention-days: 1
+          if-no-files-found: error
+
+  # Full Chromium suite (boot smoke + playthrough) against a dist/ this job
+  # builds with the same command and variables as the build job. On
+  # 2026-11-17 a local build of the deployed commit had the same files as
+  # the deployed dist/; only the astro-island uid attributes differed.
+  e2e:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Build production site
+        env:
+          PUBLIC_CF_BEACON_TOKEN: ${{ vars.PUBLIC_CF_BEACON_TOKEN || secrets.PUBLIC_CF_BEACON_TOKEN }}
+          PUBLIC_GA4_ID: ${{ vars.PUBLIC_GA4_ID || secrets.PUBLIC_GA4_ID }}
+          PUBLIC_TBBC_SITE_KEY: ${{ vars.PUBLIC_TBBC_SITE_KEY }}
+        run: npm run build
       # Do not use npm run test:e2e; pretest rebuilds. Prefer test:e2e:ci (no pretest).
       - name: Cache Playwright browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -115,12 +189,6 @@ jobs:
             web/playwright-report/
           retention-days: 7
           if-no-files-found: ignore
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: web-dist
-          path: web/dist
-          retention-days: 1
-          if-no-files-found: error
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
@@ -128,7 +196,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [python, vitest, build, e2e]
     outputs:
       deployed: ${{ steps.record.outputs.deployed }}
     steps:

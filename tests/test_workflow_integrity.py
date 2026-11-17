@@ -207,6 +207,121 @@ class DeployToolingTests(unittest.TestCase):
         self.assertRegex(config, r"package-ecosystem: npm\n\s+directory: /web\n")
 
 
+
+def job_names(path: Path) -> list[str]:
+    jobs = path.read_text(encoding="utf-8").split("\njobs:\n", 1)[1]
+    return re.findall(r"^  ([\w-]+):\n", jobs, flags=re.MULTILINE)
+
+
+def job_needs(job: str) -> list[str]:
+    match = re.search(r"^    needs: (.+)$", job, flags=re.MULTILINE)
+    if not match:
+        return []
+    return [name.strip() for name in match.group(1).strip("[]").split(",")]
+
+
+def job_condition(job: str) -> str:
+    """The job's ``if:``, folded into one line as ``>-`` folds it."""
+    match = re.match(r"\s*if: (>-\n(?:      .*\n)+|.*\n)", job)
+    if not match:
+        return ""
+    return " ".join(line.strip() for line in match.group(1).removeprefix(">-").splitlines() if line.strip())
+
+
+def step_env(job: str, step: str) -> list[str]:
+    text = "\n" + job.split(f"- name: {step}\n", 1)[1].split("\n      - ", 1)[0]
+    env = text.split("\n        env:\n", 1)[1].split("\n        run:", 1)[0]
+    return sorted(line.strip() for line in env.splitlines())
+
+
+class ParallelJobsTests(unittest.TestCase):
+    """The checks run as parallel jobs and deploy waits for all of them."""
+
+    PAGES = WORKFLOWS / "pages.yml"
+    CHECKS = ["python", "vitest", "build", "e2e"]
+    PUBLISHERS = ["deploy", "smoke-prod"]
+    DEPLOY_CONDITION = "github.event_name != 'pull_request' && github.ref == 'refs/heads/master'"
+    WORKFLOW_RUN_GUARD = (
+        "github.event_name != 'workflow_run' || "
+        "(github.event.workflow_run.conclusion == 'success' && "
+        "github.event.workflow_run.head_repository.full_name == github.repository && "
+        """contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))"""
+    )
+
+    def job(self, name: str) -> str:
+        return job_text(self.PAGES, name)
+
+    def test_deploy_needs_every_check_job(self):
+        self.assertEqual(job_names(self.PAGES), self.CHECKS + self.PUBLISHERS)
+        self.assertEqual(sorted(job_needs(self.job("deploy"))), sorted(self.CHECKS))
+        for name in self.CHECKS:
+            self.assertEqual(job_needs(self.job(name)), [], name)
+
+    def test_checks_skip_the_same_workflow_runs(self):
+        for name in ("vitest", "build", "e2e"):
+            self.assertEqual(job_condition(self.job(name)), self.WORKFLOW_RUN_GUARD, name)
+        self.assertEqual(
+            job_condition(self.job("python")),
+            f"github.event_name != 'pull_request' && ({self.WORKFLOW_RUN_GUARD})",
+        )
+
+    def test_deploy_publishes_the_artifact_of_the_build_job(self):
+        build = self.job("build")
+        upload = build.split("uses: actions/upload-artifact@", 1)[1]
+        self.assertIn(
+            "with:\n          name: web-dist\n          path: web/dist\n          include-hidden-files: true\n",
+            upload,
+        )
+        for name in ("python", "vitest", "e2e", "smoke-prod"):
+            self.assertNotIn("name: web-dist", self.job(name), name)
+        deploy = self.job("deploy")
+        self.assertEqual(deploy.count("uses: actions/download-artifact@"), 1)
+        self.assertIn("name: web-dist\n          path: web/dist\n", deploy)
+
+    def test_deploy_builds_nothing(self):
+        deploy = self.job("deploy")
+        self.assertNotRegex(deploy, r"npm (run|test|run-script)\b|astro (build|check)")
+        self.assertNotRegex(deploy, r"\n\s+(cache|cache-dependency-path):")
+
+    def test_artifact_is_uploaded_only_when_deploy_runs(self):
+        self.assertEqual(job_condition(self.job("deploy")), self.DEPLOY_CONDITION)
+        upload = self.job("build").split("uses: actions/upload-artifact@", 1)[1]
+        self.assertIn(f"\n        if: {self.DEPLOY_CONDITION}\n", upload.split("\n      - ", 1)[0])
+
+    def test_end_to_end_suite_builds_like_the_published_build(self):
+        build, e2e = self.job("build"), self.job("e2e")
+        self.assertEqual(step_env(e2e, "Build production site"), step_env(build, "Build production site"))
+        self.assertEqual(e2e.count("run: npm run build\n"), 1)
+        self.assertIn("run: npm run test:e2e:ci\n", e2e)
+        self.assertNotIn("test:e2e:ci", build)
+        self.assertNotRegex(e2e, r"npm ci(?! --ignore-scripts)")
+
+    def test_smoke_runs_after_a_deploy(self):
+        smoke = self.job("smoke-prod")
+        self.assertEqual(job_needs(smoke), ["deploy"])
+        self.assertIn("needs.deploy.outputs.deployed == 'true'", job_condition(smoke))
+
+    def test_cloudflare_secrets_stay_in_the_deploy_job(self):
+        text = self.PAGES.read_text(encoding="utf-8")
+        deploy = self.job("deploy")
+        self.assertEqual(text.count("secrets.CLOUDFLARE_"), deploy.count("secrets.CLOUDFLARE_"))
+        for workflow in workflows():
+            if workflow != self.PAGES:
+                self.assertNotIn("secrets.CLOUDFLARE_", workflow.read_text(encoding="utf-8"), workflow.name)
+
+    def test_ci_runs_python_and_web_in_separate_jobs(self):
+        ci = WORKFLOWS / "ci.yml"
+        self.assertEqual(job_names(ci), ["python", "web", "code-feedback"])
+        python, web = job_text(ci, "python"), job_text(ci, "web")
+        self.assertIn("python -m compileall -q .\n", python)
+        self.assertIn("python -m pytest tests -n logical", python)
+        self.assertNotIn("npm ", python)
+        for command in ("run: npm ci\n", "run: npm test\n", "run: npm run build\n"):
+            self.assertIn(command, web)
+        self.assertNotIn("python", web)
+        self.assertEqual(job_needs(python) + job_needs(web), [])
+
+
 class WorkflowShellEscapeTests(unittest.TestCase):
     def test_staging_noindex_error_escapes_the_path_list(self):
         workflow = (WORKFLOWS / "staging.yml").read_text(encoding="utf-8")
