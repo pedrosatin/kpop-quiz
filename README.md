@@ -64,6 +64,8 @@ python -m unittest discover -v
 python -m compileall -q .
 ```
 
+CI runs the same `unittest` tests through pytest and pytest-xdist, one worker per vCPU, with the versions and hashes pinned in `requirements-ci.txt`. To run them the same way locally: `pip install --require-hashes -r requirements-ci.txt`, then `python -m pytest tests -n 4 --durations=20`.
+
 `python main.py` exits with `0` when the run finished, `75` when a transient error stopped it and `65` for any other handled failure. [Database rebuild and fallback](#database-rebuild-and-fallback) lists what each code means for the daily job. When Wikipedia or Wikidata answers `maxlag`, the run waits out the lag for up to 15 minutes in total; `MAXLAG_BUDGET_SECONDS` changes that budget (`0` gives up on the first `maxlag`).
 
 ## Web interface
