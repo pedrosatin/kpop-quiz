@@ -41,16 +41,18 @@ function localPreviewTarget(url: string): { host: string; port: number; url: str
   }
 }
 
+const remote = isRemoteUrl(baseURL);
+
 /**
  * CI uses one worker per vCPU (4 on the public runners). The cap keeps a larger
  * runner from overloading the single astro preview every worker shares. Local
  * runs stay at 1 so a laptop under load does not turn into timeouts; pass
- * --workers to change it.
+ * --workers to change it. A remote target (the production and staging smokes)
+ * always gets 1, so a CI run does not hit the live site with several browsers.
  */
 const CI_MAX_WORKERS = 4;
-const workers = process.env.CI ? Math.max(1, Math.min(availableParallelism(), CI_MAX_WORKERS)) : 1;
+const workers = remote ? 1 : process.env.CI ? Math.max(1, Math.min(availableParallelism(), CI_MAX_WORKERS)) : 1;
 
-const remote = isRemoteUrl(baseURL);
 const localTarget = remote ? null : localPreviewTarget(baseURL);
 
 export default defineConfig({
