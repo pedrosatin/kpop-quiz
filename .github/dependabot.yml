@@ -4,6 +4,15 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # One pull request for the minor and patch bumps of every action. A
+    # major version stays alone: it can change what a workflow does.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
   - package-ecosystem: npm
     directory: /web
     schedule:

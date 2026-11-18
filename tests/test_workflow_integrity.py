@@ -775,6 +775,26 @@ class PythonGateTests(unittest.TestCase):
         self.assertIn("vitest", job_needs(job_text(self.PAGES, "deploy")))
 
 
+class DependabotTests(unittest.TestCase):
+    CONFIG = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+
+    def block(self, ecosystem: str) -> str:
+        return self.CONFIG.split(f"  - package-ecosystem: {ecosystem}\n", 1)[1].split("\n  - package-ecosystem:", 1)[0]
+
+    def test_github_actions_minor_and_patch_updates_share_one_pull_request(self):
+        block = self.block("github-actions")
+        self.assertRegex(block, r"(?m)^    directory: /$")
+        group = block.split("    groups:\n", 1)[1]
+        self.assertRegex(group, r'(?m)^      [\w-]+:\n        patterns:\n          - "\*"\n')
+        self.assertRegex(group, r"update-types:\n          - minor\n          - patch\n?$")
+        self.assertNotIn("major", group)
+
+    def test_web_npm_group_is_unchanged(self):
+        block = self.block("npm")
+        self.assertIn("directory: /web", block)
+        self.assertRegex(block, r"npm-dependencies:\n        patterns:\n          - \"\*\"\n        update-types:\n          - minor\n          - patch")
+
+
 class E2EShardsTests(unittest.TestCase):
     """The E2E suite runs as a shard matrix, merged and judged by two jobs (ticket 05)."""
 
