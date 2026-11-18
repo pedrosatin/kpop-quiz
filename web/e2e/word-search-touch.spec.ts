@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
+import { gridPositionAt, nearestCell } from "../src/components/WordSearch/geometry";
 import { getMessages } from "../src/i18n/catalog";
 import { expect, test } from "./fixtures/consent-build";
 import { loadPreferNextDaily } from "./helpers/daily-artifact";
@@ -153,20 +154,47 @@ for (const { id, locale, path } of locales) {
           rows: Number(getComputedStyle(grid).getPropertyValue("--grid-rows")),
           cols: Number(getComputedStyle(grid).getPropertyValue("--grid-cols")),
         }));
-        // 288 taps, each re-rendering the grid. On a CI runner busy with four
-        // workers, page.touchscreen.tap plus a boundingBox per tap took ~140 ms
-        // and the test timed out. Centers are measured once (the end checks the
-        // grid stayed put), and each tap sends touchStart and touchEnd together
-        // on one CDP session: the same touch events, half the waiting.
-        const centers = () => page.locator(".word-search-cell").evaluateAll((cells) =>
-          Object.fromEntries(cells.map((cell) => {
-            const r = cell.getBoundingClientRect();
-            const { row, col } = (cell as HTMLElement).dataset;
-            return [`${row},${col}`, { x: r.left + r.width / 2, y: r.top + r.height / 2 }];
-          })) as Record<string, Point>);
+        // Every cell is checked without touching: one evaluate reads each
+        // cell's center and what elementFromPoint finds there (the layout's own
+        // hit-test), and the grid's own mapping (gridPositionAt and nearestCell,
+        // which selection.test.ts covers on made-up boxes) runs on those real
+        // boxes. A real tap goes only to a sample, so the 288 taps (each one
+        // re-rendering the grid, and a timeout on a CI runner busy with four
+        // workers) become a few. Centers are measured at the start and again
+        // at the end: the grid must stay put while it is tapped.
+        const measure = () => page.locator(".word-search-cell").evaluateAll((cells) => cells.map((cell) => {
+          const r = cell.getBoundingClientRect();
+          const { row, col } = (cell as HTMLElement).dataset;
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest<HTMLElement>(".word-search-cell");
+          return {
+            row: Number(row),
+            col: Number(col),
+            box: { left: r.left, top: r.top, width: r.width, height: r.height },
+            hit: hit ? `${hit.dataset.row},${hit.dataset.col}` : "none",
+          };
+        }));
+        const before = await measure();
+        const box = (row: number, col: number) => before.find((cell) => cell.row === row && cell.col === col)!.box;
+        const dimensions = { rows, cols };
+        const unreached: string[] = [];
+        const misplaced: string[] = [];
+        for (const { row, col, box: own, hit } of before) {
+          if (hit !== `${row},${col}`) unreached.push(`${row},${col} -> ${hit}`);
+          const found = gridPositionAt(box(0, 0), box(rows - 1, cols - 1), dimensions, own.left + own.width / 2, own.top + own.height / 2);
+          const cell = found && nearestCell(found, dimensions);
+          if (!cell || cell.row !== row || cell.col !== col) misplaced.push(`${row},${col} -> ${cell ? `${cell.row},${cell.col}` : "none"}`);
+        }
+        expect(before, "every cell is in the grid").toHaveLength(rows * cols);
+        expect(unreached, "cells whose center belongs to another element").toEqual([]);
+        expect(misplaced, "cells whose center the grid maps to another cell").toEqual([]);
+
+        // The real taps: the four corners and the main diagonal, a tap to mark
+        // each cell and a second one on it to cancel. touchStart and touchEnd go
+        // together on one CDP session: the same touch events, half the waiting.
+        const sample = new Set([`0,${cols - 1}`, `${rows - 1},0`, `${rows - 1},${cols - 1}`]);
+        for (let i = 0; i < Math.min(rows, cols); i++) sample.add(`${i},${i}`);
         const anchors = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".word-search-cell.is-anchor")]
           .map((cell) => `${cell.dataset.row},${cell.dataset.col}`).join(" "));
-        const before = await centers();
         const missed: string[] = [];
         const cdp = await page.context().newCDPSession(page);
         const tap = (point: Point) => Promise.all([
@@ -174,21 +202,20 @@ for (const { id, locale, path } of locales) {
           cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }),
         ]);
         try {
-          for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < cols; col++) {
-              const center = before[`${row},${col}`]!;
-              await tap(center);
-              const marked = await anchors();
-              if (marked !== `${row},${col}`) missed.push(`${row},${col} -> ${marked || "none"}`);
-              // A second tap on the start cancels it.
-              await tap(center);
-            }
+          for (const key of sample) {
+            const own = before.find((cell) => `${cell.row},${cell.col}` === key)!.box;
+            const center = { x: own.left + own.width / 2, y: own.top + own.height / 2 };
+            await tap(center);
+            const marked = await anchors();
+            if (marked !== key) missed.push(`${key} -> ${marked || "none"}`);
+            // A second tap on the start cancels it.
+            await tap(center);
           }
         } finally {
           await cdp.detach();
         }
         expect(missed, "cells whose center tap marked another cell").toEqual([]);
-        expect(await centers(), "the grid stays put while it is tapped").toEqual(before);
+        expect(await measure(), "the grid stays put while it is tapped").toEqual(before);
         await expect(page.locator(".word-search-cell.is-anchor")).toHaveCount(0);
 
         // The gap between columns 3 and 4, a little nearer column 3.
