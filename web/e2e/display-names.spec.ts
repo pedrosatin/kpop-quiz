@@ -5,7 +5,9 @@ import { joinBaseUrl } from "../src/lib/join-base-url";
 import { expectBoardDirectReady } from "./helpers/boot";
 import { skipUnlessPublished } from "./helpers/published";
 import { NameGuessPage } from "./pages/name-guess.page";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 import { delayPassiveEffects, reloadPersisted } from "./helpers/passive-effects";
+import { RESULT_GUARD_MS } from "../src/components/Results/use-result-action-guard";
 
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 800 },
@@ -44,7 +46,9 @@ for (const viewport of VIEWPORTS) {
 
 for (const lag of ["normal", "delayed effects"] as const) {
   test(`pt connections mobile (${lag}): share text has the localized header and hides notes and answers after a reload`, async ({ page, baseURL }) => {
+    // The delayed-effects run rewrites the page timers itself, so it keeps the real clock.
     if (lag === "delayed effects") await delayPassiveEffects(page);
+    else await installGuardClock(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
@@ -57,7 +61,7 @@ for (const lag of ["normal", "delayed effects"] as const) {
     await expectBoardDirectReady(page);
     await connections.expectResult();
     // Result buttons ignore presses for a moment after they replace the controls.
-    await page.waitForTimeout(400);
+    await crossGuard(page, RESULT_GUARD_MS + 100);
     await page.getByRole("button", { name: "Compartilhar resultado" }).click();
     const text = await page.getByRole("textbox").inputValue();
     expect(text.split("\n")[0]).toMatch(/^Conexões de K-pop \d{4}-\d{2}-\d{2}$/);

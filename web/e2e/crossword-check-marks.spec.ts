@@ -2,6 +2,7 @@ import { test, expect, type Browser, type Locator, type Page } from "@playwright
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { RESULT_GUARD_MS } from "../src/components/Results/use-result-action-guard";
 import { pilotBoard, routeCrosswordDaily } from "./helpers/crossword-daily";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 
 /**
  * A wrong check points at the squares to fix and leaves the player where they
@@ -194,13 +195,14 @@ for (const [locale, t] of Object.entries(locales) as [string, Copy][]) {
 for (const [locale, t] of Object.entries(locales) as [string, Copy][]) {
   test(`${locale} 390x844: the share confirmation shows on screen`, async ({ browser, baseURL }) => {
     const { context, page, board, press } = await open(browser, baseURL!, t.path, { width: 390, height: 844 });
+    await installGuardClock(page);
     await page.evaluate(() => {
       Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
       Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() }, configurable: true });
     });
     await press(board.getByRole("button", { name: t.reveal, exact: true }));
     await press(page.getByRole("button", { name: t.confirmReveal, exact: true }));
-    await page.waitForTimeout(RESULT_GUARD_MS + 100);
+    await crossGuard(page, RESULT_GUARD_MS + 100);
     await press(board.getByRole("button", { name: t.share, exact: true }));
     const confirmation = board.getByRole("button", { name: t.copied, exact: true });
     await expect(confirmation).toBeVisible();

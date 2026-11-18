@@ -11,6 +11,7 @@ import { MapPage } from "./pages/map.page";
 import { NameGuessPage } from "./pages/name-guess.page";
 import { TimelinePage } from "./pages/timeline.page";
 import { WordSearchPage } from "./pages/word-search.page";
+import { installGuardClock } from "./helpers/guard-clock";
 import { skipUnlessPublished } from "./helpers/published";
 
 // Each test opens its own page and writes nowhere shared, so the file can
@@ -168,6 +169,8 @@ async function openGrid(page: Page, baseURL: string): Promise<Locator> {
 
 async function openConnections(page: Page, baseURL: string): Promise<Locator> {
   await skipUnlessPublished(page, baseURL, "connections.daily.json");
+  // The Submit guard between wrong guesses is crossed on the page clock.
+  await installGuardClock(page);
   const game = new ConnectionsPage(page, baseURL);
   await game.open();
   await game.loseWithWrongGuesses();

@@ -4,6 +4,7 @@ import { visibleLabels } from "./helpers/visible-names";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { CELL_GUARD_MS } from "../src/components/Grid/next-cell-after-guess";
 import { normalizeSearch } from "../src/components/Grid/candidate-search";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 import { reloadPersisted } from "./helpers/passive-effects";
 
 type Grid = {
@@ -41,6 +42,7 @@ const viewports = [
 for (const locale of locales)
   for (const viewport of viewports) {
     test(`grid ${locale.id} ${viewport.name}: Enter on an empty search and a repeated group spend no guess`, async ({ page, request, baseURL }) => {
+      await installGuardClock(page);
       const grid = await loadPreferNextDaily<Grid>(request, baseURL!, "grid.daily.json");
       const cell = grid.cells.find((c) => c.row_index === 0 && c.col_index === 0)!;
       const labels = visibleLabels(
@@ -79,7 +81,7 @@ for (const locale of locales)
       await expect(progress).toContainText(locale.left);
 
       // The picker marks the group as tried here, and naming it again is free.
-      await page.waitForTimeout(CELL_GUARD_MS + 100);
+      await crossGuard(page, CELL_GUARD_MS + 100);
       await target.click();
       await expect(listbox).toBeVisible();
       await expect(listbox.getByRole("option", { name: new RegExp(`^${escapeRegExp(name)}`) })).toContainText(locale.tried);
