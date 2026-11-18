@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
+import { crossGuard } from "../helpers/guard-clock";
 
 /**
  * Mirrors MapPilotGame.NEXT_GUARD_MS. Importing MapPilotGame into Playwright
@@ -44,7 +45,7 @@ export class MapPage {
 
       const advance = board.getByRole("button", { name: /Próxima data|Ver resultado/ });
       await expect(advance).toBeVisible();
-      await this.page.waitForTimeout(NEXT_CLICK_WAIT_MS);
+      await crossGuard(this.page, NEXT_CLICK_WAIT_MS);
       await advance.click();
     }
 

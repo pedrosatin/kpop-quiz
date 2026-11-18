@@ -4,6 +4,7 @@ import { SUBMIT_GUARD_MS } from "../../src/components/Connections/ConnectionsGam
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
 import { loadPreferNextDaily } from "../helpers/daily-artifact";
+import { crossGuard } from "../helpers/guard-clock";
 import { hiddenNote, visibleLabels } from "../helpers/visible-names";
 import { skipUnlessPublished } from "../helpers/published";
 
@@ -104,7 +105,7 @@ export class ConnectionsPage {
       }
 
       await expect(submit).toBeEnabled();
-      await this.page.waitForTimeout(SUBMIT_CLICK_WAIT_MS);
+      await crossGuard(this.page, SUBMIT_CLICK_WAIT_MS);
       await submit.click();
     }
 
