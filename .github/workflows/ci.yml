@@ -27,8 +27,21 @@ concurrency:
 jobs:
   # Python and web share nothing, so they run as separate jobs and the pull
   # request waits only for the slower one.
+
+  # Decides whether the full Python verification runs (changes.yml). It is
+  # skipped only in a pull request whose files the Python suite does not
+  # read; a failed detection runs it.
+  changes:
+    uses: ./.github/workflows/changes.yml
+
   python:
     name: Verify Python
+    needs: changes
+    # !cancelled() keeps the job running when `changes` failed, which would
+    # otherwise skip it: a failed detection means "run", never "skip".
+    if: >-
+      !cancelled() &&
+      (needs.changes.result != 'success' || needs.changes.outputs.python == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -50,6 +63,27 @@ jobs:
           python -m compileall -q .
           python -m pytest tests -n logical --dist load --durations=20 -rfEs -p no:cacheprovider
 
+  # The pull requests that skip the full verification still run the workflow
+  # integrity tests: they read every web source and fail when one reads a file
+  # from outside web/ that the web jobs do not wait for (changes.yml). This
+  # job runs exactly when `python` does not.
+  workflow-integrity:
+    name: Verify workflows
+    needs: changes
+    if: needs.changes.result == 'success' && needs.changes.outputs.python != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Run the workflow integrity tests
+        run: python -m unittest -v tests.test_workflow_integrity
+
   web:
     name: Verify Web
     runs-on: ubuntu-latest
@@ -68,7 +102,11 @@ jobs:
         working-directory: web
         run: npm ci
 
+      # A pull request runs npm test once, in the vitest job of pages.yml,
+      # which skips it when nothing the site reads changed. Outside pull
+      # requests (a manual run of this workflow) the tests run here.
       - name: Run Web tests
+        if: github.event_name != 'pull_request'
         working-directory: web
         run: npm test
 

@@ -40,95 +40,16 @@ jobs:
   # The checks run as parallel jobs, so a run takes as long as the slowest
   # one. deploy needs all of them and publishes the dist/ of the build job.
 
-  # Decides whether vitest, build and e2e run. In a pull request it lists the
-  # files that differ from the merge base through the compare API, so it needs
-  # no checkout and no history. Every other event runs the whole suite. When
-  # the detection fails, the step fails and those jobs run anyway: their
-  # condition treats any `changes` result but success as "run". A job skipped
-  # by `if` counts as passed for a required check, so that must never be the
-  # outcome of a failure. (No check is required on master today; the rule
-  # holds if one becomes required.)
+  # Decides whether vitest, build and e2e run: `web` is false only in a pull
+  # request that leaves the site alone. The detection and its fail-open rule
+  # (any result but success runs the jobs below) are in changes.yml. The
+  # `python` output is for ci.yml; the Python job here runs outside pull
+  # requests, where everything runs.
   #
   # `paths` on the trigger is not used to skip these jobs: the artifact
   # check below has to keep running in the pull requests that skip them.
   changes:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      web: ${{ steps.detect.outputs.web }}
-    steps:
-      - name: Detect web changes
-        id: detect
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          EVENT_NAME: ${{ github.event_name }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-
-          # What the site build, Vitest and the E2E suite read. Under web/ is
-          # everything they run. The rest is read from outside it: the map
-          # pilot data, the crossword schemas and invalid-case fixture that
-          # crossword.test.ts loads, and the workflows two tests pin
-          # (staging.yml) or this one (pages.yml).
-          affects_web() {
-            case "$1" in
-              web/* | data/map-pilot/* | schemas/*) return 0 ;;
-              tests/fixtures/crossword_invalid_cases.json) return 0 ;;
-              .github/workflows/pages.yml | .github/workflows/staging.yml) return 0 ;;
-              *) return 1 ;;
-            esac
-          }
-
-          finish() {
-            echo "web=$1" >> "$GITHUB_OUTPUT"
-            echo "Web jobs: $1 ($2)"
-            exit 0
-          }
-
-          if [ "$EVENT_NAME" != pull_request ]; then
-            finish true "$EVENT_NAME runs the whole suite"
-          fi
-
-          # base...head is the diff from the merge base to the head. The
-          # renamed files list their old path too, so moving a file out of
-          # web/ does not look like a change that leaves the site alone.
-          # Three attempts: a failure here only costs a red `changes` job and
-          # a full run, but a transient API error is not worth either.
-          attempt=1
-          until files=$(gh api --paginate "repos/$REPOSITORY/compare/$PR_BASE_SHA...$PR_HEAD_SHA?per_page=100" \
-            --jq '(.files // [])[] | .filename, (.previous_filename // empty)'); do
-            if [ "$attempt" -ge 3 ]; then
-              echo "::error::Could not list the changed files; the web jobs run."
-              exit 1
-            fi
-            attempt=$((attempt + 1))
-            sleep 5
-          done
-
-          count=$(printf '%s' "$files" | grep -c . || true)
-          echo "Changed paths: $count"
-          if [ -n "$files" ]; then
-            printf '%s\n' "$files" | sed 's/^/  - /'
-          fi
-
-          if [ "$count" -eq 0 ]; then
-            finish true 'empty diff'
-          fi
-          # The compare API lists at most 300 files, so a list this long may
-          # be incomplete.
-          if [ "$count" -ge 300 ]; then
-            finish true 'file list may be truncated'
-          fi
-
-          while IFS= read -r file; do
-            if affects_web "$file"; then
-              finish true "web input changed: ${file//[^[:print:]]/?}"
-            fi
-          done <<< "$files"
-          finish false 'nothing the site build reads changed'
+    uses: ./.github/workflows/changes.yml
 
   # The published artifacts are data, not site code, so this check runs in
   # every pull request, including the ones that skip the web jobs. It was a
@@ -174,6 +95,10 @@ jobs:
           python -m pytest tests -n logical --dist load --durations=20 -rfEs -p no:cacheprovider
           python -m compileall -q .
 
+  # The only `npm test` of a pull request: ci.yml runs it outside pull
+  # requests only. Here it waits for the same detection as the build, so a
+  # pull request that leaves the site alone skips it, and a failed detection
+  # runs it.
   vitest:
     needs: changes
     # !cancelled() keeps the job running when `changes` failed, which would
