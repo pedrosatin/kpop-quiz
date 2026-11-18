@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import rebuild_phases
 from .mediawiki import EXTRACT_OVERSIZE, MAX_EXTRACT_BYTES, Page
 
 
@@ -1247,6 +1248,7 @@ class Repository:
             ),
         )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_pages(
         self,
         run_id: int,
@@ -1361,6 +1363,7 @@ class Repository:
         self.connection.commit()
         return int(cursor.lastrowid)
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def complete_catalog_run(
         self,
         run_id: int,
@@ -1390,6 +1393,7 @@ class Repository:
         )
         self.connection.commit()
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_type_check(
         self,
         wikidata_id: str,
@@ -1429,6 +1433,7 @@ class Repository:
         ).fetchone()
         return int(row["id"])
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def set_catalog_decision(
         self,
         source_page_id: int,
@@ -1462,6 +1467,7 @@ class Repository:
         if cursor.rowcount != 1:
             raise RuntimeError("catalog candidate changed during classification")
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def export_catalog_csv(self, output_path: Path) -> int:
         rows = self.connection.execute(
             """
@@ -1503,6 +1509,7 @@ class Repository:
             )
         return len(rows)
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def complete_run(self, run_id: int, pages_collected: int) -> None:
         self.connection.execute(
             "UPDATE collection_runs SET completed_at=?, status='completed', pages_collected=? WHERE id=?",

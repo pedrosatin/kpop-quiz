@@ -6,7 +6,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from . import workflow_commands
+from . import rebuild_phases, workflow_commands
 from .catalog import classify_catalog
 from .collector import collect_category
 from .exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
@@ -201,8 +201,22 @@ def main(argv: list[str] | None = None) -> int:
         maxlag_budget = MaxlagBudget.from_environment(os.environ)
     except ValueError as exc:
         raise SystemExit(str(exc)) from None
+    phase_log = rebuild_phases.PhaseLog()
     try:
-        with Repository(args.database, raw_dir=raw_dir) as repository:
+        with rebuild_phases.install(phase_log):
+            return _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, catalog_report)
+    finally:
+        # Printed for a failed run too: the phase that waited out the maxlag
+        # budget is the one a slow night needs to show.
+        for line in phase_log.report_lines():
+            print(line, flush=True)
+
+
+def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, catalog_report) -> int:
+    extraction = rebuild_phases.EXTRACTION
+    storage = rebuild_phases.STORAGE
+    try:
+        with Repository(args.database, raw_dir=raw_dir) as repository, rebuild_phases.phase(extraction):
             count = collect_category(
                 MediaWikiClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
                 repository,
@@ -224,7 +238,8 @@ def main(argv: list[str] | None = None) -> int:
                     wikitext_client=wikipedia,
                     person_client=wikipedia if args.person_evidence else None,
                 )
-                fact_rows = export_fact_coverage_csv(repository.connection, facts_report)
+                with rebuild_phases.phase(storage):
+                    fact_rows = export_fact_coverage_csv(repository.connection, facts_report)
             release_totals = release_rows = discovery = None
             if run_releases:
                 discovery = discover_releases(
@@ -249,7 +264,11 @@ def main(argv: list[str] | None = None) -> int:
                     discovery.run_id,
                     wikipedia_clients=wikipedia_clients,
                 )
-                release_rows = export_release_coverage_csv(repository.connection, args.release_report or args.database.parent / "release-coverage.csv")
+                with rebuild_phases.phase(storage):
+                    release_rows = export_release_coverage_csv(
+                        repository.connection,
+                        args.release_report or args.database.parent / "release-coverage.csv",
+                    )
             drifts = tuple(repository.extract_drifts)
     except (MediaWikiError, SnapshotIntegrityError, RuntimeError, ValueError) as exc:
         print(f"Pipeline failed: {type(exc).__name__}: {exc}")

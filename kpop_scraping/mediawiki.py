@@ -16,6 +16,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
+from . import rebuild_phases
 from .http_request import DEFAULT_USER_AGENT, open_url
 
 
@@ -190,7 +191,16 @@ class MediaWikiClient:
         # alone gets a budget of its own.
         self.maxlag_budget = maxlag_budget or MaxlagBudget()
 
-    def _get(self, parameters: dict[str, str | int]) -> dict[str, Any]:
+    def _get(
+        self,
+        parameters: dict[str, str | int],
+        phase: str = rebuild_phases.DOWNLOAD,
+    ) -> dict[str, Any]:
+        """Send one Action API request; ``phase`` names it in the run's phase log."""
+        with rebuild_phases.phase(phase):
+            return self._get_in_phase(parameters, phase)
+
+    def _get_in_phase(self, parameters: dict[str, str | int], phase: str) -> dict[str, Any]:
         query = {
             "format": "json",
             "formatversion": "2",
@@ -203,6 +213,7 @@ class MediaWikiClient:
         attempt = 0
         while True:
             can_retry = attempt < self.retries
+            rebuild_phases.count_request(phase)
             try:
                 with open_url(
                     url,
@@ -246,7 +257,10 @@ class MediaWikiClient:
             if isinstance(payload, dict) and "error" in payload:
                 error = payload["error"]
                 if error.get("code") == "maxlag":
-                    if self.maxlag_budget.wait(self._maxlag_delay(error, headers)):
+                    spent = self.maxlag_budget.spent
+                    waited = self.maxlag_budget.wait(self._maxlag_delay(error, headers))
+                    rebuild_phases.add_maxlag_wait(phase, self.maxlag_budget.spent - spent)
+                    if waited:
                         continue
                     budget = self.maxlag_budget
                     raise MediaWikiError(
@@ -318,7 +332,7 @@ class MediaWikiClient:
                 "cmtype": "page",
                 "cmlimit": "max",
                 **continuation,
-            })
+            }, phase=rebuild_phases.LISTING)
             try:
                 members = payload["query"]["categorymembers"]
             except (KeyError, TypeError) as exc:

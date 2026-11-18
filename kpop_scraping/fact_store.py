@@ -7,6 +7,7 @@ import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
+from . import rebuild_phases
 from .entities import Alias, canonical_name, extract_aliases
 from .evidence import EVIDENCE_RULES_VERSION, WikipediaPage
 from .sources import SOURCE_POLICY_VERSION, classify_source
@@ -89,6 +90,7 @@ class FactStore:
         self.connection.commit()
         return int(cursor.lastrowid)
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def complete_run(self, run_id: int, totals: FactRunTotals) -> None:
         self.connection.execute(
             """
@@ -238,6 +240,7 @@ class FactStore:
             {(int(r[0]), int(r[1]), int(r[2])) for r in rows}, key=lambda r: r[2]
         )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_revision_wikitext(
         self,
         source_revision_id: int,
@@ -274,6 +277,7 @@ class FactStore:
             (source_revision_id, snapshot_path, digest, utc_now()),
         )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_entity_snapshot(
         self,
         run_id: int,
@@ -332,6 +336,7 @@ class FactStore:
         )
         return snapshot_id
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_entity(
         self,
         document: EntityDocument,
@@ -414,6 +419,7 @@ class FactStore:
             )
         return entity_id, stored_type
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def link_catalog_entity(
         self,
         run_id: int,
@@ -474,6 +480,7 @@ class FactStore:
             ],
         )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def record_issue(
         self, run_id: int, wikidata_id: str, code: str, detail: str
     ) -> None:
@@ -486,6 +493,7 @@ class FactStore:
             (run_id, wikidata_id, code, detail),
         )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_facts(
         self,
         run_id: int,
@@ -657,6 +665,7 @@ class FactStore:
                 f"DELETE FROM facts WHERE id IN ({placeholders})", batch
             )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def mark_stale_facts(self, run_id: int) -> int:
         """Mark facts whose subject left the catalog or every group member list.
 
@@ -704,6 +713,7 @@ class FactStore:
         )
         return stale + cursor.rowcount
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def mark_catalog_subjects_stale(
         self,
         run_id: int,
