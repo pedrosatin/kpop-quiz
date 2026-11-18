@@ -36,6 +36,7 @@ from kpop_scraping.daily_set import (
     write_daily_set,
 )
 from kpop_scraping.web_publish import DAILY_GAME_FILES, verify_artifacts
+from tests.daily_fixtures import published_set, reuse_quiz
 from tests.test_board_swap_gate import commit_data, init_repo
 from tests.test_daily_puzzles_runner import build_test_database
 
@@ -110,6 +111,7 @@ class PartialPublicationTests(unittest.TestCase):
             return web_publish.main(["--output-dir", str(self.out), "--verify", *CRON_VERIFY_FLAGS])
 
     def test_connections_error_publishes_the_other_games_of_both_days(self):
+        # Generates every other game for real: the integration test of the flow.
         with failing_on({"connections"}, {DAY, NEXT_DAY}, ValueError(BUDGET_ERROR)):
             result = run_daily_puzzles(
                 database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True
@@ -145,6 +147,7 @@ class PartialPublicationTests(unittest.TestCase):
         self.assertEqual(self.cron_verify(), 0)
 
     def test_catalog_failure_withdraws_the_catalog_and_keeps_the_day(self):
+        reuse_quiz(self)
         with patch.object(daily_puzzles_runner, "build_catalog", side_effect=MemoryError()):
             result = run_daily_puzzles(
                 database=self.db_path, output_dir=self.out, reference_date=DAY, catalog=True
@@ -156,6 +159,7 @@ class PartialPublicationTests(unittest.TestCase):
         self.assertEqual(self.cron_verify(), 0)
 
     def test_failure_of_every_next_day_game_still_installs_the_day(self):
+        reuse_quiz(self)
         with failing_on(set(GAME_FILES), {NEXT_DAY}, MemoryError()), failing_crossword_on({NEXT_DAY}):
             result = run_daily_puzzles(
                 database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True
@@ -171,6 +175,7 @@ class PartialPublicationTests(unittest.TestCase):
         self.assertEqual(self.cron_verify(), 0)
 
     def test_one_next_day_game_failing_leaves_the_day_complete(self):
+        reuse_quiz(self)
         with failing_on({"timeline"}, {NEXT_DAY}, RuntimeError("boom")):
             result = run_daily_puzzles(
                 database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True
@@ -194,6 +199,7 @@ class PartialPublicationTests(unittest.TestCase):
         self.assertFalse(self.out.exists() and any(self.out.iterdir()))
 
     def test_promoted_day_without_a_game_keeps_its_date_and_its_boards(self):
+        reuse_quiz(self)
         repo = self.root / "repo"
         repo.mkdir()
         init_repo(repo)
@@ -250,6 +256,7 @@ class PartialPublicationTests(unittest.TestCase):
             return web_publish.main(["--output-dir", str(directory), "--verify", *CRON_VERIFY_FLAGS])
 
     def test_cli_warns_once_per_skipped_game_with_an_escaped_reason(self):
+        reuse_quiz(self)
         reason = "bad label 100%\n::add-mask::secret\r\nend"
         stdout, stderr = io.StringIO(), io.StringIO()
         with failing_on({"name-guess"}, {DAY}, ValueError(reason)), patch.dict(
@@ -283,9 +290,14 @@ class NextDayFailureTests(unittest.TestCase):
         self.db_path = self.root / "kpop.db"
         build_test_database(self.db_path).close()
         self.out = self.root / "data"
+        reuse_quiz(self)
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def published(self, *runs: dict) -> None:
+        """Copy the set ``runs`` publish into ``out`` (see tests.daily_fixtures)."""
+        published_set(self.out, self.db_path, *runs)
 
     def run_cli(self, *extra: str) -> tuple[int, str]:
         stderr = io.StringIO()
@@ -318,7 +330,7 @@ class NextDayFailureTests(unittest.TestCase):
         self.assertIn("Next day 2026-09-19 not published ahead: RuntimeError: next day exploded", stderr)
 
     def test_os_error_installing_the_next_day_keeps_both_sets(self):
-        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True)
+        self.published(dict(reference_date=DAY, ahead=True))
         day, ahead = self.snapshot(self.out), self.snapshot(self.out / NEXT_DIRNAME)
         real = daily_puzzles_runner._install_files
 
@@ -349,7 +361,7 @@ class NextDayFailureTests(unittest.TestCase):
         self.assert_day_installed()
 
     def test_unreadable_next_record_is_rebuilt(self):
-        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True)
+        self.published(dict(reference_date=DAY, ahead=True))
         (self.out / NEXT_DIRNAME / DAILY_SET_FILENAME).write_text("{", encoding="utf-8")
         code, stderr = self.run_cli("--ahead")
         self.assertEqual(code, 0, stderr)
@@ -358,7 +370,7 @@ class NextDayFailureTests(unittest.TestCase):
         verify_artifacts(self.out / NEXT_DIRNAME, **STRICT)
 
     def test_unreadable_next_record_is_not_promoted(self):
-        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True)
+        self.published(dict(reference_date=DAY, ahead=True))
         (self.out / NEXT_DIRNAME / DAILY_SET_FILENAME).write_text("{", encoding="utf-8")
         with redirect_stderr(io.StringIO()):
             result = run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=NEXT_DAY)
@@ -366,7 +378,7 @@ class NextDayFailureTests(unittest.TestCase):
         self.assertEqual(_published_day(self.out), NEXT_DAY)
 
     def test_unreadable_main_record_fails_closed(self):
-        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY)
+        self.published(dict(reference_date=DAY))
         (self.out / DAILY_SET_FILENAME).write_text("{", encoding="utf-8")
         before = self.snapshot(self.out)
         code, stderr = self.run_cli()
@@ -377,7 +389,7 @@ class NextDayFailureTests(unittest.TestCase):
     def test_legacy_next_set_without_a_record_is_promoted(self):
         # The first run after this change promotes a next/ set published
         # before daily-set.json existed.
-        run_daily_puzzles(database=self.db_path, output_dir=self.out, reference_date=DAY, ahead=True)
+        self.published(dict(reference_date=DAY, ahead=True))
         (self.out / NEXT_DIRNAME / DAILY_SET_FILENAME).unlink()
         promoted = run_daily_puzzles(
             database=self.db_path, output_dir=self.out, reference_date=NEXT_DAY, ahead=True
@@ -397,6 +409,7 @@ class PublicReasonTests(unittest.TestCase):
     """daily-set.json is public: it never carries an exception's message."""
 
     def test_a_local_path_in_an_error_stays_out_of_the_public_record(self):
+        reuse_quiz(self)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             db_path = root / "kpop.db"
@@ -415,6 +428,7 @@ class PublicReasonTests(unittest.TestCase):
             )
 
     def test_a_failed_crossword_publishes_only_the_category_in_the_daily_set(self):
+        reuse_quiz(self)
         # The crossword's own publication record keeps the generator's message,
         # as it did before the daily set existed; daily-set.json does not.
         with tempfile.TemporaryDirectory() as directory:

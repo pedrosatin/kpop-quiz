@@ -28,6 +28,7 @@ from kpop_scraping.crossword_publication import (
 from kpop_scraping.daily_puzzles_runner import MISSING_CROSSWORD_HISTORY, run_daily_puzzles
 from kpop_scraping.web_publish import CROSSWORD_DAILY_FILENAME, verify_artifacts
 
+from tests.daily_fixtures import published_set, reuse_quiz
 from tests.test_board_swap_gate import commit_data, init_repo
 from tests.test_daily_puzzles_runner import build_test_database
 
@@ -44,6 +45,16 @@ def crossword_database(path: Path) -> None:
                     WHERE id=subject_entity_id)||'$'||statement_id WHERE predicate='has_member'""")
     conn.commit()
     conn.close()
+
+
+def omitted_eve(directory: Path) -> None:
+    """History whose eve omitted the crossword."""
+    write_record(directory, omission_record(EVE, 'fixture'))
+
+
+def pilot_board(directory: Path) -> None:
+    """A directory from before the daily crossword: only the pilot board."""
+    shutil.copyfile(PILOT, directory / 'crossword-pilot.json')
 
 
 def read(directory: Path, name: str = CROSSWORD_DAILY_FILENAME) -> dict:
@@ -73,9 +84,15 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
         self.temp.cleanup()
 
     def seed_omitted_eve(self):
-        write_record(self.out, omission_record(EVE, 'fixture'))
+        omitted_eve(self.out)
+
+    def published(self, *runs: dict, seed=omitted_eve) -> None:
+        """Copy the set ``runs`` publish into ``out`` (see tests.daily_fixtures)."""
+        reuse_quiz(self)
+        published_set(self.out, self.db, *runs, seed=seed)
 
     def test_ready_day_and_next_day_follow_the_durable_history(self):
+        # Generates for real: the integration test of the flow.
         self.seed_omitted_eve()
         result = run(self.db, self.out, reference_date=DAY, ahead=True)
         today = read(self.out)
@@ -111,8 +128,7 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
             self.assertEqual((self.out / name).read_bytes(), (other / name).read_bytes())
 
     def test_missing_history_omits_only_the_crossword_and_drops_an_earlier_board(self):
-        self.seed_omitted_eve()
-        run(self.db, self.out, reference_date=DAY)
+        self.published(dict(reference_date=DAY))
         (self.out / f'crossword-publication.{DAY}.json').unlink()
         # The history exists, but not for the eve of AFTER: never read as empty.
         result = run(self.db, self.out, reference_date=AFTER, ahead=True)
@@ -135,6 +151,7 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
         self.assertEqual(verify_cli(self.out, '--require-crossword'), 1)
 
     def test_exhausted_generator_publishes_an_explicit_omission(self):
+        reuse_quiz(self)
         plain = self.path / 'plain.db'
         build_test_database(plain).close()
         self.seed_omitted_eve()
@@ -147,6 +164,7 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
         verify_artifacts(self.out, require_grid=False, require_code_groups=False, require_crossword=True)
 
     def test_first_run_reads_the_pilot_board_as_the_eve(self):
+        reuse_quiz(self)
         shutil.copyfile(PILOT, self.out / 'crossword-pilot.json')
         pilot = json.loads(PILOT.read_text(encoding='utf-8'))
         run(self.db, self.out, reference_date=DAY)
@@ -158,8 +176,7 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
         self.assertEqual(read_record(self.out, NEXT)['reason'], MISSING_CROSSWORD_HISTORY)
 
     def test_kept_set_from_before_the_integration_gets_a_pilot_record(self):
-        shutil.copyfile(PILOT, self.out / 'crossword-pilot.json')
-        run(self.db, self.out, reference_date=DAY)
+        self.published(dict(reference_date=DAY), seed=pilot_board)
         # Simulate a set published by the previous runner: no board, no record.
         (self.out / CROSSWORD_DAILY_FILENAME).unlink()
         (self.out / f'crossword-publication.{DAY}.json').unlink()
@@ -172,8 +189,7 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
         self.assertEqual(read(self.out / 'next')['previous']['qids'], pilot['vocabulary'])
 
     def test_promotion_regenerates_a_board_prepared_from_a_stale_eve(self):
-        self.seed_omitted_eve()
-        run(self.db, self.out, reference_date=DAY, ahead=True)
+        self.published(dict(reference_date=DAY, ahead=True))
         prepared = read(self.out / 'next')
         # DAY is published again after NEXT was prepared, now as an omission.
         (self.out / f'crossword-publication.{EVE}.json').unlink()
@@ -192,8 +208,7 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
 
     def test_board_swap_gate_accepts_the_crossword_replaced_on_promotion(self):
         init_repo(self.path)
-        self.seed_omitted_eve()
-        run(self.db, self.out, reference_date=DAY, ahead=True)
+        self.published(dict(reference_date=DAY, ahead=True))
         # DAY is published again after NEXT was prepared, as in the test above.
         (self.out / f'crossword-publication.{EVE}.json').unlink()
         write_record(self.out, omission_record('2026-09-01', 'fixture'))
@@ -225,6 +240,7 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
                 self.assertEqual(len(refused), expected)
 
     def test_cli_warns_in_github_actions_when_the_crossword_is_omitted(self):
+        reuse_quiz(self)
         stdout, stderr = io.StringIO(), io.StringIO()
         with patch.dict(os.environ, {'GITHUB_ACTIONS': 'true'}), redirect_stdout(stdout), redirect_stderr(stderr):
             code = daily_puzzles_cli.main(['--database', str(self.db), '--output-dir', str(self.out), '--date', DAY])
@@ -233,6 +249,7 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
                       f'({MISSING_CROSSWORD_HISTORY})', stdout.getvalue())
 
     def test_dry_run_chains_the_next_day_without_writing(self):
+        reuse_quiz(self)
         self.seed_omitted_eve()
         result = run(self.db, self.out, reference_date=DAY, ahead=True, dry_run=True)
         self.assertFalse((self.out / CROSSWORD_DAILY_FILENAME).exists())
@@ -245,9 +262,8 @@ class CrosswordPublicationContractTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.path = Path(self.temp.name)
         crossword_database(self.path / 'kpop.db')
-        write_record(self.path / 'data', omission_record(EVE, 'fixture'))
-        run(self.path / 'kpop.db', self.path / 'data', reference_date=DAY, ahead=True)
         self.out = self.path / 'data'
+        published_set(self.out, self.path / 'kpop.db', dict(reference_date=DAY, ahead=True), seed=omitted_eve)
         self.artifact = read(self.out)
         self.record = read_record(self.out, DAY)
 
