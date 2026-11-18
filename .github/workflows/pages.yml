@@ -288,7 +288,8 @@ jobs:
             echo "::warning::IndexNow ping returned HTTP ${status:-000}."
           fi
 
-  # Post-deploy full Chromium suite (boot smoke + playthrough) against kpopquiz.online.
+  # Post-deploy Chromium suite (boot smoke + playthrough) against kpopquiz.online, without
+  # the @local-build tests, which test a fixture build instead of the live site.
   # Fails the workflow on red; no automatic rollback. Skipped when Cloudflare deploy was skipped (no secrets).
   smoke-prod:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && needs.deploy.outputs.deployed == 'true'

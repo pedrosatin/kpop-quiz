@@ -84,8 +84,8 @@ npm run test:e2e:ci          # full Chromium suite on an existing dist/ (no rebu
 npm run test:e2e:boot        # Chromium boot smoke only
 npm run test:e2e:playthrough # Chromium pt-BR playthroughs only
 npm run test:e2e:nightly     # Firefox + WebKit boot smoke
-npm run test:e2e:staging     # full Chromium suite against staging
-npm run test:e2e:prod        # full Chromium suite against https://kpopquiz.online
+npm run test:e2e:staging     # Chromium suite against staging, without @local-build tests
+npm run test:e2e:prod        # Chromium suite against https://kpopquiz.online, without @local-build tests
 ```
 
 ### End-to-end tests
@@ -121,6 +121,8 @@ ASTRO_BASE=/kpop-quiz CODE_FEEDBACK_ENV=staging BASE_URL=http://127.0.0.1:4321/k
 ```
 
 The suite runs on the built `dist/` before publish, then again on the live URL after deploy. On PRs that touch the web paths, and on the build jobs for `master` and `dev`, it runs against the local `dist/` before publish. In `pages.yml`, the Python check (skipped on PRs), Vitest, the production build with the SEO and CSP checks, and this suite run as parallel jobs. The suite job builds its own `dist/` with the same command and variables. On `master`, `deploy` waits for all four jobs and publishes the `web-dist` artifact of the build job without building again. After a push to `dev` deploys staging on GitHub Pages, `smoke-staging` hits the live staging URL. After a push to `master` deploys production on Cloudflare Pages, `smoke-prod` hits `https://kpopquiz.online`. A red post-prod suite fails the workflow. That is the alert. There is no automatic rollback, so fix or roll back by hand.
+
+A run against a published site leaves out the tests tagged `@local-build` (`web/e2e/target.ts`). Those tests serve a fixture build of the checkout, such as the consent build behind most of `quiz-clues.spec.ts`, so they say nothing about the live site, and the remote run builds no fixture. One short case in `quiz-clues.spec.ts` checks the clue states and the resume of the daily round on the target itself and records the URL it opened as a `url` annotation. `playwright.config.ts` sets separate time limits for remote and local runs: a whole-run limit, a maximum number of failed tests, and per-action and per-navigation timeouts. The longer waits set by the boot smoke and the playthroughs stay as they are.
 
 A nightly workflow (`.github/workflows/e2e-nightly.yml`) runs at 06:00 UTC on `master` (cron `0 6 * * *`, plus `workflow_dispatch`). It builds `dist/` and runs boot smoke only on Firefox and WebKit via `test:e2e:nightly`. A red nightly is visible in Actions; it does not block PR merges.
 

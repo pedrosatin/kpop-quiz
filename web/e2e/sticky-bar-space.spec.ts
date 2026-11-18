@@ -4,6 +4,7 @@ import { GAME_ACTIONS_HEIGHT_VAR } from "../src/lib/sticky-bar-space";
 import { expect, test } from "./fixtures/consent-build";
 import { routeCrosswordDaily } from "./helpers/crossword-daily";
 import { skipUnlessPublished } from "./helpers/published";
+import { LOCAL_BUILD_TAG } from "./target";
 
 /**
  * On a phone the sticky .game-actions bar, and the consent banner under it,
@@ -168,7 +169,7 @@ async function expectClueScrollStaysPut(page: Page) {
 
 for (const locale of locales) {
   for (const phone of phones) {
-    test.describe(`sticky bar ${locale.id} ${phone.width}x${phone.height}`, () => {
+    test.describe(`sticky bar ${locale.id} ${phone.width}x${phone.height}`, { tag: LOCAL_BUILD_TAG }, () => {
       test.use({ viewport: phone, isMobile: true, hasTouch: true });
 
       test("crossword: the grid and the clues stay above the bar before and after a wrong check", async ({ page, consentURL }) => {

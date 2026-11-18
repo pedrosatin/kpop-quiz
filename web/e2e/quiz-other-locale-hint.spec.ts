@@ -3,6 +3,7 @@ import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { expect, test } from "./fixtures/consent-build";
 import { skipUnlessPublished } from "./helpers/published";
+import { LOCAL_BUILD_TAG } from "./target";
 
 /**
  * Playtest 2026-11-11, bug 5, on the screens it was seen on. A round left at
@@ -100,7 +101,7 @@ async function leaveRoundAtQuestion3(page: Page, url: string, round: (typeof rou
 }
 
 for (const viewport of viewports) {
-  test.describe(viewport.name, () => {
+  test.describe(viewport.name, { tag: LOCAL_BUILD_TAG }, () => {
     if ("dpr" in viewport) test.use({ deviceScaleFactor: viewport.dpr });
     for (const round of rounds) {
       test(`the action bar offers the ${round.id} round back on the ${round.to.id} setup without scrolling (${viewport.name})`, async ({ page, consentURL }) => {

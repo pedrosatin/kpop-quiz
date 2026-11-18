@@ -1,5 +1,6 @@
 import { test as base, expect, type Page } from "@playwright/test";
 import { CONSENT_BUILD, SITE_BUILD_FIXTURE_TIMEOUT_MS, serveSiteBuild } from "./fixtures/site-builds";
+import { LOCAL_BUILD_TAG } from "./target";
 
 // Serve the real consent island independently of production secrets or BASE_URL.
 const test = base.extend<{}, { consentURL: string }>({
@@ -28,7 +29,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 for (const locale of locales)
   for (const viewport of viewports)
     for (const consent of ["open", "rejected"] as const) {
-      test(`grid ${locale.id} ${viewport.width}x${viewport.height} banner ${consent}: bar fits the screen`, async ({ page, context, consentURL }) => {
+      test(`grid ${locale.id} ${viewport.width}x${viewport.height} banner ${consent}: bar fits the screen`, { tag: LOCAL_BUILD_TAG }, async ({ page, context, consentURL }) => {
         await page.setViewportSize(viewport);
         await context.route("**/*", (route) => new URL(route.request().url()).origin === consentURL
           ? route.continue()
