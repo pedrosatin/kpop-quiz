@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from kpop_scraping import rebuild_cache
 from kpop_scraping.daily_puzzles_runner import run_daily_puzzles
+from kpop_scraping.crossword_publication import omission_record, write_record
 from tests.daily_fixtures import reuse_quiz
 from scripts.rebuild_database import rebuild, restore_cache, Limits
 
@@ -27,7 +28,7 @@ class SchemaCacheTest(unittest.TestCase):
         reuse_quiz(self)
         # The collector is simulated; the reserve, rebuild/fallback and daily
         # generators are real. No request to Wikimedia is made.
-        for cache in ("same", "old", "none"):
+        for cache in ("same", "old-ddl", "same-ddl-different-marker", "same-ddl-missing-marker", "none"):
             for outcome in (0, 65, 75, None):
                 with self.subTest(cache=cache, outcome=outcome), tempfile.TemporaryDirectory() as folder:
                     root = Path(folder)
@@ -36,9 +37,15 @@ class SchemaCacheTest(unittest.TestCase):
                     raw.mkdir()
                     if cache != "none":
                         rebuild_cache.install_reserve(db)
-                        rebuild_cache.marker_path(db).write_text(
-                            rebuild_cache.schema_version() if cache == "same" else "previous-schema"
-                        )
+                        if cache == "old-ddl":
+                            with sqlite3.connect(db) as connection:
+                                connection.execute("ALTER TABLE facts DROP COLUMN quality_flags_json")
+                                columns = {row[1] for row in connection.execute("PRAGMA table_info(facts)")}
+                                self.assertNotIn("quality_flags_json", columns)
+                        if cache != "same-ddl-missing-marker":
+                            rebuild_cache.marker_path(db).write_text(
+                                rebuild_cache.schema_version() if cache == "same" else "previous-schema"
+                            )
                         (raw / "old.json").write_text("{}")
                     def attempt(command, timeout, grace):
                         self.assertEqual(db.exists(), cache == "same")
@@ -60,10 +67,12 @@ class SchemaCacheTest(unittest.TestCase):
                             self.assertEqual(rebuild_cache.compatible(db), cache == "same")
                         else:
                             self.assertTrue(rebuild_cache.compatible(db))
+                    # Confirmed previous-day history lets the crossword run too.
+                    write_record(root / "published", omission_record("2026-11-17", "test fixture: omitted day"))
                     with redirect_stderr(io.StringIO()):
                         result = run_daily_puzzles(database=db, output_dir=root / "published", reference_date="2026-11-18")
                     self.assertEqual(result["reference_date"], "2026-11-18")
-                    for game in ("grid", "connections", "name-guess", "word-search", "timeline", "code-groups"):
+                    for game in ("grid", "connections", "name-guess", "word-search", "timeline", "code-groups", "crossword"):
                         artifact = root / "published" / f"{game}.daily.json"
                         self.assertTrue(artifact.is_file(), (game, result))
                     self.assertTrue(any("session.daily" in name for name in result["published_files"]))

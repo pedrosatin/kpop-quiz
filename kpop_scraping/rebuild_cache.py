@@ -45,7 +45,6 @@ PUBLIC_COLUMNS = {
     "source_pages": "id,provider,language,external_page_id,wikidata_id,title",
     "catalog_entries": "source_page_id,type_check_id,state,analyzed_wikidata_id",
     "wikidata_type_checks": "id,wikidata_id,external_revision_id,instance_of_json",
-
 }
 
 

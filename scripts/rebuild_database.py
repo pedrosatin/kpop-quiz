@@ -13,9 +13,9 @@ hangs cannot take the fallback down with it
     is shorter than the wait plus the shortest useful attempt. The day then
     gets the cached database, as after any other failure.
     With ``--schema-cache``, only a database marked with the current
-    migrations hash is reused. An older database is kept solely in the
-    backup; when no database was restored, the offline publication reserve
-    supplies that backup. The refresh then starts with an empty archive.
+    migrations hash is reused and copied to the backup. With an absent or
+    different marker, the offline publication reserve supplies that backup.
+    The refresh then starts with an empty archive.
     Only an attempt that exits with ``EXIT_TRANSIENT`` is repeated, after a
     wait. A deterministic failure, an unknown exit code and an attempt killed
     by its timeout end the step at once, because the same command would fail
@@ -31,8 +31,8 @@ hangs cannot take the fallback down with it
 
 The workflow runs::
 
-    exec python3 scripts/rebuild_database.py rebuild --database data/kpop.db -- \\
-        python main.py --facts --releases --database data/kpop.db
+    exec python3 scripts/rebuild_database.py rebuild --schema-cache --database data/kpop.db -- \\
+        python main.py --facts --releases "$mode" --database data/kpop.db
     python3 scripts/rebuild_database.py restore-cache --database data/kpop.db
 
 When a step passes ``timeout-minutes`` or the run is cancelled, the runner
@@ -184,13 +184,13 @@ def rebuild(
     database.parent.mkdir(parents=True, exist_ok=True)
     backup = backup_path(database)
     reuse = not schema_cache or rebuild_cache.compatible(database)
-    if database.is_file():
-        _copy_whole(database, backup)
-    elif schema_cache:
-        rebuild_cache.install_reserve(backup)
     if schema_cache and not reuse:
-        # Preserve the old publication database above, but give the collector
-        # an empty archive: even --incremental must download everything.
+        rebuild_cache.install_reserve(backup)
+    elif database.is_file():
+        _copy_whole(database, backup)
+    if schema_cache and not reuse:
+        # The old schema cannot supply publication or snapshot reuse safely.
+        # Give the collector an empty archive: --incremental downloads everything.
         database.unlink(missing_ok=True)
         rebuild_cache.marker_path(database).unlink(missing_ok=True)
         shutil.rmtree(database.parent / "raw", ignore_errors=True)
