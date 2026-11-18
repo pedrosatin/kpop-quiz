@@ -6,8 +6,9 @@ hangs cannot take the fallback down with it
 (``docs/decisions/032-rebuild-com-fallback-em-passo-separado.md``):
 
 ``rebuild``
-    Copies the database to ``<database>.cached`` and runs the collector, the
-    command after ``--``, at most 3 times. Each attempt has its own timeout,
+    Saves a fallback database to ``<database>.cached`` (see ``--schema-cache``
+    below for which one) and runs the collector, the command after ``--``, at
+    most 3 times. Each attempt has its own timeout,
     and all of them share the refresh budget: an attempt never runs past it,
     and no attempt starts, nor any wait before one, when what is left of it
     is shorter than the wait plus the shortest useful attempt. The day then

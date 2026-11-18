@@ -73,9 +73,10 @@ jobs:
         working-directory: web
         run: npm ci --ignore-scripts
 
-      # A cross-schema hit remains available for publication, while
-      # --schema-cache prevents the collector from reusing its snapshots.
-      # The committed publication reserve covers complete cache eviction.
+      # A cache from another schema is never published: with --schema-cache,
+      # an absent or different marker empties the archive before collecting,
+      # and the fallback gets the committed publication reserve instead. The
+      # same reserve covers complete cache eviction.
       - name: Determine archive schema
         id: archive-schema
         run: echo "version=$(python3 -m kpop_scraping.rebuild_cache)" >> "$GITHUB_OUTPUT"
