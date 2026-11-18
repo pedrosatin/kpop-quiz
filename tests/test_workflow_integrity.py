@@ -795,6 +795,48 @@ class DependabotTests(unittest.TestCase):
         self.assertRegex(block, r"npm-dependencies:\n        patterns:\n          - \"\*\"\n        update-types:\n          - minor\n          - patch")
 
 
+class ActionlintWorkflowTests(unittest.TestCase):
+    PATH = WORKFLOWS / "actionlint.yml"
+    TEXT = PATH.read_text(encoding="utf-8")
+
+    def test_runs_in_pull_requests_that_touch_the_workflows(self):
+        trigger = self.TEXT.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertRegex(trigger, r'(?m)^  pull_request:\n    paths:\n      - "\.github/workflows/\*\*"\n')
+        self.assertNotRegex(trigger, r"(?m)^    branches")
+        self.assertNotIn("paths-ignore", trigger)
+
+    def test_has_no_permission_beyond_reading_the_repository(self):
+        self.assertRegex(self.TEXT, r"(?m)^permissions:\n  contents: read\n")
+        self.assertNotRegex(self.TEXT, r"(?m)^\s+(?:contents|pull-requests|actions|id-token): write")
+        self.assertNotIn("secrets.", self.TEXT)
+        self.assertIn("persist-credentials: false", self.TEXT)
+
+    def test_binaries_are_pinned_by_version_and_checked_against_a_hash(self):
+        job = job_text(self.PATH, "actionlint")
+        for name in ("ACTIONLINT", "SHELLCHECK"):
+            self.assertRegex(job, rf'(?m)^      {name}_VERSION: "\d+\.\d+\.\d+"$')
+            self.assertRegex(job, rf"(?m)^      {name}_SHA256: [0-9a-f]{{64}}$")
+            self.assertIn(f'echo "${name}_SHA256  ', job)
+        self.assertEqual(job.count("sha256sum --check --strict -"), 2)
+        self.assertNotRegex(job, r"(?m)^\s*(?:curl|wget)\b[^\n]*\|\s*(?:ba)?sh")
+        self.assertNotIn("/latest/", job)
+        # Each archive is verified before it is unpacked.
+        for archive, unpack in (("actionlint.tar.gz", "tar -xzf actionlint.tar.gz"), ("shellcheck.tar.xz", "tar -xJf shellcheck.tar.xz")):
+            self.assertLess(job.index(f"  {archive}\" | sha256sum"), job.index(unpack))
+
+    def test_pinned_versions_match_the_local_command(self):
+        self.assertIn('ACTIONLINT_VERSION: "1.7.12"', self.TEXT)
+        self.assertIn('SHELLCHECK_VERSION: "0.11.0"', self.TEXT)
+        self.assertIn("mise x shellcheck@0.11.0 actionlint@1.7.12 -- actionlint", self.TEXT)
+
+    def test_lints_every_workflow_with_shellcheck_on_the_path(self):
+        job = job_text(self.PATH, "actionlint")
+        self.assertIn('echo "$bin" >> "$GITHUB_PATH"\n', job)
+        self.assertRegex(job, r"(?m)^          actionlint -color$")
+        self.assertNotRegex(job, r"actionlint[^\n]*\s-(?:shellcheck=|ignore)")
+        self.assertNotRegex(job, r"actionlint[^\n]*\.github/workflows/\w")
+
+
 class E2EShardsTests(unittest.TestCase):
     """The E2E suite runs as a shard matrix, merged and judged by two jobs (ticket 05)."""
 
