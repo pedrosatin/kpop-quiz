@@ -6,6 +6,15 @@ import { isPublished } from "./published";
 const SETUP_TIMEOUT_MS = 30_000;
 const BOARD_TIMEOUT_MS = 30_000;
 
+export type BootOptions = {
+  /**
+   * How long a daily game's board may take to show. Only a test that already
+   * saw the page settle on another state lowers it, so the refusal comes
+   * without waiting out the 30s a slow board gets.
+   */
+  boardTimeoutMs?: number;
+};
+
 export async function expectShellVisible(page: Page): Promise<void> {
   await expect(page.getByTestId("game-shell")).toBeVisible();
 }
@@ -70,10 +79,11 @@ async function expectDailyArtifactState(
   page: Page,
   artifact: DailyArtifact,
   baseURL: string,
+  { boardTimeoutMs = BOARD_TIMEOUT_MS }: BootOptions = {},
 ): Promise<void> {
   const board = page.getByTestId("game-board");
   if (await isPublished(page.request, baseURL, artifact.file)) {
-    await expect(board).toBeVisible({ timeout: BOARD_TIMEOUT_MS });
+    await expect(board).toBeVisible({ timeout: boardTimeoutMs });
     return;
   }
   const missing = page.getByTestId("game-missing");
@@ -87,7 +97,12 @@ async function expectDailyArtifactState(
 }
 
 /** The quiz home: Start opens the board, or the missing state of a day without the quiz. */
-async function bootQuizSetup(page: Page, artifact: DailyArtifact | undefined, baseURL: string | undefined): Promise<void> {
+async function bootQuizSetup(
+  page: Page,
+  artifact: DailyArtifact | undefined,
+  baseURL: string | undefined,
+  options: BootOptions,
+): Promise<void> {
   if (artifact && baseURL && !(await isPublished(page.request, baseURL, artifact.file))) {
     // Without its manifest the daily quiz opens on the missing state; a
     // general round from the catalog still shows the setup first.
@@ -95,7 +110,7 @@ async function bootQuizSetup(page: Page, artifact: DailyArtifact | undefined, ba
     const setup = page.getByTestId("game-setup");
     await expect(setup.or(page.getByTestId("game-missing"))).toBeVisible({ timeout: SETUP_TIMEOUT_MS });
     if (await setup.isVisible()) await page.getByTestId("game-start").click();
-    await expectDailyArtifactState(page, artifact, baseURL);
+    await expectDailyArtifactState(page, artifact, baseURL, options);
     return;
   }
   await expectQuizSetupReady(page);
@@ -108,10 +123,11 @@ async function bootBoardDirect(
   page: Page,
   route: Extract<SmokeRoute, { kind: "board-direct" }>,
   baseURL: string | undefined,
+  options: BootOptions,
 ): Promise<void> {
   if (route.artifact && baseURL) {
     await expectShellVisible(page);
-    await expectDailyArtifactState(page, route.artifact, baseURL);
+    await expectDailyArtifactState(page, route.artifact, baseURL, options);
     return;
   }
   await expectBoardDirectReady(page, {
@@ -125,13 +141,13 @@ async function bootBoardDirect(
  * artifact needs `baseURL` to learn whether the day published it; without
  * one, the board is required.
  */
-export async function bootRoute(page: Page, route: SmokeRoute, baseURL?: string): Promise<void> {
+export async function bootRoute(page: Page, route: SmokeRoute, baseURL?: string, options: BootOptions = {}): Promise<void> {
   switch (route.kind) {
     case "quiz-setup":
-      await bootQuizSetup(page, route.artifact, baseURL);
+      await bootQuizSetup(page, route.artifact, baseURL, options);
       break;
     case "board-direct":
-      await bootBoardDirect(page, route, baseURL);
+      await bootBoardDirect(page, route, baseURL, options);
       break;
     case "privacy":
       await expectPrivacyReady(page);

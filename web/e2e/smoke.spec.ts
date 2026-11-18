@@ -44,19 +44,25 @@ test.describe("crossword boot contract", () => {
 });
 
 test.describe("daily artifact boot contract", () => {
-  // The refused board waits out the boot's 30s before it fails.
-  test.describe.configure({ timeout: 60_000 });
   const route = SMOKE_ROUTES.find((r) => r.path === "/pt-br/conexoes/")!;
 
   test("never accepts a page whose state disagrees with what the day published", async ({ page, baseURL }) => {
-    if (await isPublished(page.request, baseURL!, "connections.daily.json")) {
-      // Published file: a page that reports it missing fails the boot.
-      await page.route("**/data/connections.daily.json", (r) => r.fulfill({ status: 404, body: "" }));
-    } else {
-      // Day without the file: an invalid state is not the missing one.
-      await page.route("**/data/connections.daily.json", (r) => r.fulfill({ json: { schema_version: "broken" } }));
-    }
+    const published = await isPublished(page.request, baseURL!, "connections.daily.json");
+    // Published file: a page that reports it missing fails the boot. Day
+    // without the file: an invalid state is not the missing one.
+    await page.route("**/data/connections.daily.json", (r) => published
+      ? r.fulfill({ status: 404, body: "" })
+      : r.fulfill({ json: { schema_version: "broken" } }));
     await page.goto(joinBaseUrl(baseURL!, route.path));
-    await expect(bootRoute(page, route, baseURL!)).rejects.toThrow();
+    const state = page.getByTestId("game-missing");
+    await expect(state).toHaveAttribute("data-error-kind", published ? "missing" : "invalid");
+    if (published) {
+      // The page has settled on the missing state, so the board the boot
+      // requires will not come: refuse it in 1s, not after the boot's 30s.
+      await expect(bootRoute(page, route, baseURL!, { boardTimeoutMs: 1_000 })).rejects.toThrow(/game-board/);
+    } else {
+      // The boot finds the missing state at once and refuses its kind.
+      await expect(bootRoute(page, route, baseURL!)).rejects.toThrow(/data-error-kind/);
+    }
   });
 });
