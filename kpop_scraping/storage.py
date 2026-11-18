@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import rebuild_phases
 from .mediawiki import EXTRACT_OVERSIZE, MAX_EXTRACT_BYTES, Page
 
 
@@ -1247,6 +1248,57 @@ class Repository:
             ),
         )
 
+    def stored_page_payload(
+        self, provider: str, language: str, page_id: int, revision_id: int
+    ) -> dict[str, Any] | None:
+        """Return the stored snapshot of a page revision, or ``None`` if none is stored.
+
+        The snapshot is read through its SHA-256, so a corrupt or replaced
+        file raises ``SnapshotIntegrityError`` as a repeated fetch would in
+        ``save_pages``. A snapshot that does not hold this page and revision,
+        or holds no extract, raises the same error. The incremental collection
+        builds the page from it instead of downloading the same revision again.
+        """
+        existing = self.connection.execute(
+            """
+            SELECT sr.snapshot_path, sr.content_sha256
+            FROM source_revisions sr
+            JOIN source_pages sp ON sp.id = sr.source_page_id
+            WHERE sp.provider=? AND sp.language=? AND sp.external_page_id=?
+              AND sr.external_revision_id=?
+            """,
+            (provider, language, page_id, revision_id),
+        ).fetchone()
+        if existing is None:
+            return None
+        content = self.snapshots.read(existing["snapshot_path"], existing["content_sha256"])
+        try:
+            payload = json.loads(content)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise SnapshotIntegrityError(
+                f"revision {revision_id} of page {page_id} has an invalid snapshot"
+            ) from exc
+        fields = _revision_content(payload)
+        if fields is None or fields[:2] != (page_id, revision_id):
+            raise SnapshotIntegrityError(
+                f"revision {revision_id} of page {page_id} has an invalid snapshot"
+            )
+        return payload
+
+    def stored_type_check(self, wikidata_id: str, revision_id: int) -> tuple[str, ...] | None:
+        """Return the P31 values stored for this QID and revision, or ``None``."""
+        row = self.connection.execute(
+            """
+            SELECT instance_of_json FROM wikidata_type_checks
+            WHERE wikidata_id=? AND external_revision_id=?
+            """,
+            (wikidata_id, revision_id),
+        ).fetchone()
+        if row is None:
+            return None
+        return tuple(json.loads(row["instance_of_json"]))
+
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_pages(
         self,
         run_id: int,
@@ -1361,6 +1413,7 @@ class Repository:
         self.connection.commit()
         return int(cursor.lastrowid)
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def complete_catalog_run(
         self,
         run_id: int,
@@ -1390,6 +1443,7 @@ class Repository:
         )
         self.connection.commit()
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_type_check(
         self,
         wikidata_id: str,
@@ -1429,6 +1483,7 @@ class Repository:
         ).fetchone()
         return int(row["id"])
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def set_catalog_decision(
         self,
         source_page_id: int,
@@ -1462,6 +1517,7 @@ class Repository:
         if cursor.rowcount != 1:
             raise RuntimeError("catalog candidate changed during classification")
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def export_catalog_csv(self, output_path: Path) -> int:
         rows = self.connection.execute(
             """
@@ -1503,6 +1559,7 @@ class Repository:
             )
         return len(rows)
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def complete_run(self, run_id: int, pages_collected: int) -> None:
         self.connection.execute(
             "UPDATE collection_runs SET completed_at=?, status='completed', pages_collected=? WHERE id=?",

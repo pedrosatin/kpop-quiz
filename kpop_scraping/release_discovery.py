@@ -13,6 +13,7 @@ from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
+from . import rebuild_phases
 from .http_request import DEFAULT_USER_AGENT, open_url
 from .mediawiki import MediaWikiError, parse_retry_after
 from .storage import Repository, utc_now
@@ -86,8 +87,13 @@ class WikidataQueryClient:
         self.opener = opener
 
     def query(self, sparql: str) -> QueryResult:
+        with rebuild_phases.phase(rebuild_phases.LISTING):
+            return self._query(sparql)
+
+    def _query(self, sparql: str) -> QueryResult:
         url = f"{self.endpoint}?{urlencode({'query': sparql, 'format': 'json'})}"
         for attempt in range(self.retries + 1):
+            rebuild_phases.count_request(rebuild_phases.LISTING)
             try:
                 with open_url(
                     url,

@@ -25,6 +25,7 @@ from kpop_scraping.release_evidence import (
 )
 from kpop_scraping.release_discovery import WikidataQueryClient, _parse_results, build_query, discover_releases
 from kpop_scraping.release_facts import release_entity_type, release_fact_candidates
+from kpop_scraping.revision_reuse import IncrementalWikidataClient
 from kpop_scraping.release_pipeline import (
     _mark_stale_releases,
     _performer_entity_ids,
@@ -1402,6 +1403,66 @@ class ReleasePipelineScopeTest(unittest.TestCase):
             ).fetchone()[0],
             2,
         )
+
+    def test_incremental_client_serves_the_stored_release_revision(self):
+        run_id = self._run(groups=(1,))
+        self.connection.execute(
+            "INSERT INTO entity_aliases(entity_id,name,language,alias_type,snapshot_id) VALUES (1,'Group One','en','label',1)"
+        )
+        self.connection.execute(
+            "INSERT INTO release_candidates(run_id,group_entity_id,requested_wikidata_id,state) VALUES (?,1,'Q101','candidate')",
+            (run_id,),
+        )
+        self.connection.commit()
+        payload = {
+            "id": "Q101", "lastrevid": 2,
+            "labels": {"en": {"language": "en", "value": "Alpha"}},
+            "aliases": {},
+            "sitelinks": {"ptwiki": {"title": "Alpha (álbum)"}},
+            "claims": {
+                "P31": [item_statement("Q101$class", "P31", "Q482994")],
+                "P175": [item_statement("Q101$performer", "P175", "QG1")],
+                "P577": [time_statement()],
+            },
+        }
+
+        class EntityClient:
+            def __init__(self):
+                self.downloads = []
+
+            def get_entities(self, qids, _profile):
+                self.downloads.append(tuple(qids))
+                return EntityBatch(tuple(EntityDocument(qid, qid, 2, payload) for qid in qids), ())
+
+            def get_entity_revisions(self, qids):
+                return EntityBatch(tuple(EntityDocument(qid, qid, 2, {}) for qid in qids), ())
+
+        class WikiClient:
+            def get_pages_by_titles(self, _titles):
+                return [Page(
+                    78, "Alpha (álbum)", "https://pt.wikipedia.org/wiki/Alpha",
+                    "Alpha é um álbum por Group One. Alpha foi lançado em 2 de janeiro de 2020.",
+                    89, wikidata_id="Q101",
+                )]
+
+        def facts():
+            return self.connection.execute(
+                """SELECT f.statement_id,f.status,f.status_reason,fe.locator FROM facts f
+                LEFT JOIN fact_evidence fe ON fe.fact_id=f.id ORDER BY f.statement_id"""
+            ).fetchall()
+
+        full = collect_release_facts(self.repository, EntityClient(), run_id, wikipedia_clients={"pt": WikiClient()})
+        before = [tuple(row) for row in facts()]
+        entity_client = EntityClient()
+        incremental = collect_release_facts(
+            self.repository, IncrementalWikidataClient(entity_client, self.repository), run_id,
+            wikipedia_clients={"pt": WikiClient()},
+        )
+
+        self.assertEqual(entity_client.downloads, [])
+        self.assertEqual((incremental.accepted, incremental.batches), (full.accepted, full.batches))
+        self.assertEqual([tuple(row) for row in facts()], before)
+        self.assertTrue(any("pageid=78:revid=89#extract" in (row[3] or "") for row in before))
 
 
 if __name__ == "__main__":

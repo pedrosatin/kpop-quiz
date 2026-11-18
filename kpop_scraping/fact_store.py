@@ -7,6 +7,7 @@ import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
+from . import rebuild_phases
 from .entities import Alias, canonical_name, extract_aliases
 from .evidence import EVIDENCE_RULES_VERSION, WikipediaPage
 from .sources import SOURCE_POLICY_VERSION, classify_source
@@ -89,6 +90,7 @@ class FactStore:
         self.connection.commit()
         return int(cursor.lastrowid)
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def complete_run(self, run_id: int, totals: FactRunTotals) -> None:
         self.connection.execute(
             """
@@ -238,6 +240,7 @@ class FactStore:
             {(int(r[0]), int(r[1]), int(r[2])) for r in rows}, key=lambda r: r[2]
         )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_revision_wikitext(
         self,
         source_revision_id: int,
@@ -274,6 +277,44 @@ class FactStore:
             (source_revision_id, snapshot_path, digest, utc_now()),
         )
 
+    def stored_entity_payload(
+        self, wikidata_id: str, revision_id: int, profile: str
+    ) -> dict | None:
+        """Return the stored snapshot of this QID, revision and profile, or ``None``.
+
+        The file is read through its SHA-256, so a corrupt or replaced
+        snapshot raises ``SnapshotIntegrityError``, as ``save_entity_snapshot``
+        would for a repeated fetch. A snapshot that names another entity or
+        revision raises the same error.
+        """
+        row = self.connection.execute(
+            """
+            SELECT snapshot_path, content_sha256
+            FROM wikidata_entity_snapshots
+            WHERE wikidata_id=? AND external_revision_id=? AND request_profile=?
+            """,
+            (wikidata_id, revision_id, profile),
+        ).fetchone()
+        if row is None:
+            return None
+        content = self.repository.snapshots.read(row["snapshot_path"], row["content_sha256"])
+        try:
+            payload = json.loads(content)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise SnapshotIntegrityError(
+                f"Wikidata revision {revision_id} of {wikidata_id} has an invalid snapshot"
+            ) from exc
+        if (
+            not isinstance(payload, dict)
+            or payload.get("id") != wikidata_id
+            or payload.get("lastrevid") != revision_id
+        ):
+            raise SnapshotIntegrityError(
+                f"Wikidata revision {revision_id} of {wikidata_id} has an invalid snapshot"
+            )
+        return payload
+
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_entity_snapshot(
         self,
         run_id: int,
@@ -332,6 +373,7 @@ class FactStore:
         )
         return snapshot_id
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_entity(
         self,
         document: EntityDocument,
@@ -414,6 +456,7 @@ class FactStore:
             )
         return entity_id, stored_type
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def link_catalog_entity(
         self,
         run_id: int,
@@ -474,6 +517,7 @@ class FactStore:
             ],
         )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def record_issue(
         self, run_id: int, wikidata_id: str, code: str, detail: str
     ) -> None:
@@ -486,6 +530,7 @@ class FactStore:
             (run_id, wikidata_id, code, detail),
         )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_facts(
         self,
         run_id: int,
@@ -657,6 +702,7 @@ class FactStore:
                 f"DELETE FROM facts WHERE id IN ({placeholders})", batch
             )
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def mark_stale_facts(self, run_id: int) -> int:
         """Mark facts whose subject left the catalog or every group member list.
 
@@ -704,6 +750,7 @@ class FactStore:
         )
         return stale + cursor.rowcount
 
+    @rebuild_phases.timed(rebuild_phases.STORAGE)
     def mark_catalog_subjects_stale(
         self,
         run_id: int,

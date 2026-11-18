@@ -21,6 +21,7 @@ from .facts import (
 from .mediawiki import MAX_REVISIONS_PER_REQUEST, MediaWikiClient
 from .person_evidence import PERSON_BIRTH_FIELDS
 from .person_pages import PersonPageRequest, collect_person_pages
+from .revision_reuse import entity_batches
 from .person_preservation import (
     PreservedFact,
     assert_none_downgraded,
@@ -225,8 +226,8 @@ class _Run:
         profile: EntityProfile,
     ) -> dict[str, tuple[EntityDocument, int]]:
         found: dict[str, tuple[EntityDocument, int]] = {}
-        for batch in _batched(ids, self.batch_size):
-            result = self.client.get_entities(batch, profile)
+        batches = list(_batched(ids, self.batch_size))
+        for result in entity_batches(self.client, batches, profile):
             self.state.batches += 1
             for document in result.documents:
                 snapshot_id = self.store.save_entity_snapshot(

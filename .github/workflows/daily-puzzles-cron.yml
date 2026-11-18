@@ -86,20 +86,27 @@ jobs:
       # Wikidata answers maxlag while its query service lags, sometimes for
       # longer than the client's own backoff. scripts/rebuild_database.py runs
       # the collector at most 3 times, 30 minutes each and 10 minutes apart,
-      # and repeats only an attempt that ended in a transient error (exit 75).
-      # At worst that takes 111.5 minutes, inside this step's timeout.
+      # repeats only an attempt that ended in a transient error (exit 75), and
+      # stops at its 45-minute refresh budget (ADR 043). At worst that takes
+      # 45.5 minutes, inside this step's timeout.
       # continue-on-error keeps the job going when the step fails or times
       # out, so the next step can restore the cached database and the day
       # still gets puzzles built from the previous day's facts (ADR 032).
+      # --incremental downloads only the pages and entities whose revision
+      # has no stored snapshot in the cached data/raw (ADR 043). Sunday's run
+      # downloads everything, so an extract that changed without a new
+      # revision still shows up at least once a week (ADR 036).
       # On timeout or cancel the runner signals only the shell's PID; exec
       # makes that PID the script's, which then kills the running attempt.
       - name: Rebuild database from Wikipedia and Wikidata
         id: rebuild
         continue-on-error: true
-        timeout-minutes: 120
+        timeout-minutes: 60
         run: |
+          mode=--incremental
+          if [ "$(date -u +%u)" = 7 ]; then mode=--full-refresh; fi
           exec python3 scripts/rebuild_database.py rebuild --database data/kpop.db -- \
-            python main.py --facts --releases --database data/kpop.db
+            python main.py --facts --releases "$mode" --database data/kpop.db
 
       # outcome is the result of the step before continue-on-error applies:
       # "failure" for a non-zero exit and for the step timeout. failure()

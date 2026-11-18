@@ -16,6 +16,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
+from . import rebuild_phases
 from .http_request import DEFAULT_USER_AGENT, open_url
 
 
@@ -190,7 +191,16 @@ class MediaWikiClient:
         # alone gets a budget of its own.
         self.maxlag_budget = maxlag_budget or MaxlagBudget()
 
-    def _get(self, parameters: dict[str, str | int]) -> dict[str, Any]:
+    def _get(
+        self,
+        parameters: dict[str, str | int],
+        phase: str = rebuild_phases.DOWNLOAD,
+    ) -> dict[str, Any]:
+        """Send one Action API request; ``phase`` names it in the run's phase log."""
+        with rebuild_phases.phase(phase):
+            return self._get_in_phase(parameters, phase)
+
+    def _get_in_phase(self, parameters: dict[str, str | int], phase: str) -> dict[str, Any]:
         query = {
             "format": "json",
             "formatversion": "2",
@@ -203,6 +213,7 @@ class MediaWikiClient:
         attempt = 0
         while True:
             can_retry = attempt < self.retries
+            rebuild_phases.count_request(phase)
             try:
                 with open_url(
                     url,
@@ -246,7 +257,10 @@ class MediaWikiClient:
             if isinstance(payload, dict) and "error" in payload:
                 error = payload["error"]
                 if error.get("code") == "maxlag":
-                    if self.maxlag_budget.wait(self._maxlag_delay(error, headers)):
+                    spent = self.maxlag_budget.spent
+                    waited = self.maxlag_budget.wait(self._maxlag_delay(error, headers))
+                    rebuild_phases.add_maxlag_wait(phase, self.maxlag_budget.spent - spent)
+                    if waited:
                         continue
                     budget = self.maxlag_budget
                     raise MediaWikiError(
@@ -318,7 +332,7 @@ class MediaWikiClient:
                 "cmtype": "page",
                 "cmlimit": "max",
                 **continuation,
-            })
+            }, phase=rebuild_phases.LISTING)
             try:
                 members = payload["query"]["categorymembers"]
             except (KeyError, TypeError) as exc:
@@ -372,6 +386,51 @@ class MediaWikiClient:
                 ))
         except (KeyError, TypeError, IndexError) as exc:
             raise MediaWikiError("MediaWiki page response has an unexpected shape") from exc
+        return pages
+
+    def get_page_revisions(self, page_ids: Sequence[int]) -> list[Page]:
+        """Return the current revision and metadata of each page, without its extract.
+
+        The request asks for the same ``info`` and ``pageprops`` as
+        :meth:`get_pages`, so title, URL, Wikidata item, redirect and
+        disambiguation flags come back current, but leaves out the extract.
+        It takes 50 pages per request where :meth:`get_pages` takes 20,
+        because TextExtracts limits only the extracts. The incremental
+        collection uses it to tell which pages have a revision it has not
+        stored yet; ``extract`` is empty and ``source_payload`` is ``None``.
+        """
+        if not page_ids:
+            return []
+        if len(page_ids) > MAX_REVISIONS_PER_REQUEST:
+            raise ValueError(
+                f"get_page_revisions accepts at most {MAX_REVISIONS_PER_REQUEST} page IDs"
+            )
+        payload = self._get({
+            "action": "query",
+            "pageids": "|".join(str(page_id) for page_id in page_ids),
+            "prop": "info|pageprops|revisions",
+            "inprop": "url",
+            "ppprop": "wikibase_item|disambiguation",
+            "rvprop": "ids",
+        }, phase=rebuild_phases.REVISIONS)
+        pages = []
+        try:
+            for item in payload["query"]["pages"]:
+                revisions = item.get("revisions", [])
+                pageprops = item.get("pageprops", {})
+                pages.append(Page(
+                    page_id=item["pageid"],
+                    title=item["title"],
+                    canonical_url=item.get("canonicalurl", ""),
+                    extract="",
+                    revision_id=revisions[0]["revid"] if revisions else None,
+                    wikidata_id=pageprops.get("wikibase_item"),
+                    is_redirect=bool(item.get("redirect", False)),
+                    is_disambiguation="disambiguation" in pageprops,
+                    is_missing=bool(item.get("missing", False)),
+                ))
+        except (KeyError, TypeError, IndexError) as exc:
+            raise MediaWikiError("MediaWiki revision response has an unexpected shape") from exc
         return pages
 
     def get_pages_by_titles(self, titles: Sequence[str]) -> list[Page]:

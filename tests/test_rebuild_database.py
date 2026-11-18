@@ -166,6 +166,54 @@ class RebuildJobTests(unittest.TestCase):
         self.assertIn("kpop.db-journal", job.files_after_rebuild)
         self.assert_published_from_cache(job, "attempt 1 passed its 2 s timeout and was stopped")
 
+    def test_attempt_that_outlasts_the_refresh_budget_is_stopped_and_the_cache_published(self):
+        self.cache_database()
+        job = self.run_job(
+            "hang",
+            REBUILD_ATTEMPT_TIMEOUT_SECONDS="60",
+            REBUILD_BUDGET_SECONDS="2",
+            REBUILD_MIN_ATTEMPT_SECONDS="0.5",
+            REBUILD_KILL_GRACE_SECONDS="0.2",
+        )
+        self.assertEqual(job.rebuild.returncode, EXIT_ATTEMPT_TIMED_OUT, job.rebuild.stdout)
+        self.assertEqual(len(self.collector_pids()), 1)
+        self.assert_not_running(self.collector_pids()[0])
+        self.assertLess(job.elapsed, 30)
+        self.assert_published_from_cache(
+            job, "attempt 1 reached the end of the 2 s refresh budget and was stopped"
+        )
+
+    def test_transient_failure_without_budget_for_another_attempt_publishes_the_cache_at_once(self):
+        self.cache_database()
+        job = self.run_job(
+            "transient,ok",
+            REBUILD_RETRY_WAIT_SECONDS=LONG_WAIT_SECONDS,
+            REBUILD_BUDGET_SECONDS="30",
+            REBUILD_MIN_ATTEMPT_SECONDS="1",
+            REBUILD_KILL_GRACE_SECONDS="0.2",
+        )
+        self.assertEqual(job.rebuild.returncode, EXIT_TRANSIENT, job.rebuild.stdout)
+        self.assertEqual(len(self.collector_pids()), 1)
+        self.assertLess(job.elapsed, 30)
+        self.assert_published_from_cache(
+            job,
+            "attempt 1 ended in a transient error (exit 75) and the 30 s refresh budget "
+            "leaves no room for another",
+        )
+
+    def test_retry_runs_when_the_budget_has_room_for_it(self):
+        self.cache_database()
+        job = self.run_job(
+            "transient,ok",
+            REBUILD_RETRY_WAIT_SECONDS="0.05",
+            REBUILD_BUDGET_SECONDS="30",
+            REBUILD_MIN_ATTEMPT_SECONDS="1",
+            REBUILD_KILL_GRACE_SECONDS="0.2",
+        )
+        self.assertEqual(job.rebuild.returncode, EXIT_OK, job.rebuild.stdout)
+        self.assertEqual(len(self.collector_pids()), 2)
+        self.assertIsNone(job.restore)
+
     def test_attempt_that_ignores_sigterm_is_killed(self):
         self.cache_database()
         job = self.run_job(
@@ -410,7 +458,12 @@ class LimitsTests(unittest.TestCase):
             (limits.max_attempts, limits.attempt_timeout, limits.retry_wait, limits.kill_grace),
             (3, 1800.0, 600.0, 30.0),
         )
-        self.assertEqual(limits.worst_case_seconds(), 3 * 1830 + 2 * 600)
+        # The refresh budget, not the three attempts, bounds the step.
+        self.assertEqual((limits.budget, limits.min_attempt), (2700.0, 300.0))
+        self.assertEqual(limits.worst_case_seconds(), 2700 + 30)
+        self.assertEqual(
+            Limits(budget=10_000).worst_case_seconds(), 3 * 1830 + 2 * 600
+        )
 
     def test_environment_replaces_each_limit(self):
         limits = limits_from_environment({
@@ -418,8 +471,13 @@ class LimitsTests(unittest.TestCase):
             "REBUILD_ATTEMPT_TIMEOUT_SECONDS": "1.5",
             "REBUILD_RETRY_WAIT_SECONDS": "0",
             "REBUILD_KILL_GRACE_SECONDS": " 2 ",
+            "REBUILD_BUDGET_SECONDS": "90",
+            "REBUILD_MIN_ATTEMPT_SECONDS": "0.5",
         })
-        self.assertEqual(limits, Limits(max_attempts=5, attempt_timeout=1.5, retry_wait=0.0, kill_grace=2.0))
+        self.assertEqual(limits, Limits(
+            max_attempts=5, attempt_timeout=1.5, retry_wait=0.0, kill_grace=2.0,
+            budget=90.0, min_attempt=0.5,
+        ))
 
     def test_invalid_limits_are_refused(self):
         for name, value in (
@@ -431,6 +489,8 @@ class LimitsTests(unittest.TestCase):
             ("REBUILD_ATTEMPT_TIMEOUT_SECONDS", "inf"),
             ("REBUILD_RETRY_WAIT_SECONDS", "-1"),
             ("REBUILD_KILL_GRACE_SECONDS", "-0.5"),
+            ("REBUILD_BUDGET_SECONDS", "0"),
+            ("REBUILD_MIN_ATTEMPT_SECONDS", "inf"),
         ):
             with self.subTest(name=name, value=value), self.assertRaisesRegex(ValueError, name):
                 limits_from_environment({name: value})
@@ -494,9 +554,12 @@ class WorkflowTests(unittest.TestCase):
     def test_rebuild_step_execs_the_script(self):
         # The runner stops a step by signalling the shell's PID only. With
         # exec that PID is the script's, which kills the running attempt.
-        commands = [line for line in run_block(REBUILD_STEP).splitlines() if line.strip()]
+        commands = [
+            line for line in run_block(REBUILD_STEP).splitlines()
+            if line.strip() and not line.startswith(" ")
+        ]
         self.assertTrue(
-            commands[0].startswith("exec python3 scripts/rebuild_database.py rebuild "), commands
+            commands[-1].startswith("exec python3 scripts/rebuild_database.py rebuild "), commands
         )
 
     def test_rebuild_step_runs_the_script_and_lets_the_job_continue(self):
@@ -506,10 +569,26 @@ class WorkflowTests(unittest.TestCase):
         self.assertRegex(
             step,
             r"python3 scripts/rebuild_database\.py rebuild --database data/kpop\.db -- \\\n"
-            r"\s+python main\.py --facts --releases --database data/kpop\.db\n",
+            r"\s+python main\.py --facts --releases \"\$mode\" --database data/kpop\.db\n",
         )
         for inline in ("sleep", "kpop.db.cached", "for attempt"):
             self.assertNotIn(inline, step)
+
+    def test_rebuild_is_incremental_except_on_sunday(self):
+        block = run_block(REBUILD_STEP)
+        selection = block.split("exec ", 1)[0] + 'printf "%s" "$mode"\n'
+        with tempfile.TemporaryDirectory() as folder:
+            fake_date = Path(folder) / "date"
+            fake_date.write_text('#!/bin/sh\necho "$FAKE_WEEKDAY"\n', encoding="utf-8")
+            fake_date.chmod(0o755)
+            modes = {}
+            for weekday in range(1, 8):
+                modes[weekday] = subprocess.run(
+                    ["bash", "-c", selection],
+                    env={**os.environ, "PATH": f"{folder}:{os.environ['PATH']}", "FAKE_WEEKDAY": str(weekday)},
+                    capture_output=True, text=True, check=True,
+                ).stdout
+        self.assertEqual(modes, {**{day: "--incremental" for day in range(1, 7)}, 7: "--full-refresh"})
 
     def test_fallback_is_a_separate_step_tied_to_the_rebuild_outcome(self):
         position = self.names.index(REBUILD_STEP)

@@ -7,7 +7,11 @@ hangs cannot take the fallback down with it
 
 ``rebuild``
     Copies the database to ``<database>.cached`` and runs the collector, the
-    command after ``--``, at most 3 times. Each attempt has its own timeout.
+    command after ``--``, at most 3 times. Each attempt has its own timeout,
+    and all of them share the refresh budget: an attempt never runs past it,
+    and no attempt starts, nor any wait before one, when what is left of it
+    is shorter than the wait plus the shortest useful attempt. The day then
+    gets the cached database, as after any other failure.
     Only an attempt that exits with ``EXIT_TRANSIENT`` is repeated, after a
     wait. A deterministic failure, an unknown exit code and an attempt killed
     by its timeout end the step at once, because the same command would fail
@@ -34,7 +38,8 @@ the code that stops the attempt.
 
 The attempt limits come from the environment, so tests do not wait minutes:
 ``REBUILD_MAX_ATTEMPTS`` (3), ``REBUILD_ATTEMPT_TIMEOUT_SECONDS`` (1800),
-``REBUILD_RETRY_WAIT_SECONDS`` (600) and ``REBUILD_KILL_GRACE_SECONDS`` (30).
+``REBUILD_RETRY_WAIT_SECONDS`` (600), ``REBUILD_KILL_GRACE_SECONDS`` (30),
+``REBUILD_BUDGET_SECONDS`` (2700) and ``REBUILD_MIN_ATTEMPT_SECONDS`` (300).
 
 Importing the module runs nothing: the collector only starts from ``rebuild``.
 """
@@ -49,7 +54,7 @@ import signal
 import subprocess
 import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -66,6 +71,14 @@ DEFAULT_ATTEMPT_TIMEOUT_SECONDS = 30 * 60.0
 DEFAULT_RETRY_WAIT_SECONDS = 10 * 60.0
 # Time between SIGTERM and SIGKILL for an attempt that passed its timeout.
 DEFAULT_KILL_GRACE_SECONDS = 30.0
+# Wall time every attempt and wait of the step may use together before the
+# day falls back to the cached database (docs/decisions/043). A night with a
+# lagged Wikidata used to spend 3 attempts with their 15-minute maxlag budget
+# and 2 waits, about 66 minutes, before that fallback.
+DEFAULT_BUDGET_SECONDS = 45 * 60.0
+# An attempt shorter than this is not started: a clean rebuild takes about
+# 80 seconds, and one that waits for maxlag needs minutes more.
+DEFAULT_MIN_ATTEMPT_SECONDS = 5 * 60.0
 
 # Exit codes of this script that do not come from the collector.
 EXIT_USAGE = 2
@@ -87,13 +100,16 @@ class Limits:
     attempt_timeout: float = DEFAULT_ATTEMPT_TIMEOUT_SECONDS
     retry_wait: float = DEFAULT_RETRY_WAIT_SECONDS
     kill_grace: float = DEFAULT_KILL_GRACE_SECONDS
+    budget: float = DEFAULT_BUDGET_SECONDS
+    min_attempt: float = DEFAULT_MIN_ATTEMPT_SECONDS
 
     def worst_case_seconds(self) -> float:
         """Longest the ``rebuild`` step can run: every attempt killed late, every wait taken."""
-        return (
+        unbounded = (
             self.max_attempts * (self.attempt_timeout + self.kill_grace)
             + (self.max_attempts - 1) * self.retry_wait
         )
+        return min(unbounded, self.budget + self.kill_grace)
 
 
 def limits_from_environment(environ: Mapping[str, str]) -> Limits:
@@ -120,6 +136,8 @@ def limits_from_environment(environ: Mapping[str, str]) -> Limits:
         attempt_timeout=number("REBUILD_ATTEMPT_TIMEOUT_SECONDS", DEFAULT_ATTEMPT_TIMEOUT_SECONDS, 0.001),
         retry_wait=number("REBUILD_RETRY_WAIT_SECONDS", DEFAULT_RETRY_WAIT_SECONDS, 0),
         kill_grace=number("REBUILD_KILL_GRACE_SECONDS", DEFAULT_KILL_GRACE_SECONDS, 0),
+        budget=number("REBUILD_BUDGET_SECONDS", DEFAULT_BUDGET_SECONDS, 0.001),
+        min_attempt=number("REBUILD_MIN_ATTEMPT_SECONDS", DEFAULT_MIN_ATTEMPT_SECONDS, 0.001),
     )
 
 
@@ -150,8 +168,14 @@ def run_attempt(command: Sequence[str], timeout: float, kill_grace: float) -> in
             process.wait()
 
 
-def rebuild(database: Path, command: Sequence[str], limits: Limits) -> int:
-    """Run the collector until it succeeds, fails for good or runs out of attempts."""
+def rebuild(
+    database: Path,
+    command: Sequence[str],
+    limits: Limits,
+    clock: Callable[[], float] = time.monotonic,
+) -> int:
+    """Run the collector until it succeeds, fails for good, or runs out of attempts or budget."""
+    deadline = clock() + limits.budget
     database.parent.mkdir(parents=True, exist_ok=True)
     backup = backup_path(database)
     if database.is_file():
@@ -159,9 +183,17 @@ def rebuild(database: Path, command: Sequence[str], limits: Limits) -> int:
 
     for attempt in range(1, limits.max_attempts + 1):
         label = f"Rebuild attempt {attempt} of {limits.max_attempts}"
-        _log(f"{label}: {' '.join(command)}")
+        # The attempt ends, killed if need be, by the end of the budget.
+        left = deadline - clock() - limits.kill_grace
+        if left < min(limits.min_attempt, limits.attempt_timeout):
+            return _give_up(
+                f"the {_duration(limits.budget)} refresh budget ran out before attempt {attempt}",
+                EXIT_ATTEMPT_TIMED_OUT,
+            )
+        timeout = min(limits.attempt_timeout, left)
+        _log(f"{label} ({_duration(timeout)} at most): {' '.join(command)}")
         try:
-            code = run_attempt(command, limits.attempt_timeout, limits.kill_grace)
+            code = run_attempt(command, timeout, limits.kill_grace)
         except OSError as error:
             return _give_up(f"the rebuild command could not start ({error})", EXIT_COMMAND_NOT_STARTED)
         if code == EXIT_OK:
@@ -169,16 +201,27 @@ def rebuild(database: Path, command: Sequence[str], limits: Limits) -> int:
             _log(f"{label} refreshed the database")
             return EXIT_OK
         if code is None:
-            return _give_up(
-                f"attempt {attempt} passed its {_duration(limits.attempt_timeout)} timeout and was stopped",
-                EXIT_ATTEMPT_TIMED_OUT,
-            )
+            if timeout < limits.attempt_timeout:
+                reason = (
+                    f"attempt {attempt} reached the end of the {_duration(limits.budget)} "
+                    "refresh budget and was stopped"
+                )
+            else:
+                reason = f"attempt {attempt} passed its {_duration(limits.attempt_timeout)} timeout and was stopped"
+            return _give_up(reason, EXIT_ATTEMPT_TIMED_OUT)
         if code != EXIT_TRANSIENT:
             kind = "a deterministic error" if code == EXIT_DETERMINISTIC else "an unexpected error"
             # A negative code is the signal that ended the attempt.
             status = 128 - code if code < 0 else code
             return _give_up(f"attempt {attempt} ended in {kind} (exit {status})", status)
         if attempt < limits.max_attempts:
+            left_after_wait = deadline - clock() - limits.retry_wait - limits.kill_grace
+            if left_after_wait < min(limits.min_attempt, limits.attempt_timeout):
+                return _give_up(
+                    f"attempt {attempt} ended in a transient error (exit {code}) and the "
+                    f"{_duration(limits.budget)} refresh budget leaves no room for another",
+                    EXIT_TRANSIENT,
+                )
             _log(
                 f"{label} ended in a transient error (exit {code}); "
                 f"retrying in {_duration(limits.retry_wait)}"

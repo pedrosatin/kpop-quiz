@@ -102,6 +102,14 @@ class CLITest(unittest.TestCase):
         self.assertIn("Collected 5 pages", output)
         self.assertIn("Catalog: 2 accepted, 1 rejected, 2 pending", output)
 
+    def test_full_refresh_is_the_default_and_excludes_incremental(self):
+        parser = build_parser()
+        self.assertFalse(parser.parse_args([]).incremental)
+        self.assertFalse(parser.parse_args(["--full-refresh"]).incremental)
+        self.assertTrue(parser.parse_args(["--incremental"]).incremental)
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            parser.parse_args(["--incremental", "--full-refresh"])
+
     def test_limit_validation(self):
         with self.assertRaises(SystemExit) as cm:
             main(["--database", str(self.database), "--limit", "0"])

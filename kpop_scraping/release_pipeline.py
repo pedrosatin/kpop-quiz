@@ -10,6 +10,7 @@ from .evidence import page_title_name
 from .fact_store import FactRunTotals, FactStore, count_statuses
 from .release_facts import EXTRACTOR_VERSION, release_entity_type, release_fact_candidates
 from .release_evidence import collect_release_pages
+from .revision_reuse import entity_batches
 from .validation import ValidationContext, validate_facts
 from .wikidata import LABEL_PROFILE, SUBJECT_PROFILE, WikidataEntityClient
 
@@ -109,9 +110,8 @@ def _collect(
     subjects_by_entity = {}
     batches = 0
     requested = sorted(candidate_rows)
-    for offset in range(0, len(requested), batch_size):
-        batch = requested[offset : offset + batch_size]
-        response = client.get_entities(batch, SUBJECT_PROFILE)
+    release_batches = _split(requested, batch_size)
+    for batch, response in zip(release_batches, entity_batches(client, release_batches, SUBJECT_PROFILE)):
         batches += 1
         found = {doc.requested_id: doc for doc in response.documents}
         update_params = []
@@ -151,9 +151,8 @@ def _collect(
             if candidate.value_id and candidate.value_id not in entity_types:
                 value_roles.setdefault(candidate.value_id, candidate.spec.value_entity_type or "genre")
     performer_ids = sorted(qid for qid, role in value_roles.items() if role == "group")
-    for offset in range(0, len(performer_ids), batch_size):
-        batch = performer_ids[offset : offset + batch_size]
-        response = client.get_entities(batch, SUBJECT_PROFILE)
+    performer_batches = _split(performer_ids, batch_size)
+    for response in entity_batches(client, performer_batches, SUBJECT_PROFILE):
         batches += 1
         for document in response.documents:
             if not matching_names(extract_aliases(document.payload)) or not (
@@ -184,9 +183,8 @@ def _collect(
             updates,
         )
     label_ids = sorted(qid for qid, role in value_roles.items() if role != "group")
-    for offset in range(0, len(label_ids), batch_size):
-        batch = label_ids[offset : offset + batch_size]
-        response = client.get_entities(batch, LABEL_PROFILE)
+    label_batches = _split(label_ids, batch_size)
+    for response in entity_batches(client, label_batches, LABEL_PROFILE):
         batches += 1
         for document in response.documents:
             snapshot_id = store.save_entity_snapshot(run_id, document, LABEL_PROFILE.name)
@@ -243,6 +241,10 @@ def _collect(
         counts["superseded"],
         ignored,
     )
+
+
+def _split(values: list[str], size: int) -> list[list[str]]:
+    return [values[offset : offset + size] for offset in range(0, len(values), size)]
 
 
 def _catalog_group_names(connection, entity_id: int) -> tuple[str, ...]:

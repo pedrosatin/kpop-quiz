@@ -53,6 +53,23 @@ class WikidataTypeClientTest(unittest.TestCase):
 
 class WikidataEntityClientTest(unittest.TestCase):
     @patch.object(WikidataEntityClient, "_get")
+    def test_entity_revisions_ask_info_only_and_resolve_like_documents(self, get):
+        get.return_value = {
+            "entities": {
+                "Q2": {"id": "Q2", "lastrevid": 9, "redirects": {"from": "Q1", "to": "Q2"}},
+                "Q3": {"id": "Q3", "missing": ""},
+            }
+        }
+        batch = WikidataEntityClient().get_entity_revisions(["Q1", "Q3"])
+        self.assertEqual(
+            [(d.requested_id, d.wikidata_id, d.revision_id) for d in batch.documents],
+            [("Q1", "Q2", 9)],
+        )
+        self.assertEqual(batch.missing, ("Q3",))
+        self.assertEqual(get.call_args.args[0]["props"], "info")
+        self.assertEqual(get.call_args.kwargs["phase"], "revisions")
+
+    @patch.object(WikidataEntityClient, "_get")
     def test_requests_profile_and_maps_documents(self, get):
         get.return_value = {
             "entities": {
