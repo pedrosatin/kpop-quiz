@@ -22,21 +22,25 @@ O texto de resultado dos sete jogos também saía sem link, com exceção da Lin
 
 Depois do consentimento, `ConsentBanner` lê `?s=` e chama `gtag("config", …)` com os campos padrão do GA4 `campaign_source=share`, `campaign_medium=social` e `campaign_name=<jogo>` (`shareCampaignConfig`). Não há dimensão personalizada a cadastrar no painel. UTMs legados ou externos na URL têm precedência e o site não sobrescreve a atribuição.
 
-O texto diário abre com `K-pop Quiz #N · <Jogo>`. `N` sai de `dailyChallengeNumber` em `web/src/lib/daily-challenge.ts`: dias corridos desde o primeiro `reference_date` publicado daquele jogo (`FIRST_DAILY_DATE`), contando o primeiro como `#1`. A data é a do artefato, então PT e EN e o replay do mesmo dia compartilham o mesmo número; jogo livre e datas anteriores ao marco saem sem `#N`. Os marcos iniciais foram conferidos no histórico de `web/public/data` e no `git log` (alguns artefatos de exemplo ou piloto ficam antes do primeiro dia publicado e, por isso, não numeram):
+O texto diário abre com `K-pop Quiz #N · <Jogo>`. `N` sai de `dailyChallengeNumber` em `web/src/lib/daily-challenge.ts`: dias corridos desde o primeiro `reference_date` publicado daquele jogo (`FIRST_DAILY_DATE`), contando o primeiro como `#1`. A data é a do artefato, então PT e EN e o replay do mesmo dia compartilham o mesmo número; jogo livre e datas anteriores ao marco saem sem `#N`.
 
-| Jogo | Primeiro dia (`FIRST_DAILY_DATE`) | Origem do marco |
-|---|---|---|
-| Grade | 2026-09-17 | Primeiro `grid.daily.json` |
-| Conexões | 2026-09-17 | Primeiro `connections.daily.json` |
-| Quiz | 2026-09-18 | Primeiro seed `kpop-daily-2026-09-18` |
-| Adivinhe | 2026-09-18 | Primeiro `name-guess.daily.json` |
-| Caça-palavras | 2026-09-18 | Primeiro `word-search.daily.json` |
-| Linha do Tempo | 2026-09-19 | Primeiro `timeline.daily.json` com essa data (o commit inicial ainda trazia 2026-09-20 de exemplo) |
-| Mapa | 2026-09-25 | Publicação do piloto DEADLINE |
-| Código | 2026-10-19 | Primeira publicação diária (`code-groups.daily.json`; o piloto usa 2026-10-12) |
-| Cruzadinha | 2026-10-31 | Primeiro `crossword.daily.json` |
+Regra do marco: o primeiro `reference_date` cujo artefato chegou à produção por um deploy do Pages (`pages.yml`) concluído com sucesso. Dados de exemplo ou de teste que nunca foram servidos não contam. Piloto conta quando foi servido em produção como o desafio do dia (o Código piloto ficou em rotas `noindex` e não conta; o Mapa piloto e a Cruzadinha com tabuleiro fixo contam).
 
-Os geradores que usam `withShareUrl` (Quiz/`ShareResult`, Grade, Conexões, Adivinhe, Caça-palavras, Mapa, Linha do Tempo) e os textos próprios de Código e Cruzadinha terminam com essa URL numa linha própria. O texto vai inteiro, com o link na última linha, tanto para o share sheet (`navigator.share({ text })`) quanto para a área de transferência e para o campo de cópia manual. Assim nenhum destino perde o link.
+| Jogo | `FIRST_DAILY_DATE` | Commit do artefato | Deploy Pages (sucesso) |
+|---|---|---|---|
+| Grade | 2026-09-17 | `90b11b1` (`grid.daily.json`) | `35260186186` (`2f4d4b18`, 2026-09-17) |
+| Conexões | 2026-09-17 | `09c06b7` (`connections.daily.json`) | `35298931000` (`1fe29fc9`, 2026-09-18) |
+| Quiz | 2026-09-18 | `ceada19` (seed `kpop-daily-2026-09-18`) | `35383644926` (`420ff469`, 2026-09-18) |
+| Adivinhe | 2026-09-18 | `4d51c0c` (`name-guess.daily.json`) | `35350238214` (`877fb780`, 2026-09-18) |
+| Caça-palavras | 2026-09-18 | `2e8bee1` (`word-search.daily.json`) | `35392477877` (`05107f06`, 2026-09-18) |
+| Linha do Tempo | 2026-09-19 | `8dafa85` (troca do exemplo `2026-09-20` pela data publicada) | `35483031694` (`a810d5a`, 2026-09-20) |
+| Mapa | 2026-09-25 | `9a2cffd` (piloto DEADLINE) | `36157926732` (`9a2cffd`, 2026-09-25) |
+| Código | 2026-10-19 | `8cf7d06` (`code-groups.daily.json`; piloto `2026-10-12` era `noindex`) | `39358063423` (`8cf7d06`, 2026-10-20) |
+| Cruzadinha | 2026-10-30 | `0632dae` (`crossword-publication.2026-10-30.json`, `state: played`, `source: pilot`) | Produção já servia o piloto pelo deploy `40971863532` (`96792bd`, 2026-10-29); o deploy do próprio `0632dae` foi cancelado. O primeiro `crossword.daily.json` (`2026-10-31`, `e4b2ee3`) só entrou num Pages bem-sucedido em `41719444183` (`d6a6a3e`, 2026-11-03) |
+
+Os geradores que usam `withShareUrl` (Quiz/`ShareResult`, Grade, Conexões, Adivinhe, Caça-palavras, Mapa, Linha do Tempo) e os textos próprios de Código e Cruzadinha terminam com essa URL numa linha própria. O texto vai inteiro, com o link na última linha, tanto para o share sheet (`navigator.share({ text })`) quanto para a área de transferência e para o campo de cópia manual.
+
+O `?s=` vive só na URL da visita. Se a pessoa navega para outra página antes de aceitar o banner, o parâmetro se perde e a campanha não é enviada; o site não grava `?s=` antes do consentimento de propósito.
 
 A homologação compartilha a mesma URL de produção. O link leva quem recebe ao jogo publicado, e o host da homologação tem `noindex` e dados de outra branch. O canonical da ADR 018 já usa esse host, e nenhum guard de homologação proíbe `kpopquiz.online` no `dist`.
 

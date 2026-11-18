@@ -107,8 +107,9 @@ for (const [locale, t] of Object.entries(locales)) {
         await crossGuard(page, RESULT_GUARD_MS + 1);
         await board.getByRole('button', { name: locale === 'pt' ? 'Compartilhar resultado' : 'Share result', exact: true }).click();
         await expect(board.locator('.share-preview')).toHaveValue(
-          locale === 'pt' ? /Cruzadinha de K-pop/ : /K-pop Crossword/,
+          locale === 'pt' ? /^K-pop Quiz #\d+ · Cruzadinha/m : /^K-pop Quiz #\d+ · Crossword/m,
         );
+        await expect(board.locator('.share-preview')).toHaveValue(/\?s=crossword/);
         await reloadPersisted(page);
         await expect(board.getByRole('heading', { name: locale === 'pt' ? 'Cruzadinha concluída!' : 'Crossword completed!' })).toBeVisible();
         await context.close();

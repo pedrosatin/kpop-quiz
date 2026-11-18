@@ -98,9 +98,9 @@ test("share falls back to a text field with the date and without answers", async
   const field = page.getByRole("textbox", { name: "Result text" });
   await expect(field).toBeVisible();
   const text = await field.inputValue();
-  expect(text).toContain("K-pop Crossword");
-  expect(text).toContain("utm_campaign=crossword");
-  expect(text).toContain(`K-pop Crossword ${dailyReferenceDate()}`);
+  expect(text.split("\n")[0]).toMatch(/^K-pop Quiz #\d+ · Crossword$/);
+  expect(text).toContain("?s=crossword");
+  expect(text).not.toContain("utm_");
   for (const e of entries) expect(text).not.toContain(e.answer);
 });
 

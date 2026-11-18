@@ -98,9 +98,10 @@ for (const locale of ["pt", "en"]) {
           await expect(page.getByTestId("game-result")).toBeVisible();
           await expectContained(page);
           await page.locator(".word-search-result-buttons > button").first().click();
-          await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain(
-            locale === "pt" ? "Caça-palavras de K-pop" : "K-pop Word Search",
+          await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(
+            locale === "pt" ? /^K-pop Quiz #\d+ · Caça-palavras/m : /^K-pop Quiz #\d+ · Word search/m,
           );
+          await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("?s=word-search");
           if (SHOTS) await page.screenshot({ path: testInfo.outputPath("victory.png") });
           await context.clearCookies();
           // A fresh board needs the day's record gone too: with the date counted

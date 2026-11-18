@@ -224,27 +224,27 @@ exports[`map characterization > pins the raw save written after each step 1`] = 
 
 exports[`map characterization > pins the share text of a win, a loss and a give-up in both languages 1`] = `
 {
-  "gaveUpEn": "K-pop Quiz · Map
+  "gaveUpEn": "K-pop Quiz #1 · Map
 3/10 dates right
 🟩🟩🟩⬛⬛⬛⬛⬛⬛⬛
 https://kpopquiz.online/en/map/?s=map",
-  "gaveUpPt": "K-pop Quiz · Mapa
+  "gaveUpPt": "K-pop Quiz #1 · Mapa
 3/10 datas certas
 🟩🟩🟩⬛⬛⬛⬛⬛⬛⬛
 https://kpopquiz.online/pt-br/mapa/?s=map",
-  "lostEn": "K-pop Quiz · Map
+  "lostEn": "K-pop Quiz #1 · Map
 4/10 dates right
 ⬛⬛⬛⬛⬛⬛🟩🟩🟩🟩
 https://kpopquiz.online/en/map/?s=map",
-  "lostPt": "K-pop Quiz · Mapa
+  "lostPt": "K-pop Quiz #1 · Mapa
 4/10 datas certas
 ⬛⬛⬛⬛⬛⬛🟩🟩🟩🟩
 https://kpopquiz.online/pt-br/mapa/?s=map",
-  "wonEn": "K-pop Quiz · Map
+  "wonEn": "K-pop Quiz #1 · Map
 10/10 dates right
 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 https://kpopquiz.online/en/map/?s=map",
-  "wonPt": "K-pop Quiz · Mapa
+  "wonPt": "K-pop Quiz #1 · Mapa
 10/10 datas certas
 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
 https://kpopquiz.online/pt-br/mapa/?s=map",

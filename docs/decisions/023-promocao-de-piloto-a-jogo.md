@@ -50,7 +50,7 @@ decididas em 2026-10-19.
 6. **Estatísticas locais, persistência e compartilhamento** (decisão de
    2026-10-19, vale para os graduados a partir de agora): jogo em
    `ALL_GAME_IDS` + `StatsTabs`, progresso no `localStorage` retomável e share
-   com `seoShareUrl` (`utm_campaign=<jogo>`).
+   com `seoShareUrl` (`?s=<jogo>`).
 7. **Pipeline de dados**: artefato diário gerado pelo
    `daily_puzzles_runner.py`, publicado em `next/` com troca atômica e
    verificação em `web_publish.py` (flag `--require-*` correspondente), entrada

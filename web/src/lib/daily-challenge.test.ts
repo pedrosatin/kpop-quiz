@@ -7,7 +7,7 @@ import { shareCampaignConfig, SEO_ROUTES, seoShareUrl, seoShareCampaign } from "
 
 describe("published daily challenge numbers", () => {
   it("pins the first reference dates from the artifact history", () => {
-    expect(FIRST_DAILY_DATE).toEqual({ quiz: "2026-09-18", grid: "2026-09-17", connections: "2026-09-17", nameGuess: "2026-09-18", wordSearch: "2026-09-18", timeline: "2026-09-19", mapPilot: "2026-09-25", code: "2026-10-19", crossword: "2026-10-31" });
+    expect(FIRST_DAILY_DATE).toEqual({ quiz: "2026-09-18", grid: "2026-09-17", connections: "2026-09-17", nameGuess: "2026-09-18", wordSearch: "2026-09-18", timeline: "2026-09-19", mapPilot: "2026-09-25", code: "2026-10-19", crossword: "2026-10-30" });
   });
   for (const game of Object.keys(FIRST_DAILY_DATE) as SeoRouteKey[]) {
     it(`${game}: first day, arbitrary day and replay use the artifact date`, () => {

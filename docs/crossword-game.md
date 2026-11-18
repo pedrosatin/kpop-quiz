@@ -152,10 +152,10 @@ repete eventos ao restaurar uma partida salva.
 
 ### Compartilhamento
 
-O texto traz "K-pop Crossword" com a data da grade, o veredito ("Resolvida em
-N verificações." ou "X de Y palavras certas antes de encerrar.") e um quadrado
-por palavra na ordem das pistas (🟩 palavra certa, ⬜ o resto). Não leva
-respostas, e o link usa `utm_campaign=crossword`.
+O texto abre com `K-pop Quiz #N · Cruzadinha` / `K-pop Quiz #N · Crossword`, o
+veredito ("Resolvida em N verificações." ou "X de Y palavras certas antes de
+encerrar.") e um quadrado por palavra na ordem das pistas (🟩 palavra certa, ⬜
+o resto). Não leva respostas, e o link usa `?s=crossword`.
 
 ## Arquivos
 

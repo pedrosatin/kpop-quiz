@@ -79,11 +79,11 @@ mostra o dia como concluído; um resultado restaurado do
 `game_complete`, `share`, deduplicados por partida e visita em
 `web/src/lib/game-analytics.ts`).
 
-O texto compartilhado traz a data, o veredito ("Código descoberto em N
-tentativas."), a linha de tentativas e uma linha de pegs por palpite (🟩
-exatos, 🟨 deslocados, ⬜ o resto), sem nenhum nome de grupo, e termina com o
-link do jogo no idioma do jogador
-(`utm_source=share&utm_medium=social&utm_campaign=code`).
+O texto compartilhado abre com `K-pop Quiz #N · Código` / `K-pop Quiz #N ·
+Code`, o veredito ("Código descoberto em N tentativas."), a linha de
+tentativas e uma linha de pegs por palpite (🟩 exatos, 🟨 deslocados, ⬜ o
+resto), sem nenhum nome de grupo, e termina com o link do jogo no idioma do
+jogador (`?s=code`).
 
 ## Arquivos
 

@@ -148,6 +148,38 @@ describe("ConsentBanner", () => {
     window.history.replaceState({}, "", "/");
   });
 
+  it("does not send campaign fields when the visitor rejects a short share link", async () => {
+    window.history.replaceState({}, "", "?s=quiz");
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    fireEvent.click(await screen.findByRole("button", { name: REJECT }));
+    expect(gaScripts()).toHaveLength(0);
+    expect((window as unknown as { dataLayer?: unknown }).dataLayer).toBeUndefined();
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("keeps the campaign when the visitor accepts after staying on the page", async () => {
+    window.history.replaceState({}, "", "/pt-br/conexoes/?s=connections");
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    expect(gaScripts()).toHaveLength(0);
+    fireEvent.click(await screen.findByRole("button", { name: ACCEPT }));
+    const layer = (window as unknown as { dataLayer: ArrayLike<unknown>[] }).dataLayer;
+    expect(Array.from(layer.at(-1)!)).toEqual(["config", GA_ID, {
+      campaign_source: "share", campaign_medium: "social", campaign_name: "connections",
+    }]);
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("maps ?s=quiz on another game route to the quiz campaign", async () => {
+    window.history.replaceState({}, "", "/pt-br/grade/?s=quiz");
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    fireEvent.click(await screen.findByRole("button", { name: ACCEPT }));
+    const layer = (window as unknown as { dataLayer: ArrayLike<unknown>[] }).dataLayer;
+    expect(Array.from(layer.at(-1)!)).toEqual(["config", GA_ID, {
+      campaign_source: "share", campaign_medium: "social", campaign_name: "quiz",
+    }]);
+    window.history.replaceState({}, "", "/");
+  });
+
   it("shows the banner and honors a choice for the visit when localStorage throws", async () => {
     throwOnLocalStorage();
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);

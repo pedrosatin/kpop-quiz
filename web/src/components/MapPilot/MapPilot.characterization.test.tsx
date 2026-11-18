@@ -562,13 +562,15 @@ describe("map characterization", () => {
   it("pins the share text of a win, a loss and a give-up in both languages", () => {
     const loss = round.map((event, i) => (i < 6 ? wrongFor(event).map_feature_id : event.map_feature_id));
     const gaveUp = rightAnswers.slice(0, 3);
+    // Share snapshots use the first published map day so the header carries #N.
+    const shareDate = "2026-09-25";
     expect({
-      wonPt: mapShareText(DATE, round, rightAnswers, "pt-BR"),
-      wonEn: mapShareText(DATE, round, rightAnswers, "en"),
-      lostPt: mapShareText(DATE, round, loss, "pt-BR"),
-      lostEn: mapShareText(DATE, round, loss, "en"),
-      gaveUpPt: mapShareText(DATE, round, gaveUp, "pt-BR"),
-      gaveUpEn: mapShareText(DATE, round, gaveUp, "en"),
+      wonPt: mapShareText(shareDate, round, rightAnswers, "pt-BR"),
+      wonEn: mapShareText(shareDate, round, rightAnswers, "en"),
+      lostPt: mapShareText(shareDate, round, loss, "pt-BR"),
+      lostEn: mapShareText(shareDate, round, loss, "en"),
+      gaveUpPt: mapShareText(shareDate, round, gaveUp, "pt-BR"),
+      gaveUpEn: mapShareText(shareDate, round, gaveUp, "en"),
     }).toMatchSnapshot();
   });
 });

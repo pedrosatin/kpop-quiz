@@ -968,15 +968,15 @@ describe("map pilot result", () => {
   const EN_URL = "https://kpopquiz.online/en/map/?s=map";
 
   it("builds a short share text with the round date and the game link", () => {
-    // DATE is one day before the first published map challenge, so there is no #N.
-    expect(mapShareText(DATE, round, oneWrong, "pt-BR")).toBe(
-      `K-pop Quiz · Mapa\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
+    // Snapshots of the numbered header use the first published map day.
+    expect(mapShareText("2026-09-25", round, oneWrong, "pt-BR")).toBe(
+      `K-pop Quiz #1 · Mapa\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
     );
-    expect(mapShareText(DATE, round, rightAnswers, "en")).toBe(
-      `K-pop Quiz · Map\n10/10 dates right\n${"🟩".repeat(10)}\n${EN_URL}`,
+    expect(mapShareText("2026-09-25", round, rightAnswers, "en")).toBe(
+      `K-pop Quiz #1 · Map\n10/10 dates right\n${"🟩".repeat(10)}\n${EN_URL}`,
     );
-    expect(mapShareText("2026-09-25", round, rightAnswers, "pt-BR")).toMatch(
-      /^K-pop Quiz #1 · Mapa\n/,
+    expect(mapShareText(DATE, round, rightAnswers, "pt-BR")).toMatch(
+      /^K-pop Quiz · Mapa\n/,
     );
   });
 

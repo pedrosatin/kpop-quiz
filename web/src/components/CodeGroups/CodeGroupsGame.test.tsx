@@ -408,9 +408,10 @@ describe("CodeGroups share", () => {
       { ids: puzzle.secret.slice(1).concat(puzzle.secret.slice(0, 1)), exact: 0, misplaced: 4 },
       { ids: [...puzzle.secret], exact: 4, misplaced: 0 },
     ];
-    const text = generateShareText(puzzle, history, "pt-BR");
-    expect(text).toContain("K-pop Quiz · Código");
-    expect(text).not.toMatch(/K-pop Quiz #\d+/);
+    // Pilot fixture keeps 2026-10-12; share snapshots use the first published daily date.
+    const dailyPuzzle = { ...puzzle, reference_date: "2026-10-19" };
+    const text = generateShareText(dailyPuzzle, history, "pt-BR");
+    expect(text).toContain("K-pop Quiz #1 · Código");
     expect(text).toContain(pt.codeShareWon(2));
     expect(text).toContain(pt.codeShareAttemptsLine(2));
     expect(text).toContain("🟨🟨🟨🟨");
@@ -422,8 +423,10 @@ describe("CodeGroups share", () => {
     for (const symbol of puzzle.symbols) {
       expect(text).not.toContain(symbol.name);
     }
-    const en = generateShareText(puzzle, history, "en");
+    const en = generateShareText(dailyPuzzle, history, "en");
+    expect(en).toContain("K-pop Quiz #1 · Code");
     expect(en).toContain("Code solved in 2 attempts.");
+    expect(generateShareText(puzzle, history, "pt-BR")).toContain("K-pop Quiz · Código");
   });
 
   it("copies the result text through the clipboard and announces it", async () => {

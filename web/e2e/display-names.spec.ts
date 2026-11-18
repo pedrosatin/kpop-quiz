@@ -64,8 +64,9 @@ for (const lag of ["normal", "delayed effects"] as const) {
     await crossGuard(page, RESULT_GUARD_MS + 100);
     await page.getByRole("button", { name: "Compartilhar resultado" }).click();
     const text = await page.getByRole("textbox").inputValue();
-    expect(text.split("\n")[0]).toMatch(/^Conexões de K-pop \d{4}-\d{2}-\d{2}$/);
-    expect(text).toContain("utm_campaign=connections");
+    expect(text.split("\n")[0]).toMatch(/^K-pop Quiz #\d+ · Conexões$/);
+    expect(text).toContain("?s=connections");
+    expect(text).not.toContain("utm_");
     expect(text).not.toContain("K-pop Connections");
     expect(text).not.toMatch(/\((grupo|banda|group|band)[^)]*\)/i);
   });

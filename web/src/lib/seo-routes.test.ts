@@ -91,7 +91,7 @@ describe("share URLs", () => {
       const url = new URL(seoShareUrl(route.key, route.locale));
       expect(`${url.origin}${url.pathname}`).toBe(seoAbsoluteUrl(route.path));
       expect([...url.searchParams.keys()]).toEqual(["s"]);
-      
+
       const campaign = url.searchParams.get("s")!;
       expect(campaign).toMatch(/^[a-z-]+$/);
       expect(campaigns.get(route.key) ?? campaign).toBe(campaign);

@@ -12,7 +12,7 @@ exports[`code characterization > pins the raw save written after each step 1`] =
 
 exports[`code characterization > pins the share text of a win and a loss in both languages 1`] = `
 {
-  "lostEn": "K-pop Quiz · Code
+  "lostEn": "K-pop Quiz #1 · Code
 Code not found in 10 attempts.
 Attempts: 10
 
@@ -27,7 +27,7 @@ Attempts: 10
 🟨🟨🟨🟨
 🟨🟨🟨🟨
 https://kpopquiz.online/en/code/?s=code",
-  "lostPt": "K-pop Quiz · Código
+  "lostPt": "K-pop Quiz #1 · Código
 Código não descoberto nas 10 tentativas.
 Tentativas: 10
 
@@ -42,14 +42,14 @@ Tentativas: 10
 🟨🟨🟨🟨
 🟨🟨🟨🟨
 https://kpopquiz.online/pt-br/codigo/?s=code",
-  "wonEn": "K-pop Quiz · Code
+  "wonEn": "K-pop Quiz #1 · Code
 Code solved in 2 attempts.
 Attempts: 2
 
 🟩🟨🟨⬜
 🟩🟩🟩🟩
 https://kpopquiz.online/en/code/?s=code",
-  "wonPt": "K-pop Quiz · Código
+  "wonPt": "K-pop Quiz #1 · Código
 Código descoberto em 2 tentativas.
 Tentativas: 2
 
