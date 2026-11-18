@@ -6,6 +6,7 @@ import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { Locale, PlayMode, QuizOption, QuizQuestion, QuizSession } from "../src/lib/quiz-types";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 import { skipUnlessPublished } from "./helpers/published";
 import { CONSENT_BUILD, SITE_BUILD_FIXTURE_TIMEOUT_MS, serveSiteBuild, type SiteBuild } from "./fixtures/site-builds";
 import { LOCAL_BUILD_TAG } from "./target";
@@ -241,7 +242,8 @@ for (const locale of locales)
           await skipUnlessPublished(page, consentURL, scenario.tomorrow ? "next/manifest-v2.json" : "manifest-v2.json");
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
           await context.route("**/*", (route) => new URL(route.request().url()).origin === consentURL ? route.continue() : route.abort());
-          if (scenario.tomorrow) await page.clock.setFixedTime(Date.now() + 36 * 3_600_000);
+          // A clock that keeps running in real time; the Next guard is crossed by jumping it.
+          await installGuardClock(page, scenario.tomorrow ? Date.now() + 36 * 3_600_000 : undefined);
           // Only the decade round may come from the catalog; the daily game always reads its published session.
           const catalog = scenario.name === "decade-2000";
           const fetched = await openSession(page, consentURL, locale.path, mode, scenario.query, catalog, { state: consent, reject: locale.reject });
@@ -305,7 +307,7 @@ for (const locale of locales)
               await expect(source.locator("a").first()).toHaveAttribute("href", question.clues_available[0]!.evidence[0]!.source_url);
             }
             expectedScore += question.base_points - cost;
-            await page.waitForTimeout(NEXT_GUARD_MS + 50);
+            await crossGuard(page, NEXT_GUARD_MS + 50);
             await advance.click();
             if (index < session.questions.length - 1) {
               await expect(board.locator(".quiz-hud .hud-item").filter({ hasText: /Pontos:|Score:/ }).locator("strong")).toHaveText(String(expectedScore));
@@ -380,6 +382,8 @@ test.describe("a decade round keeps its clue state after a reload", () => {
  */
 test("quiz pt standard daily on the target site: clue states follow the served session and a reload resumes it", async ({ page, baseURL }) => {
   await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
+  // Runs in the browser, so it also works against the published site.
+  await installGuardClock(page);
   const locale = locales[0];
   const fetched = await openSession(page, baseURL!, locale.path, "standard", "theme=daily", false);
   test.info().annotations.push({ type: "url", description: page.url() });
@@ -414,7 +418,7 @@ test("quiz pt standard daily on the target site: clue states follow the served s
     await expectClueState(first!, true);
   }
   const advance = await answerCorrectly(page, first!, locale);
-  await page.waitForTimeout(NEXT_GUARD_MS + 50);
+  await crossGuard(page, NEXT_GUARD_MS + 50);
   await advance.click();
   await expect(heading).toHaveText(second!.prompt);
   await expectClueState(second!, false);

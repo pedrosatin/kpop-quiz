@@ -3,6 +3,7 @@ import { expect } from "@playwright/test";
 import { NEXT_GUARD_MS } from "../../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectQuizBoardVisible, expectQuizSetupReady } from "../helpers/boot";
+import { crossGuard } from "../helpers/guard-clock";
 import { skipUnlessPublished } from "../helpers/published";
 
 /** Buffer past AnswerFeedback NEXT_GUARD_MS so early clicks are not swallowed. */
@@ -65,7 +66,7 @@ export class QuizPage {
 
     const advance = board.getByRole("button", { name: /Próxima pergunta|Ver resultado/ });
     await expect(advance).toBeVisible();
-    await this.page.waitForTimeout(NEXT_CLICK_WAIT_MS);
+    await crossGuard(this.page, NEXT_CLICK_WAIT_MS);
     await advance.click();
   }
 

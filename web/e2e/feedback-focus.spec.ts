@@ -6,6 +6,7 @@ import type { Page, Route } from "@playwright/test";
 import type { QuizSession } from "../src/lib/quiz-types";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { expect, test } from "./fixtures/feedback-build";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 import { LOCAL_BUILD_TAG } from "./target";
 
 const dataDir = fileURLToPath(new URL("../src/tests/fixtures/", import.meta.url));
@@ -34,6 +35,7 @@ async function settleEffects(page: Page) {
 
 for (const scenario of ["normal", "moved while pending", "external before programmatic click"] as const) {
   test(`feedback focus: ${scenario}`, { tag: LOCAL_BUILD_TAG }, async ({ page, feedbackURL }) => {
+    await installGuardClock(page);
     const count = await sessionFixture(page);
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
@@ -50,7 +52,7 @@ for (const scenario of ["normal", "moved while pending", "external before progra
       const board = page.getByTestId("game-board");
       await board.locator("label.option").first().click();
       await board.getByRole("button", { name: "Responder", exact: true }).click();
-      await page.waitForTimeout(NEXT_GUARD_MS + 50);
+      await crossGuard(page, NEXT_GUARD_MS + 50);
       await board.getByRole("button", { name: /Próxima pergunta|Ver resultado/ }).click();
     }
     await expect(page.getByTestId("game-result")).toBeVisible();

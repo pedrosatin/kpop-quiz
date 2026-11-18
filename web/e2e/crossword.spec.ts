@@ -1,8 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { RESULT_GUARD_MS } from "../src/components/Results/use-result-action-guard";
 import { dailyReferenceDate } from "../src/data/daily-artifact";
 import { buildCrosswordDaily, buildCrosswordOmissionRecord, buildOmittedCrosswordDaily } from "../src/test/crossword-daily-fixture";
 import { crosswordDaily, pilotBoard, routeCrosswordDaily } from "./helpers/crossword-daily";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 import { delayPassiveEffects, settleEffects } from "./helpers/passive-effects";
 import { gamePlayed } from "./helpers/player-stats";
 
@@ -81,6 +83,7 @@ for (const lag of ["normal", "delayed effects"] as const) {
 }
 
 test("share falls back to a text field with the date and without answers", async ({ page, baseURL }) => {
+  await installGuardClock(page);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
     Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
@@ -90,7 +93,7 @@ test("share falls back to a text field with the date and without answers", async
   await page.getByRole("button", { name: copy.en.confirmReveal }).click();
   await expect(page.getByRole("heading", { name: copy.en.revealed })).toBeVisible();
   // Result buttons ignore presses for 300 ms after they replace the controls.
-  await page.waitForTimeout(400);
+  await crossGuard(page, RESULT_GUARD_MS + 100);
   await page.getByRole("button", { name: copy.en.share }).click();
   const field = page.getByRole("textbox", { name: "Result text" });
   await expect(field).toBeVisible();

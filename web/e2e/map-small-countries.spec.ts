@@ -1,6 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 
 // Each test opens its own page and writes nowhere shared, so the file can
 // spread its tests across workers (see playwright.config.ts).
@@ -34,6 +35,8 @@ const SMALL = [
 ] as const;
 
 async function openMap(page: Page) {
+  // The map guards (zoom, Next) are crossed by moving the page clock.
+  await installGuardClock(page);
   await page.addInitScript((key) => window.localStorage.setItem(key, "rejected"), CONSENT_STORAGE_KEY);
   await page.goto("/pt-br/mapa/");
   // The targets render once the map box is measured.
@@ -55,7 +58,7 @@ async function zoomOn(page: Page, id: string) {
   const { x, y } = await center(target(page, id));
   await page.touchscreen.tap(x, y);
   await expect(page.locator(".map-pilot-zoom-out")).toBeVisible();
-  await page.waitForTimeout(ZOOM_GUARD_WAIT_MS);
+  await crossGuard(page, ZOOM_GUARD_WAIT_MS);
 }
 
 /**
@@ -207,7 +210,7 @@ for (const phone of phones) {
       await page.locator(".map-pilot-actions .btn-primary").tap();
       const next = page.locator(".map-pilot-actions .btn-primary");
       await expect(next).toHaveText(/Próxima data|Ver resultado/);
-      await page.waitForTimeout(NEXT_GUARD_WAIT_MS);
+      await crossGuard(page, NEXT_GUARD_WAIT_MS);
       await next.tap();
       await expect(page.locator(".map-pilot-progress")).toHaveText("Pergunta 2 de 10");
 

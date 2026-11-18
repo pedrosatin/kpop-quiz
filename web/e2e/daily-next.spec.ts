@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures/consent";
+import { installGuardClock } from "./helpers/guard-clock";
 import { ConnectionsPage } from "./pages/connections.page";
 
 // The end of a daily game: the countdown to the next challenge, the next
@@ -6,6 +7,7 @@ import { ConnectionsPage } from "./pages/connections.page";
 for (const viewport of [{ width: 1280, height: 800 }, { width: 360, height: 800 }]) {
   test(`connections ends with the countdown and the next game (${viewport.width}px)`, async ({ page, baseURL }) => {
     test.setTimeout(90_000);
+    await installGuardClock(page);
     await page.setViewportSize(viewport);
     const connections = new ConnectionsPage(page, baseURL!);
     await connections.open();

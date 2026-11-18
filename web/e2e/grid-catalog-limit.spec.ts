@@ -3,6 +3,7 @@ import { loadPreferNextDaily } from "./helpers/daily-artifact";
 import { visibleLabels } from "./helpers/visible-names";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { CELL_GUARD_MS } from "../src/components/Grid/next-cell-after-guess";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 import { reloadPersisted } from "./helpers/passive-effects";
 
 type Grid = {
@@ -42,6 +43,7 @@ const viewports = [
 for (const locale of locales)
   for (const viewport of viewports) {
     test(`grid ${locale.id} ${viewport.name}: a refused guess explains the catalog, keeps the guess spent and hides the answers`, async ({ page, request, baseURL }) => {
+      await installGuardClock(page);
       const grid = await loadPreferNextDaily<Grid & { reference_date: string }>(request, baseURL!, "grid.daily.json");
       const cell = grid.cells.find((c) => c.row_index === 0 && c.col_index === 0)!;
       const labels = visibleLabels(
@@ -106,7 +108,7 @@ for (const locale of locales)
       await reloadPersisted(page);
       await expect(board).toBeVisible();
       await expect(page.locator(".grid-progress")).toContainText(locale.left);
-      await page.waitForTimeout(CELL_GUARD_MS + 100);
+      await crossGuard(page, CELL_GUARD_MS + 100);
       await giveUp.click();
       await page.getByRole("button", { name: locale.confirm }).click();
       await expect(page.locator(".grid-result")).toBeVisible();

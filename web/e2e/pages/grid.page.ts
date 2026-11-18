@@ -3,6 +3,7 @@ import { expect } from "@playwright/test";
 import { CELL_GUARD_MS } from "../../src/components/Grid/next-cell-after-guess";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
+import { crossGuard } from "../helpers/guard-clock";
 
 const GRID_PATH = "/pt-br/grid/";
 /** Buffer past CELL_GUARD_MS so the next cell click is not swallowed. */
@@ -60,7 +61,7 @@ export class GridPage {
           // Cells ignore pointer clicks for CELL_GUARD_MS after a guess, so
           // wait it out before clicking the next cell.
           await expect(listbox).toBeHidden();
-          await this.page.waitForTimeout(CELL_CLICK_WAIT_MS);
+          await crossGuard(this.page, CELL_CLICK_WAIT_MS);
           picked = true;
           break;
         }

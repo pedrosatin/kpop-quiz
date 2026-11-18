@@ -5,6 +5,7 @@ import { quizProgressStorageKey } from "../src/components/Quiz/storage";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { Locale } from "../src/lib/quiz-types";
 import { gamePlayed } from "./helpers/player-stats";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 import { skipUnlessPublished } from "./helpers/published";
 
 /**
@@ -60,7 +61,8 @@ test.beforeEach(async ({ page, baseURL }) => {
   const session = await (await page.request.get(joinBaseUrl(baseURL!, `/data/${entry.path}`))).json();
   const date = /^kpop-daily-(\d{4}-\d{2}-\d{2})$/.exec(session.config.seed)?.[1];
   test.skip(!date, "the daily session has no dated seed");
-  await page.clock.setFixedTime(new Date(`${date}T15:00:00Z`));
+  // The daily game keys on the date; the clock starts on the published day and keeps running.
+  await installGuardClock(page, new Date(`${date}T15:00:00Z`));
   await page.setViewportSize({ width: 360, height: 800 });
 });
 
@@ -72,7 +74,7 @@ async function answer(page: Page, locale: Locale, count: number) {
     await board.getByRole("button", { name: copy[locale].submit }).click();
     const advance = board.getByRole("button", { name: copy[locale].next });
     await expect(advance).toBeVisible();
-    await page.waitForTimeout(NEXT_GUARD_MS + 50);
+    await crossGuard(page, NEXT_GUARD_MS + 50);
     await advance.click();
   }
 }

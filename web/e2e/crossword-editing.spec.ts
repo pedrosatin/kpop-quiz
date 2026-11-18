@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { joinBaseUrl } from '../src/lib/join-base-url';
+import { crossGuard, installGuardClock } from './helpers/guard-clock';
 import { reloadPersisted, settleEffects } from './helpers/passive-effects';
 import { gamePlayed } from './helpers/player-stats';
 import { RESULT_GUARD_MS } from '../src/components/Results/use-result-action-guard';
@@ -50,6 +51,7 @@ for (const [locale, t] of Object.entries(locales)) {
           Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
         });
         const page = await context.newPage();
+        await installGuardClock(page);
         await page.goto(joinBaseUrl(baseURL!, prefix + t.path));
         await expect(page.locator('#crossword input')).toHaveCount(11);
         // Builds without analytics configuration have no consent banner.
@@ -102,7 +104,7 @@ for (const [locale, t] of Object.entries(locales)) {
         await expect(board.locator('.crossword-source a[href*="oldid="]')).toHaveCount(puzzle.entries.flatMap((e: { sources: unknown[] }) => e.sources).length);
         for (const entry of puzzle.entries) await expect(board.locator('.crossword-source')).toContainText(entry.sources[0].snippet);
         // Read source URLs without visiting any third party.
-        await page.waitForTimeout(RESULT_GUARD_MS + 1);
+        await crossGuard(page, RESULT_GUARD_MS + 1);
         await board.getByRole('button', { name: locale === 'pt' ? 'Compartilhar resultado' : 'Share result', exact: true }).click();
         await expect(board.locator('.share-preview')).toHaveValue(
           locale === 'pt' ? /Cruzadinha de K-pop/ : /K-pop Crossword/,

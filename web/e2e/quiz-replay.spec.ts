@@ -5,6 +5,7 @@ import { expect, type Page } from "@playwright/test";
 import { test } from "./fixtures/consent";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 import { skipUnlessPublished } from "./helpers/published";
 
 // Each test opens its own page and writes nowhere shared, so the file can
@@ -54,7 +55,7 @@ async function answerAll(page: Page, submit: string, next: RegExp) {
     await board.getByRole("button", { name: submit }).click();
     const advance = board.getByRole("button", { name: next });
     await expect(advance).toBeVisible();
-    await page.waitForTimeout(NEXT_GUARD_MS + 50);
+    await crossGuard(page, NEXT_GUARD_MS + 50);
     await advance.click();
     if (await page.getByTestId("game-result").isVisible()) return;
   }
@@ -68,6 +69,7 @@ for (const locale of [
   for (const viewport of viewports) {
     test(`catalog replay changes the set (${locale.id}, ${viewport.name})`, async ({ page, baseURL }) => {
       test.setTimeout(90_000);
+      await installGuardClock(page);
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await fulfillCatalog(page);
       await page.goto(joinBaseUrl(baseURL!, locale.path));
@@ -133,6 +135,7 @@ for (const locale of [
 ] as const) {
   test(`missing catalog falls back to legacy sessions and says so beside Play again (${locale.id})`, async ({ page, baseURL }) => {
     test.setTimeout(90_000);
+    await installGuardClock(page);
     await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
     await page.route("**/data/catalog-manifest-v1.json", (route) =>
       route.fulfill({ status: 404, body: "" }),
