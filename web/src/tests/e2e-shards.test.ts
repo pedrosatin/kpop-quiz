@@ -236,6 +236,7 @@ describe("e2e shards", () => {
     const [test] = collectTests(listing({ "a.spec.ts": ["group › case"] }));
     expect(testListLine(test!)).toBe("[chromium] › a.spec.ts › group › case");
     expect(() => testListLine({ ...test!, titles: ["case "] })).toThrow();
+    expect(() => testListLine({ ...test!, titles: ["a \u203a b"] })).toThrow();
   });
 
   it("recognizes a file in parallel mode only at the top level", () => {

@@ -617,7 +617,7 @@ class E2EShardsTests(unittest.TestCase):
     def test_only_a_green_master_run_records_durations_under_the_fetched_name(self):
         condition = f"{self.ON_MASTER} && needs.e2e.result == 'success'"
         record = dict(job_steps(self.PAGES.read_text(encoding="utf-8"), "e2e-report"))["Record test durations"]
-        self.assertIn(f"\n        if: {condition}\n", record)
+        self.assertIn(f"\n        if: {condition}\n", record.split("\n      - ", 1)[0])
         upload = self.report.split("uses: actions/upload-artifact@")[2]
         self.assertIn(f"\n        if: {condition}\n", upload)
         self.assertIn("name: e2e-durations\n", upload)
