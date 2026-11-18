@@ -24,19 +24,19 @@ Depois do consentimento, `ConsentBanner` lê `?s=` e chama `gtag("config", …)`
 
 O texto diário abre com `K-pop Quiz #N · <Jogo>`. `N` sai de `dailyChallengeNumber` em `web/src/lib/daily-challenge.ts`: dias corridos desde o primeiro `reference_date` publicado daquele jogo (`FIRST_DAILY_DATE`), contando o primeiro como `#1`. A data é a do artefato, então PT e EN e o replay do mesmo dia compartilham o mesmo número; jogo livre e datas anteriores ao marco saem sem `#N`.
 
-Regra do marco: o primeiro `reference_date` cujo artefato chegou à produção por um deploy do Pages (`pages.yml`) concluído com sucesso. Dados de exemplo ou de teste que nunca foram servidos não contam. Piloto conta quando foi servido em produção como o desafio do dia (o Código piloto ficou em rotas `noindex` e não conta; o Mapa piloto e a Cruzadinha com tabuleiro fixo contam).
+Regra do marco: o primeiro `reference_date` cujo artefato chegou à produção por um deploy do Pages (`pages.yml`) concluído com sucesso. Conta só o dia servido como desafio datado. Dados de exemplo e pilotos em rotas `noindex` ou sem data no share não contam: o Código piloto e a Cruzadinha com tabuleiro fixo (`/cruzadinha-piloto/`) ficam de fora; o Mapa conta porque o piloto de 2026-09-25 já era o desafio datado do dia. Exceção registrada: o exemplo `2026-09-20` da Linha do Tempo ficou cerca de 25 minutos no ar (deploy `35481962330`, `4ef5ba26`) antes do artefato de 2026-09-19 e não conta. As datas de deploy da tabela estão em UTC.
 
 | Jogo | `FIRST_DAILY_DATE` | Commit do artefato | Deploy Pages (sucesso) |
 |---|---|---|---|
 | Grade | 2026-09-17 | `90b11b1` (`grid.daily.json`) | `35260186186` (`2f4d4b18`, 2026-09-17) |
 | Conexões | 2026-09-17 | `09c06b7` (`connections.daily.json`) | `35298931000` (`1fe29fc9`, 2026-09-18) |
-| Quiz | 2026-09-18 | `ceada19` (seed `kpop-daily-2026-09-18`) | `35383644926` (`420ff469`, 2026-09-18) |
+| Quiz | 2026-09-18 | `ceada19` (seed `kpop-daily-2026-09-18`) | `35363750149` (`c6d553cb`, 2026-09-18) |
 | Adivinhe | 2026-09-18 | `4d51c0c` (`name-guess.daily.json`) | `35350238214` (`877fb780`, 2026-09-18) |
 | Caça-palavras | 2026-09-18 | `2e8bee1` (`word-search.daily.json`) | `35392477877` (`05107f06`, 2026-09-18) |
 | Linha do Tempo | 2026-09-19 | `8dafa85` (troca do exemplo `2026-09-20` pela data publicada) | `35483031694` (`a810d5a`, 2026-09-20) |
 | Mapa | 2026-09-25 | `9a2cffd` (piloto DEADLINE) | `36157926732` (`9a2cffd`, 2026-09-25) |
 | Código | 2026-10-19 | `8cf7d06` (`code-groups.daily.json`; piloto `2026-10-12` era `noindex`) | `39358063423` (`8cf7d06`, 2026-10-20) |
-| Cruzadinha | 2026-10-30 | `0632dae` (`crossword-publication.2026-10-30.json`, `state: played`, `source: pilot`) | Produção já servia o piloto pelo deploy `40971863532` (`96792bd`, 2026-10-29); o deploy do próprio `0632dae` foi cancelado. O primeiro `crossword.daily.json` (`2026-10-31`, `e4b2ee3`) só entrou num Pages bem-sucedido em `41719444183` (`d6a6a3e`, 2026-11-03) |
+| Cruzadinha | 2026-11-03 | `d6a6a3e` (`crossword.daily.json`, `reference_date` 2026-11-03) | `41719444183` (`d6a6a3e`, 2026-11-03); os artefatos de `0632dae` (registro `crossword-publication.2026-10-30.json`, sem tabuleiro) e `e4b2ee3` (10-31) e os deploys seguintes até 11-02 (`41232989774`, `41290699256`, `41342719890`) não chegaram ao ar |
 
 Os geradores que usam `withShareUrl` (Quiz/`ShareResult`, Grade, Conexões, Adivinhe, Caça-palavras, Mapa, Linha do Tempo) e os textos próprios de Código e Cruzadinha terminam com essa URL numa linha própria. O texto vai inteiro, com o link na última linha, tanto para o share sheet (`navigator.share({ text })`) quanto para a área de transferência e para o campo de cópia manual.
 
