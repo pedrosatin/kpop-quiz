@@ -50,6 +50,7 @@ from kpop_scraping.quiz_schema import validate_session
 from kpop_scraping.timeline_schema import compute_timeline_puzzle_id, validate_timeline_puzzle
 from kpop_scraping.web_publish import DAILY_GAME_FILES, verify_artifacts
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
+from tests.daily_fixtures import published_set, reuse_quiz
 from tests.test_board_swap_gate import commit_data, init_repo
 
 
@@ -407,6 +408,15 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
+    def published(self, output_dir, *runs):
+        """Copy the set ``runs`` publish into ``output_dir`` (see tests.daily_fixtures).
+
+        The runs of the test itself reuse the quiz, so only the game under
+        test fails or changes. Returns the results of ``runs``.
+        """
+        reuse_quiz(self)
+        return published_set(output_dir, self.db_path, *runs)
+
     def test_get_reference_date(self):
         # Default (None) returns ISO date format YYYY-MM-DD
         default_date = get_reference_date()
@@ -562,7 +572,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_verify_mode(self):
         output_dir = self.temp_path / "verify_target"
-        run_daily_puzzles(self.db_path, output_dir, reference_date="2026-09-18")
+        self.published(output_dir, dict(reference_date="2026-09-18"))
 
         # verify_only succeeds on valid directory
         verify_res = run_daily_puzzles(output_dir=output_dir, verify_only=True)
@@ -584,11 +594,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_grid_generation_failure_keeps_previous_artifact(self):
         output_dir = self.temp_path / "public_data"
-        first = run_daily_puzzles(
-            database=self.db_path,
-            output_dir=output_dir,
-            reference_date="2026-09-18",
-        )
+        [first] = self.published(output_dir, dict(reference_date="2026-09-18"))
         previous_grid = (output_dir / "grid.daily.json").read_bytes()
         self.assertTrue(previous_grid)
 
@@ -615,7 +621,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         """Labels are display text: reuse neither rewrites them nor rejects the grid."""
         output_dir = self.temp_path / "legacy_wording"
         # The fixture draws a decade axis on 2026-09-19.
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-19")
+        self.published(output_dir, dict(reference_date="2026-09-19"))
         grid_file = output_dir / "grid.daily.json"
         grid = json.loads(grid_file.read_text(encoding="utf-8"))
         decades = [
@@ -651,7 +657,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_grid_generation_failure_with_invalid_previous_publishes_without_grid(self):
         output_dir = self.temp_path / "invalid_previous_grid"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        self.published(output_dir, dict(reference_date="2026-09-18"))
 
         # Mirror the 2026-09-27 incident: the stored grid predates the
         # axis-orthogonality rule, so the has_member criterion is copied
@@ -702,7 +708,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         # the result records the absence, while the other six games still
         # carry the new reference date.
         output_dir = self.temp_path / "code_groups_failure"
-        first = run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        [first] = self.published(output_dir, dict(reference_date="2026-09-18"))
         self.assertTrue(first["code_groups_id"])
 
         with patch(
@@ -750,10 +756,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_cli_warns_in_github_actions_when_group_code_is_skipped(self):
         out_dir = self.temp_path / "cli_skipped_code_groups"
-        self.assertEqual(
-            daily_puzzles_cli.main(["--database", str(self.db_path), "--output-dir", str(out_dir), "--date", "2026-09-18"]),
-            0,
-        )
+        self.published(out_dir, dict(reference_date="2026-09-18"))
         stdout, stderr = io.StringIO(), io.StringIO()
         with patch(
             "kpop_scraping.daily_puzzles_runner.generate_code_groups_puzzle",
@@ -773,6 +776,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         # Before the skip policy this raised ValueError and the whole day
         # went unpublished.
         output_dir = self.temp_path / "no_previous_grid"
+        reuse_quiz(self)
         with patch(
             "kpop_scraping.daily_puzzles_runner.generate_daily_grid",
             side_effect=ValueError("Unable to generate a solvable 3x3 intersection grid"),
@@ -799,7 +803,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_gridless_next_day_promotes_and_removes_stale_grid(self):
         output_dir = self.temp_path / "promote_without_grid"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        self.published(output_dir, dict(reference_date="2026-09-18"))
 
         # An invalid stored grid leaves both the day and its next/ set
         # without grid.daily.json.
@@ -889,9 +893,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_promotion_replaces_a_grid_the_current_policy_no_longer_admits(self):
         output_dir = self.temp_path / "promote_incompatible"
-        run_daily_puzzles(
-            database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True
-        )
+        self.published(output_dir, dict(reference_date="2026-09-18", ahead=True))
         stale = json.loads((output_dir / "next" / "grid.daily.json").read_text(encoding="utf-8"))
         group = self._member_answer(stale)
         database = self._database_without_roster_proof("promote.db", group)
@@ -918,9 +920,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_kept_day_replaces_an_incompatible_grid_and_keeps_a_compatible_one(self):
         output_dir = self.temp_path / "keep_incompatible"
-        first = run_daily_puzzles(
-            database=self.db_path, output_dir=output_dir, reference_date="2026-09-18"
-        )
+        [first] = self.published(output_dir, dict(reference_date="2026-09-18"))
         stale_bytes = (output_dir / "grid.daily.json").read_bytes()
         # An unrelated historical marker cannot block today's other artifacts.
         (output_dir / "grid-publication.2000-01-01.json").write_text('{"schema_version":"invalid"}')
@@ -949,9 +949,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         output_dir = repo / "data"
         repo.mkdir()
         init_repo(repo)
-        first = run_daily_puzzles(
-            database=self.db_path, output_dir=output_dir, reference_date="2026-09-18"
-        )
+        [first] = self.published(output_dir, dict(reference_date="2026-09-18"))
         self.assertEqual(first["board_swaps"], [])
         commit_data(repo)
         group = self._member_answer(json.loads((output_dir / "grid.daily.json").read_text()))
@@ -976,7 +974,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_kept_day_drops_an_incompatible_grid_when_none_can_be_generated(self):
         output_dir = self.temp_path / "keep_dropped"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        self.published(output_dir, dict(reference_date="2026-09-18"))
         connections = (output_dir / "connections.daily.json").read_bytes()
         database = self._database_without_roster_proof("dropped.db")
 
@@ -995,7 +993,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_promotion_failure_removes_rejected_next_and_publishes_tombstone(self):
         output_dir = self.temp_path / "promotion_failure"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        self.published(output_dir, dict(reference_date="2026-09-18", ahead=True))
         next_dir = output_dir / "next"
         # daily-set.json changes too: it records the grid the day lost.
         other_bytes = {
@@ -1022,7 +1020,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_generation_failure_does_not_reuse_a_grid_the_current_policy_rejects(self):
         output_dir = self.temp_path / "fallback_incompatible"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        self.published(output_dir, dict(reference_date="2026-09-18"))
         previous = (output_dir / "grid.daily.json").read_bytes()
         database = self._database_without_roster_proof("fallback.db")
 
@@ -1089,7 +1087,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_ahead_run_publishes_neither_day_with_a_rejected_grid(self):
         output_dir = self.temp_path / "ahead_fallback"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        self.published(output_dir, dict(reference_date="2026-09-18"))
         database = self._database_without_roster_proof("ahead.db")
 
         with redirect_stderr(io.StringIO()):
@@ -1125,7 +1123,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_next_run_promotes_the_set_published_ahead(self):
         output_dir = self.temp_path / "promote"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        self.published(output_dir, dict(reference_date="2026-09-18", ahead=True))
         ahead_files = {
             path.name: path.read_bytes() for path in (output_dir / "next").iterdir() if path.is_file()
         }
@@ -1181,7 +1179,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_promotes_a_v1_timeline_published_before_the_v2_bump(self):
         output_dir = self.temp_path / "promote-v1"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        self.published(output_dir, dict(reference_date="2026-09-18", ahead=True))
         next_timeline_path = output_dir / "next" / "timeline.daily.json"
         legacy = json.loads(next_timeline_path.read_text(encoding="utf-8"))
         legacy["schema_version"] = "kpop-timeline-puzzle-v1"
@@ -1201,7 +1199,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_rerun_keeps_the_published_day_unless_regenerated(self):
         output_dir = self.temp_path / "rerun"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18")
+        self.published(output_dir, dict(reference_date="2026-09-18"))
         published = (output_dir / "connections.daily.json").read_bytes()
         with patch(
             "kpop_scraping.daily_puzzles_runner.generate_daily_puzzles",
@@ -1219,7 +1217,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_next_directory_keeps_only_one_day(self):
         output_dir = self.temp_path / "prune"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        self.published(output_dir, dict(reference_date="2026-09-18", ahead=True))
         stale = output_dir / "next" / "session.daily.en.standard.0000.json"
         stale.write_text("{}", encoding="utf-8")
         run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-19", ahead=True)
@@ -1227,7 +1225,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_generates_the_day_when_next_holds_another_date(self):
         output_dir = self.temp_path / "gap"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        self.published(output_dir, dict(reference_date="2026-09-18", ahead=True))
         result = run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-21")
         self.assertNotIn("promoted_from_next", result)
         connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
@@ -1237,7 +1235,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         # A stale next/ set removed by hand (as done for the pre-#87 grid)
         # must lead the runner to generate the day from the database.
         output_dir = self.temp_path / "no_next"
-        run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-18", ahead=True)
+        self.published(output_dir, dict(reference_date="2026-09-18", ahead=True))
         shutil.rmtree(output_dir / NEXT_DIRNAME)
 
         # The cron always runs with --ahead, so the second call mirrors it.
@@ -1253,10 +1251,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
 
     def test_cli_warns_in_github_actions_when_grid_is_kept(self):
         out_dir = self.temp_path / "cli_kept_grid"
-        self.assertEqual(
-            daily_puzzles_cli.main(["--database", str(self.db_path), "--output-dir", str(out_dir), "--date", "2026-09-18"]),
-            0,
-        )
+        self.published(out_dir, dict(reference_date="2026-09-18"))
         stdout, stderr = io.StringIO(), io.StringIO()
         with patch(
             "kpop_scraping.daily_puzzles_runner.generate_daily_grid",
@@ -1321,6 +1316,11 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
+    def published(self, *runs):
+        """Copy the set ``runs`` publish into ``out_dir`` (see tests.daily_fixtures)."""
+        reuse_quiz(self)
+        return published_set(self.out_dir, self.db_path, *runs)
+
     def make_ambiguous(self, board_dir: Path) -> None:
         """Let two groups of different label categories satisfy each other's label.
 
@@ -1357,7 +1357,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         conn.close()
 
     def test_kept_board_with_one_solution_is_reported_as_checked(self):
-        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")
+        self.published(dict(reference_date="2026-09-18"))
         kept = run_daily_puzzles(
             database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18"
         )
@@ -1381,7 +1381,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         ]
 
     def test_kept_board_with_an_ambiguous_partition_is_kept_and_reported(self):
-        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")
+        self.published(dict(reference_date="2026-09-18"))
         saved = (self.out_dir / "connections.daily.json").read_bytes()
         self.make_ambiguous(self.out_dir)
         code, stdout, _ = self.run_cli("--date", "2026-09-18")
@@ -1402,9 +1402,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         repo.mkdir()
         init_repo(repo)
         self.out_dir = repo / "data"
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         next_dir = self.out_dir / NEXT_DIRNAME
         served = {
             path.name: path.read_bytes()
@@ -1456,9 +1454,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         self.assertEqual(read_daily_set(next_dir)["reference_date"], "2026-09-20")
 
     def test_a_new_ambiguous_board_is_never_published(self):
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         from kpop_scraping import connections_generator
 
         # Every partition check finds a second solution: the promoted board
@@ -1477,9 +1473,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         self.assertTrue((next_dir / "name-guess.daily.json").is_file())
 
     def test_regenerate_publishes_a_board_with_one_solution(self):
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-18", ahead=True))
         old = json.loads((self.out_dir / "connections.daily.json").read_text(encoding="utf-8"))
         self.make_ambiguous(self.out_dir)
         result = run_daily_puzzles(
@@ -1500,9 +1494,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         self.assertNotEqual(result["connections_id"], old["puzzle_id"])
 
     def test_next_day_reads_the_crossword_record_served_from_next(self):
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         next_dir = self.out_dir / NEXT_DIRNAME
         served = read_crossword_record(next_dir, "2026-09-18")
         self.assertIsNotNone(served)
@@ -1523,9 +1515,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         verify_crossword_history(self.out_dir, next_dir)
 
     def test_another_error_of_the_partition_check_stops_the_run(self):
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         from kpop_scraping import daily_puzzles_runner
 
         # Only an ambiguity keeps the board; any other failure of the check
@@ -1545,9 +1535,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
 
         Returns the crossword artifact and record bytes of 2026-09-19.
         """
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         with redirect_stderr(io.StringIO()):
             result = run_daily_puzzles(
                 database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-19", ahead=True
@@ -1581,9 +1569,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         self.assert_crossword_kept(saved)
 
     def test_a_dry_run_reads_the_record_in_next_without_writing_it(self):
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         with redirect_stderr(io.StringIO()):
             result = run_daily_puzzles(
                 database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-19",
@@ -1605,9 +1591,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         self.assertIsNotNone(read_crossword_record(self.out_dir, "2026-09-18"))
 
     def test_the_record_of_the_main_directory_wins_over_next(self):
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         main = read_crossword_record(self.out_dir, "2026-09-17")
         other = crossword_omission_record("2026-09-17", "a record that lost to the main directory")
         self.assertNotEqual(main, other)
@@ -1617,9 +1601,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         )
 
     def test_a_record_in_next_that_is_not_a_file_counts_as_missing(self):
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         record = self.out_dir / NEXT_DIRNAME / "crossword-publication.2026-09-18.json"
         record.unlink()
         record.mkdir()
@@ -1633,9 +1615,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         One in the main directory stops the run, so the copy from next/ never
         writes over it and the history keeps the damaged file in sight.
         """
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         record = self.out_dir / "crossword-publication.2026-09-18.json"
         self.assertIsNotNone(read_crossword_record(self.out_dir / NEXT_DIRNAME, "2026-09-18"))
         for damage in ("invalid json", "directory"):
@@ -1654,9 +1634,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
                     )
 
     def test_an_unreadable_record_in_next_counts_as_missing_history(self):
-        run_daily_puzzles(
-            database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-17", ahead=True
-        )
+        self.published(dict(reference_date="2026-09-17", ahead=True))
         (self.out_dir / NEXT_DIRNAME / "crossword-publication.2026-09-18.json").write_text("{")
         with redirect_stderr(io.StringIO()):
             result = run_daily_puzzles(
@@ -1666,7 +1644,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         self.assertFalse((self.out_dir / "crossword-publication.2026-09-18.json").exists())
 
     def test_kept_board_the_database_no_longer_supports_is_not_an_ambiguity(self):
-        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")
+        self.published(dict(reference_date="2026-09-18"))
         conn = sqlite3.connect(self.db_path)
         # Q101 drops from 4 members to 3, so the published members_4 category
         # keeps 3 of its 4 items and no partition fits the board any more.
@@ -1690,7 +1668,7 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         self.assertEqual(kept["connections_partition"], {"checked": True, "reason": None})
 
     def test_without_a_database_the_check_is_recorded_as_not_run(self):
-        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date="2026-09-18")
+        self.published(dict(reference_date="2026-09-18"))
         self.make_ambiguous(self.out_dir)
         err = io.StringIO()
         with redirect_stderr(err):
@@ -1777,6 +1755,7 @@ class WordSearchThemeFallbackRunnerTests(unittest.TestCase):
     def test_ahead_publishes_the_replaced_next_day_and_a_later_run_promotes_it(self):
         from datetime import timedelta
 
+        reuse_quiz(self)
         next_day = self._first_day(self.db_path, 1, falls_back=True)
         today = next_day.isoformat()
         tomorrow = (next_day + timedelta(days=1)).isoformat()
@@ -1830,6 +1809,7 @@ class WordSearchThemeFallbackRunnerTests(unittest.TestCase):
         # database's themes so the runner's failure path is exercised.
         # Before the partial publish policy this failed the whole run.
         out = self.out_dir / "published"
+        reuse_quiz(self)
         stderr = io.StringIO()
         with patch("kpop_scraping.word_search_generator._place_theme", return_value=None), redirect_stderr(stderr), redirect_stdout(io.StringIO()):
             code = daily_puzzles_cli.main([
@@ -1854,7 +1834,8 @@ class WordSearchThemeFallbackRunnerTests(unittest.TestCase):
         from datetime import timedelta
 
         today = self.START.isoformat()
-        run_daily_puzzles(database=self.db_path, output_dir=self.out_dir, reference_date=today, ahead=True)
+        reuse_quiz(self)
+        published_set(self.out_dir, self.db_path, dict(reference_date=today, ahead=True))
         before = {
             path.relative_to(self.out_dir).as_posix(): path.read_bytes()
             for path in sorted(self.out_dir.rglob("*.json"))
