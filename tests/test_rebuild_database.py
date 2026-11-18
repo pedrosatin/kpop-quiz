@@ -554,9 +554,12 @@ class WorkflowTests(unittest.TestCase):
     def test_rebuild_step_execs_the_script(self):
         # The runner stops a step by signalling the shell's PID only. With
         # exec that PID is the script's, which kills the running attempt.
-        commands = [line for line in run_block(REBUILD_STEP).splitlines() if line.strip()]
+        commands = [
+            line for line in run_block(REBUILD_STEP).splitlines()
+            if line.strip() and not line.startswith(" ")
+        ]
         self.assertTrue(
-            commands[0].startswith("exec python3 scripts/rebuild_database.py rebuild "), commands
+            commands[-1].startswith("exec python3 scripts/rebuild_database.py rebuild "), commands
         )
 
     def test_rebuild_step_runs_the_script_and_lets_the_job_continue(self):
@@ -566,10 +569,26 @@ class WorkflowTests(unittest.TestCase):
         self.assertRegex(
             step,
             r"python3 scripts/rebuild_database\.py rebuild --database data/kpop\.db -- \\\n"
-            r"\s+python main\.py --facts --releases --database data/kpop\.db\n",
+            r"\s+python main\.py --facts --releases \"\$mode\" --database data/kpop\.db\n",
         )
         for inline in ("sleep", "kpop.db.cached", "for attempt"):
             self.assertNotIn(inline, step)
+
+    def test_rebuild_is_incremental_except_on_sunday(self):
+        block = run_block(REBUILD_STEP)
+        selection = block.split("exec ", 1)[0] + 'printf "%s" "$mode"\n'
+        with tempfile.TemporaryDirectory() as folder:
+            fake_date = Path(folder) / "date"
+            fake_date.write_text('#!/bin/sh\necho "$FAKE_WEEKDAY"\n', encoding="utf-8")
+            fake_date.chmod(0o755)
+            modes = {}
+            for weekday in range(1, 8):
+                modes[weekday] = subprocess.run(
+                    ["bash", "-c", selection],
+                    env={**os.environ, "PATH": f"{folder}:{os.environ['PATH']}", "FAKE_WEEKDAY": str(weekday)},
+                    capture_output=True, text=True, check=True,
+                ).stdout
+        self.assertEqual(modes, {**{day: "--incremental" for day in range(1, 7)}, 7: "--full-refresh"})
 
     def test_fallback_is_a_separate_step_tied_to_the_rebuild_outcome(self):
         position = self.names.index(REBUILD_STEP)

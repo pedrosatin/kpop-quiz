@@ -377,9 +377,15 @@ class CliActivationTest(unittest.TestCase):
         cron = (WORKFLOWS / "daily-puzzles-cron.yml").read_text(encoding="utf-8")
         command = re.search(r"python main\.py ([^;\n]*)", cron)
         self.assertIsNotNone(command)
-        arguments = build_parser().parse_args(command.group(1).split())
-        self.assertTrue(arguments.facts and arguments.releases)
-        self.assertFalse(arguments.person_evidence)
+        # The rebuild step picks the mode by weekday (ADR 043); check both.
+        self.assertIn('"$mode"', command.group(1))
+        for mode in ("--incremental", "--full-refresh"):
+            with self.subTest(mode=mode):
+                arguments = build_parser().parse_args(
+                    command.group(1).replace('"$mode"', mode).split()
+                )
+                self.assertTrue(arguments.facts and arguments.releases)
+                self.assertFalse(arguments.person_evidence)
 
 
 class CliEndToEndTest(GateTestCase):
