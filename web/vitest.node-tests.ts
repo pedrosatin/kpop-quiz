@@ -45,6 +45,7 @@ export const nodeTestFiles = [
   "src/lib/visible-names-contract.test.ts",
   "src/tests/analytics-beacon.test.ts",
   "src/tests/csp-policy.test.ts",
+  "src/tests/e2e-shards.test.ts",
   "src/tests/ga4-consent.test.ts",
   "src/tests/game-about.test.ts",
   "src/tests/game-intro.test.ts",
