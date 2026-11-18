@@ -18,9 +18,25 @@ O texto de resultado dos sete jogos também saía sem link, com exceção da Lin
 
 ### Link no resultado
 
-`seoShareUrl(key, locale)` em `web/src/lib/seo-routes.ts` monta a URL de produção da rota no idioma do jogador com `utm_source=share`, `utm_medium=social` e `utm_campaign=<jogo>`. A campanha é o último segmento do caminho em inglês (`quiz`, `grid`, `connections`, `guess`, `word-search`, `map`, `timeline`), então as duas línguas de um jogo somam na mesma campanha. A origem vem de `SEO_PROD_ORIGIN`, a constante que o canonical já usa.
+`seoShareUrl(key, locale)` em `web/src/lib/seo-routes.ts` monta a URL de produção da rota no idioma do jogador com um único parâmetro curto `?s=<jogo>`. O valor de `s` é o último segmento do caminho em inglês (`quiz`, `grid`, `connections`, `guess`, `word-search`, `map`, `timeline`, `code`, `crossword`), então as duas línguas de um jogo somam na mesma campanha. A origem vem de `SEO_PROD_ORIGIN`, a constante que o canonical já usa.
 
-Os sete geradores de texto (`ShareResult`, `gridShareText`, Conexões, Adivinhe, Caça-palavras, Mapa e Linha do Tempo) terminam o texto com essa URL numa linha própria, via `withShareUrl`. O texto vai inteiro, com o link na última linha, tanto para o share sheet (`navigator.share({ text })`) quanto para a área de transferência e para o campo de cópia manual. Assim nenhum destino perde o link.
+Depois do consentimento, `ConsentBanner` lê `?s=` e chama `gtag("config", …)` com os campos padrão do GA4 `campaign_source=share`, `campaign_medium=social` e `campaign_name=<jogo>` (`shareCampaignConfig`). Não há dimensão personalizada a cadastrar no painel. UTMs legados ou externos na URL têm precedência e o site não sobrescreve a atribuição.
+
+O texto diário abre com `K-pop Quiz #N · <Jogo>`. `N` sai de `dailyChallengeNumber` em `web/src/lib/daily-challenge.ts`: dias corridos desde o primeiro `reference_date` publicado daquele jogo (`FIRST_DAILY_DATE`), contando o primeiro como `#1`. A data é a do artefato, então PT e EN e o replay do mesmo dia compartilham o mesmo número; jogo livre e datas anteriores ao marco saem sem `#N`. Os marcos iniciais foram conferidos no histórico de `web/public/data` e no `git log` (alguns artefatos de exemplo ou piloto ficam antes do primeiro dia publicado e, por isso, não numeram):
+
+| Jogo | Primeiro dia (`FIRST_DAILY_DATE`) | Origem do marco |
+|---|---|---|
+| Grade | 2026-09-17 | Primeiro `grid.daily.json` |
+| Conexões | 2026-09-17 | Primeiro `connections.daily.json` |
+| Quiz | 2026-09-18 | Primeiro seed `kpop-daily-2026-09-18` |
+| Adivinhe | 2026-09-18 | Primeiro `name-guess.daily.json` |
+| Caça-palavras | 2026-09-18 | Primeiro `word-search.daily.json` |
+| Linha do Tempo | 2026-09-19 | Primeiro `timeline.daily.json` com essa data (o commit inicial ainda trazia 2026-09-20 de exemplo) |
+| Mapa | 2026-09-25 | Publicação do piloto DEADLINE |
+| Código | 2026-10-19 | Primeira publicação diária (`code-groups.daily.json`; o piloto usa 2026-10-12) |
+| Cruzadinha | 2026-10-31 | Primeiro `crossword.daily.json` |
+
+Os geradores que usam `withShareUrl` (Quiz/`ShareResult`, Grade, Conexões, Adivinhe, Caça-palavras, Mapa, Linha do Tempo) e os textos próprios de Código e Cruzadinha terminam com essa URL numa linha própria. O texto vai inteiro, com o link na última linha, tanto para o share sheet (`navigator.share({ text })`) quanto para a área de transferência e para o campo de cópia manual. Assim nenhum destino perde o link.
 
 A homologação compartilha a mesma URL de produção. O link leva quem recebe ao jogo publicado, e o host da homologação tem `noindex` e dados de outra branch. O canonical da ADR 018 já usa esse host, e nenhum guard de homologação proíbe `kpopquiz.online` no `dist`.
 
@@ -58,5 +74,5 @@ Separar a última linha e chamar `navigator.share({ title, text, url })` deixari
 
 - Alterar o nome de um jogo no catálogo, a frase do cartão ou as cores pede `npm run og:generate` e commit dos PNGs. O teste de tamanho não detecta cartão desatualizado, só cartão ausente, órfão ou com tamanho errado.
 - O screenshot depende da versão do Chromium do Playwright, então regenerar em outra máquina pode mudar bytes sem mudar o conteúdo visível.
-- Visitas vindas de resultados compartilhados aparecem no GA4 e no Cloudflare com `utm_source=share` quando a medição está ativa.
+- Visitas vindas de resultados compartilhados aparecem no GA4 com campanha `share` / `social` / `<jogo>` quando a medição está ativa e o visitante aceitou o banner; o Cloudflare continua vendo só o `?s=`.
 - `generateTimelineShareText` e `useTimelineGame` perderam o parâmetro `origin`, que nenhum chamador de produção passava.

@@ -136,6 +136,18 @@ describe("ConsentBanner", () => {
     expect(Array.from(dataLayer.at(-1) as ArrayLike<unknown>)).toEqual(["config", GA_ID]);
   });
 
+  it("sets standard campaign fields only after consent to a short share link", async () => {
+    window.history.replaceState({}, "", "?s=connections");
+    render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);
+    expect(gaScripts()).toHaveLength(0);
+    fireEvent.click(await screen.findByRole("button", { name: ACCEPT }));
+    const layer = (window as unknown as { dataLayer: ArrayLike<unknown>[] }).dataLayer;
+    expect(Array.from(layer.at(-1)!)).toEqual(["config", GA_ID, {
+      campaign_source: "share", campaign_medium: "social", campaign_name: "connections",
+    }]);
+    window.history.replaceState({}, "", "/");
+  });
+
   it("shows the banner and honors a choice for the visit when localStorage throws", async () => {
     throwOnLocalStorage();
     render(<ConsentBanner locale="pt-BR" ga4Id={GA_ID} privacyUrl={PRIVACY_URL} />);

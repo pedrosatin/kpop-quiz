@@ -186,10 +186,10 @@ exports[`timeline characterization > renders a right check and the restored win 
 `;
 
 exports[`timeline characterization > renders a right check and the restored win the same way in en > 13 share text 1`] = `
-"K-pop Quiz • Timeline 2026-09-30
+"K-pop Quiz #12 · Timeline
 Score: 5/5 ⭐️
 🟩 🟩 🟩 🟩 🟩
-https://kpopquiz.online/en/timeline/?utm_source=share&utm_medium=social&utm_campaign=timeline"
+https://kpopquiz.online/en/timeline/?s=timeline"
 `;
 
 exports[`timeline characterization > renders a right check and the restored win the same way in en > 14 win restored 1`] = `
@@ -268,10 +268,10 @@ exports[`timeline characterization > renders a right check and the restored win 
 `;
 
 exports[`timeline characterization > renders a right check and the restored win the same way in pt-BR > 13 share text 1`] = `
-"K-pop Quiz • Linha do Tempo 2026-09-30
+"K-pop Quiz #12 · Linha do Tempo
 Pontuação: 5/5 ⭐️
 🟩 🟩 🟩 🟩 🟩
-https://kpopquiz.online/pt-br/linha-do-tempo/?utm_source=share&utm_medium=social&utm_campaign=timeline"
+https://kpopquiz.online/pt-br/linha-do-tempo/?s=timeline"
 `;
 
 exports[`timeline characterization > renders a right check and the restored win the same way in pt-BR > 14 win restored 1`] = `
@@ -331,10 +331,10 @@ exports[`timeline characterization > renders a wrong check and the restored loss
 `;
 
 exports[`timeline characterization > renders a wrong check and the restored loss the same way in en > 10 share text 1`] = `
-"K-pop Quiz • Timeline 2026-09-30
+"K-pop Quiz #12 · Timeline
 Score: 3/5 ⭐️
 🟩 🟥 🟩 🟩 🟥
-https://kpopquiz.online/en/timeline/?utm_source=share&utm_medium=social&utm_campaign=timeline"
+https://kpopquiz.online/en/timeline/?s=timeline"
 `;
 
 exports[`timeline characterization > renders a wrong check and the restored loss the same way in en > 11 loss restored 1`] = `
@@ -394,10 +394,10 @@ exports[`timeline characterization > renders a wrong check and the restored loss
 `;
 
 exports[`timeline characterization > renders a wrong check and the restored loss the same way in pt-BR > 10 share text 1`] = `
-"K-pop Quiz • Linha do Tempo 2026-09-30
+"K-pop Quiz #12 · Linha do Tempo
 Pontuação: 3/5 ⭐️
 🟩 🟥 🟩 🟩 🟥
-https://kpopquiz.online/pt-br/linha-do-tempo/?utm_source=share&utm_medium=social&utm_campaign=timeline"
+https://kpopquiz.online/pt-br/linha-do-tempo/?s=timeline"
 `;
 
 exports[`timeline characterization > renders a wrong check and the restored loss the same way in pt-BR > 11 loss restored 1`] = `
@@ -771,10 +771,10 @@ exports[`timeline characterization > renders the give-up confirmation and the de
 `;
 
 exports[`timeline characterization > renders the give-up confirmation and the defeat the same way in en > 16 share text 1`] = `
-"K-pop Quiz • Timeline 2026-09-30
+"K-pop Quiz #12 · Timeline
 Gave up · Sequence score: 2/5
 🟩 🟥 🟩 🟥 🟥
-https://kpopquiz.online/en/timeline/?utm_source=share&utm_medium=social&utm_campaign=timeline"
+https://kpopquiz.online/en/timeline/?s=timeline"
 `;
 
 exports[`timeline characterization > renders the give-up confirmation and the defeat the same way in pt-BR > 15 give-up confirmation 1`] = `
@@ -814,8 +814,8 @@ exports[`timeline characterization > renders the give-up confirmation and the de
 `;
 
 exports[`timeline characterization > renders the give-up confirmation and the defeat the same way in pt-BR > 16 share text 1`] = `
-"K-pop Quiz • Linha do Tempo 2026-09-30
+"K-pop Quiz #12 · Linha do Tempo
 Desistência · Pontuação da sequência: 2/5
 🟩 🟥 🟩 🟥 🟥
-https://kpopquiz.online/pt-br/linha-do-tempo/?utm_source=share&utm_medium=social&utm_campaign=timeline"
+https://kpopquiz.online/pt-br/linha-do-tempo/?s=timeline"
 `;

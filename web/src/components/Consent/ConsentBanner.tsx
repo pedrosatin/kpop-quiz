@@ -1,3 +1,4 @@
+import { shareCampaignConfig } from "../../lib/seo-routes";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
 import { getLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
@@ -51,7 +52,9 @@ function loadGoogleAnalytics(ga4Id: string): void {
       ad_user_data: "denied", ad_personalization: "denied",
     });
     gtag("js", new Date());
-    gtag("config", ga4Id);
+    const campaign = shareCampaignConfig(window.location.search);
+    if (Object.keys(campaign).length) gtag("config", ga4Id, campaign);
+    else gtag("config", ga4Id);
   } catch {
     // Measurement must never break the page.
   }

@@ -635,7 +635,7 @@ describe("Connections share", () => {
 
     expect(writeText).toHaveBeenCalledWith(shareText());
     expect(shareText().endsWith(
-      "\nhttps://kpopquiz.online/pt-br/conexoes/?utm_source=share&utm_medium=social&utm_campaign=connections",
+      "\nhttps://kpopquiz.online/pt-br/conexoes/?s=connections",
     )).toBe(true);
     const region = liveRegion(container);
     expect(region).toHaveTextContent(pt.copiedToClipboard);

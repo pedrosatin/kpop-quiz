@@ -10,8 +10,8 @@ import { RESULT_GUARD_MS, TimelineShare } from "./TimelineShare";
 
 const puzzle = fixture as unknown as TimelinePuzzle;
 const canonicalEvents = getCanonicalChronologicalOrder(puzzle.events);
-const sampleUrl = "https://kpopquiz.online/pt-br/linha-do-tempo/?utm_source=share&utm_medium=social&utm_campaign=timeline";
-const sampleShareBody = "K-pop Quiz • Linha do Tempo 2026-09-30\nPontuação: 3/5 ⭐️\n🟩 🟥 🟩 🟥 🟩";
+const sampleUrl = "https://kpopquiz.online/pt-br/linha-do-tempo/?s=timeline";
+const sampleShareBody = "K-pop Quiz #12 · Linha do Tempo\nPontuação: 3/5 ⭐️\n🟩 🟥 🟩 🟥 🟩";
 const sampleShareText = `${sampleShareBody}\n${sampleUrl}`;
 const sampleSharePayload = { text: sampleShareText };
 

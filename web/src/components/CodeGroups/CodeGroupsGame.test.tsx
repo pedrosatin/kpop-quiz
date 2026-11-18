@@ -409,13 +409,14 @@ describe("CodeGroups share", () => {
       { ids: [...puzzle.secret], exact: 4, misplaced: 0 },
     ];
     const text = generateShareText(puzzle, history, "pt-BR");
-    expect(text).toContain(`Código de grupos de K-pop ${puzzle.reference_date}`);
+    expect(text).toContain("K-pop Quiz · Código");
+    expect(text).not.toMatch(/K-pop Quiz #\d+/);
     expect(text).toContain(pt.codeShareWon(2));
     expect(text).toContain(pt.codeShareAttemptsLine(2));
     expect(text).toContain("🟨🟨🟨🟨");
     expect(text).toContain("🟩🟩🟩🟩");
     expect(text.endsWith(
-      "\nhttps://kpopquiz.online/pt-br/codigo/?utm_source=share&utm_medium=social&utm_campaign=code",
+      "\nhttps://kpopquiz.online/pt-br/codigo/?s=code",
     )).toBe(true);
     // No group name may reach the share text.
     for (const symbol of puzzle.symbols) {
@@ -440,7 +441,7 @@ describe("CodeGroups share", () => {
     await winAndShare();
     const field = screen.getByRole("textbox", { name: pt.shareTextLabel });
     expect(field).toHaveAttribute("readonly");
-    expect((field as HTMLTextAreaElement).value).toContain("Código de grupos de K-pop");
+    expect((field as HTMLTextAreaElement).value).toContain("K-pop Quiz · Código");
   });
 
   it("selects the whole text to copy by hand on focus and on click", async () => {

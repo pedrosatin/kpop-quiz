@@ -5,8 +5,8 @@ import { getMessages } from "../../i18n/catalog";
 
 const ptMessages = getMessages("pt-BR");
 const enMessages = getMessages("en");
-const PT_URL = "https://kpopquiz.online/pt-br/?utm_source=share&utm_medium=social&utm_campaign=quiz";
-const EN_URL = "https://kpopquiz.online/en/?utm_source=share&utm_medium=social&utm_campaign=quiz";
+const PT_URL = "https://kpopquiz.online/pt-br/?s=quiz";
+const EN_URL = "https://kpopquiz.online/en/?s=quiz";
 
 describe("ShareResult helper functions", () => {
   it("formats duration correctly into mm:ss", () => {
@@ -86,7 +86,7 @@ describe("ShareResult helper functions", () => {
     expect(textEn).toContain("Expert · 0 clues · 01:25");
   });
 
-  it("includes daily date indicator in share text when dailyDate is provided", () => {
+  it("opens daily share text with the challenge number and keeps free play without #N", () => {
     const textPt = generateShareText({
       correctCount: 8,
       totalQuestions: 10,
@@ -96,9 +96,9 @@ describe("ShareResult helper functions", () => {
       elapsedSeconds: 222,
       messages: ptMessages,
       locale: "pt-BR",
-      dailyDate: "2026-09-16",
+      dailyDate: "2026-09-18",
     });
-    expect(textPt).toBe(`K-pop Quiz Diário 2026-09-16 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`);
+    expect(textPt).toBe(`K-pop Quiz #1 · Quiz\n8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`);
 
     const textEn = generateShareText({
       correctCount: 8,
@@ -109,9 +109,22 @@ describe("ShareResult helper functions", () => {
       elapsedSeconds: 222,
       messages: enMessages,
       locale: "en",
-      dailyDate: "2026-09-16",
+      dailyDate: "2026-09-18",
     });
-    expect(textEn).toBe(`K-pop Quiz Daily 2026-09-16 8/10\n■■■■□ ■■■■□\nStandard · 1 clue · 03:42\n${EN_URL}`);
+    expect(textEn).toBe(`K-pop Quiz #1 · Quiz\n8/10\n■■■■□ ■■■■□\nStandard · 1 clue · 03:42\n${EN_URL}`);
+
+    const free = generateShareText({
+      correctCount: 8,
+      totalQuestions: 10,
+      results: [true, true, true, true, false, true, true, true, true, false],
+      playMode: "standard",
+      cluesUsedCount: 1,
+      elapsedSeconds: 222,
+      messages: ptMessages,
+      locale: "pt-BR",
+    });
+    expect(free.startsWith("K-pop Quiz 8/10\n")).toBe(true);
+    expect(free).not.toMatch(/K-pop Quiz #\d+/);
   });
 });
 
@@ -298,14 +311,14 @@ describe("ShareResult component", () => {
         elapsedSeconds={222}
         messages={ptMessages}
         locale="pt-BR"
-        dailyDate="2026-09-16"
+        dailyDate="2026-09-18"
       />
     );
 
     const shareBtn = screen.getByRole("button", { name: "Compartilhar resultado" });
     fireEvent.click(shareBtn);
     expect(shareMock).toHaveBeenCalledWith({
-      text: `K-pop Quiz Diário 2026-09-16 8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`,
+      text: `K-pop Quiz #1 · Quiz\n8/10\n■■■■□ ■■■■□\nPadrão · 1 pista · 03:42\n${PT_URL}`,
     });
   });
 });

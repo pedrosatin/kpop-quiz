@@ -1,3 +1,4 @@
+import { dailyShareHeader } from "../lib/daily-challenge";
 import type { GameId } from "../lib/player-stats";
 import type { Locale, PlayMode } from "../lib/quiz-types";
 import { gameAbout, type GameAboutMessages } from "./game-about";
@@ -718,7 +719,7 @@ const catalogs: Record<Locale, Messages> = {
     generalGameDescription: "Perguntas sobre história, lançamentos e integrantes.",
     dailyGameTitle: "Quiz do dia",
     dailyGameDescription: "As perguntas de hoje, com resultado para compartilhar.",
-    shareDailyHeader: (date, correct, total) => `K-pop Quiz Diário ${date} ${correct}/${total}`,
+    shareDailyHeader: (date, correct, total) => `${dailyShareHeader("quiz", "Quiz", date)}\n${correct}/${total}`,
     mediaAltClue: "Foto usada como pista desta pergunta",
     mediaCreator: "Foto:",
     mediaSource: "Fonte da imagem",
@@ -765,7 +766,7 @@ const catalogs: Record<Locale, Messages> = {
     gridLocatorClaim: (property) => `declaração ${property} e sua referência`,
     gridReviewCellHeader: (row, col) => `Linha ${row + 1}, coluna ${col + 1}`,
     gridAcceptedAnswers: "Respostas aceitas:",
-    gridShareHeader: (date, correct, guesses) => `Grade de K-pop ${date}\n${correct}/9 acertos (${guesses} palpites)`,
+    gridShareHeader: (date, correct, guesses) => `${dailyShareHeader("grid", "Grade", date)}\n${correct}/9 acertos (${guesses} palpites)`,
     gridAxesHeader: "Critérios",
     gridCategoryFormation: "Formação",
     gridCategoryAgency: "Agência",
@@ -786,7 +787,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsResultSummaryWon: (mistakes) =>
       mistakes === 0 ? "Você não errou nenhuma vez." : `Você errou ${mistakes} ${mistakes === 1 ? "vez" : "vezes"}.`,
     connectionsResultSummaryLost: "Você usou os 4 erros permitidos.",
-    connectionsShareHeader: (date) => `Conexões de K-pop ${date}`,
+    connectionsShareHeader: (date) => `${dailyShareHeader("connections", "Conexões", date)}`,
     connectionsShareResultLine: (solved) => `Resultado: ${solved}/4 categorias`,
     connectionsShareGuessesLine: (guesses, mistakes) =>
       `Palpites: ${guesses} (${mistakes} ${mistakes === 1 ? "erro" : "erros"})`,
@@ -844,12 +845,12 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchEyebrow: "1 tema por dia · 8 direções",
     wordSearchIntro: "Encontre os nomes do tema escondidos na grade, em qualquer direção.",
     wordSearchShareHeader: (date, found, total, time) =>
-      `Caça-palavras de K-pop ${date} ${found}/${total} (${time})`,
+      `${dailyShareHeader("wordSearch", "Caça-palavras", date)}\n${found}/${total} (${time})`,
     mapEyebrow: "10 datas por rodada · turnê DEADLINE",
     mapTitle: "Quiz de mapa de K-pop: BLACKPINK",
     mapIntro: "Para cada data da turnê, escolha no mapa o país que a agenda oficial listou.",
-    mapShareHeader: (date) => `Mapa de K-pop ${date}`,
-    nameGuessShareHeader: (date, score) => `Adivinhe o nome ${date} ${score}`,
+    mapShareHeader: (date) => `${dailyShareHeader("mapPilot", "Mapa", date)}`,
+    nameGuessShareHeader: (date, score) => `${dailyShareHeader("nameGuess", "Adivinhe", date)}\n${score}`,
     codeTitle: "Código de grupos de K-pop",
     codeEyebrow: "10 tentativas · 4 posições",
     codeIntro: "Descubra quatro grupos diferentes do catálogo na ordem secreta do dia.",
@@ -872,7 +873,7 @@ const catalogs: Record<Locale, Messages> = {
     codeAttemptsUsed: "Tentativas usadas",
     codeAboutGroups: "Sobre os grupos",
     codeShareButton: "Compartilhar resultado",
-    codeShareHeader: (date) => `Código de grupos de K-pop ${date}`,
+    codeShareHeader: (date) => `${dailyShareHeader("code", "Código", date)}`,
     codeShareWon: (attempts) => `Código descoberto em ${attempts} ${attempts === 1 ? "tentativa" : "tentativas"}.`,
     codeShareLost: "Código não descoberto nas 10 tentativas.",
     codeShareAttemptsLine: (attempts) => `${attempts === 1 ? "Tentativa" : "Tentativas"}: ${attempts}`,
@@ -1246,7 +1247,7 @@ const catalogs: Record<Locale, Messages> = {
     generalGameDescription: "Questions about history, releases and members.",
     dailyGameTitle: "Daily quiz",
     dailyGameDescription: "Today's questions, with a result you can share.",
-    shareDailyHeader: (date, correct, total) => `K-pop Quiz Daily ${date} ${correct}/${total}`,
+    shareDailyHeader: (date, correct, total) => `${dailyShareHeader("quiz", "Quiz", date)}\n${correct}/${total}`,
     mediaAltClue: "Photo used as a clue for this question",
     mediaCreator: "Photo:",
     mediaSource: "Image source",
@@ -1293,7 +1294,7 @@ const catalogs: Record<Locale, Messages> = {
     gridLocatorClaim: (property) => `statement ${property} and its reference`,
     gridReviewCellHeader: (row, col) => `Row ${row + 1}, column ${col + 1}`,
     gridAcceptedAnswers: "Accepted answers:",
-    gridShareHeader: (date, correct, guesses) => `K-pop Grid ${date}\n${correct}/9 correct (${guesses} guesses)`,
+    gridShareHeader: (date, correct, guesses) => `${dailyShareHeader("grid", "Grid", date)}\n${correct}/9 correct (${guesses} guesses)`,
     gridAxesHeader: "Rules",
     gridCategoryFormation: "Formation",
     gridCategoryAgency: "Agency",
@@ -1314,7 +1315,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsResultSummaryWon: (mistakes) =>
       mistakes === 0 ? "No mistakes." : `${mistakes} ${mistakes === 1 ? "mistake" : "mistakes"}.`,
     connectionsResultSummaryLost: "You used all 4 mistakes.",
-    connectionsShareHeader: (date) => `K-pop Connections ${date}`,
+    connectionsShareHeader: (date) => `${dailyShareHeader("connections", "Connections", date)}`,
     connectionsShareResultLine: (solved) => `Result: ${solved}/4 categories`,
     connectionsShareGuessesLine: (guesses, mistakes) =>
       `Guesses: ${guesses} (${mistakes} ${mistakes === 1 ? "mistake" : "mistakes"})`,
@@ -1372,12 +1373,12 @@ const catalogs: Record<Locale, Messages> = {
     wordSearchEyebrow: "1 theme a day · 8 directions",
     wordSearchIntro: "Find the theme's names hidden in the grid, in any direction.",
     wordSearchShareHeader: (date, found, total, time) =>
-      `K-pop Word Search ${date} ${found}/${total} (${time})`,
+      `${dailyShareHeader("wordSearch", "Word search", date)}\n${found}/${total} (${time})`,
     mapEyebrow: "10 dates per round · DEADLINE tour",
     mapTitle: "K-pop Map Quiz: BLACKPINK",
     mapIntro: "For each tour date, pick on the map the country the official schedule listed.",
-    mapShareHeader: (date) => `K-pop Map ${date}`,
-    nameGuessShareHeader: (date, score) => `K-pop Guess ${date} ${score}`,
+    mapShareHeader: (date) => `${dailyShareHeader("mapPilot", "Map", date)}`,
+    nameGuessShareHeader: (date, score) => `${dailyShareHeader("nameGuess", "Guess", date)}\n${score}`,
     codeTitle: "K-pop Group Code",
     codeEyebrow: "10 guesses · 4 positions",
     codeIntro: "Find four different catalog groups in the day's secret order.",
@@ -1400,7 +1401,7 @@ const catalogs: Record<Locale, Messages> = {
     codeAttemptsUsed: "Attempts used",
     codeAboutGroups: "About the groups",
     codeShareButton: "Share result",
-    codeShareHeader: (date) => `K-pop Code ${date}`,
+    codeShareHeader: (date) => `${dailyShareHeader("code", "Code", date)}`,
     codeShareWon: (attempts) => `Code solved in ${attempts} ${attempts === 1 ? "attempt" : "attempts"}.`,
     codeShareLost: "Code not found in 10 attempts.",
     codeShareAttemptsLine: (attempts) => `Attempts: ${attempts}`,

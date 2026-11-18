@@ -46,10 +46,10 @@ exports[`map characterization > gives up the same way in en > 05 share sheet tex
 [
   [
     {
-      "text": "K-pop Map 2026-09-24
+      "text": "K-pop Quiz · Map
 1/10 dates right
 🟩⬛⬛⬛⬛⬛⬛⬛⬛⬛
-https://kpopquiz.online/en/map/?utm_source=share&utm_medium=social&utm_campaign=map",
+https://kpopquiz.online/en/map/?s=map",
     },
   ],
 ]
@@ -151,10 +151,10 @@ exports[`map characterization > gives up the same way in pt-BR > 05 share sheet 
 [
   [
     {
-      "text": "Mapa de K-pop 2026-09-24
+      "text": "K-pop Quiz · Mapa
 1/10 datas certas
 🟩⬛⬛⬛⬛⬛⬛⬛⬛⬛
-https://kpopquiz.online/pt-br/mapa/?utm_source=share&utm_medium=social&utm_campaign=map",
+https://kpopquiz.online/pt-br/mapa/?s=map",
     },
   ],
 ]
@@ -224,30 +224,30 @@ exports[`map characterization > pins the raw save written after each step 1`] = 
 
 exports[`map characterization > pins the share text of a win, a loss and a give-up in both languages 1`] = `
 {
-  "gaveUpEn": "K-pop Map 2026-09-24
+  "gaveUpEn": "K-pop Quiz · Map
 3/10 dates right
 🟩🟩🟩⬛⬛⬛⬛⬛⬛⬛
-https://kpopquiz.online/en/map/?utm_source=share&utm_medium=social&utm_campaign=map",
-  "gaveUpPt": "Mapa de K-pop 2026-09-24
+https://kpopquiz.online/en/map/?s=map",
+  "gaveUpPt": "K-pop Quiz · Mapa
 3/10 datas certas
 🟩🟩🟩⬛⬛⬛⬛⬛⬛⬛
-https://kpopquiz.online/pt-br/mapa/?utm_source=share&utm_medium=social&utm_campaign=map",
-  "lostEn": "K-pop Map 2026-09-24
+https://kpopquiz.online/pt-br/mapa/?s=map",
+  "lostEn": "K-pop Quiz · Map
 4/10 dates right
 ⬛⬛⬛⬛⬛⬛🟩🟩🟩🟩
-https://kpopquiz.online/en/map/?utm_source=share&utm_medium=social&utm_campaign=map",
-  "lostPt": "Mapa de K-pop 2026-09-24
+https://kpopquiz.online/en/map/?s=map",
+  "lostPt": "K-pop Quiz · Mapa
 4/10 datas certas
 ⬛⬛⬛⬛⬛⬛🟩🟩🟩🟩
-https://kpopquiz.online/pt-br/mapa/?utm_source=share&utm_medium=social&utm_campaign=map",
-  "wonEn": "K-pop Map 2026-09-24
+https://kpopquiz.online/pt-br/mapa/?s=map",
+  "wonEn": "K-pop Quiz · Map
 10/10 dates right
 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-https://kpopquiz.online/en/map/?utm_source=share&utm_medium=social&utm_campaign=map",
-  "wonPt": "Mapa de K-pop 2026-09-24
+https://kpopquiz.online/en/map/?s=map",
+  "wonPt": "K-pop Quiz · Mapa
 10/10 datas certas
 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
-https://kpopquiz.online/pt-br/mapa/?utm_source=share&utm_medium=social&utm_campaign=map",
+https://kpopquiz.online/pt-br/mapa/?s=map",
 }
 `;
 
@@ -386,16 +386,16 @@ exports[`map characterization > plays, finishes and shares a round on a wide scr
 exports[`map characterization > plays, finishes and shares a round on a wide screen in en > 15 clipboard text 1`] = `
 [
   [
-    "K-pop Map 2026-09-24
+    "K-pop Quiz · Map
 8/10 dates right
 🟩⬛🟩🟩🟩🟩🟩🟩🟩⬛
-https://kpopquiz.online/en/map/?utm_source=share&utm_medium=social&utm_campaign=map",
+https://kpopquiz.online/en/map/?s=map",
   ],
   [
-    "K-pop Map 2026-09-24
+    "K-pop Quiz · Map
 8/10 dates right
 🟩⬛🟩🟩🟩🟩🟩🟩🟩⬛
-https://kpopquiz.online/en/map/?utm_source=share&utm_medium=social&utm_campaign=map",
+https://kpopquiz.online/en/map/?s=map",
   ],
 ]
 `;
@@ -639,16 +639,16 @@ exports[`map characterization > plays, finishes and shares a round on a wide scr
 exports[`map characterization > plays, finishes and shares a round on a wide screen in pt-BR > 15 clipboard text 1`] = `
 [
   [
-    "Mapa de K-pop 2026-09-24
+    "K-pop Quiz · Mapa
 8/10 datas certas
 🟩⬛🟩🟩🟩🟩🟩🟩🟩⬛
-https://kpopquiz.online/pt-br/mapa/?utm_source=share&utm_medium=social&utm_campaign=map",
+https://kpopquiz.online/pt-br/mapa/?s=map",
   ],
   [
-    "Mapa de K-pop 2026-09-24
+    "K-pop Quiz · Mapa
 8/10 datas certas
 🟩⬛🟩🟩🟩🟩🟩🟩🟩⬛
-https://kpopquiz.online/pt-br/mapa/?utm_source=share&utm_medium=social&utm_campaign=map",
+https://kpopquiz.online/pt-br/mapa/?s=map",
   ],
 ]
 `;
