@@ -152,18 +152,42 @@ for (const { id, locale, path } of locales) {
           rows: Number(getComputedStyle(grid).getPropertyValue("--grid-rows")),
           cols: Number(getComputedStyle(grid).getPropertyValue("--grid-cols")),
         }));
+        // 288 taps, each re-rendering the grid. On a CI runner busy with four
+        // workers, page.touchscreen.tap plus a boundingBox per tap took ~140 ms
+        // and the test timed out. Centers are measured once (the end checks the
+        // grid stayed put), and each tap sends touchStart and touchEnd together
+        // on one CDP session: the same touch events, half the waiting.
+        const centers = () => page.locator(".word-search-cell").evaluateAll((cells) =>
+          Object.fromEntries(cells.map((cell) => {
+            const r = cell.getBoundingClientRect();
+            const { row, col } = (cell as HTMLElement).dataset;
+            return [`${row},${col}`, { x: r.left + r.width / 2, y: r.top + r.height / 2 }];
+          })) as Record<string, Point>);
+        const anchors = () => page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".word-search-cell.is-anchor")]
+          .map((cell) => `${cell.dataset.row},${cell.dataset.col}`).join(" "));
+        const before = await centers();
         const missed: string[] = [];
-        for (let row = 0; row < rows; row++) {
-          for (let col = 0; col < cols; col++) {
-            await tapCell(page, row, col);
-            const marked = await page.locator(".word-search-cell.is-anchor").evaluateAll((cells) =>
-              cells.map((cell) => `${(cell as HTMLElement).dataset.row},${(cell as HTMLElement).dataset.col}`));
-            if (marked.join(" ") !== `${row},${col}`) missed.push(`${row},${col} -> ${marked.join(" ") || "none"}`);
-            // A second tap on the start cancels it.
-            await tapCell(page, row, col);
+        const cdp = await page.context().newCDPSession(page);
+        const tap = (point: Point) => Promise.all([
+          cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] }),
+          cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }),
+        ]);
+        try {
+          for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+              const center = before[`${row},${col}`]!;
+              await tap(center);
+              const marked = await anchors();
+              if (marked !== `${row},${col}`) missed.push(`${row},${col} -> ${marked || "none"}`);
+              // A second tap on the start cancels it.
+              await tap(center);
+            }
           }
+        } finally {
+          await cdp.detach();
         }
         expect(missed, "cells whose center tap marked another cell").toEqual([]);
+        expect(await centers(), "the grid stays put while it is tapped").toEqual(before);
         await expect(page.locator(".word-search-cell.is-anchor")).toHaveCount(0);
 
         // The gap between columns 3 and 4, a little nearer column 3.
