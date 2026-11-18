@@ -73,15 +73,15 @@ describe("SEO route table", () => {
 });
 
 describe("share URLs", () => {
-  it("point at the game in the player's language with share UTM tags", () => {
+  it("point at the game in the player's language with a short share parameter", () => {
     expect(seoShareUrl("connections", "pt-BR")).toBe(
-      "https://kpopquiz.online/pt-br/conexoes/?utm_source=share&utm_medium=social&utm_campaign=connections",
+      "https://kpopquiz.online/pt-br/conexoes/?s=connections",
     );
     expect(seoShareUrl("connections", "en")).toBe(
-      "https://kpopquiz.online/en/connections/?utm_source=share&utm_medium=social&utm_campaign=connections",
+      "https://kpopquiz.online/en/connections/?s=connections",
     );
     expect(seoShareUrl("quiz", "pt-BR")).toBe(
-      "https://kpopquiz.online/pt-br/?utm_source=share&utm_medium=social&utm_campaign=quiz",
+      "https://kpopquiz.online/pt-br/?s=quiz",
     );
   });
 
@@ -90,9 +90,9 @@ describe("share URLs", () => {
     for (const route of SEO_ROUTES) {
       const url = new URL(seoShareUrl(route.key, route.locale));
       expect(`${url.origin}${url.pathname}`).toBe(seoAbsoluteUrl(route.path));
-      expect(url.searchParams.get("utm_source")).toBe("share");
-      expect(url.searchParams.get("utm_medium")).toBe("social");
-      const campaign = url.searchParams.get("utm_campaign")!;
+      expect([...url.searchParams.keys()]).toEqual(["s"]);
+
+      const campaign = url.searchParams.get("s")!;
       expect(campaign).toMatch(/^[a-z-]+$/);
       expect(campaigns.get(route.key) ?? campaign).toBe(campaign);
       campaigns.set(route.key, campaign);

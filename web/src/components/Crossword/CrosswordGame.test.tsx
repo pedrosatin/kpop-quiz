@@ -326,9 +326,9 @@ describe("CrosswordGame", () => {
     Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
     await pressAfterGuard(pt.share);
     const field = screen.getByRole("textbox", { name: pt.shareTextLabel }) as HTMLTextAreaElement;
-    expect(field.value).toContain("Cruzadinha de K-pop");
-    expect(field.value).toContain("utm_campaign=crossword");
-    expect(field.value).toContain(`Cruzadinha de K-pop ${today}`);
+    expect(field.value).toMatch(/^K-pop Quiz #\d+ · Cruzadinha\n/);
+    expect(field.value).toContain("?s=crossword");
+    expect(field.value).not.toContain("utm_");
     for (const entry of puzzle.entries) expect(field.value).not.toContain(entry.answer);
   });
 

@@ -269,11 +269,13 @@ describe("code characterization", () => {
       const exact = ids.filter((id, index) => id === secret[index]).length;
       return { ids, exact, misplaced: 4 - exact };
     });
+    // Share snapshots use the first published daily date so the header carries #N.
+    const dailyPuzzle = { ...puzzle, reference_date: "2026-10-19" };
     expect({
-      wonPt: generateShareText(puzzle, won, "pt-BR"),
-      wonEn: generateShareText(puzzle, won, "en"),
-      lostPt: generateShareText(puzzle, lost, "pt-BR"),
-      lostEn: generateShareText(puzzle, lost, "en"),
+      wonPt: generateShareText(dailyPuzzle, won, "pt-BR"),
+      wonEn: generateShareText(dailyPuzzle, won, "en"),
+      lostPt: generateShareText(dailyPuzzle, lost, "pt-BR"),
+      lostEn: generateShareText(dailyPuzzle, lost, "en"),
     }).toMatchSnapshot();
   });
 });

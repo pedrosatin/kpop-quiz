@@ -1,3 +1,5 @@
+import { getMessages } from "../../i18n/catalog";
+import { dailyShareHeader } from "../../lib/daily-challenge";
 import type { TimelineEvent, TimelinePuzzle } from "../../lib/timeline-types";
 import type { Locale } from "../../lib/quiz-types";
 import type { TimelineDraftState, TimelineStoredState } from "./types";
@@ -226,9 +228,7 @@ export function generateTimelineShareText({
   locale,
 }: GenerateTimelineShareTextParams): string {
   const isPt = locale === "pt-BR";
-  const title = isPt
-    ? `K-pop Quiz • Linha do Tempo ${referenceDate}`
-    : `K-pop Quiz • Timeline ${referenceDate}`;
+  const title = dailyShareHeader("timeline", getMessages(locale).gameTimeline, referenceDate);
   const scoreLine = shareScoreLine(isPt, gaveUp, `${score}/${totalEvents}`);
   const emojiLine = results.map((r) => (r ? "🟩" : "🟥")).join(" ");
   return withShareUrl(`${title}\n${scoreLine}\n${emojiLine}`, seoShareUrl("timeline", locale));

@@ -106,22 +106,30 @@ export function seoOgImageAlt(key: SeoRouteKey, locale: Locale, messages: Messag
     : `${name}, a daily K-pop Quiz game at ${host}`;
 }
 
-/** `utm_campaign` of a game: the last segment of its English path. */
+/** Short share tag of a game: the last segment of its English path. */
 export function seoShareCampaign(key: SeoRouteKey): string {
   const segments = seoRoute(key, "en").path.split("/").filter(Boolean);
   return segments.length > 1 ? segments[segments.length - 1]! : "quiz";
 }
 
 /**
- * Production URL of a game in the player's language, tagged so analytics can
- * count visits from shared results. Staging shares the same URL: the link
- * points people at the live game, never at the staging host.
+ * Production URL of a game in the player's language, tagged with `?s=<jogo>`
+ * so analytics can count visits from shared results. Staging shares the same
+ * URL: the link points people at the live game, never at the staging host.
  */
 export function seoShareUrl(key: SeoRouteKey, locale: Locale): string {
   const params = new URLSearchParams({
-    utm_source: "share",
-    utm_medium: "social",
-    utm_campaign: seoShareCampaign(key),
+    s: seoShareCampaign(key),
   });
   return `${seoAbsoluteUrl(seoRoute(key, locale).path)}?${params}`;
+}
+
+/** Standard GA4 campaign fields, applied only by the consent-gated config. */
+export function shareCampaignConfig(search: string): Record<string, string> {
+  const params = new URLSearchParams(search);
+  const campaign = params.get("s");
+  // Explicit legacy/external UTM attribution takes precedence.
+  if (["utm_source", "utm_medium", "utm_campaign"].some((key) => params.has(key))) return {};
+  if (!campaign || !SEO_ROUTES.some((route) => seoShareCampaign(route.key) === campaign)) return {};
+  return { campaign_source: "share", campaign_medium: "social", campaign_name: campaign };
 }

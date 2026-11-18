@@ -12,7 +12,7 @@ exports[`code characterization > pins the raw save written after each step 1`] =
 
 exports[`code characterization > pins the share text of a win and a loss in both languages 1`] = `
 {
-  "lostEn": "K-pop Code 2026-10-12
+  "lostEn": "K-pop Quiz #1 · Code
 Code not found in 10 attempts.
 Attempts: 10
 
@@ -26,8 +26,8 @@ Attempts: 10
 🟩🟨🟨🟨
 🟨🟨🟨🟨
 🟨🟨🟨🟨
-https://kpopquiz.online/en/code/?utm_source=share&utm_medium=social&utm_campaign=code",
-  "lostPt": "Código de grupos de K-pop 2026-10-12
+https://kpopquiz.online/en/code/?s=code",
+  "lostPt": "K-pop Quiz #1 · Código
 Código não descoberto nas 10 tentativas.
 Tentativas: 10
 
@@ -41,21 +41,21 @@ Tentativas: 10
 🟩🟨🟨🟨
 🟨🟨🟨🟨
 🟨🟨🟨🟨
-https://kpopquiz.online/pt-br/codigo/?utm_source=share&utm_medium=social&utm_campaign=code",
-  "wonEn": "K-pop Code 2026-10-12
+https://kpopquiz.online/pt-br/codigo/?s=code",
+  "wonEn": "K-pop Quiz #1 · Code
 Code solved in 2 attempts.
 Attempts: 2
 
 🟩🟨🟨⬜
 🟩🟩🟩🟩
-https://kpopquiz.online/en/code/?utm_source=share&utm_medium=social&utm_campaign=code",
-  "wonPt": "Código de grupos de K-pop 2026-10-12
+https://kpopquiz.online/en/code/?s=code",
+  "wonPt": "K-pop Quiz #1 · Código
 Código descoberto em 2 tentativas.
 Tentativas: 2
 
 🟩🟨🟨⬜
 🟩🟩🟩🟩
-https://kpopquiz.online/pt-br/codigo/?utm_source=share&utm_medium=social&utm_campaign=code",
+https://kpopquiz.online/pt-br/codigo/?s=code",
 }
 `;
 
@@ -181,14 +181,14 @@ exports[`code characterization > renders the play, win and share states the same
 exports[`code characterization > renders the play, win and share states the same way in en > 10 clipboard text 1`] = `
 [
   [
-    "K-pop Code 2026-10-12
+    "K-pop Quiz · Code
 Code solved in 3 attempts.
 Attempts: 3
 
 🟩🟨🟨⬜
 🟩🟩🟨🟨
 🟩🟩🟩🟩
-https://kpopquiz.online/en/code/?utm_source=share&utm_medium=social&utm_campaign=code",
+https://kpopquiz.online/en/code/?s=code",
   ],
 ]
 `;
@@ -373,14 +373,14 @@ exports[`code characterization > renders the play, win and share states the same
 exports[`code characterization > renders the play, win and share states the same way in pt-BR > 10 clipboard text 1`] = `
 [
   [
-    "Código de grupos de K-pop 2026-10-12
+    "K-pop Quiz · Código
 Código descoberto em 3 tentativas.
 Tentativas: 3
 
 🟩🟨🟨⬜
 🟩🟩🟨🟨
 🟩🟩🟩🟩
-https://kpopquiz.online/pt-br/codigo/?utm_source=share&utm_medium=social&utm_campaign=code",
+https://kpopquiz.online/pt-br/codigo/?s=code",
   ],
 ]
 `;

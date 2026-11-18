@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { getMessages } from "../../i18n/catalog";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
 import { getLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import type { Locale } from "../../lib/quiz-types";
-import { getMessages } from "../../i18n/catalog";
+import { shareCampaignConfig } from "../../lib/seo-routes";
 
 export const CONSENT_STORAGE_KEY = "kpop-quiz-consent";
 export const OPEN_CONSENT_PREFERENCES_EVENT = "kpop-quiz-open-consent-preferences";
@@ -51,7 +52,9 @@ function loadGoogleAnalytics(ga4Id: string): void {
       ad_user_data: "denied", ad_personalization: "denied",
     });
     gtag("js", new Date());
-    gtag("config", ga4Id);
+    const campaign = shareCampaignConfig(window.location.search);
+    if (Object.keys(campaign).length) gtag("config", ga4Id, campaign);
+    else gtag("config", ga4Id);
   } catch {
     // Measurement must never break the page.
   }

@@ -964,15 +964,19 @@ describe("map pilot result", () => {
     });
   }
 
-  const PT_URL = "https://kpopquiz.online/pt-br/mapa/?utm_source=share&utm_medium=social&utm_campaign=map";
-  const EN_URL = "https://kpopquiz.online/en/map/?utm_source=share&utm_medium=social&utm_campaign=map";
+  const PT_URL = "https://kpopquiz.online/pt-br/mapa/?s=map";
+  const EN_URL = "https://kpopquiz.online/en/map/?s=map";
 
   it("builds a short share text with the round date and the game link", () => {
-    expect(mapShareText(DATE, round, oneWrong, "pt-BR")).toBe(
-      `Mapa de K-pop ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
+    // Snapshots of the numbered header use the first published map day.
+    expect(mapShareText("2026-09-25", round, oneWrong, "pt-BR")).toBe(
+      `K-pop Quiz #1 · Mapa\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
     );
-    expect(mapShareText(DATE, round, rightAnswers, "en")).toBe(
-      `K-pop Map ${DATE}\n10/10 dates right\n${"🟩".repeat(10)}\n${EN_URL}`,
+    expect(mapShareText("2026-09-25", round, rightAnswers, "en")).toBe(
+      `K-pop Quiz #1 · Map\n10/10 dates right\n${"🟩".repeat(10)}\n${EN_URL}`,
+    );
+    expect(mapShareText(DATE, round, rightAnswers, "pt-BR")).toMatch(
+      /^K-pop Quiz · Mapa\n/,
     );
   });
 
@@ -997,7 +1001,7 @@ describe("map pilot result", () => {
     const view = finished();
     await share(view);
     expect(shareFn).toHaveBeenCalledWith({
-      text: `Mapa de K-pop ${DATE}\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
+      text: `K-pop Quiz · Mapa\n9/10 datas certas\n🟩⬛${"🟩".repeat(8)}\n${PT_URL}`,
     });
     expect(writeText).not.toHaveBeenCalled();
   });

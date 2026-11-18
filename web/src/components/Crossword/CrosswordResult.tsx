@@ -1,3 +1,4 @@
+import { dailyShareHeader } from "../../lib/daily-challenge";
 import type { Ref } from "preact";
 import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { CrosswordPuzzle } from "../../data/crossword";
@@ -30,7 +31,7 @@ export function generateCrosswordShareText(
     : messages.crosswordSummaryRevealed(solved.filter(Boolean).length, puzzle.entries.length);
   const squares = solved.map((ok) => (ok ? "🟩" : "⬜")).join("");
   return withShareUrl(
-    `${messages.crosswordShareHeader} ${puzzle.reference_date}\n${verdict}\n${squares}`,
+    `${dailyShareHeader("crossword", messages.gameCrossword, puzzle.reference_date)}\n${verdict}\n${squares}`,
     seoShareUrl("crossword", locale),
   );
 }

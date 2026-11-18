@@ -18,9 +18,29 @@ O texto de resultado dos sete jogos também saía sem link, com exceção da Lin
 
 ### Link no resultado
 
-`seoShareUrl(key, locale)` em `web/src/lib/seo-routes.ts` monta a URL de produção da rota no idioma do jogador com `utm_source=share`, `utm_medium=social` e `utm_campaign=<jogo>`. A campanha é o último segmento do caminho em inglês (`quiz`, `grid`, `connections`, `guess`, `word-search`, `map`, `timeline`), então as duas línguas de um jogo somam na mesma campanha. A origem vem de `SEO_PROD_ORIGIN`, a constante que o canonical já usa.
+`seoShareUrl(key, locale)` em `web/src/lib/seo-routes.ts` monta a URL de produção da rota no idioma do jogador com um único parâmetro curto `?s=<jogo>`. O valor de `s` é o último segmento do caminho em inglês (`quiz`, `grid`, `connections`, `guess`, `word-search`, `map`, `timeline`, `code`, `crossword`), então as duas línguas de um jogo somam na mesma campanha. A origem vem de `SEO_PROD_ORIGIN`, a constante que o canonical já usa.
 
-Os sete geradores de texto (`ShareResult`, `gridShareText`, Conexões, Adivinhe, Caça-palavras, Mapa e Linha do Tempo) terminam o texto com essa URL numa linha própria, via `withShareUrl`. O texto vai inteiro, com o link na última linha, tanto para o share sheet (`navigator.share({ text })`) quanto para a área de transferência e para o campo de cópia manual. Assim nenhum destino perde o link.
+Depois do consentimento, `ConsentBanner` lê `?s=` e chama `gtag("config", …)` com os campos padrão do GA4 `campaign_source=share`, `campaign_medium=social` e `campaign_name=<jogo>` (`shareCampaignConfig`). Não há dimensão personalizada a cadastrar no painel. UTMs legados ou externos na URL têm precedência e o site não sobrescreve a atribuição.
+
+O texto diário abre com `K-pop Quiz #N · <Jogo>`. `N` sai de `dailyChallengeNumber` em `web/src/lib/daily-challenge.ts`: dias corridos desde o primeiro `reference_date` publicado daquele jogo (`FIRST_DAILY_DATE`), contando o primeiro como `#1`. A data é a do artefato, então PT e EN e o replay do mesmo dia compartilham o mesmo número; jogo livre e datas anteriores ao marco saem sem `#N`.
+
+Regra do marco: o primeiro `reference_date` cujo artefato chegou à produção por um deploy do Pages (`pages.yml`) concluído com sucesso. Conta só o dia servido como desafio datado. Dados de exemplo e pilotos em rotas `noindex` ou sem data no share não contam: o Código piloto e a Cruzadinha com tabuleiro fixo (`/cruzadinha-piloto/`) ficam de fora; o Mapa conta porque o piloto de 2026-09-25 já era o desafio datado do dia. Exceção registrada: o exemplo `2026-09-20` da Linha do Tempo ficou cerca de 25 minutos no ar (deploy `35481962330`, `4ef5ba26`) antes do artefato de 2026-09-19 e não conta. As datas de deploy da tabela estão em UTC.
+
+| Jogo | `FIRST_DAILY_DATE` | Commit do artefato | Deploy Pages (sucesso) |
+|---|---|---|---|
+| Grade | 2026-09-17 | `90b11b1` (`grid.daily.json`) | `35260186186` (`2f4d4b18`, 2026-09-17) |
+| Conexões | 2026-09-17 | `09c06b7` (`connections.daily.json`) | `35298931000` (`1fe29fc9`, 2026-09-18) |
+| Quiz | 2026-09-18 | `ceada19` (seed `kpop-daily-2026-09-18`) | `35363750149` (`c6d553cb`, 2026-09-18) |
+| Adivinhe | 2026-09-18 | `4d51c0c` (`name-guess.daily.json`) | `35350238214` (`877fb780`, 2026-09-18) |
+| Caça-palavras | 2026-09-18 | `2e8bee1` (`word-search.daily.json`) | `35392477877` (`05107f06`, 2026-09-18) |
+| Linha do Tempo | 2026-09-19 | `8dafa85` (troca do exemplo `2026-09-20` pela data publicada) | `35483031694` (`a810d5a`, 2026-09-20) |
+| Mapa | 2026-09-25 | `9a2cffd` (piloto DEADLINE) | `36157926732` (`9a2cffd`, 2026-09-25) |
+| Código | 2026-10-19 | `8cf7d06` (`code-groups.daily.json`; piloto `2026-10-12` era `noindex`) | `39358063423` (`8cf7d06`, 2026-10-20) |
+| Cruzadinha | 2026-11-03 | `d6a6a3e` (`crossword.daily.json`, `reference_date` 2026-11-03) | `41719444183` (`d6a6a3e`, 2026-11-03); os artefatos de `0632dae` (registro `crossword-publication.2026-10-30.json`, sem tabuleiro) e `e4b2ee3` (10-31) e os deploys seguintes até 11-02 (`41232989774`, `41290699256`, `41342719890`) não chegaram ao ar |
+
+Os geradores que usam `withShareUrl` (Quiz/`ShareResult`, Grade, Conexões, Adivinhe, Caça-palavras, Mapa, Linha do Tempo) e os textos próprios de Código e Cruzadinha terminam com essa URL numa linha própria. O texto vai inteiro, com o link na última linha, tanto para o share sheet (`navigator.share({ text })`) quanto para a área de transferência e para o campo de cópia manual.
+
+O `?s=` vive só na URL da visita. Se a pessoa navega para outra página antes de aceitar o banner, o parâmetro se perde e a campanha não é enviada; o site não grava `?s=` antes do consentimento de propósito.
 
 A homologação compartilha a mesma URL de produção. O link leva quem recebe ao jogo publicado, e o host da homologação tem `noindex` e dados de outra branch. O canonical da ADR 018 já usa esse host, e nenhum guard de homologação proíbe `kpopquiz.online` no `dist`.
 
@@ -58,5 +78,5 @@ Separar a última linha e chamar `navigator.share({ title, text, url })` deixari
 
 - Alterar o nome de um jogo no catálogo, a frase do cartão ou as cores pede `npm run og:generate` e commit dos PNGs. O teste de tamanho não detecta cartão desatualizado, só cartão ausente, órfão ou com tamanho errado.
 - O screenshot depende da versão do Chromium do Playwright, então regenerar em outra máquina pode mudar bytes sem mudar o conteúdo visível.
-- Visitas vindas de resultados compartilhados aparecem no GA4 e no Cloudflare com `utm_source=share` quando a medição está ativa.
+- Visitas vindas de resultados compartilhados aparecem no GA4 com campanha `share` / `social` / `<jogo>` quando a medição está ativa e o visitante aceitou o banner; o Cloudflare continua vendo só o `?s=`.
 - `generateTimelineShareText` e `useTimelineGame` perderam o parâmetro `origin`, que nenhum chamador de produção passava.

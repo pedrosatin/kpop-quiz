@@ -820,7 +820,7 @@ describe("NameGuess share", () => {
     expect(share).toHaveBeenCalledWith({ text: shareText() });
     expect(share.mock.calls[0]![0]).not.toHaveProperty("url");
     expect(shareText().split("\n").pop()).toBe(
-      "https://kpopquiz.online/pt-br/adivinhe/?utm_source=share&utm_medium=social&utm_campaign=guess",
+      "https://kpopquiz.online/pt-br/adivinhe/?s=guess",
     );
     expect(shareText()).toContain("1/6");
     expect(writeText).not.toHaveBeenCalled();

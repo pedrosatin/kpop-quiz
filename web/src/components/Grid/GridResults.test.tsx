@@ -70,15 +70,15 @@ describe("GridResults component", () => {
 
   it("builds the share text with colored or high-contrast squares", () => {
     const states = sampleCellStates([[0, 0]]);
-    const url = "https://kpopquiz.online/pt-br/grid/?utm_source=share&utm_medium=social&utm_campaign=grid";
+    const url = "https://kpopquiz.online/pt-br/grid/?s=grid";
     expect(gridShareText(validGrid, states, 1, false, ptMessages, "pt-BR")).toBe(
-      `Grade de K-pop 2026-09-17\n1/9 acertos (1 palpites)\n🟩🟥🟥\n🟥🟥🟥\n🟥🟥🟥\n${url}`,
+      `K-pop Quiz #1 · Grade\n1/9 acertos (1 palpites)\n🟩🟥🟥\n🟥🟥🟥\n🟥🟥🟥\n${url}`,
     );
     expect(gridShareText(validGrid, states, 1, true, ptMessages, "pt-BR")).toBe(
-      `Grade de K-pop 2026-09-17\n1/9 acertos (1 palpites)\n■□□\n□□□\n□□□\n${url}`,
+      `K-pop Quiz #1 · Grade\n1/9 acertos (1 palpites)\n■□□\n□□□\n□□□\n${url}`,
     );
     expect(gridShareText(validGrid, states, 1, false, getMessages("en"), "en")).toContain(
-      "\nhttps://kpopquiz.online/en/grid/?utm_source=share&utm_medium=social&utm_campaign=grid",
+      "\nhttps://kpopquiz.online/en/grid/?s=grid",
     );
   });
 
@@ -106,7 +106,7 @@ describe("GridResults component", () => {
 
     await waitFor(() => expect(props.onCopied).toHaveBeenCalledTimes(1));
     const copiedContent = writeText.mock.calls[0]![0] as string;
-    expect(copiedContent).toContain("Grade de K-pop 2026-09-17");
+    expect(copiedContent).toContain("K-pop Quiz #1 · Grade");
     expect(copiedContent).toContain("1/9 acertos (3 palpites)");
     expect(screen.getByRole("button", { name: "Resultado copiado." })).toBeInTheDocument();
   });
@@ -122,7 +122,7 @@ describe("GridResults component", () => {
     await waitFor(() => expect(shareMock).toHaveBeenCalledTimes(1));
     expect(shareMock).toHaveBeenCalledWith({
       text: expect.stringMatching(
-        /^Grade de K-pop 2026-09-17[\s\S]*\nhttps:\/\/kpopquiz\.online\/pt-br\/grid\/\?utm_source=share&utm_medium=social&utm_campaign=grid$/,
+        /^K-pop Quiz #1 · Grade[\s\S]*\nhttps:\/\/kpopquiz\.online\/pt-br\/grid\/\?s=grid$/,
       ),
     });
     expect(writeText).not.toHaveBeenCalled();
@@ -153,7 +153,7 @@ describe("GridResults component", () => {
     expect(writeText).toHaveBeenCalledTimes(1);
     expect(props.onShareFailed).toHaveBeenCalledTimes(1);
     expect(field).toHaveAttribute("readonly");
-    expect((field as HTMLTextAreaElement).value).toContain("Grade de K-pop 2026-09-17");
+    expect((field as HTMLTextAreaElement).value).toContain("K-pop Quiz #1 · Grade");
     expect(field).toHaveAccessibleDescription(ptMessages.shareFailed);
   });
 

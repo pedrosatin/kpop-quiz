@@ -168,8 +168,9 @@ exports[`word search characterization > gives up the same way in en > 05 share s
 [
   [
     {
-      "text": "K-pop Word Search 2026-09-18 1/5 (00:07)
-https://kpopquiz.online/en/word-search/?utm_source=share&utm_medium=social&utm_campaign=word-search",
+      "text": "K-pop Quiz #1 · Word search
+1/5 (00:07)
+https://kpopquiz.online/en/word-search/?s=word-search",
     },
   ],
 ]
@@ -273,8 +274,9 @@ exports[`word search characterization > gives up the same way in pt-BR > 05 shar
 [
   [
     {
-      "text": "Caça-palavras de K-pop 2026-09-18 1/5 (00:07)
-https://kpopquiz.online/pt-br/caca-palavras/?utm_source=share&utm_medium=social&utm_campaign=word-search",
+      "text": "K-pop Quiz #1 · Caça-palavras
+1/5 (00:07)
+https://kpopquiz.online/pt-br/caca-palavras/?s=word-search",
     },
   ],
 ]
@@ -345,14 +347,18 @@ exports[`word search characterization > pins the raw save written after each ste
 
 exports[`word search characterization > pins the share text of a win and a give-up in both languages 1`] = `
 {
-  "gaveUpEn": "K-pop Word Search 2026-09-18 2/5 (62:05)
-https://kpopquiz.online/en/word-search/?utm_source=share&utm_medium=social&utm_campaign=word-search",
-  "gaveUpPt": "Caça-palavras de K-pop 2026-09-18 2/5 (62:05)
-https://kpopquiz.online/pt-br/caca-palavras/?utm_source=share&utm_medium=social&utm_campaign=word-search",
-  "wonEn": "K-pop Word Search 2026-09-18 5/5 (02:05)
-https://kpopquiz.online/en/word-search/?utm_source=share&utm_medium=social&utm_campaign=word-search",
-  "wonPt": "Caça-palavras de K-pop 2026-09-18 5/5 (02:05)
-https://kpopquiz.online/pt-br/caca-palavras/?utm_source=share&utm_medium=social&utm_campaign=word-search",
+  "gaveUpEn": "K-pop Quiz #1 · Word search
+2/5 (62:05)
+https://kpopquiz.online/en/word-search/?s=word-search",
+  "gaveUpPt": "K-pop Quiz #1 · Caça-palavras
+2/5 (62:05)
+https://kpopquiz.online/pt-br/caca-palavras/?s=word-search",
+  "wonEn": "K-pop Quiz #1 · Word search
+5/5 (02:05)
+https://kpopquiz.online/en/word-search/?s=word-search",
+  "wonPt": "K-pop Quiz #1 · Caça-palavras
+5/5 (02:05)
+https://kpopquiz.online/pt-br/caca-palavras/?s=word-search",
 }
 `;
 
@@ -615,12 +621,14 @@ exports[`word search characterization > renders the play, win and share states t
 exports[`word search characterization > renders the play, win and share states the same way in en > 26 clipboard text 1`] = `
 [
   [
-    "K-pop Word Search 2026-09-18 5/5 (00:03)
-https://kpopquiz.online/en/word-search/?utm_source=share&utm_medium=social&utm_campaign=word-search",
+    "K-pop Quiz #1 · Word search
+5/5 (00:03)
+https://kpopquiz.online/en/word-search/?s=word-search",
   ],
   [
-    "K-pop Word Search 2026-09-18 5/5 (00:03)
-https://kpopquiz.online/en/word-search/?utm_source=share&utm_medium=social&utm_campaign=word-search",
+    "K-pop Quiz #1 · Word search
+5/5 (00:03)
+https://kpopquiz.online/en/word-search/?s=word-search",
   ],
 ]
 `;
@@ -972,12 +980,14 @@ exports[`word search characterization > renders the play, win and share states t
 exports[`word search characterization > renders the play, win and share states the same way in pt-BR > 26 clipboard text 1`] = `
 [
   [
-    "Caça-palavras de K-pop 2026-09-18 5/5 (00:03)
-https://kpopquiz.online/pt-br/caca-palavras/?utm_source=share&utm_medium=social&utm_campaign=word-search",
+    "K-pop Quiz #1 · Caça-palavras
+5/5 (00:03)
+https://kpopquiz.online/pt-br/caca-palavras/?s=word-search",
   ],
   [
-    "Caça-palavras de K-pop 2026-09-18 5/5 (00:03)
-https://kpopquiz.online/pt-br/caca-palavras/?utm_source=share&utm_medium=social&utm_campaign=word-search",
+    "K-pop Quiz #1 · Caça-palavras
+5/5 (00:03)
+https://kpopquiz.online/pt-br/caca-palavras/?s=word-search",
   ],
 ]
 `;
