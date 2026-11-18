@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { reloadPersisted } from "./helpers/passive-effects";
 
+// Each test opens its own page and writes nowhere shared, so the file can
+// spread its tests across workers (see playwright.config.ts).
+test.describe.configure({ mode: "parallel" });
+
 // The committed public example fixes the answer and the available symbols.
 const puzzle = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
 const secret: string[] = puzzle.secret;

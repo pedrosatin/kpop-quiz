@@ -13,6 +13,10 @@ import { TimelinePage } from "./pages/timeline.page";
 import { WordSearchPage } from "./pages/word-search.page";
 import { skipUnlessPublished } from "./helpers/published";
 
+// Each test opens its own page and writes nowhere shared, so the file can
+// spread its tests across workers (see playwright.config.ts).
+test.describe.configure({ mode: "parallel" });
+
 /**
  * Playtest of 11/11/2026: "Ver fonte" scrolled inside a box (68px of the
  * quiz source, 288px of the crossword list), showed raw locators such as

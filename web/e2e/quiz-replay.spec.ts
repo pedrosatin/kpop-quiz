@@ -7,6 +7,10 @@ import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { skipUnlessPublished } from "./helpers/published";
 
+// Each test opens its own page and writes nowhere shared, so the file can
+// spread its tests across workers (see playwright.config.ts).
+test.describe.configure({ mode: "parallel" });
+
 /**
  * Catalog-backed general-quiz replay (Q03). The default dist has no catalog
  * (QUIZ_CATALOG off); this suite fulfills the Q02 fixtures so the browser path
