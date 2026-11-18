@@ -8,6 +8,14 @@ import { skipUnlessPublished } from "./helpers/published";
 // spread its tests across workers (see playwright.config.ts).
 test.describe.configure({ mode: "parallel" });
 
+/**
+ * Set WORD_SEARCH_LAYOUT_SHOTS=1 to save a screenshot at each stage (progress,
+ * victory, gave-up) in each case's output folder (test-results/). Off by
+ * default: the run is green or red without them, and 36 screenshots a run
+ * (12 cases, 3 each) are time the CI spends on pictures nobody opens.
+ */
+const SHOTS = Boolean(process.env.WORD_SEARCH_LAYOUT_SHOTS);
+
 interface Daily {
   reference_date: string;
   words: { start_row: number; start_col: number; end_row: number; end_col: number }[];
@@ -82,7 +90,7 @@ for (const locale of ["pt", "en"]) {
           await expect(page.getByTestId("found-counter")).toContainText("1");
           await page.locator(".toggle-mode-btn").click();
           await expectContained(page);
-          await page.screenshot({ path: testInfo.outputPath("progress.png") });
+          if (SHOTS) await page.screenshot({ path: testInfo.outputPath("progress.png") });
           for (let i = 1; i < puzzle.words.length; i++) await select(i);
           await expect(page.getByTestId("game-result")).toBeVisible();
           await expectContained(page);
@@ -93,7 +101,7 @@ for (const locale of ["pt", "en"]) {
           await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain(
             locale === "pt" ? "Caça-palavras de K-pop" : "K-pop Word Search",
           );
-          await page.screenshot({ path: testInfo.outputPath("victory.png") });
+          if (SHOTS) await page.screenshot({ path: testInfo.outputPath("victory.png") });
           await context.clearCookies();
           // A fresh board needs the day's record gone too: with the date counted
           // and no finished save, the game shows the day as done (ADR 030).
@@ -105,7 +113,7 @@ for (const locale of ["pt", "en"]) {
           await page.getByRole("button", { name: /Sim, desistir|Yes, give up/ }).click();
           await expect(page.getByTestId("game-result")).toBeVisible();
           await expectContained(page);
-          await page.screenshot({ path: testInfo.outputPath("gave-up.png") });
+          if (SHOTS) await page.screenshot({ path: testInfo.outputPath("gave-up.png") });
         } finally {
           await context.close();
         }
