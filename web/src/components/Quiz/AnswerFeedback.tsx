@@ -85,6 +85,8 @@ export function AnswerFeedback({
     />
   );
 
+  // data-feedback opts into the shared feedback motion CSS; is-correct /
+  // is-incorrect still drive the bar colors for every game.
   const feedback = quizFeedbackKind(answered, right);
 
   return (

@@ -16,20 +16,24 @@ describe("feel feedback CSS", () => {
     expect(tokensCss).toMatch(/--duration-feedback-result:\s*220ms/);
   });
 
-  it("defines shared feedback keyframes and applies them to non-interactive targets", () => {
+  it("defines shared feedback keyframes and data-feedback opt-in selectors", () => {
     for (const name of ["feedback-correct", "feedback-incorrect", "feedback-result"]) {
       expect(componentsCss).toContain(`@keyframes ${name}`);
     }
-    expect(componentsCss).toContain("animation: feedback-correct var(--duration-feedback)");
-    expect(componentsCss).toContain("animation: feedback-incorrect var(--duration-feedback)");
-    expect(componentsCss).toContain("animation: feedback-result var(--duration-feedback-result)");
-    // Motion targets the message title / mark, not the action buttons.
-    expect(componentsCss).toContain(".game-actions.is-correct > .game-actions-message .game-actions-title");
-    expect(componentsCss).toContain('.result-title[data-feedback="result"]');
+    expect(componentsCss).toContain('[data-feedback="correct"]');
+    expect(componentsCss).toContain('[data-feedback="incorrect"]');
+    expect(componentsCss).toContain('[data-feedback="result"]');
+    // Motion is opt-in; class-only bars / won-lost colors must not animate.
+    expect(componentsCss).not.toMatch(
+      /\.game-actions\.is-correct\s*>\s*\.game-actions-message\s*\.game-actions-title/,
+    );
+    expect(componentsCss).not.toMatch(
+      /\.result-title\.is-won[^{]*\{[^}]*animation:\s*feedback-/,
+    );
     expect(componentsCss).not.toMatch(/\.btn[^{]*\{[^}]*animation:\s*feedback-/);
   });
 
-  it("keeps reduced-motion kill-switch in base.css", () => {
+  it("keeps reduced-motion kill-switch in base.css at 0.01ms", () => {
     expect(baseCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(baseCss).toContain("animation-duration: 0.01ms !important");
     expect(baseCss).toContain("transition-duration: 0.01ms !important");

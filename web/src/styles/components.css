@@ -240,10 +240,13 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
 }
 
 /*
-  Feel feedback (Tier 1 / Tier 2). Motion runs on the message title and mark —
-  non-interactive — never on .btn. Durations use --duration-feedback /
-  --duration-feedback-result (≤250ms). base.css collapses them under
-  prefers-reduced-motion. See docs/feel-feedback.md.
+  Feedback motion: per-answer correct/incorrect and end-of-game result.
+  Motion runs on the message title and mark, which are not interactive.
+  It never runs on .btn. Opt-in via data-feedback on .game-actions or the
+  result title; only games that set the attribute animate. Durations use
+  --duration-feedback / --duration-feedback-result (≤250ms). base.css sets
+  animation and transition to 0.01ms under prefers-reduced-motion.
+  See docs/feel-feedback.md.
 */
 @keyframes feedback-correct {
   0% { transform: scale(0.96); opacity: 0.85; }
@@ -268,23 +271,20 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   margin-inline-end: 0.2em;
 }
 
-.game-actions.is-correct > .game-actions-message .game-actions-title,
-.game-actions.is-correct > .game-actions-message .feedback-mark {
+.game-actions[data-feedback="correct"] > .game-actions-message .game-actions-title,
+.game-actions[data-feedback="correct"] > .game-actions-message .feedback-mark {
   display: inline-block;
   animation: feedback-correct var(--duration-feedback) var(--ease-out) both;
 }
 
-.game-actions.is-incorrect > .game-actions-message .game-actions-title,
-.game-actions.is-incorrect > .game-actions-message .feedback-mark {
+.game-actions[data-feedback="incorrect"] > .game-actions-message .game-actions-title,
+.game-actions[data-feedback="incorrect"] > .game-actions-message .feedback-mark {
   display: inline-block;
   animation: feedback-incorrect var(--duration-feedback) var(--ease-out) both;
 }
 
 .result-title[data-feedback="result"],
-.result-title.is-won,
-.result-title.is-lost,
-.game-actions-title.is-won,
-.game-actions-title.is-lost {
+.game-actions-title[data-feedback="result"] {
   animation: feedback-result var(--duration-feedback-result) var(--ease-out) both;
 }
 

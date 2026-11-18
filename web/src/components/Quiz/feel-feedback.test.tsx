@@ -72,7 +72,7 @@ describe("AnswerFeedback feel", () => {
 });
 
 describe("QuizResult feel", () => {
-  it("tags the result title for Tier 2 motion and won/lost color", () => {
+  it("tags the result title with data-feedback=result and no won/lost class", () => {
     const { rerender, container } = render(
       <QuizResult
         score={100}
@@ -86,7 +86,9 @@ describe("QuizResult feel", () => {
     );
     const title = container.querySelector("#result-heading")!;
     expect(title).toHaveAttribute("data-feedback", "result");
-    expect(title).toHaveClass("is-won");
+    expect(title).toHaveClass("result-title");
+    expect(title).not.toHaveClass("is-won");
+    expect(title).not.toHaveClass("is-lost");
 
     rerender(
       <QuizResult
@@ -99,7 +101,9 @@ describe("QuizResult feel", () => {
         feedbackEligible={false}
       />,
     );
-    expect(container.querySelector("#result-heading")).toHaveClass("is-lost");
-    expect(container.querySelector("#result-heading")).toHaveAttribute("data-feedback", "result");
+    const lost = container.querySelector("#result-heading")!;
+    expect(lost).toHaveAttribute("data-feedback", "result");
+    expect(lost).not.toHaveClass("is-won");
+    expect(lost).not.toHaveClass("is-lost");
   });
 });

@@ -19,6 +19,7 @@ test.describe("pt-BR playthroughs", () => {
     await quiz.start();
     await quiz.answerAllAny();
     await quiz.expectResult();
+    await expect(page.locator('#result-heading[data-feedback="result"]')).toBeVisible();
   });
 
   test("connections reaches game-result after 4 wrong groups", async ({ page, baseURL }) => {
