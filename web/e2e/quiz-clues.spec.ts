@@ -368,3 +368,60 @@ test.describe("a decade round keeps its clue state after a reload", () => {
       });
     }
 });
+
+/**
+ * The cases tagged LOCAL_BUILD_TAG check every clue state on a build of this
+ * checkout, so a remote run leaves them out. This one checks the site
+ * BASE_URL points at (production or staging after a deploy, the preview
+ * otherwise): the daily round it serves shows the clue state its published
+ * session says, the clue opens at its cost, and a reload resumes the same
+ * round. Two questions keep it short; each one follows whatever the day
+ * published, with or without a clue.
+ */
+test("quiz pt standard daily on the target site: clue states follow the served session and a reload resumes it", async ({ page, baseURL }) => {
+  await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
+  const locale = locales[0];
+  const fetched = await openSession(page, baseURL!, locale.path, "standard", "theme=daily", false);
+  test.info().annotations.push({ type: "url", description: page.url() });
+  const session = await startAndMatch(page, fetched, false);
+  expect(session.config.play_mode).toBe("standard");
+  const board = page.getByTestId("game-board");
+  const heading = board.getByRole("heading", { level: 2 });
+  const notice = page.getByTestId("quiz-no-clue");
+
+  async function expectClueState(question: QuizQuestion, open: boolean) {
+    const clue = question.clues_available[0];
+    if (!clue) {
+      await expect(notice).toHaveText(locale.none);
+      await expect(board.getByRole("button", { name: /Ver pista|Pista aberta/ })).toHaveCount(0);
+      return;
+    }
+    await expect(notice).toHaveCount(0);
+    if (open) {
+      await expect(board.getByText(clue.text)).toBeVisible();
+      await expect(board.getByRole("button", { name: locale.opened })).toBeDisabled();
+      return;
+    }
+    await expect(board.getByText(clue.text)).toHaveCount(0);
+    await expect(board.getByRole("button", { name: locale.clueButton(question.hint_cost) })).toBeVisible();
+  }
+
+  const [first, second] = session.questions;
+  await expect(heading).toHaveText(first!.prompt);
+  await expectClueState(first!, false);
+  if (first!.clues_available.length > 0) {
+    await board.getByRole("button", { name: locale.clueButton(first!.hint_cost) }).click();
+    await expectClueState(first!, true);
+  }
+  const advance = await answerCorrectly(page, first!, locale);
+  await page.waitForTimeout(NEXT_GUARD_MS + 50);
+  await advance.click();
+  await expect(heading).toHaveText(second!.prompt);
+  await expectClueState(second!, false);
+
+  await page.reload();
+  await expect(heading).toHaveText(second!.prompt, { timeout: 30_000 });
+  await expectClueState(second!, false);
+  const resumed = await savedSessions(page);
+  expect(resumed.map((saved) => saved.session_id), "the reload must resume the served round").toContain(session.session_id);
+});
