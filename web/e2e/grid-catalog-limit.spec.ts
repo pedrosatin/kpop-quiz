@@ -51,10 +51,22 @@ for (const locale of locales)
       const refused = grid.candidate_pool.find((c) => !cell.valid_entity_ids.includes(c.id))!;
       const answers = cell.valid_entity_ids.map((id) => labels.get(id)!);
 
+      // A corrected day (non-empty `replaces`) shows a notice above the board
+      // (ADR 008). From 60rem the side panel is not sticky, so at 1280x800 that
+      // notice pushes "Give up" under the fold, whatever the guess shows. This
+      // test is about the refused-guess bar, so it reads the day as uncorrected;
+      // GridCorrection.test.tsx covers the notice.
+      await page.route(/\/data\/(next\/)?grid-publication\.\d{4}-\d{2}-\d{2}\.json(\?|$)/, async (route) => {
+        const response = await route.fetch();
+        if (!response.ok() || !response.headers()["content-type"]?.includes("json")) return route.fulfill({ response });
+        return route.fulfill({ response, json: { ...(await response.json()), replaces: [] } });
+      });
+
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto(joinBaseUrl(baseURL!, locale.path));
       const board = page.getByTestId("game-board");
       await expect(board).toBeVisible();
+      await expect(page.getByTestId("grid-correction")).toHaveCount(0);
 
       await board.locator('.grid-cell-btn[data-row="0"][data-col="0"]').click();
       const listbox = page.getByRole("listbox");
