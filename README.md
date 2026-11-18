@@ -606,6 +606,8 @@ another `gtag` function present.
 
 O piloto de feedback após uma partida concluída do quiz, sua configuração e rollback estão descritos em [Feedback do quiz](docs/feedback.md).
 
+O micro-feedback visual de acerto, erro e fim de partida (tokens CSS, `prefers-reduced-motion`, piloto no Quiz) está em [Micro-feedback de acerto e erro](docs/feel-feedback.md).
+
 Photo downloads install complete responses atomically and keep a local `.sha256` sidecar. The download command reuses files only when their checksum matches; older files without a sidecar are downloaded once more.
 
 To inspect run records left unfinished after an interruption, use `python -m kpop_scraping.recover_runs --database data/kpop.db`. This lists `running` records without writing; the database does not contain a heartbeat, so the list does not prove that a process has stopped. After checking that the process has stopped, close only its record with `--fail-run collection_runs:123` (replace the table and ID with the listed identity). Completed records and other running records are preserved; no age-based cleanup runs automatically.

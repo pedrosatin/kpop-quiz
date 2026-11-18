@@ -239,6 +239,55 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   color: var(--color-error-text);
 }
 
+/*
+  Feedback motion: per-answer correct/incorrect and end-of-game result.
+  Motion runs on the message title and mark, which are not interactive.
+  It never runs on .btn. Opt-in via data-feedback on .game-actions or the
+  result title; only games that set the attribute animate. Durations use
+  --duration-feedback / --duration-feedback-result (≤250ms). base.css sets
+  animation and transition to 0.01ms under prefers-reduced-motion.
+  See docs/feel-feedback.md.
+*/
+@keyframes feedback-correct {
+  0% { transform: scale(0.96); opacity: 0.85; }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes feedback-incorrect {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@keyframes feedback-result {
+  0% { transform: scale(0.96); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.feedback-mark {
+  display: inline-block;
+  font-weight: 800;
+  margin-inline-end: 0.2em;
+}
+
+.game-actions[data-feedback="correct"] > .game-actions-message .game-actions-title,
+.game-actions[data-feedback="correct"] > .game-actions-message .feedback-mark {
+  display: inline-block;
+  animation: feedback-correct var(--duration-feedback) var(--ease-out) both;
+}
+
+.game-actions[data-feedback="incorrect"] > .game-actions-message .game-actions-title,
+.game-actions[data-feedback="incorrect"] > .game-actions-message .feedback-mark {
+  display: inline-block;
+  animation: feedback-incorrect var(--duration-feedback) var(--ease-out) both;
+}
+
+.result-title[data-feedback="result"],
+.game-actions-title[data-feedback="result"] {
+  animation: feedback-result var(--duration-feedback-result) var(--ease-out) both;
+}
+
 .game-actions-message {
   flex: 1 1 20rem;
   min-width: 0;

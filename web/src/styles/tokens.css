@@ -139,6 +139,14 @@
 
   /* Motion */
   --transition-fast: 150ms ease;
+  /* Feedback motion: per-answer correct/incorrect and end-of-game result.
+     Durations stay ≤250ms on non-interactive elements. Never put infinite or
+     >300ms motion on a clickable control (Playwright waits for stability).
+     base.css sets animation and transition to 0.01ms under
+     prefers-reduced-motion. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-feedback: 180ms;
+  --duration-feedback-result: 220ms;
 }
 
 @media (pointer: coarse) and (width > 420px) {

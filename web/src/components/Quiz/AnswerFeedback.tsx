@@ -7,6 +7,7 @@ import {
   AnswerFeedbackMessage,
   AnswerSummary,
   quizBarState,
+  quizFeedbackKind,
 } from "./answer-feedback-message";
 import { AnswerFeedbackSource } from "./answer-feedback-source";
 import { groupEvidence } from "./answer-evidence";
@@ -84,8 +85,15 @@ export function AnswerFeedback({
     />
   );
 
+  // data-feedback opts into the shared feedback motion CSS; is-correct /
+  // is-incorrect still drive the bar colors for every game.
+  const feedback = quizFeedbackKind(answered, right);
+
   return (
-    <div class={`game-actions quiz-actions${quizBarState(answered, right)}`}>
+    <div
+      class={`game-actions quiz-actions${quizBarState(answered, right)}`}
+      {...(feedback ? { "data-feedback": feedback } : {})}
+    >
       <div class="game-actions-message" role="status" aria-live="polite" tabIndex={0}>
         <AnswerFeedbackMessage
           answered={answered}
