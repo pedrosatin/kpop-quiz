@@ -123,6 +123,26 @@ class CLIPhaseReportTest(unittest.TestCase):
             self.assertIn(f"Rebuild phase {name}: ", output)
         self.assertLess(output.index("Pipeline failed"), output.index("Rebuild total: "))
 
+    @unittest.skipIf(os.name == "nt", "SIGTERM is POSIX")
+    def test_sigterm_ends_the_run_with_143_after_the_phase_report(self):
+        import signal
+        import time
+
+        def stopped_run(*_args):
+            os.kill(os.getpid(), signal.SIGTERM)
+            time.sleep(5)
+            raise AssertionError("SIGTERM did not stop the run")
+
+        before = signal.getsignal(signal.SIGTERM)
+        stdout = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory, patch(
+            "kpop_scraping.cli._run", side_effect=stopped_run
+        ), redirect_stdout(stdout), self.assertRaises(SystemExit) as raised:
+            main(["--database", str(Path(directory) / "kpop.db")])
+        self.assertEqual(raised.exception.code, 143)
+        self.assertIn("Rebuild total: ", stdout.getvalue())
+        self.assertIs(signal.getsignal(signal.SIGTERM), before)
+
 
 if __name__ == "__main__":
     unittest.main()

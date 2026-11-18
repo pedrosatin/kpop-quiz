@@ -2,7 +2,9 @@
 
 import argparse
 import os
+import signal
 import sys
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -202,14 +204,37 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         raise SystemExit(str(exc)) from None
     phase_log = rebuild_phases.PhaseLog()
+    previous_handler = _exit_on_sigterm()
     try:
         with rebuild_phases.install(phase_log):
             return _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, catalog_report)
     finally:
-        # Printed for a failed run too: the phase that waited out the maxlag
-        # budget is the one a slow night needs to show.
+        # Printed for a failed or stopped run too: the phase that waited out
+        # the maxlag budget is the one a slow night needs to show.
         for line in phase_log.report_lines():
             print(line, flush=True)
+        if previous_handler is not None:
+            signal.signal(signal.SIGTERM, previous_handler)
+
+
+def _exit_on_sigterm():
+    """Turn SIGTERM into ``SystemExit(143)`` and return the handler it replaced.
+
+    ``scripts/rebuild_database.py`` sends SIGTERM to an attempt that reached
+    its timeout or the end of the refresh budget. Unwinding closes the
+    database without committing the open transaction, as the default
+    handler's abrupt exit did, and lets the phase report reach the log.
+    Signal handlers belong to the main thread; elsewhere nothing changes.
+    """
+    if threading.current_thread() is not threading.main_thread():
+        return None
+
+    def stop(signum, _frame):
+        raise SystemExit(128 + signum)
+
+    return signal.signal(signal.SIGTERM, stop)
+
+
 
 
 def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, catalog_report) -> int:
