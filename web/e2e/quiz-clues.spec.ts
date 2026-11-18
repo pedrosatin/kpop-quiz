@@ -32,6 +32,10 @@ const test = base.extend<{}, { consentURL: string }>({
 
 test.use({ serviceWorkers: "block" });
 
+// Each test opens its own page and writes nowhere shared, so the file can
+// spread its tests across workers (see playwright.config.ts).
+test.describe.configure({ mode: "parallel" });
+
 /**
  * The browser must show what the published session says: the clue when the
  * artifact carries one, a plain notice when it does not, and a cost only for a
@@ -266,7 +270,7 @@ for (const locale of locales)
               await expectInsideViewport(page, "quiz-no-clue");
               if (shotDir && withoutClue === 1) {
                 mkdirSync(shotDir, { recursive: true });
-                await page.screenshot({ path: join(shotDir, `${locale.id}-${viewport.name}-${mode}-${scenario.name}-no-clue.png`) });
+                await page.screenshot({ path: join(shotDir, `${locale.id}-${viewport.name}-${mode}-${scenario.name}-${consent}-no-clue.png`) });
               }
             } else {
               withClue += 1;
@@ -287,7 +291,7 @@ for (const locale of locales)
               }
               if (shotDir && withClue === 1) {
                 mkdirSync(shotDir, { recursive: true });
-                await page.screenshot({ path: join(shotDir, `${locale.id}-${viewport.name}-${mode}-${scenario.name}-clue.png`) });
+                await page.screenshot({ path: join(shotDir, `${locale.id}-${viewport.name}-${mode}-${scenario.name}-${consent}-clue.png`) });
               }
             }
             const advance = await answerCorrectly(page, question, locale);

@@ -4,6 +4,10 @@ import { loadPreferNextDaily } from "./helpers/daily-artifact";
 import { reloadPersisted } from "./helpers/passive-effects";
 import { skipUnlessPublished } from "./helpers/published";
 
+// Each test opens its own page and writes nowhere shared, so the file can
+// spread its tests across workers (see playwright.config.ts).
+test.describe.configure({ mode: "parallel" });
+
 interface Daily {
   reference_date: string;
   words: { start_row: number; start_col: number; end_row: number; end_col: number }[];

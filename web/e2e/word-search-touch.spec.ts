@@ -5,6 +5,10 @@ import { expect, test } from "./fixtures/consent-build";
 import { loadPreferNextDaily } from "./helpers/daily-artifact";
 import { skipUnlessPublished } from "./helpers/published";
 
+// Each test opens its own page and writes nowhere shared, so the file can
+// spread its tests across workers (see playwright.config.ts).
+test.describe.configure({ mode: "parallel" });
+
 // Every case plays the published word search, which a day may go out without.
 test.beforeEach(async ({ page, consentURL }) => {
   await skipUnlessPublished(page, consentURL, "word-search.daily.json");

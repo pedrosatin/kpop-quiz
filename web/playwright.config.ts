@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { defineConfig, devices } from "@playwright/test";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:4321";
@@ -40,15 +41,26 @@ function localPreviewTarget(url: string): { host: string; port: number; url: str
   }
 }
 
+/**
+ * CI uses one worker per vCPU (4 on the public runners). The cap keeps a larger
+ * runner from overloading the single astro preview every worker shares. Local
+ * runs stay at 1 so a laptop under load does not turn into timeouts; pass
+ * --workers to change it.
+ */
+const CI_MAX_WORKERS = 4;
+const workers = process.env.CI ? Math.max(1, Math.min(availableParallelism(), CI_MAX_WORKERS)) : 1;
+
 const remote = isRemoteUrl(baseURL);
 const localTarget = remote ? null : localPreviewTarget(baseURL);
 
 export default defineConfig({
   testDir: "./e2e",
+  // Files run in parallel with each other; tests inside a file stay in order
+  // unless the file opts in with test.describe.configure({ mode: "parallel" }).
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 1,
-  workers: 1,
+  workers,
   // Fixture site builds (e2e/fixtures/site-builds.ts) share one directory per run.
   globalSetup: "./e2e/global-setup.ts",
   reporter: [["list"]],

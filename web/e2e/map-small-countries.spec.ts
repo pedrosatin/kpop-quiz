@@ -2,6 +2,10 @@ import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 
+// Each test opens its own page and writes nowhere shared, so the file can
+// spread its tests across workers (see playwright.config.ts).
+test.describe.configure({ mode: "parallel" });
+
 /**
  * On a phone the whole map gives Singapore 0.2px, Taiwan 3px and South
  * Korea 5px. The first tap zooms into the tapped region, where every
