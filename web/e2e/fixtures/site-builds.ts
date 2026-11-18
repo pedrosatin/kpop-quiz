@@ -1,9 +1,10 @@
 import { execFile } from "node:child_process";
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { preview } from "astro";
+import { withRunLock } from "./run-lock";
 
 /**
  * Site builds the fixtures serve: a variant of the site that the default dist/
@@ -13,8 +14,8 @@ import { preview } from "astro";
  * test asks for it: a run that selects no test using a fixture (the boot smoke,
  * the nightly) builds nothing. The output lives in the run directory that
  * global-setup.ts creates and global-teardown removes, so workers and retries
- * reuse it. Builds are serialized by a lock across workers, because two
- * `astro build` at once fight over web/.astro/ and fail with
+ * reuse it. Builds are serialized by a lock across workers (run-lock.ts),
+ * because two `astro build` at once fight over web/.astro/ and fail with
  * "Cannot find module '.../web/.astro/.prerender/...'".
  *
  * A build is read only once it is ready. Anything that changes files after the
@@ -63,7 +64,6 @@ export const FEEDBACK_BUILD: SiteBuild = {
 };
 
 const BUILD_TIMEOUT_MS = 180_000;
-const LOCK_POLL_MS = 200;
 
 /** Worker fixtures that may wait for other builds before their own. */
 export const SITE_BUILD_FIXTURE_TIMEOUT_MS = 300_000;
@@ -92,7 +92,7 @@ async function produce(build: SiteBuild): Promise<string> {
   const dir = buildsDir();
   const outDir = join(dir, build.name);
   const marker = `${outDir}.ready`;
-  return withLock(dir, async () => {
+  return withRunLock(dir, async () => {
     if (await exists(marker)) return outDir;
     await rm(outDir, { recursive: true, force: true });
     const started = Date.now();
@@ -136,46 +136,5 @@ async function exists(path: string): Promise<boolean> {
     return true;
   } catch {
     return false;
-  }
-}
-
-/** mkdir is atomic: the worker that creates the directory holds the lock. */
-async function withLock<T>(dir: string, fn: () => Promise<T>): Promise<T> {
-  const lock = join(dir, ".lock");
-  for (;;) {
-    try {
-      await mkdir(lock);
-      break;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      if (await holderDied(lock)) {
-        await rm(lock, { recursive: true, force: true });
-        continue;
-      }
-      await new Promise((resolve) => setTimeout(resolve, LOCK_POLL_MS));
-    }
-  }
-  try {
-    await writeFile(join(lock, "pid"), String(process.pid));
-    return await fn();
-  } finally {
-    await rm(lock, { recursive: true, force: true });
-  }
-}
-
-/** A worker killed mid-build (a timeout, a crash) must not block the others. */
-async function holderDied(lock: string): Promise<boolean> {
-  let pid: number;
-  try {
-    pid = Number(await readFile(join(lock, "pid"), "utf8"));
-  } catch {
-    return false; // Just taken; the holder has not written its pid yet.
-  }
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return false;
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === "ESRCH";
   }
 }
