@@ -1,0 +1,147 @@
+name: Detect changes
+
+# Decides which checks a pull request needs. Called by pages.yml (`web`) and
+# ci.yml (`python`) as their `changes` job, so the rules and the fail-open
+# behaviour live in one place.
+#
+# In a pull request it lists the files that differ from the merge base through
+# the compare API, so it needs no checkout and no history. Every other event
+# runs everything. When the detection fails, the step fails and the caller's
+# jobs run anyway: their condition treats any `changes` result but success as
+# "run". A job skipped by `if` counts as passed for a required check, so that
+# must never be the outcome of a failure. (No check is required on master
+# today; the rule holds if one becomes required.)
+#
+# `paths` on the callers' pull_request trigger is not used to skip those jobs:
+# the artifact check in pages.yml has to keep running in the pull requests that
+# skip the web jobs.
+
+on:
+  workflow_call:
+    outputs:
+      web:
+        description: "true when the site build, Vitest or the E2E suite can be affected"
+        value: ${{ jobs.detect.outputs.web }}
+      python:
+        description: "true when the Python verification can be affected"
+        value: ${{ jobs.detect.outputs.python }}
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      web: ${{ steps.detect.outputs.web }}
+      python: ${{ steps.detect.outputs.python }}
+    steps:
+      - name: Detect web and Python changes
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # What the site build, Vitest and the E2E suite read. Under web/ is
+          # everything they run. The rest is read from outside it: the map
+          # pilot data, the crossword schemas and invalid-case fixture that
+          # crossword.test.ts loads, the workflows two tests pin (staging.yml)
+          # or the ones that run them (pages.yml, changes.yml).
+          affects_web() {
+            case "$1" in
+              web/* | data/map-pilot/* | schemas/*) return 0 ;;
+              tests/fixtures/crossword_invalid_cases.json) return 0 ;;
+              .github/workflows/pages.yml | .github/workflows/staging.yml) return 0 ;;
+              .github/workflows/changes.yml) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          # What the Python suite reads. Anything not known to leave it alone
+          # counts, so a path nobody listed runs the suite. It leaves alone:
+          # the web sources, which it reads only to check that every file
+          # they take from outside web/ runs the web jobs (the pull request
+          # still runs that one test file, see ci.yml); the documentation;
+          # the scratch notes; and the loose Markdown files and LICENSE at
+          # the root. The web files it does read run it: the manifest and
+          # lockfile it pins, the published data, the catalog fixture and
+          # the world map.
+          affects_python() {
+            case "$1" in
+              web/package.json | web/package-lock.json | web/.npmrc) return 0 ;;
+              web/public/data/* | web/src/tests/fixtures/catalog/*) return 0 ;;
+              web/src/data/map-pilot/*) return 0 ;;
+              web/* | docs/* | .scratch/*) return 1 ;;
+              */*) return 0 ;;
+              *.md | LICENSE) return 1 ;;
+              *) return 0 ;;
+            esac
+          }
+
+          finish() {
+            echo "web=$1" >> "$GITHUB_OUTPUT"
+            echo "python=$2" >> "$GITHUB_OUTPUT"
+            echo "Web jobs: $1. Python verification: $2 ($3)"
+            exit 0
+          }
+
+          if [ "$EVENT_NAME" != pull_request ]; then
+            finish true true "$EVENT_NAME runs the whole suite"
+          fi
+
+          # base...head is the diff from the merge base to the head. The
+          # renamed files list their old path too, so moving a file out of
+          # web/ does not look like a change that leaves the site alone.
+          # Three attempts: a failure here only costs a red `changes` job and
+          # a full run, but a transient API error is not worth either.
+          attempt=1
+          until files=$(gh api --paginate "repos/$REPOSITORY/compare/$PR_BASE_SHA...$PR_HEAD_SHA?per_page=100" \
+            --jq '(.files // [])[] | .filename, (.previous_filename // empty)'); do
+            if [ "$attempt" -ge 3 ]; then
+              echo "::error::Could not list the changed files; everything runs."
+              exit 1
+            fi
+            attempt=$((attempt + 1))
+            sleep 5
+          done
+
+          count=$(printf '%s' "$files" | grep -c . || true)
+          echo "Changed paths: $count"
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files" | sed 's/^/  - /'
+          fi
+
+          if [ "$count" -eq 0 ]; then
+            finish true true 'empty diff'
+          fi
+          # The compare API lists at most 300 files, so a list this long may
+          # be incomplete.
+          if [ "$count" -ge 300 ]; then
+            finish true true 'file list may be truncated'
+          fi
+
+          web=false
+          python=false
+          web_why='nothing the site build reads changed'
+          python_why='nothing the Python suite reads changed'
+          while IFS= read -r file; do
+            printable=${file//[^[:print:]]/?}
+            if [ "$web" = false ] && affects_web "$file"; then
+              web=true
+              web_why="web input changed: $printable"
+            fi
+            if [ "$python" = false ] && affects_python "$file"; then
+              python=true
+              python_why="Python input changed: $printable"
+            fi
+          done <<< "$files"
+          echo "Web jobs: $web ($web_why)"
+          echo "Python verification: $python ($python_why)"
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "python=$python" >> "$GITHUB_OUTPUT"

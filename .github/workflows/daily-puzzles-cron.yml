@@ -168,9 +168,11 @@ jobs:
             if [ -z "$TARGET_DATE" ]; then
               TARGET_DATE=$(python3 -c 'from kpop_scraping.daily_puzzles_runner import get_reference_date; print(get_reference_date())')
             fi
-            echo "source_data_tree=$(git rev-parse HEAD:web/public/data)" >> "$GITHUB_OUTPUT"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "target_date=${TARGET_DATE}" >> "$GITHUB_OUTPUT"
+            {
+              echo "source_data_tree=$(git rev-parse HEAD:web/public/data)"
+              echo "changed=true"
+              echo "target_date=${TARGET_DATE}"
+            } >> "$GITHUB_OUTPUT"
           else
             echo "No changes in web/public/data to publish"
             echo "changed=false" >> "$GITHUB_OUTPUT"

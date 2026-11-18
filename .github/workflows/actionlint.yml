@@ -1,0 +1,72 @@
+name: Lint workflows
+
+# actionlint checks the workflow files (syntax, expressions, `needs`, reusable
+# workflow inputs and outputs, and the `run:` scripts through shellcheck), so
+# a workflow that GitHub would reject as invalid fails here first.
+#
+# The trigger filters by `paths`, which is fine because no branch rule
+# requires this check: a pull request that leaves the workflows alone does not
+# run it, and there is nothing to wait for. Make it required only after
+# replacing the filter with a condition, as ci.yml does for its jobs.
+#
+# Run it locally with the same versions:
+#   mise x shellcheck@0.11.0 actionlint@1.7.12 -- actionlint
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # The release archives, checked against the SHA-256 below before they
+      # are unpacked. To update: change the version, take the actionlint hash
+      # from the release's actionlint_<version>_checksums.txt, and the
+      # shellcheck one from `sha256sum` of the archive on its release page.
+      ACTIONLINT_VERSION: "1.7.12"
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+      SHELLCHECK_VERSION: "0.11.0"
+      SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # shellcheck comes pinned too: the one on the runner image changes with
+      # the image and would report other findings than the local run.
+      - name: Install actionlint and shellcheck
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/lint-bin"
+          mkdir -p "$bin" "$RUNNER_TEMP/lint-download"
+          cd "$RUNNER_TEMP/lint-download"
+
+          curl -fsSL --retry 3 --max-time 60 -o actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "$ACTIONLINT_SHA256  actionlint.tar.gz" | sha256sum --check --strict -
+          tar -xzf actionlint.tar.gz -C "$bin" actionlint
+
+          curl -fsSL --retry 3 --max-time 60 -o shellcheck.tar.xz \
+            "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK_VERSION}/shellcheck-v${SHELLCHECK_VERSION}.linux.x86_64.tar.xz"
+          echo "$SHELLCHECK_SHA256  shellcheck.tar.xz" | sha256sum --check --strict -
+          tar -xJf shellcheck.tar.xz --strip-components=1 -C "$bin" "shellcheck-v${SHELLCHECK_VERSION}/shellcheck"
+
+          echo "$bin" >> "$GITHUB_PATH"
+
+      - name: Lint the workflows
+        run: |
+          actionlint -version
+          shellcheck --version
+          actionlint -color

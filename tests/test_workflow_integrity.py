@@ -333,7 +333,9 @@ class ParallelJobsTests(unittest.TestCase):
 
     def test_ci_runs_python_and_web_in_separate_jobs(self):
         ci = WORKFLOWS / "ci.yml"
-        self.assertEqual(job_names(ci), ["python", "web", "code-feedback"])
+        self.assertEqual(
+            job_names(ci), ["changes", "python", "workflow-integrity", "web", "code-feedback"]
+        )
         python, web = job_text(ci, "python"), job_text(ci, "web")
         self.assertIn("python -m compileall -q .\n", python)
         self.assertIn("python -m pytest tests -n logical", python)
@@ -341,7 +343,9 @@ class ParallelJobsTests(unittest.TestCase):
         for command in ("run: npm ci\n", "run: npm test\n", "run: npm run build\n"):
             self.assertIn(command, web)
         self.assertNotIn("python", web)
-        self.assertEqual(job_needs(python) + job_needs(web), [])
+        # Web waits for nothing: only the Python jobs wait for the detection.
+        self.assertEqual(job_needs(web), [])
+        self.assertEqual(job_needs(python), ["changes"])
 
 
 def step_script(path: Path, job: str, step: str) -> str:
@@ -379,6 +383,8 @@ class WebChangesTests(unittest.TestCase):
     """
 
     PAGES = WORKFLOWS / "pages.yml"
+    CHANGES = WORKFLOWS / "changes.yml"
+    STEP = "Detect web and Python changes"
     ZEROS = "0" * 40
 
     def setUp(self):
@@ -387,7 +393,7 @@ class WebChangesTests(unittest.TestCase):
         self.addCleanup(self._dir.cleanup)
         (self.dir / "bin").mkdir()
         (self.dir / "script.sh").write_text(
-            step_script(self.PAGES, "changes", "Detect web changes"), encoding="utf-8"
+            step_script(self.CHANGES, "detect", self.STEP), encoding="utf-8"
         )
         sleep = self.dir / "bin" / "sleep"
         sleep.write_text("#!/bin/bash\n", encoding="utf-8")
@@ -431,25 +437,59 @@ cat <<'LIST'
         calls = (self.dir / "gh-args").read_text(encoding="utf-8").splitlines()
         return completed, outputs, calls
 
-    def web_output(self, files: list[str], event: str = "pull_request") -> list[str]:
+    def outputs(self, files: list[str], event: str = "pull_request") -> list[str]:
         completed, outputs, _calls = self.run_step(event, files)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         return outputs
+
+    def web_output(self, files: list[str], event: str = "pull_request") -> list[str]:
+        """The ``web`` line the step wrote (the ``python`` line comes second)."""
+        outputs = self.outputs(files, event)
+        self.assertEqual([line.split("=")[0] for line in outputs], ["web", "python"], outputs)
+        return outputs[:1]
+
+    def python_output(self, files: list[str], event: str = "pull_request") -> list[str]:
+        outputs = self.outputs(files, event)
+        self.assertEqual([line.split("=")[0] for line in outputs], ["web", "python"], outputs)
+        return outputs[1:]
 
     def test_pull_request_trigger_has_no_paths_filter(self):
         text = self.PAGES.read_text(encoding="utf-8")
         trigger = text.split("\n  pull_request:\n", 1)[1].split("\n  push:\n", 1)[0]
         self.assertNotRegex(trigger, r"(?m)^    paths:")
 
+    def test_push_trigger_covers_the_detection_it_calls(self):
+        # The detection lives in changes.yml now; a merge that only touches it
+        # must still run this workflow on master (the python job is the only
+        # Python gate outside pull requests).
+        text = self.PAGES.read_text(encoding="utf-8")
+        trigger = text.split("\n  push:\n", 1)[1].split("\n  workflow_dispatch:", 1)[0]
+        for path in (".github/workflows/pages.yml", ".github/workflows/changes.yml"):
+            self.assertIn(f'      - "{path}"', trigger)
+
+    def test_both_workflows_call_the_one_detection(self):
+        for path in (self.PAGES, WORKFLOWS / "ci.yml"):
+            with self.subTest(path.name):
+                job = job_text(path, "changes")
+                self.assertRegex(job, r"(?m)^    uses: \./\.github/workflows/changes\.yml$")
+                self.assertEqual(job_needs(job), [])
+                self.assertNotRegex(job, r"(?m)^    (if|with|secrets|continue-on-error):")
+        text = self.CHANGES.read_text(encoding="utf-8")
+        self.assertRegex(text, r"(?m)^on:\n  workflow_call:\n")
+        self.assertNotRegex(text, r"(?m)^  (pull_request|push|workflow_dispatch|schedule|workflow_run):")
+        self.assertIn("value: ${{ jobs.detect.outputs.web }}", text)
+        self.assertIn("value: ${{ jobs.detect.outputs.python }}", text)
+
     def test_changes_job_needs_no_checkout_and_no_condition(self):
-        job = job_text(self.PAGES, "changes")
+        job = job_text(self.CHANGES, "detect")
         self.assertNotIn("actions/checkout@", job)
         self.assertEqual(job_needs(job), [])
         self.assertNotRegex(job, r"(?m)^    if:")
         self.assertNotIn("continue-on-error", job)
         self.assertIn("web: ${{ steps.detect.outputs.web }}", job)
+        self.assertIn("python: ${{ steps.detect.outputs.python }}", job)
         self.assertEqual(
-            step_env(job, "Detect web changes"),
+            step_env(job, self.STEP),
             [
                 "EVENT_NAME: ${{ github.event_name }}",
                 "GH_TOKEN: ${{ github.token }}",
@@ -482,6 +522,7 @@ cat <<'LIST'
             "schemas/crossword-daily-v1.json",
             "tests/fixtures/crossword_invalid_cases.json",
             ".github/workflows/staging.yml",
+            ".github/workflows/changes.yml",
         ):
             with self.subTest(path):
                 self.assertEqual(self.web_output([path]), ["web=true"])
@@ -507,17 +548,17 @@ cat <<'LIST'
         self.assertIn(".filename, (.previous_filename // empty)", self.dir.joinpath("script.sh").read_text())
 
     def test_empty_diff_and_possibly_truncated_list_run_everything(self):
-        self.assertEqual(self.web_output([]), ["web=true"])
-        other = lambda count: [f"kpop_scraping/{n}.py" for n in range(count)]  # noqa: E731
-        self.assertEqual(self.web_output(other(299)), ["web=false"])
-        self.assertEqual(self.web_output(other(300)), ["web=true"])
+        self.assertEqual(self.outputs([]), ["web=true", "python=true"])
+        docs = lambda count: [f"docs/{n}.md" for n in range(count)]  # noqa: E731
+        self.assertEqual(self.outputs(docs(299)), ["web=false", "python=false"])
+        self.assertEqual(self.outputs(docs(300)), ["web=true", "python=true"])
 
     def test_other_events_run_everything_without_asking_the_api(self):
         for event in ("push", "workflow_dispatch", "workflow_run", "schedule"):
             with self.subTest(event):
                 completed, outputs, calls = self.run_step(event, ["kpop_scraping/a.py"])
                 self.assertEqual(completed.returncode, 0, completed.stderr)
-                self.assertEqual(outputs, ["web=true"])
+                self.assertEqual(outputs, ["web=true", "python=true"])
                 self.assertEqual(calls, [])
 
     def test_compares_the_merge_base_with_the_head(self):
@@ -534,7 +575,7 @@ cat <<'LIST'
     def test_a_transient_error_is_retried(self):
         completed, outputs, calls = self.run_step(files=["kpop_scraping/a.py"], failures=2)
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertEqual(outputs, ["web=false"])
+        self.assertEqual(outputs, ["web=false", "python=true"])
         self.assertEqual(len(calls), 3)
 
     def test_every_web_source_read_from_outside_web_runs_the_web_jobs(self):
@@ -546,6 +587,263 @@ cat <<'LIST'
         for path in sorted(found):
             with self.subTest(path):
                 self.assertEqual(self.web_output([path]), ["web=true"])
+
+    PYTHON_INPUTS = (
+        "kpop_scraping/web_publish.py",
+        "kpop_scraping/notes.md",
+        "tests/test_cli.py",
+        "tests/fixtures/other.json",
+        "main.py",
+        "scripts/rebuild_database.py",
+        "data/map-pilot/deadline-events.json",
+        "data/other/file.json",
+        "schemas/crossword-daily-v1.json",
+        "requirements.txt",
+        "requirements-ci.txt",
+        ".github/workflows/ci.yml",
+        ".github/workflows/pages.yml",
+        ".github/workflows/changes.yml",
+        ".github/workflows/actionlint.yml",
+        ".github/dependabot.yml",
+        "web/package.json",
+        "web/package-lock.json",
+        "web/.npmrc",
+        "web/public/data/manifest-v2.json",
+        "web/src/tests/fixtures/catalog/index.json",
+        "web/src/data/map-pilot/world-map.json",
+        # Not listed anywhere: unknown paths run the suite.
+        "pyproject.toml",
+        "Makefile",
+        "xweb/a.ts",
+        "webcam/readme.txt",
+        "src/new.md",
+    )
+    PYTHON_LEAVES_ALONE = (
+        "web/src/pages/index.astro",
+        "web/src/components/Quiz/Quiz.tsx",
+        "web/src/components/Quiz/Quiz.test.tsx",
+        "web/e2e/smoke.spec.ts",
+        "web/scripts/seo-verify.mjs",
+        "web/public/favicon.svg",
+        "web/astro.config.mjs",
+        "web/src/data/other.ts",
+        "web/src/tests/fixtures/other/x.json",
+        "docs/decisions/044.md",
+        "docs/diagram.png",
+        "README.md",
+        "AGENTS.md",
+        "LICENSE",
+        ".scratch/ci/STATUS.md",
+    )
+
+    def test_files_the_python_suite_reads_run_it(self):
+        for path in self.PYTHON_INPUTS:
+            with self.subTest(path):
+                self.assertEqual(self.python_output([path]), ["python=true"])
+                self.assertEqual(self.python_output(["README.md", "web/src/a.ts", path]), ["python=true"])
+
+    def test_web_sources_and_documentation_leave_the_python_suite_out(self):
+        for path in self.PYTHON_LEAVES_ALONE:
+            with self.subTest(path):
+                self.assertEqual(self.python_output([path]), ["python=false"])
+        self.assertEqual(self.python_output(list(self.PYTHON_LEAVES_ALONE)), ["python=false"])
+
+    def test_python_follows_a_rename_through_the_old_path(self):
+        self.assertEqual(self.python_output(["web/src/new.ts", "tests/test_old.py"]), ["python=true"])
+
+    def test_web_and_python_are_decided_apart(self):
+        for files, expected in (
+            (["web/src/pages/index.astro"], ["web=true", "python=false"]),
+            (["kpop_scraping/a.py"], ["web=false", "python=true"]),
+            (["docs/a.md"], ["web=false", "python=false"]),
+            (["web/package-lock.json"], ["web=true", "python=true"]),
+            (["data/map-pilot/deadline-events.json"], ["web=true", "python=true"]),
+            ([".github/workflows/ci.yml"], ["web=false", "python=true"]),
+            ([".github/workflows/pages.yml"], ["web=true", "python=true"]),
+            ([".github/workflows/changes.yml"], ["web=true", "python=true"]),
+            (["web/src/pages/index.astro", "kpop_scraping/a.py"], ["web=true", "python=true"]),
+        ):
+            with self.subTest(files):
+                self.assertEqual(self.outputs(files), expected)
+
+    def test_every_web_path_a_python_test_reads_runs_the_python_suite(self):
+        # A Python test that starts reading another web file must not slip
+        # past the detection. The scan finds the paths the tests name under
+        # web/, as "web/a/b" or as "web" / "a" / "b".
+        chain = re.compile(r"""["']web["']((?:\s*/\s*["'][^"']+["'])+)""")
+        inline = re.compile(r"""["'](web/[^"'\s{}*]+)["']""")
+        found = set()
+        for path in sorted((ROOT / "tests").glob("test_*.py")):
+            if path.name == Path(__file__).name:
+                continue
+            source = path.read_text(encoding="utf-8")
+            for match in chain.finditer(source):
+                parts = re.findall(r"""["']([^"']+)["']""", match.group(1))
+                found.add("web/" + "/".join(parts))
+            found.update(inline.findall(source))
+        # The scan sees the files known today; if it stops seeing them it checks nothing.
+        self.assertIn("web/package.json", found)
+        self.assertIn("web/public/data", found)
+        self.assertIn("web/src/data/map-pilot/world-map.json", found)
+        self.assertIn("web/src/tests/fixtures/catalog", found)
+        for name in sorted(found):
+            with self.subTest(name):
+                # A folder is named by what is inside it.
+                runs = [self.python_output([candidate]) == ["python=true"] for candidate in (name, f"{name}/x.json")]
+                self.assertTrue(any(runs), name)
+
+
+def condition_runs(condition: str, result: str, python: str) -> bool:
+    """Evaluate a ``needs.changes`` condition for a finished, not cancelled, run.
+
+    Only the operators these conditions use are understood; anything else
+    raises, so a new construct has to be taught here.
+    """
+    expression = condition.replace("!cancelled()", "True").replace("&&", " and ").replace("||", " or ")
+    expression = re.sub(r"!(?!=)", " not ", expression)
+    expression = expression.replace("needs.changes.result", repr(result))
+    expression = expression.replace("needs.changes.outputs.python", repr(python))
+    if re.search(r"[A-Za-z_]\w*\(", expression) or "." in expression.replace("'", ""):
+        raise ValueError(f"cannot evaluate {condition!r}")
+    return bool(eval(expression, {"__builtins__": {}}))  # noqa: S307 - input is this repository's own workflow
+
+
+class PythonGateTests(unittest.TestCase):
+    """The Python verification of a pull request, and `npm test` (ticket 07)."""
+
+    CI = WORKFLOWS / "ci.yml"
+    PAGES = WORKFLOWS / "pages.yml"
+    PYTHON_CHANGED = "(needs.changes.result != 'success' || needs.changes.outputs.python == 'true')"
+
+    def test_full_verification_waits_for_the_detection_and_runs_when_it_fails(self):
+        python = job_text(self.CI, "python")
+        self.assertEqual(job_needs(python), ["changes"])
+        self.assertEqual(job_condition(python), f"!cancelled() && {self.PYTHON_CHANGED}")
+        for result in ("success", "failure", "skipped"):
+            for output in ("true", "false", ""):
+                with self.subTest(result=result, output=output):
+                    runs = condition_runs(job_condition(python), result, output)
+                    # Only a successful detection that found nothing skips it.
+                    self.assertEqual(runs, not (result == "success" and output != "true"))
+
+    def test_the_workflow_tests_run_exactly_when_the_full_verification_does_not(self):
+        python = job_text(self.CI, "python")
+        light = job_text(self.CI, "workflow-integrity")
+        self.assertEqual(job_needs(light), ["changes"])
+        self.assertIn("run: python -m unittest -v tests.test_workflow_integrity\n", light)
+        for result in ("success", "failure", "skipped"):
+            for output in ("true", "false", ""):
+                with self.subTest(result=result, output=output):
+                    full = condition_runs(job_condition(python), result, output)
+                    only_workflows = condition_runs(job_condition(light), result, output)
+                    self.assertNotEqual(full, only_workflows)
+
+    def test_the_condition_evaluator_rejects_what_it_does_not_know(self):
+        self.assertTrue(condition_runs("needs.changes.result == 'success'", "success", ""))
+        self.assertFalse(condition_runs("needs.changes.outputs.python != 'true'", "success", "true"))
+        with self.assertRaises(ValueError):
+            condition_runs("contains(needs.changes.result, 'x')", "success", "")
+
+    def test_master_runs_always_run_the_full_python_suite(self):
+        # ci.yml has no push trigger: the master gate is the python job of
+        # pages.yml, which a pull request never runs and every other event
+        # does (test_other_events_run_everything_without_asking_the_api).
+        ci = self.CI.read_text(encoding="utf-8")
+        self.assertNotRegex(ci, r"(?m)^  push:")
+        self.assertEqual(
+            job_condition(job_text(self.PAGES, "python")),
+            f"github.event_name != 'pull_request' && ({ParallelJobsTests.WORKFLOW_RUN_GUARD})",
+        )
+        self.assertNotIn("changes", job_text(self.PAGES, "python"))
+        self.assertIn("python -m pytest tests -n logical", job_text(self.PAGES, "python"))
+
+    def test_npm_test_runs_once_per_pull_request(self):
+        runners = []
+        for path in workflows():
+            text = path.read_text(encoding="utf-8")
+            if not re.search(r"(?m)^  pull_request:", text):
+                continue
+            for name in job_names(path):
+                job = job_text(path, name)
+                for match in re.finditer(r"^( +)(?:- )?run: npm test$", job, flags=re.MULTILINE):
+                    step = job[: match.end()].rsplit("\n      - ", 1)[-1]
+                    if "if: github.event_name != 'pull_request'" in step:
+                        continue
+                    runners.append(f"{path.name}:{name}")
+        self.assertEqual(runners, ["pages.yml:vitest"])
+
+    def test_web_job_runs_npm_test_only_outside_pull_requests(self):
+        web = job_text(self.CI, "web")
+        step = web.split("      - name: Run Web tests\n", 1)[1].split("\n      - ", 1)[0]
+        self.assertIn("        if: github.event_name != 'pull_request'\n", step)
+        self.assertIn("run: npm test\n", step)
+
+    def test_vitest_stays_a_gate_of_every_event_that_deploys(self):
+        vitest = job_text(self.PAGES, "vitest")
+        self.assertNotIn("pull_request", job_condition(vitest).replace(ParallelJobsTests.WORKFLOW_RUN_GUARD, ""))
+        self.assertIn("vitest", job_needs(job_text(self.PAGES, "deploy")))
+
+
+class DependabotTests(unittest.TestCase):
+    CONFIG = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+
+    def block(self, ecosystem: str) -> str:
+        return self.CONFIG.split(f"  - package-ecosystem: {ecosystem}\n", 1)[1].split("\n  - package-ecosystem:", 1)[0]
+
+    def test_github_actions_minor_and_patch_updates_share_one_pull_request(self):
+        block = self.block("github-actions")
+        self.assertRegex(block, r"(?m)^    directory: /$")
+        group = block.split("    groups:\n", 1)[1]
+        self.assertRegex(group, r'(?m)^      [\w-]+:\n        patterns:\n          - "\*"\n')
+        self.assertRegex(group, r"update-types:\n          - minor\n          - patch\n?$")
+        self.assertNotIn("major", group)
+
+    def test_web_npm_group_is_unchanged(self):
+        block = self.block("npm")
+        self.assertIn("directory: /web", block)
+        self.assertRegex(block, r"npm-dependencies:\n        patterns:\n          - \"\*\"\n        update-types:\n          - minor\n          - patch")
+
+
+class ActionlintWorkflowTests(unittest.TestCase):
+    PATH = WORKFLOWS / "actionlint.yml"
+    TEXT = PATH.read_text(encoding="utf-8")
+
+    def test_runs_in_pull_requests_that_touch_the_workflows(self):
+        trigger = self.TEXT.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        self.assertRegex(trigger, r'(?m)^  pull_request:\n    paths:\n      - "\.github/workflows/\*\*"\n')
+        self.assertNotRegex(trigger, r"(?m)^    branches")
+        self.assertNotIn("paths-ignore", trigger)
+
+    def test_has_no_permission_beyond_reading_the_repository(self):
+        self.assertRegex(self.TEXT, r"(?m)^permissions:\n  contents: read\n")
+        self.assertNotRegex(self.TEXT, r"(?m)^\s+(?:contents|pull-requests|actions|id-token): write")
+        self.assertNotIn("secrets.", self.TEXT)
+        self.assertIn("persist-credentials: false", self.TEXT)
+
+    def test_binaries_are_pinned_by_version_and_checked_against_a_hash(self):
+        job = job_text(self.PATH, "actionlint")
+        for name in ("ACTIONLINT", "SHELLCHECK"):
+            self.assertRegex(job, rf'(?m)^      {name}_VERSION: "\d+\.\d+\.\d+"$')
+            self.assertRegex(job, rf"(?m)^      {name}_SHA256: [0-9a-f]{{64}}$")
+            self.assertIn(f'echo "${name}_SHA256  ', job)
+        self.assertEqual(job.count("sha256sum --check --strict -"), 2)
+        self.assertNotRegex(job, r"(?m)^\s*(?:curl|wget)\b[^\n]*\|\s*(?:ba)?sh")
+        self.assertNotIn("/latest/", job)
+        # Each archive is verified before it is unpacked.
+        for archive, unpack in (("actionlint.tar.gz", "tar -xzf actionlint.tar.gz"), ("shellcheck.tar.xz", "tar -xJf shellcheck.tar.xz")):
+            self.assertLess(job.index(f"  {archive}\" | sha256sum"), job.index(unpack))
+
+    def test_pinned_versions_match_the_local_command(self):
+        self.assertIn('ACTIONLINT_VERSION: "1.7.12"', self.TEXT)
+        self.assertIn('SHELLCHECK_VERSION: "0.11.0"', self.TEXT)
+        self.assertIn("mise x shellcheck@0.11.0 actionlint@1.7.12 -- actionlint", self.TEXT)
+
+    def test_lints_every_workflow_with_shellcheck_on_the_path(self):
+        job = job_text(self.PATH, "actionlint")
+        self.assertIn('echo "$bin" >> "$GITHUB_PATH"\n', job)
+        self.assertRegex(job, r"(?m)^          actionlint -color$")
+        self.assertNotRegex(job, r"actionlint[^\n]*\s-(?:shellcheck=|ignore)")
+        self.assertNotRegex(job, r"actionlint[^\n]*\.github/workflows/\w")
 
 
 class E2EShardsTests(unittest.TestCase):
