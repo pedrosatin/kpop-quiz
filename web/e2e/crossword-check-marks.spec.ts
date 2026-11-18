@@ -45,12 +45,21 @@ const phones = [
   { width: 390, height: 844 },
 ] as const;
 
-async function open(browser: Browser, baseURL: string, path: string, viewport: { width: number; height: number }) {
+async function open(
+  browser: Browser,
+  baseURL: string,
+  path: string,
+  viewport: { width: number; height: number },
+  { guardClock = false }: { guardClock?: boolean } = {},
+) {
   const touch = viewport.width < 600;
   const context = await browser.newContext({ viewport, hasTouch: touch, isMobile: touch });
   await context.route("**/*", (route) => (new URL(route.request().url()).origin === new URL(baseURL).origin ? route.continue() : route.abort()));
   await routeCrosswordDaily(context);
   const page = await context.newPage();
+  // The clock has to be installed before the page loads, or the timers it
+  // starts on load run outside it.
+  if (guardClock) await installGuardClock(page);
   await page.goto(joinBaseUrl(baseURL, prefix + path));
   await expect(page.locator("#crossword input")).toHaveCount(pilotBoard.cells.length);
   const press = (target: Locator) => (touch ? target.tap() : target.click());
@@ -194,8 +203,7 @@ for (const [locale, t] of Object.entries(locales) as [string, Copy][]) {
 
 for (const [locale, t] of Object.entries(locales) as [string, Copy][]) {
   test(`${locale} 390x844: the share confirmation shows on screen`, async ({ browser, baseURL }) => {
-    const { context, page, board, press } = await open(browser, baseURL!, t.path, { width: 390, height: 844 });
-    await installGuardClock(page);
+    const { context, page, board, press } = await open(browser, baseURL!, t.path, { width: 390, height: 844 }, { guardClock: true });
     await page.evaluate(() => {
       Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
       Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.resolve() }, configurable: true });

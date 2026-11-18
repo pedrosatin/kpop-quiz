@@ -27,6 +27,13 @@ async function settleRender(page: Page): Promise<void> {
 }
 
 test.describe("the Next guard on a controlled clock", () => {
+  // The ticket fixes the guard at 300 ms; checking the constant keeps a change
+  // to it from moving the threshold this test proves together with it.
+  test("both guards stay at 300 ms", () => {
+    expect(NEXT_GUARD_MS).toBe(300);
+    expect(MAP_NEXT_GUARD_MS).toBe(300);
+  });
+
   test("quiz: Next refuses a click at 299 ms and takes one at 300 ms", async ({ page, baseURL }) => {
     await installGuardClock(page);
     const quiz = new QuizPage(page, baseURL!);
