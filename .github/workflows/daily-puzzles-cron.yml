@@ -73,14 +73,24 @@ jobs:
         working-directory: web
         run: npm ci --ignore-scripts
 
+      # A cache from another schema is never published: with --schema-cache,
+      # an absent or different marker empties the archive before collecting,
+      # and the fallback gets the committed publication reserve instead. The
+      # same reserve covers complete cache eviction.
+      - name: Determine archive schema
+        id: archive-schema
+        run: echo "version=$(python3 -m kpop_scraping.rebuild_cache)" >> "$GITHUB_OUTPUT"
+
       - name: Restore database cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             data/kpop.db
             data/raw
-          key: kpop-db-${{ github.run_id }}
+            data/kpop.db.schema
+          key: kpop-db-${{ steps.archive-schema.outputs.version }}-${{ github.run_id }}
           restore-keys: |
+            kpop-db-${{ steps.archive-schema.outputs.version }}-
             kpop-db-
 
       # Wikidata answers maxlag while its query service lags, sometimes for
@@ -105,7 +115,7 @@ jobs:
         run: |
           mode=--incremental
           if [ "$(date -u +%u)" = 7 ]; then mode=--full-refresh; fi
-          exec python3 scripts/rebuild_database.py rebuild --database data/kpop.db -- \
+          exec python3 scripts/rebuild_database.py rebuild --schema-cache --database data/kpop.db -- \
             python main.py --facts --releases "$mode" --database data/kpop.db
 
       # outcome is the result of the step before continue-on-error applies:

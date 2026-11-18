@@ -28,7 +28,57 @@ Com `--incremental`:
 
 A identidade do cache é a dos ADR 002 e 004: provedor, idioma, `pageid` e `revid` para páginas; QID, revisão e perfil para entidades. Uma revisão nova tem outra identidade e sempre é baixada. Toda afirmação continua apontando para o snapshot da revisão de onde veio e para o local dentro dele. Um snapshot ilegível, com outro hash ou de outra revisão levanta `SnapshotIntegrityError` e o run sai com 65, como no modo completo.
 
-O cache é o acervo que o workflow já guarda: `data/kpop.db` e `data/raw` no `actions/cache`. Nenhum armazenamento, segredo ou artefato novo entra. Sem cache restaurado, o banco começa vazio, nada está guardado e o run incremental baixa tudo.
+O cache é o acervo que o workflow já guarda: `data/kpop.db` e `data/raw` no `actions/cache`. A reserva de publicação versionada descrita abaixo acrescenta um artefato ao repositório; nenhum segredo novo é necessário. Sem cache compatível restaurado, o banco começa vazio, nada está guardado e o run incremental baixa tudo.
+
+### Versão de esquema e publicação sem cache
+
+A chave passa a `kpop-db-<hash das migrations>-<run_id>`. A fonte única é
+`schema_version()` em `kpop_scraping/rebuild_cache.py`: SHA-256 da sequência
+`storage.MIGRATIONS`, incluindo nomes e DDL. Acrescentar uma migration ou editar
+uma antiga muda a versão automaticamente; o teste de mutação cobre ambos.
+O workflow restaura primeiro pelo prefixo desse hash e depois por `kpop-db-`,
+inclusive as chaves anteriores a esta decisão.
+
+O cache inclui `kpop.db.schema`, gravado somente depois de refresh bem-sucedido. Com
+marcador ausente ou diferente, `rebuild --schema-cache` instala a reserva do commit em
+`.cached` e retira banco, snapshots e journals do diretório de coleta antes de começar.
+O esquema antigo pode não ter as colunas lidas pelos geradores, então não serve para
+publicação nem reuso. Assim o incremental baixa tudo, como o completo, e a reserva fica
+disponível no passo de restauração do ADR 032. Uma falha não promove o acervo antigo à
+versão nova: o próximo run volta a tentar um refresh limpo.
+
+O cache do Actions pode ser removido por expiração ou por limite de espaço. Por isso um
+segundo prefixo sozinho não cobre a ausência total de cache.
+`data/publication-reserve.sqlite.gz` guarda uma base de publicação compacta, exportada
+em 18/11/2026 de uma coleta local já revisada, sem nova ida à Wikimedia. Contém só as
+tabelas e colunas públicas usadas pelos geradores, com QIDs, revisões e localizadores
+das evidências; não inclui caminhos locais, logs, runs nem snapshots brutos. A
+atribuição e as licenças das fontes continuam as descritas no README.
+`export_reserve(source, target)` permite renová-la a partir de uma coleta revisada; ela
+deve ser validada pelos testes de geração antes de publicar. É material de produto para
+recuperação offline de publicação.
+
+Sem banco restaurado ou com marcador incompatível, o script instala essa reserva em
+`.cached`, mantendo a coleta vazia. Se o refresh falhar, retornar 75 ou estourar o
+orçamento, o passo separado restaura a reserva e os geradores produzem a data pedida. O
+preço é publicar fatos mais antigos durante uma indisponibilidade prolongada. Nunca se
+inventa evidência ou se troca apenas a data de um tabuleiro publicado. Mudanças no
+contrato de leitura dos geradores precisam manter a reserva utilizável ou renová-la no
+mesmo commit; a matriz de testes gera jogos reais a partir dela. A política existente de
+omitir um jogo que não tenha tabuleiro válido continua valendo, inclusive a Cruzadinha
+sem histórico da véspera.
+
+A matriz offline cobre cache com marcador atual, DDL anterior sem
+`facts.quality_flags_json`, DDL atual com marcador diferente, DDL atual sem marcador e
+ausência total de cache. Cada caso simula sucesso, saída 65, saída 75 e timeout da
+tentativa, e passa pelo gerador diário real para quiz, grade, conexões, adivinhação de
+nomes, caça-palavras, linha do tempo, código e Cruzadinha. A matriz fornece um registro
+confirmado de omissão da véspera para permitir a geração da Cruzadinha; sem histórico,
+continua valendo a omissão prevista. Os testes do script de rebuild cobrem separadamente
+o orçamento e o encerramento do processo. O primeiro cron após o merge deve mostrar a
+chave com hash, refresh limpo se o cache ainda for legado, e geração/publicação da data
+alvo mesmo se o refresh falhar. Essa prova agendada fica pendente até o run acontecer;
+testes offline não demonstram disponibilidade do Actions.
 
 ### Equivalência
 
@@ -45,6 +95,24 @@ Com o Wikidata atrasado o tempo todo, a primeira tentativa sai com 75 perto de 1
 O passo de rebuild passa `--incremental` de segunda a sábado e `--full-refresh` aos domingos (dia da semana em UTC no início do passo). O run completo semanal mantém observável, ao menos uma vez por semana, o extract que muda sem revisão nova (ADR 036), que o incremental não vê porque não baixa o extract de uma revisão guardada.
 
 ## Alternativas consideradas
+
+### Artefato do último cron
+
+Depende de um cron anterior bem-sucedido, da retenção do artefato e de acesso ao
+Actions para baixá-lo. Não cobre o primeiro run nem a expiração de todos os
+artefatos, e o banco ainda pode ter esquema anterior ao dos geradores.
+
+### Release asset
+
+Exige publicar, localizar e baixar uma base por release, com disponibilidade de
+rede e compatibilidade controladas à parte do commit. A reserva no próprio
+commit acompanha o contrato dos geradores e permite recuperação offline.
+
+### Chave de cache só de publicação
+
+Separaria o banco de publicação do acervo de coleta, mas continuaria sujeita à
+expiração e remoção do cache do Actions. Sem cache algum, o primeiro refresh
+falho ainda deixaria o dia sem banco.
 
 ### Paralelizar as requisições
 

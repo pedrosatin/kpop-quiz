@@ -6,12 +6,17 @@ hangs cannot take the fallback down with it
 (``docs/decisions/032-rebuild-com-fallback-em-passo-separado.md``):
 
 ``rebuild``
-    Copies the database to ``<database>.cached`` and runs the collector, the
-    command after ``--``, at most 3 times. Each attempt has its own timeout,
+    Saves a fallback database to ``<database>.cached`` (see ``--schema-cache``
+    below for which one) and runs the collector, the command after ``--``, at
+    most 3 times. Each attempt has its own timeout,
     and all of them share the refresh budget: an attempt never runs past it,
     and no attempt starts, nor any wait before one, when what is left of it
     is shorter than the wait plus the shortest useful attempt. The day then
     gets the cached database, as after any other failure.
+    With ``--schema-cache``, only a database marked with the current
+    migrations hash is reused and copied to the backup. With an absent or
+    different marker, the offline publication reserve supplies that backup.
+    The refresh then starts with an empty archive.
     Only an attempt that exits with ``EXIT_TRANSIENT`` is repeated, after a
     wait. A deterministic failure, an unknown exit code and an attempt killed
     by its timeout end the step at once, because the same command would fail
@@ -27,8 +32,8 @@ hangs cannot take the fallback down with it
 
 The workflow runs::
 
-    exec python3 scripts/rebuild_database.py rebuild --database data/kpop.db -- \\
-        python main.py --facts --releases --database data/kpop.db
+    exec python3 scripts/rebuild_database.py rebuild --schema-cache --database data/kpop.db -- \\
+        python main.py --facts --releases "$mode" --database data/kpop.db
     python3 scripts/rebuild_database.py restore-cache --database data/kpop.db
 
 When a step passes ``timeout-minutes`` or the run is cancelled, the runner
@@ -63,7 +68,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from kpop_scraping import workflow_commands
+from kpop_scraping import rebuild_cache, workflow_commands
 from kpop_scraping.exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
 
 DEFAULT_MAX_ATTEMPTS = 3
@@ -173,13 +178,26 @@ def rebuild(
     command: Sequence[str],
     limits: Limits,
     clock: Callable[[], float] = time.monotonic,
+    schema_cache: bool = False,
 ) -> int:
     """Run the collector until it succeeds, fails for good, or runs out of attempts or budget."""
     deadline = clock() + limits.budget
     database.parent.mkdir(parents=True, exist_ok=True)
     backup = backup_path(database)
-    if database.is_file():
+    reuse = not schema_cache or rebuild_cache.compatible(database)
+    if schema_cache and not reuse:
+        rebuild_cache.install_reserve(backup)
+    elif database.is_file():
         _copy_whole(database, backup)
+    if schema_cache and not reuse:
+        # The old schema cannot supply publication or snapshot reuse safely.
+        # Give the collector an empty archive: --incremental downloads everything.
+        database.unlink(missing_ok=True)
+        rebuild_cache.marker_path(database).unlink(missing_ok=True)
+        shutil.rmtree(database.parent / "raw", ignore_errors=True)
+        for suffix in SQLITE_SIDECAR_SUFFIXES:
+            database.with_name(database.name + suffix).unlink(missing_ok=True)
+        _log("No compatible schema cache; refreshing from an empty archive")
 
     for attempt in range(1, limits.max_attempts + 1):
         label = f"Rebuild attempt {attempt} of {limits.max_attempts}"
@@ -197,6 +215,8 @@ def rebuild(
         except OSError as error:
             return _give_up(f"the rebuild command could not start ({error})", EXIT_COMMAND_NOT_STARTED)
         if code == EXIT_OK:
+            if schema_cache:
+                rebuild_cache.marker_path(database).write_text(rebuild_cache.schema_version() + "\n")
             backup.unlink(missing_ok=True)
             _log(f"{label} refreshed the database")
             return EXIT_OK
@@ -334,6 +354,10 @@ def build_parser() -> argparse.ArgumentParser:
     run = commands.add_parser(
         "rebuild", help="Run the collector command given after -- until it succeeds or fails for good"
     )
+    run.add_argument(
+        "--schema-cache", action="store_true",
+        help="Invalidate reuse on schema changes and keep an offline publication reserve",
+    )
     run.add_argument("--database", type=Path, required=True, help="Database the collector rebuilds")
     restore = commands.add_parser(
         "restore-cache", help="Put the cached database back after a failed rebuild"
@@ -370,7 +394,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         workflow_commands.error(str(error), stream=sys.stderr)
         return EXIT_USAGE
     _stop_attempt_on_signals()
-    return rebuild(args.database, command, limits)
+    return rebuild(args.database, command, limits, schema_cache=args.schema_cache)
 
 
 if __name__ == "__main__":

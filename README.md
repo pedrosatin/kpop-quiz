@@ -253,7 +253,18 @@ MIT, see [LICENSE](LICENSE).
 
 ## Licensing and provenance
 
-Only use sources whose license, attribution, and usage limits have been reviewed. Every publishable data point must keep the source and evidence that back the claim. Raw files, SQLite databases, and local CSVs are not tracked in Git.
+Only use sources whose license, attribution, and usage limits have been reviewed. Every publishable data point must keep the source and evidence that back the claim. Raw files, SQLite databases, and local CSVs are not tracked in Git, except for the offline publication reserve described below.
+
+`data/publication-reserve.sqlite.gz` is the exception: a compressed SQLite database of 1,868,098 bytes (about 1.8 MiB) containing public inputs for daily generation when the refresh fails and no compatible cache is available. It was exported on 2026-11-18 from a reviewed local collection. Renew it from a reviewed database with `export_reserve` and run `tests/test_rebuild_cache.py` before committing it:
+
+```python
+from pathlib import Path
+from kpop_scraping.rebuild_cache import export_reserve
+
+export_reserve(Path("data/kpop.db"), Path("data/publication-reserve.sqlite.gz"))
+```
+
+Wikipedia evidence snippets in the reserve retain their CC BY-SA attribution and share-alike requirements; see [Wikipedia's reuse terms](https://en.wikipedia.org/wiki/Wikipedia:Reusing_Wikipedia_content) and [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Source records and evidence locators retain the pageid and revid identifying the page and revision, so readers can reach the source and its contributor history. Wikidata data is [CC0](https://www.wikidata.org/wiki/Wikidata:Licensing). The MIT license for the code does not replace these source licenses.
 
 The optional [group signal report](docs/group-signals.md) records Wikidata channel identifiers and dated follower statements with revision and statement locators. Live YouTube statistics are limited to local inspection and are not used in quiz scoring.
 
@@ -600,3 +611,8 @@ Photo downloads install complete responses atomically and keep a local `.sha256`
 To inspect run records left unfinished after an interruption, use `python -m kpop_scraping.recover_runs --database data/kpop.db`. This lists `running` records without writing; the database does not contain a heartbeat, so the list does not prove that a process has stopped. After checking that the process has stopped, close only its record with `--fail-run collection_runs:123` (replace the table and ID with the listed identity). Completed records and other running records are preserved; no age-based cleanup runs automatically.
 
 Birth date questions exclude future births at the recorded precision: year, month or day. The reference year or month remains eligible at that precision. Age questions still require day precision. See [quiz rules](docs/quiz-rules.md).
+
+O cron versiona o cache do acervo pelo hash das migrations. Um cache antigo serve
+apenas de fallback; sem cache, `data/publication-reserve.sqlite.gz` permite gerar
+o dia offline após falha do refresh. A reserva preserva fatos e evidências das
+fontes, sem snapshots ou logs locais. Renovação e limites: [ADR 043](docs/decisions/043-rebuild-incremental-e-orcamento-do-refresh.md).
