@@ -39,6 +39,117 @@ concurrency:
 jobs:
   # The checks run as parallel jobs, so a run takes as long as the slowest
   # one. deploy needs all of them and publishes the dist/ of the build job.
+
+  # Decides whether vitest, build and e2e run. In a pull request it lists the
+  # files that differ from the merge base through the compare API, so it needs
+  # no checkout and no history. Every other event runs the whole suite. When
+  # the detection fails, the step fails and those jobs run anyway: their
+  # condition treats any `changes` result but success as "run". A job skipped
+  # by `if` counts as passed for a required check, so that must never be the
+  # outcome of a failure. (No check is required on master today; the rule
+  # holds if one becomes required.)
+  #
+  # `paths` on the trigger is not used to skip these jobs: the artifact
+  # check below has to keep running in the pull requests that skip them.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      web: ${{ steps.detect.outputs.web }}
+    steps:
+      - name: Detect web changes
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # What the site build, Vitest and the E2E suite read. Under web/ is
+          # everything they run. The rest is read from outside it: the map
+          # pilot data, the crossword schemas and invalid-case fixture that
+          # crossword.test.ts loads, and the workflows two tests pin
+          # (staging.yml) or this one (pages.yml).
+          affects_web() {
+            case "$1" in
+              web/* | data/map-pilot/* | schemas/*) return 0 ;;
+              tests/fixtures/crossword_invalid_cases.json) return 0 ;;
+              .github/workflows/pages.yml | .github/workflows/staging.yml) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          finish() {
+            echo "web=$1" >> "$GITHUB_OUTPUT"
+            echo "Web jobs: $1 ($2)"
+            exit 0
+          }
+
+          if [ "$EVENT_NAME" != pull_request ]; then
+            finish true "$EVENT_NAME runs the whole suite"
+          fi
+
+          # base...head is the diff from the merge base to the head. The
+          # renamed files list their old path too, so moving a file out of
+          # web/ does not look like a change that leaves the site alone.
+          # Three attempts: a failure here only costs a red `changes` job and
+          # a full run, but a transient API error is not worth either.
+          attempt=1
+          until files=$(gh api --paginate "repos/$REPOSITORY/compare/$PR_BASE_SHA...$PR_HEAD_SHA?per_page=100" \
+            --jq '(.files // [])[] | .filename, (.previous_filename // empty)'); do
+            if [ "$attempt" -ge 3 ]; then
+              echo "::error::Could not list the changed files; the web jobs run."
+              exit 1
+            fi
+            attempt=$((attempt + 1))
+            sleep 5
+          done
+
+          count=$(printf '%s' "$files" | grep -c . || true)
+          echo "Changed paths: $count"
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files" | sed 's/^/  - /'
+          fi
+
+          if [ "$count" -eq 0 ]; then
+            finish true 'empty diff'
+          fi
+          # The compare API lists at most 300 files, so a list this long may
+          # be incomplete.
+          if [ "$count" -ge 300 ]; then
+            finish true 'file list may be truncated'
+          fi
+
+          while IFS= read -r file; do
+            if affects_web "$file"; then
+              finish true "web input changed: ${file//[^[:print:]]/?}"
+            fi
+          done <<< "$files"
+          finish false 'nothing the site build reads changed'
+
+  # The published artifacts are data, not site code, so this check runs in
+  # every pull request, including the ones that skip the web jobs. It was a
+  # step of the build job.
+  artifacts:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Verify published quiz artifacts
+        # Checks data/ and data/next/. A day the runner published without a grid passes only when its grid-publication record has grid_id null.
+        run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
+
   python:
     if: >-
       github.event_name != 'pull_request' &&
@@ -64,11 +175,16 @@ jobs:
           python -m compileall -q .
 
   vitest:
+    needs: changes
+    # !cancelled() keeps the job running when `changes` failed, which would
+    # otherwise skip it: a failed detection means "run", never "skip".
     if: >-
-      github.event_name != 'workflow_run' ||
+      !cancelled() &&
+      (needs.changes.result != 'success' || needs.changes.outputs.web == 'true') &&
+      (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -86,11 +202,16 @@ jobs:
       - run: npm test
 
   build:
+    needs: changes
+    # !cancelled() keeps the job running when `changes` failed, which would
+    # otherwise skip it: a failed detection means "run", never "skip".
     if: >-
-      github.event_name != 'workflow_run' ||
+      !cancelled() &&
+      (needs.changes.result != 'success' || needs.changes.outputs.web == 'true') &&
+      (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -103,13 +224,6 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: "3.12"
-      - name: Verify published quiz artifacts
-        working-directory: .
-        # Checks data/ and data/next/. A day the runner published without a grid passes only when its grid-publication record has grid_id null.
-        run: python -m kpop_scraping.web_publish --output-dir web/public/data --verify --require-grid --require-connections --require-name-guess --require-word-search --require-timeline
       # No install script runs: the build and the tests need none, and
       # esbuild and workerd take their binaries from the platform packages
       # in the lockfile (ADR 040).
@@ -142,11 +256,16 @@ jobs:
   # 2026-11-17 a local build of the deployed commit had the same files as
   # the deployed dist/; only the astro-island uid attributes differed.
   e2e:
+    needs: changes
+    # !cancelled() keeps the job running when `changes` failed, which would
+    # otherwise skip it: a failed detection means "run", never "skip".
     if: >-
-      github.event_name != 'workflow_run' ||
+      !cancelled() &&
+      (needs.changes.result != 'success' || needs.changes.outputs.web == 'true') &&
+      (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -196,7 +315,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [python, vitest, build, e2e]
+    needs: [artifacts, python, vitest, build, e2e]
     outputs:
       deployed: ${{ steps.record.outputs.deployed }}
     steps:
