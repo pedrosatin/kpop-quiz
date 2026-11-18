@@ -234,6 +234,8 @@ class RebuildJobTests(unittest.TestCase):
         interpreter, ``scripts/`` is the repository's, and ``main.py`` runs the
         fake collector, which hangs inside a transaction.
         """
+        from kpop_scraping.rebuild_cache import marker_path, schema_version
+        marker_path(self.database).write_text(schema_version())
         tools = self.folder / "bin"
         tools.mkdir()
         for name in ("python", "python3"):
@@ -568,7 +570,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("\n        continue-on-error: true\n", step)
         self.assertRegex(
             step,
-            r"python3 scripts/rebuild_database\.py rebuild --database data/kpop\.db -- \\\n"
+            r"python3 scripts/rebuild_database\.py rebuild --schema-cache --database data/kpop\.db -- \\\n"
             r"\s+python main\.py --facts --releases \"\$mode\" --database data/kpop\.db\n",
         )
         for inline in ("sleep", "kpop.db.cached", "for attempt"):

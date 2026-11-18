@@ -600,3 +600,8 @@ Photo downloads install complete responses atomically and keep a local `.sha256`
 To inspect run records left unfinished after an interruption, use `python -m kpop_scraping.recover_runs --database data/kpop.db`. This lists `running` records without writing; the database does not contain a heartbeat, so the list does not prove that a process has stopped. After checking that the process has stopped, close only its record with `--fail-run collection_runs:123` (replace the table and ID with the listed identity). Completed records and other running records are preserved; no age-based cleanup runs automatically.
 
 Birth date questions exclude future births at the recorded precision: year, month or day. The reference year or month remains eligible at that precision. Age questions still require day precision. See [quiz rules](docs/quiz-rules.md).
+
+O cron versiona o cache do acervo pelo hash das migrations. Um cache antigo serve
+apenas de fallback; sem cache, `data/publication-reserve.sqlite.gz` permite gerar
+o dia offline após falha do refresh. A reserva preserva fatos e evidências das
+fontes, sem snapshots ou logs locais. Renovação e limites: [ADR 043](docs/decisions/043-rebuild-incremental-e-orcamento-do-refresh.md).

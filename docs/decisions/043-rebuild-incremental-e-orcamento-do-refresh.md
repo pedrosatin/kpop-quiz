@@ -28,7 +28,51 @@ Com `--incremental`:
 
 A identidade do cache é a dos ADR 002 e 004: provedor, idioma, `pageid` e `revid` para páginas; QID, revisão e perfil para entidades. Uma revisão nova tem outra identidade e sempre é baixada. Toda afirmação continua apontando para o snapshot da revisão de onde veio e para o local dentro dele. Um snapshot ilegível, com outro hash ou de outra revisão levanta `SnapshotIntegrityError` e o run sai com 65, como no modo completo.
 
-O cache é o acervo que o workflow já guarda: `data/kpop.db` e `data/raw` no `actions/cache`. Nenhum armazenamento, segredo ou artefato novo entra. Sem cache restaurado, o banco começa vazio, nada está guardado e o run incremental baixa tudo.
+O cache é o acervo que o workflow já guarda: `data/kpop.db` e `data/raw` no `actions/cache`. Nenhum armazenamento, segredo ou artefato novo entra. Sem cache compatível restaurado, o banco começa vazio, nada está guardado e o run incremental baixa tudo.
+
+### Versão de esquema e publicação sem cache
+
+A chave passa a `kpop-db-<hash das migrations>-<run_id>`. A fonte única é
+`schema_version()` em `kpop_scraping/rebuild_cache.py`: SHA-256 da sequência
+`storage.MIGRATIONS`, incluindo nomes e DDL. Acrescentar uma migration ou editar
+uma antiga muda a versão automaticamente; o teste de mutação cobre ambos.
+O workflow restaura primeiro pelo prefixo desse hash e depois por `kpop-db-`,
+inclusive as chaves anteriores a esta decisão.
+
+O cache inclui `kpop.db.schema`, gravado somente depois de refresh bem-sucedido.
+Com marcador ausente ou diferente, `rebuild --schema-cache` copia o banco antigo
+para `.cached` e retira banco, snapshots e journals do diretório de coleta antes
+de começar. Assim o incremental baixa tudo, como o completo, e o banco antigo
+continua disponível no passo de restauração do ADR 032. Uma falha não promove o
+acervo antigo à versão nova: o próximo run volta a tentar um refresh limpo.
+
+O cache do Actions pode ser removido por expiração ou por limite de espaço.
+Por isso um segundo prefixo sozinho não cobre a ausência total de cache.
+`data/publication-reserve.sqlite.gz` guarda uma base de publicação compacta,
+exportada do acervo local disponível em 18/11/2026, sem nova coleta. Contém só
+as tabelas e colunas públicas usadas pelos geradores, com QIDs, revisões e
+localizadores das evidências; não inclui caminhos locais, logs, runs nem
+snapshots brutos. A atribuição e as licenças das fontes continuam as descritas
+no README. `export_reserve(source, target)` permite renová-la a partir de uma
+coleta revisada; ela deve ser validada pelos testes de geração antes de publicar.
+É material de produto para recuperação offline, não um cache de coleta.
+
+Sem banco restaurado, o script instala essa reserva em `.cached`, mantendo a
+coleta vazia. Se o refresh falhar, retornar 75 ou estourar o orçamento, o passo
+separado restaura a reserva e os geradores produzem a data pedida. O preço é
+publicar fatos mais antigos durante uma indisponibilidade prolongada. Nunca se
+inventa evidência ou se troca apenas a data de um tabuleiro publicado. Mudanças
+no contrato de leitura dos geradores precisam manter a reserva utilizável ou
+renová-la no mesmo commit; a matriz de testes gera jogos reais a partir dela.
+A política existente de omitir um jogo que não tenha tabuleiro válido continua
+valendo, inclusive a Cruzadinha sem histórico da véspera.
+
+O teste cobre mesma versão, versão antiga e ausência de cache, cada uma com
+sucesso, erro determinístico, erro transitório e orçamento esgotado; todos os
+casos passam pelo gerador diário real. O primeiro cron após o merge deve mostrar
+a chave com hash, refresh limpo se o cache ainda for legado, e geração/publicação
+da data alvo mesmo se o refresh falhar. Essa prova agendada fica pendente até o
+run acontecer; testes offline não demonstram disponibilidade do Actions.
 
 ### Equivalência
 
