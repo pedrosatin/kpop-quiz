@@ -1,3 +1,4 @@
+// prova do ticket 07: PR só de web
 /**
  * Join a Playwright/baseURL origin (possibly with a path prefix) and an
  * absolute site path like `/pt-br/`.
