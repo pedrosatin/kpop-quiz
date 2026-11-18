@@ -49,6 +49,8 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 1,
   workers: 1,
+  // Fixture site builds (e2e/fixtures/site-builds.ts) share one directory per run.
+  globalSetup: "./e2e/global-setup.ts",
   reporter: [["list"]],
   use: {
     baseURL: localTarget?.url ?? baseURL,

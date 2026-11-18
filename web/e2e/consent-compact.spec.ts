@@ -1,43 +1,12 @@
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
-import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
-import { preview } from "astro";
+import { CONSENT_BUILD, SITE_BUILD_FIXTURE_TIMEOUT_MS, serveSiteBuild } from "./fixtures/site-builds";
 import { CONSENT_BANNER_HEIGHT_VAR, CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { isPublished, skipUnlessPublished } from "./helpers/published";
 
 // The banner only renders when a GA4 id is built in, which the default dist
-// leaves out. Build one that has it, independently of BASE_URL.
+// leaves out. Serve the shared build that has it, independently of BASE_URL.
 const test = base.extend<{}, { consentURL: string }>({
-  consentURL: [async ({}, use) => {
-    const root = fileURLToPath(new URL("../", import.meta.url));
-    const scratch = join(root, "../.scratch");
-    await mkdir(scratch, { recursive: true });
-    // Astro moves assets by rename, so output must share the source filesystem.
-    const outDir = await mkdtemp(join(scratch, "consent-compact-"));
-    let server: Awaited<ReturnType<typeof preview>> | undefined;
-    try {
-      await promisify(execFile)(process.execPath, ["./node_modules/astro/bin/astro.mjs", "build", "--outDir", outDir], {
-        cwd: root,
-        env: {
-          ...process.env,
-          NODE_ENV: "production",
-          ASTRO_BASE: "",
-          BASE_URL: "/",
-          PUBLIC_GA4_ID: "G-E2ECONSENT01",
-          PUBLIC_CF_BEACON_TOKEN: "",
-        },
-        timeout: 120_000,
-      });
-      server = await preview({ root, outDir, base: "/", server: { host: "127.0.0.1", port: 0 }, logLevel: "error" });
-      await use(`http://127.0.0.1:${server.port}`);
-    } finally {
-      await server?.stop();
-      await rm(outDir, { recursive: true, force: true });
-    }
-  }, { scope: "worker", timeout: 120_000 }],
+  consentURL: [async ({}, use) => serveSiteBuild(CONSENT_BUILD, use), { scope: "worker", timeout: SITE_BUILD_FIXTURE_TIMEOUT_MS }],
 });
 
 test.use({ serviceWorkers: "block" });

@@ -1,46 +1,33 @@
-import { cpSync, mkdirSync, rmSync } from "node:fs";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { execFile } from "node:child_process";
+import { mkdirSync } from "node:fs";
+import { cp, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import { test as base, expect, type Page } from "@playwright/test";
-import { preview } from "astro";
 import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { Locale, PlayMode, QuizOption, QuizQuestion, QuizSession } from "../src/lib/quiz-types";
 import { skipUnlessPublished } from "./helpers/published";
+import { CONSENT_BUILD, SITE_BUILD_FIXTURE_TIMEOUT_MS, serveSiteBuild, type SiteBuild } from "./fixtures/site-builds";
 
 // The real consent island only renders when a GA4 id is built in, which the
-// default dist leaves out. Build one that has it. QUIZ_CLUES_DATA_DIR swaps in
-// a dataset generated elsewhere (for instance straight from the database), so
-// the same checks can follow whatever the pipeline produced.
-const test = base.extend<{}, { consentURL: string }>({
-  consentURL: [async ({}, use) => {
-    const root = fileURLToPath(new URL("../", import.meta.url));
-    const scratch = join(root, "../.scratch");
-    await mkdir(scratch, { recursive: true });
-    // Astro moves assets by rename, so output must share the source filesystem.
-    const outDir = await mkdtemp(join(scratch, "quiz-clues-"));
-    let server: Awaited<ReturnType<typeof preview>> | undefined;
-    try {
-      await promisify(execFile)(process.execPath, ["./node_modules/astro/bin/astro.mjs", "build", "--outDir", outDir], {
-        cwd: root,
-        env: { ...process.env, NODE_ENV: "production", ASTRO_BASE: "", BASE_URL: "/", PUBLIC_GA4_ID: "G-E2EQUIZCLUES", PUBLIC_CF_BEACON_TOKEN: "" },
-        timeout: 120_000,
-      });
-      if (process.env.QUIZ_CLUES_DATA_DIR) {
-        rmSync(join(outDir, "data"), { recursive: true, force: true });
-        cpSync(process.env.QUIZ_CLUES_DATA_DIR, join(outDir, "data"), { recursive: true });
-      }
-      server = await preview({ root, outDir, base: "/", server: { host: "127.0.0.1", port: 0 }, logLevel: "error" });
-      await use(`http://127.0.0.1:${server.port}`);
-    } finally {
-      await server?.stop();
-      await rm(outDir, { recursive: true, force: true });
+// default dist leaves out. Serve the shared build that has it. QUIZ_CLUES_DATA_DIR
+// swaps in a dataset generated elsewhere (for instance straight from the
+// database), so the same checks can follow whatever the pipeline produced; the
+// swap happens on a copy, and the shared build stays as built.
+const dataDir = process.env.QUIZ_CLUES_DATA_DIR;
+const build: SiteBuild = dataDir
+  ? {
+      name: "consent-quiz-clues-data",
+      from: CONSENT_BUILD,
+      after: async (outDir) => {
+        await rm(join(outDir, "data"), { recursive: true, force: true });
+        await cp(dataDir, join(outDir, "data"), { recursive: true });
+      },
     }
-  }, { scope: "worker", timeout: 120_000 }],
+  : CONSENT_BUILD;
+
+const test = base.extend<{}, { consentURL: string }>({
+  consentURL: [async ({}, use) => serveSiteBuild(build, use), { scope: "worker", timeout: SITE_BUILD_FIXTURE_TIMEOUT_MS }],
 });
 
 test.use({ serviceWorkers: "block" });
