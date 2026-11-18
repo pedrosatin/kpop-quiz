@@ -154,6 +154,12 @@ describe("Local Font Assets and CSS Declarations", () => {
     expect(base).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
+  it("exposes feel-feedback motion tokens", () => {
+    expect(tokensCss).toContain("--ease-out:");
+    expect(tokensCss).toContain("--duration-feedback:");
+    expect(tokensCss).toContain("--duration-feedback-result:");
+  });
+
   it("imports every stylesheet from the global entry point", () => {
     const css = fs.readFileSync(cssPath, "utf-8");
     for (const file of ["tokens", "base", "components", "stats", "games/quiz", "games/grid", "games/connections", "games/name-guess", "games/word-search"]) {

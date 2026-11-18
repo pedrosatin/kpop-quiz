@@ -49,13 +49,20 @@ export function QuizResult({
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
   const correct = correctCount ?? history.filter((h) => h.isCorrect).length;
   const clues = cluesUsedCount ?? history.reduce((acc, h) => acc + h.cluesUsedCount, 0);
+  const outcomeClass = correct === total ? " is-won" : correct === 0 ? " is-lost" : "";
 
   return (
     <section id="quiz" class="game-card game-card--wide result quiz-result" data-testid="game-result" aria-labelledby="result-heading">
       {/* From 60rem the title, text and buttons sit beside the stats, and the
           review below them runs in two columns. */}
       <div class="quiz-result-summary">
-        <h2 id="result-heading" class="result-title" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
+        <h2
+          id="result-heading"
+          class={`result-title${outcomeClass}`}
+          data-feedback="result"
+          {...(headingRef ? { ref: headingRef } : {})}
+          tabIndex={-1}
+        >
           {messages.resultTitle}
         </h2>
         <ScoreSummary

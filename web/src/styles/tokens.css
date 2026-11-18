@@ -139,6 +139,13 @@
 
   /* Motion */
   --transition-fast: 150ms ease;
+  /* Feedback motion (feel): Tier 1 acerto/erro and Tier 2 fim de partida.
+     Durations stay ≤250ms on non-interactive elements. Never put infinite or
+     >300ms motion on a clickable control (Playwright waits for stability).
+     base.css zeros animation/transition under prefers-reduced-motion. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-feedback: 180ms;
+  --duration-feedback-result: 220ms;
 }
 
 @media (pointer: coarse) and (width > 420px) {

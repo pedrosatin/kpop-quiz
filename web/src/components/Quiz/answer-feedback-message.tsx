@@ -7,6 +7,15 @@ export function quizBarState(answered: boolean, right: boolean): string {
   return right ? " is-correct" : " is-incorrect";
 }
 
+/** Observable feedback kind for tests and CSS (`data-feedback`). */
+export function quizFeedbackKind(
+  answered: boolean,
+  right: boolean,
+): "correct" | "incorrect" | null {
+  if (!answered) return null;
+  return right ? "correct" : "incorrect";
+}
+
 /** Player and correct answers shown beside the verdict and again in the source panel. */
 export function AnswerSummary({
   timedOut,
@@ -47,8 +56,11 @@ export function AnswerFeedbackMessage({
   }
 
   const title = timedOut ? messages.timedOut : right ? messages.correct : messages.incorrect;
+  // Mark is decorative; the live region already announces the title text.
+  const mark = right ? "✓" : timedOut ? "⏱" : "✗";
   return (
     <p class="quiz-verdict">
+      <span class="feedback-mark" aria-hidden="true">{mark}</span>
       <strong class="game-actions-title">{title}</strong>
       {answers && <>{" "}{answers}</>}
     </p>
