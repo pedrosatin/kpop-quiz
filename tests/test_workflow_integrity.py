@@ -10,9 +10,11 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from kpop_scraping.workflow_commands import escape_data
@@ -240,7 +242,8 @@ class ParallelJobsTests(unittest.TestCase):
 
     PAGES = WORKFLOWS / "pages.yml"
     CHECKS = ["artifacts", "python", "vitest", "build", "e2e"]
-    WEB_CHECKS = ["vitest", "build", "e2e"]
+    E2E_FOLLOW_UPS = ["e2e-report", "e2e-verdict"]
+    WEB_CHECKS = ["vitest", "build", "e2e", *E2E_FOLLOW_UPS]
     PUBLISHERS = ["deploy", "smoke-prod"]
     DEPLOY_CONDITION = "github.event_name != 'pull_request' && github.ref == 'refs/heads/master'"
     WEB_CHANGED = "(needs.changes.result != 'success' || needs.changes.outputs.web == 'true')"
@@ -255,10 +258,19 @@ class ParallelJobsTests(unittest.TestCase):
         return job_text(self.PAGES, name)
 
     def test_deploy_needs_every_check_job(self):
-        self.assertEqual(job_names(self.PAGES), ["changes"] + self.CHECKS + self.PUBLISHERS)
-        self.assertEqual(sorted(job_needs(self.job("deploy"))), sorted(self.CHECKS))
+        self.assertEqual(job_names(self.PAGES), ["changes"] + self.CHECKS + self.E2E_FOLLOW_UPS + self.PUBLISHERS)
+        self.assertEqual(sorted(job_needs(self.job("deploy"))), sorted([*self.CHECKS, "e2e-verdict"]))
         for name in self.CHECKS:
             self.assertEqual(job_needs(self.job(name)), ["changes"] if name in self.WEB_CHECKS else [], name)
+        self.assertEqual(job_needs(self.job("e2e-report")), ["changes", "e2e"])
+        self.assertEqual(job_needs(self.job("e2e-verdict")), ["changes", "e2e", "e2e-report"])
+
+    def test_deploy_never_runs_past_a_failed_or_skipped_need(self):
+        # Without a status function, deploy runs only when every need
+        # succeeded: a red, cancelled or skipped E2E verdict skips it.
+        condition = job_condition(self.job("deploy"))
+        for function in ("always()", "cancelled()", "failure()", "success()"):
+            self.assertNotIn(function, condition)
 
     def test_checks_skip_the_same_workflow_runs(self):
         for name in self.WEB_CHECKS:
@@ -300,9 +312,11 @@ class ParallelJobsTests(unittest.TestCase):
         build, e2e = self.job("build"), self.job("e2e")
         self.assertEqual(step_env(e2e, "Build production site"), step_env(build, "Build production site"))
         self.assertEqual(e2e.count("run: npm run build\n"), 1)
-        self.assertIn("run: npm run test:e2e:ci\n", e2e)
+        self.assertIn('npm run test:e2e:ci -- --reporter=list,blob "$SELECTION"\n', e2e)
         self.assertNotIn("test:e2e:ci", build)
-        self.assertNotRegex(e2e, r"npm ci(?! --ignore-scripts)")
+        for name in ("e2e", "e2e-report"):
+            self.assertIn("- run: npm ci --ignore-scripts\n", self.job(name), name)
+            self.assertNotRegex(self.job(name), r"npm ci(?! --ignore-scripts)", name)
 
     def test_smoke_runs_after_a_deploy(self):
         smoke = self.job("smoke-prod")
@@ -532,6 +546,269 @@ cat <<'LIST'
         for path in sorted(found):
             with self.subTest(path):
                 self.assertEqual(self.web_output([path]), ["web=true"])
+
+
+class E2EShardsTests(unittest.TestCase):
+    """The E2E suite runs as a shard matrix, merged and judged by two jobs (ticket 05)."""
+
+    PAGES = WORKFLOWS / "pages.yml"
+    FEEDBACK_ENV = [
+        "CI: true",
+        "CODE_FEEDBACK_CF_BEACON: ${{ (vars.PUBLIC_CF_BEACON_TOKEN || secrets.PUBLIC_CF_BEACON_TOKEN) != '' }}",
+        "CODE_FEEDBACK_ENV: ${{ (vars.PUBLIC_GA4_ID || secrets.PUBLIC_GA4_ID) != '' && 'banner' || 'root' }}",
+    ]
+    ON_MASTER = "github.event_name != 'pull_request' && github.ref == 'refs/heads/master'"
+
+    def setUp(self):
+        self.e2e = job_text(self.PAGES, "e2e")
+        self.report = job_text(self.PAGES, "e2e-report")
+        self.verdict = job_text(self.PAGES, "e2e-verdict")
+        self.steps = dict(job_steps(self.PAGES.read_text(encoding="utf-8"), "e2e"))
+
+    def test_shards_are_one_matrix_list_and_every_step_reads_the_total_from_it(self):
+        shards = re.findall(r"^        shard: \[(.*)\]$", self.e2e, flags=re.MULTILINE)
+        self.assertEqual(len(shards), 1, self.e2e)
+        numbers = [int(value) for value in shards[0].split(",")]
+        self.assertEqual(numbers, list(range(1, len(numbers) + 1)))
+        self.assertGreaterEqual(len(numbers), 2)
+        self.assertIn("\n      fail-fast: false\n", self.e2e)
+        self.assertIn("    name: e2e (${{ matrix.shard }}/${{ strategy.job-total }})\n", self.e2e)
+        plan = step_env(self.e2e, "Plan this shard")
+        self.assertIn("SHARD: ${{ matrix.shard }}", plan)
+        self.assertIn("TOTAL: ${{ strategy.job-total }}", plan)
+        # No other place spells the shard count.
+        self.assertNotRegex(self.PAGES.read_text(encoding="utf-8"), r"--shard[ =]\d|/\d+ shards?")
+
+    def test_only_the_shards_may_read_actions(self):
+        text = self.PAGES.read_text(encoding="utf-8")
+        workflow_permissions = text.split("\npermissions:\n", 1)[1].split("\n\n", 1)[0]
+        self.assertEqual(workflow_permissions.strip(), "contents: read")
+        self.assertEqual(len(re.findall(r"^\s+actions: read$", text, flags=re.MULTILINE)), 1)
+        self.assertIn("    permissions:\n      actions: read\n      contents: read\n", self.e2e)
+        self.assertNotRegex(text, r"(?m)^\s+actions: write$")
+
+    def test_the_plan_lists_the_suite_the_shards_run_and_the_report_checks(self):
+        self.assertEqual(
+            [line for line in step_env(self.e2e, "Plan this shard") if line.startswith(("CI:", "CODE_FEEDBACK"))],
+            self.FEEDBACK_ENV,
+        )
+        run = step_env(self.e2e, "Run Playwright boot and playthrough against local dist")
+        self.assertEqual([line for line in run if line.startswith(("CI:", "CODE_FEEDBACK"))], self.FEEDBACK_ENV)
+        self.assertIn("PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip", run)
+        self.assertIn("SELECTION: ${{ steps.plan.outputs.selection }}", run)
+        self.assertEqual(step_env(self.report, "Check that the shards ran the whole suite"), self.FEEDBACK_ENV)
+        plan = step_script(self.PAGES, "e2e", "Plan this shard")
+        self.assertIn("node scripts/e2e-shards.mjs plan", plan)
+        self.assertIn('--durations "$RUNNER_TEMP/e2e-durations/e2e-durations.json"', plan)
+        check = step_script(self.PAGES, "e2e-report", "Check that the shards ran the whole suite")
+        self.assertIn("npx playwright test --list --project=chromium --reporter=json", check)
+        self.assertIn("node scripts/e2e-shards.mjs check", check)
+
+    def test_shards_upload_their_blob_even_when_tests_fail(self):
+        upload = self.e2e.split("uses: actions/upload-artifact@", 1)[1]
+        self.assertIn("if: ${{ !cancelled() }}", upload)
+        self.assertIn("name: e2e-blob-${{ matrix.shard }}\n          path: web/blob-report/\n", upload)
+        self.assertIn("pattern: e2e-blob-*\n          merge-multiple: true\n          path: web/blob-reports\n", self.report)
+        self.assertIn("npx playwright merge-reports --reporter=html,json blob-reports", self.report)
+        report_upload = self.report.split("uses: actions/upload-artifact@", 1)[1]
+        self.assertIn("if: ${{ !cancelled() }}", report_upload)
+        self.assertIn("name: playwright-report\n", report_upload)
+
+    def test_only_a_green_master_run_records_durations_under_the_fetched_name(self):
+        condition = f"{self.ON_MASTER} && needs.e2e.result == 'success'"
+        record = dict(job_steps(self.PAGES.read_text(encoding="utf-8"), "e2e-report"))["Record test durations"]
+        self.assertIn(f"\n        if: {condition}\n", record)
+        upload = self.report.split("uses: actions/upload-artifact@")[2]
+        self.assertIn(f"\n        if: {condition}\n", upload)
+        self.assertIn("name: e2e-durations\n", upload)
+        self.assertIn("if-no-files-found: error", upload)
+        self.assertIn("name=e2e-durations&", step_script(self.PAGES, "e2e", "Fetch recorded test durations"))
+        # The check runs before, so a report missing tests records nothing.
+        names = [name for name, _text in job_steps(self.PAGES.read_text(encoding="utf-8"), "e2e-report")]
+        self.assertLess(names.index("Check that the shards ran the whole suite"), names.index("Record test durations"))
+
+    def test_shards_install_only_the_headless_shell_under_their_own_cache_key(self):
+        self.assertIn("key: playwright-shell-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}", self.e2e)
+        self.assertIn("run: npx playwright install --with-deps --only-shell chromium\n", self.e2e)
+        self.assertNotIn("key: playwright-chromium-", self.e2e)
+        # The other Chromium installs keep the full browser and the shared key.
+        others = [job_text(WORKFLOWS / "ci.yml", "code-feedback"), job_text(self.PAGES, "smoke-prod")]
+        for text in others:
+            self.assertIn("playwright-chromium-${{ runner.os }}-", text)
+            self.assertNotIn("--only-shell", text)
+        for workflow in workflows():
+            if workflow != self.PAGES:
+                self.assertNotIn("playwright-shell-", workflow.read_text(encoding="utf-8"), workflow.name)
+
+    # The verdict step, run with each combination of results.
+    def verdict_exit(self, shards: str, report: str) -> int:
+        script = step_script(self.PAGES, "e2e-verdict", "Check the shards and the merged report")
+        return subprocess.run(
+            ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
+            env={"PATH": os.environ["PATH"], "SHARDS": shards, "REPORT": report},
+            capture_output=True,
+            text=True,
+        ).returncode
+
+    def test_verdict_passes_only_when_shards_and_report_passed(self):
+        self.assertEqual(self.verdict_exit("success", "success"), 0)
+        for shards, report in (
+            ("failure", "success"),
+            ("success", "failure"),
+            ("cancelled", "success"),
+            ("skipped", "success"),
+            ("success", "skipped"),
+            ("", ""),
+        ):
+            with self.subTest(shards=shards, report=report):
+                self.assertNotEqual(self.verdict_exit(shards, report), 0)
+        self.assertEqual(
+            step_env(self.verdict, "Check the shards and the merged report"),
+            ["REPORT: ${{ needs.e2e-report.result }}", "SHARDS: ${{ needs.e2e.result }}"],
+        )
+        self.assertNotIn("continue-on-error", self.verdict)
+        self.assertNotIn("continue-on-error", self.e2e)
+        self.assertNotIn("continue-on-error", self.report)
+
+    def run_shard_step(self, selection: str) -> tuple[int, str]:
+        with tempfile.TemporaryDirectory() as folder:
+            bin_dir = Path(folder)
+            npm = bin_dir / "npm"
+            npm.write_text(f'#!/bin/bash\nprintf "%s\\n" "$@" > "{folder}/args"\n', encoding="utf-8")
+            npm.chmod(0o755)
+            script = step_script(self.PAGES, "e2e", "Run Playwright boot and playthrough against local dist")
+            completed = subprocess.run(
+                ["bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
+                env={"PATH": f"{bin_dir}:{os.environ['PATH']}", "SELECTION": selection},
+                capture_output=True,
+                text=True,
+            )
+            args = bin_dir / "args"
+            return completed.returncode, args.read_text(encoding="utf-8") if args.exists() else ""
+
+    def test_a_shard_runs_only_a_selection_from_the_plan(self):
+        for selection in ("--test-list=/tmp/shard-1-of-2.txt", "--shard=2/2"):
+            with self.subTest(selection):
+                code, args = self.run_shard_step(selection)
+                self.assertEqual(code, 0)
+                self.assertEqual(args.split("\n")[:-1], ["run", "test:e2e:ci", "--", "--reporter=list,blob", selection])
+        for selection in ("", "--grep=smoke", "e2e/smoke.spec.ts"):
+            with self.subTest(selection):
+                code, args = self.run_shard_step(selection)
+                self.assertNotEqual(code, 0)
+                self.assertEqual(args, "")
+
+
+@unittest.skipUnless(shutil.which("jq"), "the stand-in for gh filters with jq")
+class DurationsFetchTests(unittest.TestCase):
+    """The shards read the durations of the newest master run before theirs."""
+
+    PAGES = WORKFLOWS / "pages.yml"
+    REPOSITORY_ID = 7
+    RUN_CREATED = "2026-11-18T10:00:00Z"
+
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+        self.dir = Path(self._dir.name)
+        self.addCleanup(self._dir.cleanup)
+        (self.dir / "bin").mkdir()
+        (self.dir / "temp").mkdir()
+        (self.dir / "script.sh").write_text(
+            step_script(self.PAGES, "e2e", "Fetch recorded test durations"), encoding="utf-8"
+        )
+        sleep = self.dir / "bin" / "sleep"
+        sleep.write_text("#!/bin/bash\n", encoding="utf-8")
+        sleep.chmod(0o755)
+
+    def artifact(self, artifact_id: int, created: str, branch: str = "master", fork: bool = False, expired: bool = False):
+        return {
+            "id": artifact_id,
+            "created_at": created,
+            "expired": expired,
+            "workflow_run": {
+                "head_branch": branch,
+                "repository_id": self.REPOSITORY_ID,
+                "head_repository_id": self.REPOSITORY_ID + (1 if fork else 0),
+            },
+        }
+
+    def run_step(self, artifacts: list[dict], fail: str = ""):
+        """Runs the step with a ``gh`` that answers from ``artifacts`` and fails on paths matching ``fail``."""
+        (self.dir / "run.json").write_text(json.dumps({"created_at": self.RUN_CREATED}), encoding="utf-8")
+        (self.dir / "artifacts.json").write_text(json.dumps({"artifacts": artifacts}), encoding="utf-8")
+        archive = self.dir / "durations.zip"
+        with zipfile.ZipFile(archive, "w") as zipped:
+            zipped.writestr("e2e-durations.json", '{"version": 1, "tests": []}')
+        gh = self.dir / "bin" / "gh"
+        gh.write_text(
+            f"""#!/bin/bash
+echo "$@" >> "{self.dir}/gh-args"
+path="$2"
+if [ -n "{fail}" ] && [[ "$path" == *{fail or "never"}* ]]; then echo "gh: HTTP 502" >&2; exit 1; fi
+case "$path" in
+  */actions/runs/*) jq -r "$4" "{self.dir}/run.json" ;;
+  */actions/artifacts\\?*) jq -r "$4" "{self.dir}/artifacts.json" ;;
+  */zip) cat "{archive}" ;;
+esac
+""",
+            encoding="utf-8",
+        )
+        gh.chmod(0o755)
+        (self.dir / "gh-args").write_text("", encoding="utf-8")
+        completed = subprocess.run(
+            ["bash", "--noprofile", "--norc", "-eo", "pipefail", str(self.dir / "script.sh")],
+            env={
+                "PATH": f"{self.dir / 'bin'}:{os.environ['PATH']}",
+                "RUNNER_TEMP": str(self.dir / "temp"),
+                "REPOSITORY": "o/r",
+                "RUN_ID": "99",
+            },
+            capture_output=True,
+            text=True,
+        )
+        calls = (self.dir / "gh-args").read_text(encoding="utf-8").splitlines()
+        downloaded = (self.dir / "temp" / "e2e-durations" / "e2e-durations.json").exists()
+        return completed, calls, downloaded
+
+    def downloads(self, calls: list[str]) -> list[str]:
+        return [call.split()[1] for call in calls if call.split()[1].endswith("/zip")]
+
+    def test_downloads_the_newest_master_artifact_created_before_the_run(self):
+        completed, calls, downloaded = self.run_step([
+            self.artifact(1, "2026-11-17T09:00:00Z"),
+            self.artifact(3, "2026-11-18T09:00:00Z"),
+            self.artifact(2, "2026-11-18T08:00:00Z"),
+            self.artifact(4, "2026-11-18T10:30:00Z"),
+        ])
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(self.downloads(calls), ["repos/o/r/actions/artifacts/3/zip"])
+        self.assertTrue(downloaded)
+        self.assertIn("repos/o/r/actions/runs/99", calls[0])
+
+    def test_skips_artifacts_of_forks_other_branches_and_expired_ones(self):
+        completed, calls, downloaded = self.run_step([
+            self.artifact(5, "2026-11-18T09:50:00Z", fork=True),
+            self.artifact(6, "2026-11-18T09:40:00Z", branch="feature"),
+            self.artifact(7, "2026-11-18T09:30:00Z", expired=True),
+            self.artifact(8, "2026-11-18T09:00:00Z"),
+        ])
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(self.downloads(calls), ["repos/o/r/actions/artifacts/8/zip"])
+        self.assertTrue(downloaded)
+
+    def test_no_artifact_leaves_no_durations_and_passes(self):
+        completed, calls, downloaded = self.run_step([self.artifact(5, "2026-11-18T09:50:00Z", fork=True)])
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(self.downloads(calls), [])
+        self.assertFalse(downloaded)
+
+    def test_an_api_error_fails_the_step_after_three_attempts(self):
+        for failing in ("actions/runs", "actions/artifacts?", "/zip"):
+            with self.subTest(failing):
+                completed, calls, downloaded = self.run_step([self.artifact(3, "2026-11-18T09:00:00Z")], fail=failing)
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertFalse(downloaded)
+                self.assertEqual(sum(failing in call.split()[1] for call in calls), 3, calls)
 
 
 class WorkflowShellEscapeTests(unittest.TestCase):
