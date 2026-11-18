@@ -87,7 +87,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         ],
         dataSources: [
           "As categorias agrupam os nomes pela gravadora ou agência, pela década de formação ou pelo número de integrantes. O gerador só publica tabuleiros em que a separação em 4 grupos de 4 é única. A ordem de dificuldade sai da quantidade de nomes de fora que poderiam se confundir com cada categoria.",
-          "Os fatos vêm da Wikipédia e do Wikidata, consultadas por um programa que guarda a revisão de cada página e a origem de cada afirmação. A base é atualizada todo dia às 15:00 UTC, meio-dia em Brasília, e o tabuleiro do dia seguinte só vai ao ar depois de passar na checagem de formato.",
+          "As respostas vêm de fatos da Wikipédia e do Wikidata. No fim da partida, Ver fonte mostra a explicação de cada categoria, com links para as fontes e o número da revisão usada. O programa guarda a revisão de cada página e a origem de cada afirmação. A base é atualizada todo dia às 15:00 UTC, meio-dia em Brasília, e o tabuleiro do dia seguinte só vai ao ar depois de passar na checagem de formato.",
         ],
         faq: [
           {
@@ -98,7 +98,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
           {
             question: "Todo mundo recebe o mesmo tabuleiro?",
             answer:
-              "Sim. O tabuleiro muda à meia-noite no horário de Brasília (03:00 UTC) e é o mesmo para todos os jogadores do dia, então o resultado compartilhado pode ser comparado.",
+              "Sim. O tabuleiro muda à meia-noite no horário de Brasília (03:00 UTC) e é o mesmo para todos os jogadores do dia, então o resultado compartilhado pode ser comparado. Só o tabuleiro do dia está disponível para jogar; ainda não há arquivo de dias anteriores.",
           },
           { question: "O jogo é grátis?", answer: PT_FREE },
         ],
@@ -309,7 +309,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         ],
         dataSources: [
           "Categories group the names by record label or agency, by formation decade or by member count. The generator only publishes boards whose split into 4 groups of 4 is unique. The difficulty order comes from how many outside names could be confused with each category.",
-          "The facts come from Wikipedia and Wikidata, read by a program that stores the revision of every page and the origin of every claim. The database is refreshed every day at 15:00 UTC, noon in São Paulo, and the next board goes live only after its format check passes.",
+          "The answers come from facts on Wikipedia and Wikidata. At the end of the game, Show source lists each category's explanation, links to its sources and the revision number used. The program stores the revision of every page and the origin of every claim. The database is refreshed every day at 15:00 UTC, noon in São Paulo, and the next board goes live only after its format check passes.",
         ],
         faq: [
           {
@@ -320,7 +320,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
           {
             question: "Does everyone get the same board?",
             answer:
-              "Yes. The board changes at midnight São Paulo time (03:00 UTC) and is the same for every player that day, so shared results can be compared.",
+              "Yes. The board changes at midnight São Paulo time (03:00 UTC) and is the same for every player that day, so shared results can be compared. Only today's board is available to play; there is no archive of past boards yet.",
           },
           { question: "Is it free?", answer: EN_FREE },
         ],

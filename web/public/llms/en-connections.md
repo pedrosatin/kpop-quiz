@@ -3,10 +3,10 @@
 Canonical: https://kpopquiz.online/en/connections/
 Also in Portuguese: https://kpopquiz.online/pt-br/conexoes/
 
-Sort the 16 names into 4 categories of 4. You can make 4 mistakes.
+Sort the 16 K-pop groups into 4 categories of 4. You can make 4 mistakes.
 
-4 groups · 16 items. 4x4 grouping of K-pop groups by agency, lineup,
-and milestones.
+4 groups · 16 items. 4x4 grouping of K-pop groups by record label,
+formation decade or member count.
 
 ## Provenance and license
 

@@ -595,7 +595,7 @@ const catalogs: Record<Locale, Messages> = {
       "Cada grupo vale para uma casa só. Depois de acertar com um grupo, você não pode usá-lo de novo.",
     ],
     connectionsHowToPlay: [
-      "Os 16 nomes formam 4 categorias de 4, como agência, formação ou marcos da carreira.",
+      "Os 16 grupos de K-pop formam 4 categorias de 4, como gravadora, década de formação ou número de integrantes.",
       "Selecione 4 nomes e envie. Se todos forem da mesma categoria, ela sai do tabuleiro.",
       "Você pode errar 4 vezes. Quando 3 dos 4 nomes são da mesma categoria, o jogo avisa.",
       "A cor mostra a dificuldade da categoria: amarelo é a mais fácil e roxo, a mais difícil.",
@@ -773,8 +773,8 @@ const catalogs: Record<Locale, Messages> = {
     gridCorrected: "Este desafio foi corrigido. O progresso da versão anterior não pode ser retomado. Os novos palpites são salvos nesta versão corrigida.",
     gridDailyMissing: "A grade de hoje não pôde ser gerada ou está temporariamente indisponível.",
     connectionsTitle: "Conexões de K-pop",
-    connectionsEyebrow: "4 categorias · 16 nomes",
-    connectionsIntro: "Separe os 16 nomes em 4 categorias de 4. Você pode errar 4 vezes.",
+    connectionsEyebrow: "4 categorias · 16 grupos de K-pop",
+    connectionsIntro: "Separe os 16 grupos de K-pop em 4 categorias de 4. Você pode errar 4 vezes.",
     connectionsMistakesRemaining: (count) => (count === 1 ? "1 erro restante" : `${count} erros restantes`),
     connectionsOneAway: "Quase. 3 desses nomes são da mesma categoria.",
     connectionsAlreadyGuessed: "Você já tentou essa combinação.",
@@ -1015,7 +1015,7 @@ const catalogs: Record<Locale, Messages> = {
       },
       connections: {
         title: "K-pop Connections game: daily 4-group puzzle",
-        description: "Play daily K-pop Connections: sort 16 groups into 4 secret categories by agency, formation decade or member count. 4 mistakes allowed.",
+        description: "Play daily K-pop Connections: sort 16 groups into 4 secret categories by agency, formation decade or member count. Free, no account needed.",
       },
       nameGuess: {
         title: "K-pop Wordle: guess today's idol or group",
@@ -1123,7 +1123,7 @@ const catalogs: Record<Locale, Messages> = {
       "Each group fits one square only. Once a group is placed correctly, you can't use it again.",
     ],
     connectionsHowToPlay: [
-      "The 16 names form 4 categories of 4, such as agency, lineup or career milestones.",
+      "The 16 K-pop groups form 4 categories of 4, such as record label, formation decade or member count.",
       "Select 4 names and submit. If they share a category, it leaves the board.",
       "You can make 4 mistakes. When 3 of your 4 names share a category, the game tells you.",
       "Color shows how hard a category is: yellow is the easiest and purple the hardest.",
@@ -1301,8 +1301,8 @@ const catalogs: Record<Locale, Messages> = {
     gridCorrected: "This challenge was corrected. Progress from the previous version cannot be resumed. New guesses are saved in this corrected version.",
     gridDailyMissing: "Today's grid could not be generated or is temporarily unavailable.",
     connectionsTitle: "K-pop Connections",
-    connectionsEyebrow: "4 categories · 16 names",
-    connectionsIntro: "Sort the 16 names into 4 categories of 4. You can make 4 mistakes.",
+    connectionsEyebrow: "4 categories · 16 K-pop groups",
+    connectionsIntro: "Sort the 16 K-pop groups into 4 categories of 4. You can make 4 mistakes.",
     connectionsMistakesRemaining: (count) => (count === 1 ? "1 mistake left" : `${count} mistakes left`),
     connectionsOneAway: "Close. 3 of these names share a category.",
     connectionsAlreadyGuessed: "You already tried this combination.",
