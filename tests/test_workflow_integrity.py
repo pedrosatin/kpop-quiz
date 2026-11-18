@@ -11,6 +11,7 @@ import os
 import re
 import shlex
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -222,7 +223,7 @@ def job_needs(job: str) -> list[str]:
 
 def job_condition(job: str) -> str:
     """The job's ``if:``, folded into one line as ``>-`` folds it."""
-    match = re.match(r"\s*if: (>-\n(?:      .*\n)+|.*\n)", job)
+    match = re.search(r"^    if: (>-\n(?:      .*\n)+|.*\n)", job, flags=re.MULTILINE)
     if not match:
         return ""
     return " ".join(line.strip() for line in match.group(1).removeprefix(">-").splitlines() if line.strip())
@@ -238,9 +239,11 @@ class ParallelJobsTests(unittest.TestCase):
     """The checks run as parallel jobs and deploy waits for all of them."""
 
     PAGES = WORKFLOWS / "pages.yml"
-    CHECKS = ["python", "vitest", "build", "e2e"]
+    CHECKS = ["artifacts", "python", "vitest", "build", "e2e"]
+    WEB_CHECKS = ["vitest", "build", "e2e"]
     PUBLISHERS = ["deploy", "smoke-prod"]
     DEPLOY_CONDITION = "github.event_name != 'pull_request' && github.ref == 'refs/heads/master'"
+    WEB_CHANGED = "(needs.changes.result != 'success' || needs.changes.outputs.web == 'true')"
     WORKFLOW_RUN_GUARD = (
         "github.event_name != 'workflow_run' || "
         "(github.event.workflow_run.conclusion == 'success' && "
@@ -252,14 +255,19 @@ class ParallelJobsTests(unittest.TestCase):
         return job_text(self.PAGES, name)
 
     def test_deploy_needs_every_check_job(self):
-        self.assertEqual(job_names(self.PAGES), self.CHECKS + self.PUBLISHERS)
+        self.assertEqual(job_names(self.PAGES), ["changes"] + self.CHECKS + self.PUBLISHERS)
         self.assertEqual(sorted(job_needs(self.job("deploy"))), sorted(self.CHECKS))
         for name in self.CHECKS:
-            self.assertEqual(job_needs(self.job(name)), [], name)
+            self.assertEqual(job_needs(self.job(name)), ["changes"] if name in self.WEB_CHECKS else [], name)
 
     def test_checks_skip_the_same_workflow_runs(self):
-        for name in ("vitest", "build", "e2e"):
-            self.assertEqual(job_condition(self.job(name)), self.WORKFLOW_RUN_GUARD, name)
+        for name in self.WEB_CHECKS:
+            self.assertEqual(
+                job_condition(self.job(name)),
+                f"!cancelled() && {self.WEB_CHANGED} && ({self.WORKFLOW_RUN_GUARD})",
+                name,
+            )
+        self.assertEqual(job_condition(self.job("artifacts")), self.WORKFLOW_RUN_GUARD)
         self.assertEqual(
             job_condition(self.job("python")),
             f"github.event_name != 'pull_request' && ({self.WORKFLOW_RUN_GUARD})",
@@ -320,6 +328,210 @@ class ParallelJobsTests(unittest.TestCase):
             self.assertIn(command, web)
         self.assertNotIn("python", web)
         self.assertEqual(job_needs(python) + job_needs(web), [])
+
+
+def step_script(path: Path, job: str, step: str) -> str:
+    """The ``run: |`` text of a step, as the runner writes it to a file."""
+    text = dict(job_steps(path.read_text(encoding="utf-8"), job))[step]
+    lines = text.split("\n        run: |\n", 1)[1].split("\n")
+    block = []
+    for line in lines:
+        if line.strip() and not line.startswith(" " * 10):
+            break
+        block.append(line[10:])
+    return "\n".join(block).strip("\n") + "\n"
+
+
+def web_inputs_outside_web() -> set[str]:
+    """Repository paths that the web sources read from outside ``web/``."""
+    found = set()
+    reach_root = re.compile(r"""["']((?:\.\./)+)(\.github/[^"']+)["']""")
+    from_root = re.compile(r"""join\(\s*REPO\s*,\s*["']([^"']+)["']""")
+    for folder in ("src", "e2e", "scripts"):
+        for path in (ROOT / "web" / folder).rglob("*"):
+            if path.suffix not in {".ts", ".tsx", ".mjs"} or "node_modules" in path.parts:
+                continue
+            source = path.read_text(encoding="utf-8")
+            found.update(match.group(2) for match in reach_root.finditer(source))
+            found.update(match.group(1) for match in from_root.finditer(source))
+    return found
+
+
+class WebChangesTests(unittest.TestCase):
+    """Detection of the pull requests that leave the site alone (ticket 10).
+
+    The step runs here with a stand-in for ``gh``, so each rule is checked
+    without the API.
+    """
+
+    PAGES = WORKFLOWS / "pages.yml"
+    ZEROS = "0" * 40
+
+    def setUp(self):
+        self._dir = tempfile.TemporaryDirectory()
+        self.dir = Path(self._dir.name)
+        self.addCleanup(self._dir.cleanup)
+        (self.dir / "bin").mkdir()
+        (self.dir / "script.sh").write_text(
+            step_script(self.PAGES, "changes", "Detect web changes"), encoding="utf-8"
+        )
+        sleep = self.dir / "bin" / "sleep"
+        sleep.write_text("#!/bin/bash\n", encoding="utf-8")
+        sleep.chmod(0o755)
+
+    def fake_gh(self, files: list[str] | None, failures: int = 0):
+        """``gh`` that fails ``failures`` times, then prints ``files`` (``None``: always fails)."""
+        listing = "".join(f"{name}\n" for name in files or [])
+        script = f"""#!/bin/bash
+echo "$@" >> "{self.dir}/gh-args"
+calls=$(wc -l < "{self.dir}/gh-args")
+if [ "{'fail' if files is None else 'ok'}" = fail ] || [ "$calls" -le {failures} ]; then
+  echo "gh: HTTP 502" >&2
+  exit 1
+fi
+cat <<'LIST'
+{listing}LIST
+"""
+        gh = self.dir / "bin" / "gh"
+        gh.write_text(script, encoding="utf-8")
+        gh.chmod(0o755)
+
+    def run_step(self, event: str = "pull_request", files: list[str] | None = (), failures: int = 0):
+        self.fake_gh(None if files is None else list(files), failures)
+        for name in ("output", "gh-args"):
+            (self.dir / name).write_text("", encoding="utf-8")
+        completed = subprocess.run(
+            ["bash", "--noprofile", "--norc", "-eo", "pipefail", str(self.dir / "script.sh")],
+            env={
+                "PATH": f"{self.dir / 'bin'}:{os.environ['PATH']}",
+                "GITHUB_OUTPUT": str(self.dir / "output"),
+                "REPOSITORY": "o/r",
+                "EVENT_NAME": event,
+                "PR_BASE_SHA": "a" * 40,
+                "PR_HEAD_SHA": "b" * 40,
+            },
+            capture_output=True,
+            text=True,
+        )
+        outputs = (self.dir / "output").read_text(encoding="utf-8").split()
+        calls = (self.dir / "gh-args").read_text(encoding="utf-8").splitlines()
+        return completed, outputs, calls
+
+    def web_output(self, files: list[str], event: str = "pull_request") -> list[str]:
+        completed, outputs, _calls = self.run_step(event, files)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        return outputs
+
+    def test_pull_request_trigger_has_no_paths_filter(self):
+        text = self.PAGES.read_text(encoding="utf-8")
+        trigger = text.split("\n  pull_request:\n", 1)[1].split("\n  push:\n", 1)[0]
+        self.assertNotRegex(trigger, r"(?m)^    paths:")
+
+    def test_changes_job_needs_no_checkout_and_no_condition(self):
+        job = job_text(self.PAGES, "changes")
+        self.assertNotIn("actions/checkout@", job)
+        self.assertEqual(job_needs(job), [])
+        self.assertNotRegex(job, r"(?m)^    if:")
+        self.assertNotIn("continue-on-error", job)
+        self.assertIn("web: ${{ steps.detect.outputs.web }}", job)
+        self.assertEqual(
+            step_env(job, "Detect web changes"),
+            [
+                "EVENT_NAME: ${{ github.event_name }}",
+                "GH_TOKEN: ${{ github.token }}",
+                "PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}",
+                "PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}",
+                "REPOSITORY: ${{ github.repository }}",
+            ],
+        )
+
+    def test_only_the_web_jobs_wait_for_the_detection(self):
+        for name in job_names(self.PAGES):
+            with self.subTest(name):
+                needs = job_needs(job_text(self.PAGES, name))
+                self.assertEqual("changes" in needs, name in ParallelJobsTests.WEB_CHECKS, needs)
+
+    def test_artifact_check_runs_whatever_the_detection_says(self):
+        artifacts = job_text(self.PAGES, "artifacts")
+        self.assertNotIn("changes", artifacts)
+        self.assertIn("python -m kpop_scraping.web_publish --output-dir web/public/data --verify", artifacts)
+        self.assertNotIn("npm ", artifacts)
+
+    def test_site_files_run_the_web_jobs(self):
+        for path in (
+            "web/src/pages/index.astro",
+            "web/package-lock.json",
+            "web/public/data/manifest-v2.json",
+            "web/e2e/smoke.spec.ts",
+            "data/map-pilot/deadline-events.json",
+            ".github/workflows/pages.yml",
+            "schemas/crossword-daily-v1.json",
+            "tests/fixtures/crossword_invalid_cases.json",
+            ".github/workflows/staging.yml",
+        ):
+            with self.subTest(path):
+                self.assertEqual(self.web_output([path]), ["web=true"])
+                self.assertEqual(self.web_output(["README.md", "kpop_scraping/a.py", path]), ["web=true"])
+
+    def test_other_files_leave_the_web_jobs_out(self):
+        for files in (
+            ["kpop_scraping/web_publish.py"],
+            ["tests/test_workflow_integrity.py"],
+            ["tests/fixtures/other.json"],
+            ["requirements.txt", "requirements-ci.txt", "main.py"],
+            [".github/workflows/ci.yml", ".github/dependabot.yml"],
+            ["data/other/file.json", "docs/decisions/044.md", "README.md"],
+            ["webcam/readme.txt", "web.md", "data/map-pilot-old/x.json", "xweb/a.ts"],
+        ):
+            with self.subTest(files):
+                self.assertEqual(self.web_output(files), ["web=false"])
+
+    def test_a_rename_out_of_web_counts_through_the_old_path(self):
+        # The stand-in prints what the jq filter would: the filter must list
+        # the new filename and previous_filename.
+        self.assertEqual(self.web_output(["kpop_scraping/moved.py", "web/src/old.ts"]), ["web=true"])
+        self.assertIn(".filename, (.previous_filename // empty)", self.dir.joinpath("script.sh").read_text())
+
+    def test_empty_diff_and_possibly_truncated_list_run_everything(self):
+        self.assertEqual(self.web_output([]), ["web=true"])
+        other = lambda count: [f"kpop_scraping/{n}.py" for n in range(count)]  # noqa: E731
+        self.assertEqual(self.web_output(other(299)), ["web=false"])
+        self.assertEqual(self.web_output(other(300)), ["web=true"])
+
+    def test_other_events_run_everything_without_asking_the_api(self):
+        for event in ("push", "workflow_dispatch", "workflow_run", "schedule"):
+            with self.subTest(event):
+                completed, outputs, calls = self.run_step(event, ["kpop_scraping/a.py"])
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual(outputs, ["web=true"])
+                self.assertEqual(calls, [])
+
+    def test_compares_the_merge_base_with_the_head(self):
+        _completed, _outputs, calls = self.run_step(files=["kpop_scraping/a.py"])
+        self.assertEqual(len(calls), 1)
+        self.assertIn(f"repos/o/r/compare/{'a' * 40}...{'b' * 40}", calls[0])
+
+    def test_a_failed_listing_fails_the_step_and_sets_no_output(self):
+        completed, outputs, calls = self.run_step(files=None)
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertEqual(outputs, [])
+        self.assertEqual(len(calls), 3)
+
+    def test_a_transient_error_is_retried(self):
+        completed, outputs, calls = self.run_step(files=["kpop_scraping/a.py"], failures=2)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(outputs, ["web=false"])
+        self.assertEqual(len(calls), 3)
+
+    def test_every_web_source_read_from_outside_web_runs_the_web_jobs(self):
+        found = web_inputs_outside_web()
+        # The scan sees the files known today; if it stops seeing them it checks nothing.
+        self.assertIn(".github/workflows/staging.yml", found)
+        self.assertIn("schemas/crossword-pilot-v1.json", found)
+        self.assertIn("tests/fixtures/crossword_invalid_cases.json", found)
+        for path in sorted(found):
+            with self.subTest(path):
+                self.assertEqual(self.web_output([path]), ["web=true"])
 
 
 class WorkflowShellEscapeTests(unittest.TestCase):
