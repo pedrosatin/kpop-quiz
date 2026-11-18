@@ -24,6 +24,7 @@ on:
       - "requirements.txt"
       - "requirements-ci.txt"
       - ".github/workflows/pages.yml"
+      - ".github/workflows/changes.yml"
   workflow_dispatch:
   workflow_run:
     workflows: ["Generate and publish daily K-pop puzzles", "Refresh map pilot tour dates"]

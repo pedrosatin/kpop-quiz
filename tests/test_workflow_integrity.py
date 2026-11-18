@@ -458,6 +458,15 @@ cat <<'LIST'
         trigger = text.split("\n  pull_request:\n", 1)[1].split("\n  push:\n", 1)[0]
         self.assertNotRegex(trigger, r"(?m)^    paths:")
 
+    def test_push_trigger_covers_the_detection_it_calls(self):
+        # The detection lives in changes.yml now; a merge that only touches it
+        # must still run this workflow on master (the python job is the only
+        # Python gate outside pull requests).
+        text = self.PAGES.read_text(encoding="utf-8")
+        trigger = text.split("\n  push:\n", 1)[1].split("\n  workflow_dispatch:", 1)[0]
+        for path in (".github/workflows/pages.yml", ".github/workflows/changes.yml"):
+            self.assertIn(f'      - "{path}"', trigger)
+
     def test_both_workflows_call_the_one_detection(self):
         for path in (self.PAGES, WORKFLOWS / "ci.yml"):
             with self.subTest(path.name):
