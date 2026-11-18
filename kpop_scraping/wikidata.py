@@ -7,6 +7,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
+from . import rebuild_phases
 from .http_request import DEFAULT_USER_AGENT
 from .mediawiki import MaxlagBudget, MediaWikiClient, MediaWikiError
 
@@ -46,6 +47,10 @@ SUBJECT_PROFILE = EntityProfile(
 LABEL_PROFILE = EntityProfile(name="label-v1", props="info|labels|aliases")
 # Values that must be countries need P31, so they are requested with claims.
 COUNTRY_PROFILE = EntityProfile(name="country-v1", props="info|labels|aliases|claims")
+# Only the current revision of each entity, for the incremental rebuild. No
+# snapshot is ever stored under this profile: it only decides which stored
+# snapshots of the other profiles are still current.
+REVISION_PROFILE = EntityProfile(name="revision-only", props="info", languages="en")
 
 
 @dataclass(frozen=True)
@@ -142,6 +147,23 @@ class WikidataEntityClient(WikidataTypeClient):
         ``no-such-entity``. The client records that QID as missing and repeats
         the request without it, so each batch needs at most 50 extra calls.
         """
+        return self._get_entities(wikidata_ids, profile, rebuild_phases.DOWNLOAD)
+
+    def get_entity_revisions(self, wikidata_ids: Iterable[str]) -> EntityBatch:
+        """Resolve at most 50 QIDs to their current QID and revision, without content.
+
+        Redirects and missing entities are told apart exactly as
+        :meth:`get_entities` tells them, so a document here names the same
+        entity and revision a full request would return at that moment.
+        """
+        return self._get_entities(wikidata_ids, REVISION_PROFILE, rebuild_phases.REVISIONS)
+
+    def _get_entities(
+        self,
+        wikidata_ids: Iterable[str],
+        profile: EntityProfile,
+        phase: str,
+    ) -> EntityBatch:
         pending = list(dict.fromkeys(wikidata_ids))
         if len(pending) > MAX_ENTITIES_PER_REQUEST:
             raise ValueError(
@@ -158,7 +180,8 @@ class WikidataEntityClient(WikidataTypeClient):
                         "action": "wbgetentities",
                         "ids": "|".join(pending),
                         **profile.parameters(),
-                    }
+                    },
+                    phase=phase,
                 )
             except MediaWikiError as exc:
                 missing_id = exc.details.get("id") if exc.code == "no-such-entity" else None

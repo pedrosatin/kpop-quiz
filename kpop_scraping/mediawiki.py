@@ -388,6 +388,51 @@ class MediaWikiClient:
             raise MediaWikiError("MediaWiki page response has an unexpected shape") from exc
         return pages
 
+    def get_page_revisions(self, page_ids: Sequence[int]) -> list[Page]:
+        """Return the current revision and metadata of each page, without its extract.
+
+        The request asks for the same ``info`` and ``pageprops`` as
+        :meth:`get_pages`, so title, URL, Wikidata item, redirect and
+        disambiguation flags come back current, but leaves out the extract.
+        It takes 50 pages per request where :meth:`get_pages` takes 20,
+        because TextExtracts limits only the extracts. The incremental
+        collection uses it to tell which pages have a revision it has not
+        stored yet; ``extract`` is empty and ``source_payload`` is ``None``.
+        """
+        if not page_ids:
+            return []
+        if len(page_ids) > MAX_REVISIONS_PER_REQUEST:
+            raise ValueError(
+                f"get_page_revisions accepts at most {MAX_REVISIONS_PER_REQUEST} page IDs"
+            )
+        payload = self._get({
+            "action": "query",
+            "pageids": "|".join(str(page_id) for page_id in page_ids),
+            "prop": "info|pageprops|revisions",
+            "inprop": "url",
+            "ppprop": "wikibase_item|disambiguation",
+            "rvprop": "ids",
+        }, phase=rebuild_phases.REVISIONS)
+        pages = []
+        try:
+            for item in payload["query"]["pages"]:
+                revisions = item.get("revisions", [])
+                pageprops = item.get("pageprops", {})
+                pages.append(Page(
+                    page_id=item["pageid"],
+                    title=item["title"],
+                    canonical_url=item.get("canonicalurl", ""),
+                    extract="",
+                    revision_id=revisions[0]["revid"] if revisions else None,
+                    wikidata_id=pageprops.get("wikibase_item"),
+                    is_redirect=bool(item.get("redirect", False)),
+                    is_disambiguation="disambiguation" in pageprops,
+                    is_missing=bool(item.get("missing", False)),
+                ))
+        except (KeyError, TypeError, IndexError) as exc:
+            raise MediaWikiError("MediaWiki revision response has an unexpected shape") from exc
+        return pages
+
     def get_pages_by_titles(self, titles: Sequence[str]) -> list[Page]:
         """Resolve titles and return the current fixed revisions and intro text."""
         clean = self._clean_titles(titles)

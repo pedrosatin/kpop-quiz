@@ -68,6 +68,24 @@ class MediaWikiClientTest(unittest.TestCase):
         self.assertIn("pageprops", get.call_args.args[0]["prop"])
 
     @patch.object(MediaWikiClient, "_get")
+    def test_page_revisions_ask_metadata_without_the_extract(self, get):
+        get.return_value = {"query": {"pages": [
+            {"pageid": 1, "title": "A", "canonicalurl": "https://example.test/A",
+             "revisions": [{"revid": 42}], "pageprops": {"wikibase_item": "Q1"}},
+            {"pageid": 2, "missing": True, "title": "B"},
+        ]}}
+        current, missing = MediaWikiClient().get_page_revisions(list(range(1, 51)))
+        self.assertEqual((current.revision_id, current.wikidata_id, current.extract), (42, "Q1", ""))
+        self.assertIsNone(current.source_payload)
+        self.assertTrue(missing.is_missing)
+        parameters = get.call_args.args[0]
+        self.assertEqual(parameters["prop"], "info|pageprops|revisions")
+        self.assertNotIn("exintro", parameters)
+        self.assertEqual(get.call_args.kwargs["phase"], "revisions")
+        with self.assertRaisesRegex(ValueError, "at most 50"):
+            MediaWikiClient().get_page_revisions(list(range(1, 52)))
+
+    @patch.object(MediaWikiClient, "_get")
     def test_get_pages_maps_missing_and_redirect_flags(self, get):
         get.return_value = {
             "query": {

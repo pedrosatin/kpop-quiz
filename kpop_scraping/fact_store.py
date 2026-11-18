@@ -277,6 +277,43 @@ class FactStore:
             (source_revision_id, snapshot_path, digest, utc_now()),
         )
 
+    def stored_entity_payload(
+        self, wikidata_id: str, revision_id: int, profile: str
+    ) -> dict | None:
+        """Return the stored snapshot of this QID, revision and profile, or ``None``.
+
+        The file is read through its SHA-256, so a corrupt or replaced
+        snapshot raises ``SnapshotIntegrityError``, as ``save_entity_snapshot``
+        would for a repeated fetch. A snapshot that names another entity or
+        revision raises the same error.
+        """
+        row = self.connection.execute(
+            """
+            SELECT snapshot_path, content_sha256
+            FROM wikidata_entity_snapshots
+            WHERE wikidata_id=? AND external_revision_id=? AND request_profile=?
+            """,
+            (wikidata_id, revision_id, profile),
+        ).fetchone()
+        if row is None:
+            return None
+        content = self.repository.snapshots.read(row["snapshot_path"], row["content_sha256"])
+        try:
+            payload = json.loads(content)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise SnapshotIntegrityError(
+                f"Wikidata revision {revision_id} of {wikidata_id} has an invalid snapshot"
+            ) from exc
+        if (
+            not isinstance(payload, dict)
+            or payload.get("id") != wikidata_id
+            or payload.get("lastrevid") != revision_id
+        ):
+            raise SnapshotIntegrityError(
+                f"Wikidata revision {revision_id} of {wikidata_id} has an invalid snapshot"
+            )
+        return payload
+
     @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_entity_snapshot(
         self,

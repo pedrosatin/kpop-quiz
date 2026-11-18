@@ -100,7 +100,79 @@ class ExtractSizeClient:
         ]
 
 
+class RevisionAwareClient:
+    """Category of pages 1..25; ``revisions`` maps page ID to its current revision."""
+
+    provider = "wikipedia"
+    language = "en"
+
+    def __init__(self, revisions, answer_reversed=False):
+        self.revisions = revisions
+        self.answer_reversed = answer_reversed
+        self.revision_calls = []
+        self.page_calls = []
+
+    def iter_category_members(self, _category):
+        for page_id in self.revisions:
+            yield {"pageid": page_id, "title": f"Group {page_id}"}
+
+    def _page(self, page_id, extract):
+        revision_id = self.revisions[page_id]
+        return Page(
+            page_id, f"Group {page_id}", f"https://example.test/{page_id}", extract, revision_id,
+            source_payload=None if not extract else {
+                "pageid": page_id, "title": f"Group {page_id}", "extract": extract,
+                "revisions": [{"revid": revision_id}],
+            },
+            wikidata_id=f"Q{page_id}",
+        )
+
+    def get_page_revisions(self, page_ids):
+        self.revision_calls.append(list(page_ids))
+        return [self._page(page_id, "") for page_id in page_ids]
+
+    def get_pages(self, page_ids):
+        self.page_calls.append(list(page_ids))
+        pages = [self._page(page_id, f"Text of revision {self.revisions[page_id]}.") for page_id in page_ids]
+        return pages[::-1] if self.answer_reversed else pages
+
+
 class CollectorTest(unittest.TestCase):
+    def test_incremental_collection_downloads_only_revisions_not_stored(self):
+        revisions = {page_id: 100 + page_id for page_id in range(1, 26)}
+        with tempfile.TemporaryDirectory() as directory:
+            with Repository(Path(directory) / "test.db") as repository:
+                collect_category(RevisionAwareClient(revisions), repository, "Category:Test")
+                revisions[3] += 1000
+                revisions[24] += 1000
+                client = RevisionAwareClient(revisions)
+                count = collect_category(client, repository, "Category:Test", incremental=True)
+                rows = repository.connection.execute(
+                    "SELECT external_page_id, revision_id, extract FROM source_pages ORDER BY external_page_id"
+                ).fetchall()
+                linked = repository.connection.execute(
+                    "SELECT COUNT(*) FROM collection_run_revisions WHERE collection_run_id=2"
+                ).fetchone()[0]
+        self.assertEqual(count, 25)
+        self.assertEqual(client.revision_calls, [list(range(1, 26))])
+        self.assertEqual(client.page_calls, [[3, 24]])
+        self.assertEqual(rows[2]["revision_id"], 1103)
+        self.assertEqual(rows[2]["extract"], "Text of revision 1103.")
+        self.assertEqual(rows[0]["extract"], "Text of revision 101.")
+        self.assertEqual(linked, 25)
+
+    def test_pages_are_saved_in_category_order_whatever_the_answer_order(self):
+        revisions = {page_id: 100 + page_id for page_id in (30, 10, 20)}
+        with tempfile.TemporaryDirectory() as directory:
+            with Repository(Path(directory) / "test.db") as repository:
+                collect_category(
+                    RevisionAwareClient(revisions, answer_reversed=True), repository, "Category:Test"
+                )
+                order = [row[0] for row in repository.connection.execute(
+                    "SELECT external_page_id FROM source_pages ORDER BY id"
+                )]
+        self.assertEqual(order, [30, 10, 20])
+
     def test_collects_and_upserts_pages_with_provenance(self):
         with tempfile.TemporaryDirectory() as directory:
             with Repository(Path(directory) / "test.db") as repository:

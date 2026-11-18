@@ -1248,6 +1248,56 @@ class Repository:
             ),
         )
 
+    def stored_page_payload(
+        self, provider: str, language: str, page_id: int, revision_id: int
+    ) -> dict[str, Any] | None:
+        """Return the stored snapshot of a page revision, or ``None`` if none is stored.
+
+        The snapshot is read through its SHA-256, so a corrupt or replaced
+        file raises ``SnapshotIntegrityError`` as a repeated fetch would in
+        ``save_pages``. A snapshot that does not hold this page and revision,
+        or holds no extract, raises the same error. The incremental collection
+        builds the page from it instead of downloading the same revision again.
+        """
+        existing = self.connection.execute(
+            """
+            SELECT sr.snapshot_path, sr.content_sha256
+            FROM source_revisions sr
+            JOIN source_pages sp ON sp.id = sr.source_page_id
+            WHERE sp.provider=? AND sp.language=? AND sp.external_page_id=?
+              AND sr.external_revision_id=?
+            """,
+            (provider, language, page_id, revision_id),
+        ).fetchone()
+        if existing is None:
+            return None
+        content = self.snapshots.read(existing["snapshot_path"], existing["content_sha256"])
+        try:
+            payload = json.loads(content)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise SnapshotIntegrityError(
+                f"revision {revision_id} of page {page_id} has an invalid snapshot"
+            ) from exc
+        fields = _revision_content(payload)
+        if fields is None or fields[:2] != (page_id, revision_id):
+            raise SnapshotIntegrityError(
+                f"revision {revision_id} of page {page_id} has an invalid snapshot"
+            )
+        return payload
+
+    def stored_type_check(self, wikidata_id: str, revision_id: int) -> tuple[str, ...] | None:
+        """Return the P31 values stored for this QID and revision, or ``None``."""
+        row = self.connection.execute(
+            """
+            SELECT instance_of_json FROM wikidata_type_checks
+            WHERE wikidata_id=? AND external_revision_id=?
+            """,
+            (wikidata_id, revision_id),
+        ).fetchone()
+        if row is None:
+            return None
+        return tuple(json.loads(row["instance_of_json"]))
+
     @rebuild_phases.timed(rebuild_phases.STORAGE)
     def save_pages(
         self,

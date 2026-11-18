@@ -24,6 +24,7 @@ from .release_discovery import (
     discover_releases,
 )
 from .release_pipeline import collect_release_facts
+from .revision_reuse import IncrementalWikidataClient
 from .storage import ExtractDrift, Repository, SnapshotIntegrityError
 from .wikidata import WikidataEntityClient, WikidataTypeClient
 
@@ -83,6 +84,25 @@ def build_parser() -> argparse.ArgumentParser:
             "the default database and its raw directory are refused"
         ),
     )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--full-refresh",
+        dest="incremental",
+        action="store_false",
+        help="Download every page and entity again (the default)",
+    )
+    mode.add_argument(
+        "--incremental",
+        dest="incremental",
+        action="store_true",
+        help=(
+            "Ask the current revision of every page and entity first and download only "
+            "revisions without a stored snapshot; the others are read from the snapshot "
+            "of that revision. Writes the same rows as a full run, except that an extract "
+            "changed without a new revision (ADR 036) goes unseen"
+        ),
+    )
+    parser.set_defaults(incremental=False)
     parser.add_argument("--user-agent", default=DEFAULT_USER_AGENT)
     return parser
 
@@ -235,22 +255,32 @@ def _exit_on_sigterm():
     return signal.signal(signal.SIGTERM, stop)
 
 
-
-
 def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, catalog_report) -> int:
     extraction = rebuild_phases.EXTRACTION
     storage = rebuild_phases.STORAGE
     try:
         with Repository(args.database, raw_dir=raw_dir) as repository, rebuild_phases.phase(extraction):
+            # One Wikidata client serves every stage of an incremental run, so
+            # the stored snapshots it reuses come from the same repository.
+            incremental_wikidata = (
+                IncrementalWikidataClient(
+                    WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
+                    repository,
+                )
+                if args.incremental
+                else None
+            )
             count = collect_category(
                 MediaWikiClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
                 repository,
                 args.category,
                 args.limit,
+                incremental=args.incremental,
             )
             stats = classify_catalog(
                 repository,
-                WikidataTypeClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
+                incremental_wikidata
+                or WikidataTypeClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
             )
             report_rows = repository.export_catalog_csv(catalog_report)
             fact_totals = fact_rows = None
@@ -258,7 +288,8 @@ def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, ca
                 wikipedia = MediaWikiClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget)
                 fact_totals = extract_facts(
                     repository,
-                    WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
+                    incremental_wikidata
+                    or WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
                     group_limit=args.facts_limit,
                     wikitext_client=wikipedia,
                     person_client=wikipedia if args.person_evidence else None,
@@ -285,7 +316,8 @@ def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, ca
                 }
                 release_totals = collect_release_facts(
                     repository,
-                    WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
+                    incremental_wikidata
+                    or WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
                     discovery.run_id,
                     wikipedia_clients=wikipedia_clients,
                 )
