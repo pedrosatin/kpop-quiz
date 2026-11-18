@@ -26,6 +26,15 @@ on:
       - ".github/workflows/pages.yml"
       - ".github/workflows/changes.yml"
   workflow_dispatch:
+    inputs:
+      variant:
+        description: "A/B: base, reduced-motion, trace-on-first-retry, ambos (vazio: fluxo habitual)"
+        type: string
+        default: ""
+      durations-artifact:
+        description: "ID do artefato de durações da master, fixo para toda a rodada A/B"
+        type: string
+        default: ""
   workflow_run:
     workflows: ["Generate and publish daily K-pop puzzles", "Refresh map pilot tour dates"]
     types: [completed]
@@ -34,7 +43,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-pages-${{ github.event.pull_request.number || github.ref }}
+  group: cloudflare-pages-${{ inputs.variant != '' && github.run_id || github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -57,10 +66,11 @@ jobs:
   # step of the build job.
   artifacts:
     if: >-
-      github.event_name != 'workflow_run' ||
+      inputs.variant == '' &&
+      (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -74,11 +84,12 @@ jobs:
 
   python:
     if: >-
-      github.event_name != 'pull_request' &&
+      inputs.variant == '' &&
+      (github.event_name != 'pull_request' &&
       (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -105,12 +116,13 @@ jobs:
     # !cancelled() keeps the job running when `changes` failed, which would
     # otherwise skip it: a failed detection means "run", never "skip".
     if: >-
-      !cancelled() &&
+      inputs.variant == '' &&
+      (!cancelled() &&
       (needs.changes.result != 'success' || needs.changes.outputs.web == 'true') &&
       (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -132,12 +144,13 @@ jobs:
     # !cancelled() keeps the job running when `changes` failed, which would
     # otherwise skip it: a failed detection means "run", never "skip".
     if: >-
-      !cancelled() &&
+      inputs.variant == '' &&
+      (!cancelled() &&
       (needs.changes.result != 'success' || needs.changes.outputs.web == 'true') &&
       (github.event_name != 'workflow_run' ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event)))
+      contains(fromJSON('["push","schedule","workflow_dispatch"]'), github.event.workflow_run.event))))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -169,7 +182,7 @@ jobs:
       # when deploy runs. upload-artifact skips dotfiles by default; with
       # include-hidden-files the artifact holds the whole dist/.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        if: inputs.variant == '' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
         with:
           name: web-dist
           path: web/dist
@@ -253,6 +266,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
+          VARIANT: ${{ inputs.variant }}
+          DURATIONS_ARTIFACT: ${{ inputs.durations-artifact }}
         run: |
           set -euo pipefail
           dir="$RUNNER_TEMP/e2e-durations"
@@ -286,6 +301,15 @@ jobs:
             gh api "repos/$REPOSITORY/actions/artifacts/$id/zip" > "$dir/durations.zip"
           }
 
+          if [ -n "${VARIANT:-}" ]; then
+            # A/B must never silently change the shard assignment between runs.
+            [[ "$DURATIONS_ARTIFACT" =~ ^[0-9]+$ ]] || exit 1
+            id="$DURATIONS_ARTIFACT"
+            retry download
+            unzip -o -q "$dir/durations.zip" -d "$dir"
+            echo "A/B recorded durations: artifact $id"
+            exit 0
+          fi
           retry run_created
           retry newest_artifact
           if [ -z "$id" ]; then
@@ -301,6 +325,7 @@ jobs:
         id: plan
         env:
           CI: true
+          E2E_VARIANT: ${{ inputs.variant }}
           CODE_FEEDBACK_ENV: ${{ (vars.PUBLIC_GA4_ID || secrets.PUBLIC_GA4_ID) != '' && 'banner' || 'root' }}
           CODE_FEEDBACK_CF_BEACON: ${{ (vars.PUBLIC_CF_BEACON_TOKEN || secrets.PUBLIC_CF_BEACON_TOKEN) != '' }}
           SHARD: ${{ matrix.shard }}
@@ -313,6 +338,7 @@ jobs:
       - name: Run Playwright boot and playthrough against local dist
         env:
           CI: true
+          E2E_VARIANT: ${{ inputs.variant }}
           CODE_FEEDBACK_ENV: ${{ (vars.PUBLIC_GA4_ID || secrets.PUBLIC_GA4_ID) != '' && 'banner' || 'root' }}
           CODE_FEEDBACK_CF_BEACON: ${{ (vars.PUBLIC_CF_BEACON_TOKEN || secrets.PUBLIC_CF_BEACON_TOKEN) != '' }}
           PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip
@@ -384,6 +410,7 @@ jobs:
       - name: Check that the shards ran the whole suite
         env:
           CI: true
+          E2E_VARIANT: ${{ inputs.variant }}
           CODE_FEEDBACK_ENV: ${{ (vars.PUBLIC_GA4_ID || secrets.PUBLIC_GA4_ID) != '' && 'banner' || 'root' }}
           CODE_FEEDBACK_CF_BEACON: ${{ (vars.PUBLIC_CF_BEACON_TOKEN || secrets.PUBLIC_CF_BEACON_TOKEN) != '' }}
         run: |
@@ -392,10 +419,10 @@ jobs:
       # Only a master run whose shards all passed records durations, and the
       # shards read only master's (see "Fetch recorded test durations").
       - name: Record test durations
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && needs.e2e.result == 'success'
+        if: inputs.variant == '' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && needs.e2e.result == 'success'
         run: node scripts/e2e-shards.mjs durations --report e2e-report.json --out "$RUNNER_TEMP/e2e-durations/e2e-durations.json"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && needs.e2e.result == 'success'
+        if: inputs.variant == '' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && needs.e2e.result == 'success'
         with:
           name: e2e-durations
           path: ${{ runner.temp }}/e2e-durations/e2e-durations.json
@@ -431,7 +458,7 @@ jobs:
           fi
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    if: inputs.variant == '' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -534,7 +561,7 @@ jobs:
   # the @local-build tests, which test a fixture build instead of the live site.
   # Fails the workflow on red; no automatic rollback. Skipped when Cloudflare deploy was skipped (no secrets).
   smoke-prod:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && needs.deploy.outputs.deployed == 'true'
+    if: inputs.variant == '' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && needs.deploy.outputs.deployed == 'true'
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -561,6 +588,7 @@ jobs:
       - name: Run Playwright boot and playthrough against production
         env:
           CI: true
+          E2E_VARIANT: ${{ inputs.variant }}
           CODE_FEEDBACK_ENV: ${{ (vars.PUBLIC_GA4_ID || secrets.PUBLIC_GA4_ID) != '' && 'banner' || 'root' }}
           CODE_FEEDBACK_CF_BEACON: ${{ (vars.PUBLIC_CF_BEACON_TOKEN || secrets.PUBLIC_CF_BEACON_TOKEN) != '' }}
         run: npm run test:e2e:prod

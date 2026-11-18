@@ -245,7 +245,7 @@ class ParallelJobsTests(unittest.TestCase):
     E2E_FOLLOW_UPS = ["e2e-report", "e2e-verdict"]
     WEB_CHECKS = ["vitest", "build", "e2e", *E2E_FOLLOW_UPS]
     PUBLISHERS = ["deploy", "smoke-prod"]
-    DEPLOY_CONDITION = "github.event_name != 'pull_request' && github.ref == 'refs/heads/master'"
+    DEPLOY_CONDITION = "inputs.variant == '' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master'"
     WEB_CHANGED = "(needs.changes.result != 'success' || needs.changes.outputs.web == 'true')"
     WORKFLOW_RUN_GUARD = (
         "github.event_name != 'workflow_run' || "
@@ -276,13 +276,15 @@ class ParallelJobsTests(unittest.TestCase):
         for name in self.WEB_CHECKS:
             self.assertEqual(
                 job_condition(self.job(name)),
-                f"!cancelled() && {self.WEB_CHANGED} && ({self.WORKFLOW_RUN_GUARD})",
+                (("inputs.variant == '' && (" if name in ("vitest", "build") else "")
+                 + f"!cancelled() && {self.WEB_CHANGED} && ({self.WORKFLOW_RUN_GUARD})"
+                 + (")" if name in ("vitest", "build") else "")),
                 name,
             )
-        self.assertEqual(job_condition(self.job("artifacts")), self.WORKFLOW_RUN_GUARD)
+        self.assertEqual(job_condition(self.job("artifacts")), "inputs.variant == '' && (" + self.WORKFLOW_RUN_GUARD + ")")
         self.assertEqual(
             job_condition(self.job("python")),
-            f"github.event_name != 'pull_request' && ({self.WORKFLOW_RUN_GUARD})",
+            f"inputs.variant == '' && (github.event_name != 'pull_request' && ({self.WORKFLOW_RUN_GUARD}))",
         )
 
     def test_deploy_publishes_the_artifact_of_the_build_job(self):
@@ -752,7 +754,7 @@ class PythonGateTests(unittest.TestCase):
         self.assertNotRegex(ci, r"(?m)^  push:")
         self.assertEqual(
             job_condition(job_text(self.PAGES, "python")),
-            f"github.event_name != 'pull_request' && ({ParallelJobsTests.WORKFLOW_RUN_GUARD})",
+            f"inputs.variant == '' && (github.event_name != 'pull_request' && ({ParallelJobsTests.WORKFLOW_RUN_GUARD}))",
         )
         self.assertNotIn("changes", job_text(self.PAGES, "python"))
         self.assertIn("python -m pytest tests -n logical", job_text(self.PAGES, "python"))
@@ -894,7 +896,7 @@ class E2EShardsTests(unittest.TestCase):
         self.assertEqual([line for line in run if line.startswith(("CI:", "CODE_FEEDBACK"))], self.FEEDBACK_ENV)
         self.assertIn("PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip", run)
         self.assertIn("SELECTION: ${{ steps.plan.outputs.selection }}", run)
-        self.assertEqual(step_env(self.report, "Check that the shards ran the whole suite"), self.FEEDBACK_ENV)
+        self.assertEqual(step_env(self.report, "Check that the shards ran the whole suite"), sorted(self.FEEDBACK_ENV + ["E2E_VARIANT: ${{ inputs.variant }}"]))
         plan = step_script(self.PAGES, "e2e", "Plan this shard")
         self.assertIn("node scripts/e2e-shards.mjs plan", plan)
         self.assertIn('--durations "$RUNNER_TEMP/e2e-durations/e2e-durations.json"', plan)
@@ -913,7 +915,7 @@ class E2EShardsTests(unittest.TestCase):
         self.assertIn("name: playwright-report\n", report_upload)
 
     def test_only_a_green_master_run_records_durations_under_the_fetched_name(self):
-        condition = f"{self.ON_MASTER} && needs.e2e.result == 'success'"
+        condition = f"inputs.variant == '' && {self.ON_MASTER} && needs.e2e.result == 'success'"
         record = dict(job_steps(self.PAGES.read_text(encoding="utf-8"), "e2e-report"))["Record test durations"]
         self.assertIn(f"\n        if: {condition}\n", record.split("\n      - ", 1)[0])
         upload = self.report.split("uses: actions/upload-artifact@")[2]
@@ -1030,7 +1032,7 @@ class DurationsFetchTests(unittest.TestCase):
             },
         }
 
-    def run_step(self, artifacts: list[dict], fail: str = ""):
+    def run_step(self, artifacts: list[dict], fail: str = "", variant: str = "", artifact_id: str = ""):
         """Runs the step with a ``gh`` that answers from ``artifacts`` and fails on paths matching ``fail``."""
         (self.dir / "run.json").write_text(json.dumps({"created_at": self.RUN_CREATED}), encoding="utf-8")
         (self.dir / "artifacts.json").write_text(json.dumps({"artifacts": artifacts}), encoding="utf-8")
@@ -1060,6 +1062,8 @@ esac
                 "RUNNER_TEMP": str(self.dir / "temp"),
                 "REPOSITORY": "o/r",
                 "RUN_ID": "99",
+                "VARIANT": variant,
+                "DURATIONS_ARTIFACT": artifact_id,
             },
             capture_output=True,
             text=True,
@@ -1070,6 +1074,20 @@ esac
 
     def downloads(self, calls: list[str]) -> list[str]:
         return [call.split()[1] for call in calls if call.split()[1].endswith("/zip")]
+
+    def test_ab_uses_only_the_pinned_artifact(self):
+        for variant in ("base", "reduced-motion", "trace-on-first-retry", "ambos"):
+            with self.subTest(variant=variant):
+                completed, calls, downloaded = self.run_step([], variant=variant, artifact_id="123")
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual(calls, ["api repos/o/r/actions/artifacts/123/zip"])
+                self.assertTrue(downloaded)
+
+    def test_ab_rejects_a_missing_or_invalid_artifact_id(self):
+        for artifact_id in ("", "foo", "1/zip"):
+            completed, calls, _ = self.run_step([], variant="base", artifact_id=artifact_id)
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertEqual(calls, [])
 
     def test_downloads_the_newest_master_artifact_created_before_the_run(self):
         completed, calls, downloaded = self.run_step([
@@ -1134,3 +1152,22 @@ class WorkflowShellEscapeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class E2EExperimentTests(unittest.TestCase):
+    def test_ab_cannot_publish_or_feed_master_durations(self):
+        pages = WORKFLOWS / "pages.yml"
+        for job in ("artifacts", "python", "vitest", "build", "deploy", "smoke-prod"):
+            self.assertTrue(job_condition(job_text(pages, job)).startswith("inputs.variant == '' &&"), job)
+        report = job_text(pages, "e2e-report")
+        for step in ("Record test durations", "name: e2e-durations"):
+            self.assertIn(step, report)
+        self.assertEqual(report.count("if: inputs.variant == '' &&"), 2)
+        text = pages.read_text()
+        self.assertIn('base, reduced-motion, trace-on-first-retry, ambos', text)
+        self.assertIn("inputs.variant != '' && github.run_id", text)
+
+    def test_normal_motion_stays_covered(self):
+        for name in ("playthrough", "smoke"):
+            self.assertIn('test.use({ reducedMotion: "no-preference" });',
+                          (ROOT / f"web/e2e/{name}.spec.ts").read_text())

@@ -7,6 +7,9 @@ import { MapPage } from "./pages/map.page";
 import { GridPage } from "./pages/grid.page";
 import { WordSearchPage } from "./pages/word-search.page";
 
+// Keep the normal-motion path covered in every A/B variant.
+test.use({ reducedMotion: "no-preference" });
+
 test.describe("pt-BR playthroughs", () => {
   // Full rounds plus setup; leave headroom over boot timeouts.
   test.describe.configure({ timeout: 120_000 });

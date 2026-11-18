@@ -5,6 +5,9 @@ import { bootRoute } from "./helpers/boot";
 import { isPublished } from "./helpers/published";
 import { crosswordDaily, routeCrosswordDaily } from "./helpers/crossword-daily";
 
+// Keep the normal-motion path covered in every A/B variant.
+test.use({ reducedMotion: "no-preference" });
+
 test.describe("route smoke", () => {
   // Boot waits can use up to ~30s for setup/board; keep headroom over that.
   test.describe.configure({ timeout: 60_000 });

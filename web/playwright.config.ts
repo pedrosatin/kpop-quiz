@@ -34,6 +34,12 @@ function localPreviewTarget(url: string): { host: string; port: number; url: str
 }
 
 const remote = isRemoteUrl(baseURL);
+const variant = process.env.E2E_VARIANT || "base";
+if (!["base", "reduced-motion", "trace-on-first-retry", "ambos"].includes(variant)) {
+  throw new Error(`Unknown E2E_VARIANT: ${variant}`);
+}
+const reducedMotion = variant === "reduced-motion" || variant === "ambos";
+const retryTrace = variant === "trace-on-first-retry" || variant === "ambos";
 
 /**
  * CI uses one worker per vCPU (4 on the public runners). The cap keeps a larger
@@ -83,7 +89,8 @@ export default defineConfig({
     actionTimeout: limits.actionTimeout,
     navigationTimeout: limits.navigationTimeout,
     screenshot: "only-on-failure",
-    trace: "retain-on-failure",
+    reducedMotion: reducedMotion ? "reduce" : "no-preference",
+    trace: retryTrace ? "on-first-retry" : "retain-on-failure",
   },
   // chromium is the PR/deploy gate; firefox + webkit are selected by the nightly script.
   projects: [
