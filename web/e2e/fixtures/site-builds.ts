@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { preview } from "astro";
+import { isRemoteUrl, LOCAL_BUILD_TAG } from "../target";
 import { withRunLock } from "./run-lock";
 
 /**
@@ -21,6 +22,10 @@ import { withRunLock } from "./run-lock";
  * A build is read only once it is ready. Anything that changes files after the
  * build (removing a manifest, swapping data/) goes in `after`, inside the
  * build's own directory, and a variant of another build copies it with `from`.
+ *
+ * A test that uses one carries LOCAL_BUILD_TAG (../target.ts). A run against a
+ * published site leaves those tests out, so it never builds; a build asked for
+ * there means an untagged test, and fails by name instead of building.
  */
 export type SiteBuild = {
   /** Directory name under the run directory; one per configuration. */
@@ -78,6 +83,10 @@ function buildsDir(): string {
 
 /** Returns the output directory of `build`, building it first if no worker has. */
 export function ensureSiteBuild(build: SiteBuild): Promise<string> {
+  const target = process.env.BASE_URL?.trim();
+  if (target && isRemoteUrl(target)) {
+    return Promise.reject(new Error(`the run targets ${target}, which builds no fixture site: tag the test that asked for "${build.name}" with ${LOCAL_BUILD_TAG}`));
+  }
   let pending = ready.get(build.name);
   if (!pending) {
     pending = produce(build);

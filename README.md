@@ -84,8 +84,8 @@ npm run test:e2e:ci          # full Chromium suite on an existing dist/ (no rebu
 npm run test:e2e:boot        # Chromium boot smoke only
 npm run test:e2e:playthrough # Chromium pt-BR playthroughs only
 npm run test:e2e:nightly     # Firefox + WebKit boot smoke
-npm run test:e2e:staging     # full Chromium suite against staging
-npm run test:e2e:prod        # full Chromium suite against https://kpopquiz.online
+npm run test:e2e:staging     # Chromium suite against staging, without @local-build tests
+npm run test:e2e:prod        # Chromium suite against https://kpopquiz.online, without @local-build tests
 ```
 
 ### End-to-end tests

@@ -6,6 +6,7 @@ import type { Page, Route } from "@playwright/test";
 import type { QuizSession } from "../src/lib/quiz-types";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { expect, test } from "./fixtures/feedback-build";
+import { LOCAL_BUILD_TAG } from "./target";
 
 const dataDir = fileURLToPath(new URL("../src/tests/fixtures/", import.meta.url));
 
@@ -32,7 +33,7 @@ async function settleEffects(page: Page) {
 }
 
 for (const scenario of ["normal", "moved while pending", "external before programmatic click"] as const) {
-  test(`feedback focus: ${scenario}`, async ({ page, feedbackURL }) => {
+  test(`feedback focus: ${scenario}`, { tag: LOCAL_BUILD_TAG }, async ({ page, feedbackURL }) => {
     const count = await sessionFixture(page);
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });

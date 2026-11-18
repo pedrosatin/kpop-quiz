@@ -4,6 +4,7 @@ import { getMessages } from "../src/i18n/catalog";
 import { expect, test } from "./fixtures/consent-build";
 import { loadPreferNextDaily } from "./helpers/daily-artifact";
 import { skipUnlessPublished } from "./helpers/published";
+import { LOCAL_BUILD_TAG } from "./target";
 
 // Each test opens its own page and writes nowhere shared, so the file can
 // spread its tests across workers (see playwright.config.ts).
@@ -143,7 +144,7 @@ for (const { id, locale, path } of locales) {
   const t = getMessages(locale).wordSearch;
 
   for (const phone of phones) {
-    test.describe(`word search touch ${id} ${phone.width}x${phone.height}`, () => {
+    test.describe(`word search touch ${id} ${phone.width}x${phone.height}`, { tag: LOCAL_BUILD_TAG }, () => {
       test.use({ viewport: phone, isMobile: true, hasTouch: true });
 
       test("a tap at the center of each cell marks that cell, and a tap in a gap the nearest one", async ({ page, consentURL }) => {

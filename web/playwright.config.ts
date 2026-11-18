@@ -1,17 +1,9 @@
 import { availableParallelism } from "node:os";
 import { defineConfig, devices } from "@playwright/test";
+import { isRemoteUrl, LOCAL_BUILD_TAG } from "./e2e/target";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:4321";
 const baseURL = process.env.BASE_URL?.trim() || DEFAULT_BASE_URL;
-
-function isRemoteUrl(url: string): boolean {
-  try {
-    const { hostname } = new URL(url);
-    return hostname !== "127.0.0.1" && hostname !== "localhost";
-  } catch {
-    return false;
-  }
-}
 
 /** Host/port for local astro preview; fall back to DEFAULT_BASE_URL if parsing fails. */
 function localPreviewTarget(url: string): { host: string; port: number; url: string; readyUrl: string } {
@@ -63,6 +55,9 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 1,
   workers,
+  // Tests that serve a fixture build of this checkout say nothing about a
+  // published site; a remote run skips them and builds no fixture (e2e/target.ts).
+  ...(remote ? { grepInvert: new RegExp(LOCAL_BUILD_TAG) } : {}),
   // Fixture site builds (e2e/fixtures/site-builds.ts) share one directory per run.
   globalSetup: "./e2e/global-setup.ts",
   reporter: [["list"]],

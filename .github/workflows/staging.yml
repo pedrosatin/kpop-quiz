@@ -121,8 +121,8 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
-  # Post-deploy full Chromium suite (boot smoke + playthrough) against the GitHub Pages
-  # staging URL (subdirectory base). Separate job so we can check out sources for Playwright;
+  # Post-deploy Chromium suite (boot smoke + playthrough), without the @local-build tests,
+  # against the GitHub Pages staging URL (subdirectory base). Separate job so we can check out sources for Playwright;
   # deploy has no node checkout.
   smoke-staging:
     if: github.ref == 'refs/heads/dev'
