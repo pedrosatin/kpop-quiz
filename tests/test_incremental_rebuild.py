@@ -607,10 +607,10 @@ class IncrementalRebuildEquivalenceTest(unittest.TestCase):
 
     def test_corrupt_snapshot_still_stops_the_incremental_run(self):
         incremental = self.copy_of_yesterday("incremental")
-        # Yesterday was built with --releases, so raw/wikidata also holds release,
-        # performer and genre snapshots that a --facts run never reads. Picking
-        # the first rglob hit made the test depend on filesystem order; corrupt
-        # every snapshot so the run always meets one it verifies.
+        # Yesterday was built with --releases, so raw/wikidata also holds label,
+        # release discovery and other snapshots that a --facts run never reads.
+        # Picking the first rglob hit made the test depend on filesystem order;
+        # corrupt every snapshot so the run always meets one it verifies.
         snapshots = sorted((incremental / "raw" / "wikidata").rglob("*.json.gz"))
         self.assertTrue(snapshots)
         for snapshot in snapshots:
