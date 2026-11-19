@@ -894,7 +894,12 @@ class E2EShardsTests(unittest.TestCase):
         self.assertEqual([line for line in run if line.startswith(("CI:", "CODE_FEEDBACK"))], self.FEEDBACK_ENV)
         self.assertIn("PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip", run)
         self.assertIn("SELECTION: ${{ steps.plan.outputs.selection }}", run)
-        self.assertEqual(step_env(self.report, "Check that the shards ran the whole suite"), self.FEEDBACK_ENV)
+        report = step_env(self.report, "Check that the shards ran the whole suite")
+        self.assertEqual([line for line in report if line.startswith(("CI:", "CODE_FEEDBACK"))], self.FEEDBACK_ENV)
+        # Only pull requests run the pairwise subset; every path that deploys runs the full matrix.
+        full_matrix = "E2E_FULL_MATRIX: ${{ github.event_name != 'pull_request' && '1' || '' }}"
+        for env in (step_env(self.e2e, "Plan this shard"), run, report):
+            self.assertIn(full_matrix, env)
         plan = step_script(self.PAGES, "e2e", "Plan this shard")
         self.assertIn("node scripts/e2e-shards.mjs plan", plan)
         self.assertIn('--durations "$RUNNER_TEMP/e2e-durations/e2e-durations.json"', plan)

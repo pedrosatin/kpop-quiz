@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { pilotBoard as crossword, routeCrosswordDaily } from "./helpers/crossword-daily";
+import { matrixCases } from "./helpers/pairwise";
 
 test.use({ bypassCSP: true });
 
@@ -53,9 +54,24 @@ async function capture(page: Page, name: string) {
   await page.screenshot({ path: join(evidenceDir, `${name}.png`), fullPage: true, animations: "disabled" });
 }
 
-for (const game of games) for (const locale of ["pt", "en"] as const)
-  for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }, { width: 1440, height: 900 }])
-    for (const colorScheme of ["light", "dark"] as const) {
+const pilotViewports = {
+  "320": { width: 320, height: 568 },
+  "390": { width: 390, height: 844 },
+  "1440": { width: 1440, height: 900 },
+} as const;
+
+// Pairwise per game so each title still covers locale × viewport × theme pairs
+// (6 rows × 2 games = 12 on a PR; 24 with E2E_FULL_MATRIX).
+for (const game of games) {
+  const pilotMatrix = matrixCases({
+    locale: ["pt", "en"],
+    viewport: ["320", "390", "1440"],
+    colorScheme: ["light", "dark"],
+  });
+  for (const row of pilotMatrix) {
+    const locale = row.locale as "pt" | "en";
+    const viewport = pilotViewports[row.viewport as keyof typeof pilotViewports];
+    const colorScheme = row.colorScheme as "light" | "dark";
       test(`${game.id} ${locale} ${viewport.width} ${colorScheme}: layout and accessible controls`, async ({ page }) => {
         await page.setViewportSize(viewport);
         await page.emulateMedia({ colorScheme });
@@ -86,7 +102,8 @@ for (const game of games) for (const locale of ["pt", "en"] as const)
         await page.getByText(locale === "pt" ? "Como jogar" : "How to play", { exact: true }).click();
         expect(errors).toEqual([]);
       });
-    }
+  }
+}
 
 for (const game of games) test(`${game.id}: 200 percent text reflow and keyboard entry`, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

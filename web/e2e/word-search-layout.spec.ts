@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { loadPreferNextDaily } from "./helpers/daily-artifact";
+import { matrixCases } from "./helpers/pairwise";
 import { reloadPersisted } from "./helpers/passive-effects";
 import { skipUnlessPublished } from "./helpers/published";
 
@@ -43,9 +44,23 @@ async function expectContained(page: Page) {
   expect(geometry.sticky).toBe("sticky");
 }
 
-for (const locale of ["pt", "en"]) {
-  for (const [width, height] of [[360, 800], [390, 844], [1280, 800]] as const) {
-    for (const consent of ["open", "rejected"]) {
+const layoutViewports = {
+  "360": 800,
+  "390": 844,
+  "1280": 800,
+} as const;
+
+const layoutMatrix = matrixCases({
+  locale: ["pt", "en"],
+  width: ["360", "390", "1280"],
+  consent: ["open", "rejected"],
+});
+
+for (const row of layoutMatrix) {
+  const locale = row.locale;
+  const width = Number(row.width) as 360 | 390 | 1280;
+  const height = layoutViewports[row.width as keyof typeof layoutViewports];
+  const consent = row.consent;
       test(`${locale} ${width} consent ${consent}: actions, progress and results stay contained`, async ({ browser, baseURL }, testInfo) => {
         // A day may go out without the word search (helpers/published.ts).
         const published = await browser.newContext();
@@ -119,6 +134,4 @@ for (const locale of ["pt", "en"]) {
           await context.close();
         }
       });
-    }
-  }
 }

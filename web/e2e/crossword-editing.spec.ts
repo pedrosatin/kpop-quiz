@@ -2,6 +2,7 @@ import { test, expect, type Page, type Locator } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { joinBaseUrl } from '../src/lib/join-base-url';
 import { crossGuard, installGuardClock } from './helpers/guard-clock';
+import { matrixCases } from './helpers/pairwise';
 import { reloadPersisted, settleEffects } from './helpers/passive-effects';
 import { gamePlayed } from './helpers/player-stats';
 import { RESULT_GUARD_MS } from '../src/components/Results/use-result-action-guard';
@@ -39,11 +40,26 @@ async function capture(page: Page, id: string, input: Locator) {
   return measured;
 }
 
-for (const [locale, t] of Object.entries(locales)) {
-  for (const [width, height] of [[360, 800], [390, 844], [1280, 800]]) {
-    for (const consent of ['open', 'rejected']) {
+const crosswordViewports = {
+  '360': 800,
+  '390': 844,
+  '1280': 800,
+} as const;
+
+const crosswordMatrix = matrixCases({
+  locale: ['pt', 'en'],
+  width: ['360', '390', '1280'],
+  consent: ['open', 'rejected'],
+});
+
+for (const row of crosswordMatrix) {
+  const locale = row.locale as keyof typeof locales;
+  const t = locales[locale];
+  const width = Number(row.width);
+  const height = crosswordViewports[row.width as keyof typeof crosswordViewports];
+  const consent = row.consent;
       test(`${locale} ${width}x${height} ${consent}: active square stays above overlays`, async ({ browser, baseURL }) => {
-        const context = await browser.newContext({ viewport: { width: width!, height: height! }, hasTouch: width! < 600 });
+        const context = await browser.newContext({ viewport: { width, height }, hasTouch: width < 600 });
         await context.route('**/*', route => new URL(route.request().url()).origin === new URL(baseURL!).origin ? route.continue() : route.abort());
         await routeCrosswordDaily(context);
         await context.addInitScript(() => {
@@ -114,9 +130,9 @@ for (const [locale, t] of Object.entries(locales)) {
         await expect(board.getByRole('heading', { name: locale === 'pt' ? 'Cruzadinha concluída!' : 'Crossword completed!' })).toBeVisible();
         await context.close();
       });
-    }
-  }
+}
 
+for (const [locale, t] of Object.entries(locales)) {
   test(`${locale}: Backspace follows only the selected word, preserving crossings and focus`, async ({ page, baseURL }) => {
     await page.route('**/*', route => new URL(route.request().url()).origin === new URL(baseURL!).origin ? route.continue() : route.abort());
     await routeCrosswordDaily(page);

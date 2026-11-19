@@ -7,6 +7,7 @@ import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { Locale, PlayMode, QuizOption, QuizQuestion, QuizSession } from "../src/lib/quiz-types";
 import { crossGuard, installGuardClock } from "./helpers/guard-clock";
+import { quizCluesMatrix } from "./helpers/pairwise";
 import { skipUnlessPublished } from "./helpers/published";
 import { CONSENT_BUILD, SITE_BUILD_FIXTURE_TIMEOUT_MS, serveSiteBuild, type SiteBuild } from "./fixtures/site-builds";
 import { LOCAL_BUILD_TAG } from "./target";
@@ -229,13 +230,16 @@ async function answerCorrectly(page: Page, question: QuizQuestion, locale: (type
   return advance;
 }
 
-for (const locale of locales)
-  for (const viewport of viewports)
-    for (const mode of ["assisted", "standard", "expert"] as const)
-      for (const scenario of scenarios)
-        for (const consent of consents) {
-        // The refused banner is checked on the daily game; the other scenarios reuse the same board.
-        if (consent === "rejected" && scenario.name !== "daily") continue;
+// On a pull request the pairwise subset covers every published session and
+// every value-pair; the master push sets E2E_FULL_MATRIX=1 for the 72 cases.
+const quizCluesCases = quizCluesMatrix();
+
+for (const row of quizCluesCases) {
+        const locale = locales.find((entry) => entry.id === row.locale)!;
+        const viewport = viewports.find((entry) => entry.name === row.viewport)!;
+        const mode = row.mode;
+        const scenario = scenarios.find((entry) => entry.name === row.scenario)!;
+        const consent = row.consent;
         test(`quiz ${locale.id} ${viewport.name} ${mode} ${scenario.name} banner ${consent}: clues and notices match the published session`, { tag: LOCAL_BUILD_TAG }, async ({ page, context, consentURL }) => {
           // A day may go out without the quiz (helpers/published.ts); the
           // tomorrow scenario reads the set published ahead.
@@ -317,7 +321,7 @@ for (const locale of locales)
           // Expert would be the third mode; here the scenario must prove both states.
           test.info().annotations.push({ type: "coverage", description: `${withClue} with clue (${related} cite the answer's own date), ${withoutClue} without` });
         });
-      }
+}
 
 // The decade round is checked with the catalog answering 404 and with whatever
 // the build published, which is the catalog when QUIZ_CATALOG is on.

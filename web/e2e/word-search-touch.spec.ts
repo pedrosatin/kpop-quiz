@@ -4,6 +4,7 @@ import { gridPositionAt, nearestCell } from "../src/components/WordSearch/geomet
 import { getMessages } from "../src/i18n/catalog";
 import { expect, test } from "./fixtures/consent-build";
 import { loadPreferNextDaily } from "./helpers/daily-artifact";
+import { matrixCases } from "./helpers/pairwise";
 import { skipUnlessPublished } from "./helpers/published";
 import { LOCAL_BUILD_TAG } from "./target";
 
@@ -141,10 +142,16 @@ function lastRowInReach(): { whole: boolean; hit: boolean } {
   };
 }
 
-for (const { id, locale, path } of locales) {
-  const t = getMessages(locale).wordSearch;
+// Two dimensions of size 2: pairwise equals the full product (4 × 6 = 24).
+const touchMatrix = matrixCases({
+  locale: locales.map((entry) => entry.id),
+  phone: phones.map((phone) => String(phone.width)),
+});
 
-  for (const phone of phones) {
+for (const row of touchMatrix) {
+  const { id, locale, path } = locales.find((entry) => entry.id === row.locale)!;
+  const phone = phones.find((entry) => String(entry.width) === row.phone)!;
+  const t = getMessages(locale).wordSearch;
     test.describe(`word search touch ${id} ${phone.width}x${phone.height}`, { tag: LOCAL_BUILD_TAG }, () => {
       test.use({ viewport: phone, isMobile: true, hasTouch: true });
 
@@ -330,5 +337,4 @@ for (const { id, locale, path } of locales) {
         });
       }
     });
-  }
 }
