@@ -5,6 +5,14 @@ import { bootRoute } from "./helpers/boot";
 import { isPublished } from "./helpers/published";
 import { crosswordDaily, routeCrosswordDaily } from "./helpers/crossword-daily";
 
+function isCloudflareProduction(baseURL: string): boolean {
+  try {
+    return new URL(baseURL).hostname === "kpopquiz.online";
+  } catch {
+    return false;
+  }
+}
+
 test.describe("route smoke", () => {
   // Boot waits can use up to ~30s for setup/board; keep headroom over that.
   test.describe.configure({ timeout: 60_000 });
@@ -22,6 +30,35 @@ test.describe("route smoke", () => {
       await bootRoute(page, route, baseURL!);
     });
   }
+});
+
+test.describe("root redirect", () => {
+  test("production sends / to /pt-br/ with 301 and keeps the query string", async ({ request, baseURL }) => {
+    expect(baseURL, "BASE_URL / playwright baseURL must be set").toBeTruthy();
+    test.skip(!isCloudflareProduction(baseURL!), "Pages _redirects apply only on Cloudflare Pages production");
+
+    const bare = await request.get(baseURL!, { maxRedirects: 0 });
+    expect(bare.status()).toBe(301);
+    expect(bare.headers().location).toBe("https://kpopquiz.online/pt-br/");
+
+    const withQuery = await request.get(`${baseURL!.replace(/\/$/, "")}/?s=quiz&utm_source=smoke`, {
+      maxRedirects: 0,
+    });
+    expect(withQuery.status()).toBe(301);
+    const location = new URL(withQuery.headers().location!, "https://kpopquiz.online");
+    expect(location.pathname).toBe("/pt-br/");
+    expect(location.searchParams.get("s")).toBe("quiz");
+    expect(location.searchParams.get("utm_source")).toBe("smoke");
+  });
+
+  test("local preview has no root index page", async ({ request, baseURL }) => {
+    expect(baseURL, "BASE_URL / playwright baseURL must be set").toBeTruthy();
+    test.skip(isCloudflareProduction(baseURL!), "local/staging only: production answers 301 instead of 404");
+    // Staging uses a subdirectory base; its "root" is /kpop-quiz/, which has
+    // no index after ADR 044 and is noindex as a whole.
+    const response = await request.get(joinBaseUrl(baseURL!, "/"), { maxRedirects: 0 });
+    expect(response.status()).toBe(404);
+  });
 });
 
 test.describe("crossword boot contract", () => {

@@ -28,8 +28,9 @@ function pair(
   ];
 }
 
-// Exactly the 18 indexable content routes. The `/` canonical alias, `/data/*`,
-// staging builds and `?mode`/`?theme` variants stay out of the index.
+// Exactly the 18 indexable content routes. The domain root redirects to
+// `/pt-br/` (ADR 044). `/data/*`, staging builds and `?mode`/`?theme`
+// variants stay out of the index.
 export const SEO_ROUTES: readonly SeoRoute[] = [
   ...pair("quiz", "/pt-br/", "/en/"),
   ...pair("grid", "/pt-br/grid/", "/en/grid/"),

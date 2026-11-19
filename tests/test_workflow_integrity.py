@@ -513,7 +513,7 @@ cat <<'LIST'
 
     def test_site_files_run_the_web_jobs(self):
         for path in (
-            "web/src/pages/index.astro",
+            "web/src/pages/pt-br/index.astro",
             "web/package-lock.json",
             "web/public/data/manifest-v2.json",
             "web/e2e/smoke.spec.ts",
@@ -619,7 +619,7 @@ cat <<'LIST'
         "src/new.md",
     )
     PYTHON_LEAVES_ALONE = (
-        "web/src/pages/index.astro",
+        "web/src/pages/pt-br/index.astro",
         "web/src/components/Quiz/Quiz.tsx",
         "web/src/components/Quiz/Quiz.test.tsx",
         "web/e2e/smoke.spec.ts",
@@ -653,7 +653,7 @@ cat <<'LIST'
 
     def test_web_and_python_are_decided_apart(self):
         for files, expected in (
-            (["web/src/pages/index.astro"], ["web=true", "python=false"]),
+            (["web/src/pages/pt-br/index.astro"], ["web=true", "python=false"]),
             (["kpop_scraping/a.py"], ["web=false", "python=true"]),
             (["docs/a.md"], ["web=false", "python=false"]),
             (["web/package-lock.json"], ["web=true", "python=true"]),
@@ -661,7 +661,7 @@ cat <<'LIST'
             ([".github/workflows/ci.yml"], ["web=false", "python=true"]),
             ([".github/workflows/pages.yml"], ["web=true", "python=true"]),
             ([".github/workflows/changes.yml"], ["web=true", "python=true"]),
-            (["web/src/pages/index.astro", "kpop_scraping/a.py"], ["web=true", "python=true"]),
+            (["web/src/pages/pt-br/index.astro", "kpop_scraping/a.py"], ["web=true", "python=true"]),
         ):
             with self.subTest(files):
                 self.assertEqual(self.outputs(files), expected)

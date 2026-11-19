@@ -16,19 +16,23 @@ function localPreviewTarget(url: string): { host: string; port: number; url: str
     if (!Number.isFinite(port) || port <= 0) {
       throw new Error("invalid port");
     }
+    const origin = `${parsed.protocol}//${parsed.hostname}:${port}`;
     return {
       host: parsed.hostname,
       port,
-      url: `${parsed.protocol}//${parsed.hostname}:${port}`,
-      readyUrl: `${parsed.protocol}//${parsed.hostname}:${port}${parsed.pathname}`,
+      url: origin,
+      // After ADR 044 the domain root is not a page (301 on Pages, 404 in
+      // local preview). Probe a real route so the readiness check succeeds.
+      readyUrl: `${origin}/pt-br/`,
     };
   } catch {
     const fallback = new URL(DEFAULT_BASE_URL);
+    const origin = `${fallback.protocol}//${fallback.hostname}:${fallback.port}`;
     return {
       host: fallback.hostname,
       port: Number(fallback.port),
-      url: DEFAULT_BASE_URL,
-      readyUrl: DEFAULT_BASE_URL,
+      url: origin,
+      readyUrl: `${origin}/pt-br/`,
     };
   }
 }

@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita. Desde a [ADR 022](022-renderizacao-e-texto-indexavel.md), o `robots.txt` não bloqueia mais `/data/`. A decisão sobre `<lastmod>` continua valendo, porque os JSON seguem fora do sitemap e do índice.
+Aceita. Desde a [ADR 022](022-renderizacao-e-texto-indexavel.md), o `robots.txt` não bloqueia mais `/data/`. A decisão sobre `<lastmod>` continua valendo, porque os JSON seguem fora do sitemap e do índice. A [ADR 044](044-raiz-301-para-pt-br.md) substituiu o alias canônico da raiz por um `301` para `/pt-br/`.
 
 ## Data
 
@@ -24,7 +24,7 @@ O sitemap não tem `<lastmod>`. O `robots.txt` de produção bloqueia `/data/`, 
 
 O `seo:verify` passou a exigir `dist/404.html` com `noindex` e sem canonical, hreflang, `og:url` ou `application/ld+json`, além de dois alternates por URL no sitemap.
 
-A raiz `/` segue como alias com canonical para `/pt-br/`, como decidido na ADR 018.
+A raiz `/` deixou de ser alias canônico: desde a [ADR 044](044-raiz-301-para-pt-br.md) ela responde `301` para `/pt-br/`.
 
 ## Alternativas consideradas
 
