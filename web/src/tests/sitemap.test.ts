@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SEO_ROUTES, seoAbsoluteUrl } from "../lib/seo-routes";
+import { INDEXABLE_SEO_ROUTES, seoAbsoluteUrl } from "../lib/seo-routes";
 import { GET } from "../pages/sitemap.xml";
 
 afterEach(() => {
@@ -27,18 +27,18 @@ describe("sitemap.xml", () => {
     },
   );
 
-  it("serves all 18 canonical URLs with their language pair and English x-default", async () => {
+  it("serves all 20 canonical URLs with their language pair and English x-default", async () => {
     const response = await GET({} as Parameters<typeof GET>[0]);
     const xml = new DOMParser().parseFromString(await response.text(), "application/xml");
     expect(xml.querySelector("parsererror")).toBeNull();
     const urls = [...xml.getElementsByTagName("url")];
-    expect(urls).toHaveLength(18);
+    expect(urls).toHaveLength(20);
     expect(urls.map((url) => url.querySelector("loc")?.textContent)).toEqual(
-      SEO_ROUTES.map((route) => seoAbsoluteUrl(route.path)),
+      INDEXABLE_SEO_ROUTES.map((route) => seoAbsoluteUrl(route.path)),
     );
     for (const [index, url] of urls.entries()) {
-      const route = SEO_ROUTES[index]!;
-      const alternate = SEO_ROUTES.find((entry) => entry.path === route.alternatePath)!;
+      const route = INDEXABLE_SEO_ROUTES[index]!;
+      const alternate = INDEXABLE_SEO_ROUTES.find((entry) => entry.path === route.alternatePath)!;
       const english = route.locale === "en" ? route : alternate;
       const links = [...url.getElementsByTagNameNS("http://www.w3.org/1999/xhtml", "link")];
       expect(links).toHaveLength(3);

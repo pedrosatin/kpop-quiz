@@ -307,6 +307,15 @@ describe("round parameters", () => {
     expect(completion()).not.toHaveProperty("streak_bucket");
   });
 
+  it("omits return bands when omitReturnBands is set (group-page free play)", () => {
+    setToday("2026-11-09");
+    seedStats("quiz", { lastPlayedDate: "2026-11-08", currentStreak: 5 });
+    play("win", { omitReturnBands: true, isDaily: () => false });
+    expect(completion()).toMatchObject({ game: "quiz", daily: "no", outcome: "win" });
+    expect(completion()).not.toHaveProperty("days_since_last");
+    expect(completion()).not.toHaveProperty("streak_bucket");
+  });
+
   it("decides daily once per round, when it begins", () => {
     const isDaily = vi.fn(() => true);
     const { result, rerender } = renderHook(

@@ -91,9 +91,18 @@ function replayCatalogRound(ctx: QuizLoadContext): void {
  */
 export function restartRound(ctx: QuizLoadContext): void {
   const { settings, match } = ctx;
-  clearQuizProgress(progressConfig(ctx));
+  if (settings.persist) {
+    clearQuizProgress(progressConfig(ctx));
+  }
   match.setResumeNotice(null);
   if (settings.theme === "daily") {
+    replayPublishedRound(ctx);
+    return;
+  }
+  // Fixed group-page sessions keep the same ten questions with no catalog
+  // notice; the home general quiz still warns when the catalog is absent.
+  if (!settings.persist) {
+    match.setReplayStatus(null);
     replayPublishedRound(ctx);
     return;
   }

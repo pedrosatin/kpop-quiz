@@ -23,4 +23,14 @@ export interface WordSearchGameProps {
   puzzle?: WordSearchPuzzle;
   locale: Locale;
   baseUrl?: string;
+  /**
+   * When false, skip daily match recording, DailyDone, the stale-daily
+   * notice, DailyNext, and the daily share header. Used by group pages.
+   * Defaults to true (today's challenge).
+   */
+  daily?: boolean;
+  /** Overrides the default home word-search share URL (used by group pages). */
+  shareUrl?: string;
+  /** Inside a group-page section (already an h2), demote inner titles to h3. */
+  headingLevel?: 2 | 3;
 }

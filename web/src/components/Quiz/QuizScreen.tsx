@@ -50,6 +50,10 @@ export interface QuizScreenProps {
   generalResume?: GeneralResume | null;
   /** A round saved in progress in the other language, which the setup offers to resume there. */
   otherLocaleRound?: OtherLocaleRound | null;
+  /** Overrides the default home-quiz share URL (used by group landing pages). */
+  shareUrl?: string | undefined;
+  /** Inside a group-page section (already an h2), demote the prompt to h3. */
+  headingLevel?: 2 | 3;
 }
 
 function replayNoticeText(status: ReplayNotice, messages: Messages): string | undefined {
@@ -105,7 +109,7 @@ function QuizSetupScreen({ messages, settings, match, hydrated, actions, general
   );
 }
 
-function QuizResultScreen({ locale, messages, settings, match, focus, actions, session }: QuizScreenProps & { session: QuizSession }) {
+function QuizResultScreen({ locale, messages, settings, match, focus, actions, session, shareUrl }: QuizScreenProps & { session: QuizSession }) {
   const { score, history, elapsedSeconds, restoredVisit, gaveUpRef } = match;
   const dailyDate = quizDailyDate(session, settings.theme);
   const resultNotice = resultNoticeText(match, messages, !dailyDate);
@@ -120,6 +124,7 @@ function QuizResultScreen({ locale, messages, settings, match, focus, actions, s
       dailyDate={dailyDate} feedbackEligible={!gaveUpRef.current}
       {...(resultNotice ? { notice: resultNotice } : {})}
       onPlayGeneral={actions.playGeneral}
+      {...(shareUrl !== undefined ? { shareUrl } : {})}
     />
   );
 }
@@ -201,7 +206,7 @@ function OtherLocaleNotice({ round, messages }: { round: OtherLocaleRound; messa
 }
 
 function QuizRoundScreen({
-  messages, settings, match, timerVisible, secondsLeft, focus, actions, session, question,
+  messages, settings, match, timerVisible, secondsLeft, focus, actions, session, question, headingLevel,
 }: QuizScreenProps & { session: QuizSession; question: QuizQuestion }) {
   const { state, questionIndex, score, selectedId, timedOut, revealedClues, confirmGiveUpOpen, resumeNotice } = match;
   return (
@@ -217,6 +222,7 @@ function QuizRoundScreen({
         onSelectOption={match.setSelectedId} answered={state === "question.answered"} timedOut={timedOut}
         revealedClues={revealedClues} playMode={settings.playMode} headingRef={focus.headingRef} actionRef={focus.nextButtonRef}
         onSubmit={actions.submit} onAdvance={actions.advance} onGiveUp={actions.requestGiveUp} onRevealClue={actions.revealClue} messages={messages}
+        {...(headingLevel !== undefined ? { headingLevel } : {})}
       />
       <ConfirmDialog
         isOpen={confirmGiveUpOpen}

@@ -93,24 +93,34 @@ async function loadModules() {
   try {
     const catalog = await server.ssrLoadModule("/src/i18n/catalog.ts");
     const seo = await server.ssrLoadModule("/src/lib/seo-routes.ts");
-    return { getMessages: catalog.getMessages, seo };
+    const groups = await server.ssrLoadModule("/src/lib/group-pages.ts");
+    return {
+      getMessages: catalog.getMessages,
+      seo,
+      GROUP_PAGES: groups.GROUP_PAGES,
+      isGroupPageKey: groups.isGroupPageKey,
+    };
   } finally {
     await server.close();
   }
 }
 
 async function main() {
-  const { getMessages, seo } = await loadModules();
+  const { getMessages, seo, GROUP_PAGES, isGroupPageKey } = await loadModules();
   const {
     SEO_OG_IMAGE_DIR,
     SEO_OG_IMAGE_HEIGHT,
     SEO_OG_IMAGE_WIDTH,
     SEO_OG_TAGLINE,
     SEO_PROD_ORIGIN,
-    SEO_ROUTES,
+    INDEXABLE_SEO_ROUTES,
     seoGameName,
     seoOgImagePath,
+    seoRouteDisplayName,
   } = seo;
+  const groupNameByKey = new Map(
+    GROUP_PAGES.map((page) => [`group:${page.slug}`, page.name]),
+  );
   const host = new URL(SEO_PROD_ORIGIN).host;
   const outDir = join(publicDir, ...SEO_OG_IMAGE_DIR.split("/").filter(Boolean));
 
@@ -125,15 +135,23 @@ async function main() {
       viewport: { width: SEO_OG_IMAGE_WIDTH, height: SEO_OG_IMAGE_HEIGHT },
       deviceScaleFactor: 1,
     });
-    for (const route of SEO_ROUTES) {
+    for (const route of INDEXABLE_SEO_ROUTES) {
       const messages = getMessages(route.locale);
       const isSite = route.key === "quiz";
+      const groupName = isGroupPageKey(route.key)
+        ? groupNameByKey.get(route.key)
+        : undefined;
+      const title = isSite
+        ? "K-pop Quiz"
+        : isGroupPageKey(route.key)
+          ? seoRouteDisplayName(route.key, route.locale, messages, groupName)
+          : seoGameName(route.key, messages);
       await page.setContent(
         cardHtml({
           width: SEO_OG_IMAGE_WIDTH,
           height: SEO_OG_IMAGE_HEIGHT,
           lang: route.locale,
-          title: isSite ? "K-pop Quiz" : seoGameName(route.key, messages),
+          title,
           kicker: isSite ? null : "K-pop Quiz",
           tagline: SEO_OG_TAGLINE[route.locale],
           host,

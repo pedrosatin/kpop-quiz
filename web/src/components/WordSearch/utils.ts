@@ -39,12 +39,14 @@ export function generateWordSearchShareSummary(
   foundCount: number,
   totalCount: number,
   elapsedSeconds: number,
-  locale: Locale
+  locale: Locale,
+  options: { daily?: boolean; shareUrl?: string } = {},
 ): string {
   const time = formatTime(elapsedSeconds);
   const messages = getMessages(locale);
-  return withShareUrl(
-    messages.wordSearchShareHeader(puzzle.reference_date, foundCount, totalCount, time),
-    seoShareUrl("wordSearch", locale)
-  );
+  const body =
+    options.daily === false
+      ? `${messages.gameWordSearch}\n${foundCount}/${totalCount} (${time})`
+      : messages.wordSearchShareHeader(puzzle.reference_date, foundCount, totalCount, time);
+  return withShareUrl(body, options.shareUrl ?? seoShareUrl("wordSearch", locale));
 }

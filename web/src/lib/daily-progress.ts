@@ -5,7 +5,9 @@ import type { Locale } from "./quiz-types";
 import { SEO_ROUTES, seoRoute } from "./seo-routes";
 
 /** The daily games in the order of the navigation tabs. */
-export const DAILY_GAMES: readonly SeoRouteKey[] = SEO_ROUTES.filter((route) => route.locale === "pt-BR").map((route) => route.key);
+export const DAILY_GAMES: readonly SeoRouteKey[] = SEO_ROUTES.filter((route) => route.locale === "pt-BR").map(
+  (route) => route.key,
+);
 
 /** Fired with the game key when a daily result shows, so the tabs mark it. */
 export const DAILY_DONE_EVENT = "kpop-daily-done";

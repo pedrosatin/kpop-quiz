@@ -71,6 +71,45 @@ export function useQuizSettings(locale: Locale, initialAvailableDecades: QuizDec
     selectMode,
     changeTimer,
     clearDecadeFilter,
+    /** Home quiz mirrors mode/theme into the URL; group pages keep the path clean. */
+    syncUrl: true,
+    /** Home quiz writes a localStorage slot; group pages skip persistence. */
+    persist: true,
+  };
+}
+
+/**
+ * Fixed free-play settings for a group landing quiz: theme `history` so
+ * `quizDailyDate` stays undefined (session-<id> stats, restart button, no
+ * daily share), no URL sync, and no progress slot (avoids wiping the home
+ * daily or general-history saves).
+ */
+export function useGroupQuizSettings(locale: Locale): QuizSettings {
+  const [availableDecades, setAvailableDecades] = useState<QuizDecadeValue[]>([]);
+  const [timerEnabled, setTimerEnabled] = useState(false);
+  const [decades, setDecades] = useState<QuizDecadeSelection>([]);
+  const playMode: PlayMode = "standard";
+  const theme: QuizTheme = "history";
+
+  return {
+    playMode,
+    theme,
+    onDefaultTheme: false,
+    decades,
+    setDecades,
+    decadeKey: decades.join(","),
+    requestKey: `${locale}|${playMode}|${theme}|${decades.join(",")}`,
+    availableDecades,
+    setAvailableDecades,
+    timerEnabled,
+    setTimerEnabled,
+    selectTheme: () => undefined,
+    selectDecades: () => undefined,
+    selectMode: () => undefined,
+    changeTimer: setTimerEnabled,
+    clearDecadeFilter: () => false,
+    syncUrl: false,
+    persist: false,
   };
 }
 
