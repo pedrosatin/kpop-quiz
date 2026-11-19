@@ -22,19 +22,15 @@ import { MAP_ZOOM_QUERY } from "./useMapBox";
 // analytics events of every Map state, so splitting the game can be checked
 // against the code it replaces.
 //
-// Events come from a frozen fixture: map-pilot-refresh rewrites
-// source_checked_at and country_check_wikidata_revid and may add events, any
-// of which would change the round or the snapshots if this suite read the
-// live deadline-events.json.
-
-vi.mock("../../data/map-pilot", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../data/map-pilot")>();
-  const fixture = (await import("../../tests/fixtures/map-pilot-deadline-events.json")).default;
-  return {
-    ...actual,
-    mapPilotEvents: fixture.events as typeof actual.mapPilotEvents,
-  };
-});
+// The whole dataset comes from a frozen fixture: map-pilot-refresh rewrites
+// source_checked_at and country_check_wikidata_revid, may add events and
+// rebuilds the playable countries from them, any of which would change the
+// round or the snapshots if this suite read the live deadline-events.json.
+// Mocking the JSON module (not only mapPilotEvents) keeps mapPilotCountries
+// and the metadata on the fixture too.
+vi.mock("../../../../data/map-pilot/deadline-events.json", async () => ({
+  default: (await import("../../tests/fixtures/map-pilot-deadline-events.json")).default,
+}));
 
 const DATE = "2026-09-24";
 const round = selectMapPilotRound(mapPilotEvents, DATE);
