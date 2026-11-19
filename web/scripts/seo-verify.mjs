@@ -325,31 +325,47 @@ function checkIndexNow(dist) {
   }
 }
 
-function checkRoot(dist, env) {
-  // The root renders the Portuguese quiz and canonicalizes to /pt-br/.
-  const rootIndex = join(dist, "index.html");
-  check(existsSync(rootIndex), "dist/index.html missing");
-  if (existsSync(rootIndex)) {
-    const root = readFileSync(rootIndex, "utf-8");
+function checkRootRedirect(dist) {
+  // ADR 044: the domain root is a 301 to /pt-br/, not a rendered page.
+  // Cloudflare Pages applies _redirects before static assets
+  // (https://developers.cloudflare.com/pages/configuration/redirects/).
+  check(!existsSync(join(dist, "index.html")), "dist/index.html must not exist; / redirects to /pt-br/");
+  const redirectsPath = join(dist, "_redirects");
+  check(existsSync(redirectsPath), "dist/_redirects missing");
+  if (existsSync(redirectsPath)) {
+    const lines = readFileSync(redirectsPath, "utf-8")
+      .split("\n")
+      .map((line) => line.trim().split(/\s+/))
+      .filter((parts) => parts.length === 3 && !parts[0].startsWith("#"));
     check(
-      root.includes(`<link rel="canonical" href="${PROD_ORIGIN}/pt-br/"`),
-      "dist/index.html must canonicalize to /pt-br/",
+      lines.some((parts) => parts[0] === "/" && parts[1] === "/pt-br/" && parts[2] === "301"),
+      "dist/_redirects must send / to /pt-br/ with 301",
     );
-    check(root.includes('id="page-title"'), "dist/index.html must render the quiz landing content");
-    checkOgImage(dist, root, "dist/index.html");
-    check(
-      root.includes('application/ld+json'),
-      "dist/index.html must contain application/ld+json",
-    );
-    const website = [...root.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)]
+  }
+  // WebSite JSON-LD lives on the Portuguese quiz landing (and the English one).
+  const ptQuiz = join(dist, "pt-br", "index.html");
+  if (existsSync(ptQuiz)) {
+    const html = readFileSync(ptQuiz, "utf-8");
+    const website = [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)]
       .map((match) => {
         try { return JSON.parse(match[1]); } catch { return null; }
       }).find((schema) => schema?.["@type"] === "WebSite");
-    check(website?.name === "K-pop Quiz" && website?.url === `${PROD_ORIGIN}/`, "domain root must declare the site name with WebSite structured data");
     check(
-      noindexRe.test(root) === (env === "staging"),
-      `dist/index.html must ${env === "staging" ? "be" : "not be"} noindex in ${env}`,
+      website?.name === "K-pop Quiz" && website?.url === `${PROD_ORIGIN}/`,
+      "Portuguese quiz landing must declare the site name with WebSite structured data",
     );
+  }
+}
+
+function checkPrivacy(dist) {
+  // Privacy pages stay noindex in every environment.
+  for (const routePath of ["/pt-br/privacidade/", "/en/privacy/"]) {
+    const htmlPath = join(dist, ...routePath.split("/").filter(Boolean), "index.html");
+    check(existsSync(htmlPath), `${htmlPath} missing`);
+    if (!existsSync(htmlPath)) continue;
+    const html = readFileSync(htmlPath, "utf-8");
+    const label = htmlPath.replace(dist, "dist");
+    check(noindexRe.test(html), `${label} must be noindex`);
   }
 }
 
@@ -407,7 +423,8 @@ function main() {
   checkRouteHtml(dist, env);
   checkGameText(dist);
   checkIndexNow(dist);
-  checkRoot(dist, env);
+  checkRootRedirect(dist);
+  checkPrivacy(dist);
   checkNotFound(dist);
   checkHeaders(dist);
   checkLlms(dist);
@@ -416,7 +433,7 @@ function main() {
     for (const failure of failures) console.error(`seo:verify FAIL: ${failure}`);
     process.exit(1);
   }
-  console.log(`seo:verify OK (${env}): root alias, 404 page, sitemap ${EXPECTED_PATHS.length} URLs, robots, head tags, OG cards, h1, game text, IndexNow key, _headers, llms.txt`);
+  console.log(`seo:verify OK (${env}): root 301 to /pt-br/, 404 page, sitemap ${EXPECTED_PATHS.length} URLs, robots, head tags, OG cards, h1, game text, IndexNow key, _headers, llms.txt, privacy noindex`);
 }
 
 main();

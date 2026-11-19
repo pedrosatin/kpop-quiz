@@ -5,6 +5,14 @@ import { bootRoute } from "./helpers/boot";
 import { isPublished } from "./helpers/published";
 import { crosswordDaily, routeCrosswordDaily } from "./helpers/crossword-daily";
 
+function isCloudflareProduction(baseURL: string): boolean {
+  try {
+    return new URL(baseURL).hostname === "kpopquiz.online";
+  } catch {
+    return false;
+  }
+}
+
 test.describe("route smoke", () => {
   // Boot waits can use up to ~30s for setup/board; keep headroom over that.
   test.describe.configure({ timeout: 60_000 });
@@ -22,6 +30,44 @@ test.describe("route smoke", () => {
       await bootRoute(page, route, baseURL!);
     });
   }
+});
+
+test.describe("root redirect", () => {
+  test("production sends / to /pt-br/ with 301 and keeps the query string", async ({ request, baseURL }) => {
+    expect(baseURL, "BASE_URL / playwright baseURL must be set").toBeTruthy();
+    test.skip(!isCloudflareProduction(baseURL!), "Pages _redirects apply only on Cloudflare Pages production");
+
+    const resolveLocation = (response: { status: () => number; headers: () => Record<string, string> }, label: string) => {
+      expect(response.status(), `${label}: expected 301 redirect from /`).toBe(301);
+      const raw = response.headers().location;
+      expect(raw, `${label}: Location header missing on 301`).toBeTruthy();
+      const resolved = new URL(raw!, baseURL!);
+      expect(resolved.origin, `${label}: redirect must stay on ${new URL(baseURL!).origin}`).toBe(new URL(baseURL!).origin);
+      return resolved;
+    };
+
+    const bare = await request.get(baseURL!, { maxRedirects: 0 });
+    const bareLocation = resolveLocation(bare, "root without query");
+    expect(bareLocation.pathname).toBe("/pt-br/");
+    expect(bareLocation.search).toBe("");
+
+    const withQuery = await request.get(`${baseURL!.replace(/\/$/, "")}/?s=quiz&utm_source=smoke`, {
+      maxRedirects: 0,
+    });
+    const location = resolveLocation(withQuery, "root with query");
+    expect(location.pathname).toBe("/pt-br/");
+    expect(location.searchParams.get("s")).toBe("quiz");
+    expect(location.searchParams.get("utm_source")).toBe("smoke");
+  });
+
+  test("local preview has no root index page", async ({ request, baseURL }) => {
+    expect(baseURL, "BASE_URL / playwright baseURL must be set").toBeTruthy();
+    test.skip(isCloudflareProduction(baseURL!), "local/staging only: production answers 301 instead of 404");
+    // Staging uses a subdirectory base; its "root" is /kpop-quiz/, which has
+    // no index after ADR 044 and is noindex as a whole.
+    const response = await request.get(joinBaseUrl(baseURL!, "/"), { maxRedirects: 0 });
+    expect(response.status()).toBe(404);
+  });
 });
 
 test.describe("crossword boot contract", () => {

@@ -1,7 +1,12 @@
-# Cloudflare Pages redirects (ADR 023): the pilot routes were promoted to
-# indexable games and must answer 301, since they were never indexed.
-# GitHub Pages (staging) ignores this file; the old staging URLs 404, which
-# stays acceptable because staging is noindex as a whole.
+# Cloudflare Pages redirects.
+# Root → /pt-br/ (ADR 044): consolidates the Portuguese homepage. Pages applies
+# _redirects before static assets, so this 301 wins even if a leftover
+# index.html were present (https://developers.cloudflare.com/pages/configuration/redirects/).
+# Staging (GitHub Pages) ignores this file; the staging root then 404s, which
+# is acceptable because staging is noindex as a whole.
+# Pilot routes (ADR 023): promoted to indexable games and must answer 301,
+# since they were never indexed.
+/                          /pt-br/             301
 /pt-br/codigo-piloto/      /pt-br/codigo/      301
 /en/code-pilot/            /en/code/           301
 /pt-br/cruzadinha-piloto/  /pt-br/cruzadinha/  301

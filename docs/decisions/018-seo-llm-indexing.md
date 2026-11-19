@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceita. A parte da imagem de compartilhamento (`apple-touch-icon.png` como `og:image` e `twitter:card=summary`) foi substituída pela [ADR 021](021-cartoes-og-e-link-no-compartilhamento.md), que adota cartões de 1200x630 por rota. A [ADR 022](022-renderizacao-e-texto-indexavel.md) removeu o `Disallow: /data/` do `robots.txt` de produção.
+Aceita. A parte da imagem de compartilhamento (`apple-touch-icon.png` como `og:image` e `twitter:card=summary`) foi substituída pela [ADR 021](021-cartoes-og-e-link-no-compartilhamento.md), que adota cartões de 1200x630 por rota. A [ADR 022](022-renderizacao-e-texto-indexavel.md) removeu o `Disallow: /data/` do `robots.txt` de produção. A [ADR 044](044-raiz-301-para-pt-br.md) substitui o alias canônico da raiz por um `301` de `/` para `/pt-br/` e corrige a tabela hreflang abaixo (`x-default` em `/en/`).
 
 ## Data
 
@@ -19,13 +19,13 @@ A produção serve o Astro estático na raiz de `https://kpopquiz.online`
 páginas repetiam `messages.intro` como description e não emitiam
 `canonical`, `hreflang` ou Open Graph.
 
-O site tem 10 rotas de conteúdo (5 jogos × 2 idiomas). A raiz `/` também
-renderiza o quiz em português, sem redirecionamento, e usa `/pt-br/` como
-canonical para não duplicar conteúdo no índice. O jogo de linha do tempo
-não tem rotas web (só `timeline.daily.json` + fixtures), então o sitemap
-cobre exatamente 10 URLs. `web/public/data/` (~159 JSON) nunca entra no
-índice. Query strings (`?mode`, `?theme`) são variantes de apresentação
-da mesma URL e se resolvem via `canonical`.
+O site tinha 10 rotas de conteúdo (5 jogos × 2 idiomas) na abertura desta
+ADR; o conjunto indexável cresceu depois (mapa, linha do tempo, código,
+cruzadinha). A raiz `/` renderizava o quiz em português sem redirecionamento
+e usava `/pt-br/` como canonical. A [ADR 044](044-raiz-301-para-pt-br.md)
+substituiu esse alias por um `301` para `/pt-br/`. `web/public/data/` nunca
+entra no índice. Query strings (`?mode`, `?theme`) são variantes de
+apresentação da mesma URL e se resolvem via `canonical`.
 
 ## Decisão
 
@@ -35,18 +35,20 @@ builds de produção e homologação. A homologação continua `noindex` em
 todas as páginas, então o canônico absoluto nunca cria conteúdo
 duplicado indexável.
 
-Tabela hreflang (5 pares + `x-default` apontando para `pt-BR`):
+Tabela hreflang (os cinco pares originais pt-BR/en; cada página emite
+`x-default` para a equivalente em inglês, alinhada a
+`SEO_DEFAULT_PATH = "/en/"`):
 
 | pt-BR | en | x-default |
 |---|---|---|
-| `/pt-br/` | `/en/` | `/pt-br/` |
-| `/pt-br/grid/` | `/en/grid/` | — |
-| `/pt-br/conexoes/` | `/en/connections/` | — |
-| `/pt-br/adivinhe/` | `/en/guess/` | — |
-| `/pt-br/caca-palavras/` | `/en/word-search/` | — |
+| `/pt-br/` | `/en/` | `/en/` |
+| `/pt-br/grid/` | `/en/grid/` | `/en/grid/` |
+| `/pt-br/conexoes/` | `/en/connections/` | `/en/connections/` |
+| `/pt-br/adivinhe/` | `/en/guess/` | `/en/guess/` |
+| `/pt-br/caca-palavras/` | `/en/word-search/` | `/en/word-search/` |
 
-Fora do sitemap: alias canônico `/`, `/data/*`, homologação inteira,
-`?mode`/`?theme`.
+Fora do sitemap: `/` (redirect 301 para `/pt-br/`, ADR 044), `/data/*`,
+homologação inteira, `?mode`/`?theme`.
 
 Sitemap e robots são endpoints gerados (`sitemap.xml.ts` + `robots.txt.ts`),
 sem dependências novas (sem `@astrojs/sitemap`, sem churn no
@@ -95,9 +97,9 @@ para a produção, os dois sinais concordam.
 ## Consequências
 
 - `npm run seo:verify` + passos em `pages.yml`/`staging.yml` afirmam:
-  raiz renderizada e canônica em `/pt-br/`, sitemap parseável com 10 URLs,
-  robots por env, produção sem `noindex`, staging com `noindex`, sem
-  `/data/` no sitemap.
+  raiz como redirect 301 para `/pt-br/` (ADR 044), sitemap parseável com as
+  rotas canônicas, robots por env, produção sem `noindex` nas rotas
+  indexáveis, staging com `noindex`, sem `/data/` no sitemap.
 - Títulos de meta ≤60 chars e descrições ≤155 chars por rota por idioma,
   cobertos por teste em `web/src/i18n/catalog.test.ts`.
 - B8 (Search Console/Bing: verificar propriedade, submeter sitemap,

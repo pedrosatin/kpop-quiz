@@ -30,7 +30,7 @@ describe("SEO route table", () => {
     expect(SEO_ROUTES).toHaveLength(18);
   });
 
-  it("keeps /data/*, the root alias and query variants out of the sitemap", () => {
+  it("keeps /data/*, the redirected root and query variants out of the sitemap", () => {
     for (const route of SEO_ROUTES) {
       expect(route.path).not.toContain("/data/");
       expect(route.path).not.toBe("/");
