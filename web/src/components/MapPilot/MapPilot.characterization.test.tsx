@@ -12,7 +12,7 @@ import { getMessages } from "../../i18n/catalog";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
 import type { Locale } from "../../lib/quiz-types";
 import { MapPilotGame } from "./MapPilotGame";
-import { formatMapDate, mapShareText } from "./MapPilotResult";
+import { mapShareText } from "./MapPilotResult";
 import { MAP_PILOT_COPY } from "./map-pilot-copy";
 import { featureShape } from "./map-pilot-geometry";
 import { mapPilotStorageKey } from "./map-pilot-save";
@@ -21,6 +21,20 @@ import { MAP_ZOOM_QUERY } from "./useMapBox";
 // Pins the rendered DOM, the focused element, the stored data and the
 // analytics events of every Map state, so splitting the game can be checked
 // against the code it replaces.
+//
+// Events come from a frozen fixture: map-pilot-refresh rewrites
+// source_checked_at and country_check_wikidata_revid and may add events, any
+// of which would change the round or the snapshots if this suite read the
+// live deadline-events.json.
+
+vi.mock("../../data/map-pilot", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../data/map-pilot")>();
+  const fixture = (await import("../../tests/fixtures/map-pilot-deadline-events.json")).default;
+  return {
+    ...actual,
+    mapPilotEvents: fixture.events as typeof actual.mapPilotEvents,
+  };
+});
 
 const DATE = "2026-09-24";
 const round = selectMapPilotRound(mapPilotEvents, DATE);
@@ -32,29 +46,8 @@ const storageKey = mapPilotStorageKey(DATE);
 // its feature id instead, which still pins which country every path draws.
 const pathIds = new Map(mapPilotFeatures.map((feature) => [feature.path, feature.id]));
 
-// Refresh rewrites source_checked_at to today. Snapshots keep the phrase and
-// replace the live date with @checked so a monthly refresh does not fail CI.
-const checkedAtLabels = Array.from(
-  new Set(
-    mapPilotEvents.flatMap((event) => [
-      formatMapDate(event.source_checked_at, "pt-BR", "short"),
-      formatMapDate(event.source_checked_at, "en", "short"),
-    ]),
-  ),
-);
-
-function normalizeCheckedAt(text: string): string {
-  let out = text;
-  for (const label of checkedAtLabels) {
-    out = out.split(label).join("@checked");
-  }
-  return out;
-}
-
 function normalizedHtml(container: Element): string {
-  return normalizeCheckedAt(
-    container.innerHTML.replace(/ d="([^"]*)"/g, (_match, path: string) => ` d="@${pathIds.get(path) ?? path}"`),
-  );
+  return container.innerHTML.replace(/ d="([^"]*)"/g, (_match, path: string) => ` d="@${pathIds.get(path) ?? path}"`);
 }
 
 function describeFocus(): string {
@@ -552,7 +545,7 @@ describe("map characterization", () => {
       const rawMessage = view.container.querySelector(".game-actions-message")?.textContent ?? null;
       const state = {
         progress: view.container.querySelector(".map-pilot-progress")?.textContent ?? null,
-        message: rawMessage === null ? null : normalizeCheckedAt(rawMessage),
+        message: rawMessage,
         result: screen.queryByTestId("game-result")?.querySelector(".map-pilot-verdict")?.textContent ?? null,
         storage: storage(),
       };
