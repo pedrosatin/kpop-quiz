@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
 import { GroupPageArtifactError, loadGroupWordSearch } from "../../data/group-page-loader";
+import { groupPagePath } from "../../lib/group-pages";
+import { seoAbsoluteUrl } from "../../lib/seo-routes";
 import type { Locale } from "../../lib/quiz-types";
 import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import { WordSearchGame } from "../WordSearch/WordSearchGame";
@@ -17,6 +19,7 @@ export function GroupWordSearch({ slug, locale, baseUrl }: Props) {
   const [puzzle, setPuzzle] = useState<WordSearchPuzzle | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [errorKind, setErrorKind] = useState<"missing" | "invalid" | undefined>();
+  const shareUrl = seoAbsoluteUrl(groupPagePath(slug, locale));
 
   const loadData = useCallback(async () => {
     setStatus("loading");
@@ -70,9 +73,22 @@ export function GroupWordSearch({ slug, locale, baseUrl }: Props) {
   return (
     <div id="group-word-search" data-testid="group-word-search">
       {baseUrl === undefined ? (
-        <WordSearchGame locale={locale} puzzle={puzzle} daily={false} />
+        <WordSearchGame
+          locale={locale}
+          puzzle={puzzle}
+          daily={false}
+          shareUrl={shareUrl}
+          headingLevel={3}
+        />
       ) : (
-        <WordSearchGame locale={locale} puzzle={puzzle} baseUrl={baseUrl} daily={false} />
+        <WordSearchGame
+          locale={locale}
+          puzzle={puzzle}
+          baseUrl={baseUrl}
+          daily={false}
+          shareUrl={shareUrl}
+          headingLevel={3}
+        />
       )}
     </div>
   );

@@ -27,6 +27,8 @@ export interface QuizResultProps {
   notice?: string | undefined;
   /** On the daily result, opens the general quiz setup in place of Play again. */
   onPlayGeneral?: (() => void) | undefined;
+  /** Overrides the default home-quiz share URL (used by group landing pages). */
+  shareUrl?: string | undefined;
 }
 
 export function QuizResult({
@@ -45,6 +47,7 @@ export function QuizResult({
   feedbackEligible = true,
   notice,
   onPlayGeneral,
+  shareUrl,
 }: QuizResultProps) {
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
   const correct = correctCount ?? history.filter((h) => h.isCorrect).length;
@@ -84,6 +87,7 @@ export function QuizResult({
             messages={messages}
             locale={locale}
             dailyDate={dailyDate}
+            {...(shareUrl !== undefined ? { shareUrl } : {})}
           />
           {!dailyDate && (
             <button class="btn btn-primary" type="button" onClick={onRestart}>

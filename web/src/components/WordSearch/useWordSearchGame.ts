@@ -57,6 +57,8 @@ export function useWordSearchGame(
       locale,
       isDaily: () => daily && isDailyBoardRound("word-search", puzzle, wordSearchMatchId(puzzle)),
       outcome: roundOutcome(status, foundWordIds.length, puzzle.words.length),
+      // Group-page free play must not read home word-search streaks for return bands.
+      omitReturnBands: !daily,
     },
     status === "completed",
     foundWordIds.length > 0,

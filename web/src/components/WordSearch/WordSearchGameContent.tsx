@@ -23,9 +23,19 @@ interface WordSearchGameContentProps {
   locale: Locale;
   /** When false, free-play: no daily stats, DailyDone, or daily share. */
   daily?: boolean;
+  /** Overrides the default home word-search share URL (used by group pages). */
+  shareUrl?: string;
+  /** Inside a group-page section (already an h2), demote inner titles to h3. */
+  headingLevel?: 2 | 3;
 }
 
-export function WordSearchGameContent({ puzzle, locale, daily = true }: WordSearchGameContentProps) {
+export function WordSearchGameContent({
+  puzzle,
+  locale,
+  daily = true,
+  shareUrl,
+  headingLevel = 2,
+}: WordSearchGameContentProps) {
   const messages = getMessages(locale);
   const t = messages.wordSearch;
   const {
@@ -86,7 +96,7 @@ export function WordSearchGameContent({ puzzle, locale, daily = true }: WordSear
   return (
     <section class="game-card game-card--wide word-search" id="word-search" data-testid="game-board">
       <div class="word-search-layout">
-        <WordSearchHeader puzzle={puzzle} locale={locale} />
+        <WordSearchHeader puzzle={puzzle} locale={locale} headingLevel={headingLevel} />
 
         <div class="word-search-board">
           <WordSearchGrid
@@ -111,6 +121,7 @@ export function WordSearchGameContent({ puzzle, locale, daily = true }: WordSear
           easyMode={easyMode}
           onToggleEasyMode={() => setEasyMode(!easyMode)}
           completed={completed}
+          headingLevel={headingLevel}
         />
       </div>
 
@@ -151,6 +162,7 @@ export function WordSearchGameContent({ puzzle, locale, daily = true }: WordSear
             onCopied={onCopied}
             onShareFailed={onShareFailed}
             daily={daily}
+            {...(shareUrl !== undefined ? { shareUrl } : {})}
           />
         ) : (
           <>

@@ -28,6 +28,8 @@ export interface QuizRoundProps {
   onGiveUp?: (() => void) | undefined;
   onRevealClue: () => void;
   messages: Messages;
+  /** Inside a group-page section (already an h2), demote the prompt to h3. */
+  headingLevel?: 2 | 3;
 }
 
 export function QuizRound({
@@ -50,6 +52,7 @@ export function QuizRound({
   onGiveUp,
   onRevealClue,
   messages,
+  headingLevel = 2,
 }: QuizRoundProps) {
   const totalQuestions = session?.questions?.length ?? 1;
   const roundRef = useRef<HTMLElement>(null);
@@ -83,6 +86,7 @@ export function QuizRound({
         answered={answered}
         correctOptionId={question.answer_option_id}
         legendLabel={messages.chooseAnswer}
+        headingLevel={headingLevel}
       >
         <LicensedMedia
           media={question.media}

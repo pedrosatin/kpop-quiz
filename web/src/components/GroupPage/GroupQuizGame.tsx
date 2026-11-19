@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
 import { GroupPageArtifactError, loadGroupQuizSession } from "../../data/group-page-loader";
+import { groupPagePath } from "../../lib/group-pages";
+import { seoAbsoluteUrl } from "../../lib/seo-routes";
 import type { Locale } from "../../lib/quiz-types";
 import {
   advanceRound,
@@ -19,7 +21,6 @@ import { useQuizFocus } from "../Quiz/useQuizFocus";
 import { useQuizMatch } from "../Quiz/useQuizMatch";
 import { useGroupQuizSettings } from "../Quiz/useQuizSettings";
 import { useQuizTimer } from "../Quiz/useQuizTimer";
-import { useRecordQuizMatch } from "../Quiz/useRecordQuizMatch";
 
 interface Props {
   slug: string;
@@ -32,7 +33,8 @@ interface Props {
 /**
  * Fixed-session quiz for a group landing page. Loads the published session
  * for the slug, keeps theme `history` (free play), and never touches the
- * home quiz URL params or localStorage progress slots.
+ * home quiz URL params, localStorage progress slots, preferences, or
+ * kpop-player-stats-v1.
  */
 export function GroupQuizGame({ slug, locale, baseUrl, startLabel, startBlurb }: Props) {
   const messages = getMessages(locale);
@@ -45,6 +47,7 @@ export function GroupQuizGame({ slug, locale, baseUrl, startLabel, startBlurb }:
   const question = match.session?.questions[match.questionIndex];
   const timerSeconds = settings.timerEnabled ? 20 : match.session?.config.timer_seconds ?? null;
   const play: QuizPlayContext = { locale, settings, match, question, timerSeconds, persistProgress, analytics };
+  const shareUrl = seoAbsoluteUrl(groupPagePath(slug, locale));
 
   const { secondsLeft, stopTimer } = useQuizTimer({
     active: match.state === "question.ready" && Boolean(question),
@@ -91,18 +94,27 @@ export function GroupQuizGame({ slug, locale, baseUrl, startLabel, startBlurb }:
   }, [slug, locale]);
 
   const focus = useQuizFocus(match);
-  useRecordQuizMatch(match.state, match.session, match.history, settings.theme, match.recordedMatchRef);
 
-  if (awaitingStart && match.state === "setup" && match.session) {
+  // Keep the group start card (same height) while the session loads or waits
+  // for Begin — never flash the home QuizSetupScreen.
+  if (match.state === "loading" || (awaitingStart && match.state === "setup")) {
+    const ready = awaitingStart && Boolean(match.session);
     return (
-      <section id="group-quiz" class="game-card game-card--wide" data-testid="group-quiz-start">
+      <section
+        id="group-quiz"
+        class="game-card game-card--wide"
+        data-testid="group-quiz-start"
+        aria-busy={!ready || undefined}
+      >
         <p>{startBlurb}</p>
         <div class="game-actions">
           <button
             type="button"
             class="btn btn-primary"
             data-testid="group-quiz-begin"
+            disabled={!ready}
             onClick={() => {
+              if (!ready) return;
               setAwaitingStart(false);
               startRound(play);
             }}
@@ -128,6 +140,8 @@ export function GroupQuizGame({ slug, locale, baseUrl, startLabel, startBlurb }:
         focus={focus}
         generalResume={null}
         otherLocaleRound={null}
+        shareUrl={shareUrl}
+        headingLevel={3}
         actions={{
           load,
           retryUnavailable: load,

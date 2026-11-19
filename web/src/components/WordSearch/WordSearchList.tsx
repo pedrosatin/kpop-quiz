@@ -13,6 +13,8 @@ interface WordSearchListProps {
   onToggleEasyMode?: () => void;
   /** Hides the toggle once every name is on the list. */
   completed?: boolean;
+  /** Inside a group-page section (already an h2), demote to h3. Defaults to 2. */
+  headingLevel?: 2 | 3;
 }
 
 function clueFor(word: WordSearchWord, locale: Locale): string {
@@ -68,16 +70,18 @@ export function WordSearchList({
   clueMode,
   onToggleEasyMode,
   completed = false,
+  headingLevel = 2,
 }: WordSearchListProps) {
   const t = getMessages(locale).wordSearch;
   const displayNames = buildLocalizedDisplayNames(puzzle.words, locale);
   const headingId = useId();
   const isEasy = easyMode ?? clueMode ?? false;
   const hideClues = cluesAreIdentical(puzzle.words, locale);
+  const Heading = headingLevel === 3 ? "h3" : "h2";
 
   return (
     <aside class="word-search-list-section" aria-label={t.wordsHeading}>
-      <h2 id={headingId} class="word-search-list-heading">{t.wordsHeading}</h2>
+      <Heading id={headingId} class="word-search-list-heading">{t.wordsHeading}</Heading>
       <ul class="word-search-words" role="list" aria-labelledby={headingId}>
         {puzzle.words.map((word, index) => (
           <WordSearchChip

@@ -40,7 +40,7 @@ export function generateWordSearchShareSummary(
   totalCount: number,
   elapsedSeconds: number,
   locale: Locale,
-  options: { daily?: boolean } = {},
+  options: { daily?: boolean; shareUrl?: string } = {},
 ): string {
   const time = formatTime(elapsedSeconds);
   const messages = getMessages(locale);
@@ -48,5 +48,5 @@ export function generateWordSearchShareSummary(
     options.daily === false
       ? `${messages.gameWordSearch}\n${foundCount}/${totalCount} (${time})`
       : messages.wordSearchShareHeader(puzzle.reference_date, foundCount, totalCount, time);
-  return withShareUrl(body, seoShareUrl("wordSearch", locale));
+  return withShareUrl(body, options.shareUrl ?? seoShareUrl("wordSearch", locale));
 }

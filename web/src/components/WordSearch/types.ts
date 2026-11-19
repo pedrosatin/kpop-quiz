@@ -29,4 +29,8 @@ export interface WordSearchGameProps {
    * Defaults to true (today's challenge).
    */
   daily?: boolean;
+  /** Overrides the default home word-search share URL (used by group pages). */
+  shareUrl?: string;
+  /** Inside a group-page section (already an h2), demote inner titles to h3. */
+  headingLevel?: 2 | 3;
 }

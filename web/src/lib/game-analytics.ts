@@ -19,6 +19,12 @@ export interface GameRoundContext extends GameAnalyticsContext {
   isDaily: () => boolean;
   /** How the round ended; null while it is being played. */
   outcome: GameOutcome | null;
+  /**
+   * When true, skip reading home-quiz player stats for return bands
+   * (`days_since_last`, `streak_bucket`). Used by group-page free play so
+   * the pilot does not inherit streaks from the general games.
+   */
+  omitReturnBands?: boolean;
 }
 
 type EventDetails = Record<string, string | undefined>;
@@ -85,8 +91,10 @@ export function streakBucket(streak: number): string {
 }
 
 // The Map records stats, but its analytics never sent return bands and still sends none.
-function gameStats(game: AnalyticsGame) {
-  return game === "map" ? null : loadPlayerStats().games[game];
+// Group-page free play also omits them so the pilot never reads home-game streaks.
+function gameStats(context: GameRoundContext) {
+  if (context.omitReturnBands || context.game === "map") return null;
+  return loadPlayerStats().games[context.game];
 }
 
 interface RoundSnapshot {
@@ -96,7 +104,7 @@ interface RoundSnapshot {
 
 function readRoundSnapshot(context: GameRoundContext): RoundSnapshot {
   try {
-    const stats = gameStats(context.game);
+    const stats = gameStats(context);
     return {
       daily: context.isDaily() ? "yes" : "no",
       // The day turns in Sao Paulo, like the daily boards whose dates are stored.
@@ -134,7 +142,7 @@ export function useGameAnalytics(context: GameRoundContext, finished: boolean, r
   useEffect(() => {
     if (completions === 0 || !round.current) return;
     const current = contextRef.current;
-    const stats = gameStats(current.game);
+    const stats = gameStats(current);
     sendGameEvent("game_complete", current, {
       daily: round.current.daily,
       outcome: current.outcome ?? undefined,

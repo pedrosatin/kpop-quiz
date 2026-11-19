@@ -15,6 +15,8 @@ export interface GenerateShareTextParams {
   messages: Messages;
   locale: Locale;
   dailyDate?: string | null | undefined;
+  /** Overrides the default home-quiz share URL (used by group landing pages). */
+  shareUrl?: string | undefined;
 }
 
 export function formatDuration(seconds: number): string {
@@ -48,13 +50,14 @@ export function generateShareText({
   messages,
   locale,
   dailyDate,
+  shareUrl,
 }: GenerateShareTextParams): string {
   const header = dailyDate
     ? messages.shareDailyHeader(dailyDate, correctCount, totalQuestions)
     : `K-pop Quiz ${correctCount}/${totalQuestions}`;
   const squares = formatSquares(results);
   const details = `${messages.difficultyName(playMode)} · ${messages.shareHints(cluesUsedCount)} · ${formatDuration(elapsedSeconds)}`;
-  return withShareUrl(`${header}\n${squares}\n${details}`, seoShareUrl("quiz", locale));
+  return withShareUrl(`${header}\n${squares}\n${details}`, shareUrl ?? seoShareUrl("quiz", locale));
 }
 
 export interface ShareResultProps {
@@ -67,6 +70,8 @@ export interface ShareResultProps {
   messages: Messages;
   locale: Locale;
   dailyDate?: string | null | undefined;
+  /** Overrides the default home-quiz share URL (used by group landing pages). */
+  shareUrl?: string | undefined;
 }
 
 export function ShareResult({
@@ -79,6 +84,7 @@ export function ShareResult({
   messages,
   locale,
   dailyDate,
+  shareUrl,
 }: ShareResultProps) {
   const [canShare, setCanShare] = useState(false);
   const [canCopy, setCanCopy] = useState(false);
@@ -112,6 +118,7 @@ export function ShareResult({
     messages,
     locale,
     dailyDate,
+    ...(shareUrl !== undefined ? { shareUrl } : {}),
   });
 
   const handleAction = async () => {

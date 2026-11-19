@@ -22,8 +22,12 @@ function settleElapsed(match: QuizMatch, measure: boolean): number {
 export function startRound(ctx: QuizPlayContext): void {
   const { analytics, settings, match, timerSeconds, persistProgress } = ctx;
   analytics.start();
-  saveStoredPlayMode(settings.playMode);
-  saveStoredTimerEnabled(settings.timerEnabled);
+  // Group pages set persist=false so a round there must not overwrite the
+  // home quiz's saved play mode or timer preference.
+  if (settings.persist) {
+    saveStoredPlayMode(settings.playMode);
+    saveStoredTimerEnabled(settings.timerEnabled);
+  }
   if (settings.syncUrl) {
     updateUrlParams(settings.playMode, settings.theme, settings.decades);
   }

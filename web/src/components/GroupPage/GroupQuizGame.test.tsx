@@ -4,6 +4,8 @@ import groupSession from "../../../public/data/group-pages/stray-kids/session.pt
 import { isDailyMatchRecorded, isGameMatchRecorded, loadPlayerStats } from "../../lib/player-stats";
 import type { QuizSession } from "../../lib/quiz-types";
 import { dailyReferenceDate } from "../../data/daily-artifact";
+import { generateShareText } from "../Results/ShareResult";
+import { getMessages } from "../../i18n/catalog";
 import { quizProgressStorageKey } from "../Quiz/storage";
 import { GroupQuizGame } from "./GroupQuizGame";
 
@@ -44,9 +46,27 @@ describe("GroupQuizGame isolation", () => {
     vi.restoreAllMocks();
   });
 
-  it("records free play and leaves the daily quiz slot and daily-<date> marker alone", async () => {
+  it("shows the group start card while the session loads (never the home setup)", async () => {
+    render(
+      <GroupQuizGame
+        slug="stray-kids"
+        locale="pt-BR"
+        startLabel="Começar o quiz"
+        startBlurb="Quiz do grupo"
+      />,
+    );
+
+    expect(screen.getByTestId("group-quiz-start")).toBeInTheDocument();
+    expect(screen.queryByTestId("game-setup")).toBeNull();
+    await screen.findByTestId("group-quiz-begin");
+    expect(screen.queryByTestId("game-setup")).toBeNull();
+  });
+
+  it("leaves player stats, daily markers, progress slots and preferences alone", async () => {
     localStorage.setItem(dailySlot, JSON.stringify({ marker: "daily-in-progress" }));
     localStorage.setItem(historySlot, JSON.stringify({ marker: "history-in-progress" }));
+    localStorage.setItem("kpop-quiz-play-mode", "expert");
+    localStorage.setItem("kpop-quiz-timer-enabled", "true");
 
     render(
       <GroupQuizGame
@@ -64,24 +84,68 @@ describe("GroupQuizGame isolation", () => {
     expect(window.location.search).toBe("");
     expect(localStorage.getItem(dailySlot)).toBe(JSON.stringify({ marker: "daily-in-progress" }));
     expect(localStorage.getItem(historySlot)).toBe(JSON.stringify({ marker: "history-in-progress" }));
+    expect(localStorage.getItem("kpop-quiz-play-mode")).toBe("expert");
+    expect(localStorage.getItem("kpop-quiz-timer-enabled")).toBe("true");
 
     fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
     fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
     await screen.findByRole("heading", { name: "Fim da partida" });
 
     await waitFor(() => {
-      expect(isGameMatchRecorded("quiz", `session-${session.session_id}`)).toBe(true);
+      expect(screen.getByRole("button", { name: "Jogar novamente" })).toBeInTheDocument();
     });
 
+    expect(isGameMatchRecorded("quiz", `session-${session.session_id}`)).toBe(false);
     const today = dailyReferenceDate();
     expect(isDailyMatchRecorded("quiz", today)).toBe(false);
-    expect(loadPlayerStats().games.quiz?.played).toBe(1);
-    expect(loadPlayerStats().games.quiz?.lastPlayedDate).toBeUndefined();
+    expect(loadPlayerStats().games.quiz?.played ?? 0).toBe(0);
+    expect(loadPlayerStats().overall.played).toBe(0);
 
+    expect(localStorage.getItem("kpop-quiz-play-mode")).toBe("expert");
+    expect(localStorage.getItem("kpop-quiz-timer-enabled")).toBe("true");
     expect(localStorage.getItem(dailySlot)).toBe(JSON.stringify({ marker: "daily-in-progress" }));
     expect(localStorage.getItem(historySlot)).toBe(JSON.stringify({ marker: "history-in-progress" }));
     expect(window.location.search).toBe("");
-    expect(screen.getByRole("button", { name: "Jogar novamente" })).toBeInTheDocument();
     expect(screen.queryByTestId("quiz-play-general")).toBeNull();
+    expect(screen.queryByTestId("quiz-replay-notice")).toBeNull();
+  });
+
+  it("replays the same session without the catalog-missing notice", async () => {
+    render(
+      <GroupQuizGame
+        slug="stray-kids"
+        locale="pt-BR"
+        startLabel="Começar o quiz"
+        startBlurb="Quiz do grupo"
+      />,
+    );
+
+    await screen.findByTestId("group-quiz-begin");
+    fireEvent.click(screen.getByTestId("group-quiz-begin"));
+    await screen.findByRole("button", { name: "Desistir" });
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
+    await screen.findByRole("button", { name: "Jogar novamente" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
+    await screen.findByRole("button", { name: "Desistir" });
+    expect(screen.queryByTestId("quiz-replay-notice")).toBeNull();
+    expect(screen.getByTestId("game-board")).toBeInTheDocument();
+  });
+
+  it("shares the group page URL, not the home quiz", () => {
+    const text = generateShareText({
+      correctCount: 7,
+      totalQuestions: 10,
+      results: [true, true, true, true, true, true, true, false, false, false],
+      playMode: "standard",
+      cluesUsedCount: 0,
+      elapsedSeconds: 90,
+      messages: getMessages("pt-BR"),
+      locale: "pt-BR",
+      shareUrl: "https://kpopquiz.online/pt-br/stray-kids/",
+    });
+    expect(text).toContain("https://kpopquiz.online/pt-br/stray-kids/");
+    expect(text).not.toContain("https://kpopquiz.online/pt-br/?s=quiz");
   });
 });

@@ -56,10 +56,12 @@ describe("group word search free play", () => {
       puzzle.words.length,
       10,
       "pt-BR",
-      { daily: false },
+      { daily: false, shareUrl: "https://kpopquiz.online/pt-br/stray-kids/" },
     );
     expect(share).not.toMatch(/K-pop Quiz #\d+/);
     expect(share).toContain(pt.gameWordSearch);
+    expect(share).toContain("https://kpopquiz.online/pt-br/stray-kids/");
+    expect(share).not.toContain("?s=word-search");
   });
 
   it("still counts the same puzzle as daily when daily stays true", async () => {

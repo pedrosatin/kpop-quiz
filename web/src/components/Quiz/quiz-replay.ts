@@ -99,6 +99,13 @@ export function restartRound(ctx: QuizLoadContext): void {
     replayPublishedRound(ctx);
     return;
   }
+  // Fixed group-page sessions keep the same ten questions with no catalog
+  // notice; the home general quiz still warns when the catalog is absent.
+  if (!settings.persist) {
+    match.setReplayStatus(null);
+    replayPublishedRound(ctx);
+    return;
+  }
   if (match.sessionSource !== "catalog") {
     match.setReplayStatus("legacy-repeats");
     replayPublishedRound(ctx, { replayNotice: "legacy-repeats" });

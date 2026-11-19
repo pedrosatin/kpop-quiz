@@ -11,6 +11,8 @@ export interface QuestionCardProps {
   correctOptionId: string;
   legendLabel: string;
   children?: ComponentChildren;
+  /** Inside a group-page section (already an h2), demote to h3. Defaults to 2. */
+  headingLevel?: 2 | 3;
 }
 
 export function QuestionCard({
@@ -23,12 +25,14 @@ export function QuestionCard({
   correctOptionId,
   legendLabel,
   children,
+  headingLevel = 2,
 }: QuestionCardProps) {
+  const Heading = headingLevel === 3 ? "h3" : "h2";
   return (
     <div class="quiz-question-card">
-      <h2 id="question-heading" class="game-card-title" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
+      <Heading id="question-heading" class="game-card-title" {...(headingRef ? { ref: headingRef } : {})} tabIndex={-1}>
         {prompt}
-      </h2>
+      </Heading>
       {children}
       <fieldset class="options" disabled={answered}>
         <legend class="visually-hidden">{legendLabel}</legend>
