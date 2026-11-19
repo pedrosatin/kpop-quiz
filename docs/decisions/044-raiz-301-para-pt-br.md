@@ -2,11 +2,11 @@
 
 ## Status
 
-Aprovado em 2026-11-19. Substitui o alias canônico da raiz descrito na [ADR 018](018-seo-llm-indexing.md) e na [ADR 020](020-pagina-404-e-sitemap.md). O destino `/pt-br/` foi decidido pelo operador na fatia `seo-analytics-2026-11` (ticket 02).
+Aprovado em 2026-11-19. Substitui o alias canônico da raiz descrito na [ADR 018](018-seo-llm-indexing.md) e na [ADR 020](020-pagina-404-e-sitemap.md).
 
 ## Contexto
 
-A raiz `https://kpopquiz.online/` servia o mesmo quiz em português de `/pt-br/`, com `canonical` apontando para `/pt-br/`, `hreflang` `pt-BR`/`en` e `x-default` para `/en/`. O Google escolheu `/` como canônica e deixou `/pt-br/` fora do índice ("Duplicate, Google chose different canonical than user"). A inspeção de URL de 19/11/2026 manteve esse estado. Links externos conhecidos apontam para `/`.
+A raiz `https://kpopquiz.online/` e `/pt-br/` serviam o mesmo quiz em português. A raiz emitia `canonical` para `/pt-br/`, `hreflang` `pt-BR`/`en` e `x-default` para `/en/`, mas o conteúdo duplicado em duas URLs impedia a consolidação do índice em `/pt-br/`.
 
 A [ADR 018](018-seo-llm-indexing.md) ainda registrava `x-default` em `/pt-br/` na tabela hreflang, diferente do código (`SEO_DEFAULT_PATH = "/en/"`), do sitemap e do `<head>`.
 
@@ -20,7 +20,7 @@ A zona Cloudflare já força HTTPS: `http://kpopquiz.online/` responde `301` par
 
 ### Query string
 
-O `_redirects` do Pages não oferece matching por query string (tabela "Advanced redirects" da mesma documentação). Destinos podem incluir query string explícita. A preservação da query do pedido no redirect de path segue o comportamento observado na própria zona (o salto HTTP→HTTPS já anexa `?s=` e UTMs) e o padrão da sintaxe Netlify da qual o arquivo deriva; a prova pós-deploy é `curl -sI 'https://kpopquiz.online/?s=quiz&utm_source=x'` com `Location` em `/pt-br/?s=quiz&utm_source=x`. Links de compartilhamento (`seoShareUrl`) já apontam para `/pt-br/...` ou `/en/...`, nunca para `/`.
+O `_redirects` do Pages não oferece matching por query string (tabela "Advanced redirects" da mesma documentação). Destinos podem incluir query string explícita. A preservação da query no redirect de path segue o comportamento já observado no próprio site: o redirect existente `GET /pt-br/codigo-piloto/?s=quiz&utm_source=smoke` responde `301` com `Location: /pt-br/codigo/?s=quiz&utm_source=smoke`. A nova regra `/ → /pt-br/ 301` é confirmada depois do deploy. Links de compartilhamento (`seoShareUrl`) já apontam para `/pt-br/...` ou `/en/...`, nunca para `/`.
 
 ### O que não muda
 
@@ -41,7 +41,7 @@ A tabela hreflang da ADR 018 passa a registrar `x-default` em `/en/` (e nas equi
 
 ### Redirect para `/en/`
 
-Levaria quem digita o domínio no Brasil para a versão em inglês e misturaria sinais de uma página em português com outra em inglês. O Brasil concentra a maior parte das impressões. Rejeitado.
+Levaria quem digita o domínio no Brasil para a versão em inglês e misturaria sinais de uma página em português com outra em inglês. Rejeitado.
 
 ### Página de escolha de idioma como `x-default`
 
@@ -53,6 +53,5 @@ A documentação do Pages garante que o redirect vence o asset. Mesmo assim, man
 
 ## Consequências
 
-- Em até 28 dias após a publicação, o Search Console deve mostrar `/pt-br/` indexada e `/` como "Page with redirect".
-- Links internos, cartões de compartilhamento, `llms.txt`, sitemap e `seoShareUrl` já usavam `/pt-br/` ou `/en/`; a lista conferida está no relatório do ticket.
-- A inspeção de URL no Search Console antes e depois da publicação é passo do operador.
+- Após a publicação, acompanhar no Search Console se `/pt-br/` entra no índice e se `/` aparece como página com redirect, em uma janela de cerca de 28 dias.
+- Links internos, cartões de compartilhamento, `llms.txt`, sitemap e `seoShareUrl` já usavam `/pt-br/` ou `/en/`.

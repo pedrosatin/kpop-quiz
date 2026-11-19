@@ -70,7 +70,7 @@ CI runs the same `unittest` tests through pytest and pytest-xdist, one worker pe
 
 ## Web interface
 
-The static interface uses Astro and Preact. The production build produces the `/pt-br/` and `/en/` routes at the site root. Opening `/` renders the Portuguese quiz directly and uses `/pt-br/` as its canonical URL. The site is published on Cloudflare Pages at <https://kpopquiz.online> (with `kpopquiz.pages.dev` as the platform URL). A push to the `dev` branch deploys a staging build to GitHub Pages at <https://pedrosatin.github.io/kpop-quiz/>. The staging workflow sets `ASTRO_SITE` and `ASTRO_BASE`, so page and asset URLs start with `/kpop-quiz/`. The browser validates the manifest, the SHA-256, and the session contract before starting the quiz.
+The static interface uses Astro and Preact. The production build produces the `/pt-br/` and `/en/` routes at the site root. Opening `/` responds with a permanent redirect to `/pt-br/` on Cloudflare Pages ([ADR 044](docs/decisions/044-raiz-301-para-pt-br.md)). The site is published on Cloudflare Pages at <https://kpopquiz.online> (with `kpopquiz.pages.dev` as the platform URL). A push to the `dev` branch deploys a staging build to GitHub Pages at <https://pedrosatin.github.io/kpop-quiz/pt-br/>. The staging workflow sets `ASTRO_SITE` and `ASTRO_BASE`, so page and asset URLs start with `/kpop-quiz/`. The browser validates the manifest, the SHA-256, and the session contract before starting the quiz.
 
 ```bash
 cd web
@@ -535,7 +535,7 @@ npx playwright test code crossword pilot-visual-a11y --project=firefox --retries
 PILOT_EVIDENCE_DIR=/tmp/kpop-pilot-screenshots npm run test:e2e:ci -- --grep 'layout and accessible controls|percent text reflow|keyboard completion|feedback, keyboard|unavailable artifact' --retries=0
 ```
 
-Run browser suites sequentially when sharing their default output directory. The local preview uses `--ignore-lock` to stay in the foreground so Playwright can start and stop its server. The readiness URL preserves the path in `BASE_URL`, including a staging subdirectory.
+Run browser suites sequentially when sharing their default output directory. The local preview uses `--ignore-lock` to stay in the foreground so Playwright can start and stop its server. The readiness URL keeps the path from `BASE_URL` and appends `pt-br/` (for example `/kpop-quiz/pt-br/` on staging, `/pt-br/` locally), because the site root is no longer a page after ADR 044.
 
 Run `npm run test:e2e -- grid-mobile-actions --retries=0` from `web/` for the eight consent scenarios. They build their own temporary production fixture with `PUBLIC_GA4_ID=G-E2EGRID296` and an empty Cloudflare beacon token. They run against a loopback server on an OS-assigned port, even when `BASE_URL` points elsewhere. All requests outside that fixture's origin are aborted, consent is never accepted, and every scenario asserts the real banner is visible before checking its open or rejected state. No secret is required. The fixture is removed after the worker finishes and does not overwrite `web/dist`; normal builds and `astro dev` retain their existing analytics configuration.
 

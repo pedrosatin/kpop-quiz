@@ -35,8 +35,9 @@ builds de produção e homologação. A homologação continua `noindex` em
 todas as páginas, então o canônico absoluto nunca cria conteúdo
 duplicado indexável.
 
-Tabela hreflang (pares pt-BR/en; cada página emite `x-default` para a
-equivalente em inglês, alinhada a `SEO_DEFAULT_PATH = "/en/"`):
+Tabela hreflang (os cinco pares originais pt-BR/en; cada página emite
+`x-default` para a equivalente em inglês, alinhada a
+`SEO_DEFAULT_PATH = "/en/"`):
 
 | pt-BR | en | x-default |
 |---|---|---|
