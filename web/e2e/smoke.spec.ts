@@ -37,15 +37,22 @@ test.describe("root redirect", () => {
     expect(baseURL, "BASE_URL / playwright baseURL must be set").toBeTruthy();
     test.skip(!isCloudflareProduction(baseURL!), "Pages _redirects apply only on Cloudflare Pages production");
 
+    const resolveLocation = (response: { status: () => number; headers: () => Record<string, string> }, label: string) => {
+      expect(response.status(), `${label}: expected 301 redirect from /`).toBe(301);
+      const raw = response.headers().location;
+      expect(raw, `${label}: Location header missing on 301`).toBeTruthy();
+      return new URL(raw!, baseURL!);
+    };
+
     const bare = await request.get(baseURL!, { maxRedirects: 0 });
-    expect(bare.status()).toBe(301);
-    expect(bare.headers().location).toBe("https://kpopquiz.online/pt-br/");
+    const bareLocation = resolveLocation(bare, "root without query");
+    expect(bareLocation.pathname).toBe("/pt-br/");
+    expect(bareLocation.search).toBe("");
 
     const withQuery = await request.get(`${baseURL!.replace(/\/$/, "")}/?s=quiz&utm_source=smoke`, {
       maxRedirects: 0,
     });
-    expect(withQuery.status()).toBe(301);
-    const location = new URL(withQuery.headers().location!, "https://kpopquiz.online");
+    const location = resolveLocation(withQuery, "root with query");
     expect(location.pathname).toBe("/pt-br/");
     expect(location.searchParams.get("s")).toBe("quiz");
     expect(location.searchParams.get("utm_source")).toBe("smoke");

@@ -5,6 +5,12 @@ import { isRemoteUrl, LOCAL_BUILD_TAG } from "./e2e/target";
 const DEFAULT_BASE_URL = "http://127.0.0.1:4321";
 const baseURL = process.env.BASE_URL?.trim() || DEFAULT_BASE_URL;
 
+/** Keep BASE_URL's path prefix (e.g. /kpop-quiz/) and append pt-br/ for readiness. */
+function localeReadyPath(pathname: string): string {
+  const prefix = pathname.endsWith("/") ? pathname : `${pathname}/`;
+  return `${prefix}pt-br/`.replace(/\/{2,}/g, "/");
+}
+
 /** Host/port for local astro preview; fall back to DEFAULT_BASE_URL if parsing fails. */
 function localPreviewTarget(url: string): { host: string; port: number; url: string; readyUrl: string } {
   try {
@@ -22,8 +28,9 @@ function localPreviewTarget(url: string): { host: string; port: number; url: str
       port,
       url: origin,
       // After ADR 044 the domain root is not a page (301 on Pages, 404 in
-      // local preview). Probe a real route so the readiness check succeeds.
-      readyUrl: `${origin}/pt-br/`,
+      // local preview). Probe /pt-br/ under the BASE_URL path so staging
+      // subdirectory previews (/kpop-quiz/pt-br/) become ready.
+      readyUrl: `${origin}${localeReadyPath(parsed.pathname)}`,
     };
   } catch {
     const fallback = new URL(DEFAULT_BASE_URL);
@@ -32,7 +39,7 @@ function localPreviewTarget(url: string): { host: string; port: number; url: str
       host: fallback.hostname,
       port: Number(fallback.port),
       url: origin,
-      readyUrl: `${origin}/pt-br/`,
+      readyUrl: `${origin}${localeReadyPath(fallback.pathname)}`,
     };
   }
 }
