@@ -41,7 +41,9 @@ test.describe("root redirect", () => {
       expect(response.status(), `${label}: expected 301 redirect from /`).toBe(301);
       const raw = response.headers().location;
       expect(raw, `${label}: Location header missing on 301`).toBeTruthy();
-      return new URL(raw!, baseURL!);
+      const resolved = new URL(raw!, baseURL!);
+      expect(resolved.origin, `${label}: redirect must stay on ${new URL(baseURL!).origin}`).toBe(new URL(baseURL!).origin);
+      return resolved;
     };
 
     const bare = await request.get(baseURL!, { maxRedirects: 0 });
