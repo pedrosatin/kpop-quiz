@@ -301,6 +301,7 @@ jobs:
         id: plan
         env:
           CI: true
+          E2E_FULL_MATRIX: ${{ github.event_name != 'pull_request' && '1' || '' }}
           CODE_FEEDBACK_ENV: ${{ (vars.PUBLIC_GA4_ID || secrets.PUBLIC_GA4_ID) != '' && 'banner' || 'root' }}
           CODE_FEEDBACK_CF_BEACON: ${{ (vars.PUBLIC_CF_BEACON_TOKEN || secrets.PUBLIC_CF_BEACON_TOKEN) != '' }}
           SHARD: ${{ matrix.shard }}
@@ -313,6 +314,7 @@ jobs:
       - name: Run Playwright boot and playthrough against local dist
         env:
           CI: true
+          E2E_FULL_MATRIX: ${{ github.event_name != 'pull_request' && '1' || '' }}
           CODE_FEEDBACK_ENV: ${{ (vars.PUBLIC_GA4_ID || secrets.PUBLIC_GA4_ID) != '' && 'banner' || 'root' }}
           CODE_FEEDBACK_CF_BEACON: ${{ (vars.PUBLIC_CF_BEACON_TOKEN || secrets.PUBLIC_CF_BEACON_TOKEN) != '' }}
           PLAYWRIGHT_BLOB_OUTPUT_NAME: report-${{ matrix.shard }}.zip
@@ -384,6 +386,7 @@ jobs:
       - name: Check that the shards ran the whole suite
         env:
           CI: true
+          E2E_FULL_MATRIX: ${{ github.event_name != 'pull_request' && '1' || '' }}
           CODE_FEEDBACK_ENV: ${{ (vars.PUBLIC_GA4_ID || secrets.PUBLIC_GA4_ID) != '' && 'banner' || 'root' }}
           CODE_FEEDBACK_CF_BEACON: ${{ (vars.PUBLIC_CF_BEACON_TOKEN || secrets.PUBLIC_CF_BEACON_TOKEN) != '' }}
         run: |

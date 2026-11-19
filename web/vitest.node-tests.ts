@@ -52,6 +52,7 @@ export const nodeTestFiles = [
   "src/tests/game-layout.test.ts",
   "src/tests/llms.test.ts",
   "src/tests/not-found-page.test.ts",
+  "src/tests/pairwise.test.ts",
   "src/tests/platform-overview.test.ts",
   "src/tests/privacy-notice.test.ts",
   "src/tests/published-artifacts.test.ts",

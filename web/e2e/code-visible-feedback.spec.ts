@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { matrixCases } from "./helpers/pairwise";
 import { reloadPersisted } from "./helpers/passive-effects";
 
 // Each test opens its own page and writes nowhere shared, so the file can
@@ -118,11 +119,18 @@ async function visibleAboveBanner(page: Page, selector: string) {
   expect(geometry.hit).toBe(true);
 }
 
-for (const locale of ["pt", "en"] as const) {
+const feedbackMatrix = matrixCases({
+  locale: ["pt", "en"],
+  width: ["360", "390", "1280"],
+  consent: [...consentStates],
+});
+
+for (const row of feedbackMatrix) {
+  const locale = row.locale as "pt" | "en";
+  const width = Number(row.width);
+  const consent = row.consent;
   const path = locale === "pt" ? "/pt-br/codigo/" : "/en/code/";
   const submitLabel = locale === "pt" ? "Enviar palpite" : "Submit guess";
-  for (const width of [360, 390, 1280]) {
-    for (const consent of consentStates) {
       test(`${environment} ${locale} ${width}: ${consent} banner, validation, guess and win remain visible`, async ({ page, baseURL }) => {
         await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
         await openFixture(page, baseURL!, path, locale, consent);
@@ -200,9 +208,11 @@ for (const locale of ["pt", "en"] as const) {
         await expect(page.locator(".code-result")).not.toBeFocused();
         expect(await codeScrolls(page)).toEqual([]);
       });
-    }
-  }
+}
 
+for (const locale of ["pt", "en"] as const) {
+  const path = locale === "pt" ? "/pt-br/codigo/" : "/en/code/";
+  const submitLabel = locale === "pt" ? "Enviar palpite" : "Submit guess";
   test(`${environment} ${locale} desktop: keyboard, share and statistics remain usable`, async ({ page, context, baseURL }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
