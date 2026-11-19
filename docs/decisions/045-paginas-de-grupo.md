@@ -13,12 +13,13 @@ Aceita
 As rotas indexáveis do site eram só os jogos diários (ADR 018). Consultas
 como `quiz stray kids` não tinham URL própria. Publicar um grupo exige
 fatos aceitos com revisão, elenco atual e ex-integrantes separados, e
-conteúdo próprio em português e inglês — sem inventar biografias nem
+conteúdo próprio em português e inglês, sem inventar biografias nem
 misturar respostas do desafio diário no HTML (ADR 022).
 
 O piloto escolhe Stray Kids (`Q46134670`): profundidade aceita suficiente
 para quiz e caça-palavras; Linha do Tempo de lançamentos fica de fora
-enquanto houver menos de 10 datas aceitas.
+enquanto houver menos de 10 datas aceitas (mínimo de eventos por rodada
+da Linha do Tempo diária).
 
 ## Decisão
 
@@ -51,7 +52,8 @@ de `/data/*`. O HTML da página não embute respostas do desafio diário.
   menos de três letras após normalizar ficam de fora. Alias publicado
   pode substituir o canônico quando a forma curta impede o preenchimento
   sem ocorrência acidental.
-- Linha do Tempo de lançamentos: só com 10 ou mais datas aceitas.
+- Linha do Tempo de lançamentos: só com 10 ou mais datas aceitas
+  (mesmo mínimo de eventos da rodada diária).
 - Adivinhe e Conexões por grupo ficam de fora deste padrão.
 
 ### O que a ADR não registra

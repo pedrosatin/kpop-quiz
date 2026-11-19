@@ -3,9 +3,9 @@
 Canonical: https://kpopquiz.online/en/stray-kids/
 Also in Portuguese: https://kpopquiz.online/pt-br/stray-kids/
 
-A page just for Stray Kids: accepted facts with revision links, a 10-question quiz, and a word search of current members. The site's daily games stay in the menu.
+This page gathers accepted Stray Kids facts, each with a link to the revision used, a 10-question quiz, and a word search of current members. The site's daily games stay in the menu.
 
-10 multiple-choice questions. Member word search for names that pass the name gate. Every fact and answer cites the revision used.
+10 multiple-choice questions. Word search with the current members whose names have at least three letters. Every fact and answer cites the revision used.
 
 ## Provenance and license
 

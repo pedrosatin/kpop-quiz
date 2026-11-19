@@ -23,4 +23,10 @@ export interface WordSearchGameProps {
   puzzle?: WordSearchPuzzle;
   locale: Locale;
   baseUrl?: string;
+  /**
+   * When false, skip daily match recording, DailyDone, the stale-daily
+   * notice, DailyNext, and the daily share header. Used by group pages.
+   * Defaults to true (today's challenge).
+   */
+  daily?: boolean;
 }

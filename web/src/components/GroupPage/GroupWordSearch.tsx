@@ -70,9 +70,9 @@ export function GroupWordSearch({ slug, locale, baseUrl }: Props) {
   return (
     <div id="group-word-search" data-testid="group-word-search">
       {baseUrl === undefined ? (
-        <WordSearchGame locale={locale} puzzle={puzzle} />
+        <WordSearchGame locale={locale} puzzle={puzzle} daily={false} />
       ) : (
-        <WordSearchGame locale={locale} puzzle={puzzle} baseUrl={baseUrl} />
+        <WordSearchGame locale={locale} puzzle={puzzle} baseUrl={baseUrl} daily={false} />
       )}
     </div>
   );

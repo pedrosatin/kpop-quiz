@@ -91,7 +91,9 @@ function replayCatalogRound(ctx: QuizLoadContext): void {
  */
 export function restartRound(ctx: QuizLoadContext): void {
   const { settings, match } = ctx;
-  clearQuizProgress(progressConfig(ctx));
+  if (settings.persist) {
+    clearQuizProgress(progressConfig(ctx));
+  }
   match.setResumeNotice(null);
   if (settings.theme === "daily") {
     replayPublishedRound(ctx);

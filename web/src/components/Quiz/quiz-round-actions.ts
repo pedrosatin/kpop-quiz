@@ -24,7 +24,9 @@ export function startRound(ctx: QuizPlayContext): void {
   analytics.start();
   saveStoredPlayMode(settings.playMode);
   saveStoredTimerEnabled(settings.timerEnabled);
-  updateUrlParams(settings.playMode, settings.theme, settings.decades);
+  if (settings.syncUrl) {
+    updateUrlParams(settings.playMode, settings.theme, settings.decades);
+  }
   match.focusQuestionRef.current = true;
   match.setRestoredVisit(false);
   const startedAt = Date.now();

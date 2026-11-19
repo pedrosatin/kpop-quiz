@@ -52,6 +52,8 @@ interface WordSearchResultProps {
   titleRef?: Ref<HTMLHeadingElement>;
   onCopied?: () => void;
   onShareFailed?: () => void;
+  /** When false, omit DailyNext and the daily share header. */
+  daily?: boolean;
 }
 
 /**
@@ -68,6 +70,7 @@ export function WordSearchResult({
   titleRef,
   onCopied,
   onShareFailed,
+  daily = true,
 }: WordSearchResultProps) {
   const messages = getMessages(locale);
   const t = messages.wordSearch;
@@ -83,7 +86,7 @@ export function WordSearchResult({
 
   const total = puzzle.words.length;
   const found = foundCount ?? total;
-  const shareText = generateWordSearchShareSummary(puzzle, found, total, elapsedSeconds, locale);
+  const shareText = generateWordSearchShareSummary(puzzle, found, total, elapsedSeconds, locale, { daily });
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.
@@ -121,7 +124,7 @@ export function WordSearchResult({
         </button>
       </div>
 
-      <DailyNext game="wordSearch" locale={locale} />
+      {daily && <DailyNext game="wordSearch" locale={locale} />}
 
       {shareFailed && (
         <div class="word-search-share-fallback">

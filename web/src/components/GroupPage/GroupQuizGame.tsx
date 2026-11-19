@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useCallback, useEffect, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
 import { GroupPageArtifactError, loadGroupQuizSession } from "../../data/group-page-loader";
 import type { Locale } from "../../lib/quiz-types";
@@ -17,8 +17,7 @@ import type { QuizLoadContext, QuizPlayContext } from "../Quiz/types";
 import { useQuizAnalytics } from "../Quiz/useQuizAnalytics";
 import { useQuizFocus } from "../Quiz/useQuizFocus";
 import { useQuizMatch } from "../Quiz/useQuizMatch";
-import { useQuizProgressAutosave, useQuizProgressWriter } from "../Quiz/useQuizProgress";
-import { useQuizSettings } from "../Quiz/useQuizSettings";
+import { useGroupQuizSettings } from "../Quiz/useQuizSettings";
 import { useQuizTimer } from "../Quiz/useQuizTimer";
 import { useRecordQuizMatch } from "../Quiz/useRecordQuizMatch";
 
@@ -32,16 +31,17 @@ interface Props {
 
 /**
  * Fixed-session quiz for a group landing page. Loads the published session
- * for the slug and skips the theme/decade setup used on the home quiz.
+ * for the slug, keeps theme `history` (free play), and never touches the
+ * home quiz URL params or localStorage progress slots.
  */
 export function GroupQuizGame({ slug, locale, baseUrl, startLabel, startBlurb }: Props) {
   const messages = getMessages(locale);
-  const settings = useQuizSettings(locale, []);
+  const settings = useGroupQuizSettings(locale);
   const match = useQuizMatch();
   const [hydrated, setHydrated] = useState(false);
   const [awaitingStart, setAwaitingStart] = useState(false);
   const analytics = useQuizAnalytics(locale, settings, match);
-  const persistProgress = useQuizProgressWriter(locale, settings, match);
+  const persistProgress = useCallback(() => undefined, []);
   const question = match.session?.questions[match.questionIndex];
   const timerSeconds = settings.timerEnabled ? 20 : match.session?.config.timer_seconds ?? null;
   const play: QuizPlayContext = { locale, settings, match, question, timerSeconds, persistProgress, analytics };
@@ -92,7 +92,6 @@ export function GroupQuizGame({ slug, locale, baseUrl, startLabel, startBlurb }:
 
   const focus = useQuizFocus(match);
   useRecordQuizMatch(match.state, match.session, match.history, settings.theme, match.recordedMatchRef);
-  useQuizProgressAutosave(match, persistProgress);
 
   if (awaitingStart && match.state === "setup" && match.session) {
     return (

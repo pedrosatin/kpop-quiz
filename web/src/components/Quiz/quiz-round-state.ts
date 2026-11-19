@@ -111,7 +111,9 @@ export function applyRound(
   match.setLoadedRequestKey(`${locale}|${settings.playMode}|${settings.theme}|${loadedDecades.join(",")}`);
   if (loadedDecades.join(",") !== settings.decades.join(",")) {
     settings.setDecades(loadedDecades);
-    updateUrlParams(settings.playMode, loadedDecades.length ? "history" : settings.theme, loadedDecades);
+    if (settings.syncUrl) {
+      updateUrlParams(settings.playMode, loadedDecades.length ? "history" : settings.theme, loadedDecades);
+    }
   }
   const nextDeadline = nextState === "question.ready" ? computeDeadline(timerSeconds) : null;
   resetRound(ctx, session.questions.length, nextState, nextDeadline);

@@ -21,9 +21,11 @@ import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 interface WordSearchGameContentProps {
   puzzle: WordSearchPuzzle;
   locale: Locale;
+  /** When false, free-play: no daily stats, DailyDone, or daily share. */
+  daily?: boolean;
 }
 
-export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentProps) {
+export function WordSearchGameContent({ puzzle, locale, daily = true }: WordSearchGameContentProps) {
   const messages = getMessages(locale);
   const t = messages.wordSearch;
   const {
@@ -43,7 +45,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
     handleCellPointerUp,
     handleKeyDown,
     giveUp,
-  } = useWordSearchGame(puzzle, locale);
+  } = useWordSearchGame(puzzle, locale, { daily });
 
   const totalWords = puzzle.words.length;
   const foundCount = foundWordIds.length;
@@ -59,8 +61,18 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
   const { shareNote, onCopied, onShareFailed } = useShareNote();
   const { confirmGiveUpOpen, requestGiveUp, closeGiveUpConfirm, confirmGiveUp } = useGiveUpConfirm();
 
-  useRecordDailyMatch("word-search", dailyBoardRound(puzzle, wordSearchMatchId(puzzle)), completed, foundCount >= totalWords);
-  const dayDone = useDailyMatchDone("word-search", puzzle.reference_date, wordSearchMatchId(puzzle), completed);
+  useRecordDailyMatch(
+    "word-search",
+    daily ? dailyBoardRound(puzzle, wordSearchMatchId(puzzle)) : null,
+    completed,
+    foundCount >= totalWords,
+  );
+  const dayDone = useDailyMatchDone(
+    "word-search",
+    puzzle.reference_date,
+    wordSearchMatchId(puzzle),
+    completed,
+  );
 
   // Names are resolved against the whole list, so two words that differ only
   // by a disambiguator keep it.
@@ -69,7 +81,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
 
   const barState = actionBarTone(completed, lastCheck, activePath.length > 1 || anchorCell !== null);
 
-  if (dayDone) return <DailyDone game="wordSearch" locale={locale} />;
+  if (daily && dayDone) return <DailyDone game="wordSearch" locale={locale} />;
 
   return (
     <section class="game-card game-card--wide word-search" id="word-search" data-testid="game-board">
@@ -138,6 +150,7 @@ export function WordSearchGameContent({ puzzle, locale }: WordSearchGameContentP
             titleRef={resultTitle}
             onCopied={onCopied}
             onShareFailed={onShareFailed}
+            daily={daily}
           />
         ) : (
           <>

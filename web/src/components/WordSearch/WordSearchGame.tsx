@@ -10,6 +10,7 @@ export function WordSearchGame({
   puzzle: initialPuzzle,
   locale,
   baseUrl,
+  daily = true,
 }: WordSearchGameProps) {
   const t = getMessages(locale).wordSearch;
   const [loadedPuzzle, setLoadedPuzzle] = useState<WordSearchPuzzle | null>(
@@ -80,8 +81,8 @@ export function WordSearchGame({
 
   return (
     <>
-      <StaleDailyNotice board={loadedPuzzle} locale={locale} />
-      <WordSearchGameContent puzzle={loadedPuzzle} locale={locale} />
+      {daily && <StaleDailyNotice board={loadedPuzzle} locale={locale} />}
+      <WordSearchGameContent puzzle={loadedPuzzle} locale={locale} daily={daily} />
     </>
   );
 }

@@ -22,7 +22,12 @@ function whilePlaying<A extends unknown[]>(status: GameStatus, handler: (...args
   return status === "in_progress" ? handler : ignoreInput;
 }
 
-export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
+export function useWordSearchGame(
+  puzzle: WordSearchPuzzle,
+  locale: Locale,
+  options: { daily?: boolean } = {},
+) {
+  const daily = options.daily !== false;
   const storageKey = wordSearchStorageKey(puzzle.puzzle_id);
 
   const initial = useMemo(() => loadStoredProgress(storageKey, new Set(puzzle.words.map((word) => word.id))), [storageKey, puzzle]);
@@ -50,7 +55,7 @@ export function useWordSearchGame(puzzle: WordSearchPuzzle, locale: Locale) {
     {
       game: "word-search",
       locale,
-      isDaily: () => isDailyBoardRound("word-search", puzzle, wordSearchMatchId(puzzle)),
+      isDaily: () => daily && isDailyBoardRound("word-search", puzzle, wordSearchMatchId(puzzle)),
       outcome: roundOutcome(status, foundWordIds.length, puzzle.words.length),
     },
     status === "completed",
