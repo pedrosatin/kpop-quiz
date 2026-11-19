@@ -6,6 +6,8 @@ export interface StatsMetrics {
   winRate: number;
   currentStreak: number;
   maxStreak: number;
+  /** Overall tab only: completed daily sets. */
+  dailySetsCompleted?: number;
 }
 
 export interface StatsSummaryProps {
@@ -33,6 +35,12 @@ export function StatsSummary({ metrics, locale }: StatsSummaryProps) {
         <span class="result-stat-value">{metrics.maxStreak}</span>
         <span class="result-stat-label">{messages.statsMaxStreak}</span>
       </div>
+      {metrics.dailySetsCompleted !== undefined ? (
+        <div class="result-stat" data-testid="stats-daily-sets">
+          <span class="result-stat-value">{metrics.dailySetsCompleted}</span>
+          <span class="result-stat-label">{messages.statsDailySets}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

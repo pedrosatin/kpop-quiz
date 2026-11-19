@@ -77,7 +77,7 @@ export function GridResults({
   // The buttons appear where the counters were, right after the last pick,
   // so a second tap or a held Enter must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
-  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "grid", locale } });
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "grid", locale, daily: "yes" } });
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.
@@ -125,7 +125,7 @@ export function GridResults({
         </button>
       </div>
 
-      <DailyNext game="grid" locale={locale} />
+      <DailyNext game="grid" locale={locale} shareText={shareText} />
 
       <label class="share-toggle grid-share-toggle">
         <input

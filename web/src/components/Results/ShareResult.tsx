@@ -125,7 +125,7 @@ export function ShareResult({
     if (canShare) {
       try {
         await navigator.share({ text: shareText });
-        trackGameEvent("share", { game: "quiz", locale, mode: playMode }, "native");
+        trackGameEvent("share", { game: "quiz", locale, mode: playMode, daily: dailyDate ? "yes" : "no" }, "native");
         return;
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") {
@@ -136,7 +136,7 @@ export function ShareResult({
     if (canCopy) {
       try {
         await navigator.clipboard.writeText(shareText);
-        trackGameEvent("share", { game: "quiz", locale, mode: playMode }, "clipboard");
+        trackGameEvent("share", { game: "quiz", locale, mode: playMode, daily: dailyDate ? "yes" : "no" }, "clipboard");
         setCopied(true);
         if (copyTimeoutRef.current !== null) {
           clearTimeout(copyTimeoutRef.current);

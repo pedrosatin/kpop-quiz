@@ -45,11 +45,15 @@ describe("DailyNext", () => {
     expect(screen.getByRole("link", { name: "Next: Connections" })).toHaveAttribute("href", "/en/connections/");
   });
 
-  it("says so when every daily game is finished today", () => {
+  it("celebrates the set when every daily game is finished today, without an X/9 counter", () => {
     for (const id of ALL_GAME_IDS) recordGameFinish(id, true, TODAY);
     localStorage.setItem(mapPilotStorageKey(TODAY), JSON.stringify({ events: ["a"], answers: ["x"], index: 1 }));
-    render(<DailyNext game="crossword" locale="pt-BR" />);
+    render(<DailyNext game="crossword" locale="pt-BR" shareText={"Cruzadinha\nhttps://kpopquiz.online/pt-br/?s=crossword"} />);
+    expect(screen.getByTestId("daily-set-complete")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Set do dia completo" })).toHaveAttribute("data-feedback", "result");
     expect(screen.getByText("Você concluiu todos os jogos de hoje.")).toBeInTheDocument();
+    expect(screen.getByText("1 set completo nas estatísticas.")).toBeInTheDocument();
+    expect(screen.queryByText(/\/9/)).toBeNull();
     expect(screen.queryByRole("link")).toBeNull();
   });
 

@@ -14,7 +14,7 @@ export function useCodeGroupsShare(locale: Locale) {
   const shares = useRef(0);
   const [shareFeedback, setShareFeedback] = useState<CodeGroupsShareFeedback | null>(null);
   const { copied, shareFailed, handleShare } = useGameShareAction({
-    analytics: { game: "code", locale },
+    analytics: { game: "code", locale, daily: "yes" },
     onCopied: () => setShareFeedback({ kind: "copied", n: ++shares.current }),
     onShareFailed: () => setShareFeedback({ kind: "shareFailed", n: ++shares.current }),
   });
