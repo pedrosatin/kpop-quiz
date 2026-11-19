@@ -129,8 +129,14 @@ describe("GroupQuizGame isolation", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Jogar novamente" }));
     await screen.findByRole("button", { name: "Desistir" });
-    expect(screen.queryByTestId("quiz-replay-notice")).toBeNull();
     expect(screen.getByTestId("game-board")).toBeInTheDocument();
+
+    // The notice only renders on the result screen, so finish the replayed
+    // round before checking that it stays away.
+    fireEvent.click(screen.getByRole("button", { name: "Desistir" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sim, desistir" }));
+    await screen.findByRole("button", { name: "Jogar novamente" });
+    expect(screen.queryByTestId("quiz-replay-notice")).toBeNull();
   });
 
   it("shares the group page URL, not the home quiz", () => {
