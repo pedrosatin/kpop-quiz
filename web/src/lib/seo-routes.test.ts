@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { getMessages } from "../i18n/catalog";
 import {
+  GROUP_SEO_ROUTES,
+  INDEXABLE_SEO_ROUTES,
   SEO_DEFAULT_PATH,
   SEO_OG_IMAGE_DIR,
   SEO_OG_IMAGE_HEIGHT,
@@ -26,8 +28,17 @@ function pngSize(path: string): { width: number; height: number } {
 }
 
 describe("SEO route table", () => {
-  it("covers exactly the 18 indexable content routes", () => {
+  it("covers exactly the 18 daily game routes", () => {
     expect(SEO_ROUTES).toHaveLength(18);
+  });
+
+  it("adds published group pages to the indexable set", () => {
+    expect(GROUP_SEO_ROUTES).toHaveLength(2);
+    expect(INDEXABLE_SEO_ROUTES).toHaveLength(20);
+    expect(GROUP_SEO_ROUTES.map((route) => route.path).sort()).toEqual([
+      "/en/stray-kids/",
+      "/pt-br/stray-kids/",
+    ]);
   });
 
   it("keeps /data/*, the redirected root and query variants out of the sitemap", () => {
@@ -102,9 +113,9 @@ describe("share URLs", () => {
 });
 
 describe("OG images", () => {
-  it("give each route its own 1200x630 PNG in public/og", () => {
-    const paths = SEO_ROUTES.map((route) => seoOgImagePath(route.key, route.locale));
-    expect(new Set(paths).size).toBe(SEO_ROUTES.length);
+  it("give each indexable route its own 1200x630 PNG in public/og", () => {
+    const paths = INDEXABLE_SEO_ROUTES.map((route) => seoOgImagePath(route.key, route.locale));
+    expect(new Set(paths).size).toBe(INDEXABLE_SEO_ROUTES.length);
     for (const path of paths) {
       expect(path.startsWith(SEO_OG_IMAGE_DIR)).toBe(true);
       const size = pngSize(join(PUBLIC_DIR, ...path.split("/").filter(Boolean)));
@@ -114,7 +125,9 @@ describe("OG images", () => {
   });
 
   it("ships no stale card", () => {
-    const expected = SEO_ROUTES.map((route) => seoOgImagePath(route.key, route.locale).split("/").pop()).sort();
+    const expected = INDEXABLE_SEO_ROUTES.map((route) =>
+      seoOgImagePath(route.key, route.locale).split("/").pop(),
+    ).sort();
     expect(readdirSync(join(PUBLIC_DIR, "og")).sort()).toEqual(expected);
   });
 
@@ -127,6 +140,9 @@ describe("OG images", () => {
     );
     expect(seoOgImageAlt("quiz", "en", getMessages("en"))).toBe(
       "K-pop Quiz. Daily K-pop games with sources. kpopquiz.online",
+    );
+    expect(seoOgImageAlt("group:stray-kids", "pt-BR", getMessages("pt-BR"), "Stray Kids")).toBe(
+      "Quiz de Stray Kids no K-pop Quiz em kpopquiz.online",
     );
   });
 });

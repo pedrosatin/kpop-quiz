@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SEO_ROUTES } from "./seo-routes";
+import { INDEXABLE_SEO_ROUTES } from "./seo-routes";
 import { buildSitemapXml } from "./sitemap";
 
 function urlBlocks(xml: string): string[] {
@@ -7,16 +7,16 @@ function urlBlocks(xml: string): string[] {
 }
 
 describe("sitemap", () => {
-  const xml = buildSitemapXml(SEO_ROUTES);
+  const xml = buildSitemapXml(INDEXABLE_SEO_ROUTES);
 
   it("declares the sitemap and xhtml namespaces", () => {
     expect(xml).toContain('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"');
     expect(xml).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"');
   });
 
-  it("lists the 18 canonical URLs without lastmod", () => {
+  it("lists the 20 canonical URLs without lastmod", () => {
     const blocks = urlBlocks(xml);
-    expect(blocks).toHaveLength(18);
+    expect(blocks).toHaveLength(20);
     for (const block of blocks) {
       expect(block).toMatch(/<loc>https:\/\/kpopquiz\.online\/[^<]+<\/loc>/);
       expect(block).not.toContain("<lastmod>");

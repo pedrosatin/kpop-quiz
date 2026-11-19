@@ -2,8 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { getMessages, type SeoRouteKey } from "../i18n/catalog";
+import { getGroupPageCopy } from "../i18n/group-pages";
 import type { Locale } from "../lib/quiz-types";
-import { SEO_ROUTES, seoAbsoluteUrl } from "../lib/seo-routes";
+import { GROUP_SEO_ROUTES, SEO_ROUTES, seoAbsoluteUrl } from "../lib/seo-routes";
+import { isGroupPageKey } from "../lib/group-pages";
 
 const LLMS_DIR = join(import.meta.dirname, "../../public/llms");
 
@@ -59,6 +61,22 @@ describe("LLM route summaries", () => {
       const { h1, intro } = visibleCopy(route.locale, route.key);
       expect(body, file).toContain(`# ${h1}`);
       expect(body, file).toContain(intro.replace(/\s+/g, " "));
+      expect(body, file).toContain(seoAbsoluteUrl(route.path));
+      expect(body, file).toContain(seoAbsoluteUrl(route.alternatePath));
+    });
+  }
+
+  for (const route of GROUP_SEO_ROUTES) {
+    it(`summarizes group page ${route.path}`, () => {
+      expect(isGroupPageKey(route.key)).toBe(true);
+      const slug = route.path.split("/").filter(Boolean).join("-") + ".md";
+      const file = join(LLMS_DIR, slug);
+      expect(existsSync(file), file).toBe(true);
+      const body = readFileSync(file, "utf-8").replace(/\s+/g, " ");
+      const groupSlug = route.key.slice("group:".length);
+      const copy = getGroupPageCopy(groupSlug, route.locale);
+      expect(body, file).toContain(`# ${copy.title}`);
+      expect(body, file).toContain(copy.intro.replace(/\s+/g, " "));
       expect(body, file).toContain(seoAbsoluteUrl(route.path));
       expect(body, file).toContain(seoAbsoluteUrl(route.alternatePath));
     });

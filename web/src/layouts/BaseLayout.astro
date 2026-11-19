@@ -7,13 +7,16 @@ import type { Locale } from "../lib/quiz-types";
 import type { SeoRouteKey, SkipLinkKey } from "../i18n/catalog";
 import { getMessages } from "../i18n/catalog";
 import { gameAbout, type GameAboutKey } from "../i18n/game-about";
+import { isGroupPageKey } from "../lib/group-pages";
 import {
   SEO_OG_IMAGE_HEIGHT,
   SEO_OG_IMAGE_WIDTH,
   SEO_PROD_ORIGIN,
+  type IndexableRouteKey,
   seoOgImageAlt,
   seoOgImagePath,
   seoOgLocale,
+  seoRouteDisplayName,
 } from "../lib/seo-routes";
 import { StatsNavTrigger } from "../components/Stats/StatsNavTrigger";
 import { statsGameId } from "../lib/daily-progress";
@@ -36,10 +39,18 @@ type CanonicalProps =
   | { canonicalPath?: undefined; alternatePath?: undefined };
 type Props = CanonicalProps & {
   locale: Locale;
-  route: SeoRouteKey;
+  route: IndexableRouteKey;
   indexable?: boolean;
   showGameNavigation?: boolean;
   pageMeta?: { title: string; description: string };
+  /** JSON-LD WebApplication name; defaults to the overview title for games. */
+  applicationName?: string;
+  /** Display name of a group page for OG alt text. */
+  groupName?: string;
+  /** Override the skip-link target (group pages use #group-quiz). */
+  skipTarget?: string;
+  /** Override the skip-link label. */
+  skipLinkText?: string;
 };
 const {
   locale,
@@ -48,8 +59,14 @@ const {
   indexable = true,
   showGameNavigation = true,
   pageMeta,
+  applicationName,
+  groupName,
+  skipTarget: skipTargetProp,
+  skipLinkText: skipLinkTextProp,
 } = Astro.props;
 const messages = getMessages(locale);
+const isGroupPage = isGroupPageKey(route);
+const gameRoute: SeoRouteKey = isGroupPage ? "quiz" : route;
 const gameAboutKeyMap: Partial<Record<SeoRouteKey, GameAboutKey>> = {
   grid: "grid",
   connections: "connections",
@@ -60,7 +77,7 @@ const gameAboutKeyMap: Partial<Record<SeoRouteKey, GameAboutKey>> = {
   code: "code",
   crossword: "crossword",
 };
-const currentFaqGameKey = gameAboutKeyMap[route];
+const currentFaqGameKey = isGroupPage ? undefined : gameAboutKeyMap[gameRoute];
 const faqCopy = currentFaqGameKey ? gameAbout[locale]?.games[currentFaqGameKey]?.faq : undefined;
 const faqJsonLd = faqCopy && faqCopy.length > 0 ? {
   "@context": "https://schema.org",
@@ -74,7 +91,8 @@ const faqJsonLd = faqCopy && faqCopy.length > 0 ? {
     },
   })),
 } : undefined;
-const meta = pageMeta ?? messages.meta[route];
+const meta = pageMeta ?? (isGroupPage ? pageMeta : messages.meta[gameRoute]);
+if (!meta) throw new Error(`missing page meta for route ${route}`);
 const canonicalProps: CanonicalProps = Astro.props;
 const canonical =
   canonicalProps.canonicalPath === undefined
@@ -99,32 +117,36 @@ const ogImageVersion = createHash("sha256")
   .digest("hex")
   .slice(0, 8);
 const ogImageUrl = `${SEO_PROD_ORIGIN}${ogImagePath}?v=${ogImageVersion}`;
-const ogImageAlt = seoOgImageAlt(route, locale, messages);
+const ogImageAlt = seoOgImageAlt(route, locale, messages, groupName);
 const ogLocale = seoOgLocale(locale);
 const ogLocaleAlternate = seoOgLocale(locale === "pt-BR" ? "en" : "pt-BR");
-const isGrid = Astro.url.pathname.includes("/grid");
-const isConnections = Astro.url.pathname.includes("/conexoes") || Astro.url.pathname.includes("/connections");
-const isNameGuess = Astro.url.pathname.includes("/adivinhe") || Astro.url.pathname.includes("/guess");
-const isWordSearch = Astro.url.pathname.includes("/caca-palavras") || Astro.url.pathname.includes("/word-search");
-const isMapPilot = Astro.url.pathname.includes("/mapa") || Astro.url.pathname.includes("/map/");
-const isTimeline = Astro.url.pathname.includes("/linha-do-tempo") || Astro.url.pathname.includes("/timeline");
-const isCode = Astro.url.pathname.includes("/codigo") || Astro.url.pathname.includes("/code");
-const isCrossword = Astro.url.pathname.includes("/cruzadinha") || Astro.url.pathname.includes("/crossword");
+const isGrid = !isGroupPage && Astro.url.pathname.includes("/grid");
+const isConnections = !isGroupPage && (Astro.url.pathname.includes("/conexoes") || Astro.url.pathname.includes("/connections"));
+const isNameGuess = !isGroupPage && (Astro.url.pathname.includes("/adivinhe") || Astro.url.pathname.includes("/guess"));
+const isWordSearch = !isGroupPage && (Astro.url.pathname.includes("/caca-palavras") || Astro.url.pathname.includes("/word-search"));
+const isMapPilot = !isGroupPage && (Astro.url.pathname.includes("/mapa") || Astro.url.pathname.includes("/map/"));
+const isTimeline = !isGroupPage && (Astro.url.pathname.includes("/linha-do-tempo") || Astro.url.pathname.includes("/timeline"));
+const isCode = !isGroupPage && (Astro.url.pathname.includes("/codigo") || Astro.url.pathname.includes("/code"));
+const isCrossword = !isGroupPage && (Astro.url.pathname.includes("/cruzadinha") || Astro.url.pathname.includes("/crossword"));
 const isPrivacy = Boolean(canonicalPath?.endsWith("/privacidade/") || canonicalPath?.endsWith("/privacy/"));
-let skipTarget = "#quiz";
-if (isGrid) skipTarget = "#grid";
-else if (isConnections) skipTarget = "#connections";
-else if (isNameGuess) skipTarget = "#name-guess";
-else if (isWordSearch) skipTarget = "#word-search";
-else if (isMapPilot) skipTarget = "#map-game";
-else if (isTimeline) skipTarget = "#timeline";
-else if (isCode) skipTarget = "#code-groups";
-else if (isCrossword) skipTarget = "#crossword";
+let skipTarget = skipTargetProp ?? "#quiz";
+if (!skipTargetProp) {
+  if (isGrid) skipTarget = "#grid";
+  else if (isConnections) skipTarget = "#connections";
+  else if (isNameGuess) skipTarget = "#name-guess";
+  else if (isWordSearch) skipTarget = "#word-search";
+  else if (isMapPilot) skipTarget = "#map-game";
+  else if (isTimeline) skipTarget = "#timeline";
+  else if (isCode) skipTarget = "#code-groups";
+  else if (isCrossword) skipTarget = "#crossword";
+}
 const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
 let otherPath = isPrivacy
   ? (locale === "pt-BR" ? "/en/privacy/" : "/pt-br/privacidade/")
   : targetBase;
-if (isGrid) {
+if (isGroupPage && canonicalProps.alternatePath) {
+  otherPath = canonicalProps.alternatePath;
+} else if (isGrid) {
   otherPath = `${targetBase}grid/`;
 } else if (isConnections) {
   otherPath = locale === "pt-BR" ? `${targetBase}connections/` : `${targetBase}conexoes/`;
@@ -152,7 +174,7 @@ else if (isCode) skipLinkKey = "code";
 else if (isCrossword) skipLinkKey = "crossword";
 else if (isPrivacy) skipLinkKey = "privacy";
 else if (isNotFound) skipLinkKey = "notFound";
-const skipLinkText = messages.skipLinks[skipLinkKey];
+const skipLinkText = skipLinkTextProp ?? messages.skipLinks[skipLinkKey];
 // The theme button cycles system → light → dark. Its name says the current
 // theme and the next one; the script below swaps in the name for the new state.
 const themeNames = { system: messages.themeAuto, light: messages.themeLight, dark: messages.themeDark };
@@ -180,7 +202,11 @@ const enableAnalytics = !isStaging && Boolean(cfBeaconToken);
 const ga4Id = import.meta.env.PUBLIC_GA4_ID;
 const enableGa4 = !isStaging && Boolean(ga4Id);
 const privacyPath = locale === "pt-BR" ? "/pt-br/privacidade/" : "/en/privacy/";
-const isQuiz = !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot && !isTimeline && !isCode && !isCrossword;
+const isQuiz = !isGroupPage && !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot && !isTimeline && !isCode && !isCrossword && !isPrivacy;
+const webAppName = applicationName
+  ?? (isGroupPage
+    ? seoRouteDisplayName(route, locale, messages, groupName)
+    : messages.overview.games[gameRoute].title);
 const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
   {
     key: "quiz",
@@ -288,7 +314,7 @@ const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
           "@context": "https://schema.org",
           "@type": "WebApplication",
           "@id": `${canonical.url}#game`,
-          name: messages.overview.games[route].title,
+          name: webAppName,
           url: canonical.url,
           applicationCategory: "GameApplication",
           operatingSystem: "All",
@@ -304,7 +330,7 @@ const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
         set:html={escapeJsonLd(faqJsonLd)}
       />
     )}
-    {canonical && indexable && !isPrivacy && route === "quiz" && (
+    {canonical && indexable && !isPrivacy && gameRoute === "quiz" && !isGroupPage && (
       <script
         type="application/ld+json"
         is:inline
@@ -342,7 +368,7 @@ const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
         <span>K</span>Q
       </a>
       <div class="header-actions">
-        {showGameNavigation && <StatsNavTrigger locale={locale} game={statsGameId(route)} client:load />}
+        {showGameNavigation && <StatsNavTrigger locale={locale} game={statsGameId(gameRoute)} client:load />}
         <button
           type="button"
           id="theme-toggle"

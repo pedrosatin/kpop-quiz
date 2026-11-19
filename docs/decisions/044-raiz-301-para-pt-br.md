@@ -24,7 +24,7 @@ O `_redirects` do Pages não oferece matching por query string (tabela "Advanced
 
 ### O que não muda
 
-- `hreflang`, `x-default` (continua `/en/` por rota) e o sitemap (18 URLs, sem `/`).
+- `hreflang`, `x-default` (continua `/en/` por rota) e o sitemap (sem `/`; o conjunto indexável cresceu na [ADR 045](045-paginas-de-grupo.md)).
 - Páginas de privacidade (`/pt-br/privacidade/`, `/en/privacy/`) continuam `noindex`.
 - Homologação no GitHub Pages ignora `_redirects`; a raiz de staging passa a 404, aceitável porque a homologação inteira é `noindex` ([ADR 016](016-homologacao-github-pages.md)).
 - `WebSite` JSON-LD permanece nas landings do quiz (`/pt-br/` e `/en/`) com `url` em `https://kpopquiz.online/`, identidade do site no domínio.

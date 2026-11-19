@@ -24,6 +24,11 @@
 - [Cruzadinha em português](https://kpopquiz.online/pt-br/cruzadinha/): Cruzadinha / Crossword.
 - [Crossword in English](https://kpopquiz.online/en/crossword/): Cruzadinha / Crossword.
 
+## Páginas de grupo
+
+- [Quiz Stray Kids em português](https://kpopquiz.online/pt-br/stray-kids/): página do grupo com quiz e caça-palavras.
+- [Stray Kids quiz in English](https://kpopquiz.online/en/stray-kids/): group page with quiz and word search.
+
 ## Resumos por rota (Markdown)
 
 - [Resumo: Quiz em português](https://kpopquiz.online/llms/pt-br-quiz.md)
@@ -35,6 +40,7 @@
 - [Resumo: Linha do Tempo em português](https://kpopquiz.online/llms/pt-br-linha-do-tempo.md)
 - [Resumo: Código de Grupos em português](https://kpopquiz.online/llms/pt-br-codigo.md)
 - [Resumo: Cruzadinha em português](https://kpopquiz.online/llms/pt-br-cruzadinha.md)
+- [Resumo: Stray Kids em português](https://kpopquiz.online/llms/pt-br-stray-kids.md)
 - [Summary: Quiz in English](https://kpopquiz.online/llms/en-quiz.md)
 - [Summary: Intersection Grid in English](https://kpopquiz.online/llms/en-grid.md)
 - [Summary: Connections in English](https://kpopquiz.online/llms/en-connections.md)
@@ -44,6 +50,7 @@
 - [Summary: Timeline in English](https://kpopquiz.online/llms/en-timeline.md)
 - [Summary: Group Code in English](https://kpopquiz.online/llms/en-code.md)
 - [Summary: Crossword in English](https://kpopquiz.online/llms/en-crossword.md)
+- [Summary: Stray Kids in English](https://kpopquiz.online/llms/en-stray-kids.md)
 
 ## Proveniência e licença
 

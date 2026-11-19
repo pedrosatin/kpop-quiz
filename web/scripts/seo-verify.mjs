@@ -18,6 +18,7 @@ const EXPECTED_PATHS = [
   "/pt-br/linha-do-tempo/",
   "/pt-br/codigo/",
   "/pt-br/cruzadinha/",
+  "/pt-br/stray-kids/",
   "/en/",
   "/en/grid/",
   "/en/connections/",
@@ -27,6 +28,7 @@ const EXPECTED_PATHS = [
   "/en/timeline/",
   "/en/code/",
   "/en/crossword/",
+  "/en/stray-kids/",
 ];
 
 const EXPECTED_LLMS = [
@@ -39,6 +41,7 @@ const EXPECTED_LLMS = [
   "pt-br-linha-do-tempo.md",
   "pt-br-codigo.md",
   "pt-br-cruzadinha.md",
+  "pt-br-stray-kids.md",
   "en-quiz.md",
   "en-grid.md",
   "en-connections.md",
@@ -48,13 +51,18 @@ const EXPECTED_LLMS = [
   "en-timeline.md",
   "en-code.md",
   "en-crossword.md",
+  "en-stray-kids.md",
 ];
+
+const GROUP_PAGE_PATHS = EXPECTED_PATHS.filter((path) => path.endsWith("/stray-kids/"));
 
 // Game routes carry static text under the island (GameAbout.astro). Google
 // renders the islands too, but this text is in the served HTML either way.
 // The H2s carry the game name, so the check matches the shape, not one
-// fixed string per locale.
-const GAME_ABOUT_PATHS = EXPECTED_PATHS.filter((path) => path !== "/pt-br/" && path !== "/en/");
+// fixed string per locale. Group landing pages use their own body copy.
+const GAME_ABOUT_PATHS = EXPECTED_PATHS.filter(
+  (path) => path !== "/pt-br/" && path !== "/en/" && !GROUP_PAGE_PATHS.includes(path),
+);
 const GAME_ABOUT_H2 = {
   "pt-br": [/^Como jogar /, /^De onde vêm os dados /, /^Perguntas sobre /],
   en: [/^How to play /, /^Where the .+ data comes from$/, / FAQ$/],
@@ -284,6 +292,24 @@ function checkRouteHtml(dist, env) {
   }
 }
 
+function checkGroupPages(dist) {
+  // Group landing pages: own body copy with ≥300 words and a quiz landmark.
+  for (const routePath of GROUP_PAGE_PATHS) {
+    const htmlPath = join(dist, ...routePath.split("/").filter(Boolean), "index.html");
+    if (!existsSync(htmlPath)) continue;
+    const label = htmlPath.replace(dist, "dist");
+    const html = readFileSync(htmlPath, "utf-8");
+    const body = html.match(/data-testid="group-page-body"[^>]*>([\s\S]*?)<\/article>/)?.[1];
+    check(Boolean(body), `${label} missing group page body`);
+    if (body) {
+      const words = countWords(textOf(body));
+      check(words >= GAME_ABOUT_MIN_WORDS, `${label} group body has ${words} words, expected at least ${GAME_ABOUT_MIN_WORDS}`);
+    }
+    check(html.includes('id="group-quiz"') || html.includes('data-testid="group-quiz'), `${label} missing group quiz landmark`);
+    check(!/<a[^>]*href="[^"]*\/data\//.test(html), `${label} links to /data/*`);
+  }
+}
+
 function checkGameText(dist) {
   // Game routes: static text with the expected H2s and at least 300 words.
   for (const routePath of GAME_ABOUT_PATHS) {
@@ -422,6 +448,7 @@ function main() {
   checkRobots(dist, env);
   checkRouteHtml(dist, env);
   checkGameText(dist);
+  checkGroupPages(dist);
   checkIndexNow(dist);
   checkRootRedirect(dist);
   checkPrivacy(dist);

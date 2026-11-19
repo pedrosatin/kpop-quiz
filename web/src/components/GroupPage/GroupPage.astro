@@ -1,0 +1,160 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import GameIntro from "../GameIntro.astro";
+import { GroupQuizGame } from "./GroupQuizGame";
+import { GroupWordSearch } from "./GroupWordSearch";
+import { getGroupPageCopy, groupPageWordCount } from "../../i18n/group-pages";
+import { groupPageBySlug, groupPageKey, groupPagePath } from "../../lib/group-pages";
+import { SEO_ROUTES } from "../../lib/seo-routes";
+import type { Locale } from "../../lib/quiz-types";
+import { getMessages } from "../../i18n/catalog";
+
+interface Props {
+  slug: string;
+  locale: Locale;
+}
+
+const { slug, locale } = Astro.props;
+const page = groupPageBySlug(slug);
+if (!page) throw new Error(`unknown group page slug: ${slug}`);
+
+const copy = getGroupPageCopy(slug, locale);
+const words = groupPageWordCount(copy);
+if (words < 300) {
+  throw new Error(`group page ${slug}/${locale} has ${words} words, need at least 300`);
+}
+
+const canonicalPath = groupPagePath(slug, locale);
+const alternatePath = groupPagePath(slug, locale === "pt-BR" ? "en" : "pt-BR");
+const routeKey = groupPageKey(slug);
+const messages = getMessages(locale);
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const dailyLinks = SEO_ROUTES.filter((route) => route.locale === locale).slice(0, 6);
+const startLabel = locale === "pt-BR" ? "Começar o quiz" : "Start the quiz";
+---
+<BaseLayout
+  locale={locale}
+  route={routeKey}
+  canonicalPath={canonicalPath}
+  alternatePath={alternatePath}
+  pageMeta={copy.meta}
+  applicationName={copy.title}
+  groupName={page.name}
+  skipTarget="#group-quiz"
+  skipLinkText={copy.skipLink}
+>
+  <div class="page-shell" data-testid="group-page" data-group-slug={slug}>
+    <GameIntro
+      wide
+      kicker={copy.kicker}
+      title={copy.title}
+      howToPlayTitle={locale === "pt-BR" ? "Nesta página" : "On this page"}
+      howToPlaySteps={[
+        locale === "pt-BR" ? "Leia os fatos aceitos com link da revisão." : "Read the accepted facts with revision links.",
+        locale === "pt-BR" ? "Responda o quiz de 10 perguntas." : "Play the 10-question quiz.",
+        locale === "pt-BR" ? "Ache os integrantes no caça-palavras." : "Find the members in the word search.",
+      ]}
+      intro={copy.intro}
+    />
+
+    <article class="group-page-body" data-testid="group-page-body">
+      {copy.about.map((paragraph) => <p>{paragraph}</p>)}
+
+      <section aria-labelledby="group-facts-heading">
+        <h2 id="group-facts-heading">{copy.factsHeading}</h2>
+        <ul class="group-fact-list">
+          {copy.facts.map((fact) => (
+            <li>
+              <span>{fact.label}</span>
+              {" "}
+              <a href={fact.sourceUrl} rel="noopener noreferrer" target="_blank">
+                {locale === "pt-BR" ? `revisão ${fact.revisionId}` : `revision ${fact.revisionId}`}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="group-roster-heading">
+        <h2 id="group-roster-heading">{copy.rosterHeading}</h2>
+        <h3>{copy.currentMembersHeading}</h3>
+        <ul>
+          {copy.currentMembers.map((name) => <li>{name}</li>)}
+        </ul>
+        <h3>{copy.formerMembersHeading}</h3>
+        <ul>
+          {copy.formerMembers.map((member) => (
+            <li>
+              <strong>{member.name}</strong> — {member.note}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="group-quiz-heading">
+        <h2 id="group-quiz-heading">{copy.quizHeading}</h2>
+        <p>{copy.quizIntro}</p>
+        <GroupQuizGame
+          client:load
+          slug={slug}
+          locale={locale}
+          startLabel={startLabel}
+          startBlurb={copy.quizIntro}
+        />
+      </section>
+
+      <section aria-labelledby="group-word-search-heading">
+        <h2 id="group-word-search-heading">{copy.wordSearchHeading}</h2>
+        <p>{copy.wordSearchIntro}</p>
+        <GroupWordSearch client:load slug={slug} locale={locale} />
+      </section>
+
+      <section aria-labelledby="group-daily-heading">
+        <h2 id="group-daily-heading">{copy.dailyGamesHeading}</h2>
+        <p>{copy.dailyGamesIntro}</p>
+        <ul class="group-daily-links">
+          {dailyLinks.map((route) => (
+            <li>
+              <a href={`${base}${route.path}`}>
+                {messages.overview.games[route.key].title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="group-sources-heading">
+        <h2 id="group-sources-heading">{copy.sourcesHeading}</h2>
+        <p>{copy.sourcesNote}</p>
+      </section>
+    </article>
+  </div>
+</BaseLayout>
+
+<style>
+  .group-page-body {
+    max-width: 42rem;
+    margin: 1.5rem auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .group-page-body h2 {
+    margin: 0 0 0.5rem;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 1.35rem;
+  }
+  .group-page-body h3 {
+    margin: 0.75rem 0 0.35rem;
+    font-size: 1.05rem;
+  }
+  .group-page-body p,
+  .group-page-body li {
+    line-height: 1.55;
+  }
+  .group-fact-list,
+  .group-daily-links {
+    margin: 0;
+    padding-left: 1.2rem;
+  }
+</style>
