@@ -72,7 +72,7 @@ Com o status Accepted, este contrato vale para o piloto. A emenda de 25 de setem
 
 ## Etapa de cobertura offline
 
-O comando `python -m kpop_scraping.geo_coverage --database <banco.sqlite> --output <relatorio.json>` lê um banco existente em modo somente leitura e resume grupos com fatos processados, distribuição de `origin_country` aceitos e valores `born_in` aceitos. O relatório não resolve cidades a países e não consulta fontes externas. Essa medição precede qualquer coletor de agendas ou conjunto de perguntas.
+O comando `python -m kpop_scraping.geo_coverage --database <banco.sqlite> --output <relatorio.json>` lê um banco existente em modo somente leitura e resume grupos com fatos processados, distribuição de `origin_country` aceitos e valores `born_in` aceitos (relatório `geo-coverage-v2`: os `born_in` com a marca `coarse_place` da [ADR 027](027-evidencia-de-pessoa-pela-infobox.md) não entram nos candidatos e aparecem em `excluded_coarse_place_facts`). O relatório não resolve cidades a países e não consulta fontes externas. Essa medição precede qualquer coletor de agendas ou conjunto de perguntas.
 
 ## Escopo inicial do piloto de turnês
 
