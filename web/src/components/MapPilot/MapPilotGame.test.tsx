@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, within } from "@testing-library/preact
 import axe from "axe-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MapPilotGame, NEXT_GUARD_MS } from "./MapPilotGame";
-import { mapShareText, readableScheduleLocator, RESULT_GUARD_MS, wikidataRevisionUrl } from "./MapPilotResult";
+import { formatMapDate, mapShareText, readableScheduleLocator, RESULT_GUARD_MS, wikidataRevisionUrl } from "./MapPilotResult";
 import { mapPilotStorageKey } from "./map-pilot-save";
 import { featureShape } from "./map-pilot-geometry";
 import { MAP_ZOOM_QUERY } from "./useMapBox";
@@ -991,6 +991,11 @@ describe("map pilot result", () => {
     expect(wikidataRevisionUrl({ country_check_wikidata_id: "Q50435", country_check_wikidata_revid: 123 })).toBe(
       "https://www.wikidata.org/w/index.php?title=Q50435&oldid=123",
     );
+  });
+
+  it("formats the short schedule-check date in pt-BR and en", () => {
+    expect(formatMapDate("2026-11-01", "pt-BR", "short")).toBe("1 de nov. de 2026");
+    expect(formatMapDate("2026-11-01", "en", "short")).toBe("1 Nov 2026");
   });
 
   it("uses the share sheet first and does not copy", async () => {
