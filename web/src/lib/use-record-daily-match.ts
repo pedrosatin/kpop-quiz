@@ -5,12 +5,17 @@ import { recordMatchOnce, type GameId } from "./player-stats";
 /** A daily round as a game reports it to `useRecordDailyMatch`. */
 export interface DailyRound {
   /**
-   * The game's own id for the round (`code-<puzzle_id>`, `map-<date>`). A
-   * match counted under this id before ADR 030 is not counted again.
+   * The game's own id for the round (`code-<puzzle_id>`, `map-<date>`,
+   * `session-<id>` for Quiz free play). A match counted under this id before
+   * ADR 030 is not counted again.
    */
   matchId: string;
-  /** The challenge's day. The daily match counts once per game and date. */
-  date: string;
+  /**
+   * The challenge's day. The daily match counts once per game and date.
+   * Omit for free play (Quiz session id): the match is keyed by `matchId`
+   * alone and does not set `lastPlayedDate`.
+   */
+  date?: string;
 }
 
 /**

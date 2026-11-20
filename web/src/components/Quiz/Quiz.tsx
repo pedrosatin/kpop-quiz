@@ -1,7 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
 import { getMessages } from "../../i18n/catalog";
 import type { Locale } from "../../lib/quiz-types";
+import { useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { groupEvidence } from "./AnswerFeedback";
+import { isQuizWin, quizDailyRound } from "./quiz-match";
 import { loadRound } from "./quiz-load";
 import { restartRound } from "./quiz-replay";
 import {
@@ -22,7 +24,6 @@ import { useQuizSettings } from "./useQuizSettings";
 import { useGeneralResume } from "./useGeneralResume";
 import { useOtherLocaleRound } from "./useOtherLocaleRound";
 import { useQuizTimer } from "./useQuizTimer";
-import { useRecordQuizMatch } from "./useRecordQuizMatch";
 import type { QuizDecadeValue, QuizTheme } from "./url-params";
 
 export { groupEvidence };
@@ -68,7 +69,12 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
     if (theme === "history" && generalResume) match.focusRestoredRef.current = true;
     settings.selectTheme(theme);
   };
-  useRecordQuizMatch(match.state, match.session, match.history, settings.theme, match.recordedMatchRef);
+  useRecordDailyMatch(
+    "quiz",
+    quizDailyRound(match.session, settings.theme),
+    match.state === "results",
+    match.session !== null && isQuizWin(match.session, match.history),
+  );
   useQuizProgressAutosave(match, persistProgress);
 
   return (
@@ -99,7 +105,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
         playGeneral: () => {
           // Leave the result in the same render as the theme changes: with
           // the daily session still on screen as a "results" state, the
-          // general theme would make useRecordQuizMatch count it again as
+          // general theme would make useRecordDailyMatch count it again as
           // a general match.
           match.setState("loading");
           match.focusSetupRef.current = true;

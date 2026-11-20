@@ -12,7 +12,6 @@ function replayPublishedRound(ctx: QuizLoadContext, extra: QuizProgressOverrides
   const { match, analytics, timerSeconds, persistProgress } = ctx;
   const startedAt = Date.now();
   match.startTimeRef.current = startedAt;
-  match.recordedMatchRef.current = null;
   const nextDeadline = computeDeadline(timerSeconds);
   resetRound(ctx, match.session?.questions.length ?? 0, "question.ready", nextDeadline);
   match.persistReadyRef.current = true;
@@ -24,7 +23,6 @@ function replayPublishedRound(ctx: QuizLoadContext, extra: QuizProgressOverrides
 function beginReplayedRound({ match, analytics }: QuizLoadContext): number {
   const startedAt = Date.now();
   match.startTimeRef.current = startedAt;
-  match.recordedMatchRef.current = null;
   analytics.start();
   match.focusQuestionRef.current = true;
   match.persistReadyRef.current = true;
