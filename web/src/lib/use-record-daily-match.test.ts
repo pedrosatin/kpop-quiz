@@ -84,6 +84,16 @@ describe("useRecordDailyMatch", () => {
     const { rerender } = renderRecord({ round, finished: true, won: true });
     rerender({ round: { matchId: "code-p2", date: "2026-11-15" }, finished: true, won: true });
     expect(gameCounts("code")).toEqual({ played: 2, won: 2 });
+    expect(matchMarkers()).toEqual([
+      `kpop-match-recorded-code-daily-${today}`,
+      "kpop-match-recorded-code-daily-2026-11-15",
+    ]);
+  });
+
+  it("counts a finished loss as played without a win", () => {
+    renderRecord({ round, finished: true, won: false });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 0 });
+    expect(matchMarkers()).toEqual([`kpop-match-recorded-code-daily-${today}`]);
   });
 
   it("does not count a round already counted under its legacy match id", () => {
@@ -125,8 +135,16 @@ describe("useRecordDailyMatch", () => {
     expect(loadPlayerStats().games["name-guess"].guessDistribution).toEqual({ 1: 0, 2: 0, 3: 1, 4: 0, 5: 0, 6: 0 });
   });
 
+  // Map replay and a missing board both pass null; nothing is counted.
   it("counts nothing without a round", () => {
     renderRecord({ round: null, finished: true, won: true });
+    expect(gameCounts("code")).toEqual({ played: 0, won: 0 });
+    expect(matchMarkers()).toEqual([]);
+  });
+
+  it("counts nothing for a board the loader served after its day", () => {
+    const stale = noteDailyBoard({ reference_date: "2026-11-13" }, "2026-11-13", today);
+    renderRecord({ round: dailyBoardRound(stale, "code-p1"), finished: true, won: true });
     expect(gameCounts("code")).toEqual({ played: 0, won: 0 });
     expect(matchMarkers()).toEqual([]);
   });
