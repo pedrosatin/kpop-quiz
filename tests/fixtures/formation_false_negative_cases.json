@@ -1,0 +1,45 @@
+{
+  "license": "CC BY-SA 4.0; resumo (extract) de cada revisão, atribuído pelo source_url",
+  "note": "Revisões fixas do ticket 11 (falsos negativos da regra de formação). extract é o resumo armazenado na coleta local; p571_value vem do snapshot Wikidata da mesma base.",
+  "cases": [
+    {
+      "qid": "Q492466",
+      "name": "C-REAL",
+      "title": "C-REAL",
+      "page_id": 35860979,
+      "revision_id": 1351483658,
+      "source_url": "https://en.wikipedia.org/w/index.php?curid=35860979&oldid=1351483658",
+      "extract": "C-REAL (Korean: 씨리얼) was a five-member South Korean girl group formed by NAP Entertainment in 2011. They debuted with their song No No No No No on October 12, 2011. Their group name was taken from the first letter of each member's name. They are dubbed as the \"5-IU Idols\" because they are produced by Choi Kab Won, who also produced IU.",
+      "extract_sha256": "f0b3d0a5824812ff41b2265b4576f2fd88a292cddd46f1f5e7b2fb2e967d8321",
+      "statement_id": "Q492466$5085DF67-BD34-4013-8D6A-6F3031F743C6",
+      "p571_value": "2011",
+      "p571_precision": 9
+    },
+    {
+      "qid": "Q81207594",
+      "name": "ENOi",
+      "title": "ENOi",
+      "page_id": 63064231,
+      "revision_id": 1318226487,
+      "source_url": "https://en.wikipedia.org/w/index.php?curid=63064231&oldid=1318226487",
+      "extract": "ENOi (Korean: 이엔오아이) was a seven member South Korean boy band formed by KiTheWhale in 2019. The group debuted on April 19, 2019, with \"Bloom\". They disbanded on January 22, 2021.",
+      "extract_sha256": "dbdd417b0334582365bafc7c64a47f000bbd1cba7058d4f185ff1945f0aa4817",
+      "statement_id": "Q81207594$e83a8241-4f7e-9a4a-707c-4c618a8ea70d",
+      "p571_value": "2019",
+      "p571_precision": 9
+    },
+    {
+      "qid": "Q15727149",
+      "name": "N.Flying",
+      "title": "N.Flying",
+      "page_id": 41536545,
+      "revision_id": 1372006877,
+      "source_url": "https://en.wikipedia.org/w/index.php?curid=41536545&oldid=1372006877",
+      "extract": "N.Flying (Korean: 엔플라잉, Japanese: エヌフライング; short for New Flying which also means 'new wings' or 'new escape') is a South Korean rap rock band formed by FNC Entertainment in 2013. The group released its first digital indie single \"Basket\" in Japan on October 1, 2013, with the four-member line-up of Kwon Kwang-jin, Lee Seung-hyub, Cha Hun and Kim Jae-hyun. The group officially debuted in Korea on May 20, 2015, with the EP Awesome. A fifth member, Yoo Hwe-seung was added to the band in June 2017. Kwang-jin left the group on December 26, 2018, and was replaced by Seo Dong-sung on January 1, 2020.",
+      "extract_sha256": "78c9231ea0ff4beecc1cfbe1e0b022e0378ed6155e1655f7fb46a8014fbedcef",
+      "statement_id": "Q15727149$B1196DB0-5A18-4EFD-87DE-955F8719BEC6",
+      "p571_value": "2013",
+      "p571_precision": 9
+    }
+  ]
+}

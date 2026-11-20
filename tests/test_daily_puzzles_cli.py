@@ -81,9 +81,9 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
 
     def test_report_evidence_rules_warns_only_on_a_difference(self):
         cases = (
-            ({"code": "text-evidence-v9", "database": "text-evidence-v8"}, True),
-            ({"code": "text-evidence-v9", "database": None}, True),
-            ({"code": "text-evidence-v9", "database": "text-evidence-v9"}, False),
+            ({"code": "text-evidence-v10", "database": "text-evidence-v9"}, True),
+            ({"code": "text-evidence-v10", "database": None}, True),
+            ({"code": "text-evidence-v10", "database": "text-evidence-v10"}, False),
         )
         for versions, warns in cases:
             with self.subTest(versions):
@@ -94,7 +94,7 @@ class TestDailyPuzzlesCLI(unittest.TestCase):
                 self.assertEqual("::warning title=Evidence rules differ::" in stdout.getvalue(), warns)
                 self.assertEqual(stderr.getvalue().startswith("WARNING: "), warns)
                 if versions["database"] and warns:
-                    self.assertIn("text-evidence-v8; the code has text-evidence-v9", stdout.getvalue())
+                    self.assertIn("text-evidence-v9; the code has text-evidence-v10", stdout.getvalue())
 
     def test_report_evidence_rules_outside_actions_has_no_annotation(self):
         stdout, stderr = io.StringIO(), io.StringIO()
