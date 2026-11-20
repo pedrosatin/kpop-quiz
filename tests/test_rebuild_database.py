@@ -571,7 +571,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertRegex(
             step,
             r"python3 scripts/rebuild_database\.py rebuild --schema-cache --database data/kpop\.db -- \\\n"
-            r"\s+python main\.py --facts --releases \"\$mode\" --database data/kpop\.db\n",
+            r"\s+python main\.py --facts --releases --release-rotate \"\$mode\" --database data/kpop\.db\n",
         )
         for inline in ("sleep", "kpop.db.cached", "for attempt"):
             self.assertNotIn(inline, step)

@@ -135,6 +135,20 @@ class CLITest(unittest.TestCase):
             main(["--database", str(self.database), "--releases", "--release-group-offset", "-1"])
         self.assertIn("--release-group-offset must not be negative", str(cm.exception))
 
+    def test_release_rotate_rejects_explicit_offset(self):
+        with self.assertRaises(SystemExit) as cm:
+            main(
+                [
+                    "--database",
+                    str(self.database),
+                    "--releases",
+                    "--release-rotate",
+                    "--release-group-offset",
+                    "0",
+                ]
+            )
+        self.assertIn("use --release-rotate or --release-group-offset", str(cm.exception))
+
     @patch("kpop_scraping.cli.Repository")
     @patch("kpop_scraping.cli.collect_category")
     @patch("kpop_scraping.cli.classify_catalog")
