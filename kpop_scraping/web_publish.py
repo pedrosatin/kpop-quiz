@@ -9,7 +9,7 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .code_groups_cli import validate as validate_code_groups_puzzle
 from .crossword_daily import validate_published as validate_crossword_daily
@@ -123,6 +123,26 @@ def _located(path: Path):
         raise ValueError(f"{path}: {exc}") from exc
 
 
+def _read_validated_json(
+    path: Path,
+    validate: Callable[[dict[str, Any]], Any],
+    *,
+    what: str,
+) -> dict[str, Any]:
+    """Read UTF-8 JSON from ``path``, run ``validate``, and return the dict.
+
+    ``OSError`` and ``json.JSONDecodeError`` become ``ValueError`` with the
+    message ``cannot read {what} artifact {path}: …``. Errors raised by
+    ``validate`` propagate unchanged.
+    """
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"cannot read {what} artifact {path}: {exc}") from exc
+    validate(payload)
+    return payload
+
+
 def _read_session(path: Path) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -138,57 +158,27 @@ def _session_bytes(session: dict[str, Any]) -> bytes:
 
 
 def _read_grid(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read grid artifact {path}: {exc}") from exc
-    validate_intersection_grid(payload)
-    return payload
+    return _read_validated_json(path, validate_intersection_grid, what="grid")
 
 
 def _read_connections(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read connections artifact {path}: {exc}") from exc
-    validate_connections_puzzle(payload)
-    return payload
+    return _read_validated_json(path, validate_connections_puzzle, what="connections")
 
 
 def _read_name_guess(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read name-guess artifact {path}: {exc}") from exc
-    validate_name_guess_puzzle(payload)
-    return payload
+    return _read_validated_json(path, validate_name_guess_puzzle, what="name-guess")
 
 
 def _read_word_search(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read word-search artifact {path}: {exc}") from exc
-    validate_word_search_puzzle(payload)
-    return payload
+    return _read_validated_json(path, validate_word_search_puzzle, what="word-search")
 
 
 def _read_timeline(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read timeline artifact {path}: {exc}") from exc
-    validate_timeline_puzzle(payload)
-    return payload
+    return _read_validated_json(path, validate_timeline_puzzle, what="timeline")
 
 
 def _read_code_groups(path: Path) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read code-groups artifact {path}: {exc}") from exc
-    validate_code_groups_puzzle(payload)
-    return payload
+    return _read_validated_json(path, validate_code_groups_puzzle, what="code-groups")
 
 
 def _read_crossword(path: Path) -> dict[str, Any]:
@@ -199,11 +189,7 @@ def _read_crossword(path: Path) -> dict[str, Any]:
     before writing. Here the artifact must pass every rule that needs no
     base and agree with the durable record published beside it.
     """
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read crossword artifact {path}: {exc}") from exc
-    validate_crossword_daily(payload)
+    payload = _read_validated_json(path, validate_crossword_daily, what="crossword")
     record = read_crossword_record(path.parent, payload["reference_date"])
     if record is None:
         raise ValueError(f"crossword artifact {path} has no publication record")
