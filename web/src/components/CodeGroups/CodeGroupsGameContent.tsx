@@ -8,8 +8,8 @@ import { useResultActionGuard } from "../Results/use-result-action-guard";
 import { CodeGroupsResult } from "./code-groups-result";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
-import { useCodeGroupsGame } from "./useCodeGroupsGame";
-import { codeGroupsMatchId, useRecordCodeGroupsMatch } from "./useRecordCodeGroupsMatch";
+import { codeGroupsMatchId, useCodeGroupsGame } from "./useCodeGroupsGame";
+import { dailyBoardRound, useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { useCodeGroupsFeedbackScroll } from "./useCodeGroupsFeedbackScroll";
 import { CodeGroupsGuessForm } from "./code-groups-guess-form";
 import { CodeGroupsHistory } from "./code-groups-history";
@@ -23,7 +23,7 @@ export interface CodeGroupsGameContentProps {
 export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGameContentProps) {
   const { selection, history, won, finished, selectValue, submit, feedback } =
     useCodeGroupsGame(puzzle, locale);
-  useRecordCodeGroupsMatch(puzzle, finished, won);
+  useRecordDailyMatch("code", dailyBoardRound(puzzle, codeGroupsMatchId(puzzle)), finished, won);
   const dayDone = useDailyMatchDone("code", puzzle.reference_date, codeGroupsMatchId(puzzle), finished);
 
   const playedHere = useRef(false);

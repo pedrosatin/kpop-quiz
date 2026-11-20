@@ -40,6 +40,39 @@ describe("dailyBoardRound", () => {
   });
 });
 
+describe("useRecordDailyMatch with dailyBoardRound", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(`${today}T15:00:00Z`));
+  });
+  afterEach(() => {
+    localStorage.clear();
+    vi.useRealTimers();
+  });
+
+  // End-to-end: board.reference_date reaches the daily marker (DailyNext depends on it).
+  it("records the marker from board.reference_date through dailyBoardRound", () => {
+    renderRecord({
+      round: dailyBoardRound({ reference_date: "2026-11-15" }, "code-p1"),
+      finished: true,
+      won: true,
+    });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 1 });
+    expect(matchMarkers()).toEqual(["kpop-match-recorded-code-daily-2026-11-15"]);
+  });
+
+  it("records today's marker when the board has no reference_date", () => {
+    renderRecord({
+      round: dailyBoardRound({ reference_date: "" }, "code-p1"),
+      finished: true,
+      won: true,
+    });
+    expect(gameCounts("code")).toEqual({ played: 1, won: 1 });
+    expect(matchMarkers()).toEqual([`kpop-match-recorded-code-daily-${today}`]);
+  });
+});
+
 describe("useRecordDailyMatch", () => {
   const round: DailyRound = { matchId: "code-p1", date: today };
 
@@ -139,6 +172,13 @@ describe("useRecordDailyMatch", () => {
   it("counts nothing without a round", () => {
     renderRecord({ round: null, finished: true, won: true });
     expect(gameCounts("code")).toEqual({ played: 0, won: 0 });
+    expect(matchMarkers()).toEqual([]);
+  });
+
+  // Migrated from useRecordMapMatch: isReplay ? null : { matchId, date }.
+  it("counts nothing for a Map replay (round null)", () => {
+    renderHook(() => useRecordDailyMatch("map", null, true, true));
+    expect(gameCounts("map")).toEqual({ played: 0, won: 0 });
     expect(matchMarkers()).toEqual([]);
   });
 

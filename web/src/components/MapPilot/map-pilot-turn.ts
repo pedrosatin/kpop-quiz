@@ -1,5 +1,6 @@
 import type { GameOutcome } from "../../lib/game-analytics";
 import type { MapPilotCountry, MapPilotEvent } from "../../data/map-pilot";
+import type { DailyRound } from "../../lib/use-record-daily-match";
 import type { AnswerState } from "./map-pilot-feedback";
 
 export interface RoundState {
@@ -8,6 +9,15 @@ export interface RoundState {
   date: string;
   answers: string[];
   index: number;
+}
+
+export function mapMatchId(roundDate: string): string {
+  return `map-${roundDate}`;
+}
+
+/** Round to count; a replay is free play and returns null. */
+export function mapDailyRound(roundDate: string, isReplay: boolean): DailyRound | null {
+  return isReplay ? null : { matchId: mapMatchId(roundDate), date: roundDate };
 }
 
 /** Whether the answer given for a date is its country. */

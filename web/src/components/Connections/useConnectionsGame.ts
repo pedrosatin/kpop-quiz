@@ -4,9 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { ConnectionsPuzzle, Locale } from "../../lib/quiz-types";
 import { isDailyBoardRound } from "../../lib/player-stats";
 import type { ConnectionsGameStatus, ConnectionsStoredState, GuessResult } from "./types";
-import { connectionsMatchId } from "./useRecordConnectionsMatch";
 
 const MAX_MISTAKES = 4;
+
+export function connectionsMatchId(puzzle: ConnectionsPuzzle): string {
+  return `connections-${puzzle.puzzle_id}`;
+}
 
 function shuffleArray<T>(array: T[]): T[] {
   const result = [...array];

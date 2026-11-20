@@ -13,9 +13,9 @@ import {
 import { createInitialPlayerStats, recordGameFinish, savePlayerStats, type GameId, type GameStats } from "./player-stats";
 import { throwOnLocalStorage } from "../test/throwing-storage";
 import { useCodeGroupsGame } from "../components/CodeGroups/useCodeGroupsGame";
-import { useConnectionsGame } from "../components/Connections/useConnectionsGame";
-import { useRecordConnectionsMatch } from "../components/Connections/useRecordConnectionsMatch";
+import { connectionsMatchId, useConnectionsGame } from "../components/Connections/useConnectionsGame";
 import { useNameGuessGame } from "../components/NameGuess/useNameGuessGame";
+import { dailyBoardRound, useRecordDailyMatch } from "./use-record-daily-match";
 import { useGameShareAction } from "../components/Results/use-game-share-action";
 import { useTimelineGame } from "../components/Timeline/useTimelineGame";
 import { useWordSearchGame } from "../components/WordSearch/useWordSearchGame";
@@ -52,7 +52,13 @@ function seedStats(game: GameId, fields: Partial<GameStats>) {
 // Same hook order as ConnectionsGameContent.
 function useConnectionsRound() {
   const game = useConnectionsGame(connections, "en");
-  useRecordConnectionsMatch(connections, game.gameStatus, game.gameStatus !== "in_progress");
+  const isGameOver = game.gameStatus !== "in_progress";
+  useRecordDailyMatch(
+    "connections",
+    dailyBoardRound(connections, connectionsMatchId(connections)),
+    isGameOver,
+    game.gameStatus === "won",
+  );
   return game;
 }
 type ConnectionsResult = { current: ReturnType<typeof useConnectionsGame> };
