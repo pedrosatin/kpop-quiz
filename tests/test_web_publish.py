@@ -891,3 +891,52 @@ class WebPublishTests(unittest.TestCase):
             publish(output, self.sessions(), code_groups=self.code_groups())
             code_present = main(["--output-dir", str(output), "--verify", "--require-code-groups"])
             self.assertEqual(code_present, 0)
+
+
+class ReadValidatedJsonTests(unittest.TestCase):
+    """Unit tests for the shared artifact JSON reader."""
+
+    def test_missing_file_raises_value_error_with_path_and_label(self):
+        missing = Path("/tmp/kpop-quiz-missing-artifact-does-not-exist.json")
+        with self.assertRaisesRegex(
+            ValueError,
+            rf"cannot read sample artifact {missing}:",
+        ) as ctx:
+            web_publish._read_validated_json(missing, lambda _: None, what="sample")
+        self.assertIsInstance(ctx.exception.__cause__, OSError)
+
+    def test_invalid_json_raises_value_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "broken.json"
+            path.write_text("{not json", encoding="utf-8")
+            with self.assertRaisesRegex(
+                ValueError,
+                rf"cannot read grid artifact {path}:",
+            ) as ctx:
+                web_publish._read_validated_json(path, lambda _: None, what="grid")
+            self.assertIsInstance(ctx.exception.__cause__, json.JSONDecodeError)
+
+    def test_validate_failure_propagates_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "payload.json"
+            path.write_text('{"ok": true}', encoding="utf-8")
+
+            def refuse(payload: dict) -> None:
+                raise ValueError("schema refused")
+
+            with self.assertRaisesRegex(ValueError, r"^schema refused$") as ctx:
+                web_publish._read_validated_json(path, refuse, what="grid")
+            self.assertIsNone(ctx.exception.__cause__)
+
+    def test_success_returns_validated_dict(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "payload.json"
+            path.write_text('{"answer": 42}', encoding="utf-8")
+            seen: list[dict] = []
+
+            def accept(payload: dict) -> None:
+                seen.append(payload)
+
+            result = web_publish._read_validated_json(path, accept, what="grid")
+            self.assertEqual(result, {"answer": 42})
+            self.assertEqual(seen, [{"answer": 42}])
