@@ -168,17 +168,10 @@ describe("useRecordDailyMatch", () => {
     expect(loadPlayerStats().games["name-guess"].guessDistribution).toEqual({ 1: 0, 2: 0, 3: 1, 4: 0, 5: 0, 6: 0 });
   });
 
-  // Map replay and a missing board both pass null; nothing is counted.
+  // Map replay (`mapDailyRound` → null) and a missing board both pass null.
   it("counts nothing without a round", () => {
     renderRecord({ round: null, finished: true, won: true });
     expect(gameCounts("code")).toEqual({ played: 0, won: 0 });
-    expect(matchMarkers()).toEqual([]);
-  });
-
-  // Migrated from useRecordMapMatch: isReplay ? null : { matchId, date }.
-  it("counts nothing for a Map replay (round null)", () => {
-    renderHook(() => useRecordDailyMatch("map", null, true, true));
-    expect(gameCounts("map")).toEqual({ played: 0, won: 0 });
     expect(matchMarkers()).toEqual([]);
   });
 

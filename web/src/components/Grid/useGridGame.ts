@@ -1,11 +1,12 @@
+import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { dailyReferenceDate } from "../../data/daily-artifact";
+import { GridArtifactError, loadIntersectionGrid } from "../../data/grid-loader";
+import { buildLocalizedDisplayNames } from "../../lib/display-name";
 import { useGameAnalytics } from "../../lib/game-analytics";
 import { getLocalStorageItem, removeLocalStorageItem, setLocalStorageItem } from "../../lib/local-storage";
 import { isDailyMatchRecorded } from "../../lib/player-stats";
-import { gridMatchId, isGridWin } from "./useRecordGridMatch";
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { CandidateEntity, IntersectionGrid, Locale } from "../../lib/quiz-types";
-import { buildLocalizedDisplayNames } from "../../lib/display-name";
-import { GridArtifactError, loadIntersectionGrid } from "../../data/grid-loader";
+import type { DailyRound } from "../../lib/use-record-daily-match";
 import {
   cellKey,
   type CellCoordinates,
@@ -16,6 +17,22 @@ import {
 } from "./types";
 
 const MAX_GUESSES = 9;
+
+export function gridMatchId(grid: IntersectionGrid): string {
+  return `grid-${grid.reference_date || grid.grid_id}`;
+}
+
+export function isGridWin(solvedCount: number): boolean {
+  return solvedCount >= 5;
+}
+
+/**
+ * Round for the finished grid. The grid loader never notes a board as stale,
+ * so this skips that check (unlike `dailyBoardRound`).
+ */
+export function gridDailyRound(grid: IntersectionGrid): DailyRound {
+  return { matchId: gridMatchId(grid), date: grid.reference_date || dailyReferenceDate() };
+}
 
 function gridStorageKey(grid: IntersectionGrid): string {
   return `kpop-grid-${grid.grid_id}`;

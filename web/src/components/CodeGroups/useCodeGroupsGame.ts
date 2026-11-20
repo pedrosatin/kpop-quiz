@@ -2,13 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { CodeGroupsGuess, CodeGroupsPuzzle } from "../../data/code-groups";
 import { scoreGuess } from "../../data/code-groups";
 import { useGameAnalytics } from "../../lib/game-analytics";
-import { clearCodeGroupsSave, loadCodeGroupsSave, storeCodeGroupsSave } from "./code-groups-save";
 import { isDailyBoardRound } from "../../lib/player-stats";
 import type { Locale } from "../../lib/quiz-types";
-
-export function codeGroupsMatchId(puzzle: CodeGroupsPuzzle): string {
-  return `code-${puzzle.puzzle_id}`;
-}
+import { clearCodeGroupsSave, loadCodeGroupsSave, storeCodeGroupsSave } from "./code-groups-save";
 import {
   EMPTY_SELECTION,
   guessEndsRound,
@@ -23,6 +19,10 @@ import {
   withSlot,
   type CodeGroupsFeedback,
 } from "./code-groups-state";
+
+export function codeGroupsMatchId(puzzle: CodeGroupsPuzzle): string {
+  return `code-${puzzle.puzzle_id}`;
+}
 
 export interface UseCodeGroupsGame {
   selection: string[];

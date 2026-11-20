@@ -11,13 +11,13 @@ import {
   type GridFeedback,
 } from "./grid-feedback";
 import { CELL_GUARD_MS, nextCellAfterGuess } from "./next-cell-after-guess";
-import { gridMatchId, useRecordGridMatch } from "./useRecordGridMatch";
-import { useGridGame } from "./useGridGame";
-import { cellKey, type CellCoordinates, type GridCellState, type GridGameStatus } from "./types";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { useGiveUpConfirm } from "../../lib/use-give-up-confirm";
+import { useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
+import { cellKey, type CellCoordinates, type GridCellState, type GridGameStatus } from "./types";
+import { gridDailyRound, gridMatchId, isGridWin, useGridGame } from "./useGridGame";
 
 type GridGameApi = ReturnType<typeof useGridGame>;
 
@@ -96,7 +96,7 @@ export function IntersectionGridContent({
       ?.focus({ preventScroll: true });
   }, [focusCell, isComplete]);
 
-  useRecordGridMatch(grid, status, solvedCount, gaveUp);
+  useRecordDailyMatch("grid", gridDailyRound(grid), isComplete, !gaveUp && isGridWin(solvedCount));
   const dayDone = useDailyMatchDone("grid", grid.reference_date, gridMatchId(grid), isComplete);
 
   // The second tap of a double tap on a group lands on the board once the
