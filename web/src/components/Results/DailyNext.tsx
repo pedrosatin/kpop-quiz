@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "preact/hooks";
+import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { SeoRouteKey } from "../../i18n/catalog";
 import { getMessages } from "../../i18n/catalog";
 import { dailyReferenceDate, secondsUntilNextDaily } from "../../data/daily-artifact";
@@ -54,6 +54,10 @@ export function DailyNext({
   const [now, setNow] = useState(0);
   const shareTextId = useId();
   const shareFailedId = useId();
+  // Date whose set this mount recorded. The effect reruns when shareText
+  // changes (e.g. the high-contrast share toggle), and the second
+  // recordDailySetComplete call returns false; the celebration must stay.
+  const celebratedDate = useRef<string | null>(null);
   const { copied, shareFailed, handleShare } = useGameShareAction({
     analytics: {
       game: "daily_set",
@@ -78,8 +82,11 @@ export function DailyNext({
     const setComplete = DAILY_GAMES.every((key) => done.has(key));
     let setJustRecorded = false;
     if (setComplete) {
-      setJustRecorded = recordDailySetComplete(today, true);
-      if (setJustRecorded) trackDailySetComplete(locale);
+      if (recordDailySetComplete(today, true)) {
+        celebratedDate.current = today;
+        trackDailySetComplete(locale);
+      }
+      setJustRecorded = celebratedDate.current === today;
     }
     const stats = loadPlayerStats();
     setPlan({

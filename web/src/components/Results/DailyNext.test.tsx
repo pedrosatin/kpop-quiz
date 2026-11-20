@@ -5,6 +5,7 @@ import { rememberDailySetLine } from "../../lib/daily-set";
 import { DAILY_DONE_EVENT, DAILY_GAMES, statsGameId } from "../../lib/daily-progress";
 import { ALL_GAME_IDS, loadPlayerStats, recordGameFinish } from "../../lib/player-stats";
 import { mapPilotStorageKey } from "../MapPilot/map-pilot-save";
+import { setGameAnalyticsConsent } from "../../lib/game-analytics";
 
 // 23:59:58 in Sao Paulo on 2026-11-10.
 const NOW = new Date("2026-11-11T02:59:58Z");
@@ -99,6 +100,50 @@ describe("DailyNext", () => {
     expect(document.querySelector('[data-feedback="result"]')).toBeNull();
     expect(screen.getByText("Você concluiu todos os jogos de hoje.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Compartilhar o dia" })).toBeInTheDocument();
+  });
+
+  it("keeps the celebration when the share text changes during the same visit", () => {
+    finishAllBut("crossword", TODAY);
+    rememberLinesExcept("crossword", TODAY);
+    const view = render(
+      <DailyNext game="crossword" locale="pt-BR" shareText={SHARE} referenceDate={TODAY} />,
+    );
+    expect(screen.getByRole("heading", { name: "Set do dia completo" })).toHaveAttribute(
+      "data-feedback",
+      "result",
+    );
+
+    view.rerender(
+      <DailyNext game="crossword" locale="pt-BR" shareText={`${SHARE}\nalto contraste`} referenceDate={TODAY} />,
+    );
+    expect(screen.getByRole("heading", { name: "Set do dia completo" })).toHaveAttribute(
+      "data-feedback",
+      "result",
+    );
+    expect(loadPlayerStats().dailySetsCompleted).toBe(1);
+  });
+
+  it("reports the day share to GA4 as daily_set, not as the quiz result", async () => {
+    const gtag = vi.fn();
+    vi.stubGlobal("gtag", gtag);
+    vi.stubGlobal("navigator", { share: vi.fn().mockResolvedValue(undefined), clipboard: { writeText: vi.fn() } });
+    setGameAnalyticsConsent("G-TEST", true);
+    try {
+      finishAllBut("crossword", TODAY);
+      rememberLinesExcept("crossword", TODAY);
+      render(<DailyNext game="crossword" locale="pt-BR" shareText={SHARE} referenceDate={TODAY} />);
+      await act(async () => {
+        screen.getByRole("button", { name: "Compartilhar o dia" }).click();
+      });
+      expect(gtag).toHaveBeenCalledWith(
+        "event",
+        "share",
+        expect.objectContaining({ game: "daily_set", content_type: "daily_set", item_id: "daily_set" }),
+      );
+    } finally {
+      setGameAnalyticsConsent("", false);
+      vi.unstubAllGlobals();
+    }
   });
 
   it("offers the day share on the ninth game before its match is flushed", () => {
