@@ -4,10 +4,16 @@ import fixture from "../../../public/data/code-groups.pilot.json";
 import type { CodeGroupsPuzzle } from "../../data/code-groups";
 import { throwOnLocalStorage } from "../../test/throwing-storage";
 import { clearCodeGroupsSave, codeGroupsStorageKey, loadCodeGroupsSave, storeCodeGroupsSave } from "./code-groups-save";
-import { useCodeGroupsGame } from "./useCodeGroupsGame";
+import { codeGroupsMatchId, useCodeGroupsGame } from "./useCodeGroupsGame";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
+
+it("names the match after the puzzle id", () => {
+  const puzzle = fixture as CodeGroupsPuzzle;
+  expect(codeGroupsMatchId(puzzle)).toBe(`code-${puzzle.puzzle_id}`);
+});
+
 it("counts same-turn duplicate submission once and refuses a later repeat without an attempt", () => {
   const puzzle = fixture as CodeGroupsPuzzle;
   const { result } = renderHook(() => useCodeGroupsGame(puzzle, "pt-BR"));

@@ -4,8 +4,11 @@ import { scoreGuess } from "../../data/code-groups";
 import { useGameAnalytics } from "../../lib/game-analytics";
 import { clearCodeGroupsSave, loadCodeGroupsSave, storeCodeGroupsSave } from "./code-groups-save";
 import { isDailyBoardRound } from "../../lib/player-stats";
-import { codeGroupsMatchId } from "./useRecordCodeGroupsMatch";
 import type { Locale } from "../../lib/quiz-types";
+
+export function codeGroupsMatchId(puzzle: CodeGroupsPuzzle): string {
+  return `code-${puzzle.puzzle_id}`;
+}
 import {
   EMPTY_SELECTION,
   guessEndsRound,

@@ -11,8 +11,8 @@ import {
   feedbackFromGuess,
   type ConnectionsFeedback,
 } from "./connections-feedback";
-import { useConnectionsGame } from "./useConnectionsGame";
-import { connectionsMatchId, useRecordConnectionsMatch } from "./useRecordConnectionsMatch";
+import { connectionsMatchId, useConnectionsGame } from "./useConnectionsGame";
+import { dailyBoardRound, useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { useGiveUpConfirm } from "../../lib/use-give-up-confirm";
@@ -111,7 +111,12 @@ export function ConnectionsGameContent({
   }, [refocusBoard, solvedHere]);
   useFocusOnChange(resultTitle, isGameOver && playedHere.current);
 
-  useRecordConnectionsMatch(puzzle, gameStatus, isGameOver);
+  useRecordDailyMatch(
+    "connections",
+    dailyBoardRound(puzzle, connectionsMatchId(puzzle)),
+    isGameOver,
+    gameStatus === "won",
+  );
   const dayDone = useDailyMatchDone("connections", puzzle.reference_date, connectionsMatchId(puzzle), isGameOver);
 
   const barState = connectionsBarState(isGameOver, gameStatus, feedback);

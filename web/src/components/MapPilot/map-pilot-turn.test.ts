@@ -1,11 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { mapPilotEvents, selectMapPilotRound } from "../../data/map-pilot";
-import { countRightAnswers, isRightAnswer, mapRoundOutcome } from "./map-pilot-turn";
+import { countRightAnswers, isRightAnswer, mapDailyRound, mapMatchId, mapRoundOutcome } from "./map-pilot-turn";
 
 const round = selectMapPilotRound(mapPilotEvents, "2026-09-24");
 const right = round.map((event) => event.map_feature_id);
 const wrong = (event: (typeof round)[number]) =>
   mapPilotEvents.find((candidate) => candidate.map_feature_id !== event.map_feature_id)!.map_feature_id;
+
+describe("mapMatchId", () => {
+  it("names the match after the round date", () => {
+    expect(mapMatchId("2026-11-14")).toBe("map-2026-11-14");
+  });
+});
+
+describe("mapDailyRound", () => {
+  it("builds the round for a live date", () => {
+    expect(mapDailyRound("2026-11-14", false)).toEqual({
+      matchId: "map-2026-11-14",
+      date: "2026-11-14",
+    });
+  });
+
+  it("returns null for a replay", () => {
+    expect(mapDailyRound("2026-11-14", true)).toBeNull();
+  });
+});
 
 describe("isRightAnswer", () => {
   it("accepts only the country of the date", () => {

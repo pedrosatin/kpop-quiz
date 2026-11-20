@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/connections.daily.json";
 import type { ConnectionsPuzzle } from "../../lib/quiz-types";
 import { createInitialPlayerStats, loadPlayerStats } from "../../lib/player-stats";
+import { dailyBoardRound, useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { throwOnLocalStorage } from "../../test/throwing-storage";
-import { loadSavedState, useConnectionsGame } from "./useConnectionsGame";
-import { useRecordConnectionsMatch } from "./useRecordConnectionsMatch";
+import { connectionsMatchId, loadSavedState, useConnectionsGame } from "./useConnectionsGame";
 
 const puzzle = validPuzzleJson as unknown as ConnectionsPuzzle;
 
@@ -23,6 +23,10 @@ function submitIds(result: { current: ReturnType<typeof useConnectionsGame> }, i
 describe("useConnectionsGame state machine", () => {
   beforeEach(() => { localStorage.clear(); });
   afterEach(() => { localStorage.clear(); vi.restoreAllMocks(); });
+
+  it("names the match after the puzzle id", () => {
+    expect(connectionsMatchId(puzzle)).toBe(`connections-${puzzle.puzzle_id}`);
+  });
 
   it("initializes with 4 mistakes, empty selection and shuffled board items", () => {
     const { result } = renderHook(() => useConnectionsGame(puzzle));
@@ -240,7 +244,13 @@ describe("useConnectionsGame state machine", () => {
     expect(loadSavedState(`kpop-connections-${puzzle.puzzle_id}`)).toBeNull();
     const { result } = renderHook(() => {
       const game = useConnectionsGame(puzzle);
-      useRecordConnectionsMatch(puzzle, game.gameStatus, game.gameStatus !== "in_progress");
+      const isGameOver = game.gameStatus !== "in_progress";
+      useRecordDailyMatch(
+        "connections",
+        dailyBoardRound(puzzle, connectionsMatchId(puzzle)),
+        isGameOver,
+        game.gameStatus === "won",
+      );
       return game;
     });
     puzzle.categories.forEach((category) => submitIds(result, category.item_ids));

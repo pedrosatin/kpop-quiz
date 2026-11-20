@@ -9,14 +9,14 @@ import {
 import type { Locale } from "../../lib/quiz-types";
 import { getMessages } from "../../i18n/catalog";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
-import { useRecordMapMatch } from "./useRecordMapMatch";
+import { useRecordDailyMatch } from "../../lib/use-record-daily-match";
 import { formatMapDate } from "./MapPilotResult";
 import type { MapPilotCopy } from "./map-pilot-copy";
 import { MapPilotCountryList } from "./MapPilotControls";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
 import { MapPilotMap } from "./MapPilotMap";
 import { MapPilotActionBar } from "./MapPilotActionBar";
-import { deriveMapTurn, type RoundState } from "./map-pilot-turn";
+import { deriveMapTurn, mapDailyRound, type RoundState } from "./map-pilot-turn";
 import { classes } from "./map-pilot-targets";
 import { NEXT_GUARD_MS, useMapRoundActions } from "./useMapRoundActions";
 import { useSaveMapRound } from "./useSaveMapRound";
@@ -61,7 +61,7 @@ export function MapPilotGameContent({
     game.answers.length > 0,
   );
   const actions = useMapRoundActions({ game, setGame, round, playableFeatures, setListChoice, analytics });
-  useRecordMapMatch(game.date, isComplete, turn.outcome === "win", game.replay === true);
+  useRecordDailyMatch("map", mapDailyRound(game.date, game.replay === true), isComplete, turn.outcome === "win");
   useSaveMapRound(game, round, isComplete);
 
   // Only what the player does in this visit moves focus; a round restored
