@@ -237,6 +237,137 @@ def step_env(job: str, step: str) -> list[str]:
     return sorted(line.strip() for line in env.splitlines())
 
 
+def workflow_concurrency(path: Path) -> dict[str, str]:
+    """Top-level ``concurrency:`` keys of a workflow, comments stripped."""
+    text = path.read_text(encoding="utf-8")
+    block = text.split("\nconcurrency:\n", 1)[1].split("\njobs:\n", 1)[0]
+    values: dict[str, str] = {}
+    for line in block.splitlines():
+        stripped = line.split("#", 1)[0].rstrip()
+        if not stripped.strip():
+            continue
+        key, _, value = stripped.strip().partition(":")
+        values[key.strip()] = value.strip()
+    return values
+
+
+def expression_value(expression: str, *, event_name: str, ref: str, pr_number: str | None) -> str | bool:
+    """Evaluate a workflow expression used by the pages concurrency block.
+
+    Only the operators that block uses are understood; anything else raises.
+    """
+    body = expression.strip()
+    if body.startswith("${{") and body.endswith("}}"):
+        body = body[3:-2].strip()
+    if body == "github.event_name == 'pull_request'":
+        return event_name == "pull_request"
+    if body == "github.event.pull_request.number || github.ref":
+        return pr_number if pr_number is not None else ref
+    raise ValueError(f"cannot evaluate {expression!r}")
+
+
+def concurrency_group(group_expression: str, *, event_name: str, ref: str, pr_number: str | None) -> str:
+    """Resolve ``cloudflare-pages-${{ ... }}`` for one event context."""
+    match = re.fullmatch(r"cloudflare-pages-\$\{\{(.+)\}\}", group_expression.strip())
+    if not match:
+        raise ValueError(f"unexpected concurrency group {group_expression!r}")
+    suffix = expression_value(
+        "${{ " + match.group(1).strip() + " }}",
+        event_name=event_name,
+        ref=ref,
+        pr_number=pr_number,
+    )
+    return f"cloudflare-pages-{suffix}"
+
+
+def cancels_in_progress(cancel_expression: str, *, event_name: str) -> bool:
+    value = expression_value(
+        cancel_expression,
+        event_name=event_name,
+        ref="refs/heads/master",
+        pr_number=None,
+    )
+    if not isinstance(value, bool):
+        raise ValueError(f"cancel-in-progress must be boolean, got {value!r}")
+    return value
+
+
+class PagesConcurrencyTests(unittest.TestCase):
+    """Production deploys share one group and never cancel an in-progress run."""
+
+    PAGES = WORKFLOWS / "pages.yml"
+    MASTER = "refs/heads/master"
+    PRODUCTION_EVENTS = ("push", "workflow_run", "workflow_dispatch")
+
+    def setUp(self):
+        self.concurrency = workflow_concurrency(self.PAGES)
+
+    def test_pages_has_one_top_level_concurrency_block(self):
+        text = self.PAGES.read_text(encoding="utf-8")
+        self.assertEqual(text.count("\nconcurrency:\n"), 1)
+        self.assertEqual(
+            set(self.concurrency),
+            {"group", "cancel-in-progress"},
+        )
+        self.assertNotIn("queue", self.concurrency)
+
+    def test_cancel_in_progress_only_for_pull_request(self):
+        cancel = self.concurrency["cancel-in-progress"]
+        self.assertTrue(cancels_in_progress(cancel, event_name="pull_request"))
+        for event in self.PRODUCTION_EVENTS:
+            with self.subTest(event=event):
+                self.assertFalse(cancels_in_progress(cancel, event_name=event))
+
+    def test_production_events_share_one_group_on_master(self):
+        group = self.concurrency["group"]
+        production = {
+            concurrency_group(group, event_name=event, ref=self.MASTER, pr_number=None)
+            for event in self.PRODUCTION_EVENTS
+        }
+        self.assertEqual(production, {f"cloudflare-pages-{self.MASTER}"})
+
+    def test_pull_requests_use_a_group_per_number(self):
+        group = self.concurrency["group"]
+        first = concurrency_group(group, event_name="pull_request", ref=self.MASTER, pr_number="340")
+        second = concurrency_group(group, event_name="pull_request", ref=self.MASTER, pr_number="398")
+        self.assertEqual(first, "cloudflare-pages-340")
+        self.assertEqual(second, "cloudflare-pages-398")
+        self.assertNotEqual(first, second)
+        self.assertNotEqual(first, f"cloudflare-pages-{self.MASTER}")
+
+    def test_a_master_push_does_not_cancel_an_in_progress_cron_deploy(self):
+        # Models the 2026-11-08 failure: workflow_run (cron) was in progress
+        # when a push from a merged PR joined the same group.
+        group = self.concurrency["group"]
+        cancel = self.concurrency["cancel-in-progress"]
+        cron = concurrency_group(
+            group, event_name="workflow_run", ref=self.MASTER, pr_number=None
+        )
+        push = concurrency_group(group, event_name="push", ref=self.MASTER, pr_number=None)
+        self.assertEqual(cron, push)
+        self.assertFalse(cancels_in_progress(cancel, event_name="push"))
+        self.assertFalse(cancels_in_progress(cancel, event_name="workflow_run"))
+
+    def test_two_production_runs_are_mutually_exclusive(self):
+        # Same group means GitHub serializes them: at most one in progress.
+        # With cancel-in-progress false, the in-progress run finishes; a newer
+        # pending may still replace an older pending (GitHub's default queue).
+        group = self.concurrency["group"]
+        keys = [
+            concurrency_group(group, event_name=event, ref=self.MASTER, pr_number=None)
+            for event in self.PRODUCTION_EVENTS
+        ]
+        self.assertEqual(len(set(keys)), 1)
+        for event in self.PRODUCTION_EVENTS:
+            self.assertFalse(cancels_in_progress(self.concurrency["cancel-in-progress"], event_name=event))
+
+    def test_expression_helpers_reject_unknown_forms(self):
+        with self.assertRaises(ValueError):
+            expression_value("${{ contains(github.ref, 'x') }}", event_name="push", ref=self.MASTER, pr_number=None)
+        with self.assertRaises(ValueError):
+            concurrency_group("other-${{ github.ref }}", event_name="push", ref=self.MASTER, pr_number=None)
+
+
 class ParallelJobsTests(unittest.TestCase):
     """The checks run as parallel jobs and deploy waits for all of them."""
 
