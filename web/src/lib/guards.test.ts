@@ -5,6 +5,7 @@ import {
   isHash,
   isIntegerInRange,
   isIsoDate,
+  isLenientIsoDate,
   isNonBlankString,
   isNonEmptyString,
   isQid,
@@ -14,6 +15,22 @@ import {
 } from "./guards";
 
 const HASH = "0123456789abcdef".repeat(4);
+
+/**
+ * Shared calendar-date cases for the strict (`isIsoDate`) and lenient
+ * (`isLenientIsoDate`) policies. The only planned divergence is years
+ * 0000–0099: strict refuses them, lenient accepts a real day.
+ */
+const CALENDAR_DATE_CASES = [
+  { value: "2026-11-14", strict: true, lenient: true, label: "valid day" },
+  { value: "2026-02-30", strict: false, lenient: false, label: "day 30 in February" },
+  { value: "2026-13-01", strict: false, lenient: false, label: "month 13" },
+  { value: "0099-01-01", strict: false, lenient: true, label: "year 0099" },
+  { value: "2024-02-29", strict: true, lenient: true, label: "leap day 2024" },
+  { value: "2026-1-01", strict: false, lenient: false, label: "malformed month width" },
+  { value: "2026-11-14T00:00:00Z", strict: false, lenient: false, label: "datetime string" },
+  { value: 20261114, strict: false, lenient: false, label: "number" },
+] as const;
 
 describe("isRecord", () => {
   it("accepts a plain object", () => {
@@ -136,6 +153,32 @@ describe("isIsoDate", () => {
   it.each(["0000-01-01", "0099-12-31"])("refuses %s, a year Date.UTC moves to the 1900s", (value) => {
     expect(isIsoDate(value)).toBe(false);
   });
+});
+
+describe("isLenientIsoDate", () => {
+  it.each(["2026-11-14", "2024-02-29", "0100-01-01", "0099-01-01", "0001-01-01"])(
+    "accepts %s",
+    (value) => {
+      expect(isLenientIsoDate(value)).toBe(true);
+    },
+  );
+
+  it.each(["2026-02-30", "2023-02-29", "2026-13-01", "2026-00-10", "2026-1-01", "2026-11-14T00:00:00Z", 20261114])(
+    "refuses %j",
+    (value) => {
+      expect(isLenientIsoDate(value)).toBe(false);
+    },
+  );
+});
+
+describe("calendar date policies", () => {
+  it.each(CALENDAR_DATE_CASES)(
+    "$label ($value): strict=$strict lenient=$lenient",
+    ({ value, strict, lenient }) => {
+      expect(isIsoDate(value)).toBe(strict);
+      expect(isLenientIsoDate(value)).toBe(lenient);
+    },
+  );
 });
 
 describe("isStringList", () => {
