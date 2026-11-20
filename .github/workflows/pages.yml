@@ -34,8 +34,14 @@ permissions:
   contents: read
 
 concurrency:
+  # One group per PR number, and one shared group for every production event
+  # on master (push, workflow_run, workflow_dispatch). cancel-in-progress only
+  # for pull_request: a merge must not cancel an in-progress cron deploy.
+  # Outside pull requests GitHub still keeps at most one pending run in the
+  # group, so a newer pending can replace an older pending; the in-progress
+  # run always finishes (ADR 042).
   group: cloudflare-pages-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # The checks run as parallel jobs, so a run takes as long as the slowest
