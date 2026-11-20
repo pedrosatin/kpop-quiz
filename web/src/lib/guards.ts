@@ -77,6 +77,17 @@ export function isIsoDate(value: unknown): value is string {
 }
 
 /**
+ * A YYYY-MM-DD day that reads back the same through `Date` and
+ * `toISOString().slice(0, 10)`. Unlike `isIsoDate`, it accepts the years
+ * 0000 to 0099 so historical concert dates round-trip.
+ */
+export function isLenientIsoDate(value: unknown): value is string {
+  if (!matchesPattern(value, ISO_DATE_PATTERN)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
+/**
  * A list whose every item passes `isItem`, non-empty strings by default. Like
  * `Array.prototype.every`, it skips the holes of a sparse array.
  */
