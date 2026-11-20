@@ -181,4 +181,12 @@ describe("useRecordDailyMatch", () => {
     expect(gameCounts("code")).toEqual({ played: 0, won: 0 });
     expect(matchMarkers()).toEqual([]);
   });
+
+  // Quiz free play: round with matchId and no date (session-<id>).
+  it("counts a finished free-play round under its match id with no daily date", () => {
+    renderHook(() => useRecordDailyMatch("quiz", { matchId: "session-s1" }, true, false));
+    expect(gameCounts("quiz")).toEqual({ played: 1, won: 0 });
+    expect(matchMarkers()).toEqual(["kpop-match-recorded-quiz-session-s1"]);
+    expect(loadPlayerStats().games.quiz.lastPlayedDate).toBeUndefined();
+  });
 });

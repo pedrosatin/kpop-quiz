@@ -4,7 +4,7 @@ import type { Locale } from "../../lib/quiz-types";
 import { quizDailyDate } from "./daily-seed";
 import type { QuizMatch } from "./useQuizMatch";
 import type { QuizSettings } from "./useQuizSettings";
-import { isQuizWin } from "./useRecordQuizMatch";
+import { isQuizWin } from "./quiz-match";
 
 function quizOutcome({ state, session, history, gaveUpRef }: QuizMatch): GameOutcome | null {
   if (state !== "results" || !session) return null;

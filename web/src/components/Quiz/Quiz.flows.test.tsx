@@ -640,6 +640,22 @@ describe("Quiz flows", () => {
         else process.env.TZ = zone;
       }
     });
+
+    // Integration on the real Quiz: free play counts under session-<id>, not a daily marker.
+    it("records a general round under its session id, without a daily date", async () => {
+      await renderSetup();
+      startRound();
+      await waitForQuestion();
+      await playToResults();
+
+      const saved = readSlot(historySlot);
+      expect(saved).not.toBeNull();
+      const sessionId = (saved!.session as QuizSession).session_id;
+      await vi.waitFor(() => expect(isGameMatchRecorded("quiz", `session-${sessionId}`)).toBe(true));
+      expect(loadPlayerStats().games.quiz.played).toBe(1);
+      expect(loadPlayerStats().games.quiz.lastPlayedDate).toBeUndefined();
+      expect(window.localStorage.getItem(`kpop-match-recorded-quiz-session-${sessionId}`)).toBe("1");
+    });
   });
 
   describe("daily session from an earlier day", () => {

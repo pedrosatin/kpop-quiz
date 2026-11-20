@@ -86,7 +86,6 @@ export function applyRestoredSave(
   match.setElapsedSeconds(save.elapsed_seconds);
   match.startTimeRef.current = save.started_at_ms;
   match.gaveUpRef.current = save.gave_up;
-  match.recordedMatchRef.current = null;
   match.answerLockedRef.current = save.machine_state !== "question.ready";
   match.setRestoredVisit(true);
   match.focusQuestionRef.current = false;

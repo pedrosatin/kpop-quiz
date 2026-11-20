@@ -29,7 +29,6 @@ export function useQuizMatch() {
   const focusSetupRef = useRef(false);
   const loadRequestRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
-  const recordedMatchRef = useRef<string | null>(null);
   const gaveUpRef = useRef(false);
   const persistReadyRef = useRef(false);
 
@@ -61,7 +60,6 @@ export function useQuizMatch() {
     focusSetupRef,
     loadRequestRef,
     startTimeRef,
-    recordedMatchRef,
     gaveUpRef,
     persistReadyRef,
     ...giveUpConfirm,
