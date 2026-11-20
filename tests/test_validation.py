@@ -1114,6 +1114,20 @@ class FormationFalseNegativeRegressionTests(unittest.TestCase):
         )
         self.assertIsNotNone(evidence)
 
+    def test_hyphenated_role_member_still_shifts_formation_subject(self):
+        """Only number words are a headcount; other "<word>-member" Name still refuse."""
+        date = TimeValue("2015", 9, GREGORIAN_CALENDAR)
+        for sentence in (
+            "Twice founding-member Jihyo founded a studio in 2015.",
+            "Twice co-member Jihyo founded a studio in 2015.",
+            "Twice original-member Jihyo founded a studio in 2015.",
+            "Twice former-member Jihyo founded a studio in 2015.",
+        ):
+            with self.subTest(sentence=sentence):
+                self.assertIsNone(
+                    formation_date_evidence(page(sentence), date, ["Twice"])
+                )
+
     def test_hyphenated_headcount_beyond_twelve_still_counts_as_adjective(self):
         date = TimeValue("2015", 9, GREGORIAN_CALENDAR)
         evidence = formation_date_evidence(

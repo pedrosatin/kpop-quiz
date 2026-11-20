@@ -50,11 +50,13 @@ _MEMBERSHIP_OWNER_BLOCKERS = re.compile(
     r"\b(?:crew|management|managers?|producers?|staff)\b", _I
 )
 # "member Mina" shifts the subject; "five-member" / "seven member" / "thirteen-member"
-# is a headcount. Hyphenated "<word>-member" counts too, except ex-/former-.
+# is a headcount. Only number words count: "founding-member Jihyo" or "co-member Jihyo"
+# still shift the subject. Compounds such as "twenty-one-member" match on "one-member".
 _MEMBER_COUNT_ADJECTIVE = re.compile(
     r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
     r"(?:-|\s+)members?\b"
-    r"|\b(?!(?:ex|former)-)[A-Za-z]+-members?\b",
+    r"|\b(?:(?:thir|four|fif|six|seven|eigh|nine)teen|(?:twen|thir|for|fif)ty)"
+    r"-members?\b",
     _I,
 )
 _MEMBER_AS_SUBJECT = re.compile(r"\bmember,?\s+[A-Z][\w'.-]*")
