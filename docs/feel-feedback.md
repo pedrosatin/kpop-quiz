@@ -2,7 +2,7 @@
 
 Padrão reutilizável para feedback sensorial leve por jogada e no fim da partida. O piloto é o **Quiz** diário: só ele coloca `data-feedback` nesta entrega. Os demais jogos mantêm `is-correct` / `is-incorrect` (e `is-won` / `is-lost` onde já existiam) para cor, sem animar.
 
-A celebração do set do dia ainda não existe e deve reusar estes tokens.
+A celebração do set do dia (`DailyNext` ao fechar o nono jogo) reusa `data-feedback="result"` no título.
 
 ## Tokens (`web/src/styles/tokens.css`)
 

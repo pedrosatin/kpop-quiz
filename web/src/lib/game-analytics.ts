@@ -4,11 +4,27 @@ import { getLocalStorageItem } from "./local-storage";
 import { getDaysDifference, loadPlayerStats } from "./player-stats";
 import type { Locale, PlayMode } from "./quiz-types";
 
-export type AnalyticsGame = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "map" | "code" | "crossword";
+export type AnalyticsGame =
+  | "quiz"
+  | "grid"
+  | "connections"
+  | "name-guess"
+  | "word-search"
+  | "timeline"
+  | "map"
+  | "code"
+  | "crossword"
+  | "daily_set";
 export interface GameAnalyticsContext {
   game: AnalyticsGame;
   locale: Locale;
   mode?: PlayMode;
+  /** For `share`: whether the shared result is the day's challenge. */
+  daily?: "yes" | "no";
+  /** Overrides the default `game_result` content type on share events. */
+  contentType?: string;
+  /** Overrides the default `item_id` (the game id) on share events. */
+  itemId?: string;
 }
 export type ShareMethod = "native" | "clipboard";
 export type GameOutcome = "win" | "loss" | "give_up";
@@ -28,6 +44,7 @@ export interface GameRoundContext extends GameAnalyticsContext {
 }
 
 type EventDetails = Record<string, string | undefined>;
+type GameAnalyticsEvent = "game_start" | "game_complete" | "share" | "daily_set_complete";
 
 // Only ConsentBanner enables measurement, and only when it is mounted on a
 // production page with a measurement ID. Saved consent alone cannot enable it.
@@ -38,11 +55,7 @@ export function setGameAnalyticsConsent(id: string, consent: boolean): void {
   accepted = consent && id.length > 0;
 }
 
-function sendGameEvent(
-  event: "game_start" | "game_complete" | "share",
-  context: GameAnalyticsContext,
-  details: EventDetails = {},
-): void {
+function sendRawEvent(event: GameAnalyticsEvent, params: Record<string, string>): void {
   if (typeof window === "undefined" || !accepted || !measurementId) return;
   try {
     // Honor a rejection made in another tab, too. Private-mode storage reads
@@ -50,17 +63,25 @@ function sendGameEvent(
     if (getLocalStorageItem("kpop-quiz-consent") === "rejected") return;
     const w = window as unknown as Record<string, unknown>;
     if (w[`ga-disable-${measurementId}`] === true || typeof w.gtag !== "function") return;
-    const params = {
-      game: context.game,
-      locale: context.locale,
-      ...(context.mode ? { mode: context.mode } : {}),
-      ...Object.fromEntries(Object.entries(details).filter(([, value]) => value !== undefined)),
-      send_to: measurementId,
-    };
-    (w.gtag as (...args: unknown[]) => void)("event", event, params);
+    (w.gtag as (...args: unknown[]) => void)("event", event, { ...params, send_to: measurementId });
   } catch {
     // Analytics must never interrupt a game.
   }
+}
+
+function sendGameEvent(
+  event: "game_start" | "game_complete" | "share",
+  context: GameAnalyticsContext,
+  details: EventDetails = {},
+): void {
+  sendRawEvent(event, {
+    game: context.game,
+    locale: context.locale,
+    ...(context.mode ? { mode: context.mode } : {}),
+    ...Object.fromEntries(
+      Object.entries(details).filter((entry): entry is [string, string] => entry[1] !== undefined),
+    ),
+  });
 }
 
 export function trackGameEvent(
@@ -68,7 +89,23 @@ export function trackGameEvent(
   context: GameAnalyticsContext,
   method?: ShareMethod,
 ): void {
-  sendGameEvent(event, context, event === "share" ? { method, content_type: "game_result", item_id: context.game } : {});
+  sendGameEvent(
+    event,
+    context,
+    event === "share"
+      ? {
+          method,
+          content_type: context.contentType ?? "game_result",
+          item_id: context.itemId ?? context.game,
+          ...(context.daily ? { daily: context.daily } : {}),
+        }
+      : {},
+  );
+}
+
+/** Fires once when the player finishes every daily game of the day. */
+export function trackDailySetComplete(locale: Locale): void {
+  sendRawEvent("daily_set_complete", { locale });
 }
 
 /**
@@ -92,8 +129,9 @@ export function streakBucket(streak: number): string {
 
 // The Map records stats, but its analytics never sent return bands and still sends none.
 // Group-page free play also omits them so the pilot never reads home-game streaks.
+// daily_set is share-only and has no per-game stats entry.
 function gameStats(context: GameRoundContext) {
-  if (context.omitReturnBands || context.game === "map") return null;
+  if (context.omitReturnBands || context.game === "map" || context.game === "daily_set") return null;
   return loadPlayerStats().games[context.game];
 }
 

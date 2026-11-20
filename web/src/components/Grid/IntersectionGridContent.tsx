@@ -151,7 +151,7 @@ export function IntersectionGridContent({
   const guessesLeft = maxGuesses - guessesUsed;
   const barState = gridBarState(isComplete, feedback);
 
-  if (dayDone) return <DailyDone game="grid" locale={locale} />;
+  if (dayDone) return <DailyDone game="grid" locale={locale} referenceDate={grid.reference_date} />;
 
   return (
     <section id="grid" class="game-card game-card--wide grid-game" data-testid="game-board" aria-labelledby="grid-hud-heading">

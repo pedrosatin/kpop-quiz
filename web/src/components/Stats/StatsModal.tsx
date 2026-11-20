@@ -111,7 +111,14 @@ export function StatsModal({
     if (activeTab === "overall") {
       const { played, won, currentStreak, maxStreak } = currentStats.overall;
       const winRate = played > 0 ? Math.round((won / played) * 100) : 0;
-      return { played, won, winRate, currentStreak, maxStreak };
+      return {
+        played,
+        won,
+        winRate,
+        currentStreak,
+        maxStreak,
+        dailySetsCompleted: currentStats.dailySetsCompleted ?? 0,
+      };
     }
     const game = currentStats.games[activeTab];
     const played = game?.played ?? 0;

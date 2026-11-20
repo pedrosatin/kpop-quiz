@@ -20,10 +20,20 @@ export interface OverallStats {
   lastPlayedDate?: string; // YYYY-MM-DD
 }
 
+export interface DailySetLines {
+  [date: string]: Partial<Record<GameId, string>>;
+}
+
 export interface PlayerStats {
   version: 1;
   overall: OverallStats;
   games: Record<GameId, GameStats>;
+  /** Completed daily sets (all DAILY_GAMES on one date). No set streak. */
+  dailySetsCompleted: number;
+  /** Last date that incremented `dailySetsCompleted` (idempotent per day). */
+  lastDailySetDate?: string;
+  /** Share bodies (no URL) keyed by date then game, for the day summary. */
+  dailySetLines?: DailySetLines;
 }
 
 export const PLAYER_STATS_STORAGE_KEY = "kpop-player-stats-v1";
@@ -35,6 +45,15 @@ export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-gues
  * across graduations.
  */
 const LATER_GAME_IDS: GameId[] = ["map", "code", "crossword"];
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
 
 export function getDaysDifference(prevDateStr: string, currDateStr: string): number {
   const [y1, m1, d1] = prevDateStr.split("-").map(Number);
@@ -59,6 +78,29 @@ function createDefaultGameStats(isNameGuess = false): GameStats {
   return base;
 }
 
+function normalizeDailySetsCompleted(raw: unknown): number {
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 0 ? raw : 0;
+}
+
+function normalizeLastDailySetDate(raw: unknown): string | undefined {
+  return typeof raw === "string" && DATE_PATTERN.test(raw) ? raw : undefined;
+}
+
+function normalizeDailySetLines(raw: unknown): DailySetLines | undefined {
+  if (!isPlainObject(raw)) return undefined;
+  const out: DailySetLines = {};
+  for (const [date, games] of Object.entries(raw)) {
+    if (!DATE_PATTERN.test(date) || !isPlainObject(games)) continue;
+    const day: Partial<Record<GameId, string>> = {};
+    for (const gameId of ALL_GAME_IDS) {
+      const line = games[gameId];
+      if (typeof line === "string" && line.trim()) day[gameId] = line;
+    }
+    if (Object.keys(day).length > 0) out[date] = day;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
 export function createInitialPlayerStats(): PlayerStats {
   return {
     version: 1,
@@ -79,6 +121,7 @@ export function createInitialPlayerStats(): PlayerStats {
       code: createDefaultGameStats(false),
       crossword: createDefaultGameStats(false),
     },
+    dailySetsCompleted: 0,
   };
 }
 
@@ -146,6 +189,8 @@ export function loadPlayerStats(): PlayerStats {
     if (!parsed || parsed.version !== 1 || typeof parsed !== "object") {
       return createInitialPlayerStats();
     }
+    const lastDailySetDate = normalizeLastDailySetDate(parsed.lastDailySetDate);
+    const dailySetLines = normalizeDailySetLines(parsed.dailySetLines);
     return {
       version: 1,
       overall: normalizeOverallStats(parsed.overall),
@@ -160,6 +205,9 @@ export function loadPlayerStats(): PlayerStats {
         code: normalizeGameStats(parsed.games?.code, false),
         crossword: normalizeGameStats(parsed.games?.crossword, false),
       },
+      dailySetsCompleted: normalizeDailySetsCompleted(parsed.dailySetsCompleted),
+      ...(lastDailySetDate ? { lastDailySetDate } : {}),
+      ...(dailySetLines ? { dailySetLines } : {}),
     };
   } catch {
     return createInitialPlayerStats();
@@ -260,13 +308,6 @@ export function recordGameFinish(
 }
 
 const MATCH_RECORD_KEY_PREFIX = "kpop-match-recorded-";
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const proto = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
-}
 
 /** A non-negative integer small enough that adding to it stays exact. */
 function isValidCounter(value: unknown): value is number {
@@ -346,25 +387,10 @@ function readExportedAt(value: unknown): string | undefined {
   return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : undefined;
 }
 
-/**
- * Validates a stats file without touching storage, so the caller can show
- * what the file holds before `applyPlayerStatsFile` replaces local stats.
- * Dates are checked against `today`, the daily reference date.
- */
-export function parsePlayerStatsJson(raw: string, today: string = dailyReferenceDate()): ParsePlayerStatsResult {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return { success: false, error: "invalid-json" };
-  }
-  if (!isPlainObject(parsed)) return { success: false, error: "invalid-shape" };
-  if (parsed["version"] !== 1) return { success: false, error: "invalid-version" };
-  if (!isPlainObject(parsed["overall"]) || !validateStatsBlock(parsed["overall"], today)) {
-    return { success: false, error: "invalid-overall" };
-  }
-  if (!isPlainObject(parsed["games"])) return { success: false, error: "invalid-games" };
-  const gamesRaw = parsed["games"] as Record<string, unknown>;
+function validateImportedGames(
+  gamesRaw: Record<string, unknown>,
+  today: string,
+): ParsePlayerStatsResult | null {
   for (const key of Object.keys(gamesRaw)) {
     if (!ALL_GAME_IDS.includes(key as GameId)) return { success: false, error: "unknown-game" };
   }
@@ -388,15 +414,42 @@ export function parsePlayerStatsJson(raw: string, today: string = dailyReference
       return { success: false, error: "invalid-distribution" };
     }
   }
+  return null;
+}
 
-  const overallRaw = parsed["overall"] as Record<string, unknown>;
-  const overall: OverallStats = {
+function buildImportedOverall(overallRaw: Record<string, unknown>): OverallStats {
+  return {
     played: overallRaw["played"] as number,
     won: overallRaw["won"] as number,
     currentStreak: overallRaw["currentStreak"] as number,
     maxStreak: overallRaw["maxStreak"] as number,
     ...(typeof overallRaw["lastPlayedDate"] === "string" ? { lastPlayedDate: overallRaw["lastPlayedDate"] } : {}),
   };
+}
+
+function buildImportedGameStats(gameId: GameId, record: Record<string, unknown>): GameStats {
+  const game: GameStats = {
+    played: record["played"] as number,
+    won: record["won"] as number,
+    currentStreak: record["currentStreak"] as number,
+    maxStreak: record["maxStreak"] as number,
+    ...(typeof record["lastPlayedDate"] === "string" ? { lastPlayedDate: record["lastPlayedDate"] } : {}),
+  };
+  if (gameId === "name-guess") {
+    const dist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+    if (isPlainObject(record["guessDistribution"])) {
+      const distRaw = record["guessDistribution"] as Record<string, unknown>;
+      for (let i = 1; i <= 6; i++) {
+        const value = distRaw[String(i)];
+        if (typeof value === "number") dist[i] = value;
+      }
+    }
+    game.guessDistribution = dist;
+  }
+  return game;
+}
+
+function buildImportedGames(gamesRaw: Record<string, unknown>): Record<GameId, GameStats> {
   const games = {} as Record<GameId, GameStats>;
   for (const gameId of ALL_GAME_IDS) {
     if (LATER_GAME_IDS.includes(gameId) && gamesRaw[gameId] === undefined) {
@@ -404,28 +457,43 @@ export function parsePlayerStatsJson(raw: string, today: string = dailyReference
       continue;
     }
     // Every game id was validated above, so each entry is a plain object here.
-    const record = gamesRaw[gameId] as Record<string, unknown>;
-    const game: GameStats = {
-      played: record["played"] as number,
-      won: record["won"] as number,
-      currentStreak: record["currentStreak"] as number,
-      maxStreak: record["maxStreak"] as number,
-      ...(typeof record["lastPlayedDate"] === "string" ? { lastPlayedDate: record["lastPlayedDate"] } : {}),
-    };
-    if (gameId === "name-guess") {
-      const dist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
-      if (isPlainObject(record["guessDistribution"])) {
-        const distRaw = record["guessDistribution"] as Record<string, unknown>;
-        for (let i = 1; i <= 6; i++) {
-          const value = distRaw[String(i)];
-          if (typeof value === "number") dist[i] = value;
-        }
-      }
-      game.guessDistribution = dist;
-    }
-    games[gameId] = game;
+    games[gameId] = buildImportedGameStats(gameId, gamesRaw[gameId] as Record<string, unknown>);
   }
-  const stats: PlayerStats = { version: 1, overall, games };
+  return games;
+}
+
+/**
+ * Validates a stats file without touching storage, so the caller can show
+ * what the file holds before `applyPlayerStatsFile` replaces local stats.
+ * Dates are checked against `today`, the daily reference date.
+ */
+export function parsePlayerStatsJson(raw: string, today: string = dailyReferenceDate()): ParsePlayerStatsResult {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { success: false, error: "invalid-json" };
+  }
+  if (!isPlainObject(parsed)) return { success: false, error: "invalid-shape" };
+  if (parsed["version"] !== 1) return { success: false, error: "invalid-version" };
+  if (!isPlainObject(parsed["overall"]) || !validateStatsBlock(parsed["overall"], today)) {
+    return { success: false, error: "invalid-overall" };
+  }
+  if (!isPlainObject(parsed["games"])) return { success: false, error: "invalid-games" };
+  const gamesRaw = parsed["games"] as Record<string, unknown>;
+  const gamesError = validateImportedGames(gamesRaw, today);
+  if (gamesError) return gamesError;
+
+  const lastDailySetDate = normalizeLastDailySetDate(parsed["lastDailySetDate"]);
+  const dailySetLines = normalizeDailySetLines(parsed["dailySetLines"]);
+  const stats: PlayerStats = {
+    version: 1,
+    overall: buildImportedOverall(parsed["overall"] as Record<string, unknown>),
+    games: buildImportedGames(gamesRaw),
+    dailySetsCompleted: normalizeDailySetsCompleted(parsed["dailySetsCompleted"]),
+    ...(lastDailySetDate ? { lastDailySetDate } : {}),
+    ...(dailySetLines ? { dailySetLines } : {}),
+  };
   const exportedAt = readExportedAt(parsed["exportedAt"]);
   return { success: true, file: { stats, ...(exportedAt ? { exportedAt } : {}) } };
 }

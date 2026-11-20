@@ -4,7 +4,7 @@ import type { Locale, PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import type { QuestionResult } from "./types";
 import { ScoreSummary } from "../Results/ScoreSummary";
-import { ShareResult } from "../Results/ShareResult";
+import { generateShareText, ShareResult } from "../Results/ShareResult";
 import { ReviewAnswers } from "../Results/ReviewAnswers";
 import { DailyNext } from "../Results/DailyNext";
 
@@ -52,6 +52,21 @@ export function QuizResult({
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
   const correct = correctCount ?? history.filter((h) => h.isCorrect).length;
   const clues = cluesUsedCount ?? history.reduce((acc, h) => acc + h.cluesUsedCount, 0);
+  const results = history.map((h) => h.isCorrect);
+  const dayShareText = dailyDate
+    ? generateShareText({
+        correctCount: correct,
+        totalQuestions: total,
+        results,
+        playMode,
+        cluesUsedCount: clues,
+        elapsedSeconds,
+        messages,
+        locale,
+        dailyDate,
+        ...(shareUrl !== undefined ? { shareUrl } : {}),
+      })
+    : undefined;
 
   return (
     <section id="quiz" class="game-card game-card--wide result quiz-result" data-testid="game-result" aria-labelledby="result-heading">
@@ -80,7 +95,7 @@ export function QuizResult({
           <ShareResult
             correctCount={correct}
             totalQuestions={total}
-            results={history.map((h) => h.isCorrect)}
+            results={results}
             playMode={playMode}
             cluesUsedCount={clues}
             elapsedSeconds={elapsedSeconds}
@@ -100,7 +115,9 @@ export function QuizResult({
             </button>
           )}
         </div>
-        {dailyDate && <DailyNext game="quiz" locale={locale} />}
+        {dailyDate && dayShareText ? (
+          <DailyNext game="quiz" locale={locale} shareText={dayShareText} referenceDate={dailyDate} />
+        ) : null}
       </div>
       {feedbackEligible && <Feedback locale={locale} />}
       <ReviewAnswers items={history} messages={messages} />

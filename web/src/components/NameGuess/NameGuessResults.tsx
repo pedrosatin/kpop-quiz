@@ -99,7 +99,7 @@ export function NameGuessResults({
   // The buttons appear where the keyboard was, so a second tap or a held key
   // meant for the last guess must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
-  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "name-guess", locale } });
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "name-guess", locale, daily: "yes" } });
 
   // The bar stops being sticky while the panel is open, so the panel can open
   // below the fold; bring it into view.
@@ -155,7 +155,7 @@ export function NameGuessResults({
         )}
       </div>
 
-      <DailyNext game="nameGuess" locale={locale} />
+      <DailyNext game="nameGuess" locale={locale} shareText={shareText} referenceDate={puzzle.reference_date} />
 
       {shareFailed && (
         <div ref={fallback} class="name-guess-share-fallback">

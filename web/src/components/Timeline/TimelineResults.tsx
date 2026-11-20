@@ -14,6 +14,7 @@ export function TimelineResults({
   results,
   canonicalEvents,
   events,
+  referenceDate,
   shareText,
   locale = "pt-BR",
   onShareSuccess,
@@ -89,7 +90,7 @@ export function TimelineResults({
         onShareError={onShareError ?? onShareFailed}
       />
 
-      <DailyNext game="timeline" locale={locale} />
+      <DailyNext game="timeline" locale={locale} shareText={shareText} referenceDate={referenceDate} />
     </section>
   );
 }

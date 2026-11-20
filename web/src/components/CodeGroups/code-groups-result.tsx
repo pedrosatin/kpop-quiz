@@ -92,7 +92,7 @@ export function CodeGroupsResult({ puzzle, locale, messages, won, attemptsUsed, 
           {share.copied ? messages.copiedToClipboard : messages.codeShareButton}
         </button>
       </div>
-      <DailyNext game="code" locale={locale} />
+      <DailyNext game="code" locale={locale} shareText={share.text} referenceDate={puzzle.reference_date} />
       {share.failed && (
         <ShareFallback text={share.text} textId={share.textId} failedId={share.failedId} messages={messages} />
       )}

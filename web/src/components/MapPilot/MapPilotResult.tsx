@@ -214,7 +214,7 @@ export function MapPilotResult({
   // The buttons appear where Next was, so a second tap or a held Enter
   // meant for the last Next must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
-  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "map", locale } });
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "map", locale, daily: "yes" } });
 
   // The bar stops being sticky while the panel is open, so the panel can
   // open below the fold; bring it into view.
@@ -256,7 +256,7 @@ export function MapPilotResult({
         </button>
       </div>
 
-      <DailyNext game="mapPilot" locale={locale} />
+      <DailyNext game="mapPilot" locale={locale} shareText={shareText} referenceDate={roundDate} />
 
       {shareFailed && (
         <div class="map-pilot-share-fallback">

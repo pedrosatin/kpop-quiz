@@ -106,7 +106,7 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
   }, [game.wrongCheck]);
   const { message, barState } = barMessage(status, game.wrongCheck, shareNote, messages, game.wrongCells.size);
 
-  if (dayDone) return <DailyDone game="crossword" locale={locale} />;
+  if (dayDone) return <DailyDone game="crossword" locale={locale} referenceDate={puzzle.reference_date} />;
 
   return (
     <section

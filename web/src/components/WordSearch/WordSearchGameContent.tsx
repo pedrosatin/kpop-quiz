@@ -91,7 +91,9 @@ export function WordSearchGameContent({
 
   const barState = actionBarTone(completed, lastCheck, activePath.length > 1 || anchorCell !== null);
 
-  if (daily && dayDone) return <DailyDone game="wordSearch" locale={locale} />;
+  if (daily && dayDone) {
+    return <DailyDone game="wordSearch" locale={locale} referenceDate={puzzle.reference_date} />;
+  }
 
   return (
     <section class="game-card game-card--wide word-search" id="word-search" data-testid="game-board">

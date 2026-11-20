@@ -21,11 +21,13 @@ export function useDailyMatchDone(gameId: GameId, dateStr: string, legacyMatchId
  * The quiz passes its own sentence (`body`), its wide card and its actions
  * (`children`, above `DailyNext`).
  */
-export function DailyDone({ game, locale, body, wide = false, children }: {
+export function DailyDone({ game, locale, body, wide = false, referenceDate, children }: {
   game: SeoRouteKey;
   locale: Locale;
   body?: string;
   wide?: boolean;
+  /** The board's challenge date; forwarded to DailyNext. */
+  referenceDate?: string | undefined;
   children?: ComponentChildren;
 }) {
   const messages = getMessages(locale);
@@ -34,7 +36,7 @@ export function DailyDone({ game, locale, body, wide = false, children }: {
       <h2 id="daily-done-title">{messages.dailyDoneTitle}</h2>
       <p>{body ?? messages.dailyDoneBody}</p>
       {children}
-      <DailyNext game={game} locale={locale} />
+      <DailyNext game={game} locale={locale} referenceDate={referenceDate} />
     </section>
   );
 }

@@ -86,7 +86,16 @@ describe("Word Search match record", () => {
     localStorage.setItem(`kpop-match-recorded-word-search-word-search-${puzzle.puzzle_id}`, "1");
     render(<WordSearchGame locale="pt-BR" puzzle={puzzle} />);
     expect(gameCounts("word-search")).toEqual({ played: 0, won: 0 });
-    expect(localStorage.getItem(PLAYER_STATS_STORAGE_KEY)).toBeNull();
+    // DailyNext may write dailySetLines for the day share; match counts stay zero.
+    const raw = localStorage.getItem(PLAYER_STATS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as {
+        overall: { played: number; won: number };
+        games: { "word-search": { played: number; won: number } };
+      };
+      expect(parsed.overall).toMatchObject({ played: 0, won: 0 });
+      expect(parsed.games["word-search"]).toMatchObject({ played: 0, won: 0 });
+    }
   });
 
   it("counts nothing for a board the loader served after its day", async () => {

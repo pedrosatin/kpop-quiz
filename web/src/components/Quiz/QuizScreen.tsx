@@ -153,7 +153,7 @@ function QuizDailyDoneScreen({ locale, messages, settings, actions, date }: Quiz
   const history = save ? expandHistory(save.history, save.session) : null;
   if (!save || !history) {
     return (
-      <DailyDone game="quiz" locale={locale} body={messages.quizDailyDoneBody} wide>
+      <DailyDone game="quiz" locale={locale} body={messages.quizDailyDoneBody} wide referenceDate={date}>
         <div class="btn-row">
           <button class="btn btn-secondary" type="button" data-testid="quiz-play-general" onClick={actions.playGeneral}>
             {messages.quizPlayGeneral}

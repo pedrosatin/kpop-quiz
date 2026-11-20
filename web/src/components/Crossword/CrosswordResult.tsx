@@ -75,7 +75,7 @@ export function CrosswordResult({
   const source = useRef<HTMLDivElement>(null);
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({
-    analytics: { game: "crossword", locale },
+    analytics: { game: "crossword", locale, daily: "yes" },
     onCopied,
     onShareFailed,
   });
@@ -126,7 +126,7 @@ export function CrosswordResult({
         </button>
       </div>
 
-      <DailyNext game="crossword" locale={locale} />
+      <DailyNext game="crossword" locale={locale} shareText={shareText} referenceDate={puzzle.reference_date} />
 
       {shareFailed && (
         <div class="crossword-share-fallback">

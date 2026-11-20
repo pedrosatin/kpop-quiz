@@ -5,6 +5,7 @@ import {
   daysSinceLastBucket,
   setGameAnalyticsConsent,
   streakBucket,
+  trackDailySetComplete,
   trackGameEvent,
   useGameAnalytics,
   type GameRoundContext,
@@ -509,5 +510,57 @@ describe("successful sharing", () => {
     await act(async () => { await result.current.handleShare("private result"); });
     expect(names()).toEqual(["share", "share"]);
     expect(JSON.stringify(gtag.mock.calls)).not.toContain("private result");
+  });
+});
+
+describe("daily set and share daily flag", () => {
+  it("sends daily_set_complete with locale under the same consent gate", () => {
+    trackDailySetComplete("pt-BR");
+    expect(gtag).toHaveBeenCalledWith("event", "daily_set_complete", {
+      locale: "pt-BR", send_to: "G-TEST",
+    });
+    setGameAnalyticsConsent("G-TEST", false);
+    gtag.mockClear();
+    trackDailySetComplete("en");
+    expect(gtag).not.toHaveBeenCalled();
+  });
+
+  it("includes daily on share when the context carries it", async () => {
+    const native = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share: native, clipboard: { writeText: vi.fn() } });
+    const { result } = renderHook(() =>
+      useGameShareAction({ analytics: { game: "quiz", locale: "en", mode: "expert", daily: "yes" } }),
+    );
+    await act(async () => { await result.current.handleShare("private"); });
+    expect(gtag).toHaveBeenLastCalledWith("event", "share", {
+      game: "quiz", locale: "en", mode: "expert", daily: "yes",
+      method: "native", content_type: "game_result", item_id: "quiz", send_to: "G-TEST",
+    });
+  });
+
+  it("keeps the daily set share off the quiz game_result dimensions", async () => {
+    const native = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share: native, clipboard: { writeText: vi.fn() } });
+    const { result } = renderHook(() =>
+      useGameShareAction({
+        analytics: {
+          game: "daily_set",
+          locale: "pt-BR",
+          daily: "yes",
+          contentType: "daily_set",
+          itemId: "daily_set",
+        },
+      }),
+    );
+    await act(async () => { await result.current.handleShare("set summary"); });
+    expect(gtag).toHaveBeenLastCalledWith("event", "share", {
+      game: "daily_set",
+      locale: "pt-BR",
+      daily: "yes",
+      method: "native",
+      content_type: "daily_set",
+      item_id: "daily_set",
+      send_to: "G-TEST",
+    });
   });
 });

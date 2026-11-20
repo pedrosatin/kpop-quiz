@@ -373,6 +373,18 @@ export interface Messages {
   /** Label of the link to the next unfinished daily game; an arrow follows it. */
   dailyNextGame: (game: string) => string;
   dailyAllDone: string;
+  /** Title when the ninth daily game of the day is finished. */
+  dailySetCompleteTitle: string;
+  /** Short line under the title; includes the local count of completed sets. */
+  dailySetCompleteBody: (sets: number) => string;
+  /** Share button on the set celebration. */
+  dailySetShare: string;
+  /** Header of the day summary with the site-wide day number. */
+  dailySetShareHeader: (n: number) => string;
+  /** Header when the day number cannot be computed. */
+  dailySetShareHeaderPlain: string;
+  /** Label of completed sets in the overall stats tab. */
+  statsDailySets: string;
   /** Shown instead of a new board when the date's board was republished after the player finished it. */
   dailyDoneTitle: string;
   dailyDoneBody: string;
@@ -977,6 +989,13 @@ const catalogs: Record<Locale, Messages> = {
     dailyNextReload: "Recarregar",
     dailyNextGame: (game) => `Próximo: ${game}`,
     dailyAllDone: "Você concluiu todos os jogos de hoje.",
+    dailySetCompleteTitle: "Set do dia completo",
+    dailySetCompleteBody: (sets) =>
+      sets === 1 ? "1 set completo nas estatísticas." : `${sets} sets completos nas estatísticas.`,
+    dailySetShare: "Compartilhar o dia",
+    dailySetShareHeader: (n) => `K-pop Quiz #${n} · Set do dia`,
+    dailySetShareHeaderPlain: "K-pop Quiz · Set do dia",
+    statsDailySets: "Sets do dia",
     dailyDoneTitle: "Desafio de hoje concluído",
     dailyDoneBody: "O tabuleiro de hoje foi atualizado depois da sua partida. Ela continua nas suas estatísticas, e a nova versão não conta como outra partida.",
     staleDaily: (date) => `Este é o desafio de ${date}. O de hoje ainda não saiu.`,
@@ -1503,6 +1522,13 @@ const catalogs: Record<Locale, Messages> = {
     dailyNextReload: "Reload",
     dailyNextGame: (game) => `Next: ${game}`,
     dailyAllDone: "You finished all of today's games.",
+    dailySetCompleteTitle: "Daily set complete",
+    dailySetCompleteBody: (sets) =>
+      sets === 1 ? "1 completed set in your stats." : `${sets} completed sets in your stats.`,
+    dailySetShare: "Share the day",
+    dailySetShareHeader: (n) => `K-pop Quiz #${n} · Daily set`,
+    dailySetShareHeaderPlain: "K-pop Quiz · Daily set",
+    statsDailySets: "Daily sets",
     dailyDoneTitle: "Today's challenge is done",
     dailyDoneBody: "Today's board was updated after you played it. Your game stays in your stats, and the new version does not count as another game.",
     staleDaily: (date) => `This is the challenge from ${date}. Today's is not out yet.`,

@@ -75,6 +75,7 @@ const sampleStats: PlayerStats = {
       maxStreak: 0,
     },
   },
+  dailySetsCompleted: 0,
 };
 
 describe("StatsModal component", () => {

@@ -85,7 +85,7 @@ export function WordSearchResult({
   const shareTextId = useId();
   const shareFailedId = useId();
   const source = useRef<HTMLDivElement>(null);
-  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "word-search", locale } });
+  const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "word-search", locale, daily: daily ? "yes" : "no" } });
 
   const total = puzzle.words.length;
   const found = foundCount ?? total;
@@ -130,7 +130,14 @@ export function WordSearchResult({
         </button>
       </div>
 
-      {daily && <DailyNext game="wordSearch" locale={locale} />}
+      {daily && (
+        <DailyNext
+          game="wordSearch"
+          locale={locale}
+          shareText={shareText}
+          referenceDate={puzzle.reference_date}
+        />
+      )}
 
       {shareFailed && (
         <div class="word-search-share-fallback">

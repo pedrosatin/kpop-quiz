@@ -241,6 +241,7 @@ exports[`code characterization > renders the play, win and share states the same
     "share",
     {
       "content_type": "game_result",
+      "daily": "yes",
       "game": "code",
       "item_id": "code",
       "locale": "en",
@@ -433,6 +434,7 @@ exports[`code characterization > renders the play, win and share states the same
     "share",
     {
       "content_type": "game_result",
+      "daily": "yes",
       "game": "code",
       "item_id": "code",
       "locale": "pt-BR",

@@ -54,12 +54,12 @@ export function TimelineShare({
     const outcome = await shareTextToUser(shareText);
     if (outcome === "aborted") return;
     if (outcome === "shared") {
-      trackGameEvent("share", { game: "timeline", locale }, "native");
+      trackGameEvent("share", { game: "timeline", locale, daily: "yes" }, "native");
       onShareSuccess?.();
       return;
     }
     if (outcome === "copied") {
-      trackGameEvent("share", { game: "timeline", locale }, "clipboard");
+      trackGameEvent("share", { game: "timeline", locale, daily: "yes" }, "clipboard");
       setShareFailed(false);
       setCopied(true);
       setAnnouncementKey((k) => k + 1);

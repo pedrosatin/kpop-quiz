@@ -137,7 +137,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
 
   const actionsState = status === "won" ? " is-correct" : status === "lost" ? " is-incorrect" : "";
 
-  if (dayDone) return <DailyDone game="nameGuess" locale={locale} />;
+  if (dayDone) return <DailyDone game="nameGuess" locale={locale} referenceDate={puzzle.reference_date} />;
 
   return (
     <section
