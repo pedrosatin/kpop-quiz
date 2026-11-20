@@ -116,7 +116,7 @@ export function ConnectionsGameContent({
 
   const barState = connectionsBarState(isGameOver, gameStatus, feedback);
 
-  if (dayDone) return <DailyDone game="connections" locale={locale} />;
+  if (dayDone) return <DailyDone game="connections" locale={locale} referenceDate={puzzle.reference_date} />;
 
   return (
     <section id="connections" class="game-card game-card--wide connections-game" data-testid="game-board" aria-labelledby="connections-heading">

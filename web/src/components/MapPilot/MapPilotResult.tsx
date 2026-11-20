@@ -256,7 +256,7 @@ export function MapPilotResult({
         </button>
       </div>
 
-      <DailyNext game="mapPilot" locale={locale} shareText={shareText} />
+      <DailyNext game="mapPilot" locale={locale} shareText={shareText} referenceDate={roundDate} />
 
       {shareFailed && (
         <div class="map-pilot-share-fallback">

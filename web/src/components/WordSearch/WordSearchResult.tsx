@@ -130,7 +130,14 @@ export function WordSearchResult({
         </button>
       </div>
 
-      {daily && <DailyNext game="wordSearch" locale={locale} shareText={shareText} />}
+      {daily && (
+        <DailyNext
+          game="wordSearch"
+          locale={locale}
+          shareText={shareText}
+          referenceDate={puzzle.reference_date}
+        />
+      )}
 
       {shareFailed && (
         <div class="word-search-share-fallback">

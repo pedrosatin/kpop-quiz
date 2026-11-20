@@ -537,4 +537,30 @@ describe("daily set and share daily flag", () => {
       method: "native", content_type: "game_result", item_id: "quiz", send_to: "G-TEST",
     });
   });
+
+  it("keeps the daily set share off the quiz game_result dimensions", async () => {
+    const native = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { share: native, clipboard: { writeText: vi.fn() } });
+    const { result } = renderHook(() =>
+      useGameShareAction({
+        analytics: {
+          game: "daily_set",
+          locale: "pt-BR",
+          daily: "yes",
+          contentType: "daily_set",
+          itemId: "daily_set",
+        },
+      }),
+    );
+    await act(async () => { await result.current.handleShare("set summary"); });
+    expect(gtag).toHaveBeenLastCalledWith("event", "share", {
+      game: "daily_set",
+      locale: "pt-BR",
+      daily: "yes",
+      method: "native",
+      content_type: "daily_set",
+      item_id: "daily_set",
+      send_to: "G-TEST",
+    });
+  });
 });

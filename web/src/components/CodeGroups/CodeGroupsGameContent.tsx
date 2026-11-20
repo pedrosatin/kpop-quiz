@@ -54,7 +54,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
 
   const feedbackText = feedbackMessage(feedback, history, attemptsLeft, messages);
 
-  if (dayDone) return <DailyDone game="code" locale={locale} />;
+  if (dayDone) return <DailyDone game="code" locale={locale} referenceDate={puzzle.reference_date} />;
 
   return (
     <section id="code-groups" tabIndex={-1} aria-label={messages.codeTitle} class="game-card game-card--wide code-groups" data-testid="game-board">

@@ -175,7 +175,7 @@ export function ConnectionsResults({
         </button>
       </div>
 
-      <DailyNext game="connections" locale={locale} shareText={shareText} />
+      <DailyNext game="connections" locale={locale} shareText={shareText} referenceDate={puzzle.reference_date} />
 
       {shareFailed && (
         <div class="connections-share-fallback">

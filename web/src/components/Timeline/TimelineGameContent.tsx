@@ -91,7 +91,9 @@ export function TimelineGameContent({
   useRecordDailyMatch("timeline", dailyBoardRound(puzzle, timelineMatchId(puzzle)), gameStatus === "submitted", isWin);
   const dayDone = useDailyMatchDone("timeline", puzzle.reference_date, timelineMatchId(puzzle), gameStatus === "submitted");
 
-  if (dayDone) return <DailyDone game="timeline" locale={locale} />;
+  if (dayDone) {
+    return <DailyDone game="timeline" locale={locale} referenceDate={puzzle.reference_date} />;
+  }
 
   return (
     <section id="timeline" class="timeline-game" data-testid="game-board" aria-labelledby="timeline-board-heading">
@@ -103,6 +105,7 @@ export function TimelineGameContent({
           results={results}
           canonicalEvents={canonicalOrder}
           events={orderedEvents}
+          referenceDate={puzzle.reference_date}
           shareText={shareText}
           locale={locale}
           titleRef={resultTitle}

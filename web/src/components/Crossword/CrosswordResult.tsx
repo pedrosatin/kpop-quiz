@@ -126,7 +126,7 @@ export function CrosswordResult({
         </button>
       </div>
 
-      <DailyNext game="crossword" locale={locale} shareText={shareText} />
+      <DailyNext game="crossword" locale={locale} shareText={shareText} referenceDate={puzzle.reference_date} />
 
       {shareFailed && (
         <div class="crossword-share-fallback">

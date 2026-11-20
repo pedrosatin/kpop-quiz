@@ -125,7 +125,7 @@ export function GridResults({
         </button>
       </div>
 
-      <DailyNext game="grid" locale={locale} shareText={shareText} />
+      <DailyNext game="grid" locale={locale} shareText={shareText} referenceDate={grid.reference_date} />
 
       <label class="share-toggle grid-share-toggle">
         <input

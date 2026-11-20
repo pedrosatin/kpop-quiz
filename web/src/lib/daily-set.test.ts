@@ -9,7 +9,18 @@ import {
   stripShareUrl,
 } from "./daily-set";
 import { DAILY_GAMES, statsGameId } from "./daily-progress";
-import { ALL_GAME_IDS, loadPlayerStats, recordGameFinish, resetPlayerStats } from "./player-stats";
+import {
+  ALL_GAME_IDS,
+  createInitialPlayerStats,
+  exportPlayerStatsJson,
+  importPlayerStatsJson,
+  loadPlayerStats,
+  parsePlayerStatsJson,
+  PLAYER_STATS_STORAGE_KEY,
+  recordGameFinish,
+  resetPlayerStats,
+  savePlayerStats,
+} from "./player-stats";
 import { mapPilotStorageKey } from "../components/MapPilot/map-pilot-save";
 
 const TODAY = "2026-11-10";
@@ -96,23 +107,81 @@ describe("daily set", () => {
     expect(text?.match(/https:\/\//g)?.length).toBe(1);
   });
 
-  it("keeps export/import of the new fields", () => {
+  it("round-trips the new fields through exportPlayerStatsJson and parsePlayerStatsJson", () => {
     finishAllDaily(TODAY);
     rememberDailySetLine(TODAY, "quiz", "Quiz body\nhttps://example.test/");
     recordDailySetComplete(TODAY);
-    const before = loadPlayerStats();
-    expect(before.dailySetsCompleted).toBe(1);
-    expect(before.dailySetLines?.[TODAY]?.quiz).toBe("Quiz body");
+    const exported = exportPlayerStatsJson();
     resetPlayerStats();
     expect(loadPlayerStats().dailySetsCompleted).toBe(0);
+    expect(parsePlayerStatsJson(exported)).toEqual(
+      expect.objectContaining({ success: true }),
+    );
+    expect(importPlayerStatsJson(exported)).toEqual({ success: true });
+    const restored = loadPlayerStats();
+    expect(restored.dailySetsCompleted).toBe(1);
+    expect(restored.lastDailySetDate).toBe(TODAY);
+    expect(restored.dailySetLines?.[TODAY]?.quiz).toBe("Quiz body");
   });
 
-  it("turns the day in America/Sao_Paulo like the other daily helpers", () => {
+  it("builds the day share when the caller confirms the set before the ninth flush", () => {
+    finishAllDaily(TODAY);
+    // Drop crossword from stats so isDailySetComplete is false, as on the
+    // ninth game before useRecordDailyMatch runs.
+    const stats = loadPlayerStats();
+    delete stats.games.crossword.lastPlayedDate;
+    savePlayerStats(stats);
+    rememberAllLines(TODAY);
+    expect(isDailySetComplete(TODAY)).toBe(false);
+    expect(buildDailySetShareText(TODAY, "pt-BR")).toBeNull();
+    const text = buildDailySetShareText(TODAY, "pt-BR", true);
+    expect(text).toContain("K-pop Quiz #55 · Set do dia");
+    expect(text).toContain("K-pop Quiz · crossword");
+  });
+
+  it("records the board date even after Sao Paulo midnight on the clock", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
-    // 2026-11-10 23:30 in Sao Paulo is still the 10th; 02:30 UTC next day is the 11th SP.
-    vi.setSystemTime(new Date("2026-11-11T02:30:00Z"));
+    // 00:01 on 2026-11-11 in America/Sao_Paulo.
+    vi.setSystemTime(new Date("2026-11-11T03:01:00Z"));
     finishAllDaily("2026-11-10");
-    expect(isDailySetComplete("2026-11-10")).toBe(true);
+    expect(recordDailySetComplete("2026-11-10")).toBe(true);
+    expect(loadPlayerStats().lastDailySetDate).toBe("2026-11-10");
     expect(isDailySetComplete("2026-11-11")).toBe(false);
+  });
+
+  it("tolerates corrupted daily set fields in local storage", () => {
+    const base = createInitialPlayerStats();
+    for (const bad of ["x", -1, 1.5] as const) {
+      localStorage.setItem(
+        PLAYER_STATS_STORAGE_KEY,
+        JSON.stringify({ ...base, dailySetsCompleted: bad }),
+      );
+      expect(loadPlayerStats().dailySetsCompleted).toBe(0);
+    }
+    localStorage.setItem(
+      PLAYER_STATS_STORAGE_KEY,
+      JSON.stringify({
+        ...base,
+        dailySetsCompleted: 2,
+        lastDailySetDate: "not-a-date",
+        dailySetLines: ["array"],
+      }),
+    );
+    const cleaned = loadPlayerStats();
+    expect(cleaned.dailySetsCompleted).toBe(2);
+    expect(cleaned).not.toHaveProperty("lastDailySetDate");
+    expect(cleaned).not.toHaveProperty("dailySetLines");
+    localStorage.setItem(
+      PLAYER_STATS_STORAGE_KEY,
+      JSON.stringify({
+        ...base,
+        dailySetLines: {
+          "not-a-date": { quiz: "bad key" },
+          "2026-11": { quiz: "short key" },
+          [TODAY]: { quiz: "ok" },
+        },
+      }),
+    );
+    expect(loadPlayerStats().dailySetLines).toEqual({ [TODAY]: { quiz: "ok" } });
   });
 });

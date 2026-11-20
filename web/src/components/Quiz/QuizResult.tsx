@@ -116,7 +116,7 @@ export function QuizResult({
           )}
         </div>
         {dailyDate && dayShareText ? (
-          <DailyNext game="quiz" locale={locale} shareText={dayShareText} />
+          <DailyNext game="quiz" locale={locale} shareText={dayShareText} referenceDate={dailyDate} />
         ) : null}
       </div>
       {feedbackEligible && <Feedback locale={locale} />}

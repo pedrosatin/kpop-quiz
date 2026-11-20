@@ -155,7 +155,7 @@ export function NameGuessResults({
         )}
       </div>
 
-      <DailyNext game="nameGuess" locale={locale} shareText={shareText} />
+      <DailyNext game="nameGuess" locale={locale} shareText={shareText} referenceDate={puzzle.reference_date} />
 
       {shareFailed && (
         <div ref={fallback} class="name-guess-share-fallback">

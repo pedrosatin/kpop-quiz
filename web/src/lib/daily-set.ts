@@ -1,6 +1,5 @@
-import type { SeoRouteKey } from "../i18n/catalog";
 import { getMessages } from "../i18n/catalog";
-import { dailyChallengeNumber, FIRST_DAILY_DATE } from "./daily-challenge";
+import { FIRST_DAILY_DATE } from "./daily-challenge";
 import { completedDailyGames, DAILY_GAMES, statsGameId } from "./daily-progress";
 import {
   loadPlayerStats,
@@ -10,8 +9,6 @@ import {
 } from "./player-stats";
 import type { Locale } from "./quiz-types";
 import { seoAbsoluteUrl, seoRoute, seoShareCampaign } from "./seo-routes";
-
-// SeoRouteKey kept for dailySetChallengeNumberForGame tests.
 
 /** Earliest published daily board; the set's day number counts from here. */
 export const SITE_FIRST_DAILY_DATE = FIRST_DAILY_DATE.grid;
@@ -105,9 +102,16 @@ export function dailySetShareUrl(locale: Locale): string {
  * Day summary for share: set header, each game's stored body in tab order,
  * one short link at the end. Null when the set is incomplete or a line is
  * still missing.
+ *
+ * Pass `confirmedComplete` when the caller already verified the set with the
+ * current route included (DailyNext mounts before some saves flush).
  */
-export function buildDailySetShareText(date: string, locale: Locale): string | null {
-  if (!isDailySetComplete(date)) return null;
+export function buildDailySetShareText(
+  date: string,
+  locale: Locale,
+  confirmedComplete = false,
+): string | null {
+  if (!confirmedComplete && !isDailySetComplete(date)) return null;
   const lines = loadPlayerStats().dailySetLines?.[date] ?? {};
   const bodies: string[] = [];
   for (const key of DAILY_GAMES) {
@@ -121,19 +125,4 @@ export function buildDailySetShareText(date: string, locale: Locale): string | n
     ? messages.dailySetShareHeaderPlain
     : messages.dailySetShareHeader(number);
   return `${header}\n\n${bodies.join("\n\n")}\n${dailySetShareUrl(locale)}`;
-}
-
-/** Convenience for tests: how many of today's lines are stored. */
-export function storedDailySetGameCount(date: string): number {
-  return Object.keys(loadPlayerStats().dailySetLines?.[date] ?? {}).length;
-}
-
-/** Maps a route key to the stats game id used in `dailySetLines`. */
-export function dailySetStatsId(key: SeoRouteKey): GameId {
-  return statsGameId(key);
-}
-
-/** Exported for tests that assert the set uses the same `#N` math as games. */
-export function dailySetChallengeNumberForGame(game: SeoRouteKey, date: string): number | null {
-  return dailyChallengeNumber(game, date);
 }

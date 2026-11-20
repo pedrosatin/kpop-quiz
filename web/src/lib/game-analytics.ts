@@ -4,13 +4,27 @@ import { getLocalStorageItem } from "./local-storage";
 import { getDaysDifference, loadPlayerStats } from "./player-stats";
 import type { Locale, PlayMode } from "./quiz-types";
 
-export type AnalyticsGame = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "map" | "code" | "crossword";
+export type AnalyticsGame =
+  | "quiz"
+  | "grid"
+  | "connections"
+  | "name-guess"
+  | "word-search"
+  | "timeline"
+  | "map"
+  | "code"
+  | "crossword"
+  | "daily_set";
 export interface GameAnalyticsContext {
   game: AnalyticsGame;
   locale: Locale;
   mode?: PlayMode;
   /** For `share`: whether the shared result is the day's challenge. */
   daily?: "yes" | "no";
+  /** Overrides the default `game_result` content type on share events. */
+  contentType?: string;
+  /** Overrides the default `item_id` (the game id) on share events. */
+  itemId?: string;
 }
 export type ShareMethod = "native" | "clipboard";
 export type GameOutcome = "win" | "loss" | "give_up";
@@ -81,8 +95,8 @@ export function trackGameEvent(
     event === "share"
       ? {
           method,
-          content_type: "game_result",
-          item_id: context.game,
+          content_type: context.contentType ?? "game_result",
+          item_id: context.itemId ?? context.game,
           ...(context.daily ? { daily: context.daily } : {}),
         }
       : {},
@@ -115,8 +129,9 @@ export function streakBucket(streak: number): string {
 
 // The Map records stats, but its analytics never sent return bands and still sends none.
 // Group-page free play also omits them so the pilot never reads home-game streaks.
+// daily_set is share-only and has no per-game stats entry.
 function gameStats(context: GameRoundContext) {
-  if (context.omitReturnBands || context.game === "map") return null;
+  if (context.omitReturnBands || context.game === "map" || context.game === "daily_set") return null;
   return loadPlayerStats().games[context.game];
 }
 

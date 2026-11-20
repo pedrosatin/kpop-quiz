@@ -37,23 +37,36 @@ export function DailyNext({
   game,
   locale,
   shareText,
+  referenceDate,
 }: {
   game: SeoRouteKey;
   locale: Locale;
   /** Full share text of this game (URL included); stored for the day summary. */
   shareText?: string;
+  /**
+   * The board's challenge date (`reference_date` / `quizDailyDate`). Defaults
+   * to today's Sao Paulo date when omitted (e.g. a countdown-only mount).
+   */
+  referenceDate?: string | undefined;
 }) {
   const messages = getMessages(locale);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [now, setNow] = useState(0);
-  const titleId = useId();
+  const shareTextId = useId();
+  const shareFailedId = useId();
   const { copied, shareFailed, handleShare } = useGameShareAction({
-    analytics: { game: "quiz", locale, daily: "yes" },
+    analytics: {
+      game: "daily_set",
+      locale,
+      daily: "yes",
+      contentType: "daily_set",
+      itemId: "daily_set",
+    },
   });
 
   useEffect(() => {
     const start = new Date();
-    const today = dailyReferenceDate(start);
+    const today = referenceDate ?? dailyReferenceDate(start);
     if (shareText) {
       rememberDailySetLine(today, statsGameId(game), shareText);
     }
@@ -74,19 +87,49 @@ export function DailyNext({
       deadline: start.getTime() + secondsUntilNextDaily(start) * 1000,
       setComplete,
       setsCompleted: stats.dailySetsCompleted,
-      setShareText: setComplete ? buildDailySetShareText(today, locale) : null,
+      setShareText: setComplete ? buildDailySetShareText(today, locale, true) : null,
       setJustRecorded,
     });
     setNow(start.getTime());
     window.dispatchEvent(new CustomEvent(DAILY_DONE_EVENT, { detail: game }));
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [game, locale, shareText]);
+  }, [game, locale, shareText, referenceDate]);
 
   if (!plan) return <div class="daily-next" data-testid="daily-next" />;
 
   const secondsLeft = Math.ceil((plan.deadline - now) / 1000);
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const shareBlock = plan.setShareText ? (
+    <div class="daily-set-share">
+      <button
+        type="button"
+        class="btn btn-primary"
+        onClick={() => {
+          void handleShare(plan.setShareText!);
+        }}
+      >
+        {copied ? messages.copiedToClipboard : messages.dailySetShare}
+      </button>
+      {shareFailed ? (
+        <div class="daily-set-share-fallback">
+          <p id={shareFailedId}>{messages.shareFailed}</p>
+          <textarea
+            id={shareTextId}
+            class="share-preview"
+            readOnly
+            rows={6}
+            value={plan.setShareText}
+            aria-label={messages.shareTextLabel}
+            aria-describedby={shareFailedId}
+            onFocus={(event) => (event.currentTarget as HTMLTextAreaElement).select()}
+            onClick={(event) => (event.currentTarget as HTMLTextAreaElement).select()}
+          />
+        </div>
+      ) : null}
+    </div>
+  ) : null;
+
   return (
     <div class="daily-next" data-testid="daily-next">
       {secondsLeft > 0 ? (
@@ -104,27 +147,19 @@ export function DailyNext({
           {messages.dailyNextGame(seoGameName(plan.next, messages))}
           <span aria-hidden="true"> →</span>
         </a>
-      ) : (
+      ) : plan.setJustRecorded ? (
         <div class="daily-set-complete" data-testid="daily-set-complete">
-          <h3 id={titleId} class="result-title daily-set-title" data-feedback="result">
+          <h3 class="result-title daily-set-title" data-feedback="result">
             {messages.dailySetCompleteTitle}
           </h3>
           <p class="daily-next-done">{messages.dailyAllDone}</p>
           <p class="daily-set-body">{messages.dailySetCompleteBody(plan.setsCompleted)}</p>
-          {plan.setShareText ? (
-            <div class="daily-set-share">
-              <button
-                type="button"
-                class="btn btn-primary"
-                onClick={() => {
-                  void handleShare(plan.setShareText!);
-                }}
-              >
-                {copied ? messages.copiedToClipboard : messages.dailySetShare}
-              </button>
-              {shareFailed ? <p class="share-failed" role="status">{messages.shareFailed}</p> : null}
-            </div>
-          ) : null}
+          {shareBlock}
+        </div>
+      ) : (
+        <div class="daily-set-complete" data-testid="daily-set-complete">
+          <p class="daily-next-done">{messages.dailyAllDone}</p>
+          {shareBlock}
         </div>
       )}
     </div>
