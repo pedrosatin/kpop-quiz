@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 import unittest
 from pathlib import Path
@@ -431,10 +432,11 @@ class WikipediaEvidenceTest(unittest.TestCase):
                 ["Twice"],
             )
         )
+        # Relative pronoun outside the parenthesis (between verb and date) still blocks.
         self.assertIsNone(
             formation_date_evidence(
                 page(
-                    "Twice (a name which fans chose) was formed by a producer "
+                    "Twice (a name fans chose) was formed by a producer "
                     "who moved to Seoul in 2015."
                 ),
                 date,
@@ -1079,6 +1081,8 @@ class FormationFalseNegativeRegressionTests(unittest.TestCase):
     def test_fixed_revisions_prove_formation_year(self):
         for name, case in self.CASES.items():
             with self.subTest(name=name, revision_id=case["revision_id"]):
+                digest = hashlib.sha256(case["extract"].encode()).hexdigest()
+                self.assertEqual(digest, case["extract_sha256"])
                 value = TimeValue(
                     case["p571_value"], case["p571_precision"], GREGORIAN_CALENDAR
                 )
@@ -1099,6 +1103,35 @@ class FormationFalseNegativeRegressionTests(unittest.TestCase):
                     int, evidence.locator.split("#extract[")[1].rstrip("]").split(":")
                 )
                 self.assertEqual(case["extract"][start:end], case["p571_value"])
+
+    def test_parenthetical_gloss_which_does_not_shift_formation_subject(self):
+        """Acceptance that depends on ignoring who/which/that/whose inside parentheses."""
+        date = TimeValue("2015", 9, GREGORIAN_CALENDAR)
+        evidence = formation_date_evidence(
+            page("Twice (a name which fans chose) was formed in 2015."),
+            date,
+            ["Twice"],
+        )
+        self.assertIsNotNone(evidence)
+
+    def test_hyphenated_headcount_beyond_twelve_still_counts_as_adjective(self):
+        date = TimeValue("2015", 9, GREGORIAN_CALENDAR)
+        evidence = formation_date_evidence(
+            page(
+                "Seventeen is a thirteen-member South Korean boy band "
+                "formed by Pledis Entertainment in 2015."
+            ),
+            date,
+            ["Seventeen"],
+        )
+        self.assertIsNotNone(evidence)
+        self.assertIsNone(
+            formation_date_evidence(
+                page("Seventeen member The8 founded a studio in 2015."),
+                date,
+                ["Seventeen"],
+            )
+        )
 
     def test_named_member_and_real_dependent_clause_still_block(self):
         date = TimeValue("2015", 9, GREGORIAN_CALENDAR)
@@ -1121,6 +1154,30 @@ class FormationFalseNegativeRegressionTests(unittest.TestCase):
                 page("Blackpink ex-member Jennie founded a label in 2015."),
                 date,
                 ["Blackpink"],
+            )
+        )
+
+    def test_parenthetical_content_still_feeds_non_dependent_blockers(self):
+        """Parentheses are stripped only for who/which/that/whose (ADR 046)."""
+        date = TimeValue("2015", 9, GREGORIAN_CALENDAR)
+        for sentence in (
+            "Twice (a documentary) was created in 2015.",
+            "Twice (the film) was created in 2015 by a director.",
+            "Twice (member Mina) created a charity in 2015.",
+            "Twice (whose producer Park) founded a charity in 2015.",
+        ):
+            with self.subTest(sentence=sentence):
+                self.assertIsNone(
+                    formation_date_evidence(page(sentence), date, ["Twice"])
+                )
+        self.assertIsNone(
+            genre_evidence(
+                page(
+                    "Twice (a song by the producer who is a rock musician) "
+                    "is a hip hop group."
+                ),
+                ["hip hop"],
+                ["Twice"],
             )
         )
 

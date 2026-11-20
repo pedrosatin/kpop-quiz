@@ -15,9 +15,9 @@ C-REAL (`Q492466`, revid `1351483658`), ENOi (`Q81207594`, revid `1318226487`) e
 
 ## Decisão
 
-- Um adjetivo de contagem (`five-member`, `seven member`, `4-member` e equivalentes de 1 a 12) não aciona o bloqueador de "member + Nome".
+- Um adjetivo de contagem não aciona o bloqueador de "member + Nome": forma com número ou palavra de 1 a 12 (`five-member`, `seven member`, `4-member`) e, com hífen, qualquer `<palavra>-member` que não seja `ex-member` nem `former-member` (ex.: `thirteen-member`).
 - "member Mina", "ex-member Jennie" e demais "member" seguidos de nome capitalizado fora desse adjetivo continuam a recusar a frase.
-- Parênteses no trecho entre o sujeito e o verbo de formação (e nas demais checagens de sujeito do grupo) são ignorados ao procurar `who`/`which`/`that`/`whose`. A oração relativa fora do parêntese, no intervalo entre o verbo e a data, continua a recusar o valor.
+- Em `_formation_has_group_subject`, parênteses no trecho entre o sujeito e o verbo de formação são ignorados **somente** ao procurar `who`/`which`/`that`/`whose`. Os demais bloqueadores (`_NON_GROUP_HEAD_BLOCKERS`, `_NON_GROUP_ROLE`, `_FORMATION_OBJECT_BLOCKERS`, `_member_shifts_subject`) leem o texto original, inclusive o que está dentro do parêntese. `_relation_belongs_to_group` (gênero, demônimo, gravadora) não remove parênteses. A oração relativa fora do parêntese, no intervalo entre o verbo e a data, continua a recusar o valor.
 - `EVIDENCE_RULES_VERSION` passa a `text-evidence-v10`. `EXTRACTOR_VERSION` e `SOURCE_POLICY_VERSION` não mudam.
 
 ## Alternativas consideradas

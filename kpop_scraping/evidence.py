@@ -49,14 +49,17 @@ _NON_MEMBER_ROLE_BEFORE = re.compile(
 _MEMBERSHIP_OWNER_BLOCKERS = re.compile(
     r"\b(?:crew|management|managers?|producers?|staff)\b", _I
 )
-# "member Mina" shifts the subject; "five-member" / "seven member" is a headcount.
+# "member Mina" shifts the subject; "five-member" / "seven member" / "thirteen-member"
+# is a headcount. Hyphenated "<word>-member" counts too, except ex-/former-.
 _MEMBER_COUNT_ADJECTIVE = re.compile(
     r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
-    r"(?:-|\s+)members?\b",
+    r"(?:-|\s+)members?\b"
+    r"|\b(?!(?:ex|former)-)[A-Za-z]+-members?\b",
     _I,
 )
 _MEMBER_AS_SUBJECT = re.compile(r"\bmember,?\s+[A-Z][\w'.-]*")
-# Name glosses such as "(short for New Flying which also means ...)" stay on the group.
+# Name glosses such as "(short for New Flying which also means ...)" stay on the group
+# only for the who/which/that/whose check in formation (ADR 046).
 _PARENTHETICAL = re.compile(r"\([^()]*\)")
 _PLACE_BLOCKERS = re.compile(r"\bdebut\w*", _I)
 _LABEL_BLOCKERS = re.compile(r"\b(?:trainee\w*|from|former\w*)\b", _I)
@@ -1128,15 +1131,18 @@ def _formation_has_group_subject(
     subject = _leading_subject(sentence, subject_names)
     if subject is None or _is_appositive(sentence, verb_start):
         return False
-    relation_head = _strip_parentheticals(sentence[subject.end():verb_start])
+    relation_head = sentence[subject.end():verb_start]
     if relation_head.lstrip().startswith(("'s", "’s")):
         return False
+    # Parentheses are ignored only when looking for who/which/that/whose
+    # (name glosses). Other subject blockers still see the original text.
+    dependent_head = _strip_parentheticals(relation_head)
     return not (
         _FORMATION_OBJECT_BLOCKERS.search(relation_head)
         or _NON_GROUP_HEAD_BLOCKERS.search(relation_head)
         or _member_shifts_subject(relation_head)
         or _NON_GROUP_ROLE.search(relation_head)
-        or _DEPENDENT_SUBJECT.search(relation_head)
+        or _DEPENDENT_SUBJECT.search(dependent_head)
     )
 
 
@@ -1149,7 +1155,7 @@ def _relation_belongs_to_group(
     subject = _leading_subject(sentence, subject_names)
     if subject is None:
         return False
-    relation_head = _strip_parentheticals(sentence[subject.end():relation_start])
+    relation_head = sentence[subject.end():relation_start]
     return not (
         _DEPENDENT_SUBJECT.search(relation_head)
         or _NON_GROUP_HEAD_BLOCKERS.search(relation_head)
