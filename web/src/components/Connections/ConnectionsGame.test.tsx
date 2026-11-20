@@ -1,4 +1,4 @@
-import { act, render, screen, fireEvent, cleanup, within } from "@testing-library/preact";
+import { act, render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/preact";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import validPuzzleJson from "../../tests/fixtures/connections.daily.json";
 import { getMessages } from "../../i18n/catalog";
@@ -638,7 +638,7 @@ describe("Connections share", () => {
       "\nhttps://kpopquiz.online/pt-br/conexoes/?s=connections",
     )).toBe(true);
     const region = liveRegion(container);
-    expect(region).toHaveTextContent(pt.copiedToClipboard);
+    await waitFor(() => expect(region).toHaveTextContent(pt.copiedToClipboard));
     expect(screen.getByRole("button", { name: pt.copiedToClipboard })).toBeInTheDocument();
     expect(container.querySelector("textarea")).toBeNull();
 
@@ -646,11 +646,13 @@ describe("Connections share", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: pt.copiedToClipboard }));
     });
-    expect(writeText).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
     // A new node in the live region, so screen readers read it again.
-    const second = region.querySelector("p");
-    expect(second).toHaveTextContent(pt.copiedToClipboard);
-    expect(second).not.toBe(first);
+    await waitFor(() => {
+      const second = region.querySelector("p");
+      expect(second).toHaveTextContent(pt.copiedToClipboard);
+      expect(second).not.toBe(first);
+    });
   });
 
   it("shows the text to copy by hand and says so when the clipboard refuses", async () => {
@@ -690,8 +692,8 @@ describe("Connections share", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     setNavigator("clipboard", { writeText });
     const { container } = await winAndShare();
-    expect(writeText).toHaveBeenCalled();
-    expect(liveRegion(container)).toHaveTextContent(pt.copiedToClipboard);
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    await waitFor(() => expect(liveRegion(container)).toHaveTextContent(pt.copiedToClipboard));
   });
 
   it("stops the Copied timer when the result goes away", async () => {

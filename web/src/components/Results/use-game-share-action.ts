@@ -1,7 +1,9 @@
 import { trackGameEvent, type GameAnalyticsContext } from "../../lib/game-analytics";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { shareTextToUser } from "./share-text";
 
-const COPIED_FEEDBACK_MS = 3000;
+/** How long the "copied" feedback stays visible after a clipboard share. */
+export const COPIED_FEEDBACK_MS = 3000;
 
 export interface UseGameShareActionOptions {
   analytics?: GameAnalyticsContext;
@@ -10,12 +12,9 @@ export interface UseGameShareActionOptions {
 }
 
 /**
- * Share sheet, then clipboard, then a select-and-copy field. Copied feedback
- * clears after a few seconds; AbortError is not treated as failure.
- *
- * The share/clipboard awaits stay in this function (not a nested async
- * helper) so Testing Library's act still flushes the parent live-region
- * update in the same turn as the existing game tests expect.
+ * Orchestrates feedback, analytics and anti-reentry on top of
+ * `shareTextToUser`. Copied feedback clears after `COPIED_FEEDBACK_MS`;
+ * AbortError is not treated as failure.
  */
 export function useGameShareAction({ onCopied, onShareFailed, analytics }: UseGameShareActionOptions = {}) {
   const [copied, setCopied] = useState(false);
@@ -35,33 +34,26 @@ export function useGameShareAction({ onCopied, onShareFailed, analytics }: UseGa
     if (sharing.current) return;
     sharing.current = true;
     try {
-      const nav = typeof navigator !== "undefined" ? navigator : undefined;
-      if (typeof nav?.share === "function") {
-        try {
-          await nav.share({ text });
-          if (analytics) trackGameEvent("share", analytics, "native");
-          return;
-        } catch (error) {
-          if ((error as { name?: unknown } | null)?.name === "AbortError") return;
-        }
-      }
-      try {
-        if (typeof nav?.clipboard?.writeText !== "function") throw new Error("no clipboard");
-        await nav.clipboard.writeText(text);
-        if (analytics) trackGameEvent("share", analytics, "clipboard");
-      } catch {
-        setShareFailed(true);
-        onShareFailedRef.current?.();
+      const outcome = await shareTextToUser(text);
+      if (outcome === "aborted") return;
+      if (outcome === "shared") {
+        if (analytics) trackGameEvent("share", analytics, "native");
         return;
       }
-      setShareFailed(false);
-      setCopied(true);
-      onCopiedRef.current?.();
-      if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
-      copiedTimer.current = setTimeout(() => {
-        copiedTimer.current = null;
-        setCopied(false);
-      }, COPIED_FEEDBACK_MS);
+      if (outcome === "copied") {
+        if (analytics) trackGameEvent("share", analytics, "clipboard");
+        setShareFailed(false);
+        setCopied(true);
+        onCopiedRef.current?.();
+        if (copiedTimer.current !== null) clearTimeout(copiedTimer.current);
+        copiedTimer.current = setTimeout(() => {
+          copiedTimer.current = null;
+          setCopied(false);
+        }, COPIED_FEEDBACK_MS);
+        return;
+      }
+      setShareFailed(true);
+      onShareFailedRef.current?.();
     } finally {
       sharing.current = false;
     }

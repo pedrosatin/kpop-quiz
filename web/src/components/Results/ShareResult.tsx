@@ -1,9 +1,9 @@
-import { trackGameEvent } from "../../lib/game-analytics";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import type { Locale, PlayMode } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
 import { seoShareUrl } from "../../lib/seo-routes";
-import { withShareUrl } from "./share-text";
+import { canUseClipboardWrite, canUseNativeShare, withShareUrl } from "./share-text";
+import { useGameShareAction } from "./use-game-share-action";
 
 export interface GenerateShareTextParams {
   correctCount: number;
@@ -88,25 +88,31 @@ export function ShareResult({
 }: ShareResultProps) {
   const [canShare, setCanShare] = useState(false);
   const [canCopy, setCanCopy] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { copied, shareFailed, handleShare } = useGameShareAction({
+    analytics: {
+      game: "quiz",
+      locale,
+      mode: playMode,
+      daily: dailyDate ? "yes" : "no",
+    },
+    onShareFailed: () => setShowFallback(true),
+  });
 
   useEffect(() => {
-    const hasShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
-    const hasCopy = typeof navigator !== "undefined" && typeof navigator.clipboard?.writeText === "function";
+    const hasShare = canUseNativeShare();
+    const hasCopy = canUseClipboardWrite();
     setCanShare(hasShare);
     setCanCopy(hasCopy);
     if (!hasShare && !hasCopy) {
       setShowFallback(true);
     }
-
-    return () => {
-      if (copyTimeoutRef.current !== null) {
-        clearTimeout(copyTimeoutRef.current);
-      }
-    };
   }, []);
+
+  useEffect(() => {
+    if (shareFailed) setShowFallback(true);
+  }, [shareFailed]);
 
   const shareText = generateShareText({
     correctCount,
@@ -121,46 +127,15 @@ export function ShareResult({
     ...(shareUrl !== undefined ? { shareUrl } : {}),
   });
 
-  const handleAction = async () => {
-    if (canShare) {
-      try {
-        await navigator.share({ text: shareText });
-        trackGameEvent("share", { game: "quiz", locale, mode: playMode, daily: dailyDate ? "yes" : "no" }, "native");
-        return;
-      } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
-          return;
-        }
-      }
-    }
-    if (canCopy) {
-      try {
-        await navigator.clipboard.writeText(shareText);
-        trackGameEvent("share", { game: "quiz", locale, mode: playMode, daily: dailyDate ? "yes" : "no" }, "clipboard");
-        setCopied(true);
-        if (copyTimeoutRef.current !== null) {
-          clearTimeout(copyTimeoutRef.current);
-        }
-        copyTimeoutRef.current = setTimeout(() => {
-          setCopied(false);
-          copyTimeoutRef.current = null;
-        }, 4000);
-        return;
-      } catch {
-        setShowFallback(true);
-      }
-    } else {
-      setShowFallback(true);
-    }
-  };
-
   return (
     <div class="share-result">
       {(!showFallback || canShare || canCopy) && (
         <button
           type="button"
           class="btn btn-secondary share-button"
-          onClick={handleAction}
+          onClick={() => {
+            void handleShare(shareText);
+          }}
         >
           {canShare ? messages.share : messages.copyResult}
         </button>

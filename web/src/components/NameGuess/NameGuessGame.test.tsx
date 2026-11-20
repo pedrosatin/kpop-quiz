@@ -847,8 +847,8 @@ describe("NameGuess share", () => {
     setNavigator("clipboard", { writeText });
     await winAndShare();
 
-    expect(writeText).toHaveBeenCalledWith(shareText());
-    expect(liveMessage()).toHaveTextContent(tPt.copied);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(shareText()));
+    await waitFor(() => expect(liveMessage()).toHaveTextContent(tPt.copied));
   });
 
   it("copies the result and announces it again on a second copy", async () => {
@@ -856,10 +856,10 @@ describe("NameGuess share", () => {
     setNavigator("clipboard", { writeText });
     const { container } = await winAndShare();
 
-    expect(writeText).toHaveBeenCalledWith(shareText());
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(shareText()));
     const region = liveMessage();
     expect(region).toHaveAttribute("aria-live", "polite");
-    expect(region).toHaveTextContent(tPt.copied);
+    await waitFor(() => expect(region).toHaveTextContent(tPt.copied));
     expect(screen.getByRole("button", { name: tPt.copied })).toBeInTheDocument();
     expect(container.querySelector("textarea")).toBeNull();
 
@@ -867,11 +867,13 @@ describe("NameGuess share", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: tPt.copied }));
     });
-    expect(writeText).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
     // A new node in the live region, so screen readers read it again.
-    const second = region.querySelector("p");
-    expect(second).toHaveTextContent(tPt.copied);
-    expect(second).not.toBe(first);
+    await waitFor(() => {
+      const second = region.querySelector("p");
+      expect(second).toHaveTextContent(tPt.copied);
+      expect(second).not.toBe(first);
+    });
   });
 
   it("shows the text to copy by hand and says so when the clipboard refuses", async () => {
