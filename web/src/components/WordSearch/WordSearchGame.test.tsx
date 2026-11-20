@@ -734,9 +734,9 @@ describe("WordSearch share", () => {
     setNavigator("clipboard", { writeText });
     const { container } = await finishAndShare();
 
-    expect(writeText).toHaveBeenCalledWith(shareText());
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(shareText()));
     const region = liveRegion(container);
-    expect(region).toHaveTextContent(pt.copiedToClipboard);
+    await waitFor(() => expect(region).toHaveTextContent(pt.copiedToClipboard));
     expect(screen.getByRole("button", { name: pt.copiedToClipboard })).toBeInTheDocument();
     expect(container.querySelector("textarea")).toBeNull();
 
@@ -744,10 +744,12 @@ describe("WordSearch share", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: pt.copiedToClipboard }));
     });
-    expect(writeText).toHaveBeenCalledTimes(2);
-    const second = region.querySelector("p");
-    expect(second).toHaveTextContent(pt.copiedToClipboard);
-    expect(second).not.toBe(first);
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      const second = region.querySelector("p");
+      expect(second).toHaveTextContent(pt.copiedToClipboard);
+      expect(second).not.toBe(first);
+    });
   });
 
   it("uses the share sheet first and does not copy", async () => {
@@ -779,8 +781,8 @@ describe("WordSearch share", () => {
     setNavigator("clipboard", { writeText });
     const { container } = await finishAndShare();
 
-    expect(writeText).toHaveBeenCalledWith(shareText());
-    expect(liveRegion(container)).toHaveTextContent(pt.copiedToClipboard);
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(shareText()));
+    await waitFor(() => expect(liveRegion(container)).toHaveTextContent(pt.copiedToClipboard));
   });
 
   it("shows the text to copy by hand and says so when the clipboard refuses", async () => {
