@@ -12,7 +12,7 @@ from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
 
-EVIDENCE_RULES_VERSION = "text-evidence-v9"
+EVIDENCE_RULES_VERSION = "text-evidence-v10"
 MIN_NAME_LENGTH = 4
 # Shorter performer names count in a credit only when spelled exactly.
 MIN_CREDIT_NAME_LENGTH = 2
@@ -49,7 +49,15 @@ _NON_MEMBER_ROLE_BEFORE = re.compile(
 _MEMBERSHIP_OWNER_BLOCKERS = re.compile(
     r"\b(?:crew|management|managers?|producers?|staff)\b", _I
 )
+# "member Mina" shifts the subject; "five-member" / "seven member" is a headcount.
+_MEMBER_COUNT_ADJECTIVE = re.compile(
+    r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+    r"(?:-|\s+)members?\b",
+    _I,
+)
 _MEMBER_AS_SUBJECT = re.compile(r"\bmember,?\s+[A-Z][\w'.-]*")
+# Name glosses such as "(short for New Flying which also means ...)" stay on the group.
+_PARENTHETICAL = re.compile(r"\([^()]*\)")
 _PLACE_BLOCKERS = re.compile(r"\bdebut\w*", _I)
 _LABEL_BLOCKERS = re.compile(r"\b(?:trainee\w*|from|former\w*)\b", _I)
 _LABEL_TRIGGER = re.compile(
@@ -1096,6 +1104,21 @@ def _is_appositive(sentence: str, verb_start: int) -> bool:
     return sentence[:verb_start].rstrip().endswith(",")
 
 
+def _strip_parentheticals(text: str) -> str:
+    """Drop parenthetical glosses so relative pronouns inside them do not shift the subject."""
+    previous = None
+    while previous != text:
+        previous = text
+        text = _PARENTHETICAL.sub(" ", text)
+    return text
+
+
+def _member_shifts_subject(relation_head: str) -> bool:
+    """True when a named member takes the subject, not a headcount adjective."""
+    cleaned = _MEMBER_COUNT_ADJECTIVE.sub(" ", relation_head)
+    return bool(_MEMBER_AS_SUBJECT.search(cleaned))
+
+
 def _formation_has_group_subject(
     sentence: str,
     verb_start: int,
@@ -1105,13 +1128,13 @@ def _formation_has_group_subject(
     subject = _leading_subject(sentence, subject_names)
     if subject is None or _is_appositive(sentence, verb_start):
         return False
-    relation_head = sentence[subject.end():verb_start]
+    relation_head = _strip_parentheticals(sentence[subject.end():verb_start])
     if relation_head.lstrip().startswith(("'s", "’s")):
         return False
     return not (
         _FORMATION_OBJECT_BLOCKERS.search(relation_head)
         or _NON_GROUP_HEAD_BLOCKERS.search(relation_head)
-        or _MEMBER_AS_SUBJECT.search(relation_head)
+        or _member_shifts_subject(relation_head)
         or _NON_GROUP_ROLE.search(relation_head)
         or _DEPENDENT_SUBJECT.search(relation_head)
     )
@@ -1126,7 +1149,7 @@ def _relation_belongs_to_group(
     subject = _leading_subject(sentence, subject_names)
     if subject is None:
         return False
-    relation_head = sentence[subject.end():relation_start]
+    relation_head = _strip_parentheticals(sentence[subject.end():relation_start])
     return not (
         _DEPENDENT_SUBJECT.search(relation_head)
         or _NON_GROUP_HEAD_BLOCKERS.search(relation_head)
