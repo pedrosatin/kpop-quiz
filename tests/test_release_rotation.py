@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from kpop_scraping.cli import main
-from kpop_scraping.exit_codes import EXIT_OK
+from kpop_scraping.exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
 from kpop_scraping.fact_store import FactRunTotals
 from kpop_scraping.mediawiki import MediaWikiError
 from kpop_scraping.release_discovery import (
@@ -20,7 +20,7 @@ from kpop_scraping.release_discovery import (
     release_batch_count,
     rotated_release_group_offset,
 )
-from kpop_scraping.storage import Repository
+from kpop_scraping.storage import Repository, SnapshotIntegrityError
 
 
 def _seed_accepted_groups(repository: Repository, qids: list[str]) -> None:
@@ -250,6 +250,43 @@ class ReleaseDiscoveryFailureKeepsFactsTest(unittest.TestCase):
                     for row in repository.connection.execute("SELECT note FROM _probe")
                 }
             self.assertEqual(notes, {"facts-marker", "facts-saved"})
+
+    def test_integrity_and_confirmation_errors_keep_failure_exit_codes(self):
+        totals = FactRunTotals(0, 0, 0, 0, 0, 0, 0, 0)
+        discovery = type("Discovery", (), {"run_id": 1, "truncated": ()})()
+        cases = (
+            ("discovery", SnapshotIntegrityError("damaged snapshot"), EXIT_DETERMINISTIC),
+            ("discovery", RuntimeError("storage failure"), EXIT_DETERMINISTIC),
+            ("confirmation", SnapshotIntegrityError("damaged snapshot"), EXIT_DETERMINISTIC),
+            ("confirmation", ValueError("invalid release"), EXIT_DETERMINISTIC),
+            ("confirmation", MediaWikiError("network failure", transient=True), EXIT_TRANSIENT),
+        )
+        for stage, error, expected in cases:
+            with self.subTest(stage=stage, error=type(error).__name__), tempfile.TemporaryDirectory() as directory:
+                with patch("kpop_scraping.cli.collect_category", return_value=0), patch(
+                    "kpop_scraping.cli.classify_catalog"
+                ) as classify, patch(
+                    "kpop_scraping.cli.extract_facts", return_value=totals
+                ), patch(
+                    "kpop_scraping.cli.export_fact_coverage_csv", return_value=0
+                ), patch(
+                    "kpop_scraping.cli.discover_releases",
+                    return_value=discovery,
+                    side_effect=error if stage == "discovery" else None,
+                ), patch(
+                    "kpop_scraping.cli.collect_release_facts", side_effect=error
+                ), patch("kpop_scraping.cli.WikidataQueryClient"), patch(
+                    "kpop_scraping.cli.WikidataEntityClient"
+                ), patch("kpop_scraping.cli.WikidataTypeClient"), patch(
+                    "kpop_scraping.cli.MediaWikiClient"
+                ), redirect_stdout(io.StringIO()) as stdout, redirect_stderr(io.StringIO()) as stderr:
+                    classify.return_value.accepted = 1
+                    classify.return_value.rejected = 0
+                    classify.return_value.pending = 0
+                    code = main(["--database", str(Path(directory) / "test.db"), "--releases"])
+                self.assertEqual(code, expected)
+                self.assertIn("Pipeline failed", stdout.getvalue())
+                self.assertNotIn("Release discovery skipped", stderr.getvalue())
 
     def test_offset_beyond_catalog_after_facts_exits_ok(self):
         totals = FactRunTotals(0, 0, 0, 0, 0, 0, 0, 0)

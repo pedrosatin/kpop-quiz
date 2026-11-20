@@ -185,7 +185,7 @@ def report_release_stage_failure(exc: Exception) -> None:
 
     The run exits 0 so the rebuild keeps the refreshed facts and the day can
     still publish from that database. Releases outside tonight's batch stay as
-    they were; the next night's rotated batch tries again.
+    they were; the failed batch is retried in a later rotation cycle.
     """
     message = (
         f"release discovery failed after facts were saved "
@@ -383,11 +383,11 @@ def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, ca
                             repository.connection,
                             args.release_report or args.database.parent / "release-coverage.csv",
                         )
-                except (MediaWikiError, SnapshotIntegrityError, RuntimeError, ValueError) as exc:
+                except (MediaWikiError, ValueError) as exc:
                     # Facts already committed: keep them and let the rebuild
                     # treat the attempt as success so restore-cache does not
                     # undo the night's fact refresh.
-                    if fact_totals is None:
+                    if fact_totals is None or discovery is not None:
                         raise
                     report_release_stage_failure(exc)
                     release_totals = release_rows = discovery = None

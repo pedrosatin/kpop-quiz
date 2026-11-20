@@ -15,6 +15,11 @@ The CLI decides between the two codes from the exception that ended the run:
   ``SnapshotIntegrityError``, a validation ``ValueError`` or a response the
   parser refuses.
 
+Release discovery may skip a batch with ``EXIT_OK`` on ``MediaWikiError`` or
+``ValueError`` after the general facts stage has saved. Once discovery has
+completed, confirmation errors follow the failure codes above. Snapshot
+integrity failures always remain ``EXIT_DETERMINISTIC``.
+
 The values come from ``sysexits.h`` (``EX_DATAERR`` and ``EX_TEMPFAIL``). They
 stay clear of the codes other layers already use: 1 (uncaught exception or
 ``SystemExit`` with a message), 2 (argparse), 124 and 137 (``timeout(1)``),
