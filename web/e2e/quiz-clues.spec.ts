@@ -243,18 +243,11 @@ for (const row of quizCluesCases) {
         test(`quiz ${locale.id} ${viewport.name} ${mode} ${scenario.name} banner ${consent}: clues and notices match the published session`, { tag: LOCAL_BUILD_TAG }, async ({ page, context, consentURL }) => {
           // A day may go out without the quiz (helpers/published.ts); the
           // tomorrow scenario reads the set published ahead.
-          if (scenario.tomorrow) {
-            // Exception: tomorrow path needs data/next published ahead of the frozen clock.
-            // Behaviour still freezes the clock; see ticket 02 exceptions.
-            const { skipUnlessPublished } = await import("./helpers/published");
-            await skipUnlessPublished(page, consentURL, "next/manifest-v2.json");
-          } else {
-            await serveFixedQuiz(page);
-          }
+          // Tomorrow publishes the frozen set under data/next/ and pins the
+          // clock on the day after FIXED_REFERENCE_DATE (no live next/ needed).
+          await serveFixedQuiz(page, { tomorrow: scenario.tomorrow });
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
           await context.route("**/*", (route) => new URL(route.request().url()).origin === consentURL ? route.continue() : route.abort());
-          // A clock that keeps running in real time; the Next guard is crossed by jumping it.
-          await installGuardClock(page, scenario.tomorrow ? Date.now() + 36 * 3_600_000 : undefined);
           // Only the decade round may come from the catalog; the daily game always reads its published session.
           const catalog = scenario.name === "decade-2000";
           const fetched = await openSession(page, consentURL, locale.path, mode, scenario.query, catalog, { state: consent, reject: locale.reject });

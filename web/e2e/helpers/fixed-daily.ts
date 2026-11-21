@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -284,50 +285,114 @@ export async function serveFixedCrossword(
 export type FixedQuizServeOptions = FixedClockOptions & {
   /** When true, also 404 catalog probes so the page stays on published sessions. */
   hideCatalog?: boolean;
+  /**
+   * Serve data/next/ as the day after FIXED_REFERENCE_DATE and freeze the
+   * clock on that day, so quiz-clues "tomorrow" stays offline.
+   */
+  tomorrow?: boolean;
 };
 
 /**
  * Serves the frozen quiz manifest and its session files, hides next/ and
  * (by default) catalog probes, and freezes the page clock.
  */
-export async function serveFixedQuiz(
-  page: Page,
-  options: FixedQuizServeOptions = {},
-): Promise<QuizManifest> {
-  const manifest = fixedQuizManifest;
-  await freezePageClock(page, options, FIXED_REFERENCE_DATE);
+function nextCalendarDay(referenceDate: string): string {
+  const day = new Date(`${referenceDate}T00:00:00.000Z`);
+  day.setUTCDate(day.getUTCDate() + 1);
+  return day.toISOString().slice(0, 10);
+}
 
-  await page.route("**/data/next/manifest-v2.json*", (route) => route.fulfill({ status: 404, body: "" }));
-  await page.route("**/data/next/manifest-v3.json*", (route) => route.fulfill({ status: 404, body: "" }));
-  await page.route("**/data/manifest-v3.json*", (route) => route.fulfill({ status: 404, body: "" }));
-  await page.route("**/data/manifest-v2.json*", (route) => route.fulfill({ json: manifest }));
+/** Rewrite a daily session seed to `nextDate` and return body + content hash. */
+function rewriteDailySessionSeed(body: string, nextDate: string): { body: string; sha256: string } {
+  const session = JSON.parse(body) as QuizSession;
+  const seed = session.config.seed;
+  if (typeof seed === "string" && /^kpop-daily-\d{4}-\d{2}-\d{2}$/.test(seed)) {
+    session.config = { ...session.config, seed: `kpop-daily-${nextDate}` };
+  }
+  const rewritten = JSON.stringify(session);
+  return { body: rewritten, sha256: createHash("sha256").update(rewritten).digest("hex") };
+}
 
+function indexSessionBodies(manifest: QuizManifest): Map<string, string> {
   const sessionBodies = new Map<string, string>();
   for (const entry of Object.values(manifest.sessions)) {
     sessionBodies.set(entry.path, readText(entry.path));
   }
-  // Also index every session file on disk so a typo'd path still 404s clearly.
   for (const name of readdirSync(FIXED_DATA_DIR)) {
     if (name.startsWith("session.") && name.endsWith(".json") && !sessionBodies.has(name)) {
       sessionBodies.set(name, readText(name));
     }
   }
+  return sessionBodies;
+}
 
-  await page.route("**/data/next/session.*", (route) => route.fulfill({ status: 404, body: "" }));
+async function hideQuizCatalog(page: Page): Promise<void> {
+  await page.route("**/data/catalog-manifest-v1.json*", (route) => route.fulfill({ status: 404, body: "" }));
+  await page.route("**/data/catalog.*", (route) => route.fulfill({ status: 404, body: "" }));
+}
+
+/**
+ * Serves the frozen quiz manifest and its session files, hides next/ and
+ * (by default) catalog probes, and freezes the page clock.
+ * Pass `tomorrow: true` to publish the same daily sessions under data/next/
+ * for the day after FIXED_REFERENCE_DATE and freeze on that day.
+ */
+export async function serveFixedQuiz(
+  page: Page,
+  options: FixedQuizServeOptions = {},
+): Promise<QuizManifest> {
+  const nextDate = nextCalendarDay(FIXED_REFERENCE_DATE);
+  const clockDay = options.tomorrow ? nextDate : FIXED_REFERENCE_DATE;
+  await freezePageClock(page, options, clockDay);
+
+  await page.route("**/data/manifest-v3.json*", (route) => route.fulfill({ status: 404, body: "" }));
+  await page.route("**/data/next/manifest-v3.json*", (route) => route.fulfill({ status: 404, body: "" }));
+
+  const currentBodies = indexSessionBodies(fixedQuizManifest);
+  await page.route("**/data/manifest-v2.json*", (route) => route.fulfill({ json: fixedQuizManifest }));
   await page.route("**/data/session.*", (route) => {
-    const url = route.request().url();
-    const file = url.split("/data/").pop()?.split("?")[0] ?? "";
-    const body = sessionBodies.get(file);
+    const file = route.request().url().split("/data/").pop()?.split("?")[0] ?? "";
+    const body = currentBodies.get(file);
     if (!body) return route.fulfill({ status: 404, body: "" });
     return route.fulfill({ status: 200, contentType: "application/json", body });
   });
 
-  if (options.hideCatalog !== false) {
-    await page.route("**/data/catalog-manifest-v1.json*", (route) => route.fulfill({ status: 404, body: "" }));
-    await page.route("**/data/catalog.*", (route) => route.fulfill({ status: 404, body: "" }));
+  let served = fixedQuizManifest;
+  if (options.tomorrow) {
+    const nextManifest: QuizManifest = {
+      schema_version: "kpop-quiz-web-manifest-v2",
+      dataset_version: fixedQuizManifest.dataset_version,
+      sessions: {},
+    };
+    const nextBodies = new Map<string, string>();
+    for (const [key, entry] of Object.entries(fixedQuizManifest.sessions)) {
+      if (!key.startsWith("daily.")) {
+        nextManifest.sessions[key] = entry;
+        nextBodies.set(entry.path, currentBodies.get(entry.path) ?? readText(entry.path));
+        continue;
+      }
+      const original = currentBodies.get(entry.path) ?? readText(entry.path);
+      const { body, sha256 } = rewriteDailySessionSeed(original, nextDate);
+      const pathName = `session.${key}.${sha256}.json`;
+      nextManifest.sessions[key] = { ...entry, path: pathName, sha256 };
+      nextBodies.set(pathName, body);
+    }
+    await page.route("**/data/next/manifest-v2.json*", (route) => route.fulfill({ json: nextManifest }));
+    await page.route("**/data/next/session.*", (route) => {
+      const file = route.request().url().split("/data/next/").pop()?.split("?")[0] ?? "";
+      const body = nextBodies.get(file);
+      if (!body) return route.fulfill({ status: 404, body: "" });
+      return route.fulfill({ status: 200, contentType: "application/json", body });
+    });
+    served = nextManifest;
+  } else {
+    await page.route("**/data/next/manifest-v2.json*", (route) => route.fulfill({ status: 404, body: "" }));
+    await page.route("**/data/next/session.*", (route) => route.fulfill({ status: 404, body: "" }));
   }
 
-  return manifest;
+  if (options.hideCatalog !== false) await hideQuizCatalog(page);
+
+  return served;
 }
 
 /** Map has no daily JSON; freezing the clock selects the round for the fixed day. */
@@ -400,6 +465,7 @@ export async function serveFixedDaily(
       return serveFixedQuiz(page, {
         ...clock,
         ...(options.hideCatalog !== undefined ? { hideCatalog: options.hideCatalog } : {}),
+        ...(options.tomorrow !== undefined ? { tomorrow: options.tomorrow } : {}),
       });
     case "map":
       return serveFixedMap(page, clock);

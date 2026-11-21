@@ -106,6 +106,21 @@ describe("fixed daily route contract", () => {
     return { page, routes };
   }
 
+
+  it("tomorrow serves next/ daily sessions dated the day after the freeze", async () => {
+    const { page, routes } = pageHarness();
+    const served = await serveFixedQuiz(page as unknown as Page, { tomorrow: true });
+    expect(page.clock.install).toHaveBeenCalledWith({ time: new Date("2026-09-18T18:00:00.000Z") });
+    expect(routes.has("**/data/next/manifest-v2.json*")).toBe(true);
+    const fulfill = vi.fn();
+    await routes.get("**/data/next/manifest-v2.json*")!({ fulfill, request: () => ({ url: () => "https://example.test/data/next/manifest-v2.json" }) });
+    const payload = fulfill.mock.calls[0]![0].json as { sessions: Record<string, { path: string }> };
+    const nextDaily = payload.sessions["daily.pt-BR.standard"];
+    expect(nextDaily?.path).toMatch(/^session\.daily\.pt-BR\.standard\.[0-9a-f]{64}\.json$/);
+    // Current day stays on FIXED_REFERENCE_DATE under data/.
+    expect(served.sessions["daily.pt-BR.standard"]).toBeTruthy();
+  });
+
   it("serves a fixed normal Grade day and hides live publication sidecars", async () => {
     const { page, routes } = pageHarness();
     const grid = await serveFixedDaily(page as unknown as Page, "grid");
