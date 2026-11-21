@@ -116,7 +116,7 @@ jobs:
           mode=--incremental
           if [ "$(date -u +%u)" = 7 ]; then mode=--full-refresh; fi
           exec python3 scripts/rebuild_database.py rebuild --schema-cache --database data/kpop.db -- \
-            python main.py --facts --releases "$mode" --database data/kpop.db
+            python main.py --facts --releases --release-rotate "$mode" --database data/kpop.db
 
       # outcome is the result of the step before continue-on-error applies:
       # "failure" for a non-zero exit and for the step timeout. failure()

@@ -1,6 +1,6 @@
 """Time, requests and maxlag waits of each phase of one collector run.
 
-The nightly rebuild runs ``python main.py --facts --releases``. Its log used to
+The nightly rebuild runs ``python main.py --facts --releases --release-rotate``. Its log used to
 show only the total, so a slow night could not be told apart: a lagged
 Wikidata, a large download or slow writes all looked the same. The CLI now
 installs a :class:`PhaseLog` for the run and prints one line per phase at the

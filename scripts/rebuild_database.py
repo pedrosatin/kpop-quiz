@@ -33,7 +33,7 @@ hangs cannot take the fallback down with it
 The workflow runs::
 
     exec python3 scripts/rebuild_database.py rebuild --schema-cache --database data/kpop.db -- \\
-        python main.py --facts --releases "$mode" --database data/kpop.db
+        python main.py --facts --releases --release-rotate "$mode" --database data/kpop.db
     python3 scripts/rebuild_database.py restore-cache --database data/kpop.db
 
 When a step passes ``timeout-minutes`` or the run is cancelled, the runner
