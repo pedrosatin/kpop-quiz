@@ -1,19 +1,21 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "./fixtures/consent";
+import { serveFixedGrid } from "./helpers/fixed-daily";
 import { visibleLabels } from "./helpers/visible-names";
 import { joinBaseUrl } from "../src/lib/join-base-url";
+import { isIntersectionGrid } from "../src/lib/quiz-types";
 import { reloadPersisted } from "./helpers/passive-effects";
 
 // A grid published before the label said "Formado/Formed" (2026-10-26, frozen
 // from the daily publication), served as the day's artifact. The fallback
 // reuses such a file byte for byte, so players can still receive it.
-const legacy = JSON.parse(
+const legacyRaw = JSON.parse(
   readFileSync(new URL("../src/tests/fixtures/grid.published-legacy-20261026.json", import.meta.url), "utf8"),
-) as {
-  grid_id: string;
-  candidate_pool: { id: string; canonical_name: string; names: Record<string, string> }[];
-  cells: { row_index: number; col_index: number; valid_entity_ids: string[] }[];
-};
+);
+if (!isIntersectionGrid(legacyRaw)) {
+  throw new Error("grid.published-legacy-20261026.json failed isIntersectionGrid");
+}
+const legacy = legacyRaw;
 
 const locales = [
   {
@@ -47,10 +49,7 @@ const viewports = [
 for (const locale of locales)
   for (const viewport of viewports) {
     test(`grid ${locale.id} ${viewport.name}: a legacy decade label reads as formation, keeps its save and survives a reload`, async ({ page, baseURL }) => {
-      await page.route("**/data/grid.daily.json*", (route) => route.fulfill({ json: legacy }));
-      await page.route("**/data/next/grid.daily.json*", (route) => route.fulfill({ status: 404, body: "" }));
-      await page.route("**/data/**/grid-publication.*", (route) => route.fulfill({ status: 404, body: "" }));
-      await page.route("**/data/grid-publication.*", (route) => route.fulfill({ status: 404, body: "" }));
+      await serveFixedGrid(page, { grid: legacy, guardClock: false });
 
       const labels = visibleLabels(
         legacy.candidate_pool.map((c) => ({ id: c.id, canonical_name: c.canonical_name, labels: c.names })),

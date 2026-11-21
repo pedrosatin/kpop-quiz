@@ -1,5 +1,6 @@
 import { test as base, expect, type Page } from "@playwright/test";
 import { CONSENT_BUILD, SITE_BUILD_FIXTURE_TIMEOUT_MS, serveSiteBuild } from "./fixtures/site-builds";
+import { serveFixedGrid } from "./helpers/fixed-daily";
 import { LOCAL_BUILD_TAG } from "./target";
 
 // Serve the real consent island independently of production secrets or BASE_URL.
@@ -34,6 +35,8 @@ for (const locale of locales)
         await context.route("**/*", (route) => new URL(route.request().url()).origin === consentURL
           ? route.continue()
           : route.abort());
+        // Frozen board via the shared helper; the consent build's baked data/ is ignored.
+        await serveFixedGrid(page, { guardClock: false });
         await page.goto(consentURL + locale.path);
         const banner = page.locator(".consent-banner");
         await expect(banner, "the consent build must render the real banner").toBeVisible();
