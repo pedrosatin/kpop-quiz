@@ -1,17 +1,11 @@
 import { expect, test } from "./fixtures/consent";
-import { loadPreferNextDaily } from "./helpers/daily-artifact";
+import { serveFixedGrid } from "./helpers/fixed-daily";
 import { visibleLabels } from "./helpers/visible-names";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { CELL_GUARD_MS } from "../src/components/Grid/next-cell-after-guess";
 import { normalizeSearch } from "../src/components/Grid/candidate-search";
-import { crossGuard, installGuardClock } from "./helpers/guard-clock";
+import { crossGuard } from "./helpers/guard-clock";
 import { reloadPersisted } from "./helpers/passive-effects";
-
-type Grid = {
-  reference_date: string;
-  candidate_pool: { id: string; canonical_name: string; names: Record<string, string> }[];
-  cells: { row_index: number; col_index: number; valid_entity_ids: string[] }[];
-};
 
 const locales = [
   {
@@ -41,9 +35,8 @@ const viewports = [
 
 for (const locale of locales)
   for (const viewport of viewports) {
-    test(`grid ${locale.id} ${viewport.name}: Enter on an empty search and a repeated group spend no guess`, async ({ page, request, baseURL }) => {
-      await installGuardClock(page);
-      const grid = await loadPreferNextDaily<Grid>(request, baseURL!, "grid.daily.json");
+    test(`grid ${locale.id} ${viewport.name}: Enter on an empty search and a repeated group spend no guess`, async ({ page, baseURL }) => {
+      const grid = await serveFixedGrid(page);
       const cell = grid.cells.find((c) => c.row_index === 0 && c.col_index === 0)!;
       const labels = visibleLabels(
         grid.candidate_pool.map((c) => ({ id: c.id, canonical_name: c.canonical_name, labels: c.names })),

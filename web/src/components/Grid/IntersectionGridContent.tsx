@@ -1,3 +1,4 @@
+import type { Ref } from "preact";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { CandidateEntity, IntersectionGrid, Locale } from "../../lib/quiz-types";
 import type { Messages } from "../../i18n/catalog";
@@ -23,6 +24,8 @@ type GridGameApi = ReturnType<typeof useGridGame>;
 
 export interface IntersectionGridContentProps {
   grid: IntersectionGrid;
+  /** Same-day correction notice; lives inside the card so the desktop panel stays on screen. */
+  corrected?: boolean;
   locale: Locale;
   messages: Messages;
   status: GridGameStatus;
@@ -45,8 +48,102 @@ function triedInCell(cells: Record<string, GridCellState>, selected: CellCoordin
   return new Set(cells[cellKey(selected.row, selected.col)]?.triedIds);
 }
 
+/**
+ * Side column: sticky bar under the board on phones, a column beside it from
+ * 60rem. A same-day correction notice lives here so it does not push Give up
+ * under the fold at desktop height.
+ */
+function GridSideColumn({
+  corrected,
+  correctionText,
+  barState,
+  isComplete,
+  feedback,
+  guessesLeft,
+  solvedCount,
+  messages,
+  grid,
+  cells,
+  guessesUsed,
+  finalVerdict,
+  gaveUp,
+  onCopied,
+  onShareFailed,
+  titleRef,
+  locale,
+  onGiveUp,
+}: {
+  corrected: boolean;
+  correctionText: string;
+  barState: string;
+  isComplete: boolean;
+  feedback: GridFeedback | null;
+  guessesLeft: number;
+  solvedCount: number;
+  messages: Messages;
+  grid: IntersectionGrid;
+  cells: Record<string, GridCellState>;
+  guessesUsed: number;
+  finalVerdict: string | null;
+  gaveUp: boolean;
+  onCopied: () => void;
+  onShareFailed: () => void;
+  titleRef: Ref<HTMLHeadingElement>;
+  locale: Locale;
+  onGiveUp: () => void;
+}) {
+  return (
+    <div class="game-layout-side">
+      {corrected && (
+        <aside class="grid-correction" role="status" data-testid="grid-correction">
+          <p>{correctionText}</p>
+        </aside>
+      )}
+      <div class={`game-actions grid-actions${barState}`}>
+        {/* Mounted from the start so the first verdict is announced. At the end
+            the result title takes its place, and this only announces the copy. */}
+        <div
+          class={`game-actions-message grid-message${isComplete ? " visually-hidden" : ""}`}
+          role="status"
+          aria-live="polite"
+        >
+          <GridFeedbackMessage
+            isComplete={isComplete}
+            feedback={feedback}
+            guessesLeft={guessesLeft}
+            solvedCount={solvedCount}
+            messages={messages}
+          />
+        </div>
+        {isComplete ? (
+          <GridResults
+            grid={grid}
+            cellStates={cells}
+            guessesUsed={guessesUsed}
+            verdict={finalVerdict}
+            gaveUp={gaveUp}
+            onCopied={onCopied}
+            onShareFailed={onShareFailed}
+            titleRef={titleRef}
+            locale={locale}
+            messages={messages}
+          />
+        ) : (
+          <>
+            <GridProgress guessesLeft={guessesLeft} solvedCount={solvedCount} messages={messages} />
+            <button type="button" class="btn btn-secondary" onClick={onGiveUp}>
+              {messages.giveUp}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function IntersectionGridContent({
   grid,
+  corrected = false,
   locale,
   messages,
   status,
@@ -154,7 +251,12 @@ export function IntersectionGridContent({
   if (dayDone) return <DailyDone game="grid" locale={locale} referenceDate={grid.reference_date} />;
 
   return (
-    <section id="grid" class="game-card game-card--wide grid-game" data-testid="game-board" aria-labelledby="grid-hud-heading">
+    <section
+      id="grid"
+      class={`game-card game-card--wide grid-game${corrected ? " grid-game--corrected" : ""}`}
+      data-testid="game-board"
+      aria-labelledby="grid-hud-heading"
+    >
       <h2 id="grid-hud-heading" class="visually-hidden">
         {messages.gridTitle}
       </h2>
@@ -172,47 +274,26 @@ export function IntersectionGridContent({
           revealed={gaveUp}
         />
 
-        {/* The side panel: the sticky bar under the board on phones, a column
-            beside it from 60rem. The verdict and counters while playing, the
-            result at the end; the board never moves. */}
-        <div class={`game-actions grid-actions${barState}`}>
-          {/* Mounted from the start so the first verdict is announced. At the end
-              the result title takes its place, and this only announces the copy. */}
-          <div
-            class={`game-actions-message grid-message${isComplete ? " visually-hidden" : ""}`}
-            role="status"
-            aria-live="polite"
-          >
-            <GridFeedbackMessage
-              isComplete={isComplete}
-              feedback={feedback}
-              guessesLeft={guessesLeft}
-              solvedCount={solvedCount}
-              messages={messages}
-            />
-          </div>
-          {isComplete ? (
-            <GridResults
-              grid={grid}
-              cellStates={cells}
-              guessesUsed={guessesUsed}
-              verdict={finalVerdict}
-              gaveUp={gaveUp}
-              onCopied={() => setFeedback({ kind: "copied", n: ++announcements.current })}
-              onShareFailed={() => setFeedback({ kind: "shareFailed", n: ++announcements.current })}
-              titleRef={resultTitle}
-              locale={locale}
-              messages={messages}
-            />
-          ) : (
-            <>
-              <GridProgress guessesLeft={guessesLeft} solvedCount={solvedCount} messages={messages} />
-              <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
-                {messages.giveUp}
-              </button>
-            </>
-          )}
-        </div>
+        <GridSideColumn
+          corrected={corrected}
+          correctionText={messages.gridCorrected}
+          barState={barState}
+          isComplete={isComplete}
+          feedback={feedback}
+          guessesLeft={guessesLeft}
+          solvedCount={solvedCount}
+          messages={messages}
+          grid={grid}
+          cells={cells}
+          guessesUsed={guessesUsed}
+          finalVerdict={finalVerdict}
+          gaveUp={gaveUp}
+          onCopied={() => setFeedback({ kind: "copied", n: ++announcements.current })}
+          onShareFailed={() => setFeedback({ kind: "shareFailed", n: ++announcements.current })}
+          titleRef={resultTitle}
+          locale={locale}
+          onGiveUp={requestGiveUp}
+        />
       </div>
 
       {status === "cell_selected" && selectedCell && (

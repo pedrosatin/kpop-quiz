@@ -1,15 +1,10 @@
 import { expect, test } from "./fixtures/consent";
-import { loadPreferNextDaily } from "./helpers/daily-artifact";
+import { FIXED_REPLACED_GRID_ID, serveFixedGrid } from "./helpers/fixed-daily";
 import { visibleLabels } from "./helpers/visible-names";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { CELL_GUARD_MS } from "../src/components/Grid/next-cell-after-guess";
-import { crossGuard, installGuardClock } from "./helpers/guard-clock";
+import { crossGuard } from "./helpers/guard-clock";
 import { reloadPersisted } from "./helpers/passive-effects";
-
-type Grid = {
-  candidate_pool: { id: string; canonical_name: string; names: Record<string, string> }[];
-  cells: { row_index: number; col_index: number; valid_entity_ids: string[] }[];
-};
 
 const locales = [
   {
@@ -21,6 +16,7 @@ const locales = [
     review: /Um grupo real pode ficar de fora/,
     giveUp: "Desistir",
     confirm: "Sim, desistir",
+    corrected: /Este desafio foi corrigido/,
   },
   {
     id: "en",
@@ -31,6 +27,7 @@ const locales = [
     review: /A real group can be left out/,
     giveUp: "Give up",
     confirm: "Yes, give up",
+    corrected: /This challenge was corrected/,
   },
 ] as const;
 
@@ -42,9 +39,8 @@ const viewports = [
 
 for (const locale of locales)
   for (const viewport of viewports) {
-    test(`grid ${locale.id} ${viewport.name}: a refused guess explains the catalog, keeps the guess spent and hides the answers`, async ({ page, request, baseURL }) => {
-      await installGuardClock(page);
-      const grid = await loadPreferNextDaily<Grid & { reference_date: string }>(request, baseURL!, "grid.daily.json");
+    test(`grid ${locale.id} ${viewport.name}: a refused guess explains the catalog, keeps the guess spent and hides the answers`, async ({ page, baseURL }) => {
+      const grid = await serveFixedGrid(page);
       const cell = grid.cells.find((c) => c.row_index === 0 && c.col_index === 0)!;
       const labels = visibleLabels(
         grid.candidate_pool.map((c) => ({ id: c.id, canonical_name: c.canonical_name, labels: c.names })),
@@ -52,17 +48,6 @@ for (const locale of locales)
       );
       const refused = grid.candidate_pool.find((c) => !cell.valid_entity_ids.includes(c.id))!;
       const answers = cell.valid_entity_ids.map((id) => labels.get(id)!);
-
-      // A corrected day (non-empty `replaces`) shows a notice above the board
-      // (ADR 008). From 60rem the side panel is not sticky, so at 1280x800 that
-      // notice pushes "Give up" under the fold, whatever the guess shows. This
-      // test is about the refused-guess bar, so it reads the day as uncorrected;
-      // GridCorrection.test.tsx covers the notice.
-      await page.route(/\/data\/(next\/)?grid-publication\.\d{4}-\d{2}-\d{2}\.json(\?|$)/, async (route) => {
-        const response = await route.fetch();
-        if (!response.ok() || !response.headers()["content-type"]?.includes("json")) return route.fulfill({ response });
-        return route.fulfill({ response, json: { ...(await response.json()), replaces: [] } });
-      });
 
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto(joinBaseUrl(baseURL!, locale.path));
@@ -119,3 +104,39 @@ for (const locale of locales)
       }
     });
   }
+
+// Corrected day (non-empty replaces): the notice that pushed "Give up" under
+// the fold on 18/11/2026 at desktop height. The button must stay reachable.
+for (const locale of locales) {
+  test(`grid ${locale.id} desktop: corrected day keeps Give up reachable`, async ({ page, baseURL }) => {
+    await serveFixedGrid(page, {
+      guardClock: false,
+      replaces: [FIXED_REPLACED_GRID_ID],
+    });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(joinBaseUrl(baseURL!, locale.path));
+
+    const board = page.getByTestId("game-board");
+    await expect(board).toBeVisible();
+    const notice = page.getByTestId("grid-correction");
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText(locale.corrected);
+
+    const giveUp = page.getByRole("button", { name: locale.giveUp });
+    await expect(giveUp).toBeVisible();
+    await expect(giveUp).toBeInViewport({ ratio: 1 });
+    const box = (await giveUp.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(800);
+
+    if (process.env.I05_SHOTS) {
+      await page.screenshot({
+        path: `${process.env.I05_SHOTS}/grid-${locale.id}-desktop-replaces-give-up.png`,
+        fullPage: true,
+      });
+    }
+
+    await giveUp.click();
+    await page.getByRole("button", { name: locale.confirm }).click();
+    await expect(page.locator(".grid-result")).toBeVisible();
+  });
+}

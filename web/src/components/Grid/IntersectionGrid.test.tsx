@@ -125,19 +125,50 @@ describe("IntersectionGrid orchestrator component", () => {
     const card = document.querySelector("#grid")!;
     expect(card).toHaveClass("game-card--wide");
     const layout = card.querySelector(".game-layout")!;
-    // Board first, then the panel: reading and Tab order follow the columns.
-    const [board, panel, ...rest] = [...layout.children];
+    // Board first, then the side column (actions inside): reading and Tab order follow the columns.
+    const [board, side, ...rest] = [...layout.children];
     expect(rest).toEqual([]);
     expect(board).toHaveClass("grid-board-wrapper");
     expect(board!.contains(screen.getByRole("grid"))).toBe(true);
+    expect(side).toHaveClass("game-layout-side");
+    const panel = side!.querySelector(".game-actions")!;
     expect(panel).toHaveClass("game-actions");
     // The live message, then the counters and the give-up button, in the DOM as on screen.
-    expect([...panel!.children].map((child) => child.className.split(" ")[0])).toEqual([
+    expect([...panel.children].map((child) => child.className.split(" ")[0])).toEqual([
       "game-actions-message",
       "grid-progress",
       "btn",
     ]);
-    expect(within(panel! as HTMLElement).getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+    expect(within(panel as HTMLElement).getByRole("button", { name: "Desistir" })).toBeInTheDocument();
+  });
+
+  it("keeps the correction notice in the side column with Give up", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(`${validGridJson.reference_date}T15:00:00Z`));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("grid-publication.")) {
+          return new Response(
+            JSON.stringify({
+              schema_version: "kpop-grid-publication-v1",
+              reference_date: validGridJson.reference_date,
+              grid_reference_date: validGridJson.reference_date,
+              grid_id: validGridJson.grid_id,
+              replaces: ["b".repeat(64)],
+            }),
+          );
+        }
+        return new Response(JSON.stringify(validGridJson));
+      }),
+    );
+    render(<IntersectionGrid locale="pt-BR" />);
+    await screen.findByTestId("game-board");
+    const notice = screen.getByTestId("grid-correction");
+    const side = document.querySelector(".game-layout-side")!;
+    expect(side.contains(notice)).toBe(true);
+    expect(side.querySelector(".game-actions")).not.toBeNull();
+    expect(within(side as HTMLElement).getByRole("button", { name: "Desistir" })).toBeInTheDocument();
   });
 
   it("keeps one live region, the same node from the first guess to the result", async () => {

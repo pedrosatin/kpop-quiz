@@ -55,29 +55,23 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
   }
 
   return (
-    <>
-      {corrected && (
-        <aside class="game-card" role="status" data-testid="grid-correction">
-          <p>{messages.gridCorrected}</p>
-        </aside>
-      )}
-      <IntersectionGridContent
-        grid={grid}
-        locale={locale}
-        messages={messages}
-        status={status}
-        selectedCell={selectedCell}
-        guessesUsed={guessesUsed}
-        maxGuesses={maxGuesses}
-        cells={cells}
-        usedEntityIds={usedEntityIds}
-        uniquenessError={uniquenessError}
-        selectCell={selectCell}
-        closePicker={closePicker}
-        makeGuess={makeGuess}
-        giveUp={giveUp}
-        gaveUp={gaveUp}
-      />
-    </>
+    <IntersectionGridContent
+      grid={grid}
+      corrected={corrected}
+      locale={locale}
+      messages={messages}
+      status={status}
+      selectedCell={selectedCell}
+      guessesUsed={guessesUsed}
+      maxGuesses={maxGuesses}
+      cells={cells}
+      usedEntityIds={usedEntityIds}
+      uniquenessError={uniquenessError}
+      selectCell={selectCell}
+      closePicker={closePicker}
+      makeGuess={makeGuess}
+      giveUp={giveUp}
+      gaveUp={gaveUp}
+    />
   );
 }
