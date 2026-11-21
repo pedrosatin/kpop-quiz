@@ -8,8 +8,8 @@ import { installGuardClock } from "./guard-clock";
 
 /**
  * Frozen daily artifacts for behaviour E2E. Specs intercept these instead of
- * reading web/public/data for the day. Ticket 02 extends the same directory
- * and serveFixedDaily for the other games; smoke keeps the live publication.
+ * reading web/public/data for the day. Other games can reuse the same directory
+ * and serveFixedDaily; smoke keeps the live publication.
  */
 export const FIXED_DATA_DIR = fileURLToPath(new URL("../fixtures/fixed-data/", import.meta.url));
 
@@ -117,8 +117,8 @@ export async function serveFixedGrid(
 }
 
 /**
- * Entry point ticket 02 will widen: today only the Grade is wired. Other
- * games keep their own helpers until that ticket migrates them.
+ * Entry point for frozen daily artifacts. Currently only the Grade is wired;
+ * other games retain their existing helpers.
  */
 export async function serveFixedDaily(
   page: Page,
@@ -126,7 +126,7 @@ export async function serveFixedDaily(
   options: FixedGridServeOptions = {},
 ): Promise<IntersectionGrid> {
   if (game !== "grid") {
-    throw new Error(`serveFixedDaily: game "${String(game)}" is not wired yet (ticket 02)`);
+    throw new Error(`serveFixedDaily: game "${String(game)}" is not wired yet`);
   }
   return serveFixedGrid(page, options);
 }
