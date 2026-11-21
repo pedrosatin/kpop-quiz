@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import ssl
 import time
 from dataclasses import dataclass
+from datetime import date
 from http.client import HTTPException
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
@@ -155,6 +157,48 @@ def build_query(group_ids: list[str]) -> str:
         f"  VALUES ?directType {{ {types} }}\n"
         "}\nORDER BY ?performer ?release"
     )
+
+
+def count_accepted_catalog_groups(connection) -> int:
+    """Return how many accepted catalog groups discovery can query."""
+    row = connection.execute(
+        """
+        SELECT COUNT(DISTINCT e.id) FROM entities e
+        JOIN catalog_entity_links cel ON cel.entity_id=e.id
+        JOIN catalog_entries ce ON ce.source_page_id=cel.source_page_id
+        WHERE e.entity_type='group' AND ce.state='accepted'
+        """
+    ).fetchone()
+    return int(row[0])
+
+
+def release_batch_count(accepted_group_count: int, group_limit: int = MAX_GROUPS_PER_QUERY) -> int:
+    """Return how many nightly batches cover ``accepted_group_count`` groups."""
+    if group_limit < 1:
+        raise ValueError("group_limit must be positive")
+    if accepted_group_count < 1:
+        raise ValueError("no accepted catalog groups are available")
+    return math.ceil(accepted_group_count / group_limit)
+
+
+def rotated_release_group_offset(
+    accepted_group_count: int,
+    group_limit: int,
+    reference_date: date | str,
+) -> int:
+    """Return the OFFSET of tonight's release discovery batch.
+
+    Accepted groups are ordered by ``wikidata_id`` text, as ``discover_releases``
+    does. The calendar day (America/Sao_Paulo when the cron omits a date) picks
+    one contiguous batch of ``group_limit`` groups. After
+    ``ceil(accepted_group_count / group_limit)`` nights every group has appeared
+    once. ``_mark_stale_releases`` only retires releases inside the batch, so
+    groups outside tonight's window keep their accepted facts.
+    """
+    if isinstance(reference_date, str):
+        reference_date = date.fromisoformat(reference_date)
+    batches = release_batch_count(accepted_group_count, group_limit)
+    return (reference_date.toordinal() % batches) * group_limit
 
 
 def discover_releases(

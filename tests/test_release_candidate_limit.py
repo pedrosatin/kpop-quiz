@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from kpop_scraping.cli import main
-from kpop_scraping.exit_codes import EXIT_DETERMINISTIC, EXIT_OK
+from kpop_scraping.exit_codes import EXIT_OK
 from kpop_scraping.mediawiki import MediaWikiError
 from kpop_scraping.release_discovery import (
     MAX_CANDIDATES_PER_GROUP,
@@ -345,19 +345,21 @@ class ReleaseCandidateLimitRunTest(unittest.TestCase):
         self.assertEqual(kept_sets[0], kept_sets[1])
         self.assertEqual(sorted(kept_sets[0]), sorted(f"Q{number}" for number in range(1, 101)))
 
-    def test_response_above_five_megabytes_still_aborts_the_run(self):
+    def test_response_above_five_megabytes_skips_releases_and_keeps_facts(self):
+        """Oversized WDQS answer fails discovery; facts already saved keep exit 0."""
         self.assertEqual(MAX_RESPONSE_BYTES, 5_000_000)
         self.assertEqual(WikidataQueryClient().max_response_bytes, MAX_RESPONSE_BYTES)
         body = wdqs_body([("Q20", "Q1")])
         oversize = body + b" " * (MAX_RESPONSE_BYTES + 1 - len(body))
         client = WikidataQueryClient(opener=lambda *_args, **_kwargs: _Response(oversize))
 
-        code, stdout, _stderr, collect = self.run_releases(client)
+        code, stdout, stderr, collect = self.run_releases(client)
 
-        self.assertEqual(code, EXIT_DETERMINISTIC)
-        self.assertIn(
-            "Pipeline failed: MediaWikiError: WDQS response exceeds the configured size limit", stdout
-        )
+        self.assertEqual(code, EXIT_OK)
+        self.assertNotIn("Pipeline failed", stdout)
+        self.assertIn("release discovery failed after facts were saved", stderr)
+        self.assertIn("WDQS response exceeds the configured size limit", stderr)
+        self.assertIn("Releases: skipped after discovery failure", stdout)
         collect.assert_not_called()
         self.assertEqual(self.stored("SELECT status FROM release_discovery_runs"), [("failed",)])
         self.assertEqual(self.stored("SELECT COUNT(*) FROM release_candidates"), [(0,)])

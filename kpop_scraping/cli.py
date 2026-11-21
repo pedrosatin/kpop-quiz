@@ -16,12 +16,15 @@ from .fact_pipeline import extract_facts
 from .http_request import DEFAULT_USER_AGENT
 from .mediawiki import MaxlagBudget, MediaWikiClient, MediaWikiError
 from .reports import export_fact_coverage_csv, export_release_coverage_csv
+from .quiz_utils import reference_date_today
 from .release_discovery import (
     MAX_CANDIDATES_PER_GROUP,
     MAX_GROUPS_PER_QUERY,
     TruncatedGroup,
     WikidataQueryClient,
+    count_accepted_catalog_groups,
     discover_releases,
+    rotated_release_group_offset,
 )
 from .release_pipeline import collect_release_facts
 from .revision_reuse import IncrementalWikidataClient
@@ -52,7 +55,25 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--limit", type=int, help="Collect only the first N pages")
     parser.add_argument("--releases", action="store_true", help="Discover and confirm releases after fact extraction")
     parser.add_argument("--release-group-limit", type=int, default=MAX_GROUPS_PER_QUERY)
-    parser.add_argument("--release-group-offset", type=int, default=0)
+    parser.add_argument(
+        "--release-group-offset",
+        type=int,
+        default=None,
+        help=(
+            "Skip this many accepted groups (ordered by Wikidata QID text) before the "
+            "release discovery batch. Default 0 when --release-rotate is off"
+        ),
+    )
+    parser.add_argument(
+        "--release-rotate",
+        action="store_true",
+        help=(
+            "Pick tonight's release discovery batch from the America/Sao_Paulo date so "
+            "every accepted group appears once per cycle of "
+            f"ceil(catalog / {MAX_GROUPS_PER_QUERY}) nights. Incompatible with "
+            "--release-group-offset"
+        ),
+    )
     parser.add_argument("--release-report", type=Path, help="Release coverage CSV path; implies --releases")
     parser.add_argument(
         "--facts",
@@ -159,6 +180,23 @@ def report_truncated_groups(truncated: tuple[TruncatedGroup, ...]) -> None:
             workflow_commands.warning(message, title="Release candidates truncated")
 
 
+def report_release_stage_failure(exc: Exception) -> None:
+    """Warn that release discovery failed after facts were already saved.
+
+    The run exits 0 so the rebuild keeps the refreshed facts and the day can
+    still publish from that database. Releases outside tonight's batch stay as
+    they were; the failed batch is retried in a later rotation cycle.
+    """
+    message = (
+        f"release discovery failed after facts were saved "
+        f"({type(exc).__name__}: {exc}); keeping facts and skipping tonight's release batch"
+    )
+    sys.stderr.write(f"WARNING: {message}\n")
+    sys.stderr.flush()
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        workflow_commands.warning(message, title="Release discovery skipped")
+
+
 def report_extract_drift(drifts: Sequence[ExtractDrift]) -> None:
     """Warn about pages whose extract changed without a new revision; the run goes on.
 
@@ -210,7 +248,9 @@ def main(argv: list[str] | None = None) -> int:
     run_releases = args.releases or args.release_report is not None
     if not 1 <= args.release_group_limit <= MAX_GROUPS_PER_QUERY:
         raise SystemExit(f"--release-group-limit must be between 1 and {MAX_GROUPS_PER_QUERY}")
-    if args.release_group_offset < 0:
+    if args.release_rotate and args.release_group_offset is not None:
+        raise SystemExit("use --release-rotate or --release-group-offset, not both")
+    if args.release_group_offset is not None and args.release_group_offset < 0:
         raise SystemExit("--release-group-offset must not be negative")
     run_facts = args.facts or args.facts_limit is not None or args.facts_report is not None or run_releases
     facts_report = args.facts_report or args.database.parent / "facts-coverage.csv"
@@ -297,35 +337,61 @@ def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, ca
                 with rebuild_phases.phase(storage):
                     fact_rows = export_fact_coverage_csv(repository.connection, facts_report)
             release_totals = release_rows = discovery = None
+            release_offset = args.release_group_offset
+            release_skipped = False
             if run_releases:
-                discovery = discover_releases(
-                    repository,
-                    WikidataQueryClient(user_agent=args.user_agent),
-                    group_limit=args.release_group_limit,
-                    group_offset=args.release_group_offset,
-                )
-                report_truncated_groups(discovery.truncated)
-                wikipedia_clients = {
-                    language: MediaWikiClient(
-                        api_url=f"https://{language}.wikipedia.org/w/api.php",
-                        user_agent=args.user_agent,
-                        language=language,
-                        maxlag_budget=maxlag_budget,
+                try:
+                    if args.release_rotate:
+                        accepted = count_accepted_catalog_groups(repository.connection)
+                        rotate_date = reference_date_today()
+                        release_offset = rotated_release_group_offset(
+                            accepted,
+                            args.release_group_limit,
+                            rotate_date,
+                        )
+                        print(
+                            f"Release rotation: offset {release_offset} of {accepted} accepted "
+                            f"groups (limit {args.release_group_limit}, date {rotate_date})"
+                        )
+                    else:
+                        release_offset = 0 if release_offset is None else release_offset
+                    discovery = discover_releases(
+                        repository,
+                        WikidataQueryClient(user_agent=args.user_agent),
+                        group_limit=args.release_group_limit,
+                        group_offset=release_offset,
                     )
-                    for language in ("en", "pt", "ko")
-                }
-                release_totals = collect_release_facts(
-                    repository,
-                    incremental_wikidata
-                    or WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
-                    discovery.run_id,
-                    wikipedia_clients=wikipedia_clients,
-                )
-                with rebuild_phases.phase(storage):
-                    release_rows = export_release_coverage_csv(
-                        repository.connection,
-                        args.release_report or args.database.parent / "release-coverage.csv",
+                    report_truncated_groups(discovery.truncated)
+                    wikipedia_clients = {
+                        language: MediaWikiClient(
+                            api_url=f"https://{language}.wikipedia.org/w/api.php",
+                            user_agent=args.user_agent,
+                            language=language,
+                            maxlag_budget=maxlag_budget,
+                        )
+                        for language in ("en", "pt", "ko")
+                    }
+                    release_totals = collect_release_facts(
+                        repository,
+                        incremental_wikidata
+                        or WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
+                        discovery.run_id,
+                        wikipedia_clients=wikipedia_clients,
                     )
+                    with rebuild_phases.phase(storage):
+                        release_rows = export_release_coverage_csv(
+                            repository.connection,
+                            args.release_report or args.database.parent / "release-coverage.csv",
+                        )
+                except (MediaWikiError, ValueError) as exc:
+                    # Facts already committed: keep them and let the rebuild
+                    # treat the attempt as success so restore-cache does not
+                    # undo the night's fact refresh.
+                    if fact_totals is None or discovery is not None:
+                        raise
+                    report_release_stage_failure(exc)
+                    release_totals = release_rows = discovery = None
+                    release_skipped = True
             drifts = tuple(repository.extract_drifts)
     except (MediaWikiError, SnapshotIntegrityError, RuntimeError, ValueError) as exc:
         print(f"Pipeline failed: {type(exc).__name__}: {exc}")
@@ -359,6 +425,8 @@ def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, ca
                 f"Release discovery: {truncated} group{'s' if truncated > 1 else ''} "
                 f"truncated at {MAX_CANDIDATES_PER_GROUP} candidates"
             )
+    elif release_skipped:
+        print("Releases: skipped after discovery failure; earlier release facts kept")
     if drifts:
         report_extract_drift(drifts)
         print(
