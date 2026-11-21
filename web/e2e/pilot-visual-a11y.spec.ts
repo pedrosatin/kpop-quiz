@@ -3,13 +3,14 @@ import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { pilotBoard as crossword, routeCrosswordDaily } from "./helpers/crossword-daily";
 import { matrixCases } from "./helpers/pairwise";
+import { fixedCodeGroups } from "./helpers/fixed-daily";
 
 test.use({ bypassCSP: true });
 
 const prefix = (process.env.ASTRO_BASE ?? new URL(process.env.BASE_URL ?? "http://127.0.0.1:4321").pathname).replace(/\/$/, "");
 const evidenceDir = process.env.PILOT_EVIDENCE_DIR;
 const axeScript = readFileSync(new URL("../node_modules/axe-core/axe.min.js", import.meta.url), "utf8");
-const code = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
+const code = fixedCodeGroups;
 const games = [
   { id: "crossword", pt: "/pt-br/cruzadinha/", en: "/en/crossword/", controls: "#crossword input" },
   { id: "code", pt: "/pt-br/codigo/", en: "/en/code/", controls: "#code-groups select" },
@@ -162,7 +163,7 @@ test("code: feedback, keyboard victory and cited result", async ({ page }) => {
   await expect(page.getByRole("status")).toContainText("Nenhuma tentativa usada");
   await audit(page);
   await capture(page, "code-incomplete-feedback");
-  for (let index = 0; index < 4; index++) await page.locator("#code-groups select").nth(index).selectOption(code.secret[index]);
+  for (let index = 0; index < 4; index++) await page.locator("#code-groups select").nth(index).selectOption(code.secret[index]!);
   await page.getByRole("button", { name: "Enviar palpite" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("game-result")).toBeFocused();

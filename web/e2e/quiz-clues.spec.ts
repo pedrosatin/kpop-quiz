@@ -7,8 +7,8 @@ import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { Locale, PlayMode, QuizOption, QuizQuestion, QuizSession } from "../src/lib/quiz-types";
 import { crossGuard, installGuardClock } from "./helpers/guard-clock";
+import { serveFixedQuiz } from "./helpers/fixed-daily";
 import { quizCluesMatrix } from "./helpers/pairwise";
-import { skipUnlessPublished } from "./helpers/published";
 import { CONSENT_BUILD, SITE_BUILD_FIXTURE_TIMEOUT_MS, serveSiteBuild, type SiteBuild } from "./fixtures/site-builds";
 import { LOCAL_BUILD_TAG } from "./target";
 
@@ -243,7 +243,14 @@ for (const row of quizCluesCases) {
         test(`quiz ${locale.id} ${viewport.name} ${mode} ${scenario.name} banner ${consent}: clues and notices match the published session`, { tag: LOCAL_BUILD_TAG }, async ({ page, context, consentURL }) => {
           // A day may go out without the quiz (helpers/published.ts); the
           // tomorrow scenario reads the set published ahead.
-          await skipUnlessPublished(page, consentURL, scenario.tomorrow ? "next/manifest-v2.json" : "manifest-v2.json");
+          if (scenario.tomorrow) {
+            // Exception: tomorrow path needs data/next published ahead of the frozen clock.
+            // Behaviour still freezes the clock; see ticket 02 exceptions.
+            const { skipUnlessPublished } = await import("./helpers/published");
+            await skipUnlessPublished(page, consentURL, "next/manifest-v2.json");
+          } else {
+            await serveFixedQuiz(page);
+          }
           await page.setViewportSize({ width: viewport.width, height: viewport.height });
           await context.route("**/*", (route) => new URL(route.request().url()).origin === consentURL ? route.continue() : route.abort());
           // A clock that keeps running in real time; the Next guard is crossed by jumping it.
@@ -336,8 +343,8 @@ test.describe("a decade round keeps its clue state after a reload", () => {
       test(`quiz ${locale.id} ${variant.name}: the same round gives the same clue state after reload`, async ({ page, baseURL }) => {
         // The decade round reads the published sessions, or the catalog when
         // it is published and not blocked here.
-        if (variant.blocked) await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
-        else await skipUnlessPublished(page, baseURL!, "manifest-v2.json", "catalog-manifest-v1.json");
+        if (variant.blocked) await serveFixedQuiz(page);
+        else await serveFixedQuiz(page, { hideCatalog: false });
         if (variant.blocked) {
           // This check covers the published decade session, which the general
           // Quiz reads only when the catalog is missing, so answer 404 for the catalog.
@@ -385,7 +392,7 @@ test.describe("a decade round keeps its clue state after a reload", () => {
  * published, with or without a clue.
  */
 test("quiz pt standard daily on the target site: clue states follow the served session and a reload resumes it", async ({ page, baseURL }) => {
-  await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
+  await serveFixedQuiz(page);
   // Runs in the browser, so it also works against the published site.
   await installGuardClock(page);
   const locale = locales[0];

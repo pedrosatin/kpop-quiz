@@ -3,11 +3,11 @@ import { test, expect } from "./fixtures/consent";
 import { ConnectionsPage } from "./pages/connections.page";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { expectBoardDirectReady } from "./helpers/boot";
-import { skipUnlessPublished } from "./helpers/published";
 import { NameGuessPage } from "./pages/name-guess.page";
 import { crossGuard, installGuardClock } from "./helpers/guard-clock";
 import { delayPassiveEffects, reloadPersisted } from "./helpers/passive-effects";
 import { RESULT_GUARD_MS } from "../src/components/Results/use-result-action-guard";
+import { serveFixedConnections } from "./helpers/fixed-daily";
 
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 800 },
@@ -36,7 +36,7 @@ for (const viewport of VIEWPORTS) {
   });
 
   test(`en connections ${viewport.name}: tiles show the visible names`, async ({ page, baseURL }) => {
-    await skipUnlessPublished(page, baseURL!, "connections.daily.json");
+    await serveFixedConnections(page);
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto(joinBaseUrl(baseURL!, "/en/connections/"));
     await expectBoardDirectReady(page);

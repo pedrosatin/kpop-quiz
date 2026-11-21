@@ -1,34 +1,27 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import type { NameGuessPuzzle } from "../../src/lib/quiz-types";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
-import { loadPreferNextDaily } from "../helpers/daily-artifact";
-import { aloneLabel, type PublishedName } from "../helpers/visible-names";
-import { skipUnlessPublished } from "../helpers/published";
+import { fixedNameGuess, serveFixedNameGuess } from "../helpers/fixed-daily";
+import { aloneLabel } from "../helpers/visible-names";
 
 const NAME_GUESS_PATH = "/pt-br/adivinhe/";
 
-interface NameGuessDaily {
-  reference_date: string;
-  max_attempts: number;
-  word_length: number;
-  target: PublishedName & { normalized_name: string };
-  valid_guesses: string[];
-}
-
 export class NameGuessPage {
+  private puzzle: NameGuessPuzzle = fixedNameGuess;
+
   constructor(
     private readonly page: Page,
     private readonly baseURL: string,
   ) {}
 
   /**
-   * Opens the page of the day's board. The test is skipped when the day was
-   * published without data/name-guess.daily.json, unless the test serves the file itself
-   * (`served`).
+   * Opens the frozen board. Pass `served: true` when the test already routed
+   * its own artifact.
    */
   async open({ served = false }: { served?: boolean } = {}): Promise<void> {
-    if (!served) await skipUnlessPublished(this.page, this.baseURL, "name-guess.daily.json");
+    if (!served) this.puzzle = await serveFixedNameGuess(this.page);
     const url = joinBaseUrl(this.baseURL, NAME_GUESS_PATH);
     const response = await this.page.goto(url);
     expect(response, "navigation must return a response").not.toBeNull();
@@ -38,11 +31,7 @@ export class NameGuessPage {
 
   /** Exhaust max_attempts with distinct wrong entries from valid_guesses. */
   async loseWithWrongGuesses(): Promise<void> {
-    const puzzle = await loadPreferNextDaily<NameGuessDaily>(
-      this.page.request,
-      this.baseURL,
-      "name-guess.daily.json",
-    );
+    const puzzle = this.puzzle;
     const answer = puzzle.target.normalized_name;
     const wrongs = puzzle.valid_guesses
       .filter((guess) => guess !== answer && guess.length === puzzle.word_length)
@@ -74,11 +63,7 @@ export class NameGuessPage {
    * (the save key) is the one the page saved under.
    */
   async expectRevealedLabel(locale: "pt-BR" | "en" = "pt-BR"): Promise<void> {
-    const puzzle = await loadPreferNextDaily<NameGuessDaily & { puzzle_id: string }>(
-      this.page.request,
-      this.baseURL,
-      "name-guess.daily.json",
-    );
+    const puzzle = this.puzzle;
     await expect(this.page.locator(".name-guess-target-name")).toHaveText(aloneLabel(puzzle.target, locale));
     const savedKeys = await this.page.evaluate(() => Object.keys(localStorage));
     expect(savedKeys).toContain(`kpop_guess_state_${puzzle.puzzle_id}`);

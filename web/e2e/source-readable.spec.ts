@@ -1,6 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { QuizQuestion, QuizSession } from "../src/lib/quiz-types";
 import { expect, test } from "./fixtures/consent";
@@ -11,8 +12,7 @@ import { MapPage } from "./pages/map.page";
 import { NameGuessPage } from "./pages/name-guess.page";
 import { TimelinePage } from "./pages/timeline.page";
 import { WordSearchPage } from "./pages/word-search.page";
-import { installGuardClock } from "./helpers/guard-clock";
-import { skipUnlessPublished } from "./helpers/published";
+import { FIXED_DATA_DIR, serveFixedQuiz } from "./helpers/fixed-daily";
 
 // Each test opens its own page and writes nowhere shared, so the file can
 // spread its tests across workers (see playwright.config.ts).
@@ -34,11 +34,12 @@ const phones = [
 const viewports = [...phones, { width: 1280, height: 800 }] as const;
 
 const LINK_NAME = /^Abrir esta revisão (na Wikipédia em [a-zà-ú]+|no Wikidata)$/;
-const REVISION_HREF = /^https:\/\/(en\.wikipedia\.org|www\.wikidata\.org)\/w\/index\.php\?.*oldid=\d+/;
+// Language editions (ko, en, …) match LINK_NAME / CITATION; Wikidata uses the same revision form.
+const REVISION_HREF = /^https:\/\/([a-z]{2,3}(?:-[a-z]+)?\.wikipedia\.org|www\.wikidata\.org)\/w\/index\.php\?.*oldid=\d+/;
 const CITATION = /(Wikipédia em [a-zà-ú]+|Wikidata), revisão \d+, (no resumo do artigo|na caixa de informações do artigo|na declaração "[^"]+"|no trecho citado)\./;
 const LOCATOR = /^(wikipedia:[a-z-]+:pageid=\d+:revid=\d+#(extract|wikitext)\[\d+:\d+\]|claims[/.]P\d+.*)$/;
 
-const DATA_DIR = new URL("../public/data/", import.meta.url);
+const DATA_DIR = FIXED_DATA_DIR;
 
 /** Height a question's source panel takes, roughly: its places, then its text. */
 function panelWeight(question: QuizQuestion): number {
@@ -53,19 +54,11 @@ let largestSources: Map<string, QuizQuestion> | null = null;
 function largestSource(playMode: string): QuizQuestion | undefined {
   if (!largestSources) {
     largestSources = new Map();
-    for (const dir of ["", "next/"]) {
-      let names: string[] = [];
-      try {
-        names = readdirSync(new URL(dir, DATA_DIR));
-      } catch {
-        continue;
-      }
-      for (const name of names.filter((n) => /^session\.daily\.pt-BR\.[a-z]+\.[0-9a-f]{64}\.json$/.test(n))) {
-        const session = JSON.parse(readFileSync(new URL(`${dir}${name}`, DATA_DIR), "utf8")) as QuizSession;
-        for (const question of session.questions) {
-          const best = largestSources.get(question.play_mode);
-          if (!best || panelWeight(question) > panelWeight(best)) largestSources.set(question.play_mode, question);
-        }
+    for (const name of readdirSync(DATA_DIR).filter((n) => /^session\.daily\.pt-BR\.[a-z]+\.[0-9a-f]{64}\.json$/.test(n))) {
+      const session = JSON.parse(readFileSync(join(DATA_DIR, name), "utf8")) as QuizSession;
+      for (const question of session.questions) {
+        const best = largestSources.get(question.play_mode);
+        if (!best || panelWeight(question) > panelWeight(best)) largestSources.set(question.play_mode, question);
       }
     }
   }
@@ -73,41 +66,43 @@ function largestSource(playMode: string): QuizQuestion | undefined {
 }
 
 /**
- * Serves every pt-BR daily session with the largest published source as its
- * first question. The manifest names each session by its SHA-256, so the
- * rewritten session gets a new name and hash there.
+ * Serves every frozen pt-BR daily session with the largest source panel as
+ * its first question. The manifest names each session by its SHA-256, so the
+ * rewritten session gets a new name and hash there. Built only from
+ * e2e/fixtures/fixed-data — never from the day's publication.
  */
 async function routeLargestSource(page: Page): Promise<void> {
   const rewritten = new Map<string, string>();
-  await page.route(/\/data\/(?:next\/)?manifest-v2\.json$/, async (route) => {
-    const response = await route.fetch();
-    if (!response.ok()) return route.fulfill({ response });
-    const manifest = await response.json() as { sessions: Record<string, { path: string; session_id: string; sha256: string }> };
-    const dir = route.request().url().replace(/manifest-v2\.json$/, "");
-    for (const [key, entry] of Object.entries(manifest.sessions)) {
-      if (!key.startsWith("daily.pt-BR.")) continue;
-      const original = await page.request.get(`${dir}${entry.path}`);
-      if (!original.ok()) continue;
-      const session = await original.json() as QuizSession;
-      const largest = largestSource(session.config.play_mode);
-      if (!largest) continue;
-      const rest = session.questions.filter((q) => q.id !== largest.id && q.semantic_id !== largest.semantic_id);
-      const body = JSON.stringify({ ...session, questions: [largest, ...rest].slice(0, session.questions.length) });
-      const sha256 = createHash("sha256").update(body).digest("hex");
-      entry.path = `session.${key}.${sha256}.json`;
-      entry.sha256 = sha256;
-      rewritten.set(`${dir}${entry.path}`, body);
-    }
-    return route.fulfill({ response, json: manifest });
-  });
-  await page.route(/\/data\/(?:next\/)?session\.daily\.pt-BR\.[^/]+\.json$/, (route) => {
-    const body = rewritten.get(route.request().url());
-    return body ? route.fulfill({ status: 200, contentType: "application/json", body }) : route.continue();
+  const manifest = JSON.parse(readFileSync(join(DATA_DIR, "manifest-v2.json"), "utf8")) as {
+    schema_version: string;
+    dataset_version: string;
+    sessions: Record<string, { path: string; session_id: string; sha256: string }>;
+  };
+  for (const [key, entry] of Object.entries(manifest.sessions)) {
+    if (!key.startsWith("daily.pt-BR.")) continue;
+    const session = JSON.parse(readFileSync(join(DATA_DIR, entry.path), "utf8")) as QuizSession;
+    const largest = largestSource(session.config.play_mode);
+    if (!largest) continue;
+    const rest = session.questions.filter((q) => q.id !== largest.id && q.semantic_id !== largest.semantic_id);
+    const body = JSON.stringify({ ...session, questions: [largest, ...rest].slice(0, session.questions.length) });
+    const sha256 = createHash("sha256").update(body).digest("hex");
+    entry.path = `session.${key}.${sha256}.json`;
+    entry.sha256 = sha256;
+    rewritten.set(entry.path, body);
+  }
+  await page.route("**/data/next/manifest-v2.json*", (route) => route.fulfill({ status: 404, body: "" }));
+  await page.route("**/data/manifest-v2.json*", (route) => route.fulfill({ json: manifest }));
+  await page.route("**/data/session.daily.pt-BR.*", (route) => {
+    const file = route.request().url().split("/data/").pop()?.split("?")[0] ?? "";
+    const body = rewritten.get(file);
+    return body
+      ? route.fulfill({ status: 200, contentType: "application/json", body })
+      : route.continue();
   });
 }
 
 async function openQuiz(page: Page, baseURL: string): Promise<Locator> {
-  await skipUnlessPublished(page, baseURL, "manifest-v2.json");
+  await serveFixedQuiz(page);
   await routeLargestSource(page);
   await page.goto(joinBaseUrl(baseURL, "/pt-br/"));
   await page.getByTestId("game-start").click();
@@ -119,6 +114,7 @@ async function openQuiz(page: Page, baseURL: string): Promise<Locator> {
 }
 
 async function openCrossword(page: Page, baseURL: string): Promise<Locator> {
+  // routeCrosswordDaily pins the clock to FIXED_CROSSWORD_DATE.
   await routeCrosswordDaily(page);
   await page.goto(joinBaseUrl(baseURL, "/pt-br/cruzadinha/"));
   const board = page.locator("#crossword");
@@ -129,7 +125,6 @@ async function openCrossword(page: Page, baseURL: string): Promise<Locator> {
 }
 
 async function openWordSearch(page: Page, baseURL: string): Promise<Locator> {
-  await skipUnlessPublished(page, baseURL, "word-search.daily.json");
   const game = new WordSearchPage(page, baseURL);
   await game.open();
   await game.completeFromDailyCoords();
@@ -138,7 +133,6 @@ async function openWordSearch(page: Page, baseURL: string): Promise<Locator> {
 }
 
 async function openTimeline(page: Page, baseURL: string): Promise<Locator> {
-  await skipUnlessPublished(page, baseURL, "timeline.daily.json");
   const game = new TimelinePage(page, baseURL);
   await game.open();
   await game.submitDefaultOrder();
@@ -168,9 +162,6 @@ async function openGrid(page: Page, baseURL: string): Promise<Locator> {
 }
 
 async function openConnections(page: Page, baseURL: string): Promise<Locator> {
-  await skipUnlessPublished(page, baseURL, "connections.daily.json");
-  // The Submit guard between wrong guesses is crossed on the page clock.
-  await installGuardClock(page);
   const game = new ConnectionsPage(page, baseURL);
   await game.open();
   await game.loseWithWrongGuesses();
@@ -187,7 +178,6 @@ async function openMap(page: Page, baseURL: string): Promise<Locator> {
 }
 
 async function openNameGuess(page: Page, baseURL: string): Promise<Locator> {
-  await skipUnlessPublished(page, baseURL, "name-guess.daily.json");
   const game = new NameGuessPage(page, baseURL);
   await game.open();
   await game.loseWithWrongGuesses();

@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
+import { serveFixedMap } from "../helpers/fixed-daily";
 import { crossGuard } from "../helpers/guard-clock";
 
 /**
@@ -22,7 +23,9 @@ export class MapPage {
     private readonly baseURL: string,
   ) {}
 
-  async open(): Promise<void> {
+  /** Opens the map with the page clock on the frozen day (bundled events). */
+  async open({ served = false }: { served?: boolean } = {}): Promise<void> {
+    if (!served) await serveFixedMap(this.page);
     const url = joinBaseUrl(this.baseURL, MAP_PATH);
     const response = await this.page.goto(url);
     expect(response, "navigation must return a response").not.toBeNull();

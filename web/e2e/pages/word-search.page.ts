@@ -1,38 +1,26 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import type { WordSearchPuzzle } from "../../src/lib/word-search-types";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
-import { loadPreferNextDaily } from "../helpers/daily-artifact";
-import { skipUnlessPublished } from "../helpers/published";
+import { fixedWordSearch, serveFixedWordSearch } from "../helpers/fixed-daily";
 
 const WORD_SEARCH_PATH = "/pt-br/caca-palavras/";
 
-interface WordSearchWord {
-  word: string;
-  start_row: number;
-  start_col: number;
-  end_row: number;
-  end_col: number;
-}
-
-interface WordSearchDaily {
-  reference_date: string;
-  words: WordSearchWord[];
-}
-
 export class WordSearchPage {
+  private puzzle: WordSearchPuzzle = fixedWordSearch;
+
   constructor(
     private readonly page: Page,
     private readonly baseURL: string,
   ) {}
 
   /**
-   * Opens the page of the day's board. The test is skipped when the day was
-   * published without data/word-search.daily.json, unless the test serves the file itself
-   * (`served`).
+   * Opens the frozen board. Pass `served: true` when the test already routed
+   * its own artifact.
    */
   async open({ served = false }: { served?: boolean } = {}): Promise<void> {
-    if (!served) await skipUnlessPublished(this.page, this.baseURL, "word-search.daily.json");
+    if (!served) this.puzzle = await serveFixedWordSearch(this.page);
     const url = joinBaseUrl(this.baseURL, WORD_SEARCH_PATH);
     const response = await this.page.goto(url);
     expect(response, "navigation must return a response").not.toBeNull();
@@ -40,13 +28,9 @@ export class WordSearchPage {
     await expectBoardDirectReady(this.page);
   }
 
-  /** Complete every word via start/end coords from the active daily artifact. */
+  /** Complete every word via start/end coords from the frozen daily artifact. */
   async completeFromDailyCoords(): Promise<void> {
-    const puzzle = await loadPreferNextDaily<WordSearchDaily>(
-      this.page.request,
-      this.baseURL,
-      "word-search.daily.json",
-    );
+    const puzzle = this.puzzle;
     const board = this.page.getByTestId("game-board");
 
     for (const word of puzzle.words) {

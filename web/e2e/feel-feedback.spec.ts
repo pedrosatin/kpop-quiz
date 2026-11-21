@@ -3,20 +3,9 @@ import { QuizPage } from "./pages/quiz.page";
 import { ConnectionsPage } from "./pages/connections.page";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { SUBMIT_GUARD_MS } from "../src/components/Connections/ConnectionsGameContent";
-import { crossGuard, installGuardClock } from "./helpers/guard-clock";
-import { loadPreferNextDaily } from "./helpers/daily-artifact";
+import { crossGuard } from "./helpers/guard-clock";
 import { visibleLabels } from "./helpers/visible-names";
-import { skipUnlessPublished } from "./helpers/published";
-
-interface ConnectionsDaily {
-  reference_date: string;
-  items: Array<{
-    id: string;
-    canonical_name: string;
-    labels: Record<string, string>;
-  }>;
-  categories: Array<{ id: string; item_ids: string[] }>;
-}
+import { fixedConnections } from "./helpers/fixed-daily";
 
 async function animationSnapshot(locator: import("@playwright/test").Locator) {
   return locator.evaluate((el) => {
@@ -64,7 +53,6 @@ test.describe("feel feedback (Quiz pilot)", () => {
     baseURL,
   }) => {
     expect(baseURL).toBeTruthy();
-    await installGuardClock(page);
 
     const quiz = new QuizPage(page, baseURL!);
     await quiz.open();
@@ -100,17 +88,11 @@ test.describe("feel feedback (Quiz pilot)", () => {
 
   test("Connections wrong guess title does not animate", async ({ page, baseURL }) => {
     expect(baseURL).toBeTruthy();
-    await skipUnlessPublished(page, baseURL!, "connections.daily.json");
-    await installGuardClock(page);
 
     const connections = new ConnectionsPage(page, baseURL!);
     await connections.open();
 
-    const puzzle = await loadPreferNextDaily<ConnectionsDaily>(
-      page.request,
-      baseURL!,
-      "connections.daily.json",
-    );
+    const puzzle = fixedConnections;
     const visible = visibleLabels(puzzle.items, "pt-BR");
     const board = page.getByTestId("game-board");
     const submit = board.getByRole("button", { name: "Enviar" });

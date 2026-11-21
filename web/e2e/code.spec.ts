@@ -1,12 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { fixedCodeGroups } from "./helpers/fixed-daily";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { reloadPersisted } from "./helpers/passive-effects";
 
 // The pilot artifact stays committed as the fixed example; the specs serve it
 // as the day's artifact through route interception, so the secret is known.
-const artifact = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
-const secret: [string,string,string,string] = artifact.secret;
+const artifact = fixedCodeGroups;
+const secret = artifact.secret as [string, string, string, string];
 const prefix = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
 const route = "/pt-br/codigo/";
 

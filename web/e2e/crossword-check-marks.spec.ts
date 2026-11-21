@@ -1,8 +1,8 @@
 import { test, expect, type Browser, type Locator, type Page } from "@playwright/test";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { RESULT_GUARD_MS } from "../src/components/Results/use-result-action-guard";
-import { pilotBoard, routeCrosswordDaily } from "./helpers/crossword-daily";
-import { crossGuard, installGuardClock } from "./helpers/guard-clock";
+import { freezeCrosswordClock, pilotBoard, routeCrosswordDaily } from "./helpers/crossword-daily";
+import { crossGuard } from "./helpers/guard-clock";
 
 /**
  * A wrong check points at the squares to fix and leaves the player where they
@@ -57,9 +57,9 @@ async function open(
   await context.route("**/*", (route) => (new URL(route.request().url()).origin === new URL(baseURL).origin ? route.continue() : route.abort()));
   await routeCrosswordDaily(context);
   const page = await context.newPage();
-  // The clock has to be installed before the page loads, or the timers it
-  // starts on load run outside it.
-  if (guardClock) await installGuardClock(page);
+  // Routes on the context do not freeze the page clock; pin it before goto
+  // so the sealed FIXED_REFERENCE_DATE envelope matches "today".
+  await freezeCrosswordClock(page, { guardClock });
   await page.goto(joinBaseUrl(baseURL, prefix + path));
   await expect(page.locator("#crossword input")).toHaveCount(pilotBoard.cells.length);
   const press = (target: Locator) => (touch ? target.tap() : target.click());

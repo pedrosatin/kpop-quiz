@@ -1,9 +1,9 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/consent";
 import { expectBoardDirectReady } from "./helpers/boot";
-import { skipUnlessPublished } from "./helpers/published";
 import { settleEffects } from "./helpers/passive-effects";
 import { cardIds, savedOrder } from "./helpers/timeline-board";
+import { serveFixedTimeline } from "./helpers/fixed-daily";
 
 // Drags a card with the mouse, the way a desktop player does, and checks the
 // order on screen and the draft the board saves.
@@ -51,8 +51,8 @@ async function dragCardWithMouse(page: Page, from: number, to: number): Promise<
 
 for (const locale of locales) {
   for (const { from, to } of moves) {
-    test(`timeline moves a card dragged with the mouse from ${from + 1} to ${to + 1} and saves the draft (${locale.id})`, async ({ page, baseURL }) => {
-      await skipUnlessPublished(page, baseURL!, "timeline.daily.json");
+    test(`timeline moves a card dragged with the mouse from ${from + 1} to ${to + 1} and saves the draft (${locale.id})`, async ({ page }) => {
+      await serveFixedTimeline(page);
       await page.goto(`${base}${locale.path}`);
       await expectBoardDirectReady(page);
       // The moves stay within the first three cards, which fit in the default

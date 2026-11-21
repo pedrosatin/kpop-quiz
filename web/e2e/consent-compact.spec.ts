@@ -1,7 +1,8 @@
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { CONSENT_BUILD, SITE_BUILD_FIXTURE_TIMEOUT_MS, serveSiteBuild } from "./fixtures/site-builds";
 import { CONSENT_BANNER_HEIGHT_VAR, CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
-import { isPublished, skipUnlessPublished } from "./helpers/published";
+import { isPublished } from "./helpers/published";
+import { serveFixedQuiz } from "./helpers/fixed-daily";
 import { LOCAL_BUILD_TAG } from "./target";
 
 // The banner only renders when a GA4 id is built in, which the default dist
@@ -148,7 +149,7 @@ const PUBLISHED_FILES: Partial<Record<"guess" | "grid" | "connections" | "crossw
 for (const locale of locales) {
   for (const viewport of phones) {
     test(`consent ${locale.id} ${viewport.width}x${viewport.height}: compact banner leaves Quiz start in view`, { tag: LOCAL_BUILD_TAG }, async ({ page, consentURL }) => {
-      await skipUnlessPublished(page, consentURL, "manifest-v2.json");
+      await serveFixedQuiz(page);
       await page.setViewportSize(viewport);
       const banner = await openWithBanner(page, consentURL + locale.quiz);
       const box = await bannerBox(page);
@@ -204,7 +205,7 @@ for (const locale of locales) {
   });
 
   test(`consent ${locale.id} 360x740: keyboard reaches the banner and Reject closes it`, { tag: LOCAL_BUILD_TAG }, async ({ page, consentURL }) => {
-    await skipUnlessPublished(page, consentURL, "manifest-v2.json");
+    await serveFixedQuiz(page);
     await page.setViewportSize({ width: 360, height: 740 });
     const banner = await openWithBanner(page, consentURL + locale.quiz);
     const start = page.getByTestId("game-start");
@@ -248,7 +249,7 @@ for (const locale of locales) {
 
   for (const viewport of [{ width: 1280, height: 800 }, { width: 1440, height: 900 }] as const) {
     test(`consent ${locale.id} ${viewport.width}x${viewport.height}: desktop banner keeps one row`, { tag: LOCAL_BUILD_TAG }, async ({ page, consentURL }) => {
-      await skipUnlessPublished(page, consentURL, "manifest-v2.json");
+      await serveFixedQuiz(page);
       await page.setViewportSize(viewport);
       const banner = await openWithBanner(page, consentURL + locale.quiz);
       // At most two lines of text beside the buttons.

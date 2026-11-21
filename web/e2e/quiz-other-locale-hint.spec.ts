@@ -2,8 +2,8 @@ import type { Page } from "@playwright/test";
 import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { expect, test } from "./fixtures/consent-build";
-import { skipUnlessPublished } from "./helpers/published";
 import { LOCAL_BUILD_TAG } from "./target";
+import { serveFixedQuiz } from "./helpers/fixed-daily";
 
 /**
  * Playtest 2026-11-11, bug 5, on the screens it was seen on. A round left at
@@ -106,7 +106,7 @@ for (const viewport of viewports) {
     for (const round of rounds) {
       test(`the action bar offers the ${round.id} round back on the ${round.to.id} setup without scrolling (${viewport.name})`, async ({ page, consentURL }) => {
         test.setTimeout(90_000);
-        await skipUnlessPublished(page, consentURL, "manifest-v2.json", "catalog-manifest-v1.json");
+        await serveFixedQuiz(page, { hideCatalog: false });
         await page.setViewportSize({ width: viewport.width, height: viewport.height });
         if (!viewport.banner) {
           await page.addInitScript((key) => window.localStorage.setItem(key, "rejected"), CONSENT_STORAGE_KEY);

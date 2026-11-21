@@ -3,6 +3,7 @@ import { expect } from "@playwright/test";
 import { CELL_GUARD_MS } from "../../src/components/Grid/next-cell-after-guess";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
+import { serveFixedGrid } from "../helpers/fixed-daily";
 import { crossGuard } from "../helpers/guard-clock";
 
 const GRID_PATH = "/pt-br/grid/";
@@ -15,7 +16,12 @@ export class GridPage {
     private readonly baseURL: string,
   ) {}
 
-  async open(): Promise<void> {
+  /**
+   * Opens the frozen Grade. Pass `served: true` when the test already routed
+   * its own board (catalog-limit, legacy labels, search suites).
+   */
+  async open({ served = false }: { served?: boolean } = {}): Promise<void> {
+    if (!served) await serveFixedGrid(this.page);
     const url = joinBaseUrl(this.baseURL, GRID_PATH);
     const response = await this.page.goto(url);
     expect(response, "navigation must return a response").not.toBeNull();
