@@ -523,7 +523,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         howToPlay: [
           "Today's theme sits at the top. Link neighboring letters, including diagonals, to form the theme words. Each cell belongs to at most one word, and every letter on the board is part of the solution.",
           "Drag to draw a trail and release to confirm. With cell-by-cell taps, use Confirm or Enter to check and Clear or Esc to discard. With a keyboard, move with the arrows and extend with Space.",
-          "The spangram spans opposite sides of the board and sums up the theme. Progress shows how many words you found and whether the spangram is out. At the end, Show source lists the revision behind each name.",
+          "The spangram spans opposite sides of the board and names the theme. Progress shows how many words you found and whether the spangram is out. At the end, Show source lists the revision behind each name.",
         ],
         dataSources: [
           "The words come from roster and decade themes built from accepted facts in the project database. Each name points to a Wikipedia or Wikidata revision and the place of the quoted passage. The generator publishes a grid only when it proves a single covering of the words by trails, with the spangram spanning opposite sides.",
@@ -533,7 +533,7 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
           {
             question: "What is the spangram?",
             answer:
-              "It is the longest theme word. It spans opposite sides of the board and sums up today's theme. It counts as one of the words to find.",
+              "It is the longest theme word. It spans opposite sides of the board and names today's theme. It counts as one of the words to find.",
           },
           {
             question: "Does everyone play the same grid?",

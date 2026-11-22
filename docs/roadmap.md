@@ -274,7 +274,7 @@ Aceite: unit tests, build, `seo:verify` e `csp:verify` passando; detalhes em [Cr
 
 Estado: implementada no código (rotas, SEO, stats, GA4, share, E2E).
 
-Objetivo: expor o oitavo jogo diário gerado pelo pipeline (`strands.daily.json`) nas rotas bilíngues do site, no mesmo padrão dos demais jogos.
+Objetivo: expor o décimo jogo diário gerado pelo pipeline (`strands.daily.json`) nas rotas bilíngues do site, no mesmo padrão dos demais jogos.
 
 - rotas `/pt-br/palavras-conectadas/` e `/en/strands/` com `BaseLayout`, `GameIntro` e `GameAbout`;
 - entradas em `seo-routes.ts`, menu, sitemap, `llms.txt`, cartões OG e skip links;

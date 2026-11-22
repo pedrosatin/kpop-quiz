@@ -78,7 +78,18 @@ test("390: statistics open on the Timeline tab with the page scrolled to the bot
   expect(await page.evaluate(() => window.scrollY)).toBe(scrolled);
 });
 
-test("390: the Crossword tab, last in the list, is scrolled into view", async ({ page }) => {
+test("390: the Strands tab, last in the list, is scrolled into view in the menu and the stats", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${base}/pt-br/palavras-conectadas/`);
+  await expect(page.locator(".game-nav-bar .is-active")).toBeInViewport({ ratio: 1 });
+  await waitForStatsNavHydrated(page);
+  await page.locator("#stats-open-nav-btn").click();
+  const tab = page.getByRole("dialog").getByRole("tab", { name: "Palavras conectadas" });
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(tab).toBeInViewport({ ratio: 1 });
+});
+
+test("390: the Crossword tab is scrolled into view", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${base}/pt-br/cruzadinha/`);
   await waitForStatsNavHydrated(page);

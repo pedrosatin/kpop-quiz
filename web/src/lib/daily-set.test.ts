@@ -148,10 +148,10 @@ describe("daily set", () => {
     expect(restored.dailySetLines?.[TODAY]?.quiz).toBe("Quiz body");
   });
 
-  it("builds the day share when the caller confirms the set before the ninth flush", () => {
+  it("builds the day share when the caller confirms the set before the last flush", () => {
     finishAllDaily(TODAY);
     // Drop crossword from stats so isDailySetComplete is false, as on the
-    // ninth game before useRecordDailyMatch runs.
+    // last game before useRecordDailyMatch runs.
     const stats = loadPlayerStats();
     delete stats.games.crossword.lastPlayedDate;
     savePlayerStats(stats);
