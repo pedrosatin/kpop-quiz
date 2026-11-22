@@ -89,13 +89,24 @@ test.describe("name guess keyboard input", () => {
       await page.goto(joinBaseUrl(baseURL!, locale.path));
       await expectBoardDirectReady(page);
 
-      for (const letter of guess.slice(0, -1)) await page.keyboard.press(letter.toLowerCase());
       const board = page.getByTestId("game-board");
+      const row1 = board.getByRole("group", { name: locale.row(1), exact: true });
+      const prefix = guess.slice(0, -1);
+      for (let i = 0; i < prefix.length; i += 1) {
+        await page.keyboard.press(prefix[i]!.toLowerCase());
+        // Wait for the board cell before the next key so focus/Space do not
+        // race a pending re-render of the virtual keyboard after addLetter.
+        await expect(row1.getByRole("img").nth(i)).toHaveAttribute(
+          "aria-label",
+          locale.tile(i + 1, prefix[i]!),
+        );
+      }
+
       const lastKey = board.locator(`[data-key="${guess.at(-1)}"]`);
       await lastKey.focus();
+      await expect(lastKey).toBeFocused();
       await page.keyboard.press("Space");
 
-      const row1 = board.getByRole("group", { name: locale.row(1), exact: true });
       await expect(row1.getByRole("img").last()).toHaveAttribute("aria-label", locale.tile(guess.length, guess.at(-1)!));
       await expect(row1.getByRole("img").first()).toHaveAttribute("data-status", "active");
 
