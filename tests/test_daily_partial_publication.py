@@ -36,7 +36,7 @@ from kpop_scraping.daily_set import (
     write_daily_set,
 )
 from kpop_scraping.web_publish import DAILY_GAME_FILES, verify_artifacts
-from tests.daily_fixtures import published_set, reuse_quiz, strands_puzzle_for
+from tests.daily_fixtures import published_set, reuse_quiz
 from tests.test_board_swap_gate import commit_data, init_repo
 from tests.test_daily_puzzles_runner import build_test_database
 
