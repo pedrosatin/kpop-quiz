@@ -8,8 +8,8 @@ import { serveFixedTimeline } from "./helpers/fixed-daily";
 // Drags the first card with the mouse to the last position while the page
 // scrolls, in a window too short to show the whole board.
 //
-// In a 500 px window the sticky action bar (.timeline-controls) covers the
-// bottom 117 px, so the browser's drag autoscroll zone at the bottom edge sits
+// In a 360 px window the sticky action bar (.timeline-controls) covers the
+// bottom band, so the browser's drag autoscroll zone at the bottom edge sits
 // on the bar, and the last card scrolls in from under it. The bar does not
 // cancel dragover, so it does not accept a drop, and releasing there fires
 // dragend and no drop. A drag that aims at a card point measured inside the
@@ -19,6 +19,8 @@ import { serveFixedTimeline } from "./helpers/fixed-daily";
 // run whose pointer ended on the card above the bar, scrolled by the edge
 // autoscroll or by the wheel, so the helpers below re-measure the card on
 // every step and only aim at the part the bar leaves visible.
+// Compact play cards fit a 500 px window, so this suite uses 360 px to keep
+// the last card out of reach until the page scrolls.
 //
 // Firefox under Playwright does not autoscroll during a drag: with the pointer
 // held at the bottom edge for 300 moves, scrollY stayed put. The wheel scrolls
@@ -35,7 +37,7 @@ const locales = [
 const LAST = 4;
 const STEP_PX = 8;
 
-test.use({ viewport: { width: 1280, height: 500 } });
+test.use({ viewport: { width: 1280, height: 360 } });
 
 /**
  * The y of the card's title center when the mouse can drop on it: inside the

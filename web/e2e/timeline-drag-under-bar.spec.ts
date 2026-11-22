@@ -7,13 +7,13 @@ import { serveFixedTimeline } from "./helpers/fixed-daily";
 
 // Drags a Timeline card under the sticky action bar in a common laptop window.
 //
-// In 1280x720 the bar (.timeline-controls, position: sticky) covers the
-// bottom 117 px, and the browser's drag autoscroll zone sits inside it. The
-// bar takes no drop, so while a card is dragged the board hides it with
-// visibility: the drop lands on the card under it, and the bar is back on
-// drop and on dragend. When the bar comes back over the dropped card, the
-// board scrolls that card into view above the bar; a card already in view
-// leaves the page where it is.
+// In 1280x720 the five compact play cards fit above the sticky bar on load.
+// Scrolling the page (GameAbout below the board) parks a lower card under the
+// bar. The browser's drag autoscroll zone sits inside the bar. The bar takes
+// no drop, so while a card is dragged the board hides it with visibility: the
+// drop lands on the card under it, and the bar is back on drop and on dragend.
+// When the bar comes back over the dropped card, the board scrolls that card
+// into view above the bar; a card already in view leaves the page where it is.
 //
 // The list opts out of scroll anchoring, so a drop that follows a scroll
 // leaves the card under the pointer instead of scrolling the page back by
@@ -117,27 +117,33 @@ async function startDrag(page: Page, index: number): Promise<{ x: number; y: num
 }
 
 for (const locale of locales) {
-  test(`timeline drops a card on the band the action bar covers (${locale.id})`, async ({ page, baseURL }) => {
-    const opening = await openBoard(page, baseURL!, locale.path);
-    const scrollBefore = await page.evaluate(() => window.scrollY);
+  // Compact cards clear the bar in 1280x720; a shorter window brings a lower
+  // card back under the sticky band so the drop-through-bar path stays covered.
+  test.describe(`under-bar drop ${locale.id}`, () => {
+    test.use({ viewport: { width: 1280, height: 480 } });
 
-    const target = await cardUnderBar(page);
-    expect(target, "a card sits under the bar").not.toBeNull();
-    expect(target!.index, "the card under the bar is not the dragged one").toBeGreaterThan(0);
+    test(`timeline drops a card on the band the action bar covers (${locale.id})`, async ({ page, baseURL }) => {
+      const opening = await openBoard(page, baseURL!, locale.path);
+      const scrollBefore = await page.evaluate(() => window.scrollY);
 
-    const pointer = await startDrag(page, 0);
-    await page.mouse.move(pointer.x, target!.y, { steps: 20 });
-    expect(await page.evaluate(() => window.scrollY), "the page did not scroll").toBe(scrollBefore);
-    await page.mouse.up();
+      const target = await cardUnderBar(page);
+      expect(target, "a card sits under the bar").not.toBeNull();
+      expect(target!.index, "the card under the bar is not the dragged one").toBeGreaterThan(0);
 
-    const expected = moved(opening, 0, target!.index);
-    await expect.poll(() => cardIds(page)).toEqual(expected);
-    await settleEffects(page);
-    expect(await savedOrder(page)).toEqual(expected);
-    expect(await barVisibility(page), "the bar is back after the drop").toBe("visible");
-    const dropped = await cardRect(page, target!.index);
-    expect(dropped.bottom, "the dropped card sits above the bar").toBeLessThanOrEqual((await barRect(page)).top + EPSILON_PX);
-    expect(dropped.top, "the dropped card is in view").toBeGreaterThanOrEqual(0);
+      const pointer = await startDrag(page, 0);
+      await page.mouse.move(pointer.x, target!.y, { steps: 20 });
+      expect(await page.evaluate(() => window.scrollY), "the page did not scroll").toBe(scrollBefore);
+      await page.mouse.up();
+
+      const expected = moved(opening, 0, target!.index);
+      await expect.poll(() => cardIds(page)).toEqual(expected);
+      await settleEffects(page);
+      expect(await savedOrder(page)).toEqual(expected);
+      expect(await barVisibility(page), "the bar is back after the drop").toBe("visible");
+      const dropped = await cardRect(page, target!.index);
+      expect(dropped.bottom, "the dropped card sits above the bar").toBeLessThanOrEqual((await barRect(page)).top + EPSILON_PX);
+      expect(dropped.top, "the dropped card is in view").toBeGreaterThanOrEqual(0);
+    });
   });
 
   test(`timeline leaves the page where it is after a drop between cards in view (${locale.id})`, async ({ page, baseURL }) => {
