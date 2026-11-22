@@ -112,6 +112,7 @@ describe("published intersection grid loader and validator", () => {
     const result = await loadIntersectionGrid("pt-BR", "/base", today);
     expect(result.schema_version).toBe("kpop-intersection-grid-v1");
     expect(result.reference_date).toBe(today);
+    expect(result.challengeDate).toBe(today);
     expect(fetch).toHaveBeenCalledWith(`/base/data/grid.daily.json?d=${today}`, { cache: "no-store" });
     expect(fetch).toHaveBeenCalledWith("/base/data/next/grid.daily.json", { cache: "no-store" });
   });

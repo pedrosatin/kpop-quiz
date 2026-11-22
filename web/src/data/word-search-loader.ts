@@ -3,7 +3,12 @@ import {
   type WordSearchPuzzle,
 } from "../lib/word-search-types";
 import type { Locale } from "../lib/quiz-types";
-import { preferNextDaily } from "./daily-artifact";
+import {
+  dailyReferenceDate,
+  isMissingDailyResponse,
+  loadNextDailyWhenMissing,
+  preferNextDaily,
+} from "./daily-artifact";
 
 export class WordSearchArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -22,10 +27,12 @@ function dataUrl(filename: string, baseUrl: string): string {
  */
 export async function loadWordSearchPuzzle(
   _locale: Locale,
-  baseUrl?: string
+  baseUrl?: string,
+  today: string = dailyReferenceDate(),
 ): Promise<WordSearchPuzzle> {
   const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
-  const targetUrl = dataUrl("word-search.daily.json", effectiveBaseUrl);
+  const filename = "word-search.daily.json";
+  const targetUrl = dataUrl(filename, effectiveBaseUrl);
 
   let response: Response;
   try {
@@ -34,7 +41,9 @@ export async function loadWordSearchPuzzle(
     throw new WordSearchArtifactError("invalid");
   }
 
-  if (response.status === 404) {
+  if (isMissingDailyResponse(response)) {
+    const fromNext = await loadNextDailyWhenMissing(filename, effectiveBaseUrl, isWordSearchPuzzle, today);
+    if (fromNext) return fromNext;
     throw new WordSearchArtifactError("missing");
   }
   if (!response.ok) {
@@ -52,5 +61,5 @@ export async function loadWordSearchPuzzle(
     throw new WordSearchArtifactError("invalid");
   }
 
-  return preferNextDaily(payload, "word-search.daily.json", effectiveBaseUrl, isWordSearchPuzzle);
+  return preferNextDaily(payload, filename, effectiveBaseUrl, isWordSearchPuzzle, today);
 }

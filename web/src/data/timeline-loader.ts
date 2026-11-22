@@ -3,7 +3,12 @@ import {
   type TimelinePuzzle,
   type Locale,
 } from "../lib/quiz-types";
-import { dailyReferenceDate, nextDataUrl, noteDailyBoard, preferNextDaily } from "./daily-artifact";
+import {
+  dailyReferenceDate,
+  isMissingDailyResponse,
+  loadNextDailyWhenMissing,
+  preferNextDaily,
+} from "./daily-artifact";
 
 export class TimelineArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -22,7 +27,8 @@ export async function loadTimelinePuzzle(
   today: string = dailyReferenceDate()
 ): Promise<TimelinePuzzle> {
   const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
-  const targetUrl = `${dataUrl("timeline.daily.json", effectiveBaseUrl)}?d=${today}`;
+  const filename = "timeline.daily.json";
+  const targetUrl = `${dataUrl(filename, effectiveBaseUrl)}?d=${today}`;
 
   let response: Response;
   try {
@@ -31,24 +37,9 @@ export async function loadTimelinePuzzle(
     throw new TimelineArtifactError("invalid");
   }
 
-  if (
-    response.status === 404
-    || (response.ok && response.headers.get("content-type")?.startsWith("text/html"))
-  ) {
-    try {
-      const nextResponse = await fetch(nextDataUrl("timeline.daily.json", effectiveBaseUrl));
-      if (
-        nextResponse.ok
-        && !nextResponse.headers.get("content-type")?.startsWith("text/html")
-      ) {
-        const payload: unknown = await nextResponse.json();
-        if (isTimelinePuzzle(payload) && payload.reference_date <= today) {
-          return noteDailyBoard(payload, payload.reference_date, today);
-        }
-      }
-    } catch {
-      // Fallback failed, keep missing error.
-    }
+  if (isMissingDailyResponse(response)) {
+    const fromNext = await loadNextDailyWhenMissing(filename, effectiveBaseUrl, isTimelinePuzzle, today);
+    if (fromNext) return fromNext;
     throw new TimelineArtifactError("missing");
   }
   if (!response.ok) {
@@ -66,5 +57,5 @@ export async function loadTimelinePuzzle(
     throw new TimelineArtifactError("invalid");
   }
 
-  return preferNextDaily(payload, "timeline.daily.json", effectiveBaseUrl, isTimelinePuzzle, today);
+  return preferNextDaily(payload, filename, effectiveBaseUrl, isTimelinePuzzle, today);
 }

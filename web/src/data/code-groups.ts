@@ -1,5 +1,10 @@
 import type { Locale } from "../lib/quiz-types";
-import { preferNextDaily } from "./daily-artifact";
+import {
+  dailyReferenceDate,
+  isMissingDailyResponse,
+  loadNextDailyWhenMissing,
+  preferNextDaily,
+} from "./daily-artifact";
 import {
   hasDistinctItems,
   hasExactKeys,
@@ -135,6 +140,7 @@ function dataUrl(filename: string, baseUrl: string): string {
 export async function loadCodeGroupsPuzzle(
   _locale: Locale,
   baseUrl?: string,
+  today: string = dailyReferenceDate(),
 ): Promise<CodeGroupsPuzzle> {
   const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
   const filename = "code-groups.daily.json";
@@ -146,7 +152,11 @@ export async function loadCodeGroupsPuzzle(
     throw new CodeGroupsArtifactError("invalid");
   }
 
-  if (response.status === 404) throw new CodeGroupsArtifactError("missing");
+  if (isMissingDailyResponse(response)) {
+    const fromNext = await loadNextDailyWhenMissing(filename, effectiveBaseUrl, isCodeGroupsPuzzle, today);
+    if (fromNext) return verifyCodeGroupsIdentity(fromNext);
+    throw new CodeGroupsArtifactError("missing");
+  }
   if (!response.ok) throw new CodeGroupsArtifactError("invalid");
 
   let payload: unknown;
@@ -158,6 +168,6 @@ export async function loadCodeGroupsPuzzle(
 
   if (!isCodeGroupsPuzzle(payload)) throw new CodeGroupsArtifactError("invalid");
 
-  const chosen = await preferNextDaily(payload, filename, effectiveBaseUrl, isCodeGroupsPuzzle);
+  const chosen = await preferNextDaily(payload, filename, effectiveBaseUrl, isCodeGroupsPuzzle, today);
   return verifyCodeGroupsIdentity(chosen);
 }
