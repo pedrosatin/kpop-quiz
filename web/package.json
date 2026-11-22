@@ -24,13 +24,13 @@
     "og:generate": "node scripts/generate-og.mjs"
   },
   "dependencies": {
-    "@astrojs/preact": "^6.1.5",
-    "astro": "^7.4.11",
+    "@astrojs/preact": "^6.1.6",
+    "astro": "^7.4.12",
     "preact": "^10.27.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "@playwright/test": "^1.65.0",
+    "@playwright/test": "^1.65.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/preact": "^3.2.6",
     "@types/node": "^24.3.1",
@@ -38,9 +38,9 @@
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "axe-core": "^4.14.0",
-    "jsdom": "^31.0.0",
+    "jsdom": "^31.0.1",
     "typescript": "^5.9.2",
     "vitest": "^5.1.0",
-    "wrangler": "4.161.0"
+    "wrangler": "4.162.0"
   }
 }
