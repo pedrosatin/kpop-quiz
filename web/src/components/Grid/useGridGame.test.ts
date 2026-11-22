@@ -34,6 +34,14 @@ describe("gridMatchId", () => {
     expect(gridMatchId(board("g1", ""))).toBe("grid-g1");
   });
 
+  it("keeps the legacy id for a board without a date even when a challenge day is given", () => {
+    expect(gridMatchId(board("g1", ""), reuseDay)).toBe("grid-g1");
+    expect(gridDailyRound(board("g1", ""), reuseDay)).toEqual({
+      matchId: "grid-g1",
+      date: reuseDay,
+    });
+  });
+
   it("names a reused board after the publication day", () => {
     expect(gridMatchId(reusedGrid, reuseDay)).toBe(`grid-${reuseDay}`);
   });

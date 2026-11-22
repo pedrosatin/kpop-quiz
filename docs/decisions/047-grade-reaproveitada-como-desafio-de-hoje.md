@@ -8,7 +8,7 @@ Aprovado em 2026-11-22. Complementa a [ADR 030](030-partida-diaria-por-jogo-e-da
 
 Quando a geração da Grade do dia falha, o runner pode reaproveitar o tabuleiro de um dia anterior. O registro `grid-publication.<hoje>.json` traz `reference_date` igual a hoje e `grid_reference_date` anterior, com o mesmo `grid_id`. O primeiro caso publicado foi 13/11/2026 reaproveitando a Grade de 12/11 (`b23c47d6`).
 
-O loader admite esse tabuleiro e devolve o artefato com a `reference_date` de origem. A partida diária, o save (`kpop-grid-<grid_id>`), o texto de compartilhar e `completedDailyGames` usavam essa data de origem. Quem faltava no dia de origem e jogava no dia do reaproveitamento via a sequência estendida sobre o dia em que faltou, a aba da Grade não aparecia como concluída no dia de hoje, e o compartilhamento mostrava a data antiga. Quem já tinha terminado o tabuleiro no dia de origem via o mesmo save restaurado e contado de novo só por abrir a página.
+O loader admite esse tabuleiro e devolve o artefato com a `reference_date` de origem. A partida diária, o save (`kpop-grid-<grid_id>`), o texto de compartilhar e `completedDailyGames` usavam essa data de origem. Quem faltava no dia de origem e jogava no dia do reaproveitamento e a sequência se estendia ao dia em que tinha faltado, a aba da Grade não aparecia como concluída no dia de hoje, e o compartilhamento mostrava a data antiga. Quem já tinha terminado no dia de origem tinha o mesmo save restaurado e era contado de novo só por abrir a página.
 
 A ADR 030 identifica a partida por jogo e `reference_date` e não trata o reaproveitamento.
 
@@ -16,7 +16,7 @@ A ADR 030 identifica a partida por jogo e `reference_date` e não trata o reapro
 
 A Grade reaproveitada conta como o desafio diário de hoje.
 
-1. O loader carimba `challengeDate` com a data de publicação (`today` passado a `loadIntersectionGrid`, em geral `dailyReferenceDate()`). A `reference_date` do artefato permanece a de origem, porque a admissão e a identidade do tabuleiro dependem dela.
+1. O loader define `challengeDate` com a data de publicação (`today` passado a `loadIntersectionGrid`, em geral `dailyReferenceDate()`). A `reference_date` do artefato permanece a de origem, porque a admissão e a identidade do tabuleiro dependem dela.
 2. O registro diário (`gridDailyRound`, `useRecordDailyMatch`, `useDailyMatchDone`, analytics) usa `challengeDate`, não `grid.reference_date`.
 3. O texto de compartilhar e o `DailyNext` usam `challengeDate`.
 4. O save separa por data de desafio:

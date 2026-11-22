@@ -24,9 +24,11 @@ export function gridChallengeDate(grid: IntersectionGrid, challengeDate?: string
 }
 
 export function gridMatchId(grid: IntersectionGrid, challengeDate?: string): string {
+  // Empty board date keeps the legacy match id keyed by grid_id, even when a
+  // publication day is supplied (a board without a date has no challenge day).
+  if (!grid.reference_date) return `grid-${grid.grid_id}`;
   if (challengeDate) return `grid-${challengeDate}`;
-  // Empty board date keeps the legacy match id keyed by grid_id.
-  return `grid-${grid.reference_date || grid.grid_id}`;
+  return `grid-${grid.reference_date}`;
 }
 
 export function isGridWin(solvedCount: number): boolean {
