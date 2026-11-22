@@ -60,6 +60,8 @@ Embutir Ajv no navegador acrescentava ~35 KB por ilha sem cobrir essas regras: o
 
 6. **Rejeição do Ajv no navegador.** Os números do protótipo justificam a recusa: +35 KB na ilha de Conexões sem cobrir as quatro divergências que a guarda manual já recusa. Tickets 04 a 06 (migrar carregadores para validadores gerados) são `wontfix`.
 
+7. **Chaves e datas nas guardas alinhadas ao schema e a `guards.ts`.** Quando o schema declara `additionalProperties: false`, a guarda correspondente usa `hasExactKeys` (obrigatórias e opcionais nomeadas), sem aceitar chave a mais nem chave com nome errado na mesma contagem. Datas de calendário passam por `isIsoDate` (estrita) ou `isLenientIsoDate` (anos 0000–0099), nunca só pelo formato `YYYY-MM-DD`. O Caça-palavras usa `isIsoDate` na `reference_date` (tabuleiro diário, como Conexões/Grade/Adivinhe/Linha do Tempo). Código, Cruzadinha e Mapa mantêm `isLenientIsoDate` (política já caracterizada na PR #489).
+
 ## Critério para rever a decisão
 
 Reabrir a validação no navegador (ou outra abordagem) se ocorrer qualquer um destes fatos:

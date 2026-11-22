@@ -1,8 +1,9 @@
 import type { GridEvidence } from "./quiz-types";
 import {
-  ISO_DATE_PATTERN,
+  hasExactKeys,
   isHash,
   isIntegerInRange,
+  isIsoDate,
   isNonBlankString,
   isNonEmptyString,
   isQid,
@@ -49,18 +50,48 @@ export interface WordSearchPuzzle {
 const WORD_REGEX = /^[A-Z]{3,16}$/;
 const SINGLE_LETTER_REGEX = /^[A-Z]$/;
 
+const ROOT_REQUIRED = [
+  "schema_version",
+  "puzzle_id",
+  "dataset_version",
+  "reference_date",
+  "theme",
+  "dimensions",
+  "grid",
+  "words",
+] as const;
+
+const ROOT_OPTIONAL = ["theme_description"] as const;
+const BILINGUAL_KEYS = ["pt-BR", "en"] as const;
+const DIMENSIONS_KEYS = ["rows", "cols"] as const;
+const EVIDENCE_KEYS = ["fact_base_id", "locator", "revision_id", "source_key", "source_url"] as const;
+const WORD_REQUIRED = [
+  "id",
+  "word",
+  "canonical_name",
+  "labels",
+  "start_row",
+  "start_col",
+  "end_row",
+  "end_col",
+  "evidence",
+] as const;
+const WORD_OPTIONAL = ["clue"] as const;
+
 function normalizeWord(name: string): string {
   return name.normalize("NFKD").toUpperCase().replace(/[^A-Z]/g, "");
 }
 
 function isBilingualText(value: unknown): value is BilingualText {
   return isRecord(value)
+    && hasExactKeys(value, BILINGUAL_KEYS)
     && isNonBlankString(value["pt-BR"])
     && isNonBlankString(value.en);
 }
 
 function isEvidence(value: unknown): value is GridEvidence {
   return isRecord(value)
+    && hasExactKeys(value, EVIDENCE_KEYS)
     && isNonEmptyString(value.fact_base_id)
     && isNonEmptyString(value.locator)
     && isIntegerInRange(value.revision_id, 1)
@@ -69,6 +100,7 @@ function isEvidence(value: unknown): value is GridEvidence {
 }
 
 function hasWordFields(value: Record<string, unknown>): boolean {
+  if (!hasExactKeys(value, WORD_REQUIRED, WORD_OPTIONAL)) return false;
   const { id, word, canonical_name, labels, clue, evidence } = value;
   return isQid(id)
     && matchesPattern(word, WORD_REGEX)
@@ -143,16 +175,18 @@ function hasPuzzleHeader(value: Record<string, unknown>): boolean {
   return value.schema_version === "kpop-word-search-puzzle-v1"
     && isHash(value.puzzle_id)
     && isHash(value.dataset_version)
-    && matchesPattern(value.reference_date, ISO_DATE_PATTERN)
+    && isIsoDate(value.reference_date)
     && isBilingualText(value.theme)
     && (value.theme_description === undefined || isBilingualText(value.theme_description));
 }
 
 export function isWordSearchPuzzle(value: unknown): value is WordSearchPuzzle {
-  if (!isRecord(value) || !hasPuzzleHeader(value)) return false;
+  if (!isRecord(value) || !hasExactKeys(value, ROOT_REQUIRED, ROOT_OPTIONAL) || !hasPuzzleHeader(value)) {
+    return false;
+  }
 
   const dims = value.dimensions;
-  if (!isRecord(dims)) return false;
+  if (!isRecord(dims) || !hasExactKeys(dims, DIMENSIONS_KEYS)) return false;
   const { rows, cols } = dims;
   if (!isIntegerInRange(rows, 8, 16) || !isIntegerInRange(cols, 8, 16)) return false;
 

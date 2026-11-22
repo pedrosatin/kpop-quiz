@@ -1,3 +1,5 @@
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import daily from "../../public/data/code-groups.daily.json";
 import pilot from "../../public/data/code-groups.pilot.json";
@@ -14,6 +16,10 @@ const firstSymbolRevision = (p: any, revisionId: number) => {
 const CODE_GROUPS_CASES: GuardCase[] = [
   ["the pilot", () => {}, true],
   ["an extra key", (p) => { p.extra = 1; }, false],
+  ["a misnamed root key with the same count", (p) => {
+    p.seeds = p.seed;
+    delete p.seed;
+  }, false],
   ...withoutEachField(["schema_version", "mode", "puzzle_id", "dataset_version", "reference_date", "seed", "symbols", "secret", "max_attempts"]),
   ["another schema", (p) => { p.schema_version = "code-groups-pilot-v2"; }, false],
   ["another mode", (p) => { p.mode = "daily"; }, false],
@@ -26,6 +32,7 @@ const CODE_GROUPS_CASES: GuardCase[] = [
   ["another seed", (p) => { p.seed = "x"; }, true],
   ["a reference date that does not exist", (p) => { p.reference_date = "2026-02-30"; }, false],
   ["a reference date before year 100", (p) => { p.reference_date = "0099-01-01"; }, true],
+  ["a valid reference date", (p) => { p.reference_date = "2026-11-14"; }, true],
   ["five symbols", (p) => { p.symbols.pop(); }, false],
   ["a symbol that is null", (p) => { p.symbols[0] = null; }, false],
   ["a symbol with an extra key", (p) => { p.symbols[0].extra = 1; }, false],
@@ -77,6 +84,42 @@ describe("code-groups calendar date policy", () => {
   it.each(CODE_GROUPS_CALENDAR_DATES)("$label ($value): accepted is $accepted", ({ value, accepted }) => {
     expect(guardAfterChange(pilot, (p) => { p.reference_date = value; }, isCodeGroupsPuzzle)).toBe(accepted);
   });
+});
+
+const WEB_ROOT = join(import.meta.dirname, "../..");
+
+function walkJson(dir: string, pred: (name: string) => boolean, out: string[] = []): string[] {
+  if (!existsSync(dir)) return out;
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) walkJson(path, pred, out);
+    else if (pred(name)) out.push(path);
+  }
+  return out;
+}
+
+describe("published and fixture code-groups artifacts", () => {
+  const paths = [
+    ...walkJson(join(WEB_ROOT, "public/data"), (n) => n.includes("code-groups") && n.endsWith(".json")),
+    ...walkJson(join(WEB_ROOT, "src/tests/fixtures"), (n) => n.includes("code-groups") && n.endsWith(".json")),
+    ...walkJson(join(WEB_ROOT, "e2e/fixtures"), (n) => n.includes("code-groups") && n.endsWith(".json")),
+  ].sort();
+
+  it("lists every published and fixture code-groups JSON", () => {
+    expect(paths.map((path) => relative(WEB_ROOT, path))).toEqual([
+      "e2e/fixtures/fixed-data/code-groups.daily.json",
+      "public/data/code-groups.daily.json",
+      "public/data/code-groups.pilot.json",
+      "public/data/next/code-groups.daily.json",
+    ]);
+  });
+
+  it.each(paths.map((path) => [relative(WEB_ROOT, path), path] as const))(
+    "accepts %s",
+    (_label, path) => {
+      expect(isCodeGroupsPuzzle(JSON.parse(readFileSync(path, "utf-8")))).toBe(true);
+    },
+  );
 });
 
 describe("code-groups next/ fallback when the main file is missing", () => {

@@ -1,3 +1,5 @@
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WordSearchArtifactError, loadWordSearchPuzzle } from "./word-search-loader";
 import { isWordSearchPuzzle } from "../lib/word-search-types";
@@ -162,18 +164,23 @@ describe("published word search puzzle loader and validator", () => {
 // column 1 of a 12 by 12 grid.
 const WORD_SEARCH_CASES: GuardCase[] = [
   ["the fixture", () => {}, true],
-  ["an extra key", (p) => { p.extra = 1; }, true],
+  ["an extra key", (p) => { p.extra = 1; }, false],
+  ["a misnamed root key with the same count", (p) => {
+    p.themes = p.theme;
+    delete p.theme;
+  }, false],
   ["no theme description", (p) => { delete p.theme_description; }, true],
   ["a theme description without English", (p) => { delete p.theme_description.en; }, false],
   ["a blank theme", (p) => { p.theme["pt-BR"] = " "; }, false],
-  ["a theme with an extra key", (p) => { p.theme.es = "x"; }, true],
+  ["a theme with an extra key", (p) => { p.theme.es = "x"; }, false],
   ["another schema", (p) => { p.schema_version = "kpop-word-search-puzzle-v2"; }, false],
   ["a short puzzle id", (p) => { p.puzzle_id = "abc"; }, false],
   ["a numeric dataset version", (p) => { p.dataset_version = 1; }, false],
-  ["a reference date that does not exist", (p) => { p.reference_date = "2026-02-30"; }, true],
-  ["a reference date with month 13", (p) => { p.reference_date = "2026-13-01"; }, true],
+  ["a reference date that does not exist", (p) => { p.reference_date = "2026-02-30"; }, false],
+  ["a reference date with month 13", (p) => { p.reference_date = "2026-13-01"; }, false],
   ["a reference date without padding", (p) => { p.reference_date = "2026-2-3"; }, false],
-  ["dimensions with an extra key", (p) => { p.dimensions.extra = 1; }, true],
+  ["a valid reference date", (p) => { p.reference_date = "2026-11-14"; }, true],
+  ["dimensions with an extra key", (p) => { p.dimensions.extra = 1; }, false],
   ["dimensions that are a list", (p) => { p.dimensions = [12, 12]; }, false],
   ["seven rows", (p) => { p.dimensions.rows = 7; p.grid = p.grid.slice(0, 7); }, false],
   ["rows as text", (p) => { p.dimensions.rows = "12"; }, false],
@@ -183,14 +190,14 @@ const WORD_SEARCH_CASES: GuardCase[] = [
   ["a cell with two letters", (p) => { p.grid[0][0] = "AB"; }, false],
   ["a grid row that is not a list", (p) => { p.grid[0] = p.grid[0].join(""); }, false],
   ["two words", (p) => { p.words = p.words.slice(0, 2); }, false],
-  ["a word with an extra key", (p) => { p.words[0].extra = 1; }, true],
+  ["a word with an extra key", (p) => { p.words[0].extra = 1; }, false],
   ["a word whose id is not a QID", (p) => { p.words[0].id = "x"; }, false],
   ["a word in lowercase", (p) => { p.words[0].word = p.words[0].word.toLowerCase(); }, false],
   ["a blank name", (p) => { p.words[0].canonical_name = " "; }, false],
   ["a word without clue", (p) => { delete p.words[0].clue; }, true],
   ["a clue without English", (p) => { delete p.words[0].clue.en; }, false],
   ["a word without evidence", (p) => { p.words[0].evidence = []; }, false],
-  ["evidence with an extra key", (p) => { p.words[0].evidence[0].extra = 1; }, true],
+  ["evidence with an extra key", (p) => { p.words[0].evidence[0].extra = 1; }, false],
   ["evidence revision 0", (p) => { p.words[0].evidence[0].revision_id = 0; }, false],
   ["evidence with an empty source key", (p) => { p.words[0].evidence[0].source_key = ""; }, false],
   ["evidence with an empty fact id", (p) => { p.words[0].evidence[0].fact_base_id = ""; }, false],
@@ -209,4 +216,59 @@ describe("isWordSearchPuzzle fields", () => {
   it.each(guardRows(WORD_SEARCH_CASES))("with $label: accepted is $accepted", ({ change, accepted }) => {
     expect(guardAfterChange(validPuzzle, change, isWordSearchPuzzle)).toBe(accepted);
   });
+});
+
+const WORD_SEARCH_CALENDAR_DATES = [
+  { value: "2026-11-14", accepted: true, label: "year 2026" },
+  { value: "2024-02-29", accepted: true, label: "leap day 2024" },
+  { value: "2023-02-29", accepted: false, label: "Feb 29 in a common year" },
+  { value: "2026-02-30", accepted: false, label: "Feb 30" },
+  { value: "2026-13-01", accepted: false, label: "month 13" },
+  { value: "2026-00-01", accepted: false, label: "month 00" },
+  { value: "2026-01-00", accepted: false, label: "day 00" },
+  { value: "2026-01-32", accepted: false, label: "day 32" },
+  { value: "0099-01-01", accepted: false, label: "year 0099" },
+] as const;
+
+describe("word-search calendar date policy", () => {
+  it.each(WORD_SEARCH_CALENDAR_DATES)("$label ($value): accepted is $accepted", ({ value, accepted }) => {
+    expect(guardAfterChange(validPuzzle, (p) => { p.reference_date = value; }, isWordSearchPuzzle)).toBe(accepted);
+  });
+});
+
+const WEB_ROOT = join(import.meta.dirname, "../..");
+
+function walkJson(dir: string, pred: (name: string) => boolean, out: string[] = []): string[] {
+  if (!existsSync(dir)) return out;
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) walkJson(path, pred, out);
+    else if (pred(name)) out.push(path);
+  }
+  return out;
+}
+
+describe("published and fixture word-search artifacts", () => {
+  const paths = [
+    ...walkJson(join(WEB_ROOT, "public/data"), (n) => n.includes("word-search") && n.endsWith(".json")),
+    ...walkJson(join(WEB_ROOT, "src/tests/fixtures"), (n) => n.includes("word-search") && n.endsWith(".json")),
+    ...walkJson(join(WEB_ROOT, "e2e/fixtures"), (n) => n.includes("word-search") && n.endsWith(".json")),
+  ].sort();
+
+  it("lists every published and fixture word-search JSON", () => {
+    expect(paths.map((path) => relative(WEB_ROOT, path))).toEqual([
+      "e2e/fixtures/fixed-data/word-search.daily.json",
+      "public/data/group-pages/stray-kids/word-search.json",
+      "public/data/next/word-search.daily.json",
+      "public/data/word-search.daily.json",
+      "src/tests/fixtures/word-search.daily.json",
+    ]);
+  });
+
+  it.each(paths.map((path) => [relative(WEB_ROOT, path), path] as const))(
+    "accepts %s",
+    (_label, path) => {
+      expect(isWordSearchPuzzle(JSON.parse(readFileSync(path, "utf-8")))).toBe(true);
+    },
+  );
 });
