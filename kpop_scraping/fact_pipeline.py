@@ -77,7 +77,7 @@ class _RunState:
     person_pages: dict[str, PersonPageRequest] = field(default_factory=dict)
     subjects: list[_Subject] = field(default_factory=list)
     truncations: list[FactTruncation] = field(default_factory=list)
-    preserved_member_qids: set[str] = field(default_factory=set)
+    preserved_members_by_subject: dict[str, set[str]] = field(default_factory=dict)
     batches: int = 0
     ignored: int = 0
 
@@ -194,7 +194,11 @@ class _Run:
         by_statement = {d.candidate.statement.statement_id: d for d in decisions}
         if self.person_client is None:
             assert_none_downgraded(preserved, by_statement)
-        preserve_members = frozenset(state.preserved_member_qids)
+        preserve_people = frozenset(
+            qid
+            for qids in state.preserved_members_by_subject.values()
+            for qid in qids
+        )
         for subject in state.subjects:
             self.store.save_facts(
                 self.run_id,
@@ -203,7 +207,9 @@ class _Run:
                 subject.snapshot_id,
                 [by_statement[c.statement.statement_id] for c in subject.candidates],
                 state.entity_ids,
-                preserve_member_qids=preserve_members,
+                preserve_member_qids=frozenset(
+                    state.preserved_members_by_subject.get(subject.wikidata_id, ())
+                ),
             )
         processed_page_ids = {
             catalog_by_id[requested_id].source_page_id
@@ -219,7 +225,7 @@ class _Run:
             self.run_id, unavailable_page_ids
         )
         stale += self.store.mark_stale_facts(
-            self.run_id, preserve_person_qids=preserve_members
+            self.run_id, preserve_person_qids=preserve_people
         )
 
         totals = count_statuses(decisions)
@@ -302,7 +308,9 @@ class _Run:
                 for candidate in capped
                 if candidate.predicate == "has_member" and candidate.value_id
             }
-            self.state.preserved_member_qids.update(before - after)
+            self.state.preserved_members_by_subject.setdefault(
+                subject.wikidata_id, set()
+            ).update(before - after)
             self.state.truncations.extend(cuts)
             self.state.subjects[index] = _Subject(
                 subject.wikidata_id,
@@ -321,7 +329,9 @@ class _Run:
                     and candidate.value_id
                     and candidate.value_id not in kept_members
                 ):
-                    self.state.preserved_member_qids.add(candidate.value_id)
+                    self.state.preserved_members_by_subject.setdefault(
+                        subject.wikidata_id, set()
+                    ).add(candidate.value_id)
                     dropped = True
                 else:
                     kept.append(candidate)

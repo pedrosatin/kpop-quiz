@@ -403,6 +403,57 @@ class FactLimitsPipelineTest(unittest.TestCase):
         self.assertNotIn("stale", {status for status, _reason in person_after.values()})
         self.assertTrue(issues)
 
+    def _has_member_values(self, repository, group_qid: str) -> set[str]:
+        return {
+            row[0]
+            for row in repository.connection.execute(
+                """
+                SELECT v.wikidata_id
+                FROM facts f
+                JOIN entities s ON s.id = f.subject_entity_id
+                JOIN entities v ON v.id = f.value_entity_id
+                WHERE f.predicate = 'has_member' AND s.wikidata_id = ?
+                """,
+                (group_qid,),
+            )
+        }
+
+    def test_cut_in_one_group_does_not_keep_a_removal_in_another_group(self):
+        shared = copy.deepcopy(self.fixture)
+        yeri_claim = next(
+            claim
+            for claim in shared["subject_profile"][RED_VELVET]["claims"]["P527"]
+            if claim["mainsnak"]["datavalue"]["value"]["id"] == YERI
+        )
+        other = shared["subject_profile"][WONDER_GIRLS]
+        extra = copy.deepcopy(yeri_claim)
+        extra["id"] = f"{WONDER_GIRLS}$P527$shared-yeri"
+        other["claims"]["P527"] = list(other["claims"].get("P527") or []) + [extra]
+        removed = copy.deepcopy(shared)
+        group = removed["subject_profile"][WONDER_GIRLS]
+        group["claims"]["P527"] = [
+            claim
+            for claim in group["claims"]["P527"]
+            if claim["mainsnak"]["datavalue"]["value"]["id"] != YERI
+        ]
+        group["lastrevid"] = int(group["lastrevid"]) + 1
+        with self.repository() as repository:
+            build_catalog(repository, shared)
+            extract_facts(repository, FixtureWikidataClient(shared))
+            self.assertIn(YERI, self._has_member_values(repository, RED_VELVET))
+            self.assertIn(YERI, self._has_member_values(repository, WONDER_GIRLS))
+            with patch(
+                "kpop_scraping.fact_pipeline.cap_has_member_candidates"
+            ) as capped_fn:
+
+                def _cap(candidates, limit=MAX_MEMBERS_PER_GROUP):
+                    return cap_has_member_candidates(candidates, limit=1)
+
+                capped_fn.side_effect = _cap
+                extract_facts(repository, FixtureWikidataClient(removed))
+            self.assertIn(YERI, self._has_member_values(repository, RED_VELVET))
+            self.assertNotIn(YERI, self._has_member_values(repository, WONDER_GIRLS))
+
     def test_group_cap_still_deletes_member_truly_removed_from_wikidata(self):
         fixture_second = copy.deepcopy(self.fixture)
         group = fixture_second["subject_profile"][RED_VELVET]

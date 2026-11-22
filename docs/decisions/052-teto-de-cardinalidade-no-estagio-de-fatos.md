@@ -37,7 +37,7 @@ Ao estourar um teto, o estágio registra o corte (`FactRunTotals.truncations`, a
 
 ### Preservação do estado publicado sob o corte
 
-Os QIDs cortados pelo teto de grupo ou de run entram num conjunto `preserved_member_qids` do run. `save_facts` recebe esse conjunto e `_delete_removed_statements` deixa intactas as linhas `has_member` cujo `value_wikidata_id` está nele. `mark_stale_facts` recebe o mesmo conjunto e não marca como `stale` (`subject_not_listed_by_group`) as pessoas cujo QID foi só cortado pelo teto. O aviso e a linha em `fact_issues` continuam. Um QID que sumiu de verdade do Wikidata (não aparece mais nos candidatos e por isso não entra no conjunto cortado) segue sendo apagado e, se couber, marcado como antes.
+Os QIDs cortados pelo teto de grupo ou de run são guardados por grupo (`preserved_members_by_subject`, do QID do grupo para os QIDs cortados nele). `save_facts` de cada grupo recebe só os cortes daquele grupo, e `_delete_removed_statements` deixa intactas as linhas `has_member` desse grupo cujo `value_wikidata_id` foi cortado ali. Assim, um membro cortado no grupo A e removido de verdade do grupo B no mesmo run perde a linha de B e mantém a de A. `mark_stale_facts` recebe a união dos cortes e não marca como `stale` (`subject_not_listed_by_group`) quem foi cortado em algum grupo, porque essa pessoa continua listada no Wikidata pelo grupo onde houve o corte. O aviso e a linha em `fact_issues` continuam. Um QID que sumiu de verdade do Wikidata (não aparece mais nos candidatos do grupo e por isso não entra nos cortes dele) segue sendo apagado e, se couber, marcado como antes.
 
 Essa passagem do conjunto no run evita migração e colunas `last_kept` enquanto o corte só atua acima dos máximos medidos. Se um grupo passar a viver permanentemente acima de 100 membros, vale revisitar o padrão da ADR 034.
 
@@ -47,10 +47,10 @@ No catálogo medido (máximos 26 membros por grupo, 1.254 membros distintos, 25 
 
 - **Abortar o run no estouro:** devolveria o poder de derrubar o rebuild diário a qualquer editor do Wikidata, o mesmo problema que a ADR 034 removeu nos lançamentos.
 - **Descartar o grupo inteiro:** perderia os membros legítimos que o corte por QID mantém.
-- **Migração com colunas de descarte (como na ADR 034):** desnecessária enquanto o corte só atua acima de máximos ainda distantes do catálogo real; o conjunto de QIDs cortados no run e o registro em `fact_issues` bastam para operação e para não apagar o publicado. Se um grupo passar a viver permanentemente acima de 100 membros, vale revisitar a marcação de obsoletos com `last_kept`.
+- **Migração com colunas de descarte (como na ADR 034):** desnecessária enquanto o corte só atua acima de máximos ainda distantes do catálogo real; os cortes guardados por grupo no run e o registro em `fact_issues` bastam para operação e para não apagar o publicado. Se um grupo passar a viver permanentemente acima de 100 membros, vale revisitar a marcação de obsoletos com `last_kept`.
 
 ## Consequências
 
 - Um fan-out extremo de P527, aliases ou wikitext deixa de empurrar o rebuild compartilhado até o timeout sem aviso.
 - Grupos ou páginas acima do teto deixam de processar, naquele run, os membros, nomes ou evidência de infobox cortados; o estado aceito já publicado desses membros permanece, e o aviso aparece no log e no resumo `Fact caps: …`.
-- Testes em `tests/test_fact_limits.py` fixam o corte sintético, a preservação em dois runs, a exclusão de um QID realmente removido do Wikidata e a folga sobre os máximos medidos.
+- Testes em `tests/test_fact_limits.py` fixam o corte sintético, a preservação em dois runs, a exclusão de um QID realmente removido do Wikidata, o membro cortado num grupo e removido de outro no mesmo run, e a folga sobre os máximos medidos.
