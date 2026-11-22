@@ -12,10 +12,10 @@ Com a publicação parcial, um dia pode sair sem um jogo (o Strands é o caso ma
 
 1. **Só os publicados contam.** O set do dia exige os jogos de `DAILY_GAMES` menos os omitidos no registro do dia. Um dia sem omissões continua exigindo os dez.
 2. **Loader com a mesma regra de data dos artefatos diários.** `loadDailySetRequirement` lê `data/daily-set.json` e, se precisar, `data/next/daily-set.json` só quando a `reference_date` dessa cópia é o dia civil em `America/Sao_Paulo`. Prefere o registro principal quando ele já é de hoje.
-3. **Falha segura.** Registro ausente, 404, JSON inválido, campos extras, jogo desconhecido, `reference_date` diferente de hoje ou erro de rede → exigir todos os `DAILY_GAMES` (omissões vazias).
+3. **Falha segura.** Registro ausente, 404, JSON inválido, campos extras, jogo desconhecido, `reference_date` diferente de hoje ou erro de rede: em qualquer um desses casos, o cliente exige todos os `DAILY_GAMES`, como se não houvesse omissão.
 4. **Share do dia.** O texto lista só os jogos publicados, na ordem das abas. Jogo omitido fica de fora: não há resultado para resumir, e marcar “não publicado” inventaria uma linha que o jogador não gerou.
 5. **Sequência de sets.** Um dia com omissão e todos os publicados concluídos incrementa `dailySetsCompleted` e grava `lastDailySetDate` como qualquer outro set completo.
-6. **Ids.** As chaves de `omitted` são as de `daily_set.GAMES` no Python (`quiz`, `grid`, `connections`, `name-guess`, `word-search`, `timeline`, `code-groups`, `crossword`, `strands`). O loader mapeia para `SeoRouteKey` (`code-groups` → `code`, `name-guess` → `nameGuess`, etc.). O mapa não entra no registro: não tem artefato diário omitível.
+6. **Ids.** As chaves de `omitted` são as de `daily_set.GAMES` no Python (`quiz`, `grid`, `connections`, `name-guess`, `word-search`, `timeline`, `code-groups`, `crossword`, `strands`). O loader mapeia para `SeoRouteKey` (por exemplo, `code-groups` vira `code` e `name-guess` vira `nameGuess`). O mapa não entra no registro: não tem artefato diário omitível.
 
 ## Alternativas consideradas
 

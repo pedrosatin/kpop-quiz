@@ -102,7 +102,7 @@ describe("DailyNext", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("celebrates when Strands is omitted and every published game is finished", async () => {
+  it("shows the daily set completion when Strands is omitted and the rest are done", async () => {
     stubDailySet({ strands: "generation failed (ValueError)" });
     finishAllBut("strands", TODAY);
     rememberLinesExcept("strands", TODAY);
