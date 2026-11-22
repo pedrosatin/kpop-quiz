@@ -37,15 +37,25 @@ export function loadPublished(
     });
 }
 
-/** Fresh catalog draw for setup only: this config's slot stays until the player starts. */
-function drawCatalogForSetup(ctx: QuizLoadContext, request: number): Promise<void> {
+/**
+ * Fresh catalog draw for setup only. When `keepExistingSave` is true (open
+ * setup from the finished daily screen), an in-progress save stays on disk
+ * and does not raise the incompatible notice.
+ */
+function drawCatalogForSetup(
+  ctx: QuizLoadContext,
+  request: number,
+  keepExistingSave = false,
+): Promise<void> {
   const { locale, settings: { playMode, decades }, match } = ctx;
   return selectCatalogRound({ locale, playMode, decades, avoidPrevious: false })
     .then((round) => {
       if (request !== match.loadRequestRef.current) return;
-      const existing = loadQuizProgressSave(progressConfig(ctx));
-      if (existing.status === "ok" || existing.status === "legacy-elsewhere") {
-        match.setResumeNotice("incompatible");
+      if (!keepExistingSave) {
+        const existing = loadQuizProgressSave(progressConfig(ctx));
+        if (existing.status === "ok" || existing.status === "legacy-elsewhere") {
+          match.setResumeNotice("incompatible");
+        }
       }
       applyRound(ctx, catalogLoadedRound(ctx, round));
     })
@@ -58,13 +68,14 @@ function drawCatalogForSetup(ctx: QuizLoadContext, request: number): Promise<voi
         match.setState("unavailable");
         return;
       }
-      if (isCatalogMissing(error)) return loadPublished(ctx, request, "legacy-repeats");
+      if (isCatalogMissing(error)) return loadPublished(ctx, request, "legacy-repeats", "setup", keepExistingSave);
       throw error;
     });
 }
 
-function loadCatalogRound(ctx: QuizLoadContext, request: number): Promise<void> {
+function loadCatalogRound(ctx: QuizLoadContext, request: number, skipResume = false): Promise<void> {
   const { match } = ctx;
+  if (skipResume) return drawCatalogForSetup(ctx, request, true);
   // Resume runs before drawing a new catalog set so the same selection returns.
   return tryResumeCatalog(ctx, request).then((resumed) => {
     if (request !== match.loadRequestRef.current || resumed) return;
@@ -96,6 +107,10 @@ export function loadRound(ctx: QuizLoadContext): void {
   const { settings, match } = ctx;
   const request = ++match.loadRequestRef.current;
   if (match.state !== "setup") match.setState("loading");
-  const pending = settings.theme === "daily" ? loadPublished(ctx, request) : loadCatalogRound(ctx, request);
+  const skipResume = match.skipResumeRef.current;
+  if (skipResume) match.skipResumeRef.current = false;
+  const pending = settings.theme === "daily"
+    ? loadPublished(ctx, request, null, "setup", skipResume)
+    : loadCatalogRound(ctx, request, skipResume);
   Promise.resolve(pending).catch((error) => showLoadFailure(match, request, error));
 }

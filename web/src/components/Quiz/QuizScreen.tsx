@@ -33,6 +33,11 @@ export interface QuizScreenActions {
   selectTheme: (theme: QuizTheme) => void;
   /** Leaves today's finished daily quiz for the general quiz setup. */
   playGeneral: () => void;
+  /**
+   * Opens the general setup without restoring a saved general round, so the
+   * player can change mode from the finished daily screen.
+   */
+  openSetup: () => void;
 }
 
 export interface QuizScreenProps {
@@ -48,6 +53,8 @@ export interface QuizScreenProps {
   actions: QuizScreenActions;
   /** Where a general quiz saved in this language and mode stopped, on a visit that fell on today's challenge. */
   generalResume?: GeneralResume | null;
+  /** Same note for the finished daily screen, even when the URL already names the daily theme. */
+  dailyDoneGeneralResume?: GeneralResume | null;
   /** A round saved in progress in the other language, which the setup offers to resume there. */
   otherLocaleRound?: OtherLocaleRound | null;
   /** Overrides the default home-quiz share URL (used by group landing pages). */
@@ -104,12 +111,16 @@ function QuizSetupScreen({ messages, settings, match, hydrated, actions, general
       onTimerChange={settings.changeTimer}
       onStart={actions.start} isReady={state === "setup" && loadedRequestKey === settings.requestKey && session?.config.play_mode === settings.playMode}
       headingRef={focus.setupHeadingRef}
-      hint={state === "setup" && otherLocaleRound ? <OtherLocaleHint round={otherLocaleRound} messages={messages} /> : undefined}
+      hint={state === "setup" && otherLocaleRound
+        ? <OtherLocaleHint round={otherLocaleRound} messages={messages} />
+        : undefined}
     />
   );
 }
 
-function QuizResultScreen({ locale, messages, settings, match, focus, actions, session, shareUrl }: QuizScreenProps & { session: QuizSession }) {
+function QuizResultScreen({
+  locale, messages, settings, match, focus, actions, session, shareUrl, dailyDoneGeneralResume,
+}: QuizScreenProps & { session: QuizSession }) {
   const { score, history, elapsedSeconds, restoredVisit, gaveUpRef } = match;
   const dailyDate = quizDailyDate(session, settings.theme);
   const resultNotice = resultNoticeText(match, messages, !dailyDate);
@@ -124,6 +135,10 @@ function QuizResultScreen({ locale, messages, settings, match, focus, actions, s
       dailyDate={dailyDate} feedbackEligible={!gaveUpRef.current}
       {...(resultNotice ? { notice: resultNotice } : {})}
       onPlayGeneral={actions.playGeneral}
+      onOpenSetup={dailyDate ? actions.openSetup : undefined}
+      generalNote={dailyDate && dailyDoneGeneralResume
+        ? messages.quizGeneralInProgress(dailyDoneGeneralResume.question, dailyDoneGeneralResume.total)
+        : undefined}
       {...(shareUrl !== undefined ? { shareUrl } : {})}
     />
   );
@@ -141,24 +156,60 @@ function countedDailyDate({ state, session, loadedRequestKey }: QuizMatch, setti
   return date !== undefined && isDailyMatchRecorded("quiz", date) ? date : undefined;
 }
 
+/** Actions shared by both finished-daily layouts: setup shortcut, general quiz, in-progress note. */
+function DailyDoneActions({
+  messages,
+  actions,
+  generalResume,
+}: {
+  messages: Messages;
+  actions: QuizScreenActions;
+  generalResume?: GeneralResume | null;
+}) {
+  return (
+    <>
+      {generalResume ? (
+        <p class="game-actions-message" role="status" data-testid="quiz-daily-done-general-note">
+          {messages.quizGeneralInProgress(generalResume.question, generalResume.total)}
+        </p>
+      ) : null}
+      <div class="btn-row">
+        <button class="btn btn-secondary" type="button" data-testid="quiz-open-setup" onClick={actions.openSetup}>
+          {messages.quizOpenSetup}
+        </button>
+        <button class="btn btn-secondary" type="button" data-testid="quiz-play-general" onClick={actions.playGeneral}>
+          {messages.quizPlayGeneral}
+        </button>
+      </div>
+    </>
+  );
+}
+
 /**
  * Today's daily quiz, already finished. The result saved in this language is
- * shown read-only, from this mode's slot or another mode's; with none (the
- * day was played in the other language, on an earlier board of the date, or
- * the save was cleared) the shared `DailyDone` card says the day counts. Both
- * end with `DailyNext` and lead to the general quiz.
+ * shown read-only only when it matches the published session on screen; with
+ * none (the day was played in the other language, on an earlier board of the
+ * date, or the save was cleared) the shared `DailyDone` card says the day
+ * counts. Both end with `DailyNext`, a shortcut to the setup, and the general
+ * quiz.
  */
-function QuizDailyDoneScreen({ locale, messages, settings, actions, date }: QuizScreenProps & { date: string }) {
-  const save = useMemo(() => findFinishedDailySave(locale, date, settings.playMode), [locale, date, settings.playMode]);
+function QuizDailyDoneScreen({
+  locale, messages, settings, actions, date, match, dailyDoneGeneralResume,
+}: QuizScreenProps & { date: string }) {
+  const published = match.session;
+  const save = useMemo(
+    () => (published ? findFinishedDailySave(locale, date, settings.playMode, published) : null),
+    [locale, date, settings.playMode, published],
+  );
   const history = save ? expandHistory(save.history, save.session) : null;
   if (!save || !history) {
     return (
       <DailyDone game="quiz" locale={locale} body={messages.quizDailyDoneBody} wide referenceDate={date}>
-        <div class="btn-row">
-          <button class="btn btn-secondary" type="button" data-testid="quiz-play-general" onClick={actions.playGeneral}>
-            {messages.quizPlayGeneral}
-          </button>
-        </div>
+        <DailyDoneActions
+          messages={messages}
+          actions={actions}
+          {...(dailyDoneGeneralResume != null ? { generalResume: dailyDoneGeneralResume } : {})}
+        />
       </DailyDone>
     );
   }
@@ -172,6 +223,10 @@ function QuizDailyDoneScreen({ locale, messages, settings, actions, date }: Quiz
       dailyDate={date} feedbackEligible={false}
       notice={messages.quizDailyDoneResult}
       onPlayGeneral={actions.playGeneral}
+      onOpenSetup={actions.openSetup}
+      generalNote={dailyDoneGeneralResume
+        ? messages.quizGeneralInProgress(dailyDoneGeneralResume.question, dailyDoneGeneralResume.total)
+        : undefined}
     />
   );
 }
@@ -179,9 +234,16 @@ function QuizDailyDoneScreen({ locale, messages, settings, actions, date }: Quiz
 /**
  * The same link in the action bar, over the round rules, so a phone shows it
  * without scrolling. One link holds the whole line, so its target is the
- * whole hint, at least 44px tall.
+ * whole hint, at least 44px tall. A stale save is text only: no resume promise.
  */
 function OtherLocaleHint({ round, messages }: { round: OtherLocaleRound; messages: Messages }) {
+  if (!round.resumable) {
+    return (
+      <p class="setup-hint-stale" role="status" data-testid="quiz-other-locale-hint">
+        {messages.quizOtherLocaleStaleHint}
+      </p>
+    );
+  }
   return (
     <a class="setup-hint-link" href={round.href} hreflang={round.locale} data-testid="quiz-other-locale-hint">
       {messages.quizOtherLocaleHint(round.question)}
@@ -191,16 +253,23 @@ function OtherLocaleHint({ round, messages }: { round: OtherLocaleRound; message
 
 /**
  * Says that a round is saved in progress in the other language and links to
- * it there. Nothing is deleted: starting a game here uses this language's own
- * slot, and the other round stays saved until it is finished there.
+ * it there when the save still matches the live artifact. Nothing is deleted:
+ * starting a game here uses this language's own slot, and the other round
+ * stays saved until it is finished or cleared there.
  */
 function OtherLocaleNotice({ round, messages }: { round: OtherLocaleRound; messages: Messages }) {
   return (
     <div class="callout other-locale-round" data-testid="quiz-other-locale-round">
-      <p role="status">{messages.quizOtherLocaleRound(round.theme === "daily", round.question, round.total)}</p>
-      <a class="btn btn-secondary" href={round.href} hreflang={round.locale} data-testid="quiz-other-locale-resume">
-        {messages.quizOtherLocaleResume}
-      </a>
+      <p role="status">
+        {round.resumable
+          ? messages.quizOtherLocaleRound(round.theme === "daily", round.question, round.total)
+          : messages.quizOtherLocaleStale(round.theme === "daily")}
+      </p>
+      {round.resumable ? (
+        <a class="btn btn-secondary" href={round.href} hreflang={round.locale} data-testid="quiz-other-locale-resume">
+          {messages.quizOtherLocaleResume}
+        </a>
+      ) : null}
     </div>
   );
 }

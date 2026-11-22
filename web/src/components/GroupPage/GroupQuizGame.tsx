@@ -154,6 +154,7 @@ export function GroupQuizGame({ slug, locale, baseUrl, startLabel, startBlurb }:
           revealClue: () => revealClue(play),
           selectTheme: () => undefined,
           playGeneral: () => undefined,
+          openSetup: () => undefined,
         }}
       />
     </div>

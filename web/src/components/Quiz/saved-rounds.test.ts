@@ -3,7 +3,7 @@ import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c
 import ptSession from "../../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import type { Locale, PlayMode, QuizSession } from "../../lib/quiz-types";
 import { dailySeedDate } from "./daily-seed";
-import { findFinishedDailySave, findOtherLocaleRound } from "./saved-rounds";
+import { checkOtherLocaleSaveCompatibility, findFinishedDailySave, findOtherLocaleRound } from "./saved-rounds";
 import {
   buildQuizProgressSave,
   listQuizProgressSaves,
@@ -13,6 +13,16 @@ import {
 } from "./storage";
 import type { QuizTheme } from "./url-params";
 import { otherLocaleRoundHref } from "./useOtherLocaleRound";
+
+vi.mock("../../data/session-loader", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../data/session-loader")>();
+  return {
+    ...actual,
+    loadQuizSessionWithAvailability: vi.fn(),
+  };
+});
+
+import { loadQuizSessionWithAvailability } from "../../data/session-loader";
 
 const daily = dailyPtSession as QuizSession;
 const general = ptSession as QuizSession;
@@ -105,12 +115,26 @@ describe("listQuizProgressSaves", () => {
 });
 
 describe("findFinishedDailySave", () => {
-  it("prefers the mode in use and falls back to another mode of the same language", () => {
-    saveQuizProgress(save({ session: daily, theme: "daily", machineState: "results", playMode: "expert" }));
-    expect(findFinishedDailySave("pt-BR", DAY, "standard")?.play_mode).toBe("expert");
+  const published = { session_id: daily.session_id, dataset_version: daily.dataset_version };
 
+  it("prefers the mode in use among saves that match the published session", () => {
     saveQuizProgress(save({ session: daily, theme: "daily", machineState: "results", playMode: "standard" }));
-    expect(findFinishedDailySave("pt-BR", DAY, "standard")?.play_mode).toBe("standard");
+    expect(findFinishedDailySave("pt-BR", DAY, "standard", published)?.play_mode).toBe("standard");
+  });
+
+  it("ignores a finished save from an earlier board of the same date", () => {
+    const oldBoard = structuredClone(daily) as QuizSession;
+    oldBoard.session_id = "old-board-session";
+    oldBoard.dataset_version = "old-board-dataset";
+    saveQuizProgress(save({
+      session: oldBoard,
+      theme: "daily",
+      machineState: "results",
+      playMode: "expert",
+    }));
+
+    expect(findFinishedDailySave("pt-BR", DAY, "standard", published)).toBeNull();
+    expect(findFinishedDailySave("pt-BR", DAY, "expert", published)).toBeNull();
   });
 
   it("ignores rounds in progress, other dates, the general quiz and the other language", () => {
@@ -118,8 +142,33 @@ describe("findFinishedDailySave", () => {
     saveQuizProgress(save({ session: general, machineState: "results" }));
     saveQuizProgress(save({ session: daily, theme: "daily", machineState: "results", locale: "en" }));
 
-    expect(findFinishedDailySave("pt-BR", DAY, "standard")).toBeNull();
-    expect(findFinishedDailySave("pt-BR", "2099-01-01", "standard")).toBeNull();
+    expect(findFinishedDailySave("pt-BR", DAY, "standard", published)).toBeNull();
+    expect(findFinishedDailySave("pt-BR", "2099-01-01", "standard", published)).toBeNull();
+  });
+});
+
+describe("checkOtherLocaleSaveCompatibility", () => {
+  const loadLive = vi.mocked(loadQuizSessionWithAvailability);
+
+  it("returns ok when the live published session still matches the save", async () => {
+    const live = structuredClone(general) as QuizSession;
+    live.config = { ...live.config, language: "en" };
+    const enSave = save({ session: live, locale: "en", questionIndex: 2 });
+    loadLive.mockResolvedValue({ session: live, availableDecades: [], decades: [] });
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("ok");
+    expect(loadLive).toHaveBeenCalledWith("en", "standard", "history", undefined, []);
+  });
+
+  it("returns incompatible when the live session id drifted", async () => {
+    const live = structuredClone(general) as QuizSession;
+    live.config = { ...live.config, language: "en" };
+    const enSave = save({ session: live, locale: "en", questionIndex: 2 });
+    const drifted = structuredClone(live) as QuizSession;
+    drifted.session_id = "b".repeat(64);
+    loadLive.mockResolvedValue({ session: drifted, availableDecades: [], decades: [] });
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("incompatible");
   });
 });
 

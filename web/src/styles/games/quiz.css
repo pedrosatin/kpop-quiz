@@ -69,6 +69,15 @@
   --game-actions-inset: var(--space-4);
 }
 
+/* Room for the kicker above the focused setup title after "Jogar o Quiz geral". */
+.quiz-setup {
+  scroll-margin-top: var(--space-4);
+}
+
+.quiz-setup .game-card-title {
+  scroll-margin-top: 2.5rem;
+}
+
 @media (min-width: 48rem) {
   .quiz-setup,
   .quiz-round {
@@ -694,6 +703,16 @@
 }
 
 .setup-hint-over {
+  display: flex;
+  align-items: center;
+}
+
+.setup-hint-stale {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.35;
+  min-height: var(--control-height);
   display: flex;
   align-items: center;
 }

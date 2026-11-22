@@ -27,6 +27,13 @@ export interface QuizResultProps {
   notice?: string | undefined;
   /** On the daily result, opens the general quiz setup in place of Play again. */
   onPlayGeneral?: (() => void) | undefined;
+  /**
+   * On the finished daily result: opens the general setup without restoring a
+   * saved general round, so the player can change mode.
+   */
+  onOpenSetup?: (() => void) | undefined;
+  /** On the finished daily result: where a general round in this language stopped. */
+  generalNote?: string | undefined;
   /** Overrides the default home-quiz share URL (used by group landing pages). */
   shareUrl?: string | undefined;
 }
@@ -47,6 +54,8 @@ export function QuizResult({
   feedbackEligible = true,
   notice,
   onPlayGeneral,
+  onOpenSetup,
+  generalNote,
   shareUrl,
 }: QuizResultProps) {
   const total = totalQuestions ?? (history.length > 0 ? history.length : 10);
@@ -91,6 +100,11 @@ export function QuizResult({
           messages={messages}
         />
         {notice && <p class="game-actions-message" role="status" data-testid="quiz-replay-notice">{notice}</p>}
+        {generalNote && (
+          <p class="game-actions-message" role="status" data-testid="quiz-daily-done-general-note">
+            {generalNote}
+          </p>
+        )}
         <div class="btn-row">
           <ShareResult
             correctCount={correct}
@@ -107,6 +121,11 @@ export function QuizResult({
           {!dailyDate && (
             <button class="btn btn-primary" type="button" onClick={onRestart}>
               {messages.restart}
+            </button>
+          )}
+          {dailyDate && onOpenSetup && (
+            <button class="btn btn-secondary" type="button" data-testid="quiz-open-setup" onClick={onOpenSetup}>
+              {messages.quizOpenSetup}
             </button>
           )}
           {dailyDate && onPlayGeneral && (
