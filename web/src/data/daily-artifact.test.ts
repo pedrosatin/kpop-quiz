@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   dailyReferenceDate,
+  isMissingDailyResponse,
   loadNextDailyWhenMissing,
   preferNextDaily,
   secondsUntilNextDaily,
@@ -61,6 +62,26 @@ describe("secondsUntilNextDaily", () => {
     // Summer time used to start on the first Sunday of November and end in February.
     expect(secondsUntilNextDaily(new Date("2026-11-01T03:00:00Z"))).toBe(86400);
     expect(secondsUntilNextDaily(new Date("2027-01-15T15:00:00Z"))).toBe(12 * 3600);
+  });
+});
+
+describe("isMissingDailyResponse", () => {
+  const response = (status: number, contentType?: string) =>
+    new Response(status === 204 ? null : "{}", {
+      status,
+      headers: contentType ? { "content-type": contentType } : {},
+    });
+
+  it.each([
+    { status: 404, contentType: undefined, missing: true, label: "a 404" },
+    { status: 200, contentType: "text/html; charset=utf-8", missing: true, label: "an HTML fallback page" },
+    { status: 200, contentType: "application/json", missing: false, label: "a JSON file" },
+    { status: 200, contentType: undefined, missing: false, label: "a body with no content type" },
+    { status: 403, contentType: undefined, missing: false, label: "a 403" },
+    { status: 500, contentType: "text/html", missing: false, label: "a 500 error page" },
+    { status: 503, contentType: undefined, missing: false, label: "a 503" },
+  ])("treats $label as missing: $missing", ({ status, contentType, missing }) => {
+    expect(isMissingDailyResponse(response(status, contentType))).toBe(missing);
   });
 });
 
