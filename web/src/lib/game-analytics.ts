@@ -14,6 +14,7 @@ export type AnalyticsGame =
   | "map"
   | "code"
   | "crossword"
+  | "strands"
   | "daily_set";
 export interface GameAnalyticsContext {
   game: AnalyticsGame;

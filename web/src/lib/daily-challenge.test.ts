@@ -7,7 +7,7 @@ import { shareCampaignConfig, SEO_ROUTES, seoShareUrl, seoShareCampaign } from "
 
 describe("published daily challenge numbers", () => {
   it("pins the first reference dates from the artifact history", () => {
-    expect(FIRST_DAILY_DATE).toEqual({ quiz: "2026-09-18", grid: "2026-09-17", connections: "2026-09-17", nameGuess: "2026-09-18", wordSearch: "2026-09-18", timeline: "2026-09-19", mapPilot: "2026-09-25", code: "2026-10-19", crossword: "2026-11-03" });
+    expect(FIRST_DAILY_DATE).toEqual({ quiz: "2026-09-18", grid: "2026-09-17", connections: "2026-09-17", nameGuess: "2026-09-18", wordSearch: "2026-09-18", timeline: "2026-09-19", mapPilot: "2026-09-25", code: "2026-10-19", crossword: "2026-11-03", strands: "2026-09-17" });
   });
   for (const game of Object.keys(FIRST_DAILY_DATE) as SeoRouteKey[]) {
     it(`${game}: first day, arbitrary day and replay use the artifact date`, () => {
@@ -39,7 +39,7 @@ describe("published daily challenge numbers", () => {
 });
 
 describe("short share campaign", () => {
-  it("maps all nine games in both languages to standard campaign fields", () => {
+  it("maps all daily games in both languages to standard campaign fields", () => {
     for (const route of SEO_ROUTES) expect(shareCampaignConfig(new URL(seoShareUrl(route.key, route.locale)).search)).toEqual({ campaign_source: "share", campaign_medium: "social", campaign_name: seoShareCampaign(route.key) });
   });
   it("ignores unknown values and preserves legacy UTM attribution", () => {

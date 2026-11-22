@@ -76,6 +76,7 @@ const gameAboutKeyMap: Partial<Record<SeoRouteKey, GameAboutKey>> = {
   timeline: "timeline",
   code: "code",
   crossword: "crossword",
+  strands: "strands",
 };
 const currentFaqGameKey = isGroupPage ? undefined : gameAboutKeyMap[gameRoute];
 const faqCopy = currentFaqGameKey ? gameAbout[locale]?.games[currentFaqGameKey]?.faq : undefined;
@@ -128,6 +129,7 @@ const isMapPilot = !isGroupPage && (Astro.url.pathname.includes("/mapa") || Astr
 const isTimeline = !isGroupPage && (Astro.url.pathname.includes("/linha-do-tempo") || Astro.url.pathname.includes("/timeline"));
 const isCode = !isGroupPage && (Astro.url.pathname.includes("/codigo") || Astro.url.pathname.includes("/code"));
 const isCrossword = !isGroupPage && (Astro.url.pathname.includes("/cruzadinha") || Astro.url.pathname.includes("/crossword"));
+const isStrands = !isGroupPage && (Astro.url.pathname.includes("/palavras-conectadas") || Astro.url.pathname.includes("/strands"));
 const isPrivacy = Boolean(canonicalPath?.endsWith("/privacidade/") || canonicalPath?.endsWith("/privacy/"));
 let skipTarget = skipTargetProp ?? "#quiz";
 if (!skipTargetProp) {
@@ -139,6 +141,7 @@ if (!skipTargetProp) {
   else if (isTimeline) skipTarget = "#timeline";
   else if (isCode) skipTarget = "#code-groups";
   else if (isCrossword) skipTarget = "#crossword";
+  else if (isStrands) skipTarget = "#strands";
 }
 const targetBase = locale === "pt-BR" ? "/en/" : "/pt-br/";
 let otherPath = isPrivacy
@@ -162,6 +165,8 @@ if (isGroupPage && canonicalProps.alternatePath) {
   otherPath = locale === "pt-BR" ? `${targetBase}code/` : `${targetBase}codigo/`;
 } else if (isCrossword) {
   otherPath = locale === "pt-BR" ? `${targetBase}crossword/` : `${targetBase}cruzadinha/`;
+} else if (isStrands) {
+  otherPath = locale === "pt-BR" ? `${targetBase}strands/` : `${targetBase}palavras-conectadas/`;
 }
 let skipLinkKey: SkipLinkKey = "quiz";
 if (isGrid) skipLinkKey = "grid";
@@ -172,6 +177,7 @@ else if (isMapPilot) skipLinkKey = "mapPilot";
 else if (isTimeline) skipLinkKey = "timeline";
 else if (isCode) skipLinkKey = "code";
 else if (isCrossword) skipLinkKey = "crossword";
+else if (isStrands) skipLinkKey = "strands";
 else if (isPrivacy) skipLinkKey = "privacy";
 else if (isNotFound) skipLinkKey = "notFound";
 const skipLinkText = skipLinkTextProp ?? messages.skipLinks[skipLinkKey];
@@ -202,7 +208,7 @@ const enableAnalytics = !isStaging && Boolean(cfBeaconToken);
 const ga4Id = import.meta.env.PUBLIC_GA4_ID;
 const enableGa4 = !isStaging && Boolean(ga4Id);
 const privacyPath = locale === "pt-BR" ? "/pt-br/privacidade/" : "/en/privacy/";
-const isQuiz = !isGroupPage && !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot && !isTimeline && !isCode && !isCrossword && !isPrivacy;
+const isQuiz = !isGroupPage && !isGrid && !isConnections && !isNameGuess && !isWordSearch && !isMapPilot && !isTimeline && !isCode && !isCrossword && !isStrands && !isPrivacy;
 const webAppName = applicationName
   ?? (isGroupPage
     ? seoRouteDisplayName(route, locale, messages, groupName)
@@ -261,6 +267,12 @@ const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
     label: messages.gameCrossword,
     path: locale === "pt-BR" ? "/pt-br/cruzadinha/" : "/en/crossword/",
     isActive: isCrossword,
+  },
+  {
+    key: "strands",
+    label: messages.gameStrands,
+    path: locale === "pt-BR" ? "/pt-br/palavras-conectadas/" : "/en/strands/",
+    isActive: isStrands,
   },
 ];
 ---

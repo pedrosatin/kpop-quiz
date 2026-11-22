@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useGameAnalytics, type GameOutcome } from "../../lib/game-analytics";
+import { isDailyBoardRound } from "../../lib/player-stats";
 import type { Locale } from "../../lib/quiz-types";
 import type { StrandsPuzzle } from "../../lib/strands-types";
 import { strandsWordKey } from "../../lib/strands-types";
@@ -24,7 +26,21 @@ function whilePlaying<A extends unknown[]>(
   return status === "in_progress" ? handler : ignoreInput;
 }
 
-export function useStrandsGame(puzzle: StrandsPuzzle, locale: Locale) {
+function roundOutcome(
+  status: GameStatus,
+  foundCount: number,
+  totalWords: number,
+): GameOutcome | null {
+  if (status !== "completed") return null;
+  return foundCount >= totalWords ? "win" : "give_up";
+}
+
+export function useStrandsGame(
+  puzzle: StrandsPuzzle,
+  locale: Locale,
+  options: { daily?: boolean } = {},
+) {
+  const daily = options.daily !== false;
   const [foundKeys, setFoundKeys] = useState<string[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [status, setStatus] = useState<GameStatus>("in_progress");
@@ -40,9 +56,21 @@ export function useStrandsGame(puzzle: StrandsPuzzle, locale: Locale) {
     return () => clearInterval(interval);
   }, [status]);
 
+  const analytics = useGameAnalytics(
+    {
+      game: "strands",
+      locale,
+      isDaily: () => daily && isDailyBoardRound("strands", puzzle, strandsMatchId(puzzle)),
+      outcome: roundOutcome(status, foundKeys.length, puzzle.words.length),
+    },
+    status === "completed",
+    foundKeys.length > 0,
+  );
+
   const judge = useCallback(
     (path: CellCoord[]) => {
       if (status !== "in_progress") return null;
+      analytics.start();
       const verdict = judgeTrail(puzzle, foundRef.current, path);
       if (verdict.kind === "found") {
         const next = [...foundRef.current, verdict.wordKey];
@@ -79,9 +107,11 @@ export function useStrandsGame(puzzle: StrandsPuzzle, locale: Locale) {
   );
 
   const giveUp = useCallback(() => {
+    if (status !== "in_progress") return;
+    analytics.start();
     trail.clear();
     setStatus("completed");
-  }, [trail]);
+  }, [trail, status, analytics]);
 
   return {
     foundKeys,

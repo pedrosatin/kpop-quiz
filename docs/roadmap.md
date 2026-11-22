@@ -269,3 +269,16 @@ Objetivo: tirar a cruzadinha do piloto `noindex` e colocá-la no padrão dos jog
 Fica para a próxima fatia: o gerador diário por data, a publicação no runner e a política de falha.
 
 Aceite: unit tests, build, `seo:verify` e `csp:verify` passando; detalhes em [Cruzadinha](crossword-game.md).
+
+## Integração web do Strands (Palavras conectadas)
+
+Estado: implementada no código (rotas, SEO, stats, GA4, share, E2E).
+
+Objetivo: expor o décimo jogo diário gerado pelo pipeline (`strands.daily.json`) nas rotas bilíngues do site, no mesmo padrão dos demais jogos.
+
+- rotas `/pt-br/palavras-conectadas/` e `/en/strands/` com `BaseLayout`, `GameIntro` e `GameAbout`;
+- entradas em `seo-routes.ts`, menu, sitemap, `llms.txt`, cartões OG e skip links;
+- `GameId` / `DAILY_GAMES`, `useRecordDailyMatch`, aba de estatísticas, GA4 com consentimento e compartilhamento sem spoiler;
+- E2E Playwright do percurso completo sobre fixture fixa e auditoria axe-core com 0 violações.
+
+Aceite: `npm run check`, `seo:verify`, typecheck, build e E2E Chromium passando.

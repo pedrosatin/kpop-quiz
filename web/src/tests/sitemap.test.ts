@@ -27,12 +27,12 @@ describe("sitemap.xml", () => {
     },
   );
 
-  it("serves all 20 canonical URLs with their language pair and English x-default", async () => {
+  it("serves all 22 canonical URLs with their language pair and English x-default", async () => {
     const response = await GET({} as Parameters<typeof GET>[0]);
     const xml = new DOMParser().parseFromString(await response.text(), "application/xml");
     expect(xml.querySelector("parsererror")).toBeNull();
     const urls = [...xml.getElementsByTagName("url")];
-    expect(urls).toHaveLength(20);
+    expect(urls).toHaveLength(22);
     expect(urls.map((url) => url.querySelector("loc")?.textContent)).toEqual(
       INDEXABLE_SEO_ROUTES.map((route) => seoAbsoluteUrl(route.path)),
     );

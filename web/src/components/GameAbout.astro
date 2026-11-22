@@ -25,6 +25,7 @@ const relatedGames = {
   timeline: ["mapPilot", "quiz"],
   code: ["timeline", "connections"],
   crossword: ["wordSearch", "nameGuess"],
+  strands: ["wordSearch", "crossword"],
 } as const satisfies Record<GameAboutKey, readonly SeoRouteKey[]>;
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const routes = relatedGames[game].map((key) =>

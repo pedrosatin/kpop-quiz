@@ -62,6 +62,7 @@ export const SEO_ROUTES: readonly SeoRoute<SeoRouteKey>[] = [
   ...pair("timeline", "/pt-br/linha-do-tempo/", "/en/timeline/"),
   ...pair("code", "/pt-br/codigo/", "/en/code/"),
   ...pair("crossword", "/pt-br/cruzadinha/", "/en/crossword/"),
+  ...pair("strands", "/pt-br/palavras-conectadas/", "/en/strands/"),
 ];
 
 /** Indexable SEO routes for every published group page (both locales). */
@@ -122,6 +123,7 @@ const GAME_NAME_FIELD = {
   timeline: "gameTimeline",
   code: "gameCode",
   crossword: "gameCrossword",
+  strands: "gameStrands",
 } as const satisfies Record<SeoRouteKey, keyof Messages>;
 
 /** Name of the game as the navigation shows it. */

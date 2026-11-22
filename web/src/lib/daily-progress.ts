@@ -22,6 +22,7 @@ const STATS_ID: Record<SeoRouteKey, GameId> = {
   timeline: "timeline",
   code: "code",
   crossword: "crossword",
+  strands: "strands",
 };
 
 /** The stats entry of a game page, so the stats window opens on that game's tab. */

@@ -28,13 +28,13 @@ function pngSize(path: string): { width: number; height: number } {
 }
 
 describe("SEO route table", () => {
-  it("covers exactly the 18 daily game routes", () => {
-    expect(SEO_ROUTES).toHaveLength(18);
+  it("covers exactly the 20 daily game routes", () => {
+    expect(SEO_ROUTES).toHaveLength(20);
   });
 
   it("adds published group pages to the indexable set", () => {
     expect(GROUP_SEO_ROUTES).toHaveLength(2);
-    expect(INDEXABLE_SEO_ROUTES).toHaveLength(20);
+    expect(INDEXABLE_SEO_ROUTES).toHaveLength(22);
     expect(GROUP_SEO_ROUTES.map((route) => route.path).sort()).toEqual([
       "/en/stray-kids/",
       "/pt-br/stray-kids/",
@@ -108,7 +108,7 @@ describe("share URLs", () => {
       expect(campaigns.get(route.key) ?? campaign).toBe(campaign);
       campaigns.set(route.key, campaign);
     }
-    expect(new Set(campaigns.values()).size).toBe(9);
+    expect(new Set(campaigns.values()).size).toBe(10);
   });
 });
 

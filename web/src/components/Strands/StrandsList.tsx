@@ -23,11 +23,11 @@ export function StrandsList({
   const Heading = headingLevel === 3 ? "h3" : "h2";
 
   return (
-    <div class="strands-list word-search-list">
-      <Heading id={headingId} class="word-search-list-title">
+    <aside class="strands-list word-search-list-section" aria-label={t.wordsHeading}>
+      <Heading id={headingId} class="word-search-list-heading">
         {t.wordsHeading}
       </Heading>
-      <ul class="word-search-items" aria-labelledby={headingId}>
+      <ul class="word-search-words" role="list" aria-labelledby={headingId}>
         {puzzle.words.map((word, index) => {
           const key = strandsWordKey(word);
           const found = foundKeys.includes(key);
@@ -63,6 +63,6 @@ export function StrandsList({
           );
         })}
       </ul>
-    </div>
+    </aside>
   );
 }

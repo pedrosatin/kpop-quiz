@@ -4,7 +4,7 @@ import type { Locale, PlayMode } from "../lib/quiz-types";
 import { gameAbout, type GameAboutMessages } from "./game-about";
 import { sourceCopy, type SourceMessages } from "./source";
 
-export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code" | "crossword";
+export type SeoRouteKey = "quiz" | "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code" | "crossword" | "strands";
 
 export type SkipLinkKey = SeoRouteKey | "privacy" | "notFound";
 
@@ -95,6 +95,10 @@ export interface StrandsMessages {
   spangramLabel: string;
   spangramFound: string;
   spangramPending: string;
+  /** Compact progress-bar value for the spangram row. */
+  spangramStatusFound: string;
+  /** Compact progress-bar value while the spangram is still open. */
+  spangramStatusPending: string;
   timerLabel: string;
   lettersCount: (count: number) => string;
   selectionLabel: string;
@@ -417,6 +421,11 @@ export interface Messages {
   crosswordEyebrow: string;
   crosswordIntro: string;
   crosswordHowToPlay: string[];
+  strandsTitle: string;
+  strandsEyebrow: string;
+  strandsIntro: string;
+  strandsHowToPlay: string[];
+  strandsShareHeader: (date: string, found: number, total: number, time: string) => string;
   wordSearch: WordSearchMessages;
   strands: StrandsMessages;
   gameNavLabel: string;
@@ -429,6 +438,7 @@ export interface Messages {
   gameTimeline: string;
   gameCode: string;
   gameCrossword: string;
+  gameStrands: string;
   /** Hidden text of the ✓ on the tab of a game finished today. */
   gameNavDoneToday: string;
   dailyNextIn: (time: string) => string;
@@ -437,7 +447,7 @@ export interface Messages {
   /** Label of the link to the next unfinished daily game; an arrow follows it. */
   dailyNextGame: (game: string) => string;
   dailyAllDone: string;
-  /** Title when the ninth daily game of the day is finished. */
+  /** Title when the last daily game of the day is finished. */
   dailySetCompleteTitle: string;
   /** Short line under the title; includes the local count of completed sets. */
   dailySetCompleteBody: (sets: number) => string;
@@ -560,6 +570,7 @@ const gameNames = {
     timeline: "Linha do Tempo",
     code: "Código",
     crossword: "Cruzadinha",
+    strands: "Palavras conectadas",
   },
   en: {
     quiz: "Quiz",
@@ -571,6 +582,7 @@ const gameNames = {
     timeline: "Timeline",
     code: "Code",
     crossword: "Crossword",
+    strands: "Strands",
   },
 } as const;
 
@@ -613,6 +625,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "Cruzadinha de K-pop: grupos com pistas e fontes",
         description: "Jogue uma cruzadinha de K-pop: descubra grupos por pistas de formação, gravadora e integrantes. Cada pista cita uma revisão da Wikipédia.",
       },
+      strands: {
+        title: "Palavras conectadas de K-pop: tema e spangram",
+        description: "Ligue letras vizinhas e ache as palavras do tema e o spangram na grade do dia. Cada nome cita uma revisão da Wikipédia ou do Wikidata.",
+      },
     },
     about: gameAbout["pt-BR"],
     source: sourceCopy["pt-BR"],
@@ -626,6 +642,7 @@ const catalogs: Record<Locale, Messages> = {
       timeline: "Pular para a linha do tempo",
       code: "Pular para o jogo de código",
       crossword: "Pular para a cruzadinha",
+      strands: "Pular para as palavras conectadas",
       privacy: "Pular para a política de privacidade",
       notFound: "Pular para o conteúdo",
     },
@@ -645,6 +662,7 @@ const catalogs: Record<Locale, Messages> = {
         timeline: { title: "Linha do tempo do K-pop", description: "Coloque acontecimentos do K-pop em ordem cronológica. Depois de conferir a ordem, veja as datas e fontes dos fatos." },
         code: { title: "Código de grupos de K-pop", description: "Descubra uma sequência de 4 grupos entre 6 símbolos do catálogo em até 10 tentativas, com contagens de posições exatas e deslocadas." },
         crossword: { title: "Cruzadinha de K-pop", description: "Preencha a grade com nomes de grupos a partir de pistas sobre formação, gravadora e integrantes. Cada pista tem fonte na Wikipédia." },
+        strands: { title: "Palavras conectadas de K-pop", description: "Ligue letras vizinhas e ache as palavras do tema e o spangram. Toda letra da grade entra em alguma palavra." },
       },
       quizTitle: "Como funciona o quiz de 10 perguntas",
       quizBody: "Escolha uma alternativa por pergunta e confirme a resposta. Após responder, confira a explicação e a fonte, mesmo quando errar. Ao terminar, veja sua pontuação e revise as respostas.",
@@ -733,6 +751,11 @@ const catalogs: Record<Locale, Messages> = {
       "Toque ou clique em uma pista para escolher a palavra e escreva o nome do grupo. Num cruzamento, toque ou clique de novo no quadrado para trocar entre horizontal e vertical. Deixe de fora espaços, pontuação e acentos e mantenha os números.",
       "No teclado, as setas levam ao próximo quadrado na direção da seta e Tab passa ao quadrado seguinte, linha por linha. Uma letra num cruzamento vale para as duas palavras.",
       "Verifique as respostas quantas vezes quiser. Cada verificação marca os quadrados errados ou vazios. Para parar, toque em Revelar respostas e veja os nomes e as fontes de cada pista.",
+    ],
+    strandsHowToPlay: [
+      "O tema do dia aparece no topo. Ligue letras vizinhas (incluindo as diagonais) para formar as palavras do tema. Cada célula entra em no máximo uma palavra, e todas as letras da grade fazem parte da solução.",
+      "Arraste para traçar a trilha e solte para confirmar. No toque célula a célula, use Confirmar ou Enter para validar e Limpar ou Esc para descartar. No teclado, mova com as setas e estenda com Espaço.",
+      "O spangram liga dois lados opostos da grade e resume o tema. O progresso mostra quantas palavras você achou e se o spangram já saiu. No fim, Ver fonte lista a revisão que confirma cada nome.",
     ],
     questionCounter: (current, total) => `Pergunta ${current} de ${total}`,
     score: "Pontos",
@@ -1042,6 +1065,11 @@ const catalogs: Record<Locale, Messages> = {
         return `Linha ${row + 1}, coluna ${col + 1}, letra ${letter}${state}`;
       },
     },
+    strandsTitle: "Palavras conectadas de K-pop",
+    strandsEyebrow: "1 tema por dia · spangram",
+    strandsIntro: "Ligue letras vizinhas e ache as palavras do tema e o spangram.",
+    strandsShareHeader: (date, found, total, time) =>
+      `${dailyShareHeader("strands", gameNames["pt-BR"].strands, date)}\n${found}/${total} (${time})`,
     strands: {
       title: "Palavras conectadas",
       gridLabel: "Grade de letras conectadas",
@@ -1051,11 +1079,12 @@ const catalogs: Record<Locale, Messages> = {
       spangramLabel: "Spangram",
       spangramFound: "spangram encontrado",
       spangramPending: "spangram ainda não encontrado",
+      spangramStatusFound: "achado",
+      spangramStatusPending: "ainda não",
       timerLabel: "Tempo",
       lettersCount: (count) => (count === 1 ? "1 letra" : `${count} letras`),
       selectionLabel: "Trilha:",
-      selectionHint:
-        "Ligue letras vizinhas. Toque ou Espaço estende a trilha; Confirmar ou Enter confirma; Limpar ou Esc descarta.",
+      selectionHint: "Toque letras vizinhas.",
       pathHint: (letters) => `Trilha: ${letters}.`,
       foundState: "encontrada",
       progress: (found, total) => `${found} de ${total}`,
@@ -1094,6 +1123,7 @@ const catalogs: Record<Locale, Messages> = {
     gameTimeline: gameNames["pt-BR"].timeline,
     gameCode: gameNames["pt-BR"].code,
     gameCrossword: gameNames["pt-BR"].crossword,
+    gameStrands: gameNames["pt-BR"].strands,
     gameNavDoneToday: "concluído hoje",
     dailyNextIn: (time) => `Novo desafio em ${time}`,
     dailyNextReady: "O novo desafio já está disponível.",
@@ -1132,6 +1162,7 @@ const catalogs: Record<Locale, Messages> = {
       map: "Vitória: acertar o país de pelo menos metade das datas (5 de 10), sem desistir.",
       code: "Vitória: descobrir o código em até 10 tentativas.",
       crossword: "Vitória: completar a grade e conferir em Verificar respostas, sem usar Revelar respostas.",
+      strands: "Vitória: achar todas as palavras do tema, inclusive o spangram, sem desistir.",
     },
     statsGuessDistribution: "Palpites por partida",
     statsLossRow: "Derrotas",
@@ -1195,6 +1226,10 @@ const catalogs: Record<Locale, Messages> = {
         title: "K-pop Crossword: group names from cited clues",
         description: "Play a K-pop crossword: find groups from clues about formation year, record label and members. Every clue cites a Wikipedia revision.",
       },
+      strands: {
+        title: "K-pop Strands: theme words and spangram",
+        description: "Link neighboring letters to find the theme words and the spangram on today's grid. Every name cites a Wikipedia or Wikidata revision.",
+      },
     },
     about: gameAbout.en,
     source: sourceCopy.en,
@@ -1208,6 +1243,7 @@ const catalogs: Record<Locale, Messages> = {
       timeline: "Skip to the timeline game",
       code: "Skip to the code game",
       crossword: "Skip to the crossword",
+      strands: "Skip to strands",
       privacy: "Skip to the privacy policy",
       notFound: "Skip to content",
     },
@@ -1226,6 +1262,7 @@ const catalogs: Record<Locale, Messages> = {
         timeline: { title: "K-pop Timeline", description: "Put K-pop events in chronological order. After checking your order, see the dates and sources behind the facts." },
         code: { title: "K-pop Group Code", description: "Find a sequence of 4 groups among 6 catalog symbols in up to 10 guesses, with exact and misplaced position counts." },
         crossword: { title: "K-pop Crossword", description: "Fill the grid with group names from clues about formation year, record label and members. Every clue has a Wikipedia source." },
+        strands: { title: "K-pop Strands", description: "Link neighboring letters to find the theme words and the spangram. Every letter on the board belongs to a word." },
       },
       quizTitle: "How the 10-question quiz works",
       quizBody: "Pick an option for each question and submit your answer. Then read the explanation and source, even if you got it wrong. At the end, see your score and review your answers.",
@@ -1314,6 +1351,11 @@ const catalogs: Record<Locale, Messages> = {
       "Tap or click a clue to pick its word, then type the group's name. Where two words cross, tap or click the square again to switch between across and down. Leave out spaces, punctuation and accents, but keep numbers.",
       "With a keyboard, each arrow key moves to the next square in its direction and Tab moves to the next square, row by row. A letter where two words cross counts for both.",
       "Check your answers as often as you like. Each check marks the squares that are wrong or empty. To stop, finish the round and see the answers and the source of each clue.",
+    ],
+    strandsHowToPlay: [
+      "Today's theme sits at the top. Link neighboring letters, including diagonals, to form the theme words. Each cell belongs to at most one word, and every letter on the board is part of the solution.",
+      "Drag to draw a trail and release to confirm. With cell-by-cell taps, use Submit or Enter to check and Clear or Esc to discard. With a keyboard, move with the arrows and extend with Space.",
+      "The spangram spans opposite sides of the board and sums up the theme. Progress shows how many words you found and whether the spangram is out. At the end, Show source lists the revision behind each name.",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,
     score: "Score",
@@ -1622,6 +1664,11 @@ const catalogs: Record<Locale, Messages> = {
         return `Row ${row + 1}, column ${col + 1}, letter ${letter}${state}`;
       },
     },
+    strandsTitle: "K-pop Strands",
+    strandsEyebrow: "1 theme a day · spangram",
+    strandsIntro: "Link neighboring letters to find the theme words and the spangram.",
+    strandsShareHeader: (date, found, total, time) =>
+      `${dailyShareHeader("strands", gameNames.en.strands, date)}\n${found}/${total} (${time})`,
     strands: {
       title: "Strands",
       gridLabel: "Connected letter grid",
@@ -1631,11 +1678,12 @@ const catalogs: Record<Locale, Messages> = {
       spangramLabel: "Spangram",
       spangramFound: "spangram found",
       spangramPending: "spangram not found yet",
+      spangramStatusFound: "found",
+      spangramStatusPending: "not yet",
       timerLabel: "Time",
       lettersCount: (count) => (count === 1 ? "1 letter" : `${count} letters`),
       selectionLabel: "Path:",
-      selectionHint:
-        "Link neighboring letters. Tap or Space extends the path; Submit or Enter confirms; Clear or Esc clears it.",
+      selectionHint: "Tap neighboring letters.",
       pathHint: (letters) => `Path: ${letters}.`,
       foundState: "found",
       progress: (found, total) => `${found} of ${total}`,
@@ -1674,6 +1722,7 @@ const catalogs: Record<Locale, Messages> = {
     gameTimeline: gameNames.en.timeline,
     gameCode: gameNames.en.code,
     gameCrossword: gameNames.en.crossword,
+    gameStrands: gameNames.en.strands,
     gameNavDoneToday: "done today",
     dailyNextIn: (time) => `New puzzle in ${time}`,
     dailyNextReady: "The new puzzle is out.",
@@ -1712,6 +1761,7 @@ const catalogs: Record<Locale, Messages> = {
       map: "Win: get the country right for at least half the dates (5 of 10), without giving up.",
       code: "Win: crack the code in 10 tries or fewer.",
       crossword: "Win: fill the grid and confirm with Check answers, without using Reveal answers.",
+      strands: "Win: find every theme word, including the spangram, without giving up.",
     },
     statsGuessDistribution: "Guesses per game",
     statsLossRow: "Losses",

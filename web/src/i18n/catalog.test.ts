@@ -12,9 +12,10 @@ const ROUTE_KEYS: SeoRouteKey[] = [
   "timeline",
   "code",
   "crossword",
+  "strands",
 ];
 
-const GAME_ABOUT_KEYS: GameAboutKey[] = ["grid", "connections", "nameGuess", "wordSearch", "mapPilot", "timeline", "code", "crossword"];
+const GAME_ABOUT_KEYS: GameAboutKey[] = ["grid", "connections", "nameGuess", "wordSearch", "mapPilot", "timeline", "code", "crossword", "strands"];
 
 const GAME_H1: Record<GameAboutKey, (messages: Messages) => string> = {
   grid: (messages) => messages.gridTitle,
@@ -25,6 +26,7 @@ const GAME_H1: Record<GameAboutKey, (messages: Messages) => string> = {
   timeline: (messages) => messages.timelineTitle,
   code: (messages) => messages.codeTitle,
   crossword: (messages) => messages.crosswordTitle,
+  strands: (messages) => messages.strandsTitle,
 };
 
 function wordCount(text: string): number {

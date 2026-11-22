@@ -28,8 +28,8 @@ interface Plan {
 
 /**
  * End of a daily game: time left until the next challenge and a link to
- * the next game not finished today. When the ninth game closes the day,
- * celebrates the set (no intermediate X/9 counter) and offers the day share.
+ * the next game not finished today. When the last daily game closes the day,
+ * celebrates the set (no intermediate X/N counter) and offers the day share.
  * It reads the clock and storage only after mounting, so the server and the
  * first client render agree.
  */
@@ -76,7 +76,7 @@ export function DailyNext({
     }
     const done = completedDailyGames(today);
     // The game that just finished may not have flushed lastPlayedDate yet for
-    // the map (save-based) path; include the current route so the ninth game
+    // the map (save-based) path; include the current route so the last game
     // sees a complete set in the same paint as DailyNext mounts.
     done.add(game);
     const setComplete = DAILY_GAMES.every((key) => done.has(key));

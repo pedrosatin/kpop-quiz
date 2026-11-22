@@ -6,11 +6,11 @@ import type { Locale } from "../lib/quiz-types";
 // Sao Paulo midnight switch in daily-artifact.ts, the generators under
 // kpop_scraping/ (connections_generator.py, name_guess_generator.py,
 // timeline_generator.py, word_search_generator.py, map_pilot_refresh.py,
-// crossword_cli.py) and
+// crossword_cli.py, strands_cli.py) and
 // the map refresh workflow. Headings carry the game name, so each route gets
 // its own H2s and most FAQ entries; one generic entry per game stays.
 
-export type GameAboutKey = "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code" | "crossword";
+export type GameAboutKey = "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code" | "crossword" | "strands";
 
 export interface GameAboutFaq {
   question: string;
@@ -267,6 +267,33 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
           { question: "O jogo é grátis?", answer: PT_FREE },
         ],
       },
+      strands: {
+        howToPlayHeading: "Como jogar Palavras conectadas de K-pop",
+        dataSourcesHeading: "De onde vêm os dados de Palavras conectadas de K-pop",
+        faqHeading: "Perguntas sobre Palavras conectadas de K-pop",
+        howToPlay: [
+          "O tema do dia aparece no topo. Ligue letras vizinhas, inclusive nas diagonais, para formar as palavras do tema. Cada célula entra em no máximo uma palavra, e todas as letras da grade fazem parte da solução.",
+          "Arraste para traçar a trilha e solte para confirmar. No toque célula a célula, use Confirmar ou Enter para validar e Limpar ou Esc para descartar. No teclado, mova com as setas e estenda com Espaço.",
+          "O spangram liga dois lados opostos da grade e resume o tema. O progresso mostra quantas palavras você achou e se o spangram já saiu. No fim, Ver fonte lista a revisão que confirma cada nome.",
+        ],
+        dataSources: [
+          "As palavras saem de temas de elencos e décadas montados com fatos aceitos no banco do projeto. Cada nome aponta para uma revisão da Wikipédia ou do Wikidata, com o local do trecho citado. O gerador só publica a grade quando prova uma única cobertura das palavras nas trilhas, com o spangram ligando lados opostos.",
+          "A grade muda todo dia. Se o solver não fecha uma solução única, o dia sai sem este arquivo e a página avisa. Antes de mostrar a grade, o navegador confere a estrutura e o hash do arquivo. Os textos da Wikipédia seguem a licença CC BY-SA 4.0 e os dados do Wikidata são CC0.",
+        ],
+        faq: [
+          {
+            question: "O que é o spangram?",
+            answer:
+              "É a palavra mais longa do tema. Ela liga dois lados opostos da grade e resume o tema do dia. Conta como uma das palavras a achar.",
+          },
+          {
+            question: "Todo mundo joga a mesma grade?",
+            answer:
+              "Sim. A grade muda à meia-noite de Brasília e é a mesma para todos no dia. Se o arquivo do dia não for gerado, a página avisa e o jogo fica indisponível até o dia seguinte.",
+          },
+          { question: "Em quais idiomas dá para jogar?", answer: ptLanguages("/en/strands/") },
+        ],
+      },
     },
   },
   en: {
@@ -487,6 +514,33 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
               "Solving the grid with Check answers counts as a win. Reveal answers counts as a played round without a win. Playing again after the end does not change your stats.",
           },
           { question: "Is it free?", answer: EN_FREE },
+        ],
+      },
+      strands: {
+        howToPlayHeading: "How to play K-pop Strands",
+        dataSourcesHeading: "Where the K-pop Strands data comes from",
+        faqHeading: "K-pop Strands FAQ",
+        howToPlay: [
+          "Today's theme sits at the top. Link neighboring letters, including diagonals, to form the theme words. Each cell belongs to at most one word, and every letter on the board is part of the solution.",
+          "Drag to draw a trail and release to confirm. With cell-by-cell taps, use Confirm or Enter to check and Clear or Esc to discard. With a keyboard, move with the arrows and extend with Space.",
+          "The spangram spans opposite sides of the board and names the theme. Progress shows how many words you found and whether the spangram is out. At the end, Show source lists the revision behind each name.",
+        ],
+        dataSources: [
+          "The words come from roster and decade themes built from accepted facts in the project database. Each name points to a Wikipedia or Wikidata revision and the place of the quoted passage. The generator publishes a grid only when it proves a single covering of the words by trails, with the spangram spanning opposite sides.",
+          "The grid changes every day. If the solver cannot close a unique solution, the day ships without this file and the page says so. Before showing the grid, the browser checks the file's structure and hash. Wikipedia text is licensed CC BY-SA 4.0 and Wikidata data is CC0.",
+        ],
+        faq: [
+          {
+            question: "What is the spangram?",
+            answer:
+              "It is the longest theme word. It spans opposite sides of the board and names today's theme. It counts as one of the words to find.",
+          },
+          {
+            question: "Does everyone play the same grid?",
+            answer:
+              "Yes. The grid changes at midnight Brasília time and is the same for everyone that day. If the day's file is not generated, the page says so and the game stays unavailable until the next day.",
+          },
+          { question: "Which languages can I play in?", answer: enLanguages("/pt-br/palavras-conectadas/") },
         ],
       },
     },

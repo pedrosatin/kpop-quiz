@@ -33,7 +33,7 @@ function verdictText(
   }
 }
 
-/** Live status for the current trail or the last verdict. */
+/** Live status for the current trail or the last verdict (at most two lines). */
 export function StrandsBarMessage({
   t,
   activeLetters,
@@ -44,15 +44,18 @@ export function StrandsBarMessage({
 }: StrandsBarMessageProps) {
   if (activeLetters.length > 0) {
     return (
-      <>
-        <span class="visually-hidden">{t.selectionLabel} </span>
-        {t.pathHint(activeLetters)}
+      <p class="word-search-selection">
+        <span class="selection-letters">{t.pathHint(activeLetters)}</span>
         <span class="visually-hidden"> {t.lettersCount(activeLetters.length)}</span>
-      </>
+      </p>
     );
   }
   if (lastCheck) {
-    return <>{verdictText(lastCheck, t, wordName, foundCount, totalWords)}</>;
+    return (
+      <p class="game-actions-title">
+        {verdictText(lastCheck, t, wordName, foundCount, totalWords)}
+      </p>
+    );
   }
-  return <>{t.selectionHint}</>;
+  return <p class="game-actions-hint">{t.selectionHint}</p>;
 }

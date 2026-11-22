@@ -19,6 +19,7 @@ const FILE_SLUG: Partial<Record<SeoRouteKey, Record<Locale, string>>> = {
   timeline: { "pt-BR": "pt-br-linha-do-tempo.md", en: "en-timeline.md" },
   code: { "pt-BR": "pt-br-codigo.md", en: "en-code.md" },
   crossword: { "pt-BR": "pt-br-cruzadinha.md", en: "en-crossword.md" },
+  strands: { "pt-BR": "pt-br-palavras-conectadas.md", en: "en-strands.md" },
 };
 
 function visibleCopy(locale: Locale, key: SeoRouteKey): { h1: string; intro: string } {
@@ -42,6 +43,8 @@ function visibleCopy(locale: Locale, key: SeoRouteKey): { h1: string; intro: str
       return { h1: messages.codeTitle, intro: messages.codeIntro };
     case "crossword":
       return { h1: messages.crosswordTitle, intro: messages.crosswordIntro };
+    case "strands":
+      return { h1: messages.strandsTitle, intro: messages.strandsIntro };
   }
 }
 

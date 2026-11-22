@@ -26,24 +26,26 @@ export function StrandsProgress({
   elapsedSeconds,
 }: StrandsProgressProps) {
   return (
-    <dl class="strands-progress word-search-progress">
-      <div>
-        <dt>{t.wordsFound}</dt>
-        <dd data-testid="found-counter">{t.progress(foundCount, totalWords)}</dd>
-      </div>
-      <div>
-        <dt>{t.spangramLabel}</dt>
-        <dd data-testid="spangram-status">
-          {spangramFound ? t.spangramFound : t.spangramPending}
-        </dd>
-      </div>
-      <div>
-        <dt>{t.timerLabel}</dt>
-        <dd class="timer-display" data-testid="timer-display">{formatTime(elapsedSeconds)}</dd>
-      </div>
+    <>
+      <dl class="strands-progress word-search-progress">
+        <div>
+          <dt>{t.wordsFound}</dt>
+          <dd data-testid="found-counter">{t.progress(foundCount, totalWords)}</dd>
+        </div>
+        <div>
+          <dt>{t.spangramLabel}</dt>
+          <dd data-testid="spangram-status">
+            {spangramFound ? t.spangramStatusFound : t.spangramStatusPending}
+          </dd>
+        </div>
+        <div>
+          <dt>{t.timerLabel}</dt>
+          <dd class="timer-display" data-testid="timer-display">{formatTime(elapsedSeconds)}</dd>
+        </div>
+      </dl>
       <span class="visually-hidden" data-testid="progress-announcement">
         {t.progressAnnouncement(foundCount, totalWords, spangramFound)}
       </span>
-    </dl>
+    </>
   );
 }

@@ -10,7 +10,7 @@ describe("daily progress", () => {
 
   it("lists the games in tab order", () => {
     expect(DAILY_GAMES).toEqual([
-      "quiz", "grid", "connections", "nameGuess", "wordSearch", "mapPilot", "timeline", "code", "crossword",
+      "quiz", "grid", "connections", "nameGuess", "wordSearch", "mapPilot", "timeline", "code", "crossword", "strands",
     ]);
   });
 

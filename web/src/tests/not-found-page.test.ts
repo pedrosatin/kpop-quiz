@@ -20,6 +20,7 @@ describe("404 page", () => {
       "/pt-br/linha-do-tempo/",
       "/pt-br/codigo/",
       "/pt-br/cruzadinha/",
+      "/pt-br/palavras-conectadas/",
       "/en/",
       "/en/grid/",
       "/en/connections/",
@@ -29,6 +30,7 @@ describe("404 page", () => {
       "/en/timeline/",
       "/en/code/",
       "/en/crossword/",
+      "/en/strands/",
     ]) {
       expect(source).toContain(`path: "${path}"`);
     }

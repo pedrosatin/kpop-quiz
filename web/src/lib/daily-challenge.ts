@@ -5,6 +5,7 @@ export const FIRST_DAILY_DATE = {
   quiz: "2026-09-18", grid: "2026-09-17", connections: "2026-09-17",
   nameGuess: "2026-09-18", wordSearch: "2026-09-18", timeline: "2026-09-19",
   mapPilot: "2026-09-25", code: "2026-10-19", crossword: "2026-11-03",
+  strands: "2026-09-17",
 } as const satisfies Record<SeoRouteKey, string>;
 
 /** Calendar arithmetic on artifact dates, independent of the browser's zone and language. */

@@ -139,6 +139,15 @@ const SMOKE_PAIRS: readonly SmokePairDef[] = [
     missingKinds: ["missing", "omitted", "unavailable"],
   },
   {
+    id: "strands",
+    kind: "board-direct",
+    ptPath: "/pt-br/palavras-conectadas/",
+    enPath: "/en/strands/",
+    // Partial publish: the day may ship without strands.daily.json.
+    optionalArtifact: true,
+    missingKinds: ["missing"],
+  },
+  {
     id: "privacy",
     kind: "privacy",
     ptPath: "/pt-br/privacidade/",
