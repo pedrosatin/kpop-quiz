@@ -635,7 +635,7 @@ describe("IntersectionGrid orchestrator component", () => {
     cells["0,0"] = { solved: true, failed: false, entityId: "Q21461452" };
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ guessesUsed: 9, cells }));
     markGameMatchRecorded("grid", MATCH_ID);
-    const before = JSON.stringify(loadPlayerStats());
+    const before = loadPlayerStats();
 
     render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
 
@@ -644,7 +644,16 @@ describe("IntersectionGrid orchestrator component", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(title).not.toHaveFocus();
     expect(document.body).toHaveFocus();
-    expect(JSON.stringify(loadPlayerStats())).toBe(before);
+    // DailyNext may write dailySetLines for the day share; match counts stay put.
+    const after = loadPlayerStats();
+    expect(after.overall).toMatchObject({
+      played: before.overall.played,
+      won: before.overall.won,
+    });
+    expect(after.games.grid).toMatchObject({
+      played: before.games.grid.played,
+      won: before.games.grid.won,
+    });
   });
 
   it("drops a save that names a group the cell does not accept", async () => {
