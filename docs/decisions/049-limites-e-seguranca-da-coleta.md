@@ -22,6 +22,7 @@ Durante a coleta MediaWiki/WDQS, extração de wikitext, armazenamento SQLite e 
 4. **Quarentena de órfãos e limpeza de sidecars SQLite:** antes de abrir ou restaurar um banco de cache em `scripts/rebuild_database.py` e `storage.py`, arquivos `-journal`, `-wal` e `-shm` residuais sem par válido são tratados e snapshots brutos sem referência no banco são movidos para `.orphans/` com sufixo `.orphan`, mantendo-os fora de `*.json.gz`.
 5. **Escaping de workflow commands e ordenação de logs:** `workflow_commands.py` escapa `%`, `\r` e `\n` ao emitir comandos do GitHub Actions; scripts executados em `actions` fazem flush explícito da saída padrão antes de emitir anotações.
 6. **Subconjunto de fontes web (`subset-fonts.sh`):** os subsets autohospedados usam o intervalo Google Fonts `latin` mais Latin Extended-A para nomes romanizados, com eixo `wdth=100` fixado via `fonttools varLib.instancer` porque o CSS nunca altera `font-stretch`.
+7. **Rebuild interrompido e cópia do cache (`scripts/rebuild_database.py`):** SIGINT e SIGTERM viram `SystemExit(128 + sinal)`, e o handler escreve o aviso com `os.write`, porque um `print` pode estar no meio de uma escrita em stdout. A cópia do banco para o cache termina completa ou não existe: uma cópia deixada por execução anterior é velha e não sobrevive a uma cópia que falhou. `copyfile` dá à cópia o horário em que rodou como `mtime`, e `os.replace` o mantém; o `restore-cache` depende disso para saber quais snapshots brutos as tentativas gravaram.
 
 ## Alternativas consideradas
 

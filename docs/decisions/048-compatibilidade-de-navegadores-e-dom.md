@@ -31,6 +31,7 @@ O cliente estático em Astro + Preact atende navegadores móveis e desktop com r
 11. **Métricas de layout serializáveis no E2E do Strands:** `measureStrandsLayout` em `web/e2e/helpers/strands-layout.ts` permanece função pura (sem fechamento) para o `page.evaluate` do Playwright serializar a medição do tabuleiro e da barra adesiva.
 12. **Célula do Caça-palavras/Strands acessível sem cor:** o rótulo acessível de `WordSearchCell` descreve posição, letra e estado em palavras, para seleção, palavra encontrada e revelada não dependerem só da cor.
 13. **Botão de tema e CSP:** o script inline do `#theme-toggle` em `BaseLayout.astro` atualiza `aria-label`/`title` a cada ciclo system→light→dark; o ícone segue `html[data-theme]` só no CSS. Qualquer edição desse script exige novo hash `sha256-…` em `web/public/_headers`.
+14. **Teclado virtual do Adivinhe (`VirtualKeyboard.tsx`):** clique ou toque numa tecla não deixa o foco nela. Se a tecla ficasse focada, um Enter físico posterior a acionaria de novo em vez de enviar o palpite. Tab continua focando as teclas para quem usa teclado.
 
 ## Alternativas consideradas
 
