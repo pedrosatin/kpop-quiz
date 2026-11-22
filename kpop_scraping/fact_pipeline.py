@@ -9,6 +9,14 @@ from itertools import islice
 from .catalog import MUSICAL_GROUP_CLASSES
 from .entities import extract_aliases, instance_of, matching_names
 from .evidence import WikipediaPage, assess_references
+from .fact_limits import (
+    FactTruncation,
+    cap_has_member_candidates,
+    cap_matching_names,
+    cap_member_ids,
+    cap_pages_wikitext,
+    record_issues,
+)
 from .fact_store import CatalogGroup, FactRunTotals, FactStore, count_statuses
 from .facts import (
     ExtractedFacts,
@@ -68,6 +76,7 @@ class _RunState:
     names: dict[str, tuple[str, ...]] = field(default_factory=dict)
     person_pages: dict[str, PersonPageRequest] = field(default_factory=dict)
     subjects: list[_Subject] = field(default_factory=list)
+    truncations: list[FactTruncation] = field(default_factory=list)
     batches: int = 0
     ignored: int = 0
 
@@ -150,8 +159,12 @@ class _Run:
         known_groups = set(catalog_by_id)
 
         processed_groups = self._process_groups(groups)
+        self._cap_group_memberships()
         group_candidates = [c for subject in state.subjects for c in subject.candidates]
-        self._process_members(member_ids(group_candidates), known_groups)
+        members, run_truncation = cap_member_ids(member_ids(group_candidates))
+        if run_truncation is not None:
+            state.truncations.append(run_truncation)
+        self._process_members(members, known_groups)
         all_candidates = [c for subject in state.subjects for c in subject.candidates]
 
         reference_candidates = self._reference_groups(
@@ -160,6 +173,11 @@ class _Run:
         countries = self._resolve_values(all_candidates)
         pages = self._pages(processed_groups, all_candidates)
         person_pages, person_statements, preserved = self._person_evidence(all_candidates)
+        pages, page_cuts = cap_pages_wikitext(pages)
+        person_pages, person_cuts = cap_pages_wikitext(person_pages)
+        state.truncations.extend(page_cuts)
+        state.truncations.extend(person_cuts)
+        record_issues(self.store, self.run_id, state.truncations)
 
         context = ValidationContext(
             names=state.names,
@@ -209,6 +227,7 @@ class _Run:
             superseded=totals["superseded"],
             ignored=state.ignored,
             stale=stale,
+            truncations=tuple(state.truncations),
         )
 
     def _fetch(
@@ -250,12 +269,30 @@ class _Run:
         entity_id, stored_type = self.store.save_entity(
             document, snapshot_id, profile.name, entity_type, source_page_id
         )
-        names = matching_names(extract_aliases(document.payload))
+        names, name_cut = cap_matching_names(
+            matching_names(extract_aliases(document.payload)),
+            document.wikidata_id,
+        )
+        if name_cut is not None:
+            self.state.truncations.append(name_cut)
         for key in {requested_id, document.wikidata_id}:
             self.state.entity_ids[key] = entity_id
             self.state.entity_types[key] = stored_type
             self.state.names[key] = names
         return entity_id
+
+    def _cap_group_memberships(self) -> None:
+        for index, subject in enumerate(self.state.subjects):
+            capped, cuts = cap_has_member_candidates(subject.candidates)
+            if not cuts:
+                continue
+            self.state.truncations.extend(cuts)
+            self.state.subjects[index] = _Subject(
+                subject.wikidata_id,
+                subject.entity_id,
+                subject.snapshot_id,
+                capped,
+            )
 
     def _add_subject(
         self,

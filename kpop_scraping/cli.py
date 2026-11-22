@@ -12,6 +12,13 @@ from . import rebuild_phases, workflow_commands
 from .catalog import classify_catalog
 from .collector import collect_category
 from .exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
+from .fact_limits import (
+    MAX_INFOBOX_WIKITEXT_BYTES,
+    MAX_MATCHING_NAMES,
+    MAX_MEMBERS_PER_GROUP,
+    MAX_MEMBERS_PER_RUN,
+    FactTruncation,
+)
 from .fact_pipeline import extract_facts
 from .http_request import DEFAULT_USER_AGENT
 from .mediawiki import MaxlagBudget, MediaWikiClient, MediaWikiError
@@ -169,6 +176,43 @@ def report_truncated_groups(truncated: tuple[TruncatedGroup, ...]) -> None:
         sys.stderr.write(f"WARNING: {message}\n")
         if os.environ.get("GITHUB_ACTIONS") == "true":
             workflow_commands.warning(message, title="Release candidates truncated")
+
+def report_fact_truncations(truncations: tuple[FactTruncation, ...]) -> None:
+    """Warn about each facts-stage cardinality cut; the run goes on (ADR 052)."""
+    for item in truncations:
+        if item.kind == "members_per_group":
+            message = (
+                f"group {item.subject_id} has {item.observed} has_member values; "
+                f"kept the {item.kept} with the lowest QIDs and discarded {item.discarded}"
+            )
+            title = "Fact members per group truncated"
+        elif item.kind == "members_per_run":
+            message = (
+                f"facts run saw {item.observed} distinct has_member values; "
+                f"kept the {item.kept} with the lowest QIDs and discarded {item.discarded}"
+            )
+            title = "Fact members per run truncated"
+        elif item.kind == "matching_names":
+            message = (
+                f"entity {item.subject_id} has {item.observed} evidence names; "
+                f"kept {item.kept} and discarded {item.discarded}"
+            )
+            title = "Fact matching names truncated"
+        elif item.kind == "infobox_wikitext":
+            message = (
+                f"page {item.subject_id} has {item.observed} bytes of wikitext; "
+                f"skipped infobox evidence above {MAX_INFOBOX_WIKITEXT_BYTES} bytes"
+            )
+            title = "Fact infobox wikitext truncated"
+        else:
+            message = (
+                f"facts cap {item.kind} on {item.subject_id}: "
+                f"observed={item.observed} kept={item.kept}"
+            )
+            title = "Fact cardinality truncated"
+        sys.stderr.write(f"WARNING: {message}\n")
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            workflow_commands.warning(message, title=title)
 
 def report_release_stage_failure(exc: Exception) -> None:
     """Warn that release discovery failed after facts were already saved.
@@ -378,6 +422,31 @@ def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, ca
             f"{fact_rows} rows in {facts_report}"
         )
         _print_birth_coverage(fact_totals)
+        if fact_totals.truncations:
+            report_fact_truncations(fact_totals.truncations)
+            by_kind: dict[str, int] = {}
+            for item in fact_totals.truncations:
+                by_kind[item.kind] = by_kind.get(item.kind, 0) + 1
+            parts = []
+            if by_kind.get("members_per_group"):
+                parts.append(
+                    f"{by_kind['members_per_group']} group(s) truncated at "
+                    f"{MAX_MEMBERS_PER_GROUP} members"
+                )
+            if by_kind.get("members_per_run"):
+                parts.append(f"run truncated at {MAX_MEMBERS_PER_RUN} members")
+            if by_kind.get("matching_names"):
+                parts.append(
+                    f"{by_kind['matching_names']} entit"
+                    f"{'ies' if by_kind['matching_names'] != 1 else 'y'} truncated at "
+                    f"{MAX_MATCHING_NAMES} evidence names"
+                )
+            if by_kind.get("infobox_wikitext"):
+                parts.append(
+                    f"{by_kind['infobox_wikitext']} page(s) skipped above "
+                    f"{MAX_INFOBOX_WIKITEXT_BYTES} wikitext bytes"
+                )
+            print("Fact caps: " + "; ".join(parts))
     if release_totals is not None:
         print(
             f"Releases: {release_totals.groups} discovery groups, "

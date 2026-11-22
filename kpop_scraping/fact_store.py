@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from . import rebuild_phases
 from .entities import Alias, canonical_name, extract_aliases
 from .evidence import EVIDENCE_RULES_VERSION, WikipediaPage
+from .fact_limits import FactTruncation
 from .sources import SOURCE_POLICY_VERSION, classify_source
 from .storage import Repository, SnapshotIntegrityError, canonical_json, utc_now
 from .validation import (
@@ -55,6 +56,7 @@ class FactRunTotals:
     superseded: int
     ignored: int
     stale: int = 0
+    truncations: tuple[FactTruncation, ...] = field(default=(), compare=False)
     birth_before: tuple[BirthCoverage, ...] = field(default=(), compare=False)
     birth_after: tuple[BirthCoverage, ...] = field(default=(), compare=False)
 
