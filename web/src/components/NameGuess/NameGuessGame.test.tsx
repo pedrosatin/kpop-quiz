@@ -35,12 +35,15 @@ function liveMessage(): HTMLElement {
 
 describe("NameGuessGame component", () => {
   beforeEach(() => {
+    now = 1_000;
+    vi.useRealTimers();
     localStorage.clear();
     vi.restoreAllMocks();
     vi.spyOn(performance, "now").mockImplementation(() => now);
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     localStorage.clear();
     vi.restoreAllMocks();
   });
@@ -386,13 +389,18 @@ describe("NameGuessGame component", () => {
   });
 
   it("records the daily win", () => {
-    render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
-    typeGuess("TWICE");
+    onDay(puzzle.reference_date);
+    try {
+      render(<NameGuessGame locale="pt-BR" puzzle={puzzle} />);
+      typeGuess("TWICE");
 
-    const stats = loadPlayerStats();
-    expect(stats.games["name-guess"].played).toBe(1);
-    expect(stats.games["name-guess"].currentStreak).toBe(1);
-    expect(stats.overall.lastPlayedDate).toBe(puzzle.reference_date);
+      const stats = loadPlayerStats();
+      expect(stats.games["name-guess"].played).toBe(1);
+      expect(stats.games["name-guess"].currentStreak).toBe(1);
+      expect(stats.overall.lastPlayedDate).toBe(puzzle.reference_date);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("reveals the answer when the player gives up", () => {
@@ -729,7 +737,8 @@ describe("NameGuessGame component", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => puzzle,
+        // Return a copy so noteDailyBoard does not mark the shared fixture stale for later tests.
+        json: async () => structuredClone(puzzle),
       })
     );
 
@@ -927,10 +936,12 @@ describe("NameGuess share", () => {
 
 describe("NameGuess revealed answer label", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     localStorage.clear();
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     localStorage.clear();
   });
 
@@ -1004,6 +1015,7 @@ describe("NameGuess revealed answer label", () => {
 
 describe("NameGuess board from an earlier day", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     localStorage.clear();
     serveDailyBoard(puzzle);
   });
