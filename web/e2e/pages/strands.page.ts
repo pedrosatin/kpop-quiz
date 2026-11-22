@@ -91,7 +91,7 @@ export class StrandsPage {
   }
 
   async expectSpangramFound(): Promise<void> {
-    await expect(this.page.getByTestId("spangram-status")).toContainText(/encontrado|found/i, {
+    await expect(this.page.getByTestId("spangram-status")).toContainText(/achado|encontrado|found/i, {
       timeout: 15_000,
     });
   }

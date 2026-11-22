@@ -51,6 +51,62 @@ async function capture(page: Page, name: string) {
   });
 }
 
+/** Layout metrics that catch the broken Strands action bar and covered grid. */
+function measureStrandsLayout() {
+  const actionsEl = document.querySelector(".word-search-actions, .game-actions") as HTMLElement | null;
+  const messageEl = document.querySelector(
+    ".word-search-actions .word-search-message:not(.visually-hidden), .game-actions .game-actions-message:not(.visually-hidden)",
+  ) as HTMLElement | null;
+  const rows = [...document.querySelectorAll(".word-search-row")];
+  const lastRow = rows[rows.length - 1]?.getBoundingClientRect();
+  const actions = actionsEl?.getBoundingClientRect();
+  const consent = document.querySelector(".consent-banner")?.getBoundingClientRect();
+  const coverTop = Math.min(actions?.top ?? Infinity, consent?.top ?? Infinity, window.innerHeight);
+  const buttons = [...document.querySelectorAll(".word-search-actions > .btn, .game-actions > .btn")].map((btn) =>
+    btn.getBoundingClientRect().right,
+  );
+  const cell = document.querySelector(".word-search-cell")?.getBoundingClientRect();
+  const kicker = document.querySelector(".kicker")?.getBoundingClientRect();
+  const theme = document.querySelector("[data-testid='strands-theme']")?.getBoundingClientRect();
+  let messageLines = 0;
+  if (messageEl) {
+    const style = getComputedStyle(messageEl);
+    const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.4;
+    messageLines = lineHeight > 0 ? Math.round(messageEl.getBoundingClientRect().height / lineHeight) : 0;
+  }
+  return {
+    lastRowBottom: lastRow?.bottom ?? null,
+    actionsTop: actions?.top ?? null,
+    coverTop: Number.isFinite(coverTop) ? coverTop : null,
+    maxButtonRight: buttons.length ? Math.max(...buttons) : null,
+    scrollWidth: document.documentElement.scrollWidth,
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+    messageLines,
+    cellSize: cell ? Math.min(cell.width, cell.height) : null,
+    kickerLeft: kicker?.left ?? null,
+    themeTop: theme?.top ?? null,
+    themeBottom: theme?.bottom ?? null,
+  };
+}
+
+type LayoutMetrics = ReturnType<typeof measureStrandsLayout>;
+
+function expectPlayableLayout(layout: LayoutMetrics, label: string) {
+  expect(layout.lastRowBottom, `${label}: last grid row`).not.toBeNull();
+  expect(layout.actionsTop, `${label}: actions bar`).not.toBeNull();
+  expect(layout.lastRowBottom!, `${label}: last row above the bar`).toBeLessThanOrEqual(layout.actionsTop! + 0.5);
+  expect(layout.maxButtonRight, `${label}: action buttons`).not.toBeNull();
+  expect(layout.maxButtonRight!, `${label}: buttons stay inside the page`).toBeLessThanOrEqual(layout.innerWidth + 0.5);
+  expect(layout.scrollWidth, `${label}: no horizontal overflow`).toBeLessThanOrEqual(layout.innerWidth + 0.5);
+  expect(layout.messageLines, `${label}: bar text at most 2 lines`).toBeLessThanOrEqual(2);
+  expect(layout.themeTop, `${label}: theme visible`).toBeGreaterThanOrEqual(-1);
+  expect(layout.themeBottom!, `${label}: theme above the bar`).toBeLessThanOrEqual((layout.actionsTop ?? layout.innerHeight) + 0.5);
+  if (layout.kickerLeft !== null) {
+    expect(layout.kickerLeft, `${label}: kicker not clipped on the left`).toBeGreaterThanOrEqual(-0.5);
+  }
+}
+
 for (const route of routes) {
   for (const colorScheme of ["light", "dark"] as const) {
     test(`strands ${route.locale} ${colorScheme}: axe has 0 violations`, async ({ page, baseURL }) => {
@@ -74,10 +130,7 @@ for (const route of routes) {
   }
 }
 
-test("strands 390 and 1440 keep grid, answer area and actions without page scroll", async ({
-  page,
-  baseURL,
-}) => {
+test("strands 390 and 1440 keep grid above the bar without overflow", async ({ page, baseURL }) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("kpop-quiz-consent", "rejected");
   });
@@ -91,33 +144,10 @@ test("strands 390 and 1440 keep grid, answer area and actions without page scrol
     await page.goto(joinBaseUrl(baseURL!, "/pt-br/palavras-conectadas/"));
     await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
     await page.evaluate(() => document.fonts.ready);
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
 
-    const layout = await page.evaluate(() => {
-      const grid = document.querySelector(".word-search-grid")?.getBoundingClientRect();
-      const list = document.querySelector(".strands-list, .word-search-list")?.getBoundingClientRect();
-      const actions = document.querySelector(".word-search-actions, .game-actions")?.getBoundingClientRect();
-      const doc = document.documentElement;
-      return {
-        grid: grid ? { top: grid.top, bottom: grid.bottom } : null,
-        list: list ? { top: list.top, bottom: list.bottom } : null,
-        actions: actions ? { top: actions.top, bottom: actions.bottom } : null,
-        scrollHeight: doc.scrollHeight,
-        clientHeight: doc.clientHeight,
-        innerHeight: window.innerHeight,
-      };
-    });
-
-    expect(layout.grid, `${viewport.label}: grid`).not.toBeNull();
-    expect(layout.actions, `${viewport.label}: actions`).not.toBeNull();
-    expect(layout.grid!.top).toBeGreaterThanOrEqual(-1);
-    expect(layout.grid!.bottom).toBeLessThanOrEqual(layout.innerHeight + 1);
-    expect(layout.actions!.top).toBeGreaterThanOrEqual(-1);
-    expect(layout.actions!.bottom).toBeLessThanOrEqual(layout.innerHeight + 1);
-    if (layout.list) {
-      expect(layout.list.top).toBeGreaterThanOrEqual(-1);
-      expect(layout.list.bottom).toBeLessThanOrEqual(layout.innerHeight + 1);
-    }
-
+    const layout = await page.evaluate(measureStrandsLayout);
+    expectPlayableLayout(layout, viewport.label);
     await capture(page, `strands-ux-${viewport.label}`);
   }
 });

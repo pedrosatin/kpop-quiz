@@ -1,11 +1,27 @@
 /*
   Strands reuses the Word Search letter grid, chips and action bar. This file
-  only adds theme/spangram markers, a taller progress row and room for the
-  Confirm / Clear buttons beside Give up.
+  only adds theme/spangram markers, compact progress and room for Confirm /
+  Clear beside Give up. Long rules live in "Como jogar"; the bar keeps a short
+  trail hint and feedback.
+
+  Height budget (same variables as word-search.css): the 9×9 grid shrinks via
+  --ws-grid-max-h so theme, every row and the sticky bar fit 390×844, 360×740
+  with the consent banner open, and 1440×900. Cells follow --ws-cell-min (the
+  same touch-target exception as Word Search: the whole grid is one target).
+  Remeasure with getBoundingClientRect() of the grid top, bar height and last
+  row bottom against the bar top.
 */
 
 .strands {
-  --ws-list: 5.5rem;
+  /* Chips wrap under the grid on phones and sit beside it from 52rem; they
+     stay out of the height budget on one column, like Word Search. */
+  --ws-list: 0rem;
+}
+
+@media (min-width: 52rem) {
+  .strands {
+    --ws-list: 0rem;
+  }
 }
 
 .strands-theme-label {
@@ -29,23 +45,85 @@
   box-shadow: inset 0 0 0 2px var(--focus);
 }
 
+/*
+  Three short values in one row (found · spangram · timer). Compact copy keeps
+  the bar from overflowing on phones; screen readers still hear the long
+  progressAnnouncement.
+*/
 .strands-progress {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-2);
+  grid-template-columns: repeat(3, max-content);
+  justify-content: end;
+  column-gap: var(--space-3);
+  row-gap: 0.1rem;
+}
+
+.strands-progress > div {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: var(--space-1);
 }
 
 /* Confirm and Clear stay mounted (disabled when empty) so the bar height
-   does not jump; .btn already targets 44px via --control-height. */
+   does not jump; .btn already targets 44px via --control-height. Three
+   actions need wrap room that Word Search (one Give up) does not. */
+.strands .word-search-actions {
+  flex-wrap: wrap;
+  column-gap: var(--space-3);
+}
+
 .strands .word-search-actions > .btn {
   min-height: var(--control-height);
 }
 
+/*
+  Phones: short hint on its own row; compact progress + Confirm / Clear /
+  Give up on the next. Override the shared full-width .btn rule so the three
+  actions stay side by side inside the page.
+
+  --ws-cell-min drops below Word Search's 1.625rem so a 9×9 board still fits
+  360×740 with the consent banner open (item 1 of the UX contract). The shared
+  grid formula floors at --ws-cell-min via max(...); without this floor the
+  last rows sit under the sticky bar. Cells stay one shared target (drag snaps
+  to the nearest neighbour), same exception Word Search documents at ~26px.
+*/
 @media (max-width: 420px) {
   .strands {
-    /* Message + progress + two button rows (Confirm/Clear + Give up). */
-    --ws-actions: 10.25rem;
+    /* Compact two-row bar; conservative --ws-above so max-h shrinks the 9×9. */
+    --ws-actions: 7.25rem;
+    --ws-above: 24rem;
+    --ws-cell-min: 0.8125rem; /* 13px at 16px root; 360×740 + banner */
   }
+
+  .strands .word-search-actions {
+    column-gap: var(--space-2);
+    row-gap: var(--space-1);
+  }
+
+  /* Hint and compact progress share the first row; the three actions the second. */
+  .strands .word-search-actions > .word-search-message:not(.visually-hidden) {
+    flex: 1 1 8rem;
+    min-width: 0;
+  }
+
+  .strands .word-search-actions > .btn {
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: var(--space-2);
+  }
+
+  .strands-progress {
+    flex: 0 1 auto;
+    order: 0;
+    grid-template-columns: repeat(3, max-content);
+    column-gap: var(--space-2);
+  }
+}
+
+.strands .word-search-actions:has(.word-search-result) {
+  flex-wrap: wrap;
 }
 
 .strands-result {

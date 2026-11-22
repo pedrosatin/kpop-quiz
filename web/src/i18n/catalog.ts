@@ -95,6 +95,10 @@ export interface StrandsMessages {
   spangramLabel: string;
   spangramFound: string;
   spangramPending: string;
+  /** Compact progress-bar value for the spangram row. */
+  spangramStatusFound: string;
+  /** Compact progress-bar value while the spangram is still open. */
+  spangramStatusPending: string;
   timerLabel: string;
   lettersCount: (count: number) => string;
   selectionLabel: string;
@@ -1075,11 +1079,12 @@ const catalogs: Record<Locale, Messages> = {
       spangramLabel: "Spangram",
       spangramFound: "spangram encontrado",
       spangramPending: "spangram ainda não encontrado",
+      spangramStatusFound: "achado",
+      spangramStatusPending: "ainda não",
       timerLabel: "Tempo",
       lettersCount: (count) => (count === 1 ? "1 letra" : `${count} letras`),
       selectionLabel: "Trilha:",
-      selectionHint:
-        "Ligue letras vizinhas. Toque ou Espaço estende a trilha; Confirmar ou Enter confirma; Limpar ou Esc descarta.",
+      selectionHint: "Toque letras vizinhas.",
       pathHint: (letters) => `Trilha: ${letters}.`,
       foundState: "encontrada",
       progress: (found, total) => `${found} de ${total}`,
@@ -1349,7 +1354,7 @@ const catalogs: Record<Locale, Messages> = {
     ],
     strandsHowToPlay: [
       "Today's theme sits at the top. Link neighboring letters, including diagonals, to form the theme words. Each cell belongs to at most one word, and every letter on the board is part of the solution.",
-      "Drag to draw a trail and release to confirm. With cell-by-cell taps, use Confirm or Enter to check and Clear or Esc to discard. With a keyboard, move with the arrows and extend with Space.",
+      "Drag to draw a trail and release to confirm. With cell-by-cell taps, use Submit or Enter to check and Clear or Esc to discard. With a keyboard, move with the arrows and extend with Space.",
       "The spangram spans opposite sides of the board and sums up the theme. Progress shows how many words you found and whether the spangram is out. At the end, Show source lists the revision behind each name.",
     ],
     questionCounter: (current, total) => `Question ${current} of ${total}`,
@@ -1673,11 +1678,12 @@ const catalogs: Record<Locale, Messages> = {
       spangramLabel: "Spangram",
       spangramFound: "spangram found",
       spangramPending: "spangram not found yet",
+      spangramStatusFound: "found",
+      spangramStatusPending: "not yet",
       timerLabel: "Time",
       lettersCount: (count) => (count === 1 ? "1 letter" : `${count} letters`),
       selectionLabel: "Path:",
-      selectionHint:
-        "Link neighboring letters. Tap or Space extends the path; Submit or Enter confirms; Clear or Esc clears it.",
+      selectionHint: "Tap neighboring letters.",
       pathHint: (letters) => `Path: ${letters}.`,
       foundState: "found",
       progress: (found, total) => `${found} of ${total}`,

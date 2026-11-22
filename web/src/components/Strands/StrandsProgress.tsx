@@ -35,7 +35,7 @@ export function StrandsProgress({
         <div>
           <dt>{t.spangramLabel}</dt>
           <dd data-testid="spangram-status">
-            {spangramFound ? t.spangramFound : t.spangramPending}
+            {spangramFound ? t.spangramStatusFound : t.spangramStatusPending}
           </dd>
         </div>
         <div>

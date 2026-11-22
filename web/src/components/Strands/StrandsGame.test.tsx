@@ -66,7 +66,7 @@ describe("StrandsGame board", () => {
     render(<StrandsGame locale="pt-BR" puzzle={puzzle} />);
     expect(screen.getByTestId("strands-theme")).toHaveTextContent(puzzle.theme["pt-BR"]);
     expect(screen.getByTestId("found-counter")).toHaveTextContent(tPt.progress(0, puzzle.words.length));
-    expect(screen.getByTestId("spangram-status")).toHaveTextContent(tPt.spangramPending);
+    expect(screen.getByTestId("spangram-status")).toHaveTextContent(tPt.spangramStatusPending);
     expect(screen.getByTestId("progress-announcement")).toHaveTextContent(
       tPt.progressAnnouncement(0, puzzle.words.length, false),
     );
@@ -80,7 +80,7 @@ describe("StrandsGame board", () => {
     await waitFor(() => {
       expect(screen.getByTestId("found-counter")).toHaveTextContent(tPt.progress(1, puzzle.words.length));
     });
-    expect(screen.getByTestId("spangram-status")).toHaveTextContent(tPt.spangramFound);
+    expect(screen.getByTestId("spangram-status")).toHaveTextContent(tPt.spangramStatusFound);
     const item = document.querySelector(`[data-spangram="true"]`)!;
     expect(item).toHaveClass("is-found");
     expect(item).toHaveClass("is-spangram");
@@ -111,7 +111,7 @@ describe("StrandsGame board", () => {
     press("Enter");
 
     await waitFor(() => {
-      expect(screen.getByTestId("spangram-status")).toHaveTextContent(tPt.spangramFound);
+      expect(screen.getByTestId("spangram-status")).toHaveTextContent(tPt.spangramStatusFound);
     });
 
     press(" ");
