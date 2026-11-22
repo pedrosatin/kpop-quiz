@@ -1,11 +1,11 @@
 import type { Locale } from "../lib/quiz-types";
 import { preferNextDaily } from "./daily-artifact";
 import {
-  ISO_DATE_PATTERN,
   hasDistinctItems,
   hasExactKeys,
   isHash,
   isIntegerInRange,
+  isLenientIsoDate,
   isNonBlankString,
   isQid,
   isRecord,
@@ -51,16 +51,6 @@ const PUZZLE_FIELDS = [
   "schema_version", "mode", "puzzle_id", "dataset_version", "reference_date", "seed", "symbols", "secret", "max_attempts",
 ];
 
-/**
- * The reference date as the generator writes it. A month or day no month has
- * makes toISOString throw RangeError, which the guard does not catch. That
- * happens with a month 00 or 13, or a day 00 or 32.
- */
-function isGeneratorDate(value: string): boolean {
-  return ISO_DATE_PATTERN.test(value)
-    && new Date(`${value}T12:00:00Z`).toISOString().slice(0, 10) === value;
-}
-
 /** A Wikidata revision of the symbol's P31 claim, linked by its permanent URL. */
 function isSymbolSource(value: unknown, qid: string): boolean {
   // The revision must be a safe integer, unlike the revision ids of the other games.
@@ -88,13 +78,12 @@ export function isCodeGroupsPuzzle(value: unknown): value is CodeGroupsPuzzle {
   if (!isRecord(value)) return false;
   const p = value as unknown as CodeGroupsPuzzle;
   if (p.schema_version !== "code-groups-pilot-v1" || p.mode !== "pilot" || p.max_attempts !== 10) return false;
-  // The root is counted and its names are not checked. With hasExactKeys, a root
-  // with two misnamed keys and month 13 would be refused before the date check
-  // instead of throwing RangeError, so counting keeps the old behaviour.
+  // The root is counted and its names are not checked, so a misnamed key still
+  // reaches the later field checks the way the original guard did.
   if (Object.keys(value).length !== PUZZLE_FIELDS.length) return false;
   if (![p.puzzle_id, p.dataset_version, p.seed, p.reference_date].every(isNonBlankString)) return false;
   if (!isHash(p.puzzle_id) || !isHash(p.dataset_version)) return false;
-  if (!isGeneratorDate(p.reference_date)) return false;
+  if (!isLenientIsoDate(p.reference_date)) return false;
   if (!Array.isArray(p.symbols) || p.symbols.length !== 6) return false;
   for (const symbol of p.symbols) {
     if (!isSymbol(symbol)) return false;

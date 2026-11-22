@@ -222,3 +222,52 @@ describe("crossword artifact contract", () => {
     await expect(validateCrosswordDaily(await reseal({ ...daily, attempts: 3, rejections: { placement: 1, validation: 1 } }))).resolves.toMatchObject({ status: "ready" });
   });
 });
+
+/**
+ * Puzzle and daily reference_date follow shared isLenientIsoDate (T00 round-trip,
+ * years 0000–0099 accepted).
+ */
+const CROSSWORD_CALENDAR_DATES = [
+  { value: "2026-11-14", accepted: true, label: "year 2026" },
+  { value: "2024-02-29", accepted: true, label: "leap day 2024" },
+  { value: "2023-02-29", accepted: false, label: "Feb 29 in a common year" },
+  { value: "2026-02-30", accepted: false, label: "Feb 30" },
+  { value: "2026-13-01", accepted: false, label: "month 13" },
+  { value: "0099-01-01", accepted: true, label: "year 0099" },
+] as const;
+
+describe("crossword calendar date policy", () => {
+  it.each(CROSSWORD_CALENDAR_DATES)(
+    "puzzle reference_date $label ($value): accepted is $accepted",
+    async ({ value, accepted }) => {
+      const payload = structuredClone(published) as unknown as CrosswordPuzzle;
+      payload.reference_date = value;
+      payload.dataset_version = await crosswordChecksum(payload);
+      if (accepted) {
+        await expect(validateCrosswordPuzzle(payload)).resolves.toBeTruthy();
+      } else {
+        await expect(validateCrosswordPuzzle(payload)).rejects.toBeInstanceOf(CrosswordArtifactError);
+      }
+    },
+  );
+
+  it.each(CROSSWORD_CALENDAR_DATES)(
+    "daily reference_date $label ($value): accepted is $accepted",
+    async ({ value, accepted }) => {
+      const envelope = await buildOmittedCrosswordDaily(TODAY);
+      envelope.reference_date = value;
+      if (accepted) {
+        // Keep previous.date on the day before so history is not what refuses.
+        const previous = new Date(`${value}T00:00:00Z`);
+        previous.setUTCDate(previous.getUTCDate() - 1);
+        envelope.previous = { state: "omitted", date: previous.toISOString().slice(0, 10), qids: [] };
+      }
+      envelope.dataset_version = await crosswordChecksum(envelope);
+      if (accepted) {
+        await expect(validateCrosswordDaily(envelope)).resolves.toMatchObject({ status: "omitted", reference_date: value });
+      } else {
+        await expect(validateCrosswordDaily(envelope)).rejects.toBeInstanceOf(CrosswordArtifactError);
+      }
+    },
+  );
+});

@@ -107,3 +107,32 @@ describe("isMapPilotDataset fields", () => {
     expect(guardAfterChange(eventData, change, isMapPilotDataset)).toBe(accepted);
   });
 });
+
+/**
+ * reference_date and event dates follow shared isLenientIsoDate (T00 round-trip,
+ * years 0000–0099 accepted for historical concerts).
+ */
+const MAP_PILOT_CALENDAR_DATES = [
+  { value: "2026-11-14", accepted: true, label: "year 2026" },
+  { value: "2024-02-29", accepted: true, label: "leap day 2024" },
+  { value: "2023-02-29", accepted: false, label: "Feb 29 in a common year" },
+  { value: "2026-02-30", accepted: false, label: "Feb 30" },
+  { value: "2026-13-01", accepted: false, label: "month 13" },
+  { value: "0099-01-01", accepted: true, label: "year 0099" },
+] as const;
+
+describe("map-pilot calendar date policy", () => {
+  it.each(MAP_PILOT_CALENDAR_DATES)(
+    "reference_date $label ($value): accepted is $accepted",
+    ({ value, accepted }) => {
+      expect(guardAfterChange(eventData, (d) => { d.reference_date = value; }, isMapPilotDataset)).toBe(accepted);
+    },
+  );
+
+  it.each(MAP_PILOT_CALENDAR_DATES)(
+    "event_date $label ($value): accepted is $accepted",
+    ({ value, accepted }) => {
+      expect(guardAfterChange(eventData, (d) => { d.events[0].event_date = value; }, isMapPilotDataset)).toBe(accepted);
+    },
+  );
+});

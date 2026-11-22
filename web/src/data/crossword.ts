@@ -1,4 +1,5 @@
 import type { Locale } from "../lib/quiz-types";
+import { isLenientIsoDate } from "../lib/guards";
 import { dailyReferenceDate, nextDataUrl } from "./daily-artifact";
 
 export type CrosswordDirection = "across" | "down";
@@ -160,19 +161,13 @@ function isText(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
-function isRealDate(value: string): boolean {
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-
 /** Root fields, identity, date and checksum. */
 async function checkIdentity(value: unknown): Promise<CrosswordPuzzle> {
   ensure(hasKeys(value, CROSSWORD_ROOT_KEYS));
   const p = value as unknown as CrosswordPuzzle;
   ensure(p.schema_version === CROSSWORD_SCHEMA_VERSION && p.mode === CROSSWORD_MODE && p.puzzle_id === CROSSWORD_PUZZLE_ID);
   ensure(typeof p.dataset_version === "string" && /^[a-f0-9]{64}$/.test(p.dataset_version));
-  ensure(typeof p.reference_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.reference_date));
-  ensure(isRealDate(p.reference_date));
+  ensure(isLenientIsoDate(p.reference_date));
   ensure((await crosswordChecksum(p)) === p.dataset_version);
   return p;
 }
@@ -317,10 +312,6 @@ function isQidList(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((q) => typeof q === "string" && QID.test(q)) && new Set(value).size === value.length;
 }
 
-function isIsoDate(value: unknown): value is string {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && isRealDate(value);
-}
-
 function dayBefore(value: string): string {
   const day = new Date(`${value}T00:00:00Z`);
   day.setUTCDate(day.getUTCDate() - 1);
@@ -379,7 +370,7 @@ export async function validateCrosswordDaily(value: unknown): Promise<CrosswordD
   ensure(hasKeys(value, CROSSWORD_DAILY_ROOT_KEYS));
   const a = value as Record<(typeof CROSSWORD_DAILY_ROOT_KEYS)[number], unknown>;
   ensure(a.schema_version === CROSSWORD_DAILY_SCHEMA_VERSION);
-  ensure(isIsoDate(a.reference_date));
+  ensure(isLenientIsoDate(a.reference_date));
   ensure(isText(a.seed));
   ensure(typeof a.base_id === "string" && /^[a-f0-9]{64}$/.test(a.base_id));
   ensure(typeof a.dataset_version === "string" && /^[a-f0-9]{64}$/.test(a.dataset_version));
