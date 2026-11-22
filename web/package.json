@@ -25,7 +25,7 @@
   },
   "dependencies": {
     "@astrojs/preact": "^6.1.6",
-    "astro": "^7.4.12",
+    "astro": "^7.4.13",
     "preact": "^10.27.1"
   },
   "devDependencies": {
@@ -34,13 +34,13 @@
     "@testing-library/jest-dom": "^8.0.0",
     "@testing-library/preact": "^3.2.6",
     "@types/node": "^24.3.1",
-    "@vitest/coverage-v8": "5.1.0",
+    "@vitest/coverage-v8": "5.1.1",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "axe-core": "^4.14.0",
+    "axe-core": "^4.14.1",
     "jsdom": "^31.0.1",
     "typescript": "^5.9.2",
     "vitest": "^5.1.0",
-    "wrangler": "4.162.0"
+    "wrangler": "4.165.0"
   }
 }
