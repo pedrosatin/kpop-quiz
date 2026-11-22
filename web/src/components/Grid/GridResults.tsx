@@ -13,6 +13,8 @@ export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
 export interface GridResultsProps {
   grid: IntersectionGrid;
+  /** Publication day shown in the share header (ADR 047). */
+  challengeDate: string;
   cellStates: Record<string, GridCellState>;
   guessesUsed: number;
   /** Verdict of the guess that ended the game in this visit, if any. */
@@ -33,6 +35,7 @@ export function gridShareText(
   monochrome: boolean,
   messages: Messages,
   locale: Locale,
+  challengeDate: string = grid.reference_date,
 ): string {
   const lines: string[] = [];
   for (let r = 0; r < 3; r++) {
@@ -45,7 +48,7 @@ export function gridShareText(
   }
   const correct = Object.values(cellStates).filter((c) => c.solved).length;
   return withShareUrl(
-    `${messages.gridShareHeader(grid.reference_date, correct, guessesUsed)}\n${lines.join("\n")}`,
+    `${messages.gridShareHeader(challengeDate, correct, guessesUsed)}\n${lines.join("\n")}`,
     seoShareUrl("grid", locale),
   );
 }
@@ -57,6 +60,7 @@ export function gridShareText(
  */
 export function GridResults({
   grid,
+  challengeDate,
   cellStates,
   guessesUsed,
   verdict,
@@ -89,7 +93,7 @@ export function GridResults({
     () => Object.values(cellStates).filter((c) => c.solved).length,
     [cellStates],
   );
-  const shareText = gridShareText(grid, cellStates, guessesUsed, monochrome, messages, locale);
+  const shareText = gridShareText(grid, cellStates, guessesUsed, monochrome, messages, locale, challengeDate);
 
   return (
     <section class="grid-result" data-testid="game-result" aria-labelledby={titleId}>
@@ -125,7 +129,7 @@ export function GridResults({
         </button>
       </div>
 
-      <DailyNext game="grid" locale={locale} shareText={shareText} referenceDate={grid.reference_date} />
+      <DailyNext game="grid" locale={locale} shareText={shareText} referenceDate={challengeDate} />
 
       <label class="share-toggle grid-share-toggle">
         <input

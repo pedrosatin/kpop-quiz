@@ -68,6 +68,9 @@ describe("IntersectionGrid orchestrator component", () => {
   beforeEach(() => {
     localStorage.clear();
     clock = 1000;
+    // Same calendar day as the fixture board so the save stays on the legacy key.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(`${validGridJson.reference_date}T15:00:00Z`));
     vi.spyOn(performance, "now").mockImplementation(() => clock);
     vi.stubGlobal(
       "fetch",
@@ -772,7 +775,9 @@ describe("IntersectionGrid orchestrator component", () => {
 });
 
 describe("IntersectionGrid with a grid published before the Formado/Formed wording", () => {
-  const legacyKey = `kpop-grid-${legacyGridJson.grid_id}`;
+  // Board of 2026-10-26 served on a later day: dated save key (ADR 047).
+  const challengeDay = "2026-10-28";
+  const legacyKey = `kpop-grid-${legacyGridJson.grid_id}-${challengeDay}`;
   const answer = (legacyGridJson.cells.find((c) => c.row_index === 0 && c.col_index === 0)!).valid_entity_ids[0]!;
   const answerName = legacyGridJson.candidate_pool.find((c) => c.id === answer)!.names;
 
@@ -785,6 +790,8 @@ describe("IntersectionGrid with a grid published before the Formado/Formed wordi
   beforeEach(() => {
     localStorage.clear();
     clock = 1000;
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(`${challengeDay}T15:00:00Z`));
     vi.spyOn(performance, "now").mockImplementation(() => clock);
     // Reused by the fallback: the artifact is an earlier day's, as published.
     vi.stubGlobal("fetch", vi.fn(async (url: string) =>
@@ -795,6 +802,7 @@ describe("IntersectionGrid with a grid published before the Formado/Formed wordi
 
   afterEach(() => {
     localStorage.clear();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });

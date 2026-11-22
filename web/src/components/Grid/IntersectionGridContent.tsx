@@ -26,6 +26,8 @@ export interface IntersectionGridContentProps {
   grid: IntersectionGrid;
   /** Same-day correction notice; lives inside the card so the desktop panel stays on screen. */
   corrected?: boolean;
+  /** Publication day of this challenge (ADR 047); equals `grid.reference_date` unless reused. */
+  challengeDate: string;
   locale: Locale;
   messages: Messages;
   status: GridGameStatus;
@@ -71,6 +73,7 @@ function GridSideColumn({
   onShareFailed,
   titleRef,
   locale,
+  challengeDate,
   onGiveUp,
 }: {
   corrected: boolean;
@@ -90,6 +93,7 @@ function GridSideColumn({
   onShareFailed: () => void;
   titleRef: Ref<HTMLHeadingElement>;
   locale: Locale;
+  challengeDate: string;
   onGiveUp: () => void;
 }) {
   return (
@@ -118,6 +122,7 @@ function GridSideColumn({
         {isComplete ? (
           <GridResults
             grid={grid}
+            challengeDate={challengeDate}
             cellStates={cells}
             guessesUsed={guessesUsed}
             verdict={finalVerdict}
@@ -144,6 +149,7 @@ function GridSideColumn({
 export function IntersectionGridContent({
   grid,
   corrected = false,
+  challengeDate,
   locale,
   messages,
   status,
@@ -193,8 +199,8 @@ export function IntersectionGridContent({
       ?.focus({ preventScroll: true });
   }, [focusCell, isComplete]);
 
-  useRecordDailyMatch("grid", gridDailyRound(grid), isComplete, !gaveUp && isGridWin(solvedCount));
-  const dayDone = useDailyMatchDone("grid", grid.reference_date, gridMatchId(grid), isComplete);
+  useRecordDailyMatch("grid", gridDailyRound(grid, challengeDate), isComplete, !gaveUp && isGridWin(solvedCount));
+  const dayDone = useDailyMatchDone("grid", challengeDate, gridMatchId(grid, challengeDate), isComplete);
 
   // The second tap of a double tap on a group lands on the board once the
   // picker closes; it must not open the cell under it. A click from Enter or
@@ -248,7 +254,7 @@ export function IntersectionGridContent({
   const guessesLeft = maxGuesses - guessesUsed;
   const barState = gridBarState(isComplete, feedback);
 
-  if (dayDone) return <DailyDone game="grid" locale={locale} referenceDate={grid.reference_date} />;
+  if (dayDone) return <DailyDone game="grid" locale={locale} referenceDate={challengeDate} />;
 
   return (
     <section
@@ -292,6 +298,7 @@ export function IntersectionGridContent({
           onShareFailed={() => setFeedback({ kind: "shareFailed", n: ++announcements.current })}
           titleRef={resultTitle}
           locale={locale}
+          challengeDate={challengeDate}
           onGiveUp={requestGiveUp}
         />
       </div>

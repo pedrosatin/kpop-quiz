@@ -21,6 +21,13 @@ describe("daily progress", () => {
     expect([...completedDailyGames(TODAY)]).toEqual(["connections"]);
   });
 
+  it("counts a reused Grade under the publication day, not the board origin", () => {
+    // Same shape as ADR 047: board of 12/11 served as the challenge of 13/11.
+    recordGameFinish("grid", true, "2026-11-13");
+    expect(completedDailyGames("2026-11-13").has("grid")).toBe(true);
+    expect(completedDailyGames("2026-11-12").has("grid")).toBe(false);
+  });
+
   it("counts the map round of today once its result shows", () => {
     const save = (index: number) =>
       localStorage.setItem(mapPilotStorageKey(TODAY), JSON.stringify({ events: ["a", "b"], answers: ["x"], index }));

@@ -51,11 +51,18 @@ async function authorityForGrid(root: string, grid: IntersectionGrid | null, aut
   return authority ?? origin;
 }
 
+/** Board plus the publication day it is served as (ADR 047). */
+export type LoadedIntersectionGrid = IntersectionGrid & {
+  corrected: boolean;
+  /** Publication day of this challenge; equals `reference_date` unless reused. */
+  challengeDate: string;
+};
+
 export async function loadIntersectionGrid(
   _locale: Locale,
   baseUrl?: string,
   today: string = dailyReferenceDate(),
-): Promise<IntersectionGrid & { corrected: boolean }> {
+): Promise<LoadedIntersectionGrid> {
   try {
     if (!isPublicationDate(today)) throw new GridArtifactError("invalid");
     const base = baseUrl ?? import.meta.env.BASE_URL;
@@ -80,7 +87,12 @@ export async function loadIntersectionGrid(
       }
     }
     if (!selected) throw new GridArtifactError("missing");
-    return { ...withCurrentFormationLabels(selected), corrected: selectedAuthority?.reference_date === today && selectedAuthority.replaces.length > 0 };
+    return {
+      ...withCurrentFormationLabels(selected),
+      corrected: selectedAuthority?.reference_date === today && selectedAuthority.replaces.length > 0,
+      // Reused boards keep their origin `reference_date`; the challenge is today.
+      challengeDate: today,
+    };
   } catch (error) {
     if (error instanceof GridArtifactError) throw error;
     throw new GridArtifactError("invalid");

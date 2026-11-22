@@ -155,6 +155,7 @@ describe("Automated accessibility audits with axe-core for Intersection Grid", (
     const { container } = render(
       <GridResults
         grid={validGrid}
+        challengeDate={validGrid.reference_date}
         cellStates={sampleCellStates()}
         guessesUsed={5}
         locale="pt-BR"
