@@ -1,4 +1,4 @@
-import { isIntersectionGrid, type IntersectionGrid, type Locale } from "../lib/quiz-types";
+import { isIntersectionGrid, type IntersectionGrid } from "../lib/quiz-types";
 import { dailyReferenceDate } from "./daily-artifact";
 import { withCurrentFormationLabels } from "./grid-legacy-labels";
 import { isGridPublication, isPublicationDate, type GridPublication } from "./grid-publication";
@@ -58,7 +58,6 @@ export type LoadedIntersectionGrid = IntersectionGrid & {
 };
 
 export async function loadIntersectionGrid(
-  _locale: Locale,
   baseUrl?: string,
   today: string = dailyReferenceDate(),
 ): Promise<LoadedIntersectionGrid> {

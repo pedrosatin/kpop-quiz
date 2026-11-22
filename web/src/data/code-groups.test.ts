@@ -133,7 +133,7 @@ describe("code-groups next/ fallback when the main file is missing", () => {
         : new Response(null, { status: 404 })
     );
     vi.stubGlobal("fetch", fetch);
-    const result = await loadCodeGroupsPuzzle("pt-BR", "/base", today);
+    const result = await loadCodeGroupsPuzzle("/base", today);
     expect(result.puzzle_id).toBe(daily.puzzle_id);
     expect(fetch).toHaveBeenCalledWith("/base/data/next/code-groups.daily.json");
   });
@@ -146,7 +146,7 @@ describe("code-groups next/ fallback when the main file is missing", () => {
         ? new Response(JSON.stringify(tomorrow), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     ));
-    await expect(loadCodeGroupsPuzzle("pt-BR", "/base", "2099-01-01")).rejects.toEqual(
+    await expect(loadCodeGroupsPuzzle("/base", "2099-01-01")).rejects.toEqual(
       new CodeGroupsArtifactError("missing"),
     );
   });
@@ -154,7 +154,7 @@ describe("code-groups next/ fallback when the main file is missing", () => {
   it("keeps missing when next/ is also 404", async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
     vi.stubGlobal("fetch", fetch);
-    await expect(loadCodeGroupsPuzzle("pt-BR", "/base", daily.reference_date)).rejects.toEqual(
+    await expect(loadCodeGroupsPuzzle("/base", daily.reference_date)).rejects.toEqual(
       new CodeGroupsArtifactError("missing"),
     );
     expect(fetch).toHaveBeenCalledWith("/base/data/next/code-groups.daily.json");
@@ -166,7 +166,7 @@ describe("code-groups next/ fallback when the main file is missing", () => {
         ? new Response(JSON.stringify({ not: "code-groups" }), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     ));
-    await expect(loadCodeGroupsPuzzle("pt-BR", "/base", daily.reference_date)).rejects.toEqual(
+    await expect(loadCodeGroupsPuzzle("/base", daily.reference_date)).rejects.toEqual(
       new CodeGroupsArtifactError("missing"),
     );
   });

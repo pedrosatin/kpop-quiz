@@ -33,7 +33,7 @@ describe("published timeline puzzle loader and validator", () => {
 
   it("loads a v2 release puzzle", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(releaseTimeline))));
-    const result = await loadTimelinePuzzle("en", "/", releaseTimeline.reference_date);
+    const result = await loadTimelinePuzzle("/", releaseTimeline.reference_date);
     expect(result.schema_version).toBe("kpop-timeline-puzzle-v2");
     expect(result.theme.en).toBe("Releases");
   });
@@ -42,7 +42,7 @@ describe("published timeline puzzle loader and validator", () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(validTimeline)));
     vi.stubGlobal("fetch", fetch);
 
-    const result = await loadTimelinePuzzle("pt-BR", "/base", validTimeline.reference_date);
+    const result = await loadTimelinePuzzle("/base", validTimeline.reference_date);
     expect(result.schema_version).toBe("kpop-timeline-puzzle-v1");
     expect(result.events).toHaveLength(5);
     expect(fetch).toHaveBeenCalledWith(`/base/data/timeline.daily.json?d=${validTimeline.reference_date}`);
@@ -56,7 +56,7 @@ describe("published timeline puzzle loader and validator", () => {
     );
     vi.stubGlobal("fetch", fetch);
 
-    const result = await loadTimelinePuzzle("pt-BR", "/", "2099-01-01");
+    const result = await loadTimelinePuzzle("/", "2099-01-01");
     expect(result.reference_date).toBe(validTimeline.reference_date);
     expect(fetch).toHaveBeenCalledWith("/data/timeline.daily.json?d=2099-01-01");
   });
@@ -65,12 +65,12 @@ describe("published timeline puzzle loader and validator", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
       new Response("<!DOCTYPE html><html></html>", { headers: { "content-type": "text/html; charset=utf-8" } })
     ));
-    await expect(loadTimelinePuzzle("pt-BR")).rejects.toEqual(new TimelineArtifactError("missing"));
+    await expect(loadTimelinePuzzle()).rejects.toEqual(new TimelineArtifactError("missing"));
   });
 
   it("distinguishes a missing artifact with 404", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
-    await expect(loadTimelinePuzzle("pt-BR")).rejects.toEqual(new TimelineArtifactError("missing"));
+    await expect(loadTimelinePuzzle()).rejects.toEqual(new TimelineArtifactError("missing"));
   });
 
   it("falls back to data/next/ when root artifact is 404 and next reference date matches today", async () => {
@@ -82,7 +82,7 @@ describe("published timeline puzzle loader and validator", () => {
     );
     vi.stubGlobal("fetch", fetch);
 
-    const result = await loadTimelinePuzzle("pt-BR", "/base", today);
+    const result = await loadTimelinePuzzle("/base", today);
     expect(result.schema_version).toBe("kpop-timeline-puzzle-v1");
     expect(result.reference_date).toBe(today);
     expect(fetch).toHaveBeenCalledWith(`/base/data/timeline.daily.json?d=${today}`);
@@ -96,8 +96,8 @@ describe("published timeline puzzle loader and validator", () => {
         : new Response(null, { status: 404 })
     ));
 
-    const today = await loadTimelinePuzzle("pt-BR", "/base", validTimeline.reference_date);
-    const later = await loadTimelinePuzzle("pt-BR", "/base", dayAfter(validTimeline.reference_date));
+    const today = await loadTimelinePuzzle("/base", validTimeline.reference_date);
+    const later = await loadTimelinePuzzle("/base", dayAfter(validTimeline.reference_date));
     expect(staleDailyDate(today)).toBeUndefined();
     expect(staleDailyDate(later)).toBe(validTimeline.reference_date);
   });
@@ -111,7 +111,7 @@ describe("published timeline puzzle loader and validator", () => {
     );
     vi.stubGlobal("fetch", fetch);
 
-    const result = await loadTimelinePuzzle("pt-BR", "/base", today);
+    const result = await loadTimelinePuzzle("/base", today);
     expect(result.reference_date).toBe(today);
   });
 
@@ -119,7 +119,7 @@ describe("published timeline puzzle loader and validator", () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
     vi.stubGlobal("fetch", fetch);
 
-    await expect(loadTimelinePuzzle("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+    await expect(loadTimelinePuzzle("/base", "2026-03-30")).rejects.toEqual(
       new TimelineArtifactError("missing")
     );
     expect(fetch).toHaveBeenCalledWith("/base/data/timeline.daily.json?d=2026-03-30");
@@ -136,7 +136,7 @@ describe("published timeline puzzle loader and validator", () => {
     );
     vi.stubGlobal("fetch", fetch);
 
-    await expect(loadTimelinePuzzle("pt-BR", "/base", "2026-09-30")).rejects.toEqual(
+    await expect(loadTimelinePuzzle("/base", "2026-09-30")).rejects.toEqual(
       new TimelineArtifactError("missing")
     );
     expect(fetch).toHaveBeenCalledWith("/base/data/timeline.daily.json?d=2026-09-30");
@@ -152,7 +152,7 @@ describe("published timeline puzzle loader and validator", () => {
     );
     vi.stubGlobal("fetch", fetch);
 
-    await expect(loadTimelinePuzzle("pt-BR", "/base", "2026-09-30")).rejects.toEqual(
+    await expect(loadTimelinePuzzle("/base", "2026-09-30")).rejects.toEqual(
       new TimelineArtifactError("missing")
     );
   });
@@ -165,7 +165,7 @@ describe("published timeline puzzle loader and validator", () => {
     );
     vi.stubGlobal("fetch", fetch);
 
-    await expect(loadTimelinePuzzle("pt-BR", "/base", "2026-09-30")).rejects.toEqual(
+    await expect(loadTimelinePuzzle("/base", "2026-09-30")).rejects.toEqual(
       new TimelineArtifactError("missing")
     );
   });
@@ -179,24 +179,24 @@ describe("published timeline puzzle loader and validator", () => {
     });
     vi.stubGlobal("fetch", fetch);
 
-    await expect(loadTimelinePuzzle("pt-BR", "/base", "2026-09-30")).rejects.toEqual(
+    await expect(loadTimelinePuzzle("/base", "2026-09-30")).rejects.toEqual(
       new TimelineArtifactError("missing")
     );
   });
 
   it("rejects non-ok HTTP responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("error", { status: 500 })));
-    await expect(loadTimelinePuzzle("pt-BR")).rejects.toEqual(new TimelineArtifactError("invalid"));
+    await expect(loadTimelinePuzzle()).rejects.toEqual(new TimelineArtifactError("invalid"));
   });
 
   it("rejects invalid JSON response body", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{")));
-    await expect(loadTimelinePuzzle("pt-BR")).rejects.toEqual(new TimelineArtifactError("invalid"));
+    await expect(loadTimelinePuzzle()).rejects.toEqual(new TimelineArtifactError("invalid"));
   });
 
   it("rejects when fetch throws a network error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network offline")));
-    await expect(loadTimelinePuzzle("pt-BR")).rejects.toEqual(new TimelineArtifactError("invalid"));
+    await expect(loadTimelinePuzzle()).rejects.toEqual(new TimelineArtifactError("invalid"));
   });
 
   it("rejects a timeline with invalid schema version", () => {

@@ -15,7 +15,7 @@ describe("published name guess puzzle loader and validator", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(validPuzzle)));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await loadNameGuessPuzzle("pt-BR", "/base");
+    const result = await loadNameGuessPuzzle("/base");
     expect(result.schema_version).toBe("kpop-name-guess-puzzle-v1");
     expect(result.word_length).toBe(5);
     expect(result.target.normalized_name).toBe("TWICE");
@@ -24,7 +24,7 @@ describe("published name guess puzzle loader and validator", () => {
 
   it("distinguishes a missing artifact with 404", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
-    await expect(loadNameGuessPuzzle("pt-BR")).rejects.toEqual(new NameGuessArtifactError("missing"));
+    await expect(loadNameGuessPuzzle()).rejects.toEqual(new NameGuessArtifactError("missing"));
   });
 
   it("falls back to data/next/ when the main file is 404 and next/ is today", async () => {
@@ -35,7 +35,7 @@ describe("published name guess puzzle loader and validator", () => {
         : new Response(null, { status: 404 })
     );
     vi.stubGlobal("fetch", fetch);
-    const result = await loadNameGuessPuzzle("pt-BR", "/base", today);
+    const result = await loadNameGuessPuzzle("/base", today);
     expect(result.reference_date).toBe(today);
     expect(fetch).toHaveBeenCalledWith("/base/data/next/name-guess.daily.json");
   });
@@ -48,7 +48,7 @@ describe("published name guess puzzle loader and validator", () => {
         ? new Response(JSON.stringify(tomorrow), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     ));
-    await expect(loadNameGuessPuzzle("pt-BR", "/base", "2026-09-18")).rejects.toEqual(
+    await expect(loadNameGuessPuzzle("/base", "2026-09-18")).rejects.toEqual(
       new NameGuessArtifactError("missing"),
     );
   });
@@ -56,7 +56,7 @@ describe("published name guess puzzle loader and validator", () => {
   it("keeps missing when next/ is also 404", async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
     vi.stubGlobal("fetch", fetch);
-    await expect(loadNameGuessPuzzle("pt-BR", "/base", validPuzzle.reference_date)).rejects.toEqual(
+    await expect(loadNameGuessPuzzle("/base", validPuzzle.reference_date)).rejects.toEqual(
       new NameGuessArtifactError("missing"),
     );
     expect(fetch).toHaveBeenCalledWith("/base/data/next/name-guess.daily.json");
@@ -68,19 +68,19 @@ describe("published name guess puzzle loader and validator", () => {
         ? new Response(JSON.stringify({ not: "name-guess" }), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     ));
-    await expect(loadNameGuessPuzzle("pt-BR", "/base", validPuzzle.reference_date)).rejects.toEqual(
+    await expect(loadNameGuessPuzzle("/base", validPuzzle.reference_date)).rejects.toEqual(
       new NameGuessArtifactError("missing"),
     );
   });
 
   it("rejects non-ok HTTP responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("error", { status: 500 })));
-    await expect(loadNameGuessPuzzle("pt-BR")).rejects.toEqual(new NameGuessArtifactError("invalid"));
+    await expect(loadNameGuessPuzzle()).rejects.toEqual(new NameGuessArtifactError("invalid"));
   });
 
   it("rejects malformed JSON at the browser boundary", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{")));
-    await expect(loadNameGuessPuzzle("pt-BR")).rejects.toEqual(new NameGuessArtifactError("invalid"));
+    await expect(loadNameGuessPuzzle()).rejects.toEqual(new NameGuessArtifactError("invalid"));
   });
 
   it("rejects invalid schema version", () => {

@@ -2,7 +2,6 @@ import {
   isWordSearchPuzzle,
   type WordSearchPuzzle,
 } from "../lib/word-search-types";
-import type { Locale } from "../lib/quiz-types";
 import {
   dailyReferenceDate,
   isMissingDailyResponse,
@@ -23,7 +22,6 @@ function dataUrl(filename: string, baseUrl: string): string {
 
 /** Carrega o artefato diário de caça-palavras temático. */
 export async function loadWordSearchPuzzle(
-  _locale: Locale,
   baseUrl?: string,
   today: string = dailyReferenceDate(),
 ): Promise<WordSearchPuzzle> {

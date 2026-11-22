@@ -1,7 +1,6 @@
 import {
   isNameGuessPuzzle,
   type NameGuessPuzzle,
-  type Locale,
 } from "../lib/quiz-types";
 import {
   dailyReferenceDate,
@@ -23,7 +22,6 @@ function dataUrl(filename: string, baseUrl: string): string {
 
 /** Carrega o artefato diário de adivinhação de nomes. */
 export async function loadNameGuessPuzzle(
-  _locale: Locale,
   baseUrl?: string,
   today: string = dailyReferenceDate(),
 ): Promise<NameGuessPuzzle> {

@@ -1,7 +1,6 @@
 import {
   isConnectionsPuzzle,
   type ConnectionsPuzzle,
-  type Locale,
 } from "../lib/quiz-types";
 import {
   dailyReferenceDate,
@@ -22,7 +21,6 @@ function dataUrl(filename: string, baseUrl: string): string {
 }
 
 export async function loadConnectionsPuzzle(
-  _locale: Locale,
   baseUrl?: string,
   today: string = dailyReferenceDate(),
 ): Promise<ConnectionsPuzzle> {

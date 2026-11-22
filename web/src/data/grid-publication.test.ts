@@ -27,44 +27,44 @@ describe("grid publication boundary", () => {
   });
   it.each([404, 200])("tombstone blocks rejected next even with main status %s", async status => {
     serve({ [`/base/data/grid-publication.${day}.json`]: { ...marker, grid_id: null, grid_reference_date: null }, "/base/data/next/grid.daily.json": grid }, status);
-    await expect(loadIntersectionGrid("en", "/base", day)).rejects.toEqual(new GridArtifactError("missing"));
+    await expect(loadIntersectionGrid("/base", day)).rejects.toEqual(new GridArtifactError("missing"));
   });
   it("cached rejected main cannot bypass authoritative replacement in next", async () => {
     serve({ [`/data/grid-publication.${day}.json`]: marker, "/data/grid.daily.json": { ...grid, grid_id: "b".repeat(64) }, "/data/next/grid.daily.json": grid });
-    expect((await loadIntersectionGrid("en", "/", day)).corrected).toBe(true);
+    expect((await loadIntersectionGrid("/", day)).corrected).toBe(true);
     expect(fetch).toHaveBeenCalledWith(`/data/grid-publication.${day}.json?d=${day}`, { cache: "no-store" });
   });
   it("validates next metadata at midnight and announces correction", async () => {
     serve({ [`/data/next/grid-publication.${day}.json`]: marker, "/data/next/grid.daily.json": grid });
-    expect((await loadIntersectionGrid("en", "/", day)).corrected).toBe(true);
+    expect((await loadIntersectionGrid("/", day)).corrected).toBe(true);
   });
   it("new day and legacy save do not announce correction", async () => {
     serve({ "/data/grid.daily.json": grid });
-    expect((await loadIntersectionGrid("en", "/", "2099-01-01")).corrected).toBe(false);
+    expect((await loadIntersectionGrid("/", "2099-01-01")).corrected).toBe(false);
   });
   it.each([{ ...marker, reference_date: "2000-01-01" }, { ...marker, replaces: ["bad"] }])("invalid publication is rejected before selecting a fallback", async value => {
     serve({ [`/data/grid-publication.${day}.json`]: value, "/data/grid.daily.json": grid });
-    await expect(loadIntersectionGrid("en", "/", day)).rejects.toEqual(new GridArtifactError("invalid"));
+    await expect(loadIntersectionGrid("/", day)).rejects.toEqual(new GridArtifactError("invalid"));
   });
 });
 it("rejects next tombstone even if a stale main grid still exists", async () => {
   serve({ [`/data/next/grid-publication.${day}.json`]: { ...marker, grid_id: null, grid_reference_date: null }, "/data/grid.daily.json": grid });
-  await expect(loadIntersectionGrid("en", "/", day)).rejects.toEqual(new GridArtifactError("missing"));
+  await expect(loadIntersectionGrid("/", day)).rejects.toEqual(new GridArtifactError("missing"));
 });
 it("does not accept a structurally valid but unauthorized grid hash or date", async () => {
   for (const payload of [{ ...grid, grid_id: "c".repeat(64) }, { ...grid, reference_date: "2000-01-01" }]) {
     serve({ [`/data/grid-publication.${day}.json`]: marker, "/data/grid.daily.json": payload, "/data/next/grid.daily.json": payload });
-    await expect(loadIntersectionGrid("en", "/", day)).rejects.toEqual(new GridArtifactError("missing"));
+    await expect(loadIntersectionGrid("/", day)).rejects.toEqual(new GridArtifactError("missing"));
   }
 });
 
 it("a new day cannot revive a rejected cached grid from the previous date", async () => {
   serve({ [`/data/grid-publication.${day}.json`]: { ...marker, grid_id: null, grid_reference_date: null }, "/data/next/grid.daily.json": grid });
-  await expect(loadIntersectionGrid("en", "/", "2099-01-01")).rejects.toEqual(new GridArtifactError("missing"));
+  await expect(loadIntersectionGrid("/", "2099-01-01")).rejects.toEqual(new GridArtifactError("missing"));
 });
 it("a corrected prior-day grid may be reused without announcing a new-day correction", async () => {
   serve({ [`/data/grid-publication.${day}.json`]: marker, "/data/grid.daily.json": grid });
-  expect((await loadIntersectionGrid("en", "/", "2099-01-01")).corrected).toBe(false);
+  expect((await loadIntersectionGrid("/", "2099-01-01")).corrected).toBe(false);
 });
 
 it.each(["/", "/stage", "/stage/"])("reuse authorization cannot override an origin rejection under %s", async base => {
@@ -77,7 +77,7 @@ it.each(["/", "/stage", "/stage/"])("reuse authorization cannot override an orig
   ]) {
     serve({ [`${root}grid-publication.${today}.json`]: reuse, [`${root}grid-publication.${day}.json`]: origin,
       [`${root}grid.daily.json`]: grid, [`${root}next/grid.daily.json`]: grid });
-    await expect(loadIntersectionGrid("en", base, today)).rejects.toEqual(new GridArtifactError("missing"));
+    await expect(loadIntersectionGrid(base, today)).rejects.toEqual(new GridArtifactError("missing"));
     expect(fetch).toHaveBeenCalledWith(`${root}grid-publication.${day}.json?d=${today}`, { cache: "no-store" });
   }
 });
@@ -87,7 +87,7 @@ it.each([404, 200])("legitimate reuse admits an authorized or legacy origin (%s)
   for (const origin of [null, marker]) {
     serve({ [`/data/grid-publication.${today}.json`]: reuse,
       ...(origin ? { [`/data/grid-publication.${day}.json`]: origin } : {}), "/data/grid.daily.json": grid }, status);
-    expect(await loadIntersectionGrid("en", "/", today)).toMatchObject({
+    expect(await loadIntersectionGrid("/", today)).toMatchObject({
       grid_id: grid.grid_id,
       corrected: false,
       challengeDate: today,
@@ -99,7 +99,7 @@ it("reuse permission cannot bypass invalid origin metadata", async () => {
   const today = "2099-01-01";
   serve({ [`/data/grid-publication.${today}.json`]: { ...marker, reference_date: today, replaces: [] },
     [`/data/grid-publication.${day}.json`]: { ...marker, grid_id: "bad" }, "/data/grid.daily.json": grid });
-  await expect(loadIntersectionGrid("en", "/", today)).rejects.toEqual(new GridArtifactError("invalid"));
+  await expect(loadIntersectionGrid("/", today)).rejects.toEqual(new GridArtifactError("invalid"));
 });
 
 it("stamps challengeDate today for the real 2026-11-13 reuse publication", async () => {
@@ -113,7 +113,7 @@ it("stamps challengeDate today for the real 2026-11-13 reuse publication", async
     },
     "/data/grid.daily.json": reusedGrid12,
   });
-  const result = await loadIntersectionGrid("en", "/", today);
+  const result = await loadIntersectionGrid("/", today);
   expect(result.grid_id).toBe(publication13.grid_id);
   expect(result.reference_date).toBe("2026-11-12");
   expect(result.challengeDate).toBe("2026-11-13");

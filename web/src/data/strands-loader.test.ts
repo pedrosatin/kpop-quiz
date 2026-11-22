@@ -21,7 +21,7 @@ describe("published strands puzzle loader and validator", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(validPuzzle)));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await loadStrandsPuzzle("pt-BR", "/base");
+    const result = await loadStrandsPuzzle("/base");
     expect(result.schema_version).toBe("kpop-strands-puzzle-v1");
     expect(result.dimensions.rows).toBe(9);
     expect(result.words.length).toBe(7);
@@ -30,7 +30,7 @@ describe("published strands puzzle loader and validator", () => {
 
   it("distinguishes a missing artifact with 404", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
-    await expect(loadStrandsPuzzle("pt-BR")).rejects.toEqual(
+    await expect(loadStrandsPuzzle()).rejects.toEqual(
       new StrandsArtifactError("missing"),
     );
   });
@@ -43,7 +43,7 @@ describe("published strands puzzle loader and validator", () => {
         : new Response(null, { status: 404 }),
     );
     vi.stubGlobal("fetch", fetch);
-    const result = await loadStrandsPuzzle("pt-BR", "/base", today);
+    const result = await loadStrandsPuzzle("/base", today);
     expect(result.reference_date).toBe(today);
     expect(fetch).toHaveBeenCalledWith("/base/data/next/strands.daily.json");
   });
@@ -56,14 +56,14 @@ describe("published strands puzzle loader and validator", () => {
         ? new Response(JSON.stringify(tomorrow), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 }),
     ));
-    await expect(loadStrandsPuzzle("pt-BR", "/base", "2026-10-20")).rejects.toEqual(
+    await expect(loadStrandsPuzzle("/base", "2026-10-20")).rejects.toEqual(
       new StrandsArtifactError("missing"),
     );
   });
 
   it("rejects offline fetch failures", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
-    await expect(loadStrandsPuzzle("pt-BR")).rejects.toEqual(
+    await expect(loadStrandsPuzzle()).rejects.toEqual(
       new StrandsArtifactError("offline"),
     );
   });
@@ -71,7 +71,7 @@ describe("published strands puzzle loader and validator", () => {
   it("rejects an incompatible schema version", async () => {
     const broken = { ...structuredClone(validPuzzle), schema_version: "kpop-strands-puzzle-v0" };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(broken))));
-    await expect(loadStrandsPuzzle("pt-BR")).rejects.toEqual(
+    await expect(loadStrandsPuzzle()).rejects.toEqual(
       new StrandsArtifactError("incompatible"),
     );
   });
@@ -82,7 +82,7 @@ describe("published strands puzzle loader and validator", () => {
       puzzle_id: "a".repeat(64),
     };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(broken))));
-    await expect(loadStrandsPuzzle("pt-BR")).rejects.toEqual(
+    await expect(loadStrandsPuzzle()).rejects.toEqual(
       new StrandsArtifactError("invalid"),
     );
   });

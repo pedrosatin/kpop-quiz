@@ -32,7 +32,7 @@ export function WordSearchGame({
     setStatus("loading");
     setErrorKind(undefined);
     try {
-      const data = await loadWordSearchPuzzle(locale, baseUrl);
+      const data = await loadWordSearchPuzzle(baseUrl);
       setLoadedPuzzle(data);
       setStatus("ready");
     } catch (err) {

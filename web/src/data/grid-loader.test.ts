@@ -23,7 +23,7 @@ describe("published intersection grid loader and validator", () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify(validGrid)));
     stubLegacy(fetch);
 
-    const result = await loadIntersectionGrid("pt-BR", "/base", validGrid.reference_date);
+    const result = await loadIntersectionGrid("/base", validGrid.reference_date);
     expect(result.schema_version).toBe("kpop-intersection-grid-v1");
     expect(result.cells).toHaveLength(9);
     expect(result.challengeDate).toBe(validGrid.reference_date);
@@ -38,7 +38,7 @@ describe("published intersection grid loader and validator", () => {
     );
     stubLegacy(fetch);
 
-    const result = await loadIntersectionGrid("pt-BR", "/", "2099-01-01");
+    const result = await loadIntersectionGrid("/", "2099-01-01");
     expect(result.reference_date).toBe(validGrid.reference_date);
     expect(result.challengeDate).toBe("2099-01-01");
     expect(fetch).toHaveBeenCalledWith("/data/grid.daily.json?d=2099-01-01", { cache: "no-store" });
@@ -54,7 +54,7 @@ describe("published intersection grid loader and validator", () => {
     );
     stubLegacy(fetch);
 
-    const result = await loadIntersectionGrid("pt-BR", "/", "2026-10-28");
+    const result = await loadIntersectionGrid("/", "2026-10-28");
     expect(result.reference_date).toBe("2026-10-26");
     expect(result.grid_id).toBe(legacyMain.grid_id);
     expect(result.col_criteria.map((c) => c.id)).toEqual(legacyMain.col_criteria.map((c) => c.id));
@@ -74,7 +74,7 @@ describe("published intersection grid loader and validator", () => {
     );
     stubLegacy(fetch);
 
-    const result = await loadIntersectionGrid("pt-BR", "/", "2026-10-27");
+    const result = await loadIntersectionGrid("/", "2026-10-27");
     expect(result.reference_date).toBe("2026-10-27");
     expect(result.grid_id).toBe(legacyNext.grid_id);
     expect(result.col_criteria.map((c) => c.label["pt-BR"])).toEqual([
@@ -85,19 +85,19 @@ describe("published intersection grid loader and validator", () => {
   it("does not turn an invalid legacy-worded grid into a valid one", async () => {
     const broken = { ...structuredClone(legacyMain), grid_id: "not-a-hash" };
     stubLegacy(vi.fn(async () => new Response(JSON.stringify(broken), { headers: { "content-type": "application/json" } })));
-    await expect(loadIntersectionGrid("pt-BR", "/", "2026-10-28")).rejects.toEqual(new GridArtifactError("invalid"));
+    await expect(loadIntersectionGrid("/", "2026-10-28")).rejects.toEqual(new GridArtifactError("invalid"));
   });
 
   it("treats the host's HTML fallback as a missing artifact", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
       new Response("<!DOCTYPE html><html></html>", { headers: { "content-type": "text/html; charset=utf-8" } })
     ));
-    await expect(loadIntersectionGrid("pt-BR")).rejects.toEqual(new GridArtifactError("missing"));
+    await expect(loadIntersectionGrid()).rejects.toEqual(new GridArtifactError("missing"));
   });
 
   it("distinguishes a missing artifact with 404", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
-    await expect(loadIntersectionGrid("pt-BR")).rejects.toEqual(new GridArtifactError("missing"));
+    await expect(loadIntersectionGrid()).rejects.toEqual(new GridArtifactError("missing"));
   });
 
   it("falls back to data/next/ when root artifact is 404 and next reference date matches today", async () => {
@@ -109,7 +109,7 @@ describe("published intersection grid loader and validator", () => {
     );
     stubLegacy(fetch);
 
-    const result = await loadIntersectionGrid("pt-BR", "/base", today);
+    const result = await loadIntersectionGrid("/base", today);
     expect(result.schema_version).toBe("kpop-intersection-grid-v1");
     expect(result.reference_date).toBe(today);
     expect(result.challengeDate).toBe(today);
@@ -126,7 +126,7 @@ describe("published intersection grid loader and validator", () => {
     );
     stubLegacy(fetch);
 
-    const result = await loadIntersectionGrid("pt-BR", "/base", today);
+    const result = await loadIntersectionGrid("/base", today);
     expect(result.reference_date).toBe(today);
   });
 
@@ -134,7 +134,7 @@ describe("published intersection grid loader and validator", () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
     stubLegacy(fetch);
 
-    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+    await expect(loadIntersectionGrid("/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
     );
     expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json?d=2026-03-30", { cache: "no-store" });
@@ -151,7 +151,7 @@ describe("published intersection grid loader and validator", () => {
     );
     stubLegacy(fetch);
 
-    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+    await expect(loadIntersectionGrid("/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
     );
     expect(fetch).toHaveBeenCalledWith("/base/data/grid.daily.json?d=2026-03-30", { cache: "no-store" });
@@ -167,7 +167,7 @@ describe("published intersection grid loader and validator", () => {
     );
     stubLegacy(fetch);
 
-    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+    await expect(loadIntersectionGrid("/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
     );
   });
@@ -180,7 +180,7 @@ describe("published intersection grid loader and validator", () => {
     );
     stubLegacy(fetch);
 
-    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+    await expect(loadIntersectionGrid("/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
     );
   });
@@ -194,19 +194,19 @@ describe("published intersection grid loader and validator", () => {
     });
     stubLegacy(fetch);
 
-    await expect(loadIntersectionGrid("pt-BR", "/base", "2026-03-30")).rejects.toEqual(
+    await expect(loadIntersectionGrid("/base", "2026-03-30")).rejects.toEqual(
       new GridArtifactError("missing")
     );
   });
 
   it("rejects non-ok HTTP responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("error", { status: 500 })));
-    await expect(loadIntersectionGrid("pt-BR")).rejects.toEqual(new GridArtifactError("invalid"));
+    await expect(loadIntersectionGrid()).rejects.toEqual(new GridArtifactError("invalid"));
   });
 
   it("rejects malformed JSON at the browser boundary", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{")));
-    await expect(loadIntersectionGrid("pt-BR")).rejects.toEqual(new GridArtifactError("invalid"));
+    await expect(loadIntersectionGrid()).rejects.toEqual(new GridArtifactError("invalid"));
   });
 
   it("rejects a grid with invalid schema version", () => {
@@ -275,7 +275,7 @@ describe("published intersection grid loader and validator", () => {
 
   it("rejects when fetch throws a network error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network offline")));
-    await expect(loadIntersectionGrid("pt-BR")).rejects.toEqual(new GridArtifactError("invalid"));
+    await expect(loadIntersectionGrid()).rejects.toEqual(new GridArtifactError("invalid"));
   });
 });
 
