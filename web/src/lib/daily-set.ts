@@ -1,4 +1,5 @@
 import { getMessages } from "../i18n/catalog";
+import type { SeoRouteKey } from "../i18n/catalog";
 import { FIRST_DAILY_DATE } from "./daily-challenge";
 import { completedDailyGames, DAILY_GAMES, statsGameId } from "./daily-progress";
 import {
@@ -26,9 +27,22 @@ export function dailySetNumber(referenceDate: string): number | null {
   return days >= 0 ? days + 1 : null;
 }
 
-/** True when every entry of `DAILY_GAMES` is finished on `date`. */
-export function isDailySetComplete(date: string): boolean {
-  return completedDailyGames(date).size >= DAILY_GAMES.length;
+/** Daily games the day published (every `DAILY_GAMES` entry minus `omitted`). */
+export function publishedDailyGames(
+  omitted: ReadonlySet<SeoRouteKey> = new Set(),
+): SeoRouteKey[] {
+  return DAILY_GAMES.filter((key) => !omitted.has(key));
+}
+
+/** True when every published daily game of `date` is finished. */
+export function isDailySetComplete(
+  date: string,
+  omitted: ReadonlySet<SeoRouteKey> = new Set(),
+): boolean {
+  const required = publishedDailyGames(omitted);
+  if (required.length === 0) return false;
+  const done = completedDailyGames(date, omitted);
+  return required.every((key) => done.has(key));
 }
 
 /** Drop the trailing share URL line so the set can append a single link. */
@@ -72,8 +86,8 @@ export function rememberDailySetLine(date: string, gameId: GameId, shareText: st
 }
 
 /**
- * Increments the local set counter once when every daily game of `date` is
- * done. Returns true the first time the date is recorded.
+ * Increments the local set counter once when every published daily game of
+ * `date` is done. Returns true the first time the date is recorded.
  *
  * Pass `confirmedComplete` when the caller already verified the set with the
  * current route included (DailyNext mounts before some saves flush).
@@ -81,8 +95,9 @@ export function rememberDailySetLine(date: string, gameId: GameId, shareText: st
 export function recordDailySetComplete(
   date: string,
   confirmedComplete = false,
+  omitted: ReadonlySet<SeoRouteKey> = new Set(),
 ): boolean {
-  if (!confirmedComplete && !isDailySetComplete(date)) return false;
+  if (!confirmedComplete && !isDailySetComplete(date, omitted)) return false;
   const stats = loadPlayerStats();
   if (stats.lastDailySetDate === date) return false;
   stats.dailySetsCompleted = (stats.dailySetsCompleted ?? 0) + 1;
@@ -99,9 +114,9 @@ export function dailySetShareUrl(locale: Locale): string {
 }
 
 /**
- * Day summary for share: set header, each game's stored body in tab order,
- * one short link at the end. Null when the set is incomplete or a line is
- * still missing.
+ * Day summary for share: set header, each published game's stored body in tab
+ * order, one short link at the end. Omitted games are left out of the text.
+ * Null when the set is incomplete or a published line is still missing.
  *
  * Pass `confirmedComplete` when the caller already verified the set with the
  * current route included (DailyNext mounts before some saves flush).
@@ -110,11 +125,12 @@ export function buildDailySetShareText(
   date: string,
   locale: Locale,
   confirmedComplete = false,
+  omitted: ReadonlySet<SeoRouteKey> = new Set(),
 ): string | null {
-  if (!confirmedComplete && !isDailySetComplete(date)) return null;
+  if (!confirmedComplete && !isDailySetComplete(date, omitted)) return null;
   const lines = loadPlayerStats().dailySetLines?.[date] ?? {};
   const bodies: string[] = [];
-  for (const key of DAILY_GAMES) {
+  for (const key of publishedDailyGames(omitted)) {
     const body = lines[statsGameId(key)];
     if (!body) return null;
     bodies.push(body);

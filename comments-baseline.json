@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total_comments": 2503,
+  "total_comments": 2501,
   "files": {
     "tests/conftest.py": 3,
     "tests/daily_fixtures.py": 6,
@@ -194,7 +194,6 @@
     "web/src/components/Quiz/storage.test.ts": 7,
     "web/src/components/Quiz/url-params.test.ts": 4,
     "web/src/components/Results/DailyDone.test.tsx": 3,
-    "web/src/components/Results/DailyNext.test.tsx": 2,
     "web/src/components/Results/ReviewAnswers.test.tsx": 4,
     "web/src/components/Stats/StatsDistribution.test.tsx": 8,
     "web/src/components/Stats/StatsModal.test.tsx": 12,
