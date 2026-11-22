@@ -10,6 +10,7 @@ import { isTimelinePuzzle, type TimelinePuzzle } from "../../src/lib/timeline-ty
 import { isCodeGroupsPuzzle, verifyCodeGroupsIdentity, type CodeGroupsPuzzle } from "../../src/data/code-groups";
 import type { CrosswordPuzzle } from "../../src/data/crossword";
 import { buildCrosswordDaily } from "../../src/test/crossword-daily-fixture";
+import { isStrandsPuzzle, type StrandsPuzzle } from "../../src/lib/strands-types";
 import { installGuardClock } from "./guard-clock";
 
 /**
@@ -33,6 +34,7 @@ export type FixedGame =
   | "timeline"
   | "code"
   | "crossword"
+  | "strands"
   | "quiz"
   | "map";
 
@@ -87,6 +89,7 @@ const rawNameGuess = loadValidated("name-guess.daily.json", isNameGuessPuzzle, "
 const rawWordSearch = loadValidated("word-search.daily.json", isWordSearchPuzzle, "isWordSearchPuzzle");
 const rawTimeline = loadValidated("timeline.daily.json", isTimelinePuzzle, "isTimelinePuzzle");
 const rawCode = loadValidated("code-groups.daily.json", isCodeGroupsPuzzle, "isCodeGroupsPuzzle");
+const rawStrands = loadValidated("strands.daily.json", isStrandsPuzzle, "isStrandsPuzzle");
 const rawManifest = readJson("manifest-v2.json");
 if (!isFixedQuizManifest(rawManifest)) {
   throw new Error("e2e/fixtures/fixed-data/manifest-v2.json failed isFixedQuizManifest");
@@ -113,6 +116,7 @@ export const fixedNameGuess: NameGuessPuzzle = rawNameGuess;
 export const fixedWordSearch: WordSearchPuzzle = rawWordSearch;
 export const fixedTimeline: TimelinePuzzle = rawTimeline;
 export const fixedCodeGroups: CodeGroupsPuzzle = rawCode;
+export const fixedStrands: StrandsPuzzle = rawStrands;
 export const fixedQuizManifest: QuizManifest = rawManifest;
 export const fixedCrosswordPilot = crosswordPilot;
 
@@ -282,6 +286,16 @@ export async function serveFixedCrossword(
   return daily;
 }
 
+export async function serveFixedStrands(
+  page: Page,
+  options: FixedClockOptions & { puzzle?: StrandsPuzzle } = {},
+): Promise<StrandsPuzzle> {
+  const puzzle = options.puzzle ?? fixedStrands;
+  await freezePageClock(page, options, puzzle.reference_date);
+  await serveJson(page, "strands.daily.json", puzzle);
+  return puzzle;
+}
+
 export type FixedQuizServeOptions = FixedClockOptions & {
   /** When true, also 404 catalog probes so the page stays on published sessions. */
   hideCatalog?: boolean;
@@ -407,6 +421,7 @@ export type FixedDailyResult =
   | WordSearchPuzzle
   | TimelinePuzzle
   | CodeGroupsPuzzle
+  | StrandsPuzzle
   | QuizManifest
   | Record<string, unknown>
   | void;
@@ -419,7 +434,7 @@ export async function serveFixedDaily(
   page: Page,
   game: FixedGame,
   options: FixedGridServeOptions & FixedQuizServeOptions & {
-    puzzle?: ConnectionsPuzzle | NameGuessPuzzle | WordSearchPuzzle | TimelinePuzzle | CodeGroupsPuzzle;
+    puzzle?: ConnectionsPuzzle | NameGuessPuzzle | WordSearchPuzzle | TimelinePuzzle | CodeGroupsPuzzle | StrandsPuzzle;
     board?: typeof crosswordPilot;
     grid?: IntersectionGrid;
   } = {},
@@ -460,6 +475,11 @@ export async function serveFixedDaily(
       return serveFixedCrossword(page, {
         ...clock,
         ...(options.board ? { board: options.board } : {}),
+      });
+    case "strands":
+      return serveFixedStrands(page, {
+        ...clock,
+        ...(options.puzzle ? { puzzle: options.puzzle as StrandsPuzzle } : {}),
       });
     case "quiz":
       return serveFixedQuiz(page, {

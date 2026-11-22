@@ -14,9 +14,9 @@ describe("sitemap", () => {
     expect(xml).toContain('xmlns:xhtml="http://www.w3.org/1999/xhtml"');
   });
 
-  it("lists the 20 canonical URLs without lastmod", () => {
+  it("lists the 22 canonical URLs without lastmod", () => {
     const blocks = urlBlocks(xml);
-    expect(blocks).toHaveLength(20);
+    expect(blocks).toHaveLength(22);
     for (const block of blocks) {
       expect(block).toMatch(/<loc>https:\/\/kpopquiz\.online\/[^<]+<\/loc>/);
       expect(block).not.toContain("<lastmod>");

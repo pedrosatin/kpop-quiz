@@ -95,6 +95,30 @@ describe("daily set", () => {
     expect(loadPlayerStats().dailySetsCompleted).toBe(0);
   });
 
+  it("keeps the set incomplete when Strands has no match for the date", () => {
+    // Client rule: every DAILY_GAMES entry needs a recorded match. A day whose
+    // publication omitted strands.daily.json still leaves the set open until
+    // the player can finish Strands (or until a later change teaches the
+    // client to skip omitted games from daily-set.json).
+    for (const id of ALL_GAME_IDS.filter((id) => id !== "strands")) {
+      recordGameFinish(id, true, TODAY);
+    }
+    localStorage.setItem(
+      mapPilotStorageKey(TODAY),
+      JSON.stringify({ events: ["a"], answers: ["x"], index: 1 }),
+    );
+    expect(isDailySetComplete(TODAY)).toBe(false);
+    expect(recordDailySetComplete(TODAY)).toBe(false);
+    expect(loadPlayerStats().dailySetsCompleted).toBe(0);
+  });
+
+  it("includes strands in the day share when every game has a remembered line", () => {
+    finishAllDaily(TODAY);
+    rememberAllLines(TODAY);
+    const text = buildDailySetShareText(TODAY, "pt-BR");
+    expect(text).toContain("K-pop Quiz · strands");
+  });
+
   it("strips the trailing share URL and builds the day summary", () => {
     expect(stripShareUrl("body\nhttps://kpopquiz.online/pt-br/?s=quiz")).toBe("body");
     finishAllDaily(TODAY);

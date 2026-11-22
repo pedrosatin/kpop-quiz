@@ -14,6 +14,7 @@ import {
   fixedQuizSession,
   fixedTimeline,
   fixedWordSearch,
+  fixedStrands,
   serveFixedCode,
   serveFixedConnections,
   serveFixedCrossword,
@@ -22,6 +23,7 @@ import {
   serveFixedMap,
   serveFixedNameGuess,
   serveFixedQuiz,
+  serveFixedStrands,
   serveFixedTimeline,
   serveFixedWordSearch,
 } from "../../e2e/helpers/fixed-daily";
@@ -37,6 +39,7 @@ import { isGridPublication } from "../data/grid-publication";
 import { isWordSearchPuzzle } from "../lib/word-search-types";
 import { isTimelinePuzzle } from "../lib/timeline-types";
 import { isCodeGroupsPuzzle, verifyCodeGroupsIdentity } from "../data/code-groups";
+import { isStrandsPuzzle } from "../lib/strands-types";
 import { hasGuardClock } from "../../e2e/helpers/guard-clock";
 
 const fixedDir = join(import.meta.dirname, "../../e2e/fixtures/fixed-data");
@@ -64,6 +67,12 @@ describe("frozen E2E daily artifacts", () => {
     expect(isCodeGroupsPuzzle(fixedCodeGroups)).toBe(true);
     expect(fixedCodeGroups.reference_date).toBe(FIXED_REFERENCE_DATE);
     await expect(verifyCodeGroupsIdentity(fixedCodeGroups)).resolves.toBe(fixedCodeGroups);
+  });
+
+  it("strands.daily.json passes the loader guard on the fixed day", () => {
+    expect(isStrandsPuzzle(fixedStrands)).toBe(true);
+    expect(fixedStrands.reference_date).toBe(FIXED_REFERENCE_DATE);
+    expect(fixedStrands.words.some((word) => word.is_spangram)).toBe(true);
   });
 
   it("quiz manifest and every listed session stay internally consistent", () => {
@@ -157,13 +166,14 @@ describe("fixed daily route contract", () => {
     await expect(serveFixedGrid(page as unknown as Page, { replaces: ["invalid"] })).rejects.toThrow("publication failed");
   });
 
-  it("serves connections, name-guess, word-search, timeline and code on the fixed day", async () => {
+  it("serves connections, name-guess, word-search, timeline, code and strands on the fixed day", async () => {
     const cases = [
       { game: "connections" as const, serve: serveFixedConnections, artifact: fixedConnections, file: "connections.daily.json" },
       { game: "name-guess" as const, serve: serveFixedNameGuess, artifact: fixedNameGuess, file: "name-guess.daily.json" },
       { game: "word-search" as const, serve: serveFixedWordSearch, artifact: fixedWordSearch, file: "word-search.daily.json" },
       { game: "timeline" as const, serve: serveFixedTimeline, artifact: fixedTimeline, file: "timeline.daily.json" },
       { game: "code" as const, serve: serveFixedCode, artifact: fixedCodeGroups, file: "code-groups.daily.json" },
+      { game: "strands" as const, serve: serveFixedStrands, artifact: fixedStrands, file: "strands.daily.json" },
     ];
     for (const item of cases) {
       const { page, routes } = pageHarness();

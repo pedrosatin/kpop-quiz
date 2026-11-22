@@ -1,0 +1,23 @@
+---
+import { StrandsGame } from "../../components/Strands/StrandsGame";
+import GameAbout from "../../components/GameAbout.astro";
+import GameIntro from "../../components/GameIntro.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getMessages } from "../../i18n/catalog";
+
+const messages = getMessages("en");
+---
+<BaseLayout locale="en" route="strands" canonicalPath="/en/strands/" alternatePath="/pt-br/palavras-conectadas/">
+  <div class="page-shell" data-testid="game-shell">
+    <GameIntro
+      wide
+      kicker={messages.strandsEyebrow}
+      title={messages.strandsTitle}
+      howToPlayTitle={messages.howToPlayTitle}
+      howToPlaySteps={messages.strandsHowToPlay}
+      intro={messages.strandsIntro}
+    />
+    <StrandsGame locale="en" client:load />
+    <GameAbout locale="en" game="strands" />
+  </div>
+</BaseLayout>

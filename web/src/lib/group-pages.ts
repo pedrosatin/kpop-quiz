@@ -32,6 +32,8 @@ export const RESERVED_GROUP_SLUGS: ReadonlySet<string> = new Set([
   "code",
   "cruzadinha",
   "crossword",
+  "palavras-conectadas",
+  "strands",
   "privacidade",
   "privacy",
 ]);

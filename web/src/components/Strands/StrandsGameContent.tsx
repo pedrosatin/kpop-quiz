@@ -6,11 +6,15 @@ import { WordSearchGrid } from "../WordSearch/WordSearchGrid";
 import { useFocusOnChange } from "../../lib/use-focus-on-change";
 import { useGiveUpConfirm } from "../../lib/use-give-up-confirm";
 import { ConfirmDialog } from "../ConfirmDialog/ConfirmDialog";
+import { dailyBoardRound, useRecordDailyMatch } from "../../lib/use-record-daily-match";
+import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
+import { WordSearchShareNote, useShareNote } from "../WordSearch/word-search-share-note";
 import { StrandsBarMessage } from "./StrandsBarMessage";
 import { StrandsList } from "./StrandsList";
 import { StrandsProgress } from "./StrandsProgress";
+import { StrandsResult } from "./StrandsResult";
 import { cellKey } from "./trail";
-import { useStrandsGame } from "./useStrandsGame";
+import { strandsMatchId, useStrandsGame } from "./useStrandsGame";
 
 interface StrandsGameContentProps {
   puzzle: StrandsPuzzle;
@@ -19,15 +23,10 @@ interface StrandsGameContentProps {
   headingLevel?: 2 | 3;
 }
 
-function formatTime(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
-
 export function StrandsGameContent({
   puzzle,
   locale,
+  daily = true,
   headingLevel = 2,
 }: StrandsGameContentProps) {
   const messages = getMessages(locale);
@@ -51,23 +50,44 @@ export function StrandsGameContent({
     confirmTrail,
     cancelTrail,
     giveUp,
-  } = useStrandsGame(puzzle, locale);
+  } = useStrandsGame(puzzle, locale, { daily });
   const hasTrail = path.length > 0;
 
+  const totalWords = puzzle.words.length;
+  const foundCount = foundKeys.length;
   const completed = status === "completed";
+  const gaveUp = completed && foundCount < totalWords;
   const finishedOnLoad = useRef(completed);
   const resultTitle = useRef<HTMLHeadingElement>(null);
   useFocusOnChange(resultTitle, completed && !finishedOnLoad.current);
 
+  const { shareNote, onCopied, onShareFailed } = useShareNote();
   const { confirmGiveUpOpen, requestGiveUp, closeGiveUpConfirm, confirmGiveUp } = useGiveUpConfirm();
+
+  useRecordDailyMatch(
+    "strands",
+    daily ? dailyBoardRound(puzzle, strandsMatchId(puzzle)) : null,
+    completed,
+    foundCount >= totalWords,
+  );
+  const dayDone = useDailyMatchDone(
+    "strands",
+    puzzle.reference_date,
+    strandsMatchId(puzzle),
+    completed,
+  );
 
   const themeTitle = puzzle.theme[locale] || puzzle.theme.en;
   const themeDesc = puzzle.theme_description?.[locale] || puzzle.theme_description?.en;
   const Heading = headingLevel === 3 ? "h3" : "h2";
   const anchorCell = path.length > 0 ? path[0]! : null;
 
+  if (daily && dayDone) {
+    return <DailyDone game="strands" locale={locale} referenceDate={puzzle.reference_date} />;
+  }
+
   return (
-    <section class="game-card game-card--wide strands word-search" id="strands" data-testid="game-board">
+    <section class="game-card game-card--wide strands word-search" id="strands" data-testid="game-board" tabIndex={-1}>
       <div class="word-search-layout strands-layout">
         <header class="word-search-header">
           <p class="strands-theme-label">{t.themeLabel}</p>
@@ -115,34 +135,37 @@ export function StrandsGameContent({
           aria-live="polite"
         >
           {completed ? (
-            <span>{t.congratulations}</span>
+            <WordSearchShareNote note={shareNote} messages={messages} />
           ) : (
             <StrandsBarMessage
               t={t}
               activeLetters={activeLetters}
               lastCheck={lastCheck}
               wordName={wordName}
-              foundCount={foundKeys.length}
-              totalWords={puzzle.words.length}
+              foundCount={foundCount}
+              totalWords={totalWords}
             />
           )}
         </div>
         {completed ? (
-          <div class="strands-result" data-testid="game-result">
-            <h2 ref={resultTitle} tabIndex={-1} class="strands-result-title">
-              {t.congratulations}
-            </h2>
-            <p>{t.resultSummary(foundKeys.length, formatTime(elapsedSeconds))}</p>
-            <p data-testid="spangram-result">
-              {spangramFound ? t.spangramFound : t.spangramPending}
-            </p>
-          </div>
+          <StrandsResult
+            puzzle={puzzle}
+            locale={locale}
+            elapsedSeconds={elapsedSeconds}
+            foundCount={foundCount}
+            gaveUp={gaveUp}
+            spangramFound={spangramFound}
+            titleRef={resultTitle}
+            onCopied={onCopied}
+            onShareFailed={onShareFailed}
+            daily={daily}
+          />
         ) : (
           <>
             <StrandsProgress
               t={t}
-              foundCount={foundKeys.length}
-              totalWords={puzzle.words.length}
+              foundCount={foundCount}
+              totalWords={totalWords}
               spangramFound={spangramFound}
               elapsedSeconds={elapsedSeconds}
             />

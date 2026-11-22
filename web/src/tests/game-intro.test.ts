@@ -31,6 +31,8 @@ const GAME_PAGES: Record<string, boolean> = {
   "pages/en/code/index.astro": true,
   "pages/pt-br/cruzadinha.astro": true,
   "pages/en/crossword.astro": true,
+  "pages/pt-br/palavras-conectadas.astro": true,
+  "pages/en/strands.astro": true,
 };
 
 function ruleBody(css: string, selector: string): string {

@@ -12,8 +12,7 @@ import type { StrandsGameProps } from "./types";
 
 /**
  * Loads today's Strands board and shows loading, missing, incompatible,
- * offline and invalid states around it. Routes and navigation stay out of
- * this ticket.
+ * offline and invalid states around it.
  */
 export function StrandsGame({
   puzzle: initialPuzzle,
@@ -57,6 +56,7 @@ export function StrandsGame({
     return (
       <section
         id="strands"
+        tabIndex={-1}
         aria-live="polite"
         aria-busy="true"
         class="game-card game-card--wide state strands-state"
@@ -81,6 +81,7 @@ export function StrandsGame({
     return (
       <section
         id="strands"
+        tabIndex={-1}
         class="game-card game-card--wide state strands-state"
         data-testid="game-missing"
         data-error-kind={kind}

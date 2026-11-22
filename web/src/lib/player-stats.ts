@@ -1,7 +1,7 @@
 import { dailyReferenceDate, staleDailyDate } from "../data/daily-artifact";
 import { getLocalStorageItem, setLocalStorageItem } from "./local-storage";
 
-export type GameId = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "map" | "code" | "crossword";
+export type GameId = "quiz" | "grid" | "connections" | "name-guess" | "word-search" | "timeline" | "map" | "code" | "crossword" | "strands";
 
 export interface GameStats {
   played: number;
@@ -37,14 +37,14 @@ export interface PlayerStats {
 }
 
 export const PLAYER_STATS_STORAGE_KEY = "kpop-player-stats-v1";
-export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline", "map", "code", "crossword"];
+export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline", "map", "code", "crossword", "strands"];
 /**
  * Stats added after v1. `parsePlayerStatsJson` still accepts an export from
  * before the game existed, normalizing the missing entries to zeroed stats
  * that `applyPlayerStatsFile` then writes, so a stats file keeps importing
  * across graduations.
  */
-const LATER_GAME_IDS: GameId[] = ["map", "code", "crossword"];
+const LATER_GAME_IDS: GameId[] = ["map", "code", "crossword", "strands"];
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -120,6 +120,7 @@ export function createInitialPlayerStats(): PlayerStats {
       map: createDefaultGameStats(false),
       code: createDefaultGameStats(false),
       crossword: createDefaultGameStats(false),
+      strands: createDefaultGameStats(false),
     },
     dailySetsCompleted: 0,
   };
@@ -204,6 +205,7 @@ export function loadPlayerStats(): PlayerStats {
         map: normalizeGameStats(parsed.games?.map, false),
         code: normalizeGameStats(parsed.games?.code, false),
         crossword: normalizeGameStats(parsed.games?.crossword, false),
+        strands: normalizeGameStats(parsed.games?.strands, false),
       },
       dailySetsCompleted: normalizeDailySetsCompleted(parsed.dailySetsCompleted),
       ...(lastDailySetDate ? { lastDailySetDate } : {}),

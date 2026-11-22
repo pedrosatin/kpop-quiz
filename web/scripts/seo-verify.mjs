@@ -18,6 +18,7 @@ const EXPECTED_PATHS = [
   "/pt-br/linha-do-tempo/",
   "/pt-br/codigo/",
   "/pt-br/cruzadinha/",
+  "/pt-br/palavras-conectadas/",
   "/pt-br/stray-kids/",
   "/en/",
   "/en/grid/",
@@ -28,6 +29,7 @@ const EXPECTED_PATHS = [
   "/en/timeline/",
   "/en/code/",
   "/en/crossword/",
+  "/en/strands/",
   "/en/stray-kids/",
 ];
 
@@ -41,6 +43,7 @@ const EXPECTED_LLMS = [
   "pt-br-linha-do-tempo.md",
   "pt-br-codigo.md",
   "pt-br-cruzadinha.md",
+  "pt-br-palavras-conectadas.md",
   "pt-br-stray-kids.md",
   "en-quiz.md",
   "en-grid.md",
@@ -51,6 +54,7 @@ const EXPECTED_LLMS = [
   "en-timeline.md",
   "en-code.md",
   "en-crossword.md",
+  "en-strands.md",
   "en-stray-kids.md",
 ];
 
