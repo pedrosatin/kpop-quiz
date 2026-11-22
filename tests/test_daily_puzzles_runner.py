@@ -47,10 +47,12 @@ from kpop_scraping.grid_generator import generate_daily_grid, grid_incompatibili
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
 from kpop_scraping.quiz_schema import validate_session
+from kpop_scraping.strands_generator import StrandsGenerationError
+from kpop_scraping.strands_schema import validate_strands_puzzle
 from kpop_scraping.timeline_schema import compute_timeline_puzzle_id, validate_timeline_puzzle
-from kpop_scraping.web_publish import DAILY_GAME_FILES, verify_artifacts
+from kpop_scraping.web_publish import DAILY_GAME_FILES, STRANDS_DAILY_FILENAME, verify_artifacts
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
-from tests.daily_fixtures import published_set, reuse_quiz
+from tests.daily_fixtures import published_set, reuse_quiz, strands_puzzle_for
 from tests.test_board_swap_gate import commit_data, init_repo
 
 
@@ -404,6 +406,8 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.db_path = self.temp_path / "kpop.db"
         conn = build_test_database(self.db_path)
         conn.close()
+        # Fixture DB has no 9x9 Strands roster; stub success for the daily set.
+        reuse_quiz(self)
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -414,7 +418,6 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         The runs of the test itself reuse the quiz, so only the game under
         test fails or changes. Returns the results of ``runs``.
         """
-        reuse_quiz(self)
         return published_set(output_dir, self.db_path, *runs)
 
     def test_get_reference_date(self):
@@ -434,7 +437,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_reference_date("not-a-date")
 
-    def test_full_generation_all_seven_games(self):
+    def test_full_generation_publishes_every_daily_board(self):
         output_dir = self.temp_path / "public_data"
         result = run_daily_puzzles(
             database=self.db_path,
@@ -455,6 +458,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             "word-search.daily.json",
             "timeline.daily.json",
             "code-groups.daily.json",
+            "strands.daily.json",
             "session.pt-BR.json",
             "session.en.json",
         ]
@@ -462,7 +466,6 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             file_path = output_dir / fname
             self.assertTrue(file_path.is_file(), f"Expected file {fname} to exist")
 
-        # Schema validation for all 7 games
         grid_payload = json.loads((output_dir / "grid.daily.json").read_text(encoding="utf-8"))
         validate_intersection_grid(grid_payload)
         self.assertEqual(grid_payload["reference_date"], "2026-09-18")
@@ -493,6 +496,13 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertIsNone(result["code_groups_skipped"])
         self.assertIn("code-groups.daily.json", result["published_files"])
 
+        strands_payload = json.loads((output_dir / STRANDS_DAILY_FILENAME).read_text(encoding="utf-8"))
+        validate_strands_puzzle(strands_payload)
+        self.assertEqual(strands_payload["reference_date"], "2026-09-18")
+        self.assertEqual(result["strands_id"], strands_payload["puzzle_id"])
+        self.assertIsNone(result["strands_skipped"])
+        self.assertIn(STRANDS_DAILY_FILENAME, result["published_files"])
+
         pt_session = json.loads((output_dir / "session.pt-BR.json").read_text(encoding="utf-8"))
         validate_session(pt_session)
         self.assertEqual(pt_session["config"]["language"], "pt-BR")
@@ -510,6 +520,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             require_word_search=True,
             require_timeline=True,
             require_code_groups=True,
+            require_strands=True,
         )
 
     def test_dry_run_does_not_modify_output_dir(self):
@@ -533,6 +544,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertFalse((output_dir / "word-search.daily.json").exists())
         self.assertFalse((output_dir / "timeline.daily.json").exists())
         self.assertFalse((output_dir / "code-groups.daily.json").exists())
+        self.assertFalse((output_dir / STRANDS_DAILY_FILENAME).exists())
         self.assertFalse((output_dir / "manifest-v2.json").exists())
         # Sentinel file remains intact
         self.assertEqual(sentinel_file.read_text(), "untouched")
@@ -705,7 +717,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
     def test_code_groups_generation_failure_publishes_the_other_games(self):
         # Partial publish policy: the group code pilot never blocks the
         # daily batch. The day goes out without code-groups.daily.json and
-        # the result records the absence, while the other six games still
+        # the result records the absence, while the other boards still
         # carry the new reference date.
         output_dir = self.temp_path / "code_groups_failure"
         [first] = self.published(output_dir, dict(reference_date="2026-09-18"))
@@ -732,6 +744,7 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         timeline = json.loads((output_dir / "timeline.daily.json").read_text(encoding="utf-8"))
         validate_timeline_puzzle(timeline)
         self.assertEqual(timeline["reference_date"], "2026-09-19")
+        self.assertTrue((output_dir / STRANDS_DAILY_FILENAME).is_file())
 
         # A present code-groups file always validates. An absent one passes
         # a caller that requires it only while daily-set.json explains it.
@@ -754,6 +767,69 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
         self.assertIsNone(kept["code_groups_id"])
         self.assertEqual(kept["code_groups_skipped"], {"published_without_code_groups": True})
 
+    def test_strands_solver_failure_publishes_the_other_games(self):
+        # Partial publish policy: a Strands solver miss omits only that board.
+        output_dir = self.temp_path / "strands_failure"
+        [first] = self.published(output_dir, dict(reference_date="2026-09-18"))
+        self.assertTrue(first["strands_id"])
+
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_strands_puzzle",
+            side_effect=StrandsGenerationError("Strands solver found no unique 9x9 grid"),
+        ):
+            result = run_daily_puzzles(
+                database=self.db_path, output_dir=output_dir, reference_date="2026-09-19"
+            )
+
+        self.assertFalse((output_dir / STRANDS_DAILY_FILENAME).exists())
+        self.assertNotIn(STRANDS_DAILY_FILENAME, result["published_files"])
+        self.assertIsNone(result["strands_id"])
+        self.assertEqual(
+            result["strands_skipped"]["error"],
+            "Strands solver found no unique 9x9 grid",
+        )
+        connections = json.loads((output_dir / "connections.daily.json").read_text(encoding="utf-8"))
+        validate_connections_puzzle(connections)
+        self.assertEqual(connections["reference_date"], "2026-09-19")
+        timeline = json.loads((output_dir / "timeline.daily.json").read_text(encoding="utf-8"))
+        validate_timeline_puzzle(timeline)
+        self.assertEqual(timeline["reference_date"], "2026-09-19")
+        self.assertTrue((output_dir / "code-groups.daily.json").is_file())
+
+        verify_artifacts(output_dir, require_grid=False, require_code_groups=False)
+        self.assertEqual(
+            json.loads((output_dir / "daily-set.json").read_text())["omitted"],
+            {"strands": "generation failed (StrandsGenerationError)"},
+        )
+        verify_artifacts(output_dir, require_grid=False, require_code_groups=False, require_strands=True)
+        record = (output_dir / "daily-set.json").read_bytes()
+        (output_dir / "daily-set.json").unlink()
+        with self.assertRaisesRegex(ValueError, "missing required strands artifact"):
+            verify_artifacts(output_dir, require_grid=False, require_code_groups=False, require_strands=True)
+        (output_dir / "daily-set.json").write_bytes(record)
+
+        kept = run_daily_puzzles(database=self.db_path, output_dir=output_dir, reference_date="2026-09-19")
+        self.assertTrue(kept["already_published"])
+        self.assertIsNone(kept["strands_id"])
+        self.assertEqual(kept["strands_skipped"], {"published_without_strands": True})
+
+    def test_strands_artifact_is_deterministic_for_the_same_date(self):
+        out_a = self.temp_path / "strands_det_a"
+        out_b = self.temp_path / "strands_det_b"
+        first = run_daily_puzzles(database=self.db_path, output_dir=out_a, reference_date="2026-09-18")
+        second = run_daily_puzzles(database=self.db_path, output_dir=out_b, reference_date="2026-09-18")
+        self.assertEqual(first["strands_id"], second["strands_id"])
+        self.assertEqual(
+            (out_a / STRANDS_DAILY_FILENAME).read_bytes(),
+            (out_b / STRANDS_DAILY_FILENAME).read_bytes(),
+        )
+        other = run_daily_puzzles(
+            database=self.db_path, output_dir=self.temp_path / "strands_det_other",
+            reference_date="2026-09-19",
+        )
+        self.assertNotEqual(first["strands_id"], other["strands_id"])
+        self.assertEqual(first["strands_id"], strands_puzzle_for("2026-09-18")["puzzle_id"])
+
     def test_cli_warns_in_github_actions_when_group_code_is_skipped(self):
         out_dir = self.temp_path / "cli_skipped_code_groups"
         self.published(out_dir, dict(reference_date="2026-09-18"))
@@ -771,6 +847,24 @@ class DailyPuzzlesRunnerTests(unittest.TestCase):
             stdout.getvalue(),
         )
         self.assertIn("WARNING: Day published without the group code pilot because generation failed", stderr.getvalue())
+
+    def test_cli_warns_in_github_actions_when_strands_is_skipped(self):
+        out_dir = self.temp_path / "cli_skipped_strands"
+        self.published(out_dir, dict(reference_date="2026-09-18"))
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch(
+            "kpop_scraping.daily_puzzles_runner.generate_strands_puzzle",
+            side_effect=StrandsGenerationError("Strands solver found no unique 9x9 grid"),
+        ), patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}), redirect_stdout(stdout), redirect_stderr(stderr):
+            code = daily_puzzles_cli.main(
+                ["--database", str(self.db_path), "--output-dir", str(out_dir), "--date", "2026-09-19"]
+            )
+        self.assertEqual(code, 0)
+        self.assertIn(
+            "::warning title=Daily strands omitted::Day published without Strands because generation failed",
+            stdout.getvalue(),
+        )
+        self.assertIn("WARNING: Day published without Strands because generation failed", stderr.getvalue())
 
     def test_grid_generation_failure_without_previous_publishes_without_grid(self):
         # Before the skip policy this raised ValueError and the whole day
@@ -1312,13 +1406,13 @@ class ConnectionsPartitionOnKeepTests(unittest.TestCase):
         self.db_path = self.temp_path / "kpop.db"
         build_test_database(self.db_path).close()
         self.out_dir = self.temp_path / "data"
+        reuse_quiz(self)
 
     def tearDown(self):
         self.temp_dir.cleanup()
 
     def published(self, *runs):
         """Copy the set ``runs`` publish into ``out_dir`` (see tests.daily_fixtures)."""
-        reuse_quiz(self)
         return published_set(self.out_dir, self.db_path, *runs)
 
     def make_ambiguous(self, board_dir: Path) -> None:

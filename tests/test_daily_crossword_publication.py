@@ -79,6 +79,8 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
         crossword_database(self.db)
         self.out = self.path / 'data'
         self.out.mkdir()
+        # Crossword fixture DB has no 9x9 Strands roster; stub that board.
+        reuse_quiz(self)
 
     def tearDown(self):
         self.temp.cleanup()
@@ -88,7 +90,6 @@ class DailyCrosswordPublicationTests(unittest.TestCase):
 
     def published(self, *runs: dict, seed=omitted_eve) -> None:
         """Copy the set ``runs`` publish into ``out`` (see tests.daily_fixtures)."""
-        reuse_quiz(self)
         published_set(self.out, self.db, *runs, seed=seed)
 
     def test_ready_day_and_next_day_follow_the_durable_history(self):

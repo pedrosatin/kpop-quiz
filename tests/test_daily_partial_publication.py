@@ -90,6 +90,10 @@ class PartialPublicationTests(unittest.TestCase):
         self.db_path = self.root / "kpop.db"
         build_test_database(self.db_path).close()
         self.out = self.root / "data"
+        # The fixture database cannot fill a 9x9 Strands grid; stub success
+        # so omission tests of other games keep a complete set unless they
+        # fail Strands on purpose.
+        reuse_quiz(self)
 
     def tearDown(self):
         self.temp.cleanup()

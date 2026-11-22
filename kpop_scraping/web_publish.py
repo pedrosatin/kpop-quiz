@@ -38,6 +38,7 @@ from .quiz_schema import (
     write_json_atomic,
 )
 from .storage import canonical_json
+from .strands_schema import validate_strands_puzzle, write_strands_puzzle_atomic
 from .timeline_schema import validate_timeline_puzzle, write_timeline_puzzle_atomic
 from .word_search_schema import (
     validate_word_search_puzzle,
@@ -59,6 +60,7 @@ WORD_SEARCH_DAILY_FILENAME = "word-search.daily.json"
 TIMELINE_DAILY_FILENAME = "timeline.daily.json"
 CODE_GROUPS_DAILY_FILENAME = "code-groups.daily.json"
 CROSSWORD_DAILY_FILENAME = "crossword.daily.json"
+STRANDS_DAILY_FILENAME = "strands.daily.json"
 SESSION_SHORTCUT_FILENAMES = ("session.pt-BR.json", "session.en.json")
 # Seed of the daily quiz sessions, followed by their date.
 DAILY_SEED_PREFIX = "kpop-daily-"
@@ -73,6 +75,7 @@ DAILY_GAME_FILES = {
     "timeline": TIMELINE_DAILY_FILENAME,
     "code-groups": CODE_GROUPS_DAILY_FILENAME,
     "crossword": CROSSWORD_DAILY_FILENAME,
+    "strands": STRANDS_DAILY_FILENAME,
 }
 # Every file a daily set may hold for its games, besides the hash-named
 # sessions. A set that omits one must not keep an earlier day's copy.
@@ -203,6 +206,10 @@ def _read_crossword(path: Path) -> dict[str, Any]:
     ):
         raise ValueError(f"crossword artifact {path} disagrees with its publication record")
     return payload
+
+
+def _read_strands(path: Path) -> dict[str, Any]:
+    return _read_validated_json(path, validate_strands_puzzle, what="strands")
 
 
 def parse_daily_date(date_str: str | None) -> str:
@@ -419,8 +426,9 @@ def publish(
     code_groups: dict[str, Any] | None = None,
     enriched_sessions: dict[str, dict[str, Any]] | None = None,
     crossword: dict[str, Any] | None = None,
+    strands: dict[str, Any] | None = None,
 ) -> None:
-    """Publish static quiz sessions, optional daily grid, connections, name-guess, word-search, timeline, and group code puzzles.
+    """Publish static quiz sessions and the optional daily puzzle artifacts.
 
     Args:
         output_dir: Target directory where artifacts and manifest are written.
@@ -455,6 +463,10 @@ def publish(
             (written to crossword.daily.json). The caller validates it against
             the fact base and writes its publication record; here it passes the
             rules that need no base. When None, the artifact is omitted.
+        strands: Optional ``strands-puzzle-v1`` payload (written to strands.daily.json).
+            When provided, validated against the Strands schema before writing.
+            When None, the artifact is omitted; the daily runner treats a solver
+            miss as a partial publish and lets the other games of the day out.
     """
     if sessions is None and enriched_sessions is not None:
         raise ValueError("enriched sessions need the sessions they enrich")
@@ -475,6 +487,8 @@ def publish(
         validate_code_groups_puzzle(code_groups)
     if crossword is not None:
         validate_crossword_daily(crossword)
+    if strands is not None:
+        validate_strands_puzzle(strands)
     output_dir.mkdir(parents=True, exist_ok=True)
     if grid is not None:
         write_intersection_grid_atomic(output_dir / GRID_DAILY_FILENAME, grid)
@@ -494,6 +508,8 @@ def publish(
         )
     if crossword is not None:
         write_json_atomic(output_dir / CROSSWORD_DAILY_FILENAME, crossword, validate_crossword_daily)
+    if strands is not None:
+        write_strands_puzzle_atomic(output_dir / STRANDS_DAILY_FILENAME, strands)
     if sessions is None or manifest is None:
         return
     for key in sorted(sessions):
@@ -523,8 +539,9 @@ def verify(
     require_code_groups: bool = False,
     require_catalog: bool = False,
     require_crossword: bool = False,
+    require_strands: bool = False,
 ) -> None:
-    """Verify published static quiz artifacts, manifest, grid file, connections, name-guess, word-search, timeline, and group code.
+    """Verify published static quiz artifacts, manifest and daily puzzle files.
 
     A set the daily runner wrote carries ``daily-set.json`` (see
     ``daily_set``), which lists the games the day omits and why. A game it
@@ -587,6 +604,11 @@ def verify(
             with its ``crossword-publication.<date>.json`` record. When True the
             file is mandatory. Every record in the directory is validated, and
             two consecutive played days may not share a group.
+        require_strands: Verification policy flag for the daily Strands puzzle
+            (strands.daily.json). When False (default) the artifact is optional:
+            a day whose solver finds no unique grid publishes without it. A
+            present file must pass the Strands schema. When True the file is
+            mandatory unless ``daily-set.json`` lists the game as omitted.
     """
     day_set = read_daily_set(output_dir)
     omitted = day_set["omitted"] if day_set is not None else {}
@@ -604,6 +626,7 @@ def verify(
         "timeline": _read_timeline,
         "code-groups": _read_code_groups,
         "crossword": _read_crossword,
+        "strands": _read_strands,
     }
     payloads = {}
     for game, reader in readers.items():
@@ -629,6 +652,7 @@ def verify(
         "timeline": require_timeline,
         "code-groups": require_code_groups,
         "crossword": require_crossword,
+        "strands": require_strands,
     }
     for game, needed in required.items():
         if not needed or game in payloads or game in omitted:
@@ -782,12 +806,16 @@ def verify_artifacts(
     require_code_groups: bool = True,
     require_catalog: bool = False,
     require_crossword: bool = False,
+    require_strands: bool = False,
 ) -> None:
     """Verify published static quiz artifacts and daily puzzle files.
 
     ``require_code_groups`` defaults to True like the other complete daily
     artifacts, so a caller that accepts the partial publish policy for the
     group code pilot must pass False explicitly (the daily runner does).
+    ``require_strands`` defaults to False: a day whose solver finds no unique
+    grid publishes without ``strands.daily.json``, and strict callers opt in
+    with ``--require-strands``.
     """
     verify(
         output_dir,
@@ -799,6 +827,7 @@ def verify_artifacts(
         require_code_groups=require_code_groups,
         require_catalog=require_catalog,
         require_crossword=require_crossword,
+        require_strands=require_strands,
     )
 
 
@@ -846,6 +875,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Require crossword.daily.json to exist and agree with its publication record during --verify",
     )
     parser.add_argument(
+        "--require-strands",
+        action="store_true",
+        help="Require strands.daily.json to exist and pass schema validation during --verify",
+    )
+    parser.add_argument(
         "--require-catalog",
         action="store_true",
         help="Require the question catalog to exist and verify completely during --verify",
@@ -878,6 +912,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--require-code-groups can only be used with --verify")
         if args.require_crossword and not args.verify:
             raise ValueError("--require-crossword can only be used with --verify")
+        if args.require_strands and not args.verify:
+            raise ValueError("--require-strands can only be used with --verify")
         if args.require_catalog and not args.verify:
             raise ValueError("--require-catalog can only be used with --verify")
         if args.catalog and args.verify:
@@ -899,6 +935,7 @@ def main(argv: list[str] | None = None) -> int:
                         require_code_groups=args.require_code_groups,
                         require_catalog=args.require_catalog and directory is args.output_dir,
                         require_crossword=args.require_crossword,
+                        require_strands=args.require_strands,
                     )
             # The next day's record follows the main directory's last one.
             verify_crossword_history(args.output_dir, next_dir)

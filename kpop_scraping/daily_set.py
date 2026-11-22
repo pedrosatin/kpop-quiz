@@ -32,6 +32,7 @@ GAMES = (
     "timeline",
     "code-groups",
     "crossword",
+    "strands",
 )
 # An omission reason may quote data from Wikipedia or Wikidata through an
 # exception message; the record and the run summary keep a bounded line.
