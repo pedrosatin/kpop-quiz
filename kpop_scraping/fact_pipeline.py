@@ -77,6 +77,7 @@ class _RunState:
     person_pages: dict[str, PersonPageRequest] = field(default_factory=dict)
     subjects: list[_Subject] = field(default_factory=list)
     truncations: list[FactTruncation] = field(default_factory=list)
+    preserved_member_qids: set[str] = field(default_factory=set)
     batches: int = 0
     ignored: int = 0
 
@@ -164,6 +165,7 @@ class _Run:
         members, run_truncation = cap_member_ids(member_ids(group_candidates))
         if run_truncation is not None:
             state.truncations.append(run_truncation)
+            self._drop_run_capped_members(set(members))
         self._process_members(members, known_groups)
         all_candidates = [c for subject in state.subjects for c in subject.candidates]
 
@@ -192,6 +194,7 @@ class _Run:
         by_statement = {d.candidate.statement.statement_id: d for d in decisions}
         if self.person_client is None:
             assert_none_downgraded(preserved, by_statement)
+        preserve_members = frozenset(state.preserved_member_qids)
         for subject in state.subjects:
             self.store.save_facts(
                 self.run_id,
@@ -200,6 +203,7 @@ class _Run:
                 subject.snapshot_id,
                 [by_statement[c.statement.statement_id] for c in subject.candidates],
                 state.entity_ids,
+                preserve_member_qids=preserve_members,
             )
         processed_page_ids = {
             catalog_by_id[requested_id].source_page_id
@@ -214,7 +218,9 @@ class _Run:
         stale = self.store.mark_catalog_subjects_stale(
             self.run_id, unavailable_page_ids
         )
-        stale += self.store.mark_stale_facts(self.run_id)
+        stale += self.store.mark_stale_facts(
+            self.run_id, preserve_person_qids=preserve_members
+        )
 
         totals = count_statuses(decisions)
         return FactRunTotals(
@@ -283,9 +289,20 @@ class _Run:
 
     def _cap_group_memberships(self) -> None:
         for index, subject in enumerate(self.state.subjects):
+            before = {
+                candidate.value_id
+                for candidate in subject.candidates
+                if candidate.predicate == "has_member" and candidate.value_id
+            }
             capped, cuts = cap_has_member_candidates(subject.candidates)
             if not cuts:
                 continue
+            after = {
+                candidate.value_id
+                for candidate in capped
+                if candidate.predicate == "has_member" and candidate.value_id
+            }
+            self.state.preserved_member_qids.update(before - after)
             self.state.truncations.extend(cuts)
             self.state.subjects[index] = _Subject(
                 subject.wikidata_id,
@@ -293,6 +310,28 @@ class _Run:
                 subject.snapshot_id,
                 capped,
             )
+
+    def _drop_run_capped_members(self, kept_members: set[str]) -> None:
+        for index, subject in enumerate(self.state.subjects):
+            kept: list[FactCandidate] = []
+            dropped = False
+            for candidate in subject.candidates:
+                if (
+                    candidate.predicate == "has_member"
+                    and candidate.value_id
+                    and candidate.value_id not in kept_members
+                ):
+                    self.state.preserved_member_qids.add(candidate.value_id)
+                    dropped = True
+                else:
+                    kept.append(candidate)
+            if dropped:
+                self.state.subjects[index] = _Subject(
+                    subject.wikidata_id,
+                    subject.entity_id,
+                    subject.snapshot_id,
+                    tuple(kept),
+                )
 
     def _add_subject(
         self,

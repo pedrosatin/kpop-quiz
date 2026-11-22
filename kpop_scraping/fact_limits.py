@@ -2,7 +2,7 @@
 
 Each cap truncates and records the cut; the run continues. Values sit a few
 times above the maxima measured on the local catalog copy of 2026-11-22 so a
-normal rebuild keeps the same accepted and rejected facts.
+rebuild within the measured maxima keeps the same accepted and rejected facts.
 """
 
 from __future__ import annotations
