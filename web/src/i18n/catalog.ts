@@ -1304,8 +1304,8 @@ const catalogs: Record<Locale, Messages> = {
     quizOtherLocaleResume: "Continue in Portuguese",
     quizOtherLocaleHint: (question) => `Game in Portuguese at question ${question} · Continue in Portuguese`,
     quizOtherLocaleStale: (daily) =>
-      `You have a ${daily ? "daily quiz" : "general quiz"} in progress in Portuguese that can no longer continue with the current data.`,
-    quizOtherLocaleStaleHint: "Portuguese game can no longer continue",
+      `You have a ${daily ? "daily quiz" : "general quiz"} in progress in Portuguese, but it no longer matches today's quiz data.`,
+    quizOtherLocaleStaleHint: "Your game in Portuguese can no longer continue",
     quizPlayGeneral: "Play the general quiz",
     quizOpenSetup: "Set up a round",
     quizDailyDoneResult: "You already finished today's daily quiz. This is your saved result, and it counts once in your stats.",
