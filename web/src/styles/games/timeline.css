@@ -1,9 +1,29 @@
 /* Timeline game: board, cards, controls, results, evidence, and share */
+
+/*
+  Compact shell for the Timeline only: shorter intro and page padding so the
+  five play cards and the sticky action bar fit one laptop viewport
+  (1280x720 and up) without a second column.
+*/
+.page-shell:has(#timeline) {
+  padding-block: var(--space-2) var(--space-5);
+}
+.page-shell:has(#timeline) .intro {
+  margin-bottom: var(--space-2);
+}
+.page-shell:has(#timeline) .intro h1 {
+  font-size: clamp(1.25rem, 2.4vw, 1.625rem);
+}
+.page-shell:has(#timeline) .intro-text {
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
 .timeline-board-wrapper,
 .timeline-results {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   width: 100%;
   max-width: var(--game-max);
   margin-inline: auto;
@@ -18,7 +38,7 @@
 .timeline-results-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -28,8 +48,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
   background: var(--color-surface);
   color: var(--color-text);
   border: 1px solid var(--color-border);
@@ -38,7 +58,22 @@
   transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
   touch-action: manipulation;
 }
-.timeline-card { user-select: none; }
+/*
+  Play cards: badge, title and move buttons share one row so five cards clear
+  the sticky bar on common laptop heights. display:contents keeps the DOM
+  (header / body wrappers) for tests and a11y while the grid places the parts.
+*/
+.timeline-card {
+  user-select: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "badge title actions"
+    "desc desc desc";
+  align-items: center;
+  column-gap: var(--space-2);
+  row-gap: var(--space-1);
+}
 .timeline-card:focus-within { outline: none; border-color: var(--color-focus); }
 .timeline-card[draggable="true"] { cursor: grab; }
 .timeline-card[draggable="true"]:active { cursor: grabbing; }
@@ -59,9 +94,16 @@
   border-color: var(--color-border-subtle);
   background: var(--color-surface);
 }
-.timeline-card-header,
+.timeline-card-header {
+  display: contents;
+}
 .timeline-results-item-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.timeline-card-badge-wrap { display: flex; align-items: center; gap: var(--space-2); }
+.timeline-card-badge-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  grid-area: badge;
+}
 .timeline-card-badge,
 .timeline-revealed-date {
   display: inline-flex;
@@ -86,7 +128,12 @@
   cursor: grab;
 }
 .timeline-drag-handle.is-disabled { opacity: 0.4; cursor: default; }
-.timeline-card-actions { display: flex; align-items: center; gap: var(--space-1); }
+.timeline-card-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  grid-area: actions;
+}
 .timeline-btn {
   display: inline-flex;
   align-items: center;
@@ -113,9 +160,20 @@
 .timeline-btn:focus-visible,
 .timeline-evidence-summary:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 .timeline-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.timeline-card-body,
+.timeline-card-body {
+  display: contents;
+}
 .timeline-results-item-body { display: flex; flex-direction: column; gap: var(--space-1); }
-.timeline-card-title,
+.timeline-card-title {
+  grid-area: title;
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-title);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-text);
+}
 .timeline-results-item-title {
   margin: 0;
   font-family: var(--font-title);
@@ -125,19 +183,33 @@
   color: var(--color-text);
 }
 .timeline-card-description {
+  grid-area: desc;
   margin: 0;
   font-family: var(--font-body);
-  font-size: 0.875rem;
-  line-height: 1.4;
+  font-size: 0.8125rem;
+  line-height: 1.35;
   color: var(--color-text-muted);
+}
+/*
+  Short laptop windows: drop the play-card description so five cards clear
+  the sticky bar. The title stays fully visible (no clamp). Results keep the
+  description. 50rem = 800px covers 1280x720 and 1366x768; 1440x900 keeps it.
+*/
+@media (max-height: 50rem) {
+  .timeline-card > .timeline-card-body > .timeline-card-description,
+  .timeline-card > .timeline-card-description {
+    display: none;
+  }
 }
 .timeline-controls,
 .timeline-share {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  padding-top: var(--space-2);
+  padding-top: 0;
 }
 /*
   During a drag the sticky bar covers the bottom of the window, where the
