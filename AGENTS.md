@@ -8,7 +8,7 @@ Construir um conjunto de dados citável e uma aplicação de quizzes de K-pop. A
 
 - **Frontend web**: `web/` — Aplicação Astro estática + Preact islands + Vitest + Playwright.
 - **Backend / Coleta**: `kpop_scraping/` — Pipeline determinístico em Python padrão.
-- **Decisões arquiteturais (ADRs)**: `docs/decisions/` (ADRs 001 a 023 com contratos de minigames e SEO).
+- **Decisões arquiteturais (ADRs)**: `docs/decisions/` (uma ADR por decisão cara de reverter, numeradas em sequência; consulte o diretório para a última).
 - **Grafo de conhecimento**: `graphify-out/GRAPH_REPORT.md`.
 
 ## Comandos canônicos
