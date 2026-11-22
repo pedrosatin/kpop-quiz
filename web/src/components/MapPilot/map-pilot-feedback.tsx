@@ -37,7 +37,6 @@ export function MapPilotFeedbackMessage({
   messages: Messages;
 }) {
   if (isComplete) {
-    // A new key replaces the paragraph, so a second copy is announced again.
     if (notice) {
       return <p key={notice.n}>{notice.kind === "copied" ? messages.copiedToClipboard : messages.shareFailed}</p>;
     }
@@ -62,7 +61,6 @@ export function MapPilotFeedbackMessage({
   }
 
   if (pickPrompt > 0) {
-    // A new key replaces the paragraph, so a second empty Answer is announced again.
     return <p key={pickPrompt} class="game-actions-hint">{copy.pickFirst}</p>;
   }
 

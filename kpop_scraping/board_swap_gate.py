@@ -47,13 +47,8 @@ from .web_publish import (
     WORD_SEARCH_DAILY_FILENAME,
 )
 
-
 NEXT_DIRNAME = "next"
-# From the gate to a live deploy: under a minute to the publish job's merge,
-# then 30 to 37 minutes for the Cloudflare Pages workflow in the successful
-# runs of 2026-11-03 to 2026-11-11.
 SERVE_LEAD = timedelta(minutes=45)
-
 
 def last_served_day(now: datetime) -> str:
     """Latest date the site may serve from ``next/`` once this run is live.
@@ -65,23 +60,17 @@ def last_served_day(now: datetime) -> str:
         raise ValueError("the gate's clock needs a time zone")
     return (now + SERVE_LEAD).astimezone(reference_zone()).date().isoformat()
 
-
 def _quiz_id(manifest: dict[str, Any]) -> str:
     sessions = manifest["sessions"]
     ids = [sessions[key]["session_id"] for key in sorted(sessions) if key.startswith("daily.")]
     return hashlib.sha256(",".join(ids).encode()).hexdigest()
 
-
 def _puzzle_id(payload: dict[str, Any]) -> str:
     return payload["puzzle_id"]
 
-
 def _crossword_id(payload: dict[str, Any]) -> str | None:
-    # An omitted day has no board to swap.
     return payload["dataset_version"] if payload["status"] == "ready" else None
 
-
-# game -> (file that holds the board, identity of the board in that file)
 BOARDS: dict[str, tuple[str, Callable[[dict[str, Any]], str | None]]] = {
     "quiz": (MANIFEST_FILENAME, _quiz_id),
     "grid": (GRID_DAILY_FILENAME, lambda payload: payload["grid_id"]),
@@ -93,7 +82,6 @@ BOARDS: dict[str, tuple[str, Callable[[dict[str, Any]], str | None]]] = {
     "crossword": (CROSSWORD_DAILY_FILENAME, _crossword_id),
     "strands": (STRANDS_DAILY_FILENAME, _puzzle_id),
 }
-
 
 def board_ids(read: Callable[[str], dict[str, Any] | None]) -> tuple[str | None, dict[str, str]]:
     """Return the published day and the identity of each board a directory holds.
@@ -114,7 +102,6 @@ def board_ids(read: Callable[[str], dict[str, Any] | None]) -> tuple[str | None,
             ids[game] = identity
     return day, ids
 
-
 def _read_base(repo: Path, ref: str, data_dir: str) -> Callable[[str], dict[str, Any] | None]:
     resolved = subprocess.run(
         ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
@@ -131,14 +118,12 @@ def _read_base(repo: Path, ref: str, data_dir: str) -> Callable[[str], dict[str,
 
     return read
 
-
 def _read_tree(directory: Path) -> Callable[[str], dict[str, Any] | None]:
     def read(name: str) -> dict[str, Any] | None:
         path = directory / name
         return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
 
     return read
-
 
 def check_board_swaps(
     repo: Path,
@@ -165,7 +150,6 @@ def check_board_swaps(
     declared = {
         (swap["game"], swap["date"]): swap["reason"] for swap in declaration["swaps"]
     }
-    # (date and boards after the run, where they are published, base directory)
     comparisons = [(day, after, data_dir, data_dir), (day, after, data_dir, next_dir)]
     if next_day is not None and next_day <= served:
         comparisons.append((next_day, after_next, next_dir, next_dir))
@@ -192,7 +176,6 @@ def check_board_swaps(
             else:
                 refused.append(change)
     return accepted, refused
-
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
@@ -226,7 +209,6 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

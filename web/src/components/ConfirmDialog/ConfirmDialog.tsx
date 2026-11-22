@@ -45,7 +45,6 @@ export function ConfirmDialog({
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const confirmedRef = useRef(false);
-  // Per-instance ids so multiple ConfirmDialog mounts do not collide.
   const titleId = useId();
   const bodyId = useId();
 

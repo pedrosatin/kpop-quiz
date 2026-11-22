@@ -28,7 +28,6 @@ from .word_search_schema import (
 
 QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
 
-# Letter frequency weights derived from romanized K-pop entity names
 LETTER_WEIGHTS: dict[str, int] = {
     "N": 2375,
     "E": 2088,
@@ -61,9 +60,6 @@ LETTER_WEIGHTS: dict[str, int] = {
 _WEIGHTED_LETTERS = list(LETTER_WEIGHTS.keys())
 _WEIGHTS_LIST = list(LETTER_WEIGHTS.values())
 
-
-
-
 class WordCandidate(NamedTuple):
     id: str
     word: str
@@ -71,8 +67,6 @@ class WordCandidate(NamedTuple):
     labels: dict[str, str]
     clue: dict[str, str] | None
     evidence: list[dict[str, Any]]
-    # Evidence for the fact quoted in ``clue``. It is published together with
-    # ``evidence`` only while the clue is kept.
     clue_evidence: tuple[dict[str, Any], ...] | list[dict[str, Any]] = ()
 
     def published_evidence(self) -> list[dict[str, Any]]:
@@ -80,14 +74,12 @@ class WordCandidate(NamedTuple):
             return self.evidence
         return _merge_serialized_evidence(self.evidence, self.clue_evidence)
 
-
 class ClueOption(NamedTuple):
     """One audited fact that can tell a word apart from the other theme words."""
 
     kind: str
     text: dict[str, str]
     evidence: tuple[Evidence, ...]
-
 
 class ThemeDefinition(NamedTuple):
     theme_id: str
@@ -97,7 +89,6 @@ class ThemeDefinition(NamedTuple):
     theme_description: dict[str, str] | None
     candidates: list[WordCandidate]
 
-
 class PlacedWord(NamedTuple):
     candidate: WordCandidate
     start_row: int
@@ -106,8 +97,6 @@ class PlacedWord(NamedTuple):
     end_col: int
     direction: tuple[int, int]
 
-
-# Lower value wins when two clue options are equally rare within a theme.
 CLUE_KIND_PRIORITY: dict[str, int] = {
     "birth_year": 0,
     "formation_year": 1,
@@ -116,7 +105,6 @@ CLUE_KIND_PRIORITY: dict[str, int] = {
 }
 
 _YEAR_PRECISION = 9
-
 
 def _merge_serialized_evidence(*groups: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     unique: dict[tuple[str, str, int, str, str], dict[str, Any]] = {}
@@ -132,17 +120,7 @@ def _merge_serialized_evidence(*groups: Iterable[dict[str, Any]]) -> list[dict[s
             unique.setdefault(key, item)
     return [unique[key] for key in sorted(unique)]
 
-
 def _display_name(entity: Entity, min_dim: int) -> tuple[str, str] | None:
-    """Return the name shown to the player and its normalized grid word.
-
-    People and groups keep one name in every locale (see ``Entity.name``), so
-    the same source name labels the word in both locales. The canonical name
-    wins; Wikidata labels and aliases are used only when the canonical name
-    is too long to fit the grid. Entities whose canonical name normalizes to
-    fewer than 3 letters are discarded per ADR 011 to prevent accidental
-    collisions on the grid.
-    """
     canonical_norm = normalize_word(entity.canonical_name)
     if len(canonical_norm) < 3:
         return None
@@ -163,13 +141,11 @@ def _display_name(entity: Entity, min_dim: int) -> tuple[str, str] | None:
                 return name, word
     return None
 
-
 def _build_candidate(
     entity: Entity,
     facts: list[Fact],
     min_dim: int,
 ) -> WordCandidate | None:
-    """Build a word candidate if entity has a valid name and audited evidence."""
     if not bool(QID_REGEX.match(entity.wikidata_id)):
         return None
 
@@ -195,9 +171,7 @@ def _build_candidate(
         evidence=serialized,
     )
 
-
 def _fact_year(fact: Fact) -> int | None:
-    """Return the year of a time fact when its precision covers at least a year."""
     if not fact.value_time:
         return None
     if fact.value_precision is not None and fact.value_precision < _YEAR_PRECISION:
@@ -205,11 +179,9 @@ def _fact_year(fact: Fact) -> int | None:
     match = re.match(r"^[+-]?(\d{4})-", fact.value_time)
     return int(match.group(1)) if match else None
 
-
 def _year_option(kind: str, facts: list[Fact], text: dict[str, str]) -> ClueOption | None:
     years = {_fact_year(fact) for fact in facts}
     if len(years) != 1 or None in years:
-        # Missing or disagreeing years are not stated as a clue.
         return None
     (year,) = years
     return ClueOption(
@@ -218,9 +190,7 @@ def _year_option(kind: str, facts: list[Fact], text: dict[str, str]) -> ClueOpti
         tuple(ev for fact in facts for ev in fact.evidence),
     )
 
-
 class _FactIndex:
-    """Accepted facts grouped by subject for clue lookups."""
 
     def __init__(self, facts: list[Fact]) -> None:
         self.born: dict[str, list[Fact]] = defaultdict(list)
@@ -295,22 +265,13 @@ class _FactIndex:
             )
         return options
 
-
 def _text_key(text: dict[str, str]) -> tuple[str, str]:
     return (text["pt-BR"].strip().casefold(), text["en"].strip().casefold())
-
 
 def _assign_clues(
     pairs: list[tuple[WordCandidate, list[ClueOption]]],
     theme: dict[str, str],
 ) -> list[WordCandidate]:
-    """Give each candidate the audited clue that is rarest within its theme.
-
-    Rule: among the candidate's clue options, pick the text shared by the
-    fewest candidates of the theme, then by ``CLUE_KIND_PRIORITY``, then by the
-    English text.  Options whose text equals the theme title are discarded.  A
-    candidate without options gets no clue; the theme alone is not a clue.
-    """
     theme_key = _text_key(theme)
     usable: list[list[ClueOption]] = [
         [
@@ -346,14 +307,11 @@ def _assign_clues(
         )
     return result
 
-
 def _drop_uninformative_clues(candidates: list[WordCandidate]) -> list[WordCandidate]:
-    """Remove clues when every clued word in a puzzle carries the same text."""
     clued = [cand for cand in candidates if cand.clue is not None]
     if len(clued) >= 2 and len({_text_key(cand.clue) for cand in clued}) == 1:  # type: ignore[arg-type]
         return [cand._replace(clue=None, clue_evidence=()) for cand in candidates]
     return candidates
-
 
 def _collect_candidates(
     entries: list[tuple[Entity, list[Fact]]],
@@ -373,7 +331,6 @@ def _collect_candidates(
             pairs.append((cand, [option for option in clue_options(entity) if option]))
     return pairs
 
-
 def extract_viable_themes(
     entities: dict[int, Entity],
     facts: list[Fact],
@@ -386,7 +343,6 @@ def extract_viable_themes(
     viable_themes: list[ThemeDefinition] = []
     index = _FactIndex(facts)
 
-    # 1. Record label themes
     label_groups: dict[str, list[tuple[Entity, list[Fact]]]] = defaultdict(list)
     label_entities: dict[str, Entity] = {}
 
@@ -433,7 +389,6 @@ def extract_viable_themes(
                 )
             )
 
-    # 2. Formation decade themes
     decade_groups: dict[int, list[tuple[Entity, list[Fact]]]] = defaultdict(list)
     for fact in facts:
         if fact.predicate == "formed_on" and fact.value_time:
@@ -470,7 +425,6 @@ def extract_viable_themes(
                 )
             )
 
-    # 3. Group members themes (has_member and member_of)
     members_by_group: dict[str, list[tuple[Entity, list[Fact]]]] = defaultdict(list)
     group_entities: dict[str, Entity] = {}
 
@@ -519,7 +473,6 @@ def extract_viable_themes(
             )
 
     return viable_themes
-
 
 def place_words_on_grid(
     candidates: list[WordCandidate],
@@ -572,7 +525,6 @@ def place_words_on_grid(
         word = cand.word
         length = len(word)
 
-        # Sort directions by usage count ascending to balance direction distribution
         shuffled_dirs = list(DIRECTIONS)
         rng.shuffle(shuffled_dirs)
         sorted_dirs = sorted(shuffled_dirs, key=lambda d: dir_usage[d])
@@ -615,7 +567,6 @@ def place_words_on_grid(
         return grid, placed
     return None
 
-
 def fill_empty_cells_and_verify(
     grid: list[list[str | None]],
     placed: list[PlacedWord],
@@ -635,7 +586,6 @@ def fill_empty_cells_and_verify(
         for (r, c), char in zip(empty_cells, drawn_letters):
             completed[r][c] = char
 
-        # Verify uniqueness: each target word must appear exactly once at declared coordinates
         spurious = not all(
             occurs_only_where_declared(
                 completed, p.candidate.word, (p.start_row, p.start_col, p.end_row, p.end_col)
@@ -648,7 +598,6 @@ def fill_empty_cells_and_verify(
 
     return None
 
-
 class WordSearchFallback(NamedTuple):
     """Record of a day whose first drawn theme could not be placed.
 
@@ -660,20 +609,12 @@ class WordSearchFallback(NamedTuple):
     used_theme_id: str
     failed_theme_ids: tuple[str, ...]
 
-
 def _place_theme(
     theme: ThemeDefinition,
     rows: int,
     cols: int,
     rng: random.Random,
 ) -> tuple[list[list[str]], list[PlacedWord]] | None:
-    """Place a theme within the fixed attempt budget, or return None.
-
-    The budget (30 subset draws, 2000 backtracking steps each) and the
-    uniqueness check in ``fill_empty_cells_and_verify`` are the same for every
-    theme: a word that also occurs outside its declared position, as VIXX does
-    inside VIXXLR, is never accepted.
-    """
     candidates_pool = sorted(theme.candidates, key=lambda c: (c.word, c.id))
     min_select = min(len(candidates_pool), 6)
     max_select = min(len(candidates_pool), 10)
@@ -690,30 +631,23 @@ def _place_theme(
             if completed_grid is not None:
                 return completed_grid, placed_words
 
-        # Decrement target count if upper bound attempts fail
         if attempts % 10 == 0 and target_count > min_select:
             target_count -= 1
     return None
 
-
 def _fallback_digest(seed: str, theme_id: str) -> bytes:
     return hashlib.sha256(f"{seed}\x00theme-fallback\x00{theme_id}".encode("utf-8")).digest()
 
-
 def _fallback_rng(seed: str, theme: ThemeDefinition) -> random.Random:
-    """Random stream of a fallback theme, independent of the abandoned ones."""
     return random.Random(_fallback_digest(seed, theme.theme_id))
-
 
 def _fallback_order(
     seed: str,
     themes: list[ThemeDefinition],
     drawn: ThemeDefinition,
 ) -> list[ThemeDefinition]:
-    """Other themes in an order fixed by the seed and the theme ids alone."""
     others = [theme for theme in themes if theme.theme_id != drawn.theme_id]
     return sorted(others, key=lambda t: (_fallback_digest(seed, t.theme_id), t.theme_id))
-
 
 def generate_word_search_puzzle(
     connection: sqlite3.Connection,
@@ -732,7 +666,6 @@ def generate_word_search_puzzle(
         connection, seed, reference_date, theme_filter, rows, cols
     )
     return puzzle
-
 
 def generate_word_search_puzzle_with_fallback(
     connection: sqlite3.Connection,
@@ -770,7 +703,6 @@ def generate_word_search_puzzle_with_fallback(
     if not viable_themes:
         raise ValueError("No viable themes found in database for word search puzzle")
 
-    # Filter themes if requested
     if theme_filter is not None:
         q = theme_filter.strip().lower()
         matched = [
@@ -787,10 +719,8 @@ def generate_word_search_puzzle_with_fallback(
             raise ValueError(f"No viable theme matches filter: {theme_filter}")
         viable_themes = matched
 
-    # Sort themes deterministically
     viable_themes.sort(key=lambda t: (t.category, t.theme_id))
 
-    # Initialize deterministic RNG stream
     seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
     rng = random.Random(seed_bytes)
 
@@ -799,9 +729,6 @@ def generate_word_search_puzzle_with_fallback(
     placed_theme = _place_theme(chosen_theme, rows, cols, rng)
     fallback: WordSearchFallback | None = None
     if placed_theme is None:
-        # Only a theme that cannot be placed within the fixed budget reaches
-        # this branch, so dates whose first theme succeeds consume the same
-        # random stream, and publish the same bytes, as before the fallback.
         failed = [chosen_theme.theme_id]
         for other in _fallback_order(seed, viable_themes, chosen_theme):
             placed_theme = _place_theme(other, rows, cols, _fallback_rng(seed, other))
@@ -822,7 +749,6 @@ def generate_word_search_puzzle_with_fallback(
             )
     final_grid, final_placed = placed_theme
 
-    # Build words payload sorted alphabetically by word
     ordered_placed = sorted(final_placed, key=lambda item: item.candidate.word)
     final_candidates = _drop_uninformative_clues([p.candidate for p in ordered_placed])
     words_payload: list[dict[str, Any]] = []

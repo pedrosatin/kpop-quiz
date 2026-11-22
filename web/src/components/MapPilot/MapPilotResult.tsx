@@ -47,7 +47,6 @@ const COPY: Record<Locale, ResultCopy> = {
     locator: "Local na fonte:",
     musicBrainzEvent: "Evento no MusicBrainz.",
     openMusicBrainz: "Abrir o evento",
-    // The checked item is the venue's MusicBrainz area: a city, a district or a subdivision.
     wikidataCheck: (qid, revision) => `País do local do show no Wikidata (${qid}), revisão ${revision}.`,
     checkedAt: (date) => `Agenda conferida em ${date}.`,
     scheduleNote: "Estar na agenda oficial não confirma que o show aconteceu.",
@@ -111,7 +110,6 @@ export function mapShareText(
   );
 }
 
-/** The name of the answered country, or "no answer" for a date the player did not answer. */
 function answerLabel(
   featureId: string | undefined,
   countryByFeature: ReadonlyMap<string, MapPilotCountry>,
@@ -121,7 +119,6 @@ function answerLabel(
   return country ? mapPilotCountryLabel(country, locale) : getMessages(locale).noAnswer;
 }
 
-/** One date of the round with both answers and the three sources behind it. */
 function MapPilotReviewItem({
   event,
   answer,
@@ -211,13 +208,9 @@ export function MapPilotResult({
   const sourceId = useId();
   const shareFailedId = useId();
   const source = useRef<HTMLDivElement>(null);
-  // The buttons appear where Next was, so a second tap or a held Enter
-  // meant for the last Next must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "map", locale, daily: "yes" } });
 
-  // The bar stops being sticky while the panel is open, so the panel can
-  // open below the fold; bring it into view.
   useEffect(() => {
     if (sourceOpen) source.current?.scrollIntoView?.({ block: "nearest" });
   }, [sourceOpen]);

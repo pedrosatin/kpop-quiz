@@ -29,11 +29,6 @@ function escapeJsonLd(obj: any): string {
   return JSON.stringify(obj).replace(/[<>&]/g, (c) => (c === '<' ? '\\u003c' : c === '>' ? '\\u003e' : '\\u0026'));
 }
 
-/**
- * Pass `canonicalPath` and `alternatePath` together on indexable routes.
- * Omit both on pages without a canonical URL (404). The layout then skips
- * canonical, hreflang, og:url and JSON-LD.
- */
 type CanonicalProps =
   | { canonicalPath: string; alternatePath: string }
   | { canonicalPath?: undefined; alternatePath?: undefined };
@@ -43,13 +38,9 @@ type Props = CanonicalProps & {
   indexable?: boolean;
   showGameNavigation?: boolean;
   pageMeta?: { title: string; description: string };
-  /** JSON-LD WebApplication name; defaults to the overview title for games. */
   applicationName?: string;
-  /** Display name of a group page for OG alt text. */
   groupName?: string;
-  /** Override the skip-link target (group pages use #group-quiz). */
   skipTarget?: string;
-  /** Override the skip-link label. */
   skipLinkText?: string;
 };
 const {
@@ -103,15 +94,9 @@ const canonical =
         alternateUrl: `${SEO_PROD_ORIGIN}${canonicalProps.alternatePath}`,
       };
 const isNotFound = canonical === undefined;
-// x-default points to the English version: the global fallback for
-// visitors outside Portuguese-speaking locales.
 const defaultUrl = canonical
   ? (locale === "en" ? canonical.url : canonical.alternateUrl)
   : undefined;
-// Absolute production URL in every build, like canonical (ADR 018). The
-// quiz key also covers the home, privacy and 404 pages: the generic card.
-// ?v=<8 hex of the PNG bytes> makes crawlers that cache the card by URL fetch
-// it again when npm run og:generate changes it. The build runs from web/.
 const ogImagePath = seoOgImagePath(route, locale);
 const ogImageVersion = createHash("sha256")
   .update(readFileSync(join(process.cwd(), "public", ...ogImagePath.split("/").filter(Boolean))))
@@ -181,8 +166,6 @@ else if (isStrands) skipLinkKey = "strands";
 else if (isPrivacy) skipLinkKey = "privacy";
 else if (isNotFound) skipLinkKey = "notFound";
 const skipLinkText = skipLinkTextProp ?? messages.skipLinks[skipLinkKey];
-// The theme button cycles system → light → dark. Its name says the current
-// theme and the next one; the script below swaps in the name for the new state.
 const themeNames = { system: messages.themeAuto, light: messages.themeLight, dark: messages.themeDark };
 const themeNext = { system: "light", light: "dark", dark: "system" } as const;
 const themeButtonLabels = Object.fromEntries(
@@ -194,17 +177,9 @@ const themeButtonLabels = Object.fromEntries(
 const otherLocale = locale === "pt-BR" ? "en" : "pt-BR";
 const languageShort = otherLocale === "en" ? "EN" : "PT";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-// Only the production build is served from the root; prefixed builds are staging.
 const isStaging = base !== "";
-// Cloudflare Web Analytics token. Missing/empty means no beacon is rendered.
 const cfBeaconToken = import.meta.env.PUBLIC_CF_BEACON_TOKEN;
 const enableAnalytics = !isStaging && Boolean(cfBeaconToken);
-// Google Analytics 4 ID. The banner below only mounts in this case; the
-// scripts load at runtime after explicit consent (see ConsentBanner).
-// Note: the static import emits an unreferenced banner chunk in builds where
-// the island is not mounted (e.g. staging). It cannot execute without a
-// <script> tag pointing at it, so the staging guard scans *.html (the
-// executable surface) rather than the whole dist.
 const ga4Id = import.meta.env.PUBLIC_GA4_ID;
 const enableGa4 = !isStaging && Boolean(ga4Id);
 const privacyPath = locale === "pt-BR" ? "/pt-br/privacidade/" : "/en/privacy/";
@@ -501,7 +476,6 @@ const games: (Omit<GameNavItem, "href"> & { path: string })[] = [
             if (metaLight) metaLight.setAttribute("content", "#FFF8F0");
             if (metaDark) metaDark.setAttribute("content", "#17121C");
           }
-          // The icon follows html[data-theme] in CSS; the name needs the script.
           if (button && labels[normalize(theme)]) {
             button.setAttribute("aria-label", labels[normalize(theme)]);
             button.setAttribute("title", labels[normalize(theme)]);

@@ -10,8 +10,6 @@ interface Props {
   game: GameAboutKey;
 }
 
-// Static text under the game island. It ships in the HTML, so crawlers and
-// readers get the rules, the sources and the FAQ before any JSON loads.
 const { locale, game } = Astro.props;
 const { about, overview } = getMessages(locale);
 const copy = about.games[game];

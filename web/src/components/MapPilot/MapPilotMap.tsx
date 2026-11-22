@@ -64,9 +64,6 @@ function MapFeaturePath({
       class={pathClass(state)}
       fill-rule="evenodd"
       role="button"
-      // Preact writes SVG attributes as spelled, and SVG only reads the
-      // lowercase names: tabIndex and fillRule did nothing, and Tab
-      // skipped the map.
       tabindex={state.focusable ? 0 : -1}
       aria-label={label}
       aria-pressed={state.isSelected}
@@ -106,10 +103,6 @@ function MapTarget({
   );
 }
 
-/**
- * The hint over the sea of the whole map, and the strip under the zoomed
- * map with "Mapa inteiro", where it covers no country's target.
- */
 function MapOverlay({
   copy,
   hint,
@@ -136,7 +129,6 @@ function MapOverlay({
   );
 }
 
-/** The date on screen: every country, and a button for each playable one. */
 function PlayPaths({
   locale,
   playableFeatures,
@@ -175,7 +167,6 @@ function PlayPaths({
 }
 
 function FinishedPaths({ roundFeatures }: { roundFeatures: Set<string> }) {
-  // The finished round: the countries of its dates, not playable.
   return (
     <>
       {mapPilotFeatures.map((feature) => (
@@ -219,15 +210,12 @@ export function MapPilotMap({
     if (zoom.settled()) onSelect(featureId);
   }
 
-  // On the whole map of a narrow screen a tap goes on to the SVG and zooms;
-  // a click from assistive technology selects.
   function pathClick(featureId: string, event: MouseEvent) {
     if (!(zoom.zoomFirst && zoom.isPointerClick(event))) pickByPointer(featureId);
   }
 
   function zoomOutToMap() {
     zoom.zoomOut();
-    // The button goes away with the zoom: focus the map, not the page.
     svg.current?.focus({ preventScroll: true });
   }
 

@@ -19,7 +19,6 @@ from urllib.parse import urlencode
 from . import rebuild_phases
 from .http_request import DEFAULT_USER_AGENT, open_url
 
-
 class MediaWikiError(RuntimeError):
     """Raised when the MediaWiki API cannot return a valid response.
 
@@ -42,35 +41,18 @@ class MediaWikiError(RuntimeError):
         self.details = details or {}
         self.transient = transient
 
-
 MAX_EXTRACTS_PER_REQUEST = 20
-# The Action API accepts 50 revision IDs per request for regular clients.
 MAX_REVISIONS_PER_REQUEST = 50
-# Largest intro extract, in UTF-8 bytes, that the pipeline stores and reads as
-# evidence. The evidence rules run regexes and sentence loops over the whole
-# extract, so its size bounds their cost. The largest extract in the local
-# database was 3.7 KB in November 2026. A page above the limit is refused and recorded
-# with EXTRACT_OVERSIZE instead of reaching those rules.
 MAX_EXTRACT_BYTES = 32 * 1024
 EXTRACT_OVERSIZE = "page_extract_oversize"
 RETRYABLE_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
 MAX_RETRY_AFTER_SECONDS = 120.0
 _ASCII_SECONDS = re.compile(r"[0-9]+")
 
-# Every request sends maxlag, as Wikimedia asks of bots. When the lag is above
-# it, the API answers with the "maxlag" error, a Retry-After header and the
-# current lag. Wikidata counts the lag of its query service, which stayed
-# between 9 and 14 seconds for hours on most nights of November 2026.
 MAXLAG_SECONDS = 5
-# Total time the clients of one run may wait for maxlag to clear. The nightly
-# rebuild gives each run of the collector 30 minutes
-# (scripts/rebuild_database.py), so the budget keeps half of that for the work
-# itself, which takes about 2 minutes, and for the network backoff.
 DEFAULT_MAXLAG_BUDGET_SECONDS = 15 * 60.0
 MAXLAG_BUDGET_ENV = "MAXLAG_BUDGET_SECONDS"
-# MediaWiki itself never sends a Retry-After below 5 seconds for maxlag.
 MIN_MAXLAG_WAIT_SECONDS = 5.0
-
 
 def parse_retry_after(value: str | None, now: datetime | None = None) -> float | None:
     """Parse Retry-After as seconds or HTTP date; invalid values are ignored."""
@@ -87,7 +69,6 @@ def parse_retry_after(value: str | None, now: datetime | None = None) -> float |
         moment = moment.replace(tzinfo=timezone.utc)
     current = now or datetime.now(timezone.utc)
     return max(0.0, (moment - current).total_seconds())
-
 
 class MaxlagBudget:
     """Time the clients of one run may spend waiting for ``maxlag`` to clear.
@@ -137,7 +118,6 @@ class MaxlagBudget:
         self.spent += pause
         return True
 
-
 @dataclass(frozen=True)
 class Page:
     page_id: int
@@ -167,7 +147,6 @@ class Page:
     def is_extract_oversize(self) -> bool:
         return self.extract_bytes > MAX_EXTRACT_BYTES
 
-
 class MediaWikiClient:
     def __init__(
         self,
@@ -187,8 +166,6 @@ class MediaWikiClient:
         self.provider = provider
         self.language = language
         self.max_retry_after = max_retry_after
-        # The CLI hands one budget to every client of the run; a client built
-        # alone gets a budget of its own.
         self.maxlag_budget = maxlag_budget or MaxlagBudget()
 
     def _get(
@@ -196,7 +173,6 @@ class MediaWikiClient:
         parameters: dict[str, str | int],
         phase: str = rebuild_phases.DOWNLOAD,
     ) -> dict[str, Any]:
-        """Send one Action API request; ``phase`` names it in the run's phase log."""
         with rebuild_phases.phase(phase):
             return self._get_in_phase(parameters, phase)
 
@@ -208,8 +184,6 @@ class MediaWikiClient:
             **parameters,
         }
         url = f"{self.api_url}?{urlencode(query)}"
-        # ``attempt`` counts network and HTTP failures only. A maxlag answer
-        # is retried out of the run's budget and leaves it unchanged.
         attempt = 0
         while True:
             can_retry = attempt < self.retries
@@ -241,8 +215,6 @@ class MediaWikiClient:
                 TimeoutError,
                 ConnectionError,
                 HTTPException,
-                # A TLS failure while json.load reads the body; urlopen
-                # wraps only the ones raised while connecting in URLError.
                 ssl.SSLError,
                 json.JSONDecodeError,
             ) as exc:
@@ -282,14 +254,6 @@ class MediaWikiClient:
             return payload
 
     def _maxlag_delay(self, error: dict[str, Any], headers: Any) -> float:
-        """Wait the longer of the server's Retry-After and the reported lag, within bounds.
-
-        MediaWiki sends ``Retry-After: max(maxlag, 5)``, which is always 5 for
-        the ``maxlag=5`` this client asks, so the reported lag is the better
-        hint of when the replicas catch up. A long wait is cut to
-        ``max_retry_after`` and the request is tried again: the run's budget,
-        not one answer, decides when to stop.
-        """
         value = headers.get("Retry-After") if headers is not None else None
         hints = [hint for hint in (parse_retry_after(value), self._reported_lag(error)) if hint is not None]
         delay = max(hints) if hints else MIN_MAXLAG_WAIT_SECONDS
@@ -302,12 +266,11 @@ class MediaWikiClient:
             return None
         try:
             seconds = float(lag)
-        except OverflowError:  # An integer too large for a float.
+        except OverflowError:
             return None
         return seconds if math.isfinite(seconds) else None
 
     def _retry_delay(self, attempt: int, headers: Any) -> float:
-        """Return exponential backoff, extended by a valid Retry-After header."""
         delay = float(2**attempt)
         value = headers.get("Retry-After") if headers is not None else None
         retry_after = parse_retry_after(value)
@@ -373,9 +336,6 @@ class MediaWikiClient:
                     canonical_url=item.get("canonicalurl", ""),
                     extract=item.get("extract", "").strip(),
                     revision_id=revisions[0]["revid"] if revisions else None,
-                    # Page properties are stored as observed catalog metadata.
-                    # Keeping them out of the revision snapshot preserves the
-                    # Phase 1 snapshot contract when the query shape expands.
                     source_payload={
                         key: value for key, value in item.items() if key != "pageprops"
                     },

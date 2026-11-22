@@ -13,25 +13,16 @@ import re
 from dataclasses import dataclass
 
 INFOBOX_START = re.compile(r"\{\{\s*Infobox[ _]+musical[ _]+artist\s*(?=[|}<\n])", re.I)
-# Any infobox opening; the name ends at a parameter, the closing braces or a break.
-# The possessive quantifiers read each character once, so the captured name
-# keeps its trailing spaces, which the caller drops. The match ends after the
-# whitespace that leads to a parameter, or else just before its last line break.
-# The run of blank lines is greedy, not possessive: Python 3.11.0 to 3.11.4
-# fail a possessive group that repeats zero times.
 _ANY_INFOBOX_START = re.compile(
     r"\{\{\s*+Infobox(?:[ _]++([^|{}<\n]*+))?+"
     r"(?:\s*+(?=[|}<])|[^\S\n]*+(?:\n[^\S\n]*+(?=\n))*(?=\n))",
     re.I,
 )
 _INERT_TEXT = re.compile(r"<!--.*?-->|<nowiki\b[^>]*>.*?</nowiki\s*>", re.I | re.S)
-# Templates that only wrap a list; their arguments are the list items.
 LIST_TEMPLATES = frozenset({
     "hlist", "flatlist", "plainlist", "ubl", "unbulleted list", "ublist",
     "bulleted list", "blist", "collapsible list", "ordered list",
 })
-# The name keeps its trailing spaces, which the caller strips; a lazy name
-# between two ``\s*`` backtracks cubically on a long run of whitespace.
 _TEMPLATE_NAME = re.compile(r"\{\{\s*+([^|{}]*+)(?=\||\}\})")
 _BRACE = re.compile(r"([{}])")
 _ITEM_BREAK = re.compile(r"<br\s*/?>|\n|,|•|·", re.I)
@@ -40,7 +31,6 @@ _COMMENT = re.compile(r"<!--.*?-->", re.S)
 _TAG = re.compile(r"</?[a-z][^>]*>", re.I)
 _LINK = re.compile(r"\[\[([^\[\]|]+)(?:\|([^\[\]]*))?\]\]")
 _TRAILING_NOTE = re.compile(r"\s*\([^()]*\)\s*$")
-
 
 @dataclass(frozen=True)
 class InfoboxItem:
@@ -51,14 +41,12 @@ class InfoboxItem:
     end: int
     text: str
 
-
 def infobox_fields(wikitext: str) -> dict[str, tuple[int, int]]:
     """Return the value span of each named parameter of the first musical artist infobox."""
     match = INFOBOX_START.search(wikitext)
     if match is None:
         return {}
     return _fields_of(wikitext, match.start(), match.end())
-
 
 def first_infobox_fields(
     wikitext: str,
@@ -80,7 +68,6 @@ def first_infobox_fields(
         return {}
     return _fields_of(wikitext, match.start(), match.end())
 
-
 def _fields_of(wikitext: str, template_start: int, parameters_start: int) -> dict[str, tuple[int, int]]:
     end = _closing_braces(wikitext, template_start)
     if end is None:
@@ -94,7 +81,6 @@ def _fields_of(wikitext: str, template_start: int, parameters_start: int) -> dic
         if name and name not in fields:
             fields[name] = (equals + 1, stop)
     return fields
-
 
 def field_items(
     wikitext: str,
@@ -112,7 +98,6 @@ def field_items(
         if names or include_unreadable:
             items.append(InfoboxItem(names, start, end, wikitext[start:end].strip()))
     return items
-
 
 def _item_spans(text: str, start: int, end: int) -> list[tuple[int, int]]:
     start, end = _trim(text, start, end)
@@ -141,14 +126,7 @@ def _item_spans(text: str, start: int, end: int) -> list[tuple[int, int]]:
             spans.append((piece_start, piece_end))
     return spans
 
-
 def _list_wrapper(text: str, start: int, end: int) -> tuple[int, int] | None:
-    """Return where the arguments begin and the template closes, if the span is a list template.
-
-    Comments around the template are not part of the list, so ``{{hlist|...}}
-    <!-- note -->`` still counts as a whole list. Both positions stay offsets
-    of the original text, which evidence locators rely on.
-    """
     start, end = _skip_comments(text, start, end)
     name = _TEMPLATE_NAME.match(text, start, end)
     if name is None or name.group(1).strip().lower() not in LIST_TEMPLATES:
@@ -156,9 +134,7 @@ def _list_wrapper(text: str, start: int, end: int) -> tuple[int, int] | None:
     close = _closing_braces(text, start)
     return (name.end(), close) if close == end else None
 
-
 def _skip_comments(text: str, start: int, end: int) -> tuple[int, int]:
-    """Narrow ``text[start:end]`` past comments at either edge, and the space between."""
     while True:
         start, end = _trim(text, start, end)
         if text.startswith("<!--", start) and (close := text.find("-->", start, end)) >= 0:
@@ -167,7 +143,6 @@ def _skip_comments(text: str, start: int, end: int) -> tuple[int, int]:
             end = open_
         else:
             return start, end
-
 
 def _item_names(raw: str) -> tuple[str, ...]:
     text = _COMMENT.sub("", _REF.sub("", raw))
@@ -178,7 +153,6 @@ def _item_names(raw: str) -> tuple[str, ...]:
     links = list(_LINK.finditer(text))
     names: list[str] = []
     if links:
-        # A link counts only when it is the whole item, apart from a note.
         outside = _TRAILING_NOTE.sub("", _LINK.sub("", text)).strip(" '\"")
         if outside or len(links) != 1:
             return ()
@@ -194,15 +168,9 @@ def _item_names(raw: str) -> tuple[str, ...]:
             names.append(plain)
     return tuple(dict.fromkeys(name for name in names if name))
 
-
 def _strip_templates(text: str) -> str:
-    """Remove every ``{{...}}`` with no brace inside, until none is left.
-
-    One pass with a stack gives the result of deleting ``\\{\\{[^{}]*\\}\\}``
-    over and over: the deletions never overlap, so their order does not matter.
-    """
     kept: list[str] = []
-    braces: list[int] = []  # Indexes in ``kept`` of the braces still open or unmatched.
+    braces: list[int] = []
     for piece in _BRACE.split(text):
         if not piece:
             continue
@@ -215,9 +183,7 @@ def _strip_templates(text: str) -> str:
         kept.append(piece)
     return "".join(kept)
 
-
 def _closes_template(kept: list[str], braces: list[int]) -> bool:
-    """Tell whether one more ``}`` ends a ``{{...}}`` that has no brace inside."""
     if len(braces) < 3:
         return False
     first, second, closing = braces[-3:]
@@ -228,13 +194,11 @@ def _closes_template(kept: list[str], braces: list[int]) -> bool:
         and kept[first] == kept[second] == "{"
     )
 
-
 def _is_named_argument(text: str, start: int, end: int) -> bool:
     equals = text.find("=", start, end)
     if equals < 0 or _depth_before(text, start, equals):
         return False
     return bool(re.fullmatch(r"\s*[\w -]+\s*", text[start:equals]))
-
 
 def _trim(text: str, start: int, end: int) -> tuple[int, int]:
     while start < end and text[start].isspace():
@@ -243,9 +207,7 @@ def _trim(text: str, start: int, end: int) -> tuple[int, int]:
         end -= 1
     return start, end
 
-
 def _closing_braces(text: str, start: int) -> int | None:
-    """Return the index just after the template that opens at ``start``."""
     depth = 0
     index = start
     while index < len(text):
@@ -262,9 +224,7 @@ def _closing_braces(text: str, start: int) -> int | None:
             index += 1
     return None
 
-
 def _depth_before(text: str, start: int, stop: int) -> bool:
-    """Return True when ``stop`` sits inside a template or link opened after ``start``."""
     depth = 0
     index = start
     while index < stop:
@@ -279,14 +239,12 @@ def _depth_before(text: str, start: int, stop: int) -> bool:
             index += 1
     return depth > 0
 
-
 def _split_top_level(
     text: str,
     start: int,
     end: int,
     separator: str | re.Pattern[str],
 ) -> list[tuple[int, int]]:
-    """Split ``text[start:end]`` on separators outside templates, links and tags."""
     spans: list[tuple[int, int]] = []
     depth = 0
     piece_start = start
@@ -326,7 +284,6 @@ def _split_top_level(
         index += 1
     spans.append((piece_start, end))
     return spans
-
 
 def _ref_end(text: str, start: int, end: int) -> int:
     tag_end = text.find(">", start, end)

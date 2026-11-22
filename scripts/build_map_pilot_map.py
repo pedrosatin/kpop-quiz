@@ -20,32 +20,24 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# Ensure repo root is on sys.path when invoked directly as scripts/build_map_pilot_map.py
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from kpop_scraping.http_request import DEFAULT_USER_AGENT, open_url  # noqa: E402
 
-
 SOURCE_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
     "v5.1.1/geojson/ne_10m_admin_0_countries.geojson"
 )
-# SHA-256 of the file at SOURCE_URL. A git tag can be moved, so the tag in
-# the URL alone does not fix the bytes. Pinned on 2026-11-14 from the file at
-# the v5.1.1 tag, which rebuilt the committed world-map.json byte for byte.
-# docs/map-game-pilot.md describes how to pin a new file.
 SOURCE_SHA256: str | None = "239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 WIDTH = 1200
 HEIGHT = 600
 SIMPLIFY_PX = 0.35
 
-
 class SourceHashError(RuntimeError):
     """The downloaded Natural Earth file has no pin, or not the pinned hash."""
-
 
 def download_features(expected_sha256: str | None = None) -> dict[str, Any]:
     """Download the GeoJSON and parse it once its SHA-256 matches the pin.
@@ -65,13 +57,11 @@ def download_features(expected_sha256: str | None = None) -> dict[str, Any]:
         raise SourceHashError(f"{SOURCE_URL} has SHA-256 {actual}, expected {expected}")
     return json.loads(body)
 
-
 def project(point: list[float]) -> tuple[float, float]:
     longitude, latitude = point[:2]
     x = (longitude + 180) / 360 * WIDTH
     y = (90 - latitude) / 180 * HEIGHT
     return x, y
-
 
 def distance_to_segment(
     point: tuple[float, float], start: tuple[float, float], end: tuple[float, float]
@@ -82,7 +72,6 @@ def distance_to_segment(
     ratio = max(0.0, min(1.0, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / (dx * dx + dy * dy)))
     nearest = (start[0] + ratio * dx, start[1] + ratio * dy)
     return math.hypot(point[0] - nearest[0], point[1] - nearest[1])
-
 
 def simplify(points: list[tuple[float, float]], tolerance: float) -> list[tuple[float, float]]:
     if len(points) < 4:
@@ -104,7 +93,6 @@ def simplify(points: list[tuple[float, float]], tolerance: float) -> list[tuple[
             stack.extend(((start, furthest), (furthest, end)))
     return [points[index] for index in sorted(kept)]
 
-
 def split_antimeridian_ring(ring: list[list[float]]) -> list[list[list[float]]]:
     chunks: list[list[list[float]]] = [[]]
     previous: list[float] | None = None
@@ -115,7 +103,6 @@ def split_antimeridian_ring(ring: list[list[float]]) -> list[list[list[float]]]:
         chunks[-1].append(point)
         previous = point
     return [chunk for chunk in chunks if len(chunk) >= 3]
-
 
 def ring_path(ring: list[list[float]]) -> str:
     chunks: list[str] = []
@@ -130,14 +117,12 @@ def ring_path(ring: list[list[float]]) -> str:
         chunks.append("".join(commands))
     return "".join(chunks)
 
-
 def geometry_path(geometry: dict[str, Any] | None) -> str:
     if not geometry:
         return ""
     coordinates = geometry.get("coordinates", [])
     polygons = [coordinates] if geometry.get("type") == "Polygon" else coordinates
     return "".join(ring_path(ring) for polygon in polygons for ring in polygon)
-
 
 def build_map(features: dict[str, Any]) -> dict[str, Any]:
     rows = []
@@ -169,7 +154,6 @@ def build_map(features: dict[str, Any]) -> dict[str, Any]:
         "features": rows,
     }
 
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -194,7 +178,6 @@ def main() -> int:
     args.output.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"Wrote {len(payload['features'])} map features to {args.output}")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

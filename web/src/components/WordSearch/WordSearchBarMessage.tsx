@@ -18,7 +18,6 @@ function letterAt(puzzle: WordSearchPuzzle, cell: CellCoord): string {
   return puzzle.grid[cell.row]?.[cell.col] ?? "";
 }
 
-/** The verdict of a finished selection; "offline" is shown with the new start instead. */
 function verdictText(check: Exclude<SelectionCheck, { kind: "offline" }>, t: Copy, wordName: (id: string) => string): string {
   switch (check.kind) {
     case "found":

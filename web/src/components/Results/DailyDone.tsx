@@ -26,7 +26,6 @@ export function DailyDone({ game, locale, body, wide = false, referenceDate, chi
   locale: Locale;
   body?: string;
   wide?: boolean;
-  /** The board's challenge date; forwarded to DailyNext. */
   referenceDate?: string | undefined;
   children?: ComponentChildren;
 }) {

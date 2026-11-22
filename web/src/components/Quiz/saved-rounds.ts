@@ -11,10 +11,6 @@ import {
   type QuizProgressSave,
 } from "./storage";
 
-// Read-only looks at the progress slots of other configs. Nothing here
-// deletes, migrates or rewrites a save: each config cleans its own slot when
-// the player opens it.
-
 /**
  * The finished daily round of `date` saved in this language that still matches
  * the published session on screen. A save from an earlier board of the same

@@ -5,8 +5,6 @@ import { nodeTestFiles, nodeTestGlobs } from "./vitest.node-tests";
 const nodeTests = [...nodeTestGlobs, ...nodeTestFiles];
 const exclude = ["**/node_modules/**", "**/dist/**", "**/e2e/**"];
 
-// Astro's Vite plugins let tests render .astro components with the Astro
-// container (see src/tests/game-intro.test.ts).
 export default defineConfig(async (env) =>
   mergeConfig(await getViteConfig({})(env), {
     test: {

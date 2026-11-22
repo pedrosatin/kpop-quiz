@@ -8,20 +8,9 @@ import { usePointerGesture, type DragState, type Snapshot } from "./usePointerGe
 
 type Report = SelectionVerdict | { kind: "offline"; from: string } | { kind: "cancelled" };
 
-/** Dialogs that take Esc for themselves. */
 const DIALOG = '[role="dialog"], [aria-modal="true"]';
-/**
- * The site's own modals (confirmation, statistics). Only these count while
- * focus is elsewhere: a third-party script may leave a hidden aria-modal
- * node in the page, and that must not swallow Esc on the grid.
- */
 const OWN_MODAL = '.modal-card[aria-modal="true"]';
 
-/**
- * Esc pressed in a dialog, or while one of the site's modals is open,
- * belongs to the dialog: its own listener may run after this one, and focus
- * reaches it a moment after it opens.
- */
 function dialogOwnsEscape(target: EventTarget | null): boolean {
   const inside = (target as Element | null)?.closest?.(DIALOG);
   return Boolean(inside ?? document.querySelector(OWN_MODAL));
@@ -49,7 +38,6 @@ export function useSelection({ dimensions, grid, playing, judge }: SelectionOpti
   const [focusedCell, setFocusedCell] = useState<CellCoord>({ row: 0, col: 0 });
   const [anchorCell, setAnchorState] = useState<CellCoord | null>(null);
   const [currentHoverCell, setHoverState] = useState<CellCoord | null>(null);
-  // Verdict of the last selection, cleared when the next one starts.
   const [lastCheck, setCheckState] = useState<SelectionCheck | null>(null);
   const checkCount = useRef(0);
   const checkRef = useRef<SelectionCheck | null>(lastCheck);
@@ -88,7 +76,6 @@ export function useSelection({ dimensions, grid, playing, judge }: SelectionOpti
     setHover(cell);
   }, [setHover]);
 
-  /** Drops the selection without a word, as giving up does. */
   const clear = useCallback(() => {
     drag.current = null;
     setAnchor(null);
@@ -152,10 +139,6 @@ export function useSelection({ dimensions, grid, playing, judge }: SelectionOpti
     cancel,
   });
 
-  // Esc cancels a marked start wherever the focus is: a tap does not move
-  // focus into the grid. An open dialog keeps its Esc. The listener stays on
-  // and reads refs, so an Esc pressed right after the start is drawn, before
-  // effects run, still finds the start.
   const playingRef = useRef(playing);
   playingRef.current = playing;
   const cancelRef = useRef(cancel);

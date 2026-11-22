@@ -60,7 +60,6 @@ export function nextSquare(puzzle: CrosswordPuzzle, inputs: CrosswordInputs, row
   return null;
 }
 
-/** The fixed or sticky overlays (consent banner, action bar) in the columns of `rect`. */
 function overlaysOver(rect: DOMRect, inside: Element): DOMRect[] {
   const found: DOMRect[] = [];
   for (const overlay of [document.querySelector('.consent-banner'), inside.closest('.crossword')?.querySelector('.crossword-actions')]) {
@@ -73,7 +72,6 @@ function overlaysOver(rect: DOMRect, inside: Element): DOMRect[] {
 
 const topOf = (overlays: DOMRect[]) => Math.min(window.innerHeight, ...overlays.map((box) => box.top));
 
-/** Account for overlays that native focus scrolling cannot see. */
 function keepSquareVisible(input: HTMLInputElement): void {
   requestAnimationFrame(() => {
     if (document.activeElement !== input) return;
@@ -105,7 +103,6 @@ function eraseSquare(key: string, input: HTMLInputElement, wordCells: readonly s
   if (!target) return;
   onLetters({ [target]: '' });
   const square = inputs[target]!;
-  // Clear immediately so repeated native keydowns see the updated value.
   square.value = '';
   square.focus();
   keepSquareVisible(square);
@@ -144,7 +141,6 @@ export function CrosswordGrid({ puzzle, messages, values, finished, selected, in
   const onInput = (key: string, input: HTMLInputElement) => {
     const typed = normalizeCrosswordText(input.value).length;
     const updates = lettersFrom(input.value, key, selectedCells);
-    // Keep the controlled value in step even when the state does not change.
     input.value = updates[key] ?? "";
     onLetters(updates);
     keepSquareVisible(input);
@@ -239,10 +235,6 @@ export function keepSelection(event: MouseEvent): void {
   if (input && document.activeElement === input) event.preventDefault();
 }
 
-/**
- * One letter square. The press listens on the label, so a press on the
- * border counts too; the label forwards its click to the input.
- */
 function CrosswordSquare(props: CrosswordSquareProps) {
   const wrong = props.wrong && !props.finished;
   return (
@@ -261,8 +253,6 @@ function CrosswordSquare(props: CrosswordSquareProps) {
         onFocus={(event) => props.onFocus(event.currentTarget)}
         onClick={(event) => {
           props.onClick();
-          // A letter typed beside the old one would spill into the next
-          // square as a paste; the new letter replaces the selected one.
           event.currentTarget.select();
         }}
         onInput={(event) => props.onInput(event.currentTarget)}

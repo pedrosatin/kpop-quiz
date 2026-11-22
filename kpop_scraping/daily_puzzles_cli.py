@@ -14,7 +14,6 @@ from .daily_puzzles_runner import run_daily_puzzles
 from .daily_set import single_line
 from .quiz_clue_coverage import MANIFEST_FILENAME, published_clue_coverage_lines
 
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Unified runner for deterministic daily K-pop puzzle generation"
@@ -89,7 +88,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     return parser
 
-
 def warn(title: str, message: str) -> None:
     """Write a warning to stderr and, in GitHub Actions, to the run summary.
 
@@ -104,7 +102,6 @@ def warn(title: str, message: str) -> None:
     if os.environ.get("GITHUB_ACTIONS") == "true":
         workflow_commands.warning(message, title=title)
 
-
 def report_reused_grid(grid_reused: dict[str, str] | None) -> None:
     """Make a kept grid visible; GitHub Actions shows ::warning:: lines in the run summary."""
     if not grid_reused:
@@ -114,7 +111,6 @@ def report_reused_grid(grid_reused: dict[str, str] | None) -> None:
         f"{grid_reused['error']}"
     )
     warn("Daily grid not updated", message)
-
 
 def report_revalidated_grid(grid_revalidated: dict[str, Any] | None) -> None:
     """Make a published grid replaced or dropped by the current eligibility policy visible."""
@@ -131,14 +127,11 @@ def report_revalidated_grid(grid_revalidated: dict[str, Any] | None) -> None:
     )
     warn("Daily grid revalidated", message)
 
-
 def report_skipped_grid(grid_skipped: dict[str, Any] | None) -> None:
     """Make a day published without a grid visible in the run summary."""
     if not grid_skipped:
         return
     if grid_skipped.get("published_without_grid"):
-        # A kept or promoted set records the absent artifact only; the
-        # original generation error belongs to the day that first skipped it.
         message = "The published set for this day carries no grid.daily.json"
     else:
         previous = (
@@ -152,14 +145,11 @@ def report_skipped_grid(grid_skipped: dict[str, Any] | None) -> None:
         )
     warn("Daily grid missing", message)
 
-
 def report_skipped_code_groups(code_groups_skipped: dict[str, Any] | None) -> None:
     """Make a day published without the group code pilot visible in the run summary."""
     if not code_groups_skipped:
         return
     if code_groups_skipped.get("published_without_code_groups"):
-        # A kept or promoted set records the absent artifact only; the
-        # original generation error belongs to the day that first skipped it.
         message = "The published set for this day carries no code-groups.daily.json"
     else:
         message = (
@@ -167,7 +157,6 @@ def report_skipped_code_groups(code_groups_skipped: dict[str, Any] | None) -> No
             f"failed: {code_groups_skipped['error']}"
         )
     warn("Daily group code missing", message)
-
 
 def report_skipped_strands(strands_skipped: dict[str, Any] | None) -> None:
     """Make a day published without the Strands puzzle visible in the run summary."""
@@ -182,10 +171,6 @@ def report_skipped_strands(strands_skipped: dict[str, Any] | None) -> None:
         )
     warn("Daily strands omitted", message)
 
-
-# Result key, warning title and published file of each game reported by
-# report_skipped_games; the grid, the group code pilot and the crossword have
-# reporters of their own.
 SKIPPED_GAMES = (
     ("quiz_skipped", "Daily quiz missing", "the quiz (manifest-v2.json)"),
     ("connections_skipped", "Daily connections missing", "connections.daily.json"),
@@ -194,7 +179,6 @@ SKIPPED_GAMES = (
     ("timeline_skipped", "Daily timeline missing", "timeline.daily.json"),
 )
 
-
 def report_skipped_games(result: dict[str, Any]) -> None:
     """Make each game a day was published without visible in the run summary."""
     for key, title, artifact in SKIPPED_GAMES:
@@ -202,8 +186,6 @@ def report_skipped_games(result: dict[str, Any]) -> None:
         if not skipped:
             continue
         if skipped.get("published_without"):
-            # A kept or promoted set: the reason, when the set recorded one,
-            # belongs to the day that first left the game out.
             reason = f" ({skipped['error']})" if skipped.get("error") else ""
             message = f"The published set for {result['reference_date']} carries no {artifact}{reason}"
         else:
@@ -212,7 +194,6 @@ def report_skipped_games(result: dict[str, Any]) -> None:
                 f"generation failed: {skipped['error']}"
             )
         warn(title, message)
-
 
 def report_ambiguous_connections(result: dict[str, Any]) -> None:
     """Make a kept or promoted connections board with a second solution visible.
@@ -231,7 +212,6 @@ def report_ambiguous_connections(result: dict[str, Any]) -> None:
         "a second solution under the current database; the board already served is kept",
     )
 
-
 def report_skipped_next_day(next_skipped: dict[str, Any] | None) -> None:
     """Make a next day that could not be published ahead visible."""
     if not next_skipped:
@@ -240,7 +220,6 @@ def report_skipped_next_day(next_skipped: dict[str, Any] | None) -> None:
         "Next day not published ahead",
         f"No set for {next_skipped['reference_date']} under next/: {next_skipped['error']}",
     )
-
 
 def report_skipped_crossword(
     crossword_skipped: dict[str, Any] | None, crossword_confirmed: dict[str, Any] | None = None
@@ -257,7 +236,6 @@ def report_skipped_crossword(
     message = f"Day published without a crossword board ({crossword_skipped['reason']})"
     warn("Daily crossword omitted", message)
 
-
 def report_word_search_fallback(fallback: dict[str, Any] | None) -> None:
     """Make a word search published with a theme other than the drawn one visible."""
     if not fallback:
@@ -268,7 +246,6 @@ def report_word_search_fallback(fallback: dict[str, Any] | None) -> None:
         f"(tried and abandoned: {', '.join(fallback['failed_theme_ids'])})"
     )
     warn("Word search theme replaced", message)
-
 
 def report_evidence_rules(evidence_rules: dict[str, str | None] | None) -> None:
     """Print which evidence rules decided the facts, and warn when the code has others.
@@ -290,7 +267,6 @@ def report_evidence_rules(evidence_rules: dict[str, str | None] | None) -> None:
     message = f"{decided_by}; the code has {code}"
     warn("Evidence rules differ", message)
 
-
 def report_clue_coverage(output_dir: str | Path, prefix: str = "") -> None:
     """Print how many published quiz questions carry a clue.
 
@@ -309,7 +285,6 @@ def report_clue_coverage(output_dir: str | Path, prefix: str = "") -> None:
     for line in lines:
         print(line)
 
-
 def report_catalog(
     catalog: dict[str, Any] | None, prefix: str = "", skipped: dict[str, Any] | None = None
 ) -> None:
@@ -323,7 +298,6 @@ def report_catalog(
         return
     for line in catalog["lines"]:
         print(f"{prefix}{line}")
-
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
@@ -394,11 +368,8 @@ def main(argv: list[str] | None = None) -> int:
         report_skipped_next_day(result.get("next_skipped"))
         return 0
     except Exception as exc:
-        # Each game is isolated in the runner, so this is a failure of the
-        # whole day: no game generated, or a set that does not verify.
         sys.stderr.write(f"Daily puzzles generation failed: {single_line(str(exc))}\n")
         return 1
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

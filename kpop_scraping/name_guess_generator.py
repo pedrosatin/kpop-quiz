@@ -22,7 +22,6 @@ from .quiz_utils import hash_payload
 
 QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
 
-# Curated vocabulary of common K-pop names and terms to supplement valid guesses
 CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
     3: [
         "BTS",
@@ -94,12 +93,10 @@ CURATED_SUPPLEMENTAL_VOCABULARY: dict[int, list[str]] = {
     ],
 }
 
-
 def _extract_clues_and_evidence(
     entity: Entity,
     entity_facts: list[Fact],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    """Extract pedagogical clues and deduplicated evidence for a target entity."""
     all_evidence: list[Evidence] = []
     for fact in entity_facts:
         all_evidence.extend(fact.evidence)
@@ -183,7 +180,6 @@ def _extract_clues_and_evidence(
 
     return clues, serialized_evidence
 
-
 def generate_name_guess_puzzle(
     connection: sqlite3.Connection,
     seed: str,
@@ -213,7 +209,6 @@ def generate_name_guess_puzzle(
     for fact in facts:
         facts_by_subject[fact.subject.wikidata_id].append(fact)
 
-    # Collect candidate entities that possess valid QIDs, normalized names, and evidence
     eligible_candidates: list[tuple[Entity, str, list[Fact]]] = []
     for entity in sorted(entities.values(), key=lambda e: e.wikidata_id):
         if not bool(QID_REGEX.match(entity.wikidata_id)):
@@ -234,16 +229,13 @@ def generate_name_guess_puzzle(
             msg += f" for word length {word_length}"
         raise ValueError(msg)
 
-    # Group eligible target candidates by word length
     by_length: dict[int, list[tuple[Entity, str, list[Fact]]]] = defaultdict(list)
     for candidate in eligible_candidates:
         by_length[len(candidate[1])].append(candidate)
 
-    # Initialize deterministic RNG
     seed_bytes = hashlib.sha256(seed.encode("utf-8")).digest()
     rng = random.Random(seed_bytes)
 
-    # Choose word length and target entity
     if word_length is None:
         available_lengths = sorted(by_length.keys())
         chosen_length = rng.choice(available_lengths)
@@ -258,10 +250,8 @@ def generate_name_guess_puzzle(
         target_entity, target_facts
     )
 
-    # Build closed set of valid guesses of the exact chosen word length
     guesses_set: set[str] = {target_normalized}
 
-    # Harvest from all entities and aliases in the database
     for entity in entities.values():
         all_names = (
             entity.canonical_name,
@@ -273,7 +263,6 @@ def generate_name_guess_puzzle(
             if len(norm_alias) == chosen_length and norm_alias.isalpha():
                 guesses_set.add(norm_alias)
 
-    # Supplement with curated vocabulary of this word length
     for supplemental in CURATED_SUPPLEMENTAL_VOCABULARY.get(chosen_length, ()):
         if len(supplemental) == chosen_length and supplemental.isalpha():
             guesses_set.add(supplemental)

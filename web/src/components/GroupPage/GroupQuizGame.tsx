@@ -95,8 +95,6 @@ export function GroupQuizGame({ slug, locale, baseUrl, startLabel, startBlurb }:
 
   const focus = useQuizFocus(match);
 
-  // Keep the group start card (same height) while the session loads or waits
-  // for Begin — never flash the home QuizSetupScreen.
   if (match.state === "loading" || (awaitingStart && match.state === "setup")) {
     const ready = awaitingStart && Boolean(match.session);
     return (

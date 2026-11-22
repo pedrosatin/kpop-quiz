@@ -24,7 +24,6 @@ HINT_NGRAM_WIDTH = 3
 _SENTENCE_END = re.compile(r"[.!?…]+")
 _DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-
 def normalize_text(value: str) -> str:
     """Casefold and strip punctuation, keeping word order for n-grams."""
     normalized = unicodedata.normalize("NFKD", value.casefold())
@@ -32,10 +31,8 @@ def normalize_text(value: str) -> str:
         character if character.isalnum() else " " for character in normalized
     )
 
-
 def word_tokens(value: str) -> tuple[str, ...]:
     return tuple(normalize_text(value).split())
-
 
 def ngrams(tokens: tuple[str, ...], width: int = HINT_NGRAM_WIDTH) -> set[tuple[str, ...]]:
     if width < 1:
@@ -47,13 +44,11 @@ def ngrams(tokens: tuple[str, ...], width: int = HINT_NGRAM_WIDTH) -> set[tuple[
         for index in range(len(tokens) - width + 1)
     }
 
-
 def three_gram_overlaps(hint: str, reference: str) -> list[str]:
     """Return hint 3-grams also present in the reference lyric text."""
     hint_grams = ngrams(word_tokens(hint))
     reference_grams = ngrams(word_tokens(reference))
     return sorted(" ".join(gram) for gram in hint_grams & reference_grams)
-
 
 def validate_hint(hint: str, references: list[str]) -> None:
     """Validate one paraphrase hint against consulted lyric sources.
@@ -81,7 +76,6 @@ def validate_hint(hint: str, references: list[str]) -> None:
                 f"hint reproduces {len(overlaps)} 3-gram(s) from a reference: "
                 f"{overlaps[0]!r}"
             )
-
 
 def validate_hint_review(record: dict[str, Any]) -> None:
     """Validate one hint review-log record.
@@ -120,7 +114,6 @@ def validate_hint_review(record: dict[str, Any]) -> None:
     if not isinstance(record["approved"], bool):
         raise ValueError("review approved must be a boolean")
 
-
 def review_approves(record: dict[str, Any]) -> bool:
     """Whether a valid review record approves the hint for publication."""
     validate_hint_review(record)
@@ -129,7 +122,6 @@ def review_approves(record: dict[str, Any]) -> bool:
         and record["exact_search_hits"] == 0
         and record["three_gram_overlaps"] == []
     )
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate paraphrase hints and reviews")
@@ -141,7 +133,6 @@ def build_parser() -> argparse.ArgumentParser:
     review = sub.add_parser("review", help="validate one review-log record")
     review.add_argument("--record", type=Path, required=True)
     return parser
-
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
@@ -157,13 +148,9 @@ def main(argv: list[str] | None = None) -> int:
             validate_hint_review(record)
             print(f"review ok, approves={review_approves(record)}")
     except (ValueError, OSError) as exc:
-        # JSONDecodeError and UnicodeDecodeError are ValueError subclasses;
-        # exit code 2 covers every CLI failure mode (bad invocation from
-        # argparse and rejected content or unreadable inputs from here).
         print(f"error: {exc}", file=sys.stderr)
         return 2
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

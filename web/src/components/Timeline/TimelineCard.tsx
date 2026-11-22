@@ -10,7 +10,6 @@ import {
 
 type CardDragProps = Pick<TimelineCardProps, "onDragStart" | "onDragOver" | "onDragLeave" | "onDrop" | "onDragEnd">;
 
-/** The card's drag listeners: each passes the card's index on, and none acts on a submitted board. */
 function cardDragHandlers(index: number, isSubmitted: boolean, handlers: CardDragProps) {
   return {
     onDragStart: (e: DragEvent) => {

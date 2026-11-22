@@ -1,10 +1,3 @@
-/*
-  Geometry of the map view. The world map is an equirectangular 1200x600 SVG
-  (3.33 units per degree), cropped to 84°N–60°S. On narrow screens the first
-  tap zooms into the tapped region at ZOOM_PX_PER_UNIT, where every country
-  of the round gets a round target of TARGET_RADIUS_PX: at 360px wide the
-  world view gives Singapore 0.2px, Taiwan 3px and South Korea 5px.
-*/
 
 export interface MapRect {
   x: number;
@@ -31,7 +24,6 @@ export interface FeatureShape {
   height: number;
 }
 
-// The polar rows hold no tour dates.
 export const WORLD_VIEW: MapRect = { x: 0, y: 20, width: 1200, height: 480 };
 
 /**
@@ -74,7 +66,6 @@ export function featureShape(path: string): FeatureShape {
       .map((match) => ({ x: Number(match[1]), y: Number(match[2]) })))
     .filter((ring) => ring.length > 0);
   if (rings.length === 0) return { anchor: { x: 0, y: 0 }, width: 0, height: 0 };
-  // Singapore is a two-point ring at this scale: with no area, the first ring wins.
   const largest = rings.reduce((best, ring) => (ringArea(ring) > ringArea(best) ? ring : best));
   const main = bounds(largest);
   const all = bounds(rings.flat());

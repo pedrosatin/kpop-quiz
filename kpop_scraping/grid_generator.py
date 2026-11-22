@@ -28,7 +28,6 @@ from .quiz_utils import hash_payload, reference_date_today
 
 QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
 
-# Category: formed_on
 DECADE_CRITERIA: dict[str, dict[str, Any]] = {
     "formed_1990s": {
         "id": "formed_1990s",
@@ -72,9 +71,7 @@ DECADE_CRITERIA: dict[str, dict[str, Any]] = {
     },
 }
 
-# Category: record_label
 KNOWN_RECORD_LABELS: dict[str, tuple[str, dict[str, str]]] = {
-    # Canonical Wikidata QIDs
     "Q483238": ("label_jyp", {"pt-BR": "JYP Entertainment", "en": "JYP Entertainment"}),
     "Q483938": ("label_sm", {"pt-BR": "SM Entertainment", "en": "SM Entertainment"}),
     "Q50595": ("label_yg", {"pt-BR": "YG Entertainment", "en": "YG Entertainment"}),
@@ -88,7 +85,6 @@ KNOWN_RECORD_LABELS: dict[str, tuple[str, dict[str, str]]] = {
     "Q489428": ("label_dsp", {"pt-BR": "DSP Media", "en": "DSP Media"}),
     "Q31179359": ("label_kq", {"pt-BR": "KQ Entertainment", "en": "KQ Entertainment"}),
     "Q13424955": ("label_fantagio", {"pt-BR": "Fantagio", "en": "Fantagio"}),
-    # Test fixture aliases
     "Q483957": ("label_sm", {"pt-BR": "SM Entertainment", "en": "SM Entertainment"}),
     "Q483471": ("label_yg", {"pt-BR": "YG Entertainment", "en": "YG Entertainment"}),
     "Q106399432": ("label_hybe", {"pt-BR": "HYBE", "en": "HYBE"}),
@@ -101,7 +97,6 @@ KNOWN_RECORD_LABELS: dict[str, tuple[str, dict[str, str]]] = {
     "Q487053": ("label_dsp", {"pt-BR": "DSP Media", "en": "DSP Media"}),
 }
 
-# Category: has_member
 MEMBER_COUNT_CRITERIA: dict[str, dict[str, Any]] = {
     "members_3": {
         "id": "members_3",
@@ -177,9 +172,7 @@ MEMBER_COUNT_CRITERIA: dict[str, dict[str, Any]] = {
     },
 }
 
-
 def _get_label_criterion(entity: Entity) -> dict[str, Any]:
-    """Return a criterion definition for a record label entity."""
     if entity.wikidata_id in KNOWN_RECORD_LABELS:
         crit_id, label = KNOWN_RECORD_LABELS[entity.wikidata_id]
         return {
@@ -198,9 +191,7 @@ def _get_label_criterion(entity: Entity) -> dict[str, Any]:
         "wikidata_id": entity.wikidata_id,
     }
 
-
 def _to_criterion_payload(criterion: dict[str, Any]) -> dict[str, Any]:
-    """Extract strictly conforming criterion dictionary according to schema."""
     return {
         "id": criterion["id"],
         "category": criterion["category"],
@@ -209,7 +200,6 @@ def _to_criterion_payload(criterion: dict[str, Any]) -> dict[str, Any]:
             "en": criterion["label"]["en"],
         },
     }
-
 
 def has_distinct_assignment(cell_options: list[list[str]]) -> bool:
     """Return True if there is a distinct assignment for each of the 9 cells.
@@ -240,7 +230,6 @@ def has_distinct_assignment(cell_options: list[list[str]]) -> bool:
             return False
     return len(matching) == 9
 
-
 def evaluate_group_criteria(
     facts: list[Fact],
     candidate_groups: dict[str, Entity],
@@ -270,7 +259,6 @@ def evaluate_group_criteria(
     for member_id, member_def in MEMBER_COUNT_CRITERIA.items():
         all_criteria[member_id] = member_def
 
-    # 1. formed_on facts
     for fact in facts:
         if fact.predicate != "formed_on":
             continue
@@ -289,7 +277,6 @@ def evaluate_group_criteria(
                 group_criteria[group_qid].add(decade_id)
                 group_evidence[(group_qid, decade_id)].extend(fact.evidence)
 
-    # 2. record_label facts
     for fact in facts:
         if fact.predicate != "record_label":
             continue
@@ -304,7 +291,6 @@ def evaluate_group_criteria(
         group_criteria[group_qid].add(crit_id)
         group_evidence[(group_qid, crit_id)].extend(fact.evidence)
 
-    # 3. has_member facts
     group_members: dict[str, set[str]] = defaultdict(set)
     group_member_facts: dict[str, list[Fact]] = defaultdict(list)
     for fact in facts:
@@ -331,28 +317,18 @@ def evaluate_group_criteria(
 
     return group_criteria, group_evidence, all_criteria
 
-
 def _are_member_criteria_disjoint(c1: dict[str, Any], c2: dict[str, Any]) -> bool:
-    """Return True if two member count criteria are mutually disjoint."""
     pred1: Callable[[int], bool] | None = c1.get("predicate") or MEMBER_COUNT_CRITERIA.get(c1.get("id", ""), {}).get("predicate")
     pred2: Callable[[int], bool] | None = c2.get("predicate") or MEMBER_COUNT_CRITERIA.get(c2.get("id", ""), {}).get("predicate")
     if pred1 is None or pred2 is None:
         return False
     return _predicates_disjoint(pred1, pred2)
 
-
 @functools.lru_cache(maxsize=1024)
 def _predicates_disjoint(pred1: Callable[[int], bool], pred2: Callable[[int], bool]) -> bool:
-    """Return True if no member count from 1 to 99 satisfies both predicates.
-
-    The axis searches ask this for the same few predicates many times, so the
-    answer is kept per pair of predicate objects.
-    """
     return not any(pred1(n) and pred2(n) for n in range(1, 100))
 
-
 def _is_valid_axis(axis: tuple[dict[str, Any], ...]) -> bool:
-    """Return True if criteria have unique identifiers and member count criteria are mutually disjoint."""
     if len({c["id"] for c in axis}) != len(axis):
         return False
     member_crits = [c for c in axis if c.get("category") == "has_member"]
@@ -362,21 +338,9 @@ def _is_valid_axis(axis: tuple[dict[str, Any], ...]) -> bool:
                 return False
     return True
 
-
-# Search limit for one selection of axes. A step is one curated axis pair
-# drawn, one row axis drawn by the mixed-axis fallback or one column triple
-# it tests. Every curated pair drawn already has its nine cells filled. On a
-# copy of the catalog of 2026-10-19 with the formation years of ADR 029, the
-# daily seeds of 365 dates used 1 to 4 steps per selection, and a search with
-# every solvable set avoided, which runs both searches to the end, used 8,518.
-# With 100 record label criteria that share their groups, the limit ends the
-# selection in about 0.5 s on a laptop, where listing every pair ran out of
-# 2 GiB. Past the limit the selection raises ValueError.
 MAX_AXIS_SEARCH_STEPS = 20_000
 
-
 class _AxisSearchBudget:
-    """Count the steps of one selection of axes and stop it at ``limit``."""
 
     KINDS = ("axis pairs", "row axes", "column triples")
 
@@ -390,7 +354,6 @@ class _AxisSearchBudget:
         return sum(self.spent.values())
 
     def spend(self, kind: str) -> None:
-        """Count one step of ``kind``; raise ValueError when it is over the limit."""
         if self.used >= self.limit:
             detail = ", ".join(f"{count} {name}" for name, count in self.spent.items())
             raise ValueError(
@@ -400,26 +363,19 @@ class _AxisSearchBudget:
             )
         self.spent[kind] += 1
 
-
-# Category partitions (row categories, column categories). A one-category
-# side holds three criteria of it; a two-category side holds two of the first
-# and one of the second. No category is on both axes.
 CATEGORY_PARTITIONS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
-    # Pure category pairs
     (("record_label",), ("formed_on",)),
     (("formed_on",), ("record_label",)),
     (("record_label",), ("has_member",)),
     (("has_member",), ("record_label",)),
     (("formed_on",), ("has_member",)),
     (("has_member",), ("formed_on",)),
-    # Dual-category row / pure col pairs
     (("formed_on", "has_member"), ("record_label",)),
     (("has_member", "formed_on"), ("record_label",)),
     (("record_label", "has_member"), ("formed_on",)),
     (("has_member", "record_label"), ("formed_on",)),
     (("formed_on", "record_label"), ("has_member",)),
     (("record_label", "formed_on"), ("has_member",)),
-    # Pure row / dual-category col pairs
     (("record_label",), ("formed_on", "has_member")),
     (("record_label",), ("has_member", "formed_on")),
     (("formed_on",), ("record_label", "has_member")),
@@ -428,27 +384,14 @@ CATEGORY_PARTITIONS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (("has_member",), ("record_label", "formed_on")),
 )
 
-# The facts create one record label criterion per label, with no limit. The
-# decade and member count criteria are the fixed lists above (4 and 12).
 OPEN_CATEGORY = "record_label"
 
-
 def _axis_slots(spec: tuple[str, ...]) -> tuple[tuple[str, int], ...]:
-    """The (category, size) slots of an axis, in the order they appear on it."""
     if len(spec) == 1:
         return ((spec[0], 3),)
     return ((spec[0], 2), (spec[1], 1))
 
-
 class _PairBlock:
-    """Every curated axis pair with one choice of the fixed-list criteria.
-
-    ``fixed`` holds the criteria chosen for each slot of the two axes, with
-    None in the record label slot. ``open_items`` are the record labels whose
-    groups meet every criterion of the other axis, in id order; each
-    ``size``-subset of them completes a pair whose nine cells all have a
-    group. A block without a record label slot holds exactly one pair.
-    """
 
     def __init__(
         self,
@@ -462,7 +405,6 @@ class _PairBlock:
         self.size = comb(len(open_items), open_size)
 
     def pair(self, rank: int) -> tuple[tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
-        """The pair of axes with this rank inside the block."""
         chosen = tuple(
             self.open_items[position]
             for position in combination_at(rank, len(self.open_items), self.open_size)
@@ -477,19 +419,10 @@ class _PairBlock:
         )
         return row_axis, col_axis
 
-
 def _curated_pair_blocks(
     active_by_cat: dict[str, list[dict[str, Any]]],
     criterion_groups: dict[str, set[str]],
 ) -> list[_PairBlock]:
-    """Split the curated axis pairs whose nine cells all have a group into blocks.
-
-    The record label criteria are never combined ahead of time: a block keeps
-    the labels that can fill its open slot, and a draw picks one subset of
-    them by rank. The blocks are built in partition order and then in the
-    order of ``itertools.product`` over the fixed slots, so their order
-    depends only on the sorted criteria.
-    """
     open_items = active_by_cat.get(OPEN_CATEGORY, [])
     meeting_cache: dict[tuple[str, ...], list[dict[str, Any]]] = {}
 
@@ -545,14 +478,11 @@ def _curated_pair_blocks(
                 blocks.append(block)
     return blocks
 
-
 def _criteria_set(
     row_axis: tuple[dict[str, Any], ...],
     col_axis: tuple[dict[str, Any], ...],
 ) -> frozenset[str]:
-    """Identify a grid by its six criteria, whichever axis each one is on."""
     return frozenset(criterion["id"] for criterion in (*row_axis, *col_axis))
-
 
 def _find_mixed_axis_grid(
     criteria: list[dict[str, Any]],
@@ -565,12 +495,6 @@ def _find_mixed_axis_grid(
     tuple[dict[str, Any], ...],
     dict[tuple[int, int], list[str]],
 ] | None:
-    """Search all mixed criterion axes for a complete, unique 3x3 grid.
-
-    The row axes are drawn one at a time in an order the seed decides (see
-    ``lazy_order``). Each row axis drawn and each column triple tested is
-    charged to ``budget``, which raises ValueError at its limit.
-    """
     if budget is None:
         budget = _AxisSearchBudget(seed=seed)
     ordered_criteria = sorted(criteria, key=lambda item: item["id"])
@@ -580,8 +504,6 @@ def _find_mixed_axis_grid(
     column_rng = random.Random(
         hashlib.sha256(f"{seed}|mixed-axis-columns".encode("utf-8")).digest()
     )
-    # Criteria that share a group with each criterion, so the columns of a
-    # row axis come from intersecting three sets instead of scanning them all.
     criteria_of_group: dict[str, list[str]] = defaultdict(list)
     for criterion in ordered_criteria:
         for group in criterion_groups[criterion["id"]]:
@@ -642,7 +564,6 @@ def _find_mixed_axis_grid(
 
     return None
 
-
 def _eligible_criteria(
     connection: sqlite3.Connection,
     reference_date: date,
@@ -653,7 +574,6 @@ def _eligible_criteria(
     dict[str, dict[str, Any]],
     str,
 ]:
-    """Return the groups each criterion admits under the current grid policy."""
     connection.row_factory = sqlite3.Row
     entities = _load_entities(connection)
     facts, _rejected = _load_facts(connection, entities)
@@ -676,13 +596,11 @@ def _eligible_criteria(
         grid_facts, candidate_groups, {f.subject.wikidata_id for f in current_members}
     )
 
-    # Group entities matching each criterion
     criterion_groups: dict[str, set[str]] = defaultdict(set)
     for group_qid, crits in group_criteria.items():
         for crit_id in crits:
             criterion_groups[crit_id].add(group_qid)
     return candidate_groups, criterion_groups, group_evidence, all_criteria, dataset_version
-
 
 def grid_incompatibility(connection: sqlite3.Connection, grid: dict[str, Any]) -> str | None:
     """Return why a published grid fails the current eligibility policy, or None.
@@ -713,7 +631,6 @@ def grid_incompatibility(connection: sqlite3.Connection, grid: dict[str, Any]) -
         return f"cannot revalidate grid eligibility: {exc}"
     return None
 
-
 def _select_axes(
     all_criteria: dict[str, dict[str, Any]],
     criterion_groups: dict[str, set[str]],
@@ -725,17 +642,6 @@ def _select_axes(
     tuple[dict[str, Any], ...],
     dict[tuple[int, int], list[str]],
 ] | None:
-    """Draw the row and column axes of a solvable grid, or None.
-
-    A pair whose six criteria form a set in ``avoid`` is skipped, whatever
-    axis each criterion is on. The curated pairs with nine filled cells are
-    drawn one at a time, in an order the seed decides, and the mixed-axis
-    fallback runs after them. Both share one budget of ``max_search_steps``
-    steps; past it, the selection raises ValueError.
-    """
-    # A criterion on an axis covers three cells, and the nine answers must be
-    # distinct groups, so a criterion with fewer than three groups can never
-    # be placed. Dropping it keeps the axis search small.
     active_criteria = {
         crit_id: crit
         for crit_id, crit in all_criteria.items()
@@ -753,8 +659,6 @@ def _select_axes(
     for block_index, rank in shuffled_blocks([block.size for block in blocks], rng):
         budget.spend("axis pairs")
         row_criteria, col_criteria = blocks[block_index].pair(rank)
-        # Every draw consumes the same randomness, skipped or not, so an
-        # empty ``avoid`` chooses exactly what the seed alone draws.
         if _criteria_set(row_criteria, col_criteria) in avoid:
             continue
         cells_valid: dict[tuple[int, int], list[str]] = {}
@@ -781,23 +685,11 @@ def _select_axes(
 
         return row_criteria, col_criteria, cells_valid
 
-    # The curated partitions above are preferred because they keep each axis
-    # semantically focused. If none has a solution, search all triples of
-    # active evidence-backed criteria, within what is left of the budget,
-    # before reporting failure.
     return _find_mixed_axis_grid(
         list(active_criteria.values()), criterion_groups, seed, avoid, budget
     )
 
-
 def _candidate_payload(group: Entity) -> dict[str, Any]:
-    """One picker entry: the names shown, plus the other names to search by.
-
-    ``aliases`` holds the group's names from the Wikidata entity snapshot of
-    this dataset (labels in other languages, alternative labels, native names
-    and romanizations, all in ``entity_aliases``) that differ from the names
-    shown. They only help the player find the group; no answer depends on them.
-    """
     names = {
         "pt-BR": group.names.get("pt") or group.names.get("pt-BR") or group.canonical_name,
         "en": group.names.get("en") or group.canonical_name,
@@ -810,7 +702,6 @@ def _candidate_payload(group: Entity) -> dict[str, Any]:
         "names": names,
         "aliases": aliases,
     }
-
 
 def generate_intersection_grid(
     connection: sqlite3.Connection,
@@ -863,7 +754,6 @@ def generate_intersection_grid(
         )
     chosen_row, chosen_col, chosen_cells_data = selection
 
-    # Build conforming JSON structures
     row_criteria_payload = [_to_criterion_payload(c) for c in chosen_row]
     col_criteria_payload = [_to_criterion_payload(c) for c in chosen_col]
 
@@ -922,17 +812,13 @@ def generate_intersection_grid(
     validate_intersection_grid(grid)
     return grid
 
-
 def _daily_seed(day: date) -> str:
     return f"kpop-grid-daily-{day.isoformat()}"
 
-
 def _drawn_criteria(connection: sqlite3.Connection, day: date) -> frozenset[str] | None:
-    """Return the criteria the seed of ``day`` draws with nothing to avoid."""
     _, criterion_groups, _, all_criteria, _ = _eligible_criteria(connection, day)
     selection = _select_axes(all_criteria, criterion_groups, _daily_seed(day))
     return None if selection is None else _criteria_set(selection[0], selection[1])
-
 
 def generate_daily_grid(
     connection: sqlite3.Connection,

@@ -32,5 +32,4 @@ EXIT_OK = 0
 EXIT_DETERMINISTIC = 65
 EXIT_TRANSIENT = 75
 
-# Codes with a meaning outside this CLI; no constant above may take one.
 RESERVED_EXIT_CODES = frozenset({0, 1, 2, 124, 137, 143})

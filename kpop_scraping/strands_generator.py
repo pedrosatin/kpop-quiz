@@ -64,29 +64,22 @@ from .strands_schema import (
 from .word_search_generator import ThemeDefinition, extract_viable_themes
 from .word_search_schema import normalize_word
 
-# Fixed by docs/strands-benchmark.md.
 STRANDS_DEFAULT_ROWS = 9
 STRANDS_DEFAULT_COLS = 9
 
 STRANDS_DECADES = (1990, 2000, 2010)
 
-# Decade spangrams are theme expressions without a factual claim of their
-# own.  The grid uses the pt-BR spelling; the English label is a translation.
 DECADE_SPANGRAMS: dict[int, tuple[str, dict[str, str]]] = {
     1990: ("ANOSNOVENTA", {"pt-BR": "Anos noventa", "en": "The 1990s"}),
     2000: ("ANOSDOISMIL", {"pt-BR": "Anos dois mil", "en": "The 2000s"}),
     2010: ("ANOSDOISMILEDEZ", {"pt-BR": "Anos dois mil e dez", "en": "The 2010s"}),
 }
 
-# Search limits.  Node budgets keep results reproducible; the deadline only
-# turns a pathological run into an explicit failure.
 DEFAULT_PLACEMENT_NODE_BUDGET = 4000
 DEFAULT_PLACEMENT_ATTEMPTS = 60
 DEFAULT_ORIENTATIONS_PER_LAYOUT = 6
 DEFAULT_SUBSETS_PER_THEME = 4
 DEFAULT_TIME_LIMIT_SECONDS = 30.0
-# A word with more paths than this in a finished grid is too ambiguous to
-# prove anything about; the grid is rejected.
 MAX_PATHS_PER_WORD = 2000
 DEFAULT_UNIQUENESS_NODE_BUDGET = 100000
 
@@ -98,19 +91,15 @@ DISCARD_NO_EVIDENCE = "no_evidence"
 DISCARD_DUPLICATE_WORD = "duplicate_word"
 DISCARD_OVERLAPS_SPANGRAM = "overlaps_spangram"
 
-
 class StrandsGenerationError(ValueError):
     """Raised when no valid Strands puzzle can be produced within limits."""
-
 
 def _check_deadline(deadline: float | None) -> None:
     if deadline is not None and time.monotonic() >= deadline:
         raise StrandsGenerationError("Strands generation exceeded its time limit")
 
-
 class UniquenessBudgetExceeded(StrandsGenerationError):
     """Enumeration was interrupted; uniqueness has not been proved."""
-
 
 @dataclass
 class _UniquenessBudget:
@@ -123,7 +112,6 @@ class _UniquenessBudget:
         if self.remaining < 0:
             raise UniquenessBudgetExceeded("Strands uniqueness not proved: node budget exceeded")
 
-
 @dataclass(frozen=True)
 class StrandsWord:
     word: str
@@ -132,13 +120,11 @@ class StrandsWord:
     canonical_name: str | None = None
     evidence: tuple[dict[str, Any], ...] = ()
 
-
 @dataclass(frozen=True)
 class DiscardedName:
     entity_id: str
     name: str
     reason: str
-
 
 @dataclass(frozen=True)
 class StrandsTheme:
@@ -153,7 +139,6 @@ class StrandsTheme:
     discarded: tuple[DiscardedName, ...] = ()
     spangram_problem: str | None = None
 
-
 @dataclass
 class ThemeFeasibility:
     theme_id: str
@@ -163,7 +148,6 @@ class ThemeFeasibility:
     reason: str | None = None
     letters_available: int = 0
 
-
 @dataclass
 class PlacementStats:
     nodes: int = 0
@@ -172,12 +156,6 @@ class PlacementStats:
     orientations: int = 0
     ambiguous: int = 0
     events: list[str] = field(default_factory=list)
-
-
-# ---------------------------------------------------------------------------
-# Names and themes
-# ---------------------------------------------------------------------------
-
 
 def has_non_latin_letters(name: str) -> bool:
     """Return True when ``name`` holds a letter outside basic Latin A-Z.
@@ -194,7 +172,6 @@ def has_non_latin_letters(name: str) -> bool:
             return True
     return False
 
-
 def classify_name(name: str) -> tuple[str | None, str | None]:
     """Return ``(word, None)`` for a usable name or ``(None, reason)``."""
     if has_non_latin_letters(name):
@@ -204,11 +181,9 @@ def classify_name(name: str) -> tuple[str | None, str | None]:
         return None, DISCARD_SHORT_NAME
     return word, None
 
-
 def _theme_entries(
     theme: ThemeDefinition, facts: Sequence[Fact]
 ) -> tuple[list[tuple[Entity, list[Fact]]], Entity | None]:
-    """Return the raw theme members and, for rosters, the group entity."""
     entries: dict[str, tuple[Entity, list[Fact]]] = {}
     group: Entity | None = None
     for fact in facts:
@@ -235,10 +210,8 @@ def _theme_entries(
         entry[1].append(fact)
     return [entries[key] for key in sorted(entries)], group
 
-
 def _overlaps(a: str, b: str) -> bool:
     return a in b or b in a
-
 
 def _build_theme(theme: ThemeDefinition, facts: Sequence[Fact]) -> StrandsTheme:
     entries, group = _theme_entries(theme, facts)
@@ -288,7 +261,6 @@ def _build_theme(theme: ThemeDefinition, facts: Sequence[Fact]) -> StrandsTheme:
                 canonical_name=cand.canonical_name,
                 evidence=tuple(cand.evidence),
             )
-    # Explain the members that ``extract_viable_themes`` dropped silently.
     seen_words = {w.word for w in kept.values()}
     for entity, entity_facts in entries:
         if entity.wikidata_id in candidate_ids:
@@ -323,7 +295,6 @@ def _build_theme(theme: ThemeDefinition, facts: Sequence[Fact]) -> StrandsTheme:
         spangram_problem=spangram_problem,
     )
 
-
 def build_strands_themes(entities: dict[int, Entity], facts: list[Fact]) -> list[StrandsTheme]:
     """Return roster and decade themes with spangrams and discard reasons.
 
@@ -342,7 +313,6 @@ def build_strands_themes(entities: dict[int, Entity], facts: list[Fact]) -> list
     themes.sort(key=lambda t: (t.category, t.theme_id))
     return themes
 
-
 def _subset_sums_possible(
     lengths: Sequence[int], target: int, min_count: int, max_count: int,
     deadline: float | None = None,
@@ -356,7 +326,6 @@ def _subset_sums_possible(
             if count < max_count and total + length <= target
         }
     return any(count >= min_count and total == target for count, total in reachable)
-
 
 def assess_theme(
     theme: StrandsTheme, rows: int, cols: int, deadline: float | None = None,
@@ -386,7 +355,6 @@ def assess_theme(
         return result
     result.feasible = True
     return result
-
 
 def choose_word_subset(
     words: Sequence[StrandsWord],
@@ -434,12 +402,6 @@ def choose_word_subset(
 
     return list(chosen) if search(0, 0) else None
 
-
-# ---------------------------------------------------------------------------
-# Grid geometry
-# ---------------------------------------------------------------------------
-
-
 class _Geometry:
     def __init__(self, rows: int, cols: int) -> None:
         self.rows = rows
@@ -459,7 +421,6 @@ class _Geometry:
             self.neighbors.append(cells)
 
     def crossing_key(self, a: int, b: int) -> int | None:
-        """Return the key of the diagonal that a diagonal step a-b would cross."""
         ar, ac = divmod(a, self.cols)
         br, bc = divmod(b, self.cols)
         if ar == br or ac == bc:
@@ -468,7 +429,6 @@ class _Geometry:
 
     def edge_key(self, a: int, b: int) -> int:
         return min(a, b) * self.size + max(a, b)
-
 
 def _components(geometry: _Geometry, owner: list[int]) -> list[int]:
     seen = [False] * geometry.size
@@ -489,9 +449,7 @@ def _components(geometry: _Geometry, owner: list[int]) -> list[int]:
         sizes.append(count)
     return sizes
 
-
 def _can_split(sizes: list[int], lengths: list[int], deadline: float | None = None) -> bool:
-    """Return True when the lengths can be grouped to fill each region exactly."""
     if not sizes:
         return not lengths
     if sum(sizes) != sum(lengths):
@@ -518,21 +476,13 @@ def _can_split(sizes: list[int], lengths: list[int], deadline: float | None = No
 
     return fill(0, sizes[0], 0, 0)
 
-
 def spans_opposite_sides_idx(path: Sequence[int], rows: int, cols: int) -> bool:
     rows_seen = {cell // cols for cell in path}
     cols_seen = {cell % cols for cell in path}
     return (0 in rows_seen and rows - 1 in rows_seen) or (0 in cols_seen and cols - 1 in cols_seen)
 
-
-# ---------------------------------------------------------------------------
-# Placement (lengths only)
-# ---------------------------------------------------------------------------
-
-
 class _BudgetExceeded(Exception):
     pass
-
 
 def place_strands_paths(
     lengths: Sequence[int],
@@ -571,12 +521,6 @@ def place_strands_paths(
         return key is None or key not in diagonals
 
     def isolates_cell(previous: int, head: int, remaining: int) -> bool:
-        """Return True when the last step left an empty cell no path can reach.
-
-        An empty cell without empty neighbours can only be the last cell of
-        the path being grown, and only when it touches the head and exactly
-        one letter is left.
-        """
         stranded = 0
         for cell in set(geometry.neighbors[previous]) | set(geometry.neighbors[head]):
             if owner[cell] != -1 or free_degree(cell):
@@ -716,15 +660,8 @@ def place_strands_paths(
     _check_deadline(deadline)
     return paths
 
-
-# ---------------------------------------------------------------------------
-# Uniqueness
-# ---------------------------------------------------------------------------
-
-
 class AmbiguityLimitExceeded(Exception):
     """A word has too many paths in the grid to enumerate."""
-
 
 def find_word_paths(
     grid: Sequence[Sequence[str]], word: str, limit: int = MAX_PATHS_PER_WORD,
@@ -771,7 +708,6 @@ def find_word_paths(
             extend(cell)
     _check_deadline(deadline)
     return found
-
 
 def enumerate_strands_solutions(
     grid: Sequence[Sequence[str]],
@@ -840,7 +776,6 @@ def enumerate_strands_solutions(
     _check_deadline(deadline)
     return solutions
 
-
 def count_strands_solutions(
     grid: Sequence[Sequence[str]], words: Sequence[str], limit: int = 2,
     *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET, deadline: float | None = None,
@@ -849,7 +784,6 @@ def count_strands_solutions(
     return len(enumerate_strands_solutions(
         grid, words, limit=limit, node_budget=node_budget, deadline=deadline
     ))
-
 
 def verify_strands_uniqueness(
     payload: dict[str, Any], *, node_budget: int = DEFAULT_UNIQUENESS_NODE_BUDGET,
@@ -881,18 +815,11 @@ def verify_strands_uniqueness(
     if solutions[0] != declared:
         raise ValueError("Strands puzzle's only solution differs from the declared cells")
 
-
-# ---------------------------------------------------------------------------
-# Puzzle assembly
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class SolvedGrid:
     grid: list[list[str]]
     paths: list[Path]
     words: list[str]
-
 
 def solve_strands_grid(
     words: Sequence[str],
@@ -922,7 +849,6 @@ def solve_strands_grid(
         for _ in range(orientations):
             _check_deadline(deadline)
             stats.orientations += 1
-            # Words of equal length may swap paths; each word picks a direction.
             assignment: list[Path] = [list(paths[0])] + [[] for _ in lengths[1:]]
             for indexes in by_length.values():
                 targets = list(indexes)
@@ -952,7 +878,6 @@ def solve_strands_grid(
     _check_deadline(deadline)
     return None
 
-
 def _word_entry(word: StrandsWord, path: Path, cols: int, spangram_kind: str | None) -> dict[str, Any]:
     entry: dict[str, Any] = {
         "word": word.word,
@@ -967,7 +892,6 @@ def _word_entry(word: StrandsWord, path: Path, cols: int, spangram_kind: str | N
     if spangram_kind is not None:
         entry["spangram_kind"] = spangram_kind
     return entry
-
 
 def build_strands_payload(
     theme: StrandsTheme,
@@ -997,7 +921,6 @@ def build_strands_payload(
     payload["puzzle_id"] = compute_strands_puzzle_id(payload)
     return payload
 
-
 def _matches_filter(theme: StrandsTheme, query: str) -> bool:
     q = query.strip().lower()
     return (
@@ -1008,14 +931,12 @@ def _matches_filter(theme: StrandsTheme, query: str) -> bool:
         or q == theme.target_id.lower()
     )
 
-
 def _check_dimensions(rows: int, cols: int) -> None:
     for name, value in (("rows", rows), ("cols", cols)):
         if not (STRANDS_MIN_SIDE <= value <= STRANDS_MAX_SIDE):
             raise ValueError(
                 f"{name} must be an integer between {STRANDS_MIN_SIDE} and {STRANDS_MAX_SIDE}"
             )
-
 
 def generate_strands_puzzle(
     connection: sqlite3.Connection,
@@ -1100,7 +1021,6 @@ def generate_strands_puzzle(
         f"Strands solver found no unique {rows}x{cols} grid for "
         f"{len(feasible)} feasible themes within budget"
     )
-
 
 def describe_themes(
     themes: Iterable[StrandsTheme], sizes: Iterable[tuple[int, int]]

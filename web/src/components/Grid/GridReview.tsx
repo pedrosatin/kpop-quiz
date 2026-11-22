@@ -21,7 +21,6 @@ interface SourceLine {
 
 interface GroupSources {
   qid: string;
-  /** Null when the fact id does not name a group of the pool. */
   name: string | null;
   lines: SourceLine[];
 }

@@ -1,9 +1,3 @@
-/**
- * Turns a published evidence item (revision URL and locator) into what a
- * player reads: the site and its language, and the place in the page. The
- * raw locator stays the proof; callers keep it in an attribute next to the
- * readable label, never in its place.
- */
 
 import { parseHttpsUrl } from "./https-url";
 

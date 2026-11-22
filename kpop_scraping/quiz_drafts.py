@@ -14,16 +14,7 @@ from .release_quiz_drafts import (
     build_release_drafts,
 )
 
-
 def _group_mentions_person(group: Entity, person: Entity) -> bool:
-    """Return whether group and person labels share an identity that would leak.
-
-    Wikidata sometimes lists member stage names as group aliases (Rhythm Power
-    → Hangzoo). The render assert then sees the person option as echoing the
-    prompt subject. Reject those pairs at draft time in both directions:
-    group text mentioning the person, and person labels matching a group
-    identity (including aliases).
-    """
     group_names = {group.canonical_name, group.name("pt-BR"), group.name("en")}
     person_labels = {person.canonical_name, person.name("pt-BR"), person.name("en")}
     for identity, allow_short in _group_identities(person):
@@ -36,17 +27,11 @@ def _group_mentions_person(group: Entity, person: Entity) -> bool:
                 return True
     return False
 
-
 def _build_drafts(
     facts: list[Fact],
     entities: dict[int, Entity],
     reference_date: date,
 ) -> tuple[list[Draft], Counter[str]]:
-    """Build the drafts of every question type and count rejected candidates.
-
-    Each builder adds its rejections to ``rejected`` in the order it meets
-    them. The drafts are sorted by key at the end.
-    """
     rejected: Counter[str] = Counter()
     formed = [fact for fact in facts if fact.predicate == "formed_on"]
     born = [fact for fact in facts if fact.predicate == "born_on"]
@@ -77,13 +62,11 @@ def _build_drafts(
     drafts.sort(key=lambda draft: draft.key)
     return drafts, rejected
 
-
 def _supported_entities(
     entities: dict[int, Entity],
     entity_type: str,
     supported_ids: set[str],
 ) -> list[Entity]:
-    """Return the entities of one type that an accepted fact supports, in QID order."""
     return sorted(
         (
             entity for entity in entities.values()
@@ -91,7 +74,6 @@ def _supported_entities(
         ),
         key=lambda entity: entity.wikidata_id,
     )
-
 
 def _formation_year_drafts(formed: list[Fact], rejected: Counter[str]) -> list[Draft]:
     result = []
@@ -111,18 +93,12 @@ def _formation_year_drafts(formed: list[Fact], rejected: Counter[str]) -> list[D
         )
     return result
 
-
 def _person_drafts(
     born: list[Fact],
     memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
     reference_date: date,
     rejected: Counter[str],
 ) -> list[Draft]:
-    """Build the birth date and the age drafts of each birth fact.
-
-    Both prompts name the person's groups and cite the memberships behind
-    them. The age draft does not depend on the birth date draft.
-    """
     candidates = [fact for fact in born if not _born_after(fact, reference_date)]
     result = []
     for fact in born:
@@ -144,7 +120,6 @@ def _person_drafts(
             result.append(age_draft)
     return result
 
-
 def _birth_date_draft(
     fact: Fact,
     candidates: list[Fact],
@@ -154,11 +129,6 @@ def _birth_date_draft(
     group_evidence: tuple[Evidence, ...],
     rejected: Counter[str],
 ) -> Draft | None:
-    """Build the birth date draft of one birth fact.
-
-    A birth after the reference date yields neither the answer nor a
-    distractor, as in the age draft.
-    """
     if _born_after(fact, reference_date):
         rejected["birth_after_reference_date"] += 1
         return None
@@ -176,13 +146,7 @@ def _birth_date_draft(
         group_evidence, group_fact_ids,
     )
 
-
 def _born_after(fact: Fact, reference_date: date) -> bool:
-    """Compare a birth with the reference date at its recorded precision.
-
-    The reference year or month is not future, even if a stored full date
-    falls later within that period. Only day precision compares whole dates.
-    """
     if not fact.value_time:
         return False
     if fact.value_precision == 9:
@@ -194,7 +158,6 @@ def _born_after(fact: Fact, reference_date: date) -> bool:
     if fact.value_precision == 11:
         return date.fromisoformat(fact.value_time) > reference_date
     return False
-
 
 def _age_on_date_draft(
     fact: Fact,
@@ -240,18 +203,12 @@ def _age_on_date_draft(
         group_evidence, group_fact_ids,
     )
 
-
 def _membership_drafts(
     memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
     groups: list[Entity],
     people: list[Entity],
     rejected: Counter[str],
 ) -> list[Draft]:
-    """Build the group-for-member and member-at-date drafts of each membership.
-
-    A group whose labels mention the member yields neither draft. The
-    member-at-date draft does not depend on the group-for-member draft.
-    """
     group_ids_by_person: dict[str, set[str]] = defaultdict(set)
     for group, person, _pair in memberships:
         group_ids_by_person[person.wikidata_id].add(group.wikidata_id)
@@ -273,7 +230,6 @@ def _membership_drafts(
             result.append(member_draft)
     return result
 
-
 def _group_for_member_draft(
     group: Entity,
     person: Entity,
@@ -293,7 +249,6 @@ def _group_for_member_draft(
         {"person_id": person.wikidata_id}, _merge_evidence(pair_facts),
         tuple(sorted(fact.statement_id for fact in pair_facts)),
     )
-
 
 def _member_at_date_draft(
     group: Entity,
@@ -327,7 +282,6 @@ def _member_at_date_draft(
         _merge_evidence(pair_facts),
         tuple(sorted(fact.statement_id for fact in pair_facts)),
     )
-
 
 def _member_for_group_drafts(
     has_members: list[Fact], rejected: Counter[str]
@@ -374,7 +328,6 @@ def _member_for_group_drafts(
         )
     return result
 
-
 def _group_for_record_label_drafts(
     record_labels: list[Fact], rejected: Counter[str]
 ) -> list[Draft]:
@@ -411,7 +364,6 @@ def _group_for_record_label_drafts(
             )
         )
     return result
-
 
 def _record_label_for_group_drafts(
     record_labels: list[Fact], rejected: Counter[str]
@@ -455,7 +407,6 @@ def _record_label_for_group_drafts(
         )
     return result
 
-
 def _membership_pairs(facts: list[Fact]) -> list[tuple[Entity, Entity, tuple[Fact, ...]]]:
     sides: dict[tuple[str, str], dict[str, list[Fact]]] = defaultdict(
         lambda: {"has_member": [], "member_of": []}
@@ -481,19 +432,11 @@ def _membership_pairs(facts: list[Fact]) -> list[tuple[Entity, Entity, tuple[Fac
             result.append((group, person, tuple(pair["has_member"] + pair["member_of"])))
     return result
 
-
 def _comparison_drafts(
     facts: list[Fact],
     kind: str,
     memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
 ) -> list[Draft]:
-    """Build at most one comparison for each fact used as the answer.
-
-    Recombining the same earliest fact with many groups of distractors creates
-    different option sets without adding another piece of knowledge.  Keeping
-    one nearest-date set per answer makes the logical count reflect distinct
-    fact bases.
-    """
     result: list[Draft] = []
     for precision in (9, 10, 11):
         usable = sorted(
@@ -545,17 +488,11 @@ def _comparison_drafts(
             )
     return result
 
-
 def _comparison_group_ids(
     combo: tuple[Fact, ...],
     kind: str,
     memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
 ) -> tuple[str, ...]:
-    """Return the groups a comparison is about, in QID order.
-
-    A group comparison is about the groups it compares. A person comparison
-    is about every group of the people it compares.
-    """
     if kind == "group":
         return tuple(sorted(fact.subject.wikidata_id for fact in combo))
     return tuple(
@@ -569,7 +506,6 @@ def _comparison_group_ids(
             }
         )
     )
-
 
 def _time_alternatives(fact: Fact, candidates: list[Fact]) -> tuple[tuple[str, str], ...] | None:
     values = sorted(
@@ -585,7 +521,6 @@ def _time_alternatives(fact: Fact, candidates: list[Fact]) -> tuple[tuple[str, s
     selected = [fact.value_time or ""] + [value for value in values if value != fact.value_time][:3]
     return tuple((value, "time") for value in selected)
 
-
 def _year_alternatives(fact: Fact, candidates: list[Fact]) -> tuple[tuple[str, str], ...] | None:
     answer = (fact.value_time or "")[:4]
     values = sorted(
@@ -597,13 +532,11 @@ def _year_alternatives(fact: Fact, candidates: list[Fact]) -> tuple[tuple[str, s
     selected = [answer] + [value for value in values if value != answer][:3]
     return tuple((value, "time") for value in selected)
 
-
 def _numeric_alternatives(value: int, values: list[int]) -> tuple[tuple[str, str], ...] | None:
     ordered = sorted((item for item in values if item != value), key=lambda item: (abs(item - value), item))
     if len(ordered) < 3:
         return None
     return tuple((str(item), "number") for item in [value, *ordered[:3]])
-
 
 def _entity_alternatives(
     answer: Entity, pool: list[Entity]
@@ -616,13 +549,11 @@ def _entity_alternatives(
         (entity.wikidata_id, answer.entity_type) for entity in [answer, *ranked[:3]]
     )
 
-
 def _entity_alternatives_excluding(
     answer: Entity,
     pool: list[Entity],
     excluded_ids: set[str],
 ) -> tuple[tuple[str, str], ...] | None:
-    """Choose typed distractors that are not other valid answers to the prompt."""
     others = [
         entity
         for entity in pool
@@ -639,7 +570,6 @@ def _entity_alternatives_excluding(
         (entity.wikidata_id, answer.entity_type)
         for entity in [answer, *ranked[:3]]
     )
-
 
 def _eligible_membership_date(facts: tuple[Fact, ...]) -> str | None:
     intervals: list[tuple[str, str]] = []
@@ -662,15 +592,12 @@ def _eligible_membership_date(facts: tuple[Fact, ...]) -> str | None:
         (start.toordinal() + end.toordinal()) // 2
     ).isoformat()
 
-
 def _membership_contains_date(facts: tuple[Fact, ...], value: str) -> bool:
-    """Return whether bilateral, fully evidenced intervals contain a date."""
     if _eligible_membership_date(facts) is None:
         return False
     intervals = {(fact.valid_from, fact.valid_to) for fact in facts}
     start, end = next(iter(intervals))
     return bool(start and end and start <= value <= end)
-
 
 def _groups_for_person(
     person_id: str,
@@ -680,16 +607,10 @@ def _groups_for_person(
         sorted(group.wikidata_id for group, person, _facts in memberships if person.wikidata_id == person_id)
     )
 
-
 def _membership_citation(
     person_id: str,
     memberships: list[tuple[Entity, Entity, tuple[Fact, ...]]],
 ) -> tuple[tuple[str, ...], tuple[Evidence, ...]]:
-    """Return the facts and evidence behind the groups a prompt names for a person.
-
-    Groups come in the order of ``_groups_for_person`` (QID order), so the
-    citation follows the "(Group A · Group B)" suffix of the prompt.
-    """
     pairs = sorted(
         (
             (group.wikidata_id, pair_facts)
@@ -708,17 +629,14 @@ def _membership_citation(
     )
     return fact_ids, evidence
 
-
 def _age_on(born_on: str, reference_date: date) -> int:
     born = date.fromisoformat(born_on)
     return reference_date.year - born.year - (
         (reference_date.month, reference_date.day) < (born.month, born.day)
     )
 
-
 def _date_distance(first: str, second: str) -> int:
     return abs(int(first[:4]) - int(second[:4]))
-
 
 def _merge_evidence(facts: Iterable[Fact]) -> tuple[Evidence, ...]:
     unique = {

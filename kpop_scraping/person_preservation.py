@@ -26,16 +26,13 @@ from .validation import (
     FactDecision,
 )
 
-# A fact accepted by the rule keeps a revision of the person's own page as evidence.
 _PERSON_EVIDENCE_TYPE = "wikipedia_revision"
 _LOSS_REASONS = EVIDENCE_REASONS | PAGE_CONTRADICTION_REASONS
 
 ValueKey = tuple[str | None, int | None, str | None, str | None]
 
-
 class PersonEvidenceUnavailable(RuntimeError):
     """The stored evidence of a fact the rule accepted cannot be replayed."""
-
 
 @dataclass(frozen=True)
 class PreservedFact:
@@ -44,7 +41,6 @@ class PreservedFact:
     predicate: str
     source_revision_id: int
     value: ValueKey
-
 
 def value_key(candidate: FactCandidate) -> ValueKey:
     """The part of a candidate that the infobox evidence vouches for."""
@@ -55,7 +51,6 @@ def value_key(candidate: FactCandidate) -> ValueKey:
         time.calendar if time else None,
         candidate.value_id,
     )
-
 
 def facts_with_person_evidence(connection: sqlite3.Connection) -> list[PreservedFact]:
     """Birth facts whose stored evidence is a revision of the person's own page."""
@@ -90,7 +85,6 @@ def facts_with_person_evidence(connection: sqlite3.Connection) -> list[Preserved
         if row["predicate"] in PERSON_BIRTH_FIELDS
     ]
 
-
 def load_preserved_pages(
     store: FactStore, preserved: Iterable[PreservedFact]
 ) -> dict[str, WikipediaPage]:
@@ -108,7 +102,6 @@ def load_preserved_pages(
         qid: _stored_page(store, qid, revision_id)
         for qid, revision_id in sorted(revisions.items())
     }
-
 
 def _stored_page(store: FactStore, qid: str, source_revision_id: int) -> WikipediaPage:
     row = store.connection.execute(
@@ -147,7 +140,6 @@ def _stored_page(store: FactStore, qid: str, source_revision_id: int) -> Wikiped
         bool(row["is_redirect"]),
     )
 
-
 def assert_none_downgraded(
     preserved: Sequence[PreservedFact],
     decisions: Mapping[str, FactDecision],
@@ -172,7 +164,6 @@ def assert_none_downgraded(
             f"evidence without --person-evidence (first: {', '.join(lost[:3])}); "
             "no fact was changed"
         )
-
 
 def restrict_to(
     preserved: Iterable[PreservedFact], subjects: Collection[str]

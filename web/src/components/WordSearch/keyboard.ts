@@ -33,7 +33,6 @@ export function handleWordSearchKeyDown(e: KeyboardEvent, ctx: KeyboardNavContex
     return;
   }
   if (e.key === "Escape") {
-    // Handled here, so the page-wide Esc of the selection skips it.
     if (anchorCell) {
       e.preventDefault();
       ctx.cancel();

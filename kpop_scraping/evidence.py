@@ -11,16 +11,10 @@ from .entities import PRECISION_DAY, PRECISION_MONTH, PRECISION_YEAR, Statement,
 from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
-
 EVIDENCE_RULES_VERSION = "text-evidence-v10"
 MIN_NAME_LENGTH = 4
-# Shorter performer names count in a credit only when spelled exactly.
 MIN_CREDIT_NAME_LENGTH = 2
 MAX_SNIPPET_LENGTH = 300
-# Compiled subject patterns kept per list of subject names. One run validates
-# one subject at a time, over at most three pages, so a few entries already
-# hold the working set. The bound holds the name lists kept as cache keys; the
-# compiled patterns are also bounded, by the cache of the ``re`` module.
 SUBJECT_PATTERN_CACHE_SIZE = 16
 MONTHS = (
     "January", "February", "March", "April", "May", "June", "July",
@@ -49,9 +43,6 @@ _NON_MEMBER_ROLE_BEFORE = re.compile(
 _MEMBERSHIP_OWNER_BLOCKERS = re.compile(
     r"\b(?:crew|management|managers?|producers?|staff)\b", _I
 )
-# "member Mina" shifts the subject; "five-member" / "seven member" / "thirteen-member"
-# is a headcount. Only number words count: "founding-member Jihyo" or "co-member Jihyo"
-# still shift the subject. Compounds such as "twenty-one-member" match on "one-member".
 _MEMBER_COUNT_ADJECTIVE = re.compile(
     r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
     r"(?:-|\s+)members?\b"
@@ -60,8 +51,6 @@ _MEMBER_COUNT_ADJECTIVE = re.compile(
     _I,
 )
 _MEMBER_AS_SUBJECT = re.compile(r"\bmember,?\s+[A-Z][\w'.-]*")
-# Name glosses such as "(short for New Flying which also means ...)" stay on the group
-# only for the who/which/that/whose check in formation (ADR 046).
 _PARENTHETICAL = re.compile(r"\([^()]*\)")
 _PLACE_BLOCKERS = re.compile(r"\bdebut\w*", _I)
 _LABEL_BLOCKERS = re.compile(r"\b(?:trainee\w*|from|former\w*)\b", _I)
@@ -78,7 +67,6 @@ _MEMBER_LIST = re.compile(
     _I,
 )
 _MEMBER_CHANGE_LIST = re.compile(r"\b(?:additions?|graduations?)\s+of\s+", _I)
-# Nationality adjectives used in "<group> is a South Korean girl group".
 COUNTRY_TERMS = {
     "South Korea": {
         "names": ("South Korea", "Republic of Korea", "Coreia do Sul", "República da Coreia"),
@@ -115,18 +103,11 @@ _PERSON_ITEM = (
     r"(?:(?:members?|siblings|leader)\s+)?"
     r"(?:[A-Z0-9][\w'.&-]*|\([^)]*\))(?:\s+(?:[A-Z0-9][\w'.&-]*|\([^)]*\)))*"
 )
-# Text between the list trigger and a person: an optional "six members:" and
-# earlier items made of capitalized names, parentheses and separators.
 _PERSON_LIST_BEFORE = re.compile(
     rf"\s*(?:[^:;,.]{{0,40}}:\s*)?(?:(?:original\s+|former\s+)?(?:members?|siblings)\s+)?"
     rf"(?:{_PERSON_ITEM}{_LIST_SEPARATOR})*"
 )
-# A word of a genre is never "and" alone, which only separates items. If it
-# could be both, "a and b and c" would split in exponentially many ways before
-# a list that does not parse is refused.
 _GENRE_WORD = r"(?!and(?![\w&'-]))[\w&'-]+"
-# As _LIST_SEPARATOR, plus "and" followed by a comma, as in "EDM and, more
-# recently, K-pop", which the word rule above would otherwise refuse.
 _GENRE_SEPARATOR = r"(?:\s*,\s*(?:and\s+)?|\s+and(?:\s*,\s*|\s+))"
 _GENRE_LIST_BEFORE = re.compile(
     rf"\s*(?:{_GENRE_WORD}(?:\s+{_GENRE_WORD}){{0,2}}{_GENRE_SEPARATOR})*"
@@ -139,7 +120,6 @@ _RELEASE_DATE_TRIGGER = re.compile(
     r"|\b(?:foi\s+)?lançad[oa]\s+em\s+",
     _I,
 )
-# A bounded proper-name list, not arbitrary text between "released" and a date.
 _RELEASE_LABEL_WORD = r"[A-ZÀ-ÖØ-Þ0-9][\w’'&.-]{0,39}"
 _RELEASE_LABEL = rf"{_RELEASE_LABEL_WORD}(?:\s+{_RELEASE_LABEL_WORD}){{0,5}}"
 _RELEASE_LABEL_LIST = (
@@ -153,8 +133,6 @@ _RELEASE_BY_SCOPE = re.compile(
     r"will|would|upcoming|future|expected|was|were|released|premier\w*|debut\w*|teaser|pre-?order\w*)\b",
     _I,
 )
-# These nominal descriptions identify the release itself. A release noun in
-# an object ("includes a single") cannot establish the antecedent of "It".
 _RELEASE_ORDINAL = (
     r"(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|"
     r"eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|\d+(?:st|nd|rd|th))"
@@ -167,16 +145,8 @@ _RELEASE_DESCRIPTION = re.compile(
     rf"(?:\s*\(EP\))?(?: and (?:the )?{_RELEASE_ORDINAL} overall)?"
     r"(?P<credit>[^\n]*)$"
 )
-# Names may include iKON, (G)I-dle and N.Flying. Require a capital or digit in
-# each name token, rather than allowing arbitrary clauses after the artist.
 _RELEASE_NAME_WORD = r"(?=[\w()’'&.!+-]*[A-Z0-9])[\w()’'&.!+-]+"
-# Only the first token may start with a parenthesis. A later one would also
-# read as the opening of the parenthesis after the artist's name, and a credit
-# that does not match would then try each place to split them.
 _RELEASE_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & )(?![()]){_RELEASE_NAME_WORD})*"
-# A name outside the artist credit has no optional parenthesis after it, so a
-# later token that starts with one cannot be read in two ways. Any token may
-# start with a parenthesis there, as in "WJSN (Cosmic Girls)" or "Foo (Ab) Cd".
 _RELEASE_PLAIN_NAME = rf"{_RELEASE_NAME_WORD}(?:(?:[ –]+| & ){_RELEASE_NAME_WORD})*"
 _RELEASE_ARTIST = (
     r"(?:the )?(?:(?:South Korean|Korean|Japanese|Chinese|Thai) )?"
@@ -212,7 +182,6 @@ _KOREAN_RELEASE_SCOPE = re.compile(
     _I,
 )
 
-
 @dataclass(frozen=True)
 class EvidenceItem:
     evidence_type: str
@@ -223,7 +192,6 @@ class EvidenceItem:
     source_key: str | None = None
     flags: tuple[str, ...] = ()
 
-
 @dataclass(frozen=True)
 class ReferenceAssessment:
     """Reliable references plus the reason when none of them qualifies."""
@@ -231,7 +199,6 @@ class ReferenceAssessment:
     evidence: tuple[EvidenceItem, ...]
     rejection_reason: str | None
     sources: tuple[tuple[str, str], ...]
-
 
 @dataclass(frozen=True)
 class WikipediaPage:
@@ -253,7 +220,6 @@ class WikipediaPage:
     wikitext: str = ""
     wikidata_id: str = ""
     is_redirect: bool = False
-
 
 def assess_references(statement: Statement) -> ReferenceAssessment:
     """Accept references whose cited sources are all known and reliable.
@@ -291,7 +257,6 @@ def assess_references(statement: Statement) -> ReferenceAssessment:
             reason = "unreliable_reference_source"
     return ReferenceAssessment(tuple(evidence), reason, tuple(sorted(sources.items())))
 
-
 def formation_date_evidence(
     page: WikipediaPage,
     value: TimeValue,
@@ -317,14 +282,12 @@ def formation_date_evidence(
                 )
     return None
 
-
 FORMATION_CATEGORY_DIFFERS = "formation_category_year_differs"
 _FORMATION_CATEGORY = re.compile(
     r"\[\[\s*[Cc]ategory\s*:\s*[Mm]usical[ _]groups[ _]established[ _]in[ _]"
     r"(?P<year>\d{4})\s*(?:\|[^\[\]]*)?\]\]"
 )
 _WIKITEXT_COMMENT = re.compile(r"<!--.*?(?:-->|\Z)", re.S)
-
 
 @dataclass(frozen=True)
 class FormationCategoryCheck:
@@ -336,7 +299,6 @@ class FormationCategoryCheck:
 
     evidence: EvidenceItem | None = None
     observed: EvidenceItem | None = None
-
 
 def formation_category_check(page: WikipediaPage, value: TimeValue) -> FormationCategoryCheck:
     """Compare the year of P571 with "Musical groups established in YYYY" (ADR 029).
@@ -359,10 +321,8 @@ def formation_category_check(page: WikipediaPage, value: TimeValue) -> Formation
         return FormationCategoryCheck(evidence=_category_evidence(page, found[0]))
     return FormationCategoryCheck()
 
-
 def _category_evidence(page: WikipediaPage, match: re.Match[str]) -> EvidenceItem:
     return _wikitext_evidence(page, match.start(), match.end(), match.group(0))
-
 
 def place_evidence(
     page: WikipediaPage,
@@ -408,7 +368,6 @@ def place_evidence(
                     return _text_evidence(page, start + found[0], start + found[1])
     return None
 
-
 def record_label_evidence(
     page: WikipediaPage,
     names: Iterable[str],
@@ -435,7 +394,6 @@ def record_label_evidence(
                     break
                 position = token.end()
     return None
-
 
 def genre_evidence(
     page: WikipediaPage,
@@ -467,7 +425,6 @@ def genre_evidence(
                 return _text_evidence(page, start + found[0], start + found[1])
     return None
 
-
 def membership_evidence(
     page: WikipediaPage,
     names: Iterable[str],
@@ -480,9 +437,6 @@ def membership_evidence(
     A one-letter stage name only counts as an item of the first kind of list.
     """
     patterns = _name_patterns(names)
-    # Stage names are often mononyms ("CL", "Bom", "Uee"). Inside an explicit
-    # member list the separators and the capitalisation already identify the
-    # item, so short names are admissible there but nowhere else.
     list_patterns = _name_patterns(names, min_length=2)
     group = _alternation(subject_names)
     for start, sentence in _subject_sentences(page, subject_names):
@@ -540,7 +494,6 @@ def membership_evidence(
                     )
     return None
 
-
 def release_performer_evidence(
     page: WikipediaPage,
     names: Iterable[str],
@@ -562,8 +515,6 @@ def release_performer_evidence(
             continue
         if page.language == "ko":
             continue
-        # A name after "with", "including" or "featuring" is a guest, and so
-        # is a name after any later trigger.
         guest = re.search(r"\b(?:with|including|featuring)\b", sentence, _I)
         for trigger in _PERFORMER_TRIGGER.finditer(sentence):
             if guest and guest.start() < trigger.start():
@@ -584,7 +535,6 @@ def release_performer_evidence(
                         page, start + match[0], start + match[1]
                     )
     return None
-
 
 def release_date_evidence(
     page: WikipediaPage,
@@ -644,28 +594,18 @@ def release_date_evidence(
                 )
     return None
 
-
 def _release_by_subject(
     page: WikipediaPage,
     subject_names: Sequence[str],
     spans: Sequence[tuple[int, int]],
     index: int,
 ) -> bool:
-    """Keep "It" anchored to a named release across descriptive sentences.
-
-    ``spans`` are the sentences of the whole extract and ``index`` is the one
-    that says "It was released by". The search goes back from the sentence
-    before it.
-    """
     for position in range(index - 1, -1, -1):
         begin, end = spans[position]
         previous = page.extract[begin:end]
-        # Do not inherit the generic subject helper's "In ...," prefix: it
-        # can carry precisely the territorial scope excluded by this rule.
         subject = _named_subject_pattern(tuple(subject_names)).match(previous)
         if subject and not _leading_subject(previous, ()):
             description = previous[subject.end():]
-            # Styling/short-title notes are part of the name, not predicates.
             description = re.sub(
                 r"^\s*\((?:stylized|occasionally referred just as) "
                 r"(?:[^()]|\([^()]*\))*\)", "", description,
@@ -677,9 +617,6 @@ def _release_by_subject(
             if release is None:
                 return False
             credit = release.group("credit")
-            # A song can belong to a reissued album without itself being a
-            # reissue. Accept only this explicit nominal attachment, then
-            # validate the remaining credit; other scopes stay rejected.
             if release.group("kind") == "song":
                 credit = _RELEASE_ALBUM_ORIGIN.sub(".", credit)
             if credit.strip() in {"", "."}:
@@ -690,11 +627,9 @@ def _release_by_subject(
             return False
     return False
 
-
 def _release_by_date(
     sentence: str, language: str, value: TimeValue, date: str,
 ) -> re.Match[str] | None:
-    """Recognize only a completed, unscoped English release with label names."""
     if language != "en" or value.precision != PRECISION_DAY:
         return None
     match = re.match(
@@ -705,8 +640,6 @@ def _release_by_date(
     if match is None or len(match.group("labels")) > 120:
         return None
     suffix = match.group("suffix")
-    # Descriptive continuations in release leads keep the same subject. Other
-    # clauses (including another event or a new subject) are not this syntax.
     if not re.fullmatch(
         r"(?:\.|\s*|, and (?:contains |serves as |distributed by )[^;.!?]{1,200}\.?)",
         suffix,
@@ -716,14 +649,12 @@ def _release_by_date(
         return None
     return match
 
-
 def _performer_list_item(
     sentence: str,
     position: int,
     target_names: Iterable[str],
     peer_names: Iterable[str],
 ) -> tuple[int, int] | None:
-    """Match a credit list made only of performers declared by P175."""
     targets = tuple(sorted(set(target_names), key=lambda item: (-len(item), item)))
     known = tuple(
         sorted(set(peer_names) | set(targets), key=lambda item: (-len(item), item))
@@ -756,27 +687,18 @@ def _performer_list_item(
             return listing.start("artists") + match.start(), listing.start("artists") + match.end()
     return None
 
-
 def _credit_name_pattern(name: str) -> str | None:
-    """Return the pattern of one performer name in a credit, or None if unusable.
-
-    A short name ("BTS", "Can", "UN") identifies the performer only when the
-    credit writes it exactly, so it is matched case-sensitively and needs a
-    capital letter: a common word in another case is not the performer.
-    """
     if len(name) >= MIN_NAME_LENGTH or " " in name or any(char.isdigit() for char in name):
         return re.escape(name)
     if len(name) >= MIN_CREDIT_NAME_LENGTH and re.search(r"[A-Z]", name):
         return rf"(?-i:{re.escape(name)})"
     return None
 
-
 def _release_subject_sentences(
     page: WikipediaPage,
     subject_names: Sequence[str],
     spans: Sequence[tuple[int, int]],
 ) -> Iterable[tuple[int, int, str]]:
-    """Yield each sentence led by the release, with its index in ``spans`` and start."""
     subject_nouns = _release_subject_nouns(page, subject_names)
     for index, (start, end) in enumerate(spans):
         sentence = page.extract[start:end]
@@ -790,12 +712,10 @@ def _release_subject_sentences(
         if leading or (generic and (noun is None or noun.casefold() in subject_nouns)):
             yield index, start, sentence
 
-
 def _release_subject_nouns(
     page: WikipediaPage,
     subject_names: Sequence[str],
 ) -> frozenset[str]:
-    """Read the release kind only from a sentence led by the page subject."""
     for start, end in _sentences(page.extract):
         sentence = page.extract[start:end]
         if not _leading_subject(sentence, subject_names):
@@ -807,7 +727,6 @@ def _release_subject_nouns(
         if found:
             return frozenset(found)
     return frozenset()
-
 
 def text_evidence(
     predicate: str,
@@ -843,10 +762,8 @@ def text_evidence(
         return release_date_evidence(page, time, subject) if time else None
     return None
 
-
 INFOBOX_LABEL_FIELDS = ("label",)
 INFOBOX_MEMBER_FIELDS = ("current_members", "members", "past_members")
-
 
 def infobox_evidence(
     page: WikipediaPage,
@@ -878,10 +795,8 @@ def infobox_evidence(
                 return infobox_item_evidence(page, field, item.start, item.end)
     return None
 
-
 def infobox_item_evidence(page: WikipediaPage, field: str, start: int, end: int) -> EvidenceItem:
     return _wikitext_evidence(page, start, end, f"{field} = {page.wikitext[start:end].strip()}")
-
 
 def _wikitext_evidence(page: WikipediaPage, start: int, end: int, snippet: str) -> EvidenceItem:
     if len(snippet) > MAX_SNIPPET_LENGTH:
@@ -897,28 +812,19 @@ def _wikitext_evidence(page: WikipediaPage, start: int, end: int, snippet: str) 
         source_key=f"wikipedia:{page.language}",
     )
 
-
 def page_title_name(title: str) -> str:
     """Drop a final disambiguator, as in "Exo (group)", from a page title."""
     return re.sub(r"\s+\([^)]*\)$", "", title).strip()
 
-
 def subject_names_for(page: WikipediaPage, names: Iterable[str]) -> tuple[str, ...]:
     return _sorted_subject_names(page_title_name(page.title), tuple(names))
 
-
 @functools.lru_cache(maxsize=SUBJECT_PATTERN_CACHE_SIZE)
 def _sorted_subject_names(title: str, names: tuple[str, ...]) -> tuple[str, ...]:
-    """Sort the subject names once per page title and list of names.
-
-    Longer names come first, then the alphabet, whatever the order of the
-    input, so equal sets give one tuple and one compiled pattern.
-    """
     values = {name.strip() for name in names if name.strip()}
     if title:
         values.add(title)
     return tuple(sorted(values, key=lambda name: (-len(name), name)))
-
 
 def _subject_sentences(
     page: WikipediaPage,
@@ -929,21 +835,14 @@ def _subject_sentences(
         if _leading_subject(sentence, subject_names):
             yield start, sentence
 
-
 def _leading_subject(
     sentence: str,
     subject_names: Sequence[str],
 ) -> re.Match[str] | None:
     return _leading_subject_pattern(tuple(subject_names)).match(sentence)
 
-
 @functools.lru_cache(maxsize=SUBJECT_PATTERN_CACHE_SIZE)
 def _leading_subject_pattern(subject_names: tuple[str, ...]) -> re.Pattern[str]:
-    """Compile the subject pattern once for every sentence of every page.
-
-    The alternation keeps the order of ``subject_names``, which decides the
-    alternative that matches first; ``subject_names_for`` sorts them.
-    """
     names = _alternation(subject_names)
     return re.compile(
         rf"^\s*[\"'“]?{_SUBJECT_PREFIX}(?:{names}|{_GENERIC_SUBJECT})"
@@ -951,29 +850,20 @@ def _leading_subject_pattern(subject_names: tuple[str, ...]) -> re.Pattern[str]:
         _I,
     )
 
-
 @functools.lru_cache(maxsize=SUBJECT_PATTERN_CACHE_SIZE)
 def _named_subject_pattern(subject_names: tuple[str, ...]) -> re.Pattern[str]:
-    """Compile a sentence start that is one of the names, without a prefix."""
     return re.compile(
         rf"^\s*[\"'“]?(?:{_alternation(subject_names)})[\"'”]?(?![\w'-])", _I
     )
-
 
 def _alternation(names: Iterable[str]) -> str:
     escaped = [re.escape(name) for name in names if name]
     return "|".join(escaped) if escaped else r"(?!)"
 
-
 def _name_patterns(
     names: Iterable[str],
     min_length: int = MIN_NAME_LENGTH,
 ) -> list[re.Pattern[str]]:
-    """Build name patterns, dropping names too short to identify on their own.
-
-    ``min_length`` may be lowered where the surrounding context already pins the
-    name down, such as an item of an explicit member list.
-    """
     usable = sorted(
         {
             name.strip()
@@ -986,9 +876,7 @@ def _name_patterns(
         },
         key=lambda name: (-len(name), name),
     )
-    # Hyphens count as part of a word, so "pop" does not match "K-pop".
     return [re.compile(rf"(?<![\w-]){re.escape(name)}(?![\w-])", _I) for name in usable]
-
 
 def _match_at(
     sentence: str,
@@ -1001,7 +889,6 @@ def _match_at(
             return match.start(), match.end()
     return None
 
-
 def _list_item(
     sentence: str,
     position: int,
@@ -1009,7 +896,6 @@ def _list_item(
     before_pattern: re.Pattern[str],
     proper_noun: bool,
 ) -> tuple[int, int] | None:
-    """Find a name that starts an item of the list beginning at ``position``."""
     region_end = sentence.find(";", position)
     region_end = len(sentence) if region_end < 0 else region_end
     region = sentence[:region_end]
@@ -1019,25 +905,15 @@ def _list_item(
                 continue
             if not _LIST_AFTER.match(region, match.end()):
                 continue
-            # List items are separated by commas, so the name only needs to
-            # avoid a capitalized continuation such as "Warner Music Japan".
             if _clean_boundaries(sentence, match.start(), match.end(), proper_noun, False):
                 return match.start(), match.end()
     return None
-
 
 def _one_letter_list_item(
     sentence: str,
     position: int,
     names: Iterable[str],
 ) -> tuple[int, int] | None:
-    """Find a one-letter stage name ("V") that is a whole item of a longer list.
-
-    One letter identifies a person only as an item spelled exactly, next to at
-    least one other item of the list. "V." can start an initial and "I.M" a
-    longer name, so a period counts only when it ends the sentence and "and"
-    closes the list before the letter.
-    """
     letters = sorted({name.strip() for name in names if re.fullmatch(r"[A-Z]", name.strip())})
     patterns = [re.compile(rf"(?<!\S){letter}(?![\w'’&:-])") for letter in letters]
     found = _list_item(sentence, position, patterns, _PERSON_LIST_BEFORE, True)
@@ -1051,7 +927,6 @@ def _one_letter_list_item(
         return found
     return None
 
-
 def _clean_boundaries(
     sentence: str,
     start: int,
@@ -1059,20 +934,13 @@ def _clean_boundaries(
     proper_noun: bool,
     check_before: bool = True,
 ) -> bool:
-    """Reject partial names such as "Warner Music" in "Warner Music Japan"."""
     if proper_noun and sentence[start].islower():
         return False
     if _CAPITALIZED_AFTER.match(sentence, end):
         return False
     return not (check_before and _capitalized_word_before(sentence, start))
 
-
 def _capitalized_word_before(sentence: str, start: int) -> bool:
-    """Tell whether ``sentence[:start]`` ends in a capitalized word and whitespace.
-
-    Reads backwards from ``start`` what ``[A-Z][\\w'.-]*\\s+$`` matches, so the
-    cost is the length of that word and not of the sentence before it.
-    """
     index = start
     while index > 0 and sentence[index - 1].isspace():
         index -= 1
@@ -1087,9 +955,7 @@ def _capitalized_word_before(sentence: str, start: int) -> bool:
         index -= 1
     return False
 
-
 def _prefix_ends(sentence: str, position: int, country: bool) -> list[int]:
-    """Positions right after "in " or, for countries, after "in <City>, "."""
     ends = []
     for match in re.finditer(r"\bin\s+", sentence[position : position + 80]):
         absolute = position + match.end()
@@ -1104,40 +970,31 @@ def _prefix_ends(sentence: str, position: int, country: bool) -> list[int]:
                 ends.append(city.end())
     return ends
 
-
 def _is_appositive(sentence: str, verb_start: int) -> bool:
     return sentence[:verb_start].rstrip().endswith(",")
 
-
 def _strip_parentheticals(text: str) -> str:
-    """Drop parenthetical glosses so relative pronouns inside them do not shift the subject."""
     previous = None
     while previous != text:
         previous = text
         text = _PARENTHETICAL.sub(" ", text)
     return text
 
-
 def _member_shifts_subject(relation_head: str) -> bool:
-    """True when a named member takes the subject, not a headcount adjective."""
     cleaned = _MEMBER_COUNT_ADJECTIVE.sub(" ", relation_head)
     return bool(_MEMBER_AS_SUBJECT.search(cleaned))
-
 
 def _formation_has_group_subject(
     sentence: str,
     verb_start: int,
     subject_names: Sequence[str],
 ) -> bool:
-    """Require the formation verb to describe the leading group subject."""
     subject = _leading_subject(sentence, subject_names)
     if subject is None or _is_appositive(sentence, verb_start):
         return False
     relation_head = sentence[subject.end():verb_start]
     if relation_head.lstrip().startswith(("'s", "’s")):
         return False
-    # Parentheses are ignored only when looking for who/which/that/whose
-    # (name glosses). Other subject blockers still see the original text.
     dependent_head = _strip_parentheticals(relation_head)
     return not (
         _FORMATION_OBJECT_BLOCKERS.search(relation_head)
@@ -1147,13 +1004,11 @@ def _formation_has_group_subject(
         or _DEPENDENT_SUBJECT.search(dependent_head)
     )
 
-
 def _relation_belongs_to_group(
     sentence: str,
     relation_start: int,
     subject_names: Sequence[str],
 ) -> bool:
-    """Reject a relation whose grammatical subject shifted away from the group."""
     subject = _leading_subject(sentence, subject_names)
     if subject is None:
         return False
@@ -1166,7 +1021,6 @@ def _relation_belongs_to_group(
         or re.search(r"\bmembers?\b", relation_head, _I)
     )
 
-
 def _membership_owner_shifted(
     sentence: str,
     relation_start: int,
@@ -1177,9 +1031,7 @@ def _membership_owner_shifted(
         return True
     return bool(_MEMBERSHIP_OWNER_BLOCKERS.search(sentence[subject.end():relation_start]))
 
-
 def _reviewed_country_terms(names: Iterable[str]) -> tuple[list[str], tuple[str, ...]]:
-    """Return only country names and demonyms reviewed in this module."""
     supplied = {name.casefold() for name in names}
     explicit: set[str] = set()
     demonyms: set[str] = set()
@@ -1194,7 +1046,6 @@ def _reviewed_country_terms(names: Iterable[str]) -> tuple[list[str], tuple[str,
         tuple(sorted(demonyms, key=lambda value: (-len(value), value))),
     )
 
-
 def _ambiguous_membership_context(sentence: str, member_start: int) -> bool:
     context = sentence[:member_start]
     return bool(
@@ -1202,7 +1053,6 @@ def _ambiguous_membership_context(sentence: str, member_start: int) -> bool:
         or _NON_MEMBER_ROLE_BEFORE.search(context)
         or re.search(r"\banother\s+(?:act|band|duo|group|unit)\b", context, _I)
     )
-
 
 def _date_pattern(value: TimeValue) -> str:
     parts = value.components()
@@ -1214,7 +1064,6 @@ def _date_pattern(value: TimeValue) -> str:
         return rf"{month},?\s+{year}"
     day = parts[2]
     return rf"(?:{month}\s+0?{day},?\s+{year}|0?{day}\s+{month},?\s+{year})"
-
 
 def _release_date_pattern(value: TimeValue, language: str) -> str:
     parts = value.components()
@@ -1233,12 +1082,10 @@ def _release_date_pattern(value: TimeValue, language: str) -> str:
         return rf"0?{parts[2]}\s+de\s+{name}\s+de\s+{year}"
     return _date_pattern(value)
 
-
 def _sentences(text: str) -> list[tuple[int, int]]:
     spans = []
     start = 0
     for boundary in _SENTENCE_BOUNDARY.finditer(text):
-        # "Jun. K" and "U.S." do not end a sentence.
         if "\n" not in boundary.group(0) and _ends_in_abbreviation(
             text, start, boundary.start()
         ):
@@ -1248,18 +1095,11 @@ def _sentences(text: str) -> list[tuple[int, int]]:
     spans.append((start, len(text)))
     return [(begin, end) for begin, end in spans if text[begin:end].strip()]
 
-
 def _ends_in_abbreviation(text: str, start: int, end: int) -> bool:
-    """Tell whether ``text[start:end]`` ends in a short abbreviation.
-
-    An abbreviation has no space or parenthesis inside, so the search covers
-    the last word and the character before it, not the whole sentence so far.
-    """
     word = end
     while word > start and not (text[word - 1].isspace() or text[word - 1] == "("):
         word -= 1
     return _SHORT_ABBREVIATION.search(text[max(word - 1, start) : end]) is not None
-
 
 def _text_evidence(page: WikipediaPage, start: int, end: int) -> EvidenceItem:
     snippet = page.extract

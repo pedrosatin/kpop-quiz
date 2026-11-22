@@ -40,7 +40,6 @@ CATALOG_DECADES = (1990, 2000, 2010, 2020)
 POOL_KEYS = ("all", *(f"decade.{decade}" for decade in CATALOG_DECADES))
 SHARD_KEYS = tuple(f"{locale}.{mode}" for locale in CATALOG_LOCALES for mode in CATALOG_MODES)
 SESSION_SIZE = 10
-# Questions differ between the legacy sessions and an enriched catalog only here.
 CLUE_FIELDS = frozenset({"clues_available", "clues_shown"})
 
 SHARD_FIELDS = frozenset(
@@ -54,10 +53,8 @@ MANIFEST_FIELDS = frozenset(
     {"catalog_version", "dataset_version", "reference_date", "schema_version", "shards"}
 )
 
-
 def shard_path(key: str, digest: str) -> str:
     return f"catalog.{key}.{digest}.json"
-
 
 def replay_status(eligible: int) -> str:
     """How a pool serves a new round of ten questions.
@@ -70,14 +67,11 @@ def replay_status(eligible: int) -> str:
         return "ok"
     return "repeats" if eligible == SESSION_SIZE else "unavailable"
 
-
 def shard_bytes(shard: dict[str, Any]) -> bytes:
     return canonical_json(shard) + b"\n"
 
-
 def shard_digest(shard: dict[str, Any]) -> str:
     return hashlib.sha256(shard_bytes(shard)).hexdigest()
-
 
 def catalog_version(dataset_version: str, digests: dict[str, str]) -> str:
     """Content version of a catalog: the dataset and the hash of every shard.
@@ -87,7 +81,6 @@ def catalog_version(dataset_version: str, digests: dict[str, str]) -> str:
     lines = [CATALOG_MANIFEST_VERSION, dataset_version]
     lines += [f"{key}:{digests[key]}" for key in sorted(digests)]
     return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
-
 
 def build_catalog(dataset: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Build and validate one shard per language and play mode of ``dataset``."""
@@ -130,7 +123,6 @@ def build_catalog(dataset: dict[str, Any]) -> dict[str, dict[str, Any]]:
             shards[f"{locale}.{mode}"] = shard
     return shards
 
-
 def build_catalog_manifest(shards: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Describe validated shards by hash, with the eligible count of every pool."""
     if set(shards) != set(SHARD_KEYS):
@@ -163,7 +155,6 @@ def build_catalog_manifest(shards: dict[str, dict[str, Any]]) -> dict[str, Any]:
     }
     validate_catalog_manifest(manifest)
     return manifest
-
 
 def validate_catalog_shard(payload: Any) -> None:
     """Check one shard on its own: schema, identity, language, mode and pools."""
@@ -214,7 +205,6 @@ def validate_catalog_shard(payload: Any) -> None:
     _require(bool(pools["all"]), "catalog pool all is empty")
     _require(len(referenced) == len(questions), "catalog question outside every pool")
 
-
 def validate_catalog_manifest(payload: Any) -> None:
     _require(isinstance(payload, dict), "catalog manifest")
     _require(payload.get("schema_version") == CATALOG_MANIFEST_VERSION, "catalog manifest schema_version")
@@ -248,7 +238,6 @@ def validate_catalog_manifest(payload: Any) -> None:
         "catalog manifest catalog_version",
     )
 
-
 def publish_catalog(output_dir: Path, shards: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Write the shards, then the manifest, then drop the files they replace.
 
@@ -265,14 +254,12 @@ def publish_catalog(output_dir: Path, shards: dict[str, dict[str, Any]]) -> dict
     prune_catalog(output_dir, manifest)
     return manifest
 
-
 def prune_catalog(output_dir: Path, manifest: dict[str, Any] | None) -> None:
     """Remove catalog shards no manifest names; with no manifest, remove them all."""
     keep = {entry["path"] for entry in manifest["shards"].values()} if manifest else set()
     for path in output_dir.glob("catalog.*.json"):
         if path.name not in keep:
             path.unlink()
-
 
 def remove_catalog(output_dir: Path) -> bool:
     """Withdraw the catalog (manifest first, so no reader sees a half-removed one)."""
@@ -281,7 +268,6 @@ def remove_catalog(output_dir: Path) -> bool:
     manifest.unlink(missing_ok=True)
     prune_catalog(output_dir, None)
     return present
-
 
 def read_catalog(output_dir: Path) -> tuple[dict[str, Any], dict[str, dict[str, Any]]]:
     """Read the published catalog, checking every layer before returning anything."""
@@ -310,17 +296,10 @@ def read_catalog(output_dir: Path) -> tuple[dict[str, Any], dict[str, dict[str, 
         raise ValueError("catalog shards do not match the catalog manifest")
     return manifest, shards
 
-
 def _comparable(question: dict[str, Any]) -> dict[str, Any]:
-    """A question without what legitimately differs between a session and the catalog.
-
-    A session shuffles the options with its own seed and may omit the clues an
-    enriched catalog carries; the catalog keeps the dataset order of the options.
-    """
     plain = {name: value for name, value in question.items() if name not in CLUE_FIELDS}
     plain["options"] = sorted(question["options"], key=lambda option: option["id"])
     return plain
-
 
 def validate_sessions_in_catalog(
     sessions: dict[str, dict[str, Any]], shards: dict[str, dict[str, Any]]
@@ -352,7 +331,6 @@ def validate_sessions_in_catalog(
                     f"session {key} clue differs from the catalog",
                 )
 
-
 def verify_catalog(output_dir: Path, required: bool = False) -> bool:
     """Verify the catalog in ``output_dir``; return whether one is published.
 
@@ -365,7 +343,6 @@ def verify_catalog(output_dir: Path, required: bool = False) -> bool:
         return False
     read_catalog(output_dir)
     return True
-
 
 def catalog_coverage(shards: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Count what each shard offers: eligible questions per pool, types and clues."""
@@ -391,7 +368,6 @@ def catalog_coverage(shards: dict[str, dict[str, Any]]) -> dict[str, Any]:
         }
     return coverage
 
-
 def catalog_coverage_lines(manifest: dict[str, Any], shards: dict[str, dict[str, Any]], label: str) -> list[str]:
     """Report the published catalog the way the clue coverage is reported."""
     coverage = catalog_coverage(shards)
@@ -412,7 +388,6 @@ def catalog_coverage_lines(manifest: dict[str, Any], shards: dict[str, dict[str,
                 f"{item['with_clue']}/{item['questions']} questions with a clue"
             )
     return lines
-
 
 def published_catalog_coverage_lines(directory: Path, label: str) -> list[str]:
     """Verified coverage lines of the catalog in ``directory``; empty when none is published."""

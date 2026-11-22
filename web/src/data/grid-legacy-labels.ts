@@ -1,20 +1,3 @@
-/**
- * Display text of decade criteria in grids published before the label said
- * "Formado/Formed".
- *
- * The decade axes have always been computed from `formed_on` facts (Wikidata
- * P571); the first generator already filtered on that predicate. Early
- * artifacts only worded the label as a debut ("Estreou nos anos 2010").
- * The fallback copies the previous grid byte for byte, so such a grid can
- * still be served under the "Formação" tag.
- *
- * A criterion is reworded only when all of these hold: its category is
- * `formed_on`, its id names a decade, and both locale labels read exactly as
- * the legacy pair of that same decade. Anything else is shown as published.
- * Only the label text of the in-memory copy changes: `grid_id`, criterion
- * ids, categories, cells and the saved game (keyed by `grid_id`, holding
- * entity ids only) stay as published.
- */
 
 import type { GridCriterion, IntersectionGrid } from "../lib/quiz-types";
 
@@ -35,7 +18,6 @@ function decade(year: number): [string, DecadeWording] {
 
 const DECADES = new Map<string, DecadeWording>([1990, 2000, 2010, 2020].map(decade));
 
-/** `formed_2010s`, or `row_formed_2010s` / `col_formed_2010s` of early fixtures. */
 const DECADE_ID = /^(?:(?:row|col)_)?formed_(\d{4}s)$/;
 
 export function formedCriterionLabel(criterion: GridCriterion): GridCriterion["label"] {

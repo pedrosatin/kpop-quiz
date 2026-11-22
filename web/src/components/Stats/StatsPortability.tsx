@@ -20,11 +20,9 @@ export interface StatsPortabilityProps {
 
 interface PendingImport {
   file: PlayerStatsFile;
-  /** Local stats when the file was picked, shown next to the file's. */
   local: PlayerStats;
 }
 
-/** The export time in the player's own time zone, where the file was made. */
 function formatExportedAt(exportedAt: string, locale: Locale): string {
   return new Intl.DateTimeFormat(locale === "pt-BR" ? "pt-BR" : "en-US", {
     dateStyle: "long",
@@ -85,7 +83,6 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
   const cancelImportRef = useRef<HTMLButtonElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Cancel takes focus, like ConfirmDialog: Enter must not replace by accident.
   useEffect(() => {
     if (pendingImport) cancelImportRef.current?.focus();
   }, [pendingImport]);
@@ -120,7 +117,6 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
     };
     const reader = new FileReader();
     reader.onload = () => {
-      // Nothing is written yet: the player compares and confirms first.
       const result = parsePlayerStatsJson(String(reader.result ?? ""));
       if (result.success) {
         setConfirmingReset(false);
@@ -157,7 +153,6 @@ export function StatsPortability({ locale, onStatsChange }: StatsPortabilityProp
 
   const handleImportKeyDown = (e: KeyboardEvent) => {
     if (e.key !== "Escape") return;
-    // Escape closes only this confirmation, not the stats window around it.
     e.preventDefault();
     e.stopPropagation();
     handleCancelImport();

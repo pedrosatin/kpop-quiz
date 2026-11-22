@@ -31,12 +31,9 @@ from .revision_reuse import IncrementalWikidataClient
 from .storage import ExtractDrift, Repository, SnapshotIntegrityError
 from .wikidata import WikidataEntityClient, WikidataTypeClient
 
-
 DEFAULT_CATEGORY = "Category:K-pop music groups"
 DEFAULT_DATABASE = Path(__file__).resolve().parent.parent / "data" / "kpop.db"
-# Pages named in the extract drift annotation; stderr lists every page.
 MAX_DRIFT_PAGES_IN_ANNOTATION = 20
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Collect K-pop pages from Wikipedia")
@@ -127,9 +124,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--user-agent", default=DEFAULT_USER_AGENT)
     return parser
 
-
 def _check_person_evidence_target(run_facts: bool, database: Path, raw_dir: Path) -> None:
-    """Reject the default database and raw directory for --person-evidence."""
     if not run_facts:
         raise SystemExit(
             "--person-evidence needs the fact stage: add --facts, --facts-limit, "
@@ -142,15 +137,12 @@ def _check_person_evidence_target(run_facts: bool, database: Path, raw_dir: Path
             "at a copy of data/kpop.db and data/raw, never the default database or its raw directory"
         )
 
-
 def _print_birth_coverage(totals) -> None:
-    """Print the born_on/born_in outcome counts before and after the fact run."""
     for before, after in zip(totals.birth_before, totals.birth_after):
         print(
             f"Birth coverage {before.predicate}: "
             f"{_coverage(before)} -> {_coverage(after)}"
         )
-
 
 def _coverage(row) -> str:
     return (
@@ -158,7 +150,6 @@ def _coverage(row) -> str:
         f"{row.rejected_for_evidence} rejected for evidence, "
         f"{row.rejected_by_person_page} rejected by person page"
     )
-
 
 def report_truncated_groups(truncated: tuple[TruncatedGroup, ...]) -> None:
     """Warn about each group the per-group candidate limit cut; the run goes on.
@@ -179,7 +170,6 @@ def report_truncated_groups(truncated: tuple[TruncatedGroup, ...]) -> None:
         if os.environ.get("GITHUB_ACTIONS") == "true":
             workflow_commands.warning(message, title="Release candidates truncated")
 
-
 def report_release_stage_failure(exc: Exception) -> None:
     """Warn that release discovery failed after facts were already saved.
 
@@ -195,7 +185,6 @@ def report_release_stage_failure(exc: Exception) -> None:
     sys.stderr.flush()
     if os.environ.get("GITHUB_ACTIONS") == "true":
         workflow_commands.warning(message, title="Release discovery skipped")
-
 
 def report_extract_drift(drifts: Sequence[ExtractDrift]) -> None:
     """Warn about pages whose extract changed without a new revision; the run goes on.
@@ -229,13 +218,10 @@ def report_extract_drift(drifts: Sequence[ExtractDrift]) -> None:
             title="Extract changed without a new revision",
         )
 
-
 def _failure_exit_code(exc: Exception) -> int:
-    """Tell a failure that may pass on a later run from one that will repeat."""
     if isinstance(exc, MediaWikiError) and exc.transient:
         return EXIT_TRANSIENT
     return EXIT_DETERMINISTIC
-
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
@@ -259,7 +245,6 @@ def main(argv: list[str] | None = None) -> int:
         _check_person_evidence_target(run_facts, args.database, raw_dir)
     catalog_report = args.catalog_report or args.database.parent / "catalog-report.csv"
     try:
-        # One budget for every Wikipedia and Wikidata client of the run.
         maxlag_budget = MaxlagBudget.from_environment(os.environ)
     except ValueError as exc:
         raise SystemExit(str(exc)) from None
@@ -269,23 +254,12 @@ def main(argv: list[str] | None = None) -> int:
         with rebuild_phases.install(phase_log):
             return _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, catalog_report)
     finally:
-        # Printed for a failed or stopped run too: the phase that waited out
-        # the maxlag budget is the one a slow night needs to show.
         for line in phase_log.report_lines():
             print(line, flush=True)
         if previous_handler is not None:
             signal.signal(signal.SIGTERM, previous_handler)
 
-
 def _exit_on_sigterm():
-    """Turn SIGTERM into ``SystemExit(143)`` and return the handler it replaced.
-
-    ``scripts/rebuild_database.py`` sends SIGTERM to an attempt that reached
-    its timeout or the end of the refresh budget. Unwinding closes the
-    database without committing the open transaction, as the default
-    handler's abrupt exit did, and lets the phase report reach the log.
-    Signal handlers belong to the main thread; elsewhere nothing changes.
-    """
     if threading.current_thread() is not threading.main_thread():
         return None
 
@@ -294,14 +268,11 @@ def _exit_on_sigterm():
 
     return signal.signal(signal.SIGTERM, stop)
 
-
 def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, catalog_report) -> int:
     extraction = rebuild_phases.EXTRACTION
     storage = rebuild_phases.STORAGE
     try:
         with Repository(args.database, raw_dir=raw_dir) as repository, rebuild_phases.phase(extraction):
-            # One Wikidata client serves every stage of an incremental run, so
-            # the stored snapshots it reuses come from the same repository.
             incremental_wikidata = (
                 IncrementalWikidataClient(
                     WikidataEntityClient(user_agent=args.user_agent, maxlag_budget=maxlag_budget),
@@ -384,9 +355,6 @@ def _run(args, maxlag_budget, run_facts, run_releases, facts_report, raw_dir, ca
                             args.release_report or args.database.parent / "release-coverage.csv",
                         )
                 except (MediaWikiError, ValueError) as exc:
-                    # Facts already committed: keep them and let the rebuild
-                    # treat the attempt as success so restore-cache does not
-                    # undo the night's fact refresh.
                     if fact_totals is None or discovery is not None:
                         raise
                     report_release_stage_failure(exc)

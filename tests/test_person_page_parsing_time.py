@@ -90,8 +90,6 @@ class TrailingNotesTest(unittest.TestCase):
             "[[Seoul]] <ref>a <!-- b --> c</ref>": "[[Seoul]]",
             "[[Seoul]]<ref>a</ref> ": "[[Seoul]]",
             "<ref>a</ref>": "",
-            # Kept from the earlier pattern, not intended: a note may close at a
-            # later tag, past the text between two notes.
             "Busan<ref>a</ref>, Korea<ref>b</ref>": "Busan",
             "Busan<!-- a -->, Korea<!-- b -->": "Busan",
             "Busan<ref name=a/>, Korea<ref>b</ref>": "Busan",

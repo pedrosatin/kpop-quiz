@@ -35,9 +35,7 @@ const BAR_SELECTOR = ".game-actions";
  * the same elements without the scroll margin.
  */
 export const OUTSIDE_PLAY_SELECTOR = '.game-actions, .consent-banner, dialog, [role="dialog"]';
-/** Attributes that open or close a panel inside a bar and so its stickiness. */
 const BAR_ATTRIBUTES = ["class", "hidden", "open"];
-/** Rounding slack for fractional layout. */
 const EPSILON = 0.5;
 
 /** The first rendered .game-actions bar that is sticky, or null. */
@@ -78,7 +76,6 @@ function bannerTop(doc: Document, view: Window): number {
   return banner ? banner.getBoundingClientRect().top : view.innerHeight;
 }
 
-/** Writes the bar height on the root; returns the value now published. */
 function publishHeight(root: HTMLElement, height: number, published: string): string {
   const value = height > 0 ? `${Math.ceil(height)}px` : "";
   if (value === published) return published;
@@ -103,7 +100,6 @@ export function mountsOrUnmountsBar(records: readonly MutationRecord[]): boolean
   return records.some((record) => touchesBar(record.addedNodes) || touchesBar(record.removedNodes));
 }
 
-/** Scrolls the focused target into view when the bar or the banner covers its foot. */
 function revealIfCovered(target: Element, bar: HTMLElement | null, doc: Document, view: Window) {
   if (!bar || doc.activeElement !== target || target.contains(bar)) return;
   const edge = Math.min(bar.getBoundingClientRect().top, bannerTop(doc, view));
@@ -129,12 +125,9 @@ export function installStickyBarSpace(doc: Document = document): () => void {
   };
 
   const resize = typeof ResizeObserver === "function" ? new ResizeObserver(() => sync()) : null;
-  // A panel opening or closing inside a bar turns it static or sticky
-  // without a resize the observer would see while the bar is not tracked.
   const barState = new view.MutationObserver(() => sync());
   let watched: HTMLElement[] = [];
 
-  /** Follows attribute changes inside every rendered bar. */
   function watchBars() {
     const bars = Array.from(doc.querySelectorAll<HTMLElement>(BAR_SELECTOR));
     if (sameElements(bars, watched)) return;
@@ -143,10 +136,6 @@ export function installStickyBarSpace(doc: Document = document): () => void {
     for (const el of bars) barState.observe(el, { subtree: true, attributes: true, attributeFilter: BAR_ATTRIBUTES });
   }
 
-  /**
-   * Recheck which bar is sticky, publish its height and, unless the window
-   * itself changed size, give back the room a growing bar took.
-   */
   function sync(followGrowth = true) {
     watchBars();
     const next = findStickyBar(doc);
@@ -166,7 +155,6 @@ export function installStickyBarSpace(doc: Document = document): () => void {
     last = measure(bar);
   }
 
-  /** Scrolling and the banner move the bar without resizing it. */
   const remember = () => {
     if (bar) last = measure(bar);
   };
@@ -175,16 +163,13 @@ export function installStickyBarSpace(doc: Document = document): () => void {
     const target = event.target;
     if (!(target instanceof view.Element) || target.closest(OUTSIDE_PLAY_SELECTOR)) return;
     view.cancelAnimationFrame(focusFrame);
-    // After the browser's own focus scroll, so only what it left covered moves.
     focusFrame = view.requestAnimationFrame(() => revealIfCovered(target, bar, doc, view));
   };
 
-  // Bars mounting or unmounting anywhere in the page.
   const structure = new view.MutationObserver((records) => {
     if (mountsOrUnmountsBar(records)) sync();
   });
   structure.observe(doc.body, { childList: true, subtree: true });
-  // The consent banner publishes its height on the root style.
   const rootStyle = new view.MutationObserver(remember);
   rootStyle.observe(root, { attributes: true, attributeFilter: ["style"] });
   view.addEventListener("scroll", remember, { passive: true });

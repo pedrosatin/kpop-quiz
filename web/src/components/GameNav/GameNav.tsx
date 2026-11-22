@@ -40,7 +40,7 @@ export function GameNav({ games, locale }: { games: GameNavItem[]; locale: Local
           aria-current={game.isActive ? "page" : undefined}
         >
           {game.label}
-          {/* The space keeps the hidden text apart from the label in the accessible name. */}
+          {}
           {done.has(game.key) && (
             <>
               {" "}

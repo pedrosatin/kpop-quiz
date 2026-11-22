@@ -12,7 +12,6 @@ export type QuizMachineState =
   | "missing"
   | "invalid"
   | "empty"
-  /** General quiz filter has fewer than ten eligible catalog questions. */
   | "unavailable";
 
 export interface QuestionResult {

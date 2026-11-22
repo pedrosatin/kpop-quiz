@@ -21,10 +21,7 @@ function dataUrl(filename: string, baseUrl: string): string {
   return `${base}data/${filename}`;
 }
 
-/**
- * Carrega o artefato diário de caça-palavras temático.
- * O parâmetro _locale é mantido para consistência de interface com os demais carregadores.
- */
+/** Carrega o artefato diário de caça-palavras temático. */
 export async function loadWordSearchPuzzle(
   _locale: Locale,
   baseUrl?: string,

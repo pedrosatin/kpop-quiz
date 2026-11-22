@@ -40,8 +40,6 @@ export function freshRoundProgress(questionDeadlineMs: number | null, startedAtM
   };
 }
 
-// selectedId and questionDeadlineMs compare against undefined, not `??`: an
-// explicit null override saves no selection (advance) or no deadline (timeout).
 function progressPayload(
   locale: Locale,
   settings: QuizSettings,
@@ -84,7 +82,6 @@ export function useQuizProgressWriter(locale: Locale, settings: QuizSettings, ma
     deadlineMs, elapsedSeconds, replayStatus, markStorageUnavailable,
   } = match;
 
-  // The list below names every field progressPayload reads.
   return useCallback((machineState, overrides = {}) => {
     if (!match.persistReadyRef.current) return;
     const payload = progressPayload(locale, settings, match, machineState, overrides);

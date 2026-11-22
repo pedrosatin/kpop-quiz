@@ -26,14 +26,12 @@ from .wikidata import SUBJECT_PROFILE, EntityDocument
 
 SUBJECT_ENTITY_TYPES = frozenset({"group", "person", "release", "album"})
 
-
 @dataclass(frozen=True)
 class CatalogGroup:
     wikidata_id: str
     source_page_id: int
     source_revision_id: int
     title: str
-
 
 @dataclass(frozen=True)
 class BirthCoverage:
@@ -42,11 +40,9 @@ class BirthCoverage:
     predicate: str
     total: int = 0
     accepted: int = 0
-    # Accepted facts whose evidence is a Wikipedia revision (the person's own page).
     accepted_by_person_page: int = 0
     rejected_for_evidence: int = 0
     rejected_by_person_page: int = 0
-
 
 @dataclass(frozen=True)
 class FactRunTotals:
@@ -59,10 +55,8 @@ class FactRunTotals:
     superseded: int
     ignored: int
     stale: int = 0
-    # Birth facts before and after the run (ADR 027), one entry per predicate.
     birth_before: tuple[BirthCoverage, ...] = field(default=(), compare=False)
     birth_after: tuple[BirthCoverage, ...] = field(default=(), compare=False)
-
 
 class FactStore:
     """Repository methods for the fact stage, sharing the catalog connection."""
@@ -840,13 +834,11 @@ class FactStore:
             ).fetchone()[0]
         )
 
-
 def count_statuses(decisions: Iterable[FactDecision]) -> dict[str, int]:
     totals = {ACCEPTED: 0, REJECTED: 0, CONFLICT: 0, SUPERSEDED: 0}
     for decision in decisions:
         totals[decision.status] += 1
     return totals
-
 
 def _json(value: object) -> str:
     return canonical_json(value).decode("utf-8")

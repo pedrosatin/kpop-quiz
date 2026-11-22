@@ -23,13 +23,10 @@ function isTextEntry(el: HTMLElement): boolean {
   );
 }
 
-// Letters and Backspace still reach the game from these elements, so typing keeps
-// working while a virtual key has focus; only Enter belongs to them.
 function isActivatable(el: HTMLElement): boolean {
   return el.closest("button, a[href], summary, [role='button'], [role='link']") !== null;
 }
 
-/** Physical keyboard listener on the window; none while `enabled` is false. */
 function usePhysicalKeyboard(
   enabled: boolean,
   submit: () => void,
@@ -39,20 +36,15 @@ function usePhysicalKeyboard(
   useEffect(() => {
     if (!enabled) return;
     function handleKeyDown(e: KeyboardEvent) {
-      // A key that is part of an IME composition belongs to the composition.
       if (e.defaultPrevented || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
       const target = e.target instanceof HTMLElement ? e.target : null;
       if (target && isTextEntry(target)) return;
       if (e.key === "Enter") {
-        // Enter on a focused button already activates that button. A letter key
-        // of the on-screen keyboard claims Enter itself to submit.
         if (target && isActivatable(target)) return;
         submit();
       } else if (e.key === "Backspace") {
         removeLetter();
       } else {
-        // An accented letter types its base letter; a dead key types nothing,
-        // the letter it composes arrives with the next key.
         const letter = guessLetterFromKey(e.key);
         if (letter) addLetter(letter);
       }
@@ -92,8 +84,6 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
     toggleHighContrast,
   } = useNameGuessGame(puzzle, locale);
 
-  // Only a game finished in this visit moves focus to the result; a finished
-  // game restored from storage leaves focus where the page put it.
   const playedHere = useRef(false);
   const submit = useCallback(() => {
     playedHere.current = true;
@@ -111,8 +101,6 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
   const resultTitle = useRef<HTMLHeadingElement>(null);
   useFocusOnChange(resultTitle, isGameOver && playedHere.current);
 
-  // The outcome of the last Share press; n changes on every press, so the
-  // same message is announced again.
   const [shareFeedback, setShareFeedback] = useState<{ kind: "copied" | "shareFailed"; n: number } | null>(null);
   const shares = useRef(0);
 
@@ -129,7 +117,6 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
 
   let shareMessage = null;
   if (isGameOver && shareFeedback) {
-    // A new key replaces the paragraph, so a second copy is announced again.
     shareMessage = (
       <p key={shareFeedback.n}>{shareFeedback.kind === "copied" ? t.copied : t.shareFailed}</p>
     );
@@ -159,15 +146,10 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
           />
         </div>
 
-        {/* Below 60rem the sticky bar under the board holds the HUD and the
-            keyboard, the result in its place at the end, and the contrast
-            option follows it. From 60rem the wrapper and the bar leave no box
-            (name-guess.css): the keyboard goes under the board and a narrow
-            column beside them shows the HUD, the result and the option. */}
+        {}
         <div class="game-layout-side">
           <div class={`game-actions name-guess-actions${actionsState}`}>
-            {/* The page intro already shows the title, so the HUD only carries the date
-                and the counter. The counter stays after the last guess. */}
+            {}
             <div class="game-hud name-guess-hud">
               <p class="hud-item hud-label">
                 {t.subtitle} · <span class="name-guess-date">{formatCalendarDate(puzzle.reference_date, locale)}</span>
@@ -176,16 +158,13 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
                 {t.attemptsLeft}: {attemptsRemaining}/{puzzle.max_attempts}
               </p>
             </div>
-            {/* The visible copy of the error sits over the HUD, so it never covers
-                the row being typed. The live region below announces it. */}
+            {}
             {errorDisplay && (
               <p class="alert-error name-guess-toast" aria-hidden="true">
                 {errorDisplay}
               </p>
             )}
-            {/* Mounted from the start so the first rejected guess is announced. It is
-                visually hidden; the toast above shows the same text. At the end it
-                announces the outcome of Share, which the result shows too. */}
+            {}
             <div class="game-actions-message visually-hidden" role="status" aria-live="polite">
               {errorDisplay && <p>{errorDisplay}</p>}
               {shareMessage}
@@ -214,7 +193,7 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
             )}
           </div>
 
-          {/* A display preference, after the bar so it takes no height from the board on phones. */}
+          {}
           <div class="name-guess-options">
             {!isGameOver && (
               <button

@@ -16,7 +16,6 @@ export function useQuizSettings(locale: Locale, initialAvailableDecades: QuizDec
   const [decades, setDecades] = useState<QuizDecadeSelection>(() => getInitialUrlParams().decades);
   const [availableDecades, setAvailableDecades] = useState<QuizDecadeValue[]>(initialAvailableDecades);
   const [timerEnabled, setTimerEnabled] = useState<boolean>(() => loadStoredPreferences().timerEnabled ?? false);
-  // The visit fell on the default theme and the player has not picked one yet.
   const [onDefaultTheme, setOnDefaultTheme] = useState<boolean>(() => !getInitialUrlParams().themeNamed);
   const decadeKey = decades.join(",");
 
@@ -45,7 +44,6 @@ export function useQuizSettings(locale: Locale, initialAvailableDecades: QuizDec
     saveStoredTimerEnabled(enabled);
   };
 
-  /** Clears an active decade filter; false when there was none to clear. */
   const clearDecadeFilter = (): boolean => {
     if (!decades.length) return false;
     setDecades([]);
@@ -71,9 +69,7 @@ export function useQuizSettings(locale: Locale, initialAvailableDecades: QuizDec
     selectMode,
     changeTimer,
     clearDecadeFilter,
-    /** Home quiz mirrors mode/theme into the URL; group pages keep the path clean. */
     syncUrl: true,
-    /** Home quiz writes a localStorage slot; group pages skip persistence. */
     persist: true,
   };
 }

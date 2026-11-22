@@ -1,15 +1,6 @@
 import { existsSync } from "node:fs";
 
-// Test files that run in the Vitest `node` project: no jsdom and no DOM setup
-// (src/test/setup.ts). Every other test file runs in the `jsdom` project, which
-// is the safe default for a new test.
-//
-// A file belongs here only if the test and everything it imports run without
-// `window`/`document`/`localStorage` and without @testing-library. If a test
-// listed here starts needing the DOM, it fails with "window is not defined":
-// remove it from this list so it runs under jsdom.
 export const nodeTestGlobs = [
-  // Loaders and artifact contracts read JSON and build objects only.
   "src/data/**/*.test.ts",
   "src/i18n/**/*.test.ts",
   "src/styles/**/*.test.ts",
@@ -61,7 +52,6 @@ export const nodeTestFiles = [
   "src/tests/robots.test.ts",
 ];
 
-// A renamed or deleted file would otherwise drop back to jsdom without notice.
 const missing = nodeTestFiles.filter((file) => !existsSync(file));
 if (missing.length > 0) {
   throw new Error(`vitest.node-tests.ts lists files that do not exist: ${missing.join(", ")}`);

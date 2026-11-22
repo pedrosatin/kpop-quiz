@@ -90,9 +90,6 @@ export function useCodeGroupsGame(puzzle: CodeGroupsPuzzle, locale: Locale): Use
     const guess = scoreGuess(puzzle, selection);
     setFeedback({ kind: "attempt", attempt: guess });
     setHistory((prev) => [...prev, guess]);
-    // Keep the last pick between attempts so one slot can change at a time.
-    // Clear only when the round ends, so a finished save stays loadable
-    // (history at the limit with empty slots).
     if (guessEndsRound(puzzle, guess, history.length)) setSelection([...EMPTY_SELECTION]);
   }, [finished, history, puzzle, selection]);
 

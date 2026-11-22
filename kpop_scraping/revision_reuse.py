@@ -43,7 +43,6 @@ from .wikidata import (
     WikidataEntityClient,
 )
 
-
 def entity_batches(
     client: object,
     batches: Sequence[Sequence[str]],
@@ -63,11 +62,9 @@ def entity_batches(
     for batch in batches:
         yield client.get_entities(batch, profile)
 
-
 def _chunks(values: Sequence[str], size: int) -> Iterator[list[str]]:
     for start in range(0, len(values), size):
         yield list(values[start:start + size])
-
 
 class IncrementalWikidataClient:
     """Answer like ``WikidataEntityClient`` but download only revisions not stored yet."""
@@ -76,12 +73,9 @@ class IncrementalWikidataClient:
         self.client = client
         self.repository = repository
         self.store = FactStore(repository)
-        # Current revision of each QID asked in this run, whatever the profile:
-        # the catalog type checks and the group documents ask the same QIDs.
         self._revisions: dict[str, EntityDocument | None] = {}
 
     def _current_revisions(self, wikidata_ids: Sequence[str]) -> dict[str, EntityDocument | None]:
-        """Map each QID to its revision-only document, or ``None`` when it is missing."""
         unknown = [qid for qid in dict.fromkeys(wikidata_ids) if qid not in self._revisions]
         for chunk in _chunks(unknown, MAX_ENTITIES_PER_REQUEST):
             result = self.client.get_entity_revisions(chunk)
@@ -97,11 +91,8 @@ class IncrementalWikidataClient:
         for wikidata_id in ids:
             revision = revisions.get(wikidata_id)
             if revision is None:
-                # Missing for a full request too: it yields no check.
                 continue
             if revision.redirected:
-                # A full type check reads the entity under the requested QID;
-                # let it decide what a redirected one gives.
                 stale.append(wikidata_id)
                 continue
             revision_id = revision.revision_id

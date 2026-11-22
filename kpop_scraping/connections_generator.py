@@ -25,7 +25,6 @@ from .quiz_utils import hash_payload
 
 QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
 
-# Category definitions for debut decades
 DECADE_CRITERIA: dict[str, dict[str, Any]] = {
     "formed_1990s": {
         "id": "formed_1990s",
@@ -85,9 +84,7 @@ DECADE_CRITERIA: dict[str, dict[str, Any]] = {
     },
 }
 
-# Known record labels with normalized bilingual labels
 KNOWN_RECORD_LABELS: dict[str, tuple[str, dict[str, str]]] = {
-    # Canonical Wikidata QIDs
     "Q483238": ("label_jyp", {"pt-BR": "JYP Entertainment", "en": "JYP Entertainment"}),
     "Q483938": ("label_sm", {"pt-BR": "SM Entertainment", "en": "SM Entertainment"}),
     "Q50595": ("label_yg", {"pt-BR": "YG Entertainment", "en": "YG Entertainment"}),
@@ -101,7 +98,6 @@ KNOWN_RECORD_LABELS: dict[str, tuple[str, dict[str, str]]] = {
     "Q489428": ("label_dsp", {"pt-BR": "DSP Media", "en": "DSP Media"}),
     "Q31179359": ("label_kq", {"pt-BR": "KQ Entertainment", "en": "KQ Entertainment"}),
     "Q13424955": ("label_fantagio", {"pt-BR": "Fantagio", "en": "Fantagio"}),
-    # Test fixture aliases
     "Q483957": ("label_sm", {"pt-BR": "SM Entertainment", "en": "SM Entertainment"}),
     "Q483471": ("label_yg", {"pt-BR": "YG Entertainment", "en": "YG Entertainment"}),
     "Q106399432": ("label_hybe", {"pt-BR": "HYBE", "en": "HYBE"}),
@@ -114,7 +110,6 @@ KNOWN_RECORD_LABELS: dict[str, tuple[str, dict[str, str]]] = {
     "Q487053": ("label_dsp", {"pt-BR": "DSP Media", "en": "DSP Media"}),
 }
 
-# Category definitions for exact member counts (3 to 9 members)
 MEMBER_COUNT_CRITERIA: dict[int, dict[str, Any]] = {
     n: {
         "id": f"members_{n}",
@@ -132,12 +127,9 @@ MEMBER_COUNT_CRITERIA: dict[int, dict[str, Any]] = {
     for n in range(3, 10)
 }
 
-# Priority ordering for tie-breaking difficulty levels
 CATEGORY_TYPE_ORDER = {"record_label": 1, "formed_on": 2, "has_member": 3}
 
-
 def _get_record_label_criterion(entity: Entity) -> dict[str, Any]:
-    """Build criterion definition for a record label entity."""
     if entity.wikidata_id in KNOWN_RECORD_LABELS:
         crit_id, label = KNOWN_RECORD_LABELS[entity.wikidata_id]
         pt_name = label["pt-BR"]
@@ -160,7 +152,6 @@ def _get_record_label_criterion(entity: Entity) -> dict[str, Any]:
         },
         "wikidata_id": entity.wikidata_id,
     }
-
 
 def count_valid_partitions(
     candidate_items: list[str],
@@ -194,7 +185,6 @@ def count_valid_partitions(
         ]
         criterion_combos.append(combos)
 
-    # Sort criteria by number of combinations to prune search branches early
     sorted_order = sorted(range(4), key=lambda idx: len(criterion_combos[idx]))
     c0 = criterion_combos[sorted_order[0]]
     c1 = criterion_combos[sorted_order[1]]
@@ -220,7 +210,6 @@ def count_valid_partitions(
 
     return len(seen_partitions)
 
-
 def evaluate_connections_criteria(
     facts: list[Fact],
     candidate_groups: dict[str, Entity],
@@ -241,7 +230,6 @@ def evaluate_connections_criteria(
     for member_crit in MEMBER_COUNT_CRITERIA.values():
         all_criteria[member_crit["id"]] = member_crit
 
-    # 1. formed_on facts
     for fact in facts:
         if fact.predicate != "formed_on":
             continue
@@ -260,7 +248,6 @@ def evaluate_connections_criteria(
                 group_criteria[group_qid].add(decade_id)
                 group_evidence[(group_qid, decade_id)].extend(fact.evidence)
 
-    # 2. record_label facts
     for fact in facts:
         if fact.predicate != "record_label":
             continue
@@ -275,7 +262,6 @@ def evaluate_connections_criteria(
         group_criteria[group_qid].add(crit_id)
         group_evidence[(group_qid, crit_id)].extend(fact.evidence)
 
-    # 3. has_member facts
     group_members: dict[str, set[str]] = defaultdict(set)
     group_member_facts: dict[str, list[Fact]] = defaultdict(list)
     for fact in facts:
@@ -301,9 +287,7 @@ def evaluate_connections_criteria(
 
     return group_criteria, group_evidence, all_criteria
 
-
 MemberCountBounds = dict[str, tuple[int, int | None]]
-
 
 def _member_count_bounds(
     connection: sqlite3.Connection,
@@ -311,14 +295,6 @@ def _member_count_bounds(
     candidate_groups: dict[str, Entity],
     complete_member_groups: set[str],
 ) -> MemberCountBounds:
-    """Return the member counts the data leaves possible for each candidate group.
-
-    A group whose every current member statement loaded has an exact count,
-    the one the "N members" categories use. Otherwise the loaded members are a
-    lower bound and the current statements (rejected and conflicting ones
-    included, superseded and stale ones not) an upper bound. A group with no
-    current member statement has no upper bound (None): the data says nothing.
-    """
     statements: dict[str, int] = defaultdict(int)
     for (wikidata_id,) in connection.execute(
         """
@@ -343,7 +319,6 @@ def _member_count_bounds(
         else:
             bounds[qid] = (known, None)
     return bounds
-
 
 def member_count_conflicts(
     assignment: dict[str, Iterable[str]],
@@ -374,7 +349,6 @@ def member_count_conflicts(
                 conflicts.append((cat_id, qid))
     return conflicts
 
-
 def _rank_difficulty(
     chosen_categories: tuple[str, ...],
     assignment: dict[str, tuple[str, ...]],
@@ -382,7 +356,6 @@ def _rank_difficulty(
     criterion_groups: dict[str, set[str]],
     all_criteria: dict[str, dict[str, Any]],
 ) -> list[str]:
-    """Sort categories from easiest (level 1) to hardest (level 4)."""
     pool_set = set(candidate_items)
 
     def sort_key(cat_id: str) -> tuple[int, int, int, str]:
@@ -394,23 +367,10 @@ def _rank_difficulty(
 
     return sorted(chosen_categories, key=sort_key)
 
-
-# Search limits. One step is one set of 4 criteria drawn, one quad of groups
-# drawn at any level of the assignment search, or one uniqueness check. On the
-# catalog of 2026-11-13, the daily seeds of 365 dates used 6 to 1,590 steps per
-# board. When every board splits in more than one way, a uniqueness check took
-# about 4.5 ms on a laptop, so the limit ends such a search in about 21 s
-# in the case measured, a time that does not grow with the size of the catalog
-# but does with the overlap of the criteria; the board is then refused with a
-# ValueError.
-# MAX_DRAWS_PER_COMBO moves the search to the next set of criteria when the
-# quads of one set keep leaving too few groups for the next level.
 MAX_SEARCH_STEPS = 10_000
 MAX_DRAWS_PER_COMBO = 400
 
-
 class _SearchBudget:
-    """Count the steps of one board's search and stop it at ``limit``."""
 
     KINDS = ("criteria sets", "quads", "uniqueness checks")
 
@@ -424,7 +384,6 @@ class _SearchBudget:
         return sum(self.spent.values())
 
     def spend(self, kind: str) -> None:
-        """Count one step of ``kind``; raise ValueError when it is over the limit."""
         if self.used >= self.limit:
             detail = ", ".join(f"{count} {name}" for name, count in self.spent.items())
             raise ValueError(
@@ -433,7 +392,6 @@ class _SearchBudget:
                 "without a board that has a single solution"
             )
         self.spent[kind] += 1
-
 
 def _find_disjoint_assignment(
     combo: tuple[str, ...],
@@ -445,18 +403,6 @@ def _find_disjoint_assignment(
     budget: _SearchBudget | None = None,
     max_draws: int = MAX_DRAWS_PER_COMBO,
 ) -> tuple[dict[str, tuple[str, ...]], list[str]] | None:
-    """Find a unique 4x4 partition assignment for the given combination of 4 criteria.
-
-    The quads of each level are drawn one at a time, in an order taken from
-    ``rng`` (see ``lazy_order``), so the cost follows the draws and not the
-    size of the criteria. The search gives up on this combination (None)
-    after ``max_evaluations`` uniqueness checks or ``max_draws`` quads drawn
-    at any level. Every draw and check is also charged to ``budget``, which
-    raises ValueError at its limit.
-
-    With ``member_count_bounds``, a board where an item outside an "N members"
-    category may also have N members is skipped (see ``member_count_conflicts``).
-    """
     if budget is None:
         budget = _SearchBudget()
     c0, c1, c2, c3 = combo
@@ -521,7 +467,6 @@ def _find_disjoint_assignment(
                         return None
     return None
 
-
 def _load_criterion_groups(connection: sqlite3.Connection) -> tuple[
     dict[str, Entity],
     dict[str, Entity],
@@ -530,7 +475,6 @@ def _load_criterion_groups(connection: sqlite3.Connection) -> tuple[
     dict[str, dict[str, Any]],
     MemberCountBounds,
 ]:
-    """Read the facts and return the groups each criterion admits, per the database."""
     connection.row_factory = sqlite3.Row
     entities = _load_entities(connection)
     facts, _rejected = _load_facts(connection, entities)
@@ -558,10 +502,8 @@ def _load_criterion_groups(connection: sqlite3.Connection) -> tuple[
         member_count_bounds,
     )
 
-
 class AmbiguousPartitionError(ValueError):
     """A connections board whose categories split its items in more than one way."""
-
 
 def validate_connections_partition_unique(
     connection: sqlite3.Connection, puzzle: dict[str, Any]
@@ -582,7 +524,6 @@ def validate_connections_partition_unique(
             f"connections puzzle {puzzle['puzzle_id']} has an ambiguous solution "
             "under the database criteria"
         )
-
 
 def generate_connections_puzzle(
     connection: sqlite3.Connection,
@@ -613,7 +554,6 @@ def generate_connections_puzzle(
             f"Insufficient candidate groups: found {len(candidate_groups)}, need at least 16"
         )
 
-    # Keep criteria with at least 4 matching candidate groups
     active_criteria = {
         crit_id: all_criteria[crit_id]
         for crit_id in sorted(all_criteria.keys())
@@ -665,7 +605,6 @@ def generate_connections_puzzle(
 
     chosen_combo, assignment_map, candidate_items = found_puzzle_data
 
-    # Rank categories by difficulty (levels 1, 2, 3, 4)
     ranked_cats = _rank_difficulty(
         chosen_combo,
         assignment_map,
@@ -705,7 +644,6 @@ def generate_connections_puzzle(
             }
         )
 
-    # Build and shuffle items presentation order deterministically
     items_payload: list[dict[str, Any]] = []
     for qid in sorted(candidate_items):
         group = candidate_groups[qid]

@@ -305,16 +305,6 @@ class GroupPageviewTest(unittest.TestCase):
 
 
     def test_client_fetch_exhausts_retries_unexpected_exit(self):
-        # To cover `raise AssertionError("retry loop exited unexpectedly")`
-        # We need a way to break the retry loop without hitting return or raise inside it.
-        # This is a bit tricky since the loop is `for attempt in range(...)`
-        # and all paths either return or raise, or go to next iteration.
-        # But if we change `self.retries` dynamically, we might be able to trick it?
-        # Actually, Python's for loop over a range evaluates the range once.
-        # Let's mock range itself if possible? No.
-        # We can just mock the whole loop with an empty range? No, range is determined by self.retries + 1.
-        # Let's just set retries to -1 using a trick (if validation didn't catch it).
-        # We validate retries in __init__, so we bypass it.
         client = PageviewClient(AGENT)
         client.retries = -1
         with self.assertRaisesRegex(AssertionError, "retry loop exited unexpectedly"):

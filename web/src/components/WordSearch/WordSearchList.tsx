@@ -11,9 +11,7 @@ interface WordSearchListProps {
   easyMode?: boolean;
   clueMode?: boolean;
   onToggleEasyMode?: () => void;
-  /** Hides the toggle once every name is on the list. */
   completed?: boolean;
-  /** Inside a group-page section (already an h2), demote to h3. Defaults to 2. */
   headingLevel?: 2 | 3;
 }
 
@@ -31,15 +29,12 @@ interface WordSearchChipProps {
   word: WordSearchWord;
   index: number;
   name: string;
-  /** Empty when the clues say nothing; the letter count stands alone then. */
   clue: string;
   found: boolean;
-  /** Easy mode lists every name before it is found. */
   showName: boolean;
 }
 
 function WordSearchChip({ t, word, index, name, clue, found, showName }: WordSearchChipProps) {
-  // The count wraps as a whole when a clue fills the chip.
   const pendingHint = clue
     ? <>{clue} <span class="word-search-count">({t.lettersCount(word.word.length)})</span></>
     : t.lettersCount(word.word.length);
@@ -96,7 +91,7 @@ export function WordSearchList({
           />
         ))}
       </ul>
-      {/* After the chips, so on phones the first row sits right under the grid. */}
+      {}
       {!completed && onToggleEasyMode && (
         <button type="button" class="btn btn-secondary btn-sm toggle-mode-btn" onClick={onToggleEasyMode}>
           {isEasy ? t.hideWords : t.showWords}

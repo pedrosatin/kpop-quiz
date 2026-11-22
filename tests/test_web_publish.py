@@ -86,9 +86,6 @@ class WebPublishTests(unittest.TestCase):
         return json.loads((FIXTURES / "sessions.json").read_text(encoding="utf-8"))
 
     def valid_grid(self):
-        # The checked-in grid is the pre-#87 artifact for 2026-09-26 (its
-        # axes share has_member), so publish and verify plumbing tests use
-        # the schema sample grid instead of the published bytes.
         return sample_intersection_grid()
 
     def connections(self):
@@ -259,11 +256,6 @@ class WebPublishTests(unittest.TestCase):
             # artifact as missing. Nothing is checked in, so nothing to assert.
             return
         grid = json.loads(grid_path.read_text(encoding="utf-8"))
-        # web/public/data/grid.daily.json for 2026-09-26 was promoted from
-        # the pre-#87 next/ set, so both axes carry has_member and the
-        # orthogonality rule now rejects it. The full database that can
-        # regenerate the day exists only in CI, whose next run publishes a
-        # fresh grid; until then the checked-in artifact stays known-invalid.
         if (
             grid["reference_date"] == "2026-09-26"
             and "has_member" in {crit["category"] for crit in grid["row_criteria"]}

@@ -38,8 +38,6 @@ export function CodeGroupsGame({ locale, baseUrl }: { locale: Locale; baseUrl?: 
   }
 
   if (status === "error" || !puzzle) {
-    // The daily artifact is a partial publish: a generation failure leaves
-    // the day without the file, so missing keeps its own copy for the player.
     const errorMsg = errorKind === "missing" ? messages.codeArtifactMissing : messages.loadError;
     return (
       <section

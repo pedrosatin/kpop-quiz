@@ -17,8 +17,6 @@ const hasHowToPlay = Boolean(howToPlayTitle && howToPlaySteps?.length);
   aria-labelledby="page-title"
 >
   <p class="kicker">{kicker}</p>
-  {/* Before the h1 so Tab and reading order follow the kicker row; CSS keeps
-      the button at the right of that row and the steps under the sentence. */}
   {hasHowToPlay && (
     <details class="how-to-play">
       <summary class="btn btn-secondary btn-sm">{howToPlayTitle}</summary>

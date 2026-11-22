@@ -22,7 +22,6 @@ from .quiz_schema import write_json_atomic
 
 DAILY_SET_FILENAME = "daily-set.json"
 DAILY_SET_VERSION = "kpop-daily-set-v1"
-# Games of a daily set, named as the board swap gate names them.
 GAMES = (
     "quiz",
     "grid",
@@ -34,10 +33,7 @@ GAMES = (
     "crossword",
     "strands",
 )
-# An omission reason may quote data from Wikipedia or Wikidata through an
-# exception message; the record and the run summary keep a bounded line.
 MAX_REASON_LENGTH = 500
-
 
 def omission_reason(exc: BaseException) -> str:
     """One bounded line that says why a game was left out, for the run's log.
@@ -53,7 +49,6 @@ def omission_reason(exc: BaseException) -> str:
         message = f"{type(exc).__name__}: {message}" if message else type(exc).__name__
     return single_line(message)
 
-
 def public_omission_reason(exc: BaseException) -> str:
     """The reason ``daily-set.json`` publishes: a short, stable category.
 
@@ -62,7 +57,6 @@ def public_omission_reason(exc: BaseException) -> str:
     the exception type goes there; the full reason stays in the run's log.
     """
     return f"generation failed ({type(exc).__name__})"
-
 
 def single_line(text: str) -> str:
     """Replace control characters with spaces and cut the text to the limit.
@@ -74,7 +68,6 @@ def single_line(text: str) -> str:
     if len(flat) > MAX_REASON_LENGTH:
         flat = flat[: MAX_REASON_LENGTH - 1] + "…"
     return flat
-
 
 def validate_daily_set(value: Any) -> None:
     if not isinstance(value, dict) or set(value) != {"schema_version", "reference_date", "omitted"}:
@@ -99,7 +92,6 @@ def validate_daily_set(value: Any) -> None:
     if len(omitted) == len(GAMES):
         raise ValueError("daily set omits every game")
 
-
 def daily_set(reference_date: str, omitted: dict[str, str]) -> dict[str, Any]:
     value = {
         "schema_version": DAILY_SET_VERSION,
@@ -108,7 +100,6 @@ def daily_set(reference_date: str, omitted: dict[str, str]) -> dict[str, Any]:
     }
     validate_daily_set(value)
     return value
-
 
 def read_daily_set(directory: Path) -> dict[str, Any] | None:
     """The record of the set in ``directory``; None when the set predates it."""
@@ -122,10 +113,8 @@ def read_daily_set(directory: Path) -> dict[str, Any] | None:
     validate_daily_set(value)
     return value
 
-
 def write_daily_set(directory: Path, value: dict[str, Any]) -> None:
     write_json_atomic(Path(directory) / DAILY_SET_FILENAME, value, validate_daily_set)
-
 
 def note_omission(directory: Path, game: str, reason: str | None) -> None:
     """Record that ``game`` left the set in ``directory`` (or came back, with None).

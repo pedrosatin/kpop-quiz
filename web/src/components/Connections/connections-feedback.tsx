@@ -5,7 +5,6 @@ import type { ConnectionsGameStatus, GuessResult } from "./types";
 export type ConnectionsFeedback =
   | { kind: "solved"; categoryId: string }
   | { kind: "wrong" | "oneAway" | "repeat" }
-  // n changes on every share, so the same message is announced again.
   | { kind: "copied" | "shareFailed"; n: number };
 
 export function feedbackFromGuess(result: GuessResult): ConnectionsFeedback {
@@ -41,7 +40,6 @@ export function ConnectionsFeedbackMessage({
   messages: Messages;
 }) {
   if (isGameOver) {
-    // A new key replaces the paragraph, so a second copy is announced again.
     if (feedback?.kind === "copied") {
       return <p key={feedback.n}>{messages.copiedToClipboard}</p>;
     }

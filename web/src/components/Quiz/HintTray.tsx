@@ -29,12 +29,6 @@ export function HintTray({
   const canShowRevealButton = playMode === "standard" && cluesAvailable.length > 0;
   const nextClue = cluesAvailable.find((clue) => !revealedClues.includes(clue.id));
 
-  // Expert has no clues by design. Assisted and Standard say so in one line
-  // when a question has none, and show no button that could not open
-  // anything. The line stays after the answer so the options do not move.
-  // The live region stays mounted from one question to the next; its text is
-  // keyed by question, so a screen reader hears it again on each question
-  // without a clue, and the line keeps its place.
   const noClue = cluesAvailable.length === 0 && playMode !== "expert";
   if (activeClueIds.length === 0 && !canShowRevealButton) {
     if (!noClue) return null;

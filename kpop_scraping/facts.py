@@ -15,7 +15,6 @@ from .entities import (
     parse_statements,
 )
 
-
 @dataclass(frozen=True)
 class PredicateSpec:
     predicate: str
@@ -28,7 +27,6 @@ class PredicateSpec:
     wikipedia_evidence: bool
     value_constraint: str | None = None
 
-
 GROUP_PREDICATES = (
     PredicateSpec("formed_on", ("P571",), "group", "time", None, True, False, True),
     PredicateSpec(
@@ -39,7 +37,6 @@ GROUP_PREDICATES = (
     PredicateSpec("genre", ("P136",), "group", "item", "genre", False, False, True),
     PredicateSpec("has_member", ("P527",), "group", "item", "person", False, True, True),
 )
-# Person pages are not collected yet. Their attributes need a Wikidata reference.
 PERSON_PREDICATES = (
     PredicateSpec("born_on", ("P569",), "person", "time", None, True, False, False),
     PredicateSpec("born_in", ("P19",), "person", "item", "place", True, False, False),
@@ -51,7 +48,6 @@ PERSON_PREDICATES = (
     PredicateSpec("member_of", ("P463", "P361"), "person", "item", "group", False, True, True),
 )
 PREDICATES = {spec.predicate: spec for spec in GROUP_PREDICATES + PERSON_PREDICATES}
-
 
 @dataclass(frozen=True)
 class FactCandidate:
@@ -75,17 +71,14 @@ class FactCandidate:
     def time(self) -> TimeValue | None:
         return self.statement.time
 
-
 @dataclass(frozen=True)
 class ExtractedFacts:
     candidates: tuple[FactCandidate, ...]
     ignored: int
     issues: tuple[StatementIssue, ...] = ()
 
-
 def group_fact_candidates(subject_id: str, entity: Mapping[str, Any]) -> ExtractedFacts:
     return _candidates(subject_id, entity, GROUP_PREDICATES, known_groups=None)
-
 
 def person_fact_candidates(
     subject_id: str,
@@ -95,14 +88,12 @@ def person_fact_candidates(
     """Build person facts; membership keeps only links to catalog groups."""
     return _candidates(subject_id, entity, PERSON_PREDICATES, known_groups=known_groups)
 
-
 def country_value_ids(candidates: Iterable[FactCandidate]) -> set[str]:
     return {
         candidate.value_id
         for candidate in candidates
         if candidate.spec.value_constraint == "country" and candidate.value_id
     }
-
 
 def member_ids(candidates: Iterable[FactCandidate]) -> list[str]:
     return sorted(
@@ -112,7 +103,6 @@ def member_ids(candidates: Iterable[FactCandidate]) -> list[str]:
             if candidate.predicate == "has_member" and candidate.value_id
         }
     )
-
 
 def _candidates(
     subject_id: str,
@@ -125,7 +115,6 @@ def _candidates(
     ignored = 0
     for spec in specs:
         for statement in parse_statements(entity, spec.property_ids, issues):
-            # Deprecated statements and unknown or empty values never become facts.
             if statement.rank == "deprecated" or statement.snaktype != "value":
                 ignored += 1
                 continue
@@ -143,7 +132,6 @@ def _candidates(
                 continue
             candidates.append(_candidate(subject_id, spec, statement))
     return ExtractedFacts(tuple(candidates), ignored, tuple(issues))
-
 
 def _candidate(subject_id: str, spec: PredicateSpec, statement: Statement) -> FactCandidate:
     flags: set[str] = set()
@@ -171,7 +159,6 @@ def _candidate(subject_id: str, spec: PredicateSpec, statement: Statement) -> Fa
         error=error,
         flags=tuple(sorted(flags)),
     )
-
 
 def _single_time(
     values: tuple[QualifierTime, ...],

@@ -32,8 +32,6 @@ function loadGoogleAnalytics(ga4Id: string): void {
       return;
     }
     w.dataLayer = w.dataLayer ?? [];
-    // gtag.js only reads the native `arguments` object from dataLayer and silently
-    // drops plain arrays, so a rest-parameter wrapper never sends a single hit.
     const gtag = function (..._args: unknown[]) {
       // oxlint-disable-next-line prefer-rest-params
       (w.dataLayer as unknown[]).push(arguments);
@@ -56,7 +54,6 @@ function loadGoogleAnalytics(ga4Id: string): void {
     if (Object.keys(campaign).length) gtag("config", ga4Id, campaign);
     else gtag("config", ga4Id);
   } catch {
-    // Measurement must never break the page.
   }
 }
 
@@ -84,7 +81,6 @@ function disableGoogleAnalytics(ga4Id: string): void {
       });
     }
   } catch {
-    // Measurement must never break the page.
   }
 }
 
@@ -146,7 +142,6 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
   }
 
   const decide = (next: ConsentChoice) => {
-    // The in-memory choice holds for this visit even when private mode does not store it.
     setLocalStorageItem(CONSENT_STORAGE_KEY, next);
     setChoice(next);
     if (next === "accepted") {
@@ -178,11 +173,6 @@ export function ConsentBanner({ locale, ga4Id, privacyUrl }: ConsentBannerProps)
   );
 }
 
-/**
- * Both buttons name the tool, so the accessible name is "Reject Google
- * Analytics". On phones the tool drops to a second line and the two buttons
- * fit side by side.
- */
 function ChoiceLabel({ verb, tool }: { verb: string; tool: string }) {
   return (
     <span class="consent-banner-choice">

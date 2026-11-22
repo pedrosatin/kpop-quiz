@@ -14,16 +14,13 @@ from urllib.parse import quote
 from .http_request import open_url
 from .storage import Repository, canonical_json
 
-
 PAGEVIEWS_API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article"
 WINDOW_DAYS = 365
 RETRIES = 3
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
-
 class PageviewError(RuntimeError):
     """The Wikimedia Pageviews API did not yield a valid measurement."""
-
 
 @dataclass(frozen=True)
 class PageviewMeasurement:
@@ -35,7 +32,6 @@ class PageviewMeasurement:
     source_url: str
     response_json: str
     response_sha256: str
-
 
 def pageview_window(reference_date: date, days: int = WINDOW_DAYS) -> tuple[str, str]:
     """Return the inclusive window of completed UTC days before reference_date.
@@ -49,18 +45,14 @@ def pageview_window(reference_date: date, days: int = WINDOW_DAYS) -> tuple[str,
     start = end - timedelta(days=days - 1)
     return start.isoformat(), end.isoformat()
 
-
 def _article_key(title: str) -> str:
     return title.strip().replace(" ", "_")
 
-
 def _retry_delay(attempt: int, status: int, retry_after: str | None) -> float:
-    """Return the wait before another try. A 429 honors Retry-After, capped at 120s."""
     delay = float(2**attempt)
     if status == 429 and retry_after and retry_after.strip().isdigit():
         delay = max(delay, min(float(int(retry_after.strip())), 120.0))
     return delay
-
 
 def _expected_timestamps(start_date: str, end_date: str) -> list[str]:
     start = date.fromisoformat(start_date)
@@ -73,7 +65,6 @@ def _expected_timestamps(start_date: str, end_date: str) -> list[str]:
         stamps.append(current.strftime("%Y%m%d") + "00")
         current += timedelta(days=1)
     return stamps
-
 
 class PageviewClient:
     def __init__(
@@ -161,8 +152,6 @@ class PageviewClient:
         observed = set(seen)
         if expected[-1] not in observed:
             raise PageviewError("Pageviews response does not include the last requested day")
-        # A new article has no rows before it exists. Those days count as zero.
-        # A hole, or a missing final day, would undercount a page that did exist.
         if observed != set(expected[expected.index(min(seen)):]):
             raise PageviewError("Pageviews response has a gap inside the window")
         response = canonical_json(payload)
@@ -170,7 +159,6 @@ class PageviewClient:
             title, start_date, end_date, sum(views), len(views), source_url,
             response.decode("utf-8"), hashlib.sha256(response).hexdigest(),
         )
-
 
 def collect_group_pageviews(
     repository: Repository,

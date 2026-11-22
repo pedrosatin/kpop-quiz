@@ -38,8 +38,6 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
-# The workflows run this file as scripts/publish_via_pr.py, which puts
-# scripts/ on sys.path; the shared annotation helper lives in the package.
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -47,15 +45,11 @@ if str(REPO_ROOT) not in sys.path:
 from kpop_scraping import workflow_commands  # noqa: E402
 
 GH_TIMEOUT_SECONDS = 120
-# gh lists 30 pull requests by default. Forks can open that many under the
-# automation branch's name, which would hide this repository's own.
 LIST_LIMIT = 100
 LIST_FIELDS = (
     "number,headRefName,headRefOid,baseRefName,"
     "isCrossRepository,headRepository,headRepositoryOwner"
 )
-# GitHub updates a pull request's head a moment after the push, and lists a
-# new pull request a moment after creating it.
 DEFAULT_ATTEMPTS = 5
 DEFAULT_RETRY_DELAY_SECONDS = 3.0
 
@@ -64,10 +58,8 @@ _REPOSITORY = re.compile(r"[^/\s]+/[^/\s]+")
 
 GhRunner = Callable[[Sequence[str]], str]
 
-
 class PublishError(RuntimeError):
     """The pull request could not be opened or merged under the rule."""
-
 
 def run_gh(args: Sequence[str]) -> str:
     """Run ``gh`` with a timeout and return its stdout."""
@@ -90,15 +82,12 @@ def run_gh(args: Sequence[str]) -> str:
         )
     return completed.stdout
 
-
 def _head_repository(pull_request: dict[str, Any]) -> str | None:
-    # A deleted fork leaves both fields null.
     owner = (pull_request.get("headRepositoryOwner") or {}).get("login")
     name = (pull_request.get("headRepository") or {}).get("name")
     if not owner or not name:
         return None
     return f"{owner}/{name}"
-
 
 def own_pull_requests(
     pull_requests: Sequence[dict[str, Any]], *, repository: str, branch: str, base: str
@@ -121,7 +110,6 @@ def own_pull_requests(
             own.append(pull_request)
     return own
 
-
 def list_pull_requests(
     run: GhRunner, *, repository: str, branch: str, base: str
 ) -> list[dict[str, Any]]:
@@ -136,7 +124,6 @@ def list_pull_requests(
     if not isinstance(pull_requests, list):
         raise PublishError("gh pr list did not return a list of pull requests")
     return [item for item in pull_requests if isinstance(item, dict)]
-
 
 def find_pull_request(
     run: GhRunner,
@@ -186,7 +173,6 @@ def find_pull_request(
         f"No pull request of {repository} from {branch} into {base} has the pushed commit {head_sha}."
     )
 
-
 def publish(
     *,
     repository: str,
@@ -201,7 +187,6 @@ def publish(
     retry_delay: float = DEFAULT_RETRY_DELAY_SECONDS,
 ) -> int:
     """Open (or reuse) this job's pull request for ``head_sha`` and squash-merge it."""
-    # An empty --match-head-commit makes gh merge whatever the head is.
     if not _FULL_SHA.fullmatch(head_sha):
         raise PublishError(f"Expected the pushed commit as a full 40-character SHA, got {head_sha!r}")
     if not _REPOSITORY.fullmatch(repository):
@@ -230,7 +215,6 @@ def publish(
     print(f"Merged pull request #{number} at {head_sha}", flush=True)
     return number
 
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Open this job's pull request for the pushed commit and merge only that commit."
@@ -254,7 +238,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     return parser
 
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -264,11 +247,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             attempts=args.attempts, retry_delay=args.retry_delay,
         )
     except PublishError as error:
-        # The message can quote the stderr of gh.
         workflow_commands.error(str(error), stream=sys.stderr)
         return 1
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

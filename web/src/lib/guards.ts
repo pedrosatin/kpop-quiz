@@ -1,13 +1,6 @@
 /**
  * Checks shared by the guards that validate published data and local saves.
- * Each answers one question about a value read from JSON, and a guard reads
- * as a list of them, one group of fields at a time.
- *
- * The guards do not all follow one rule for the same idea, and these checks
- * keep each rule apart. A text may need one character or one character
- * besides whitespace, a key set may be exact or open, and a
- * date may be a real day or only the YYYY-MM-DD shape. A guard picks the rule
- * it has always used.
+ * Each answers one question about a value read from JSON.
  */
 
 export const HASH_PATTERN = /^[0-9a-f]{64}$/;

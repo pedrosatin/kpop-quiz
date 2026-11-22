@@ -7,7 +7,6 @@ import { shareTextToUser } from "../Results/share-text";
 import { useResultActionGuard } from "../Results/use-result-action-guard";
 export { RESULT_GUARD_MS } from "../Results/use-result-action-guard";
 
-/** The share copy: each custom message, else the built-in one for `locale`. */
 function shareCopy(locale: Locale, messages: Partial<TimelineShareMessages> | undefined): TimelineShareMessages {
   const defaults = defaultTimelineMessages(locale);
   return {
@@ -18,7 +17,6 @@ function shareCopy(locale: Locale, messages: Partial<TimelineShareMessages> | un
   };
 }
 
-/** What the live region reads after the last share: the copy, the failure or nothing. */
 function shareAnnouncement(copied: boolean, shareFailed: boolean, copy: TimelineShareMessages): string {
   if (copied) return copy.copiedToClipboard;
   if (shareFailed) return copy.shareFailed;

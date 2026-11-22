@@ -85,8 +85,6 @@ export function TimelineGameContent({
     submit(true);
   };
 
-  // A give-up reveals the canonical order, so a correct board after one still
-  // counts as played without a win.
   const isWin = !gaveUp && score === puzzle.events.length;
   useRecordDailyMatch("timeline", dailyBoardRound(puzzle, timelineMatchId(puzzle)), gameStatus === "submitted", isWin);
   const dayDone = useDailyMatchDone("timeline", puzzle.reference_date, timelineMatchId(puzzle), gameStatus === "submitted");

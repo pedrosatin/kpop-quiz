@@ -13,7 +13,6 @@ from urllib.parse import urlsplit
 from .media_registry import validate_licensed_media
 from .storage import canonical_json
 
-
 DATASET_SCHEMA_VERSION = "kpop-quiz-dataset-v2"
 SESSION_SCHEMA_VERSION = "kpop-quiz-session-v2"
 REPORT_SCHEMA_VERSION = "kpop-quiz-generation-report-v4"
@@ -52,7 +51,6 @@ QUESTION_FIELDS = frozenset(
     }
 )
 QUESTION_REQUIRED_FIELDS = QUESTION_FIELDS - QUESTION_OPTIONAL_FIELDS
-
 
 def validate_dataset(payload: dict[str, Any]) -> None:
     _require(isinstance(payload, dict), "dataset")
@@ -129,7 +127,6 @@ def validate_dataset(payload: dict[str, Any]) -> None:
         )
     _require(payload.get("language_variant_count") == len(questions), "language_variant_count")
 
-
 def validate_session(payload: dict[str, Any]) -> None:
     _require(isinstance(payload, dict), "session")
     _require(payload.get("schema_version") == SESSION_SCHEMA_VERSION, "schema_version")
@@ -183,7 +180,6 @@ def validate_session(payload: dict[str, Any]) -> None:
         _require(question["semantic_id"] not in semantic_ids, "duplicate session semantic id")
         ids.add(question["id"])
         semantic_ids.add(question["semantic_id"])
-
 
 def validate_report(payload: dict[str, Any]) -> None:
     _require(isinstance(payload, dict), "report")
@@ -262,7 +258,6 @@ def validate_report(payload: dict[str, Any]) -> None:
         "variants_by_play_mode",
     )
 
-
 def write_json_atomic(path: Path, payload: dict[str, Any], validator: Any) -> bytes:
     """Validate and atomically replace a JSON file with canonical bytes."""
     validator(payload)
@@ -288,11 +283,9 @@ def write_json_atomic(path: Path, payload: dict[str, Any], validator: Any) -> by
         raise
     return content
 
-
 def validate_question(question: Any) -> None:
     """Check one published question, wherever it is carried (session or catalog)."""
     _validate_question(question)
-
 
 def _validate_question(question: Any) -> None:
     _require(isinstance(question, dict), "question")
@@ -315,7 +308,6 @@ def _validate_question(question: Any) -> None:
     _require_date(question.get("reference_date"), "reference_date")
 
     _validate_question_evidence(question, fact_base_ids)
-
 
 def _validate_question_metadata(question: dict[str, Any]) -> None:
     media = question.get("media")
@@ -354,7 +346,6 @@ def _validate_question_metadata(question: dict[str, Any]) -> None:
         "group_relevance_score",
     )
 
-
 def _validate_question_fact_bases(question: dict[str, Any]) -> list[str]:
     fact_base_ids = question.get("fact_base_ids")
     _require(
@@ -366,15 +357,11 @@ def _validate_question_fact_bases(question: dict[str, Any]) -> list[str]:
     )
     return fact_base_ids
 
-
 def _validate_question_clues(question: dict[str, Any]) -> None:
     clues = question.get("clues_available")
     _require(isinstance(clues, list), "clues_available")
     clue_ids: set[str] = set()
     for clue in clues:
-        # A clue may cite another entity's accepted fact (the answer's date),
-        # so its facts need not be among the question's own; _validate_clue
-        # still requires evidence for every fact it names.
         _validate_clue(clue)
         _require(clue["id"] not in clue_ids, "duplicate clue id")
         clue_ids.add(clue["id"])
@@ -393,7 +380,6 @@ def _validate_question_clues(question: dict[str, Any]) -> None:
         question["play_mode"] != "expert" or not clues,
         "expert mode has no clues",
     )
-
 
 def _validate_question_options(question: dict[str, Any]) -> list[str]:
     options = question.get("options")
@@ -435,7 +421,6 @@ def _validate_question_options(question: dict[str, Any]) -> list[str]:
     )
     return option_ids
 
-
 def _validate_question_evidence(question: dict[str, Any], fact_base_ids: list[str]) -> None:
     evidence = question.get("evidence")
     _require(isinstance(evidence, list) and evidence, "evidence")
@@ -464,7 +449,6 @@ def _validate_question_evidence(question: dict[str, Any], fact_base_ids: list[st
         )
     _require(evidenced_fact_ids == set(fact_base_ids), "fact_base evidence coverage")
 
-
 def _validate_clue(clue: Any) -> None:
     _require(isinstance(clue, dict), "clue")
     _require(set(clue) == {"evidence", "fact_base_ids", "id", "text", "type"}, "clue fields")
@@ -492,7 +476,6 @@ def _validate_clue(clue: Any) -> None:
         _require(isinstance(item.get("source_key"), str) and item["source_key"], "clue evidence source")
         _require(type(item.get("revision_id")) is int and item["revision_id"] > 0, "clue evidence revision")
     _require(covered == set(fact_ids), "clue evidence coverage")
-
 
 def _validate_clue_coverage(report: dict[str, Any]) -> None:
     coverage = report.get("clue_coverage")
@@ -535,7 +518,6 @@ def _validate_clue_coverage(report: dict[str, Any]) -> None:
         "clue_coverage totals",
     )
 
-
 def validate_legacy_clues(session: dict[str, Any]) -> None:
     """Require every clue to cite only facts of its own question.
 
@@ -552,7 +534,6 @@ def validate_legacy_clues(session: dict[str, Any]) -> None:
                 set(clue["fact_base_ids"]) <= question_facts,
                 f"clue cites a fact outside its question ({question['id']})",
             )
-
 
 def mode_neutral_question(
     question: dict[str, Any], standard_question: dict[str, Any]
@@ -573,7 +554,6 @@ def mode_neutral_question(
         ]
     return neutral
 
-
 def _mode_neutral_option(
     option: dict[str, Any],
     standard_labels: dict[tuple[Any, Any, Any], Any],
@@ -592,11 +572,9 @@ def _mode_neutral_option(
         return {**option, "label": standard_label}
     return option
 
-
 def _require(condition: bool, field: str) -> None:
     if not condition:
         raise ValueError(f"invalid quiz JSON field: {field}")
-
 
 def _require_hash(value: Any, field: str) -> None:
     _require(
@@ -605,7 +583,6 @@ def _require_hash(value: Any, field: str) -> None:
         and all(character in "0123456789abcdef" for character in value),
         field,
     )
-
 
 def _require_date(value: Any, field: str) -> None:
     _require(isinstance(value, str), field)

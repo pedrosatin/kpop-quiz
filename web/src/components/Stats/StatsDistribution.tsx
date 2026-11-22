@@ -11,7 +11,6 @@ export interface StatsDistributionProps {
 interface DistributionRow {
   key: string;
   label: string;
-  /** Accessible name of the row, read in the chart's label. */
   name: string;
   count: number;
   isLoss: boolean;
@@ -45,7 +44,6 @@ export function StatsDistribution({ stats, locale }: StatsDistributionProps) {
 
   const rows = useMemo(() => distributionRows(stats, messages.statsLossRow), [stats, messages.statsLossRow]);
   const maxCount = Math.max(...rows.map((row) => row.count), 1);
-  // role="img" hides the rows from assistive tech, so the label carries every count.
   const chartLabel = `${messages.statsGuessDistribution}: ${rows.map((row) => `${row.name}: ${row.count}`).join(", ")}`;
 
   return (

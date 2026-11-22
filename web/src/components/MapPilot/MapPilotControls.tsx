@@ -47,8 +47,6 @@ export function MapPilotPickForm({
   onEmptySubmit: () => void;
 }) {
   return (
-    // Narrow screens use the select; wide screens hide it in CSS and keep
-    // Answer so map/list selection still needs an explicit submit.
     <form
       class="map-pilot-pick"
       onSubmit={(event) => {
@@ -73,7 +71,7 @@ export function MapPilotPickForm({
           </option>
         ))}
       </select>
-      {/* aria-disabled keeps Answer in the Tab order and lets it say why nothing happened. */}
+      {}
       <button class="btn btn-primary" type="submit" aria-disabled={listChoice ? undefined : "true"}>{copy.answer}</button>
     </form>
   );
@@ -93,9 +91,7 @@ export function MapPilotCountryList({
   locale: Locale;
   copy: MapPilotCopy;
   highlightFeature: string | null;
-  /** The committed answer for the date on screen. */
   selectedFeature: string | null;
-  /** The correct country of the date on screen. */
   answerFeature: string;
   onPick: (featureId: string) => void;
 }) {

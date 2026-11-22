@@ -46,8 +46,6 @@ export interface WordSearchPuzzle {
   words: WordSearchWord[];
 }
 
-// Like the map, the word search accepts extra keys, and it checks only the
-// YYYY-MM-DD shape of the reference date.
 const WORD_REGEX = /^[A-Z]{3,16}$/;
 const SINGLE_LETTER_REGEX = /^[A-Z]$/;
 
@@ -70,7 +68,6 @@ function isEvidence(value: unknown): value is GridEvidence {
     && isHttpsUrl(value.source_url);
 }
 
-/** Id, word, names, clue and evidence: what a word says about itself. */
 function hasWordFields(value: Record<string, unknown>): boolean {
   const { id, word, canonical_name, labels, clue, evidence } = value;
   return isQid(id)
@@ -83,7 +80,6 @@ function hasWordFields(value: Record<string, unknown>): boolean {
     && Array.isArray(evidence) && evidence.length >= 1 && evidence.every(isEvidence);
 }
 
-/** Whether the word reads from start to end along a row, a column or a diagonal. */
 function spellsWordOnGrid(
   word: string,
   start: { row: number; col: number },
@@ -131,7 +127,6 @@ function isValidWordEntry(
   );
 }
 
-/** A grid of `rows` by `cols` single capital letters. */
 function isLetterGrid(value: unknown, rows: number, cols: number): value is string[][] {
   if (!Array.isArray(value) || value.length !== rows) return false;
   for (let r = 0; r < rows; r++) {
@@ -144,7 +139,6 @@ function isLetterGrid(value: unknown, rows: number, cols: number): value is stri
   return true;
 }
 
-/** Schema, ids, date and theme of the puzzle. */
 function hasPuzzleHeader(value: Record<string, unknown>): boolean {
   return value.schema_version === "kpop-word-search-puzzle-v1"
     && isHash(value.puzzle_id)

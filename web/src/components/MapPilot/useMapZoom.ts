@@ -21,7 +21,6 @@ import {
   type ShownAnswer,
 } from "./map-pilot-zoom";
 
-
 export interface MapZoomTurn {
   /** The date on screen; undefined once the round is over. */
   current: MapPilotEvent | undefined;
@@ -58,10 +57,6 @@ function anchorOf(featureId: string): MapPoint | undefined {
   return feature && shapeOf(feature).anchor;
 }
 
-/**
- * An answer whose country is out of the zoomed view shows on the whole map.
- * It runs once per answer, so the player can zoom again after it.
- */
 function useRevealAnswer({ key: answerKey, feature: answerFeature }: ShownAnswer, view: MapRect | null, zoomOut: () => void) {
   const shown = useRef<string | null>(null);
   useEffect(() => {
@@ -81,9 +76,6 @@ export function useMapZoom(svg: RefObject<SVGSVGElement>, { current, questionInd
   const { box, narrow } = useMapBox(svg);
   const [center, setCenter] = useState<MapPoint | null>(null);
   const zoomedAt = useRef(-Infinity);
-  // Where a pointer went down on the map since its last click, key press or
-  // cancel. The zoom centers there: Chrome moves a tap's click onto the
-  // nearest clickable shape, and a tap on the sea by Luzon zoomed on Taiwan.
   const pointerDown = useRef<MapPoint | null>(null);
   const zoomable = isMapZoomable(narrow, box, current);
   const zoomCenter = zoomable ? center : null;
@@ -92,7 +84,6 @@ export function useMapZoom(svg: RefObject<SVGSVGElement>, { current, questionInd
   const zoomed = zoomedRect !== null;
   const zoomOut = () => setCenter(null);
 
-  // Every date starts from the whole map, and so does a screen that turns wide.
   useEffect(zoomOut, [questionIndex]);
   useEffect(() => {
     if (!zoomable) zoomOut();

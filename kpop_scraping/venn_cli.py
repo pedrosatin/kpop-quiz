@@ -12,7 +12,6 @@ from .quiz_schema import write_json_atomic
 from .quiz_utils import reference_date_today
 from .venn_coverage import generate_venn_coverage, verify_venn_coverage
 
-
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--database", type=Path, required=True)
@@ -49,7 +48,6 @@ def main(argv=None):
         else:
             sys.stdout.write(text)
         if args.sample_output:
-            # An insufficient result must erase an earlier passing sample.
             if report["sample"] is None:
                 args.sample_output.unlink(missing_ok=True)
             else:
@@ -58,7 +56,6 @@ def main(argv=None):
     except (ValueError, TypeError, KeyError, OSError, sqlite3.Error) as exc:
         sys.stderr.write(f"Venn coverage error: {exc}\n")
         return 1
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

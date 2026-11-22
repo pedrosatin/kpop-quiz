@@ -2,7 +2,6 @@ import type { WordSearchWord } from "../../lib/word-search-types";
 import type { CellCoord, GameStatus } from "./types";
 import { getLinearPath } from "./utils";
 
-/** Found words cycle through this many highlight colors (color-0 to color-5). */
 const FOUND_COLORS = 6;
 
 /** How the grid, the found-word map and the revealed set name a cell. */

@@ -73,7 +73,6 @@ export function deriveMapTurn(
     outcome: isComplete ? mapRoundOutcome(round, game.answers, game.gaveUp === true) : null,
     current,
     selectedFeature,
-    // Pending pick from map/list/select; only Responder commits it into answers.
     highlightFeature: selectedFeature ?? (listChoice || null),
     answerCountry: current && countryByFeature.get(current.map_feature_id),
     selectedCountry: selectedFeature === null ? undefined : countryByFeature.get(selectedFeature),

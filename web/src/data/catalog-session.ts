@@ -1,11 +1,3 @@
-/**
- * Build a ten-question Quiz session from a validated catalog (ADR 026 / Q03).
- *
- * Selection stays inside one language, play mode and filter set. Options are
- * shuffled with the same digest rule as `create_session`. The session id ties
- * catalog version, configuration and selected question ids so results stay
- * idempotent for the same content and distinct across different sets.
- */
 import type { Locale, PlayMode, QuizQuestion, QuizSession } from "../lib/quiz-types";
 import type { QuizDecadeValue } from "../components/Quiz/url-params";
 import {
@@ -107,7 +99,6 @@ export function writePreviousSemanticSet(storageKey: string, semanticIds: readon
   try {
     sessionStorage.setItem(storageKey, JSON.stringify([...semanticIds].sort()));
   } catch {
-    // sessionStorage may be unavailable; anti-repeat then lasts only in memory.
   }
 }
 
@@ -115,7 +106,6 @@ export function clearPreviousSemanticSet(storageKey: string): void {
   try {
     sessionStorage.removeItem(storageKey);
   } catch {
-    // optional
   }
 }
 
@@ -177,8 +167,6 @@ export async function selectQuestions(
       return { questions: picked, status };
     }
   }
-  // Exhausted nonces while every top-10 matched the previous set — still
-  // return a valid round; the player was warned only when status is repeats.
   const fallback = (await orderBySeed(eligible, seedBase, catalogVersion)).slice(0, SESSION_SIZE);
   return { questions: fallback, status };
 }
@@ -197,8 +185,6 @@ export async function buildCatalogSession(
   }
   const resolvedDecades = [...new Set(decades)].sort((a, b) => a - b);
   const decade = resolvedDecades.length === 1 ? resolvedDecades[0]! : null;
-  // Seed is derived from catalog version, filters and the selected set so the
-  // same content always shuffles options the same way and yields the same id.
   const seed = await sha256Text([
     "catalog-round",
     catalog.catalogVersion,

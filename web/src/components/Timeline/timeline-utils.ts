@@ -18,7 +18,6 @@ export function getCanonicalChronologicalOrder(events: readonly TimelineEvent[])
   );
 }
 
-/** FNV-1a style seed, matching the map pilot's deterministic RNG. */
 function hashSeed(value: string): number {
   let hash = 2166136261;
   for (const character of value) {
@@ -28,10 +27,6 @@ function hashSeed(value: string): number {
   return hash >>> 0;
 }
 
-/**
- * Fisher–Yates shuffle driven by a linear congruential generator.
- * Same seed and items always yield the same permutation.
- */
 function seededShuffle<T>(items: readonly T[], seed: string): T[] {
   const shuffled = [...items];
   let state = hashSeed(seed) || 1;
@@ -138,10 +133,8 @@ export function saveTimelineDraft(storageKey: string, puzzle: TimelinePuzzle, or
   setLocalStorageItem(storageKey, JSON.stringify(draft));
 }
 
-/** A stored object with every field of a submitted save, before `matchesItsScore` checks its score. */
 type SubmittedSaveFields = Record<string, unknown> & Omit<TimelineStoredState, "submitted"> & { submitted: true };
 
-/** Whether `parsed` has every field of a submitted save of this board. */
 function isSubmittedSaveOf(parsed: Record<string, unknown>, puzzle: TimelinePuzzle): parsed is SubmittedSaveFields {
   if (parsed.puzzleId !== puzzle.puzzle_id) return false;
   if (parsed.referenceDate !== puzzle.reference_date) return false;
@@ -152,7 +145,6 @@ function isSubmittedSaveOf(parsed: Record<string, unknown>, puzzle: TimelinePuzz
   return isEventOrderOf(parsed.orderedEventIds, puzzle);
 }
 
-/** Whether the stored score and results are the ones the stored order earns. */
 function matchesItsScore(save: SubmittedSaveFields, puzzle: TimelinePuzzle): boolean {
   const canonical = getCanonicalChronologicalOrder(puzzle.events);
   const currentEvents = save.orderedEventIds.map((id: string) =>
@@ -208,7 +200,6 @@ export interface GenerateTimelineShareTextParams {
   locale: Locale;
 }
 
-/** The share text's score line. A give-up shows the sequence score, and any other round the starred score. */
 function shareScoreLine(isPt: boolean, gaveUp: boolean, score: string): string {
   if (gaveUp && isPt) return `Desistência · Pontuação da sequência: ${score}`;
   if (gaveUp) return `Gave up · Sequence score: ${score}`;

@@ -23,9 +23,7 @@ export function useQuizMatch() {
 
   const answerLockedRef = useRef(false);
   const focusQuestionRef = useRef(false);
-  /** Set when the player picks a saved round to continue; its question takes focus once restored. */
   const focusRestoredRef = useRef(false);
-  /** Set when the player leaves the daily result for the general quiz; its setup title takes focus. */
   const focusSetupRef = useRef(false);
   /**
    * Set when the player opens the general setup from the finished daily screen

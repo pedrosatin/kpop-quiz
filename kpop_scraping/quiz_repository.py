@@ -16,11 +16,8 @@ from .quiz_templates import TEMPLATE_VERSION, TEMPLATES
 from .quiz_utils import hash_payload
 from .sources import SOURCE_POLICY_VERSION
 
-
 def _load_group_relevance(connection: sqlite3.Connection) -> dict[str, int]:
-    """Load one complete scored run, or keep the prior unfiltered behavior."""
     return load_latest_relevance_scores(connection)
-
 
 def _load_entities(connection: sqlite3.Connection) -> dict[int, Entity]:
     rows = connection.execute(
@@ -48,7 +45,6 @@ def _load_entities(connection: sqlite3.Connection) -> dict[int, Entity]:
         )
         for row in rows
     }
-
 
 def _load_facts(
     connection: sqlite3.Connection,
@@ -112,17 +108,10 @@ def _load_facts(
         )
     return accepted, rejected
 
-
 def _groups_with_complete_members(
     connection: sqlite3.Connection,
     facts: list[Fact],
 ) -> set[str]:
-    """Return groups whose every current has_member statement is a loaded fact.
-
-    Superseded and stale statements are no longer part of the group's current
-    data. Any other statement that did not load, whether rejected, conflicting,
-    or filtered out, leaves the member list incomplete.
-    """
     statements: dict[str, int] = defaultdict(int)
     for wikidata_id, in connection.execute(
         """
@@ -137,7 +126,6 @@ def _groups_with_complete_members(
         if fact.predicate == "has_member":
             loaded[fact.subject.wikidata_id] += 1
     return {qid for qid, count in loaded.items() if statements.get(qid) == count}
-
 
 def _load_evidence(connection: sqlite3.Connection) -> dict[int, tuple[Evidence, ...]]:
     result: dict[int, list[Evidence]] = defaultdict(list)
@@ -175,30 +163,19 @@ def _load_evidence(connection: sqlite3.Connection) -> dict[int, tuple[Evidence, 
         )
     return {key: tuple(values) for key, values in result.items()}
 
-
-# A conflict on one of these blocks only the accepted fact with its value; a
-# conflict on any other predicate blocks every accepted fact with the same
-# subject and predicate.
 VALUE_SCOPED_CONFLICT_PREDICATES = frozenset(
     {"has_member", "member_of", "record_label", "performed_by"}
 )
 
 ConflictIndex = dict[tuple[int, str], set[int | None]]
 
-
 def _open_conflict_index(conflicts: Iterable[sqlite3.Row]) -> ConflictIndex:
-    """Index conflict rows by subject and predicate, with their entity values.
-
-    Built once per load, it answers each accepted fact with one lookup, so the
-    cost is one pass over the conflicts plus one lookup per accepted fact.
-    """
     index: ConflictIndex = defaultdict(set)
     for conflict in conflicts:
         index[conflict["subject_entity_id"], conflict["predicate"]].add(
             conflict["value_entity_id"]
         )
     return dict(index)
-
 
 def _has_open_conflict(row: sqlite3.Row, conflicts: ConflictIndex) -> bool:
     values = conflicts.get((row["subject_entity_id"], row["predicate"]))
@@ -207,7 +184,6 @@ def _has_open_conflict(row: sqlite3.Row, conflicts: ConflictIndex) -> bool:
     if row["predicate"] in VALUE_SCOPED_CONFLICT_PREDICATES:
         return row["value_entity_id"] in values
     return True
-
 
 def _dataset_version(
     connection: sqlite3.Connection,

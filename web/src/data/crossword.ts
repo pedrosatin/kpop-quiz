@@ -63,8 +63,6 @@ export class CrosswordArtifactError extends Error {
   }
 }
 
-// Constants and field sets of schemas/crossword-pilot-v1.json, the same ones
-// kpop_scraping/crossword_cli.py validates; crossword.test.ts pins both.
 export const CROSSWORD_SCHEMA_VERSION = "crossword-pilot-v1";
 export const CROSSWORD_MODE = "pilot";
 export const CROSSWORD_PUZZLE_ID = "crossword-audited-01";
@@ -76,8 +74,6 @@ export const CROSSWORD_ENTRY_KEYS = ["qid", "canonical_name", "aliases", "answer
 export const CROSSWORD_SOURCE_KEYS = ["url", "locator", "snippet", "statement_id", "predicate", "value"] as const;
 export const CROSSWORD_CELL_KEYS = ["row", "col", "answer"] as const;
 
-// Constants and field sets of schemas/crossword-daily-v1.json, the envelope
-// kpop_scraping/crossword_daily.py generates and the daily runner publishes.
 export const CROSSWORD_DAILY_SCHEMA_VERSION = "crossword-daily-v1";
 export const CROSSWORD_DAILY_ROOT_KEYS = ["schema_version", "reference_date", "seed", "base_id", "previous", "limits", "status", "attempts", "rejections", "eligible_group_count", "connected_group_count", "puzzle", "dataset_version"] as const;
 export const CROSSWORD_DAILY_BOARD_KEYS = ["rows", "cols", "entries", "vocabulary", "cells", "audited_group_count", "proof"] as const;
@@ -85,8 +81,6 @@ export const CROSSWORD_DAILY_BOARD_KEYS = ["rows", "cols", "entries", "vocabular
 /** Data file of the day's crossword, in data/ and, published ahead, in data/next/. */
 export const CROSSWORD_DATA_FILE = "crossword.daily.json";
 
-// Constants and fields of kpop-crossword-publication-v1, the durable record
-// kpop_scraping/crossword_publication.py writes beside each published day.
 export const CROSSWORD_PUBLICATION_VERSION = "kpop-crossword-publication-v1";
 export const CROSSWORD_PUBLICATION_KEYS = ["schema_version", "reference_date", "source", "state", "qids", "dataset_version", "base_id", "previous", "reason"] as const;
 
@@ -122,7 +116,6 @@ function hasKeys(value: unknown, keys: readonly string[]): value is Record<strin
   return own.length === keys.length && keys.every((key) => own.includes(key));
 }
 
-// Python identity: sorted keys, compact separators, raw UTF-8 (canonical_json).
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object") {
@@ -148,7 +141,6 @@ function invalid(): never {
   throw new CrosswordArtifactError("invalid");
 }
 
-/** Throws CrosswordArtifactError("invalid") unless the condition holds. */
 function ensure(condition: unknown): asserts condition {
   if (!condition) invalid();
 }
@@ -161,7 +153,6 @@ function isText(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
-/** Root fields, identity, date and checksum. */
 async function checkIdentity(value: unknown): Promise<CrosswordPuzzle> {
   ensure(hasKeys(value, CROSSWORD_ROOT_KEYS));
   const p = value as unknown as CrosswordPuzzle;
@@ -172,7 +163,6 @@ async function checkIdentity(value: unknown): Promise<CrosswordPuzzle> {
   return p;
 }
 
-/** Board bounds, entry count, audited count and the list shapes. */
 function checkBoardShape(p: CrosswordPuzzle): void {
   ensure(isSide(p.rows) && isSide(p.cols));
   ensure(Array.isArray(p.entries));
@@ -182,7 +172,6 @@ function checkBoardShape(p: CrosswordPuzzle): void {
   ensure(p.cells.every((c) => hasKeys(c, CROSSWORD_CELL_KEYS)));
 }
 
-/** Field set, identity, answer, direction, coordinates and clues of one entry. */
 function checkEntryFields(e: CrosswordEntry, ids: Set<string>): string {
   ensure(hasKeys(e, CROSSWORD_ENTRY_KEYS) && hasKeys(e.clue, ["pt-BR", "en"]));
   ensure(Array.isArray(e.aliases) && Array.isArray(e.sources) && Array.isArray(e.matching_qids));
@@ -196,7 +185,6 @@ function checkEntryFields(e: CrosswordEntry, ids: Set<string>): string {
   return word;
 }
 
-/** No normalized name or alias may point at two groups. */
 function checkAliases(e: CrosswordEntry, names: Map<string, string>): void {
   for (const name of [e.canonical_name, ...e.aliases]) {
     ensure(typeof name === "string");
@@ -206,7 +194,6 @@ function checkAliases(e: CrosswordEntry, names: Map<string, string>): void {
   }
 }
 
-/** A cited Wikipedia revision whose URL matches its locator, with a non-empty span. */
 function checkSource(source: CrosswordSource, qid: string): void {
   ensure(hasKeys(source, CROSSWORD_SOURCE_KEYS));
   ensure(isText(source.predicate) && isText(source.value) && isText(source.snippet));
@@ -223,7 +210,6 @@ interface Placement {
   owners: Map<string, CrosswordEntry[]>;
 }
 
-/** Places the letters of an entry, rejecting squares off the board and bad crossings. */
 function placeEntry(p: CrosswordPuzzle, e: CrosswordEntry, word: string, { expected, owners }: Placement): void {
   for (let i = 0; i < word.length; i++) {
     const key = entryCellKey(e, i);
@@ -242,13 +228,11 @@ function compareKeys(a: string, b: string): number {
   return ar - br || ac - bc;
 }
 
-/** Numbers follow the reading order of the distinct start squares. */
 function checkNumbering(p: CrosswordPuzzle): void {
   const starts = [...new Set(p.entries.map((e) => cellKey(e.row, e.col)))].sort(compareKeys);
   ensure(p.entries.every((e) => e.number === starts.indexOf(cellKey(e.row, e.col)) + 1));
 }
 
-/** Every entry is reachable from the first through shared squares. */
 function checkConnected(p: CrosswordPuzzle, owners: Map<string, CrosswordEntry[]>, ids: Set<string>): void {
   const reached = new Set([p.entries[0]!.qid]);
   for (const _ of p.entries) {
@@ -259,7 +243,6 @@ function checkConnected(p: CrosswordPuzzle, owners: Map<string, CrosswordEntry[]
   ensure(reached.size === ids.size);
 }
 
-/** Vocabulary, unique clues and the cell list match what the entries imply. */
 function checkDerivedLists(p: CrosswordPuzzle, expected: Map<string, string>, ids: Set<string>): void {
   ensure(JSON.stringify([...ids].sort()) === JSON.stringify(p.vocabulary));
   ensure(p.entries.every((e) => e.matching_qids.length === 1 && e.matching_qids[0] === e.qid));
@@ -322,12 +305,6 @@ function isInt(value: unknown, min = -Infinity, max = Infinity): value is number
   return Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
 }
 
-/**
- * Canonical previous-day history, as history_context() in
- * kpop_scraping/crossword_daily.py: a bootstrap is dated the same day, any
- * other state the day before; QIDs sorted and unique, 3 to 5 for a played
- * day and none otherwise.
- */
 function checkHistory(referenceDate: string, value: unknown): { qids: string[] } {
   ensure(hasKeys(value, ["state", "date", "qids"]));
   const { state, date, qids } = value;
@@ -338,7 +315,6 @@ function checkHistory(referenceDate: string, value: unknown): { qids: string[] }
   return { qids };
 }
 
-/** Generation budgets, attempt count and rejection counts, as in validate_published(). */
 function checkAccounting(a: Record<string, unknown>): void {
   ensure(hasKeys(a.limits, ["attempts", "placement_nodes", "proof_nodes"]));
   const limits = a.limits as Record<"attempts" | "placement_nodes" | "proof_nodes", unknown>;
@@ -350,7 +326,6 @@ function checkAccounting(a: Record<string, unknown>): void {
   const counts = Object.entries(rejections);
   ensure(counts.every(([k, v]) => ["placement", "budget", "validation"].includes(k) && isInt(v, 1)));
   const rejected = counts.reduce((sum, [, v]) => sum + (v as number), 0);
-  // An omission spent every attempt; a ready board succeeded on the last one.
   if (a.status === "omitted") ensure(a.attempts === limits.attempts && rejected === a.attempts);
   else ensure(rejected === (a.attempts as number) - 1);
 }
@@ -401,7 +376,6 @@ export async function validateCrosswordDaily(value: unknown): Promise<CrosswordD
     cells: board.cells,
   } as CrosswordPuzzle;
   checkBoard(puzzle);
-  // No group of the day before comes back.
   ensure(puzzle.vocabulary.every((q) => !previous.qids.includes(q)));
   return { status: "ready", reference_date: referenceDate, puzzle };
 }
@@ -411,7 +385,6 @@ function dataUrl(baseUrl: string): string {
   return `${base}data/${CROSSWORD_DATA_FILE}`;
 }
 
-/** One copy of a data file: null for a 404, "invalid" for any other failure. */
 async function fetchValidated<T>(url: string, validate: (value: unknown) => T | Promise<T>, signal?: AbortSignal): Promise<T | null | "invalid"> {
   try {
     const response = await fetch(url, signal ? { signal } : undefined);
@@ -424,11 +397,6 @@ async function fetchValidated<T>(url: string, validate: (value: unknown) => T | 
   }
 }
 
-/**
- * State of a kpop-crossword-publication-v1 record dated referenceDate. Only
- * the fields the page acts on are checked in depth; the reason is internal
- * and never shown.
- */
 function validateCrosswordRecord(value: unknown, referenceDate: string): "played" | "omitted" {
   ensure(hasKeys(value, CROSSWORD_PUBLICATION_KEYS));
   ensure(value.schema_version === CROSSWORD_PUBLICATION_VERSION && value.reference_date === referenceDate);
@@ -471,7 +439,6 @@ export async function loadCrosswordPuzzle(
   throw new CrosswordArtifactError(record === null ? "missing" : "invalid");
 }
 
-/** Today's record from data/ or, published ahead, data/next/; data/ wins. */
 async function loadRecord(base: string, today: string, signal?: AbortSignal): Promise<"played" | "omitted" | null | "invalid"> {
   const validate = (value: unknown) => validateCrosswordRecord(value, today);
   const file = crosswordPublicationFile(today);

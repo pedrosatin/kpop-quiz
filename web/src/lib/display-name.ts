@@ -1,16 +1,3 @@
-/**
- * Player-facing labels from published artifact names.
- *
- * Keeps QID identity and answer keys untouched. Strips a trailing
- * Wikipedia-style disambiguator when that does not create a homonym among
- * labels shown together, and applies reviewed per-entity overrides.
- *
- * No casing is inferred: a locale label that differs from `canonical_name`
- * only by case keeps the published spelling, because neither side is a proven
- * authority (`izna` and `tripleS` are correct as published). A spelling changes
- * only through an entry in `display-label-overrides.json` that cites a pinned
- * source revision.
- */
 
 import overrideTable from "../data/display-label-overrides.json" with { type: "json" };
 import type { Locale } from "./quiz-types";
@@ -40,7 +27,6 @@ export function applyDisplayOverride(
   return override && override.published === label ? override.display : label;
 }
 
-/** Wikipedia-style notes only; keeps f(x) and other intentional parentheses. */
 const TRAILING_DISAMBIG =
   /\s+\((?:grupo(?:\s+musical)?(?:\s+sul-coreano)?|banda|group(?:\s+sul-coreano)?|musical\s+group|band|girl\s+group|boy\s+band|south\s+korean\s+band|south\s+korean\s+group)\)$/i;
 

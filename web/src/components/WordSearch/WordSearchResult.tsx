@@ -52,9 +52,7 @@ interface WordSearchResultProps {
   titleRef?: Ref<HTMLHeadingElement>;
   onCopied?: () => void;
   onShareFailed?: () => void;
-  /** When false, omit DailyNext and the daily share header. */
   daily?: boolean;
-  /** Overrides the default home word-search share URL (used by group pages). */
   shareUrl?: string;
 }
 
@@ -94,8 +92,6 @@ export function WordSearchResult({
     ...(shareUrl !== undefined ? { shareUrl } : {}),
   });
 
-  // The bar stops being sticky while the panel is open, so the panel can
-  // open below the fold; bring it into view.
   useEffect(() => {
     if (sourceOpen) source.current?.scrollIntoView?.({ block: "nearest" });
   }, [sourceOpen]);

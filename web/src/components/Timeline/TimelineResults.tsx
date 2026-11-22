@@ -32,7 +32,6 @@ export function TimelineResults({
     return getCanonicalChronologicalOrder(list);
   }, [canonicalEvents, events]);
 
-  // 1-based position where the player left each event, when the order is known.
   const playerPositions = useMemo(
     () => new Map((events ?? []).map((event, index) => [event.id, index + 1])),
     [events]
@@ -95,7 +94,6 @@ export function TimelineResults({
   );
 }
 
-/** `defaults` with every override that is set; an `undefined` override keeps the default. */
 function withDefaults<T extends object>(defaults: T, overrides: Partial<T> | undefined): T {
   const merged: T = { ...defaults };
   for (const [key, value] of Object.entries(overrides ?? {})) {

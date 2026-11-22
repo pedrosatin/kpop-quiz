@@ -20,7 +20,6 @@ from .http_request import DEFAULT_USER_AGENT, open_url
 from .mediawiki import MediaWikiError, parse_retry_after
 from .storage import Repository, utc_now
 
-
 DISCOVERER_VERSION = "release-discovery-v1"
 DEFAULT_ENDPOINT = "https://query.wikidata.org/sparql"
 MAX_GROUPS_PER_QUERY = 25
@@ -28,18 +27,12 @@ MAX_CANDIDATES_PER_GROUP = 100
 MAX_RESPONSE_BYTES = 5_000_000
 RETRYABLE_HTTP_STATUS = frozenset({429, 500, 502, 503, 504})
 ALLOWED_DIRECT_TYPES = ("Q482994", "Q169930", "Q134556")
-# A canonical item QID: ASCII digits without leading zeros. str.isdigit()
-# also accepts digits such as "²" and "١", and Q7, Q07 and Q007 would be
-# three candidates for one item. _qid_order and the cut boundary that
-# _mark_stale_releases compares in SQL both rely on this form.
 _CANONICAL_QID = re.compile(r"Q[1-9][0-9]*")
-
 
 @dataclass(frozen=True)
 class DiscoveredRelease:
     group_id: str
     release_id: str
-
 
 @dataclass(frozen=True)
 class TruncatedGroup:
@@ -54,18 +47,15 @@ class TruncatedGroup:
     def discarded(self) -> int:
         return self.candidates - self.kept
 
-
 @dataclass(frozen=True)
 class DiscoveryResult:
     run_id: int
     truncated: tuple[TruncatedGroup, ...]
 
-
 @dataclass(frozen=True)
 class QueryResult:
     body: bytes
     http_status: int
-
 
 class WikidataQueryClient:
     def __init__(
@@ -125,9 +115,6 @@ class WikidataQueryClient:
                 if delay > 120:
                     raise MediaWikiError("WDQS Retry-After exceeds 120 seconds", transient=True) from exc
                 time.sleep(delay)
-            # getresponse() and read() raise ConnectionError, HTTPException
-            # (RemoteDisconnected, IncompleteRead) and ssl.SSLError without the
-            # URLError wrapper that urlopen puts on connection failures.
             except (
                 URLError,
                 TimeoutError,
@@ -140,7 +127,6 @@ class WikidataQueryClient:
                     raise MediaWikiError("WDQS request failed", transient=True) from exc
                 time.sleep(float(2**attempt))
         raise AssertionError("retry loop exited unexpectedly")
-
 
 def build_query(group_ids: list[str]) -> str:
     if not 1 <= len(group_ids) <= MAX_GROUPS_PER_QUERY:
@@ -158,7 +144,6 @@ def build_query(group_ids: list[str]) -> str:
         "}\nORDER BY ?performer ?release"
     )
 
-
 def count_accepted_catalog_groups(connection) -> int:
     """Return how many accepted catalog groups discovery can query."""
     row = connection.execute(
@@ -171,7 +156,6 @@ def count_accepted_catalog_groups(connection) -> int:
     ).fetchone()
     return int(row[0])
 
-
 def release_batch_count(accepted_group_count: int, group_limit: int = MAX_GROUPS_PER_QUERY) -> int:
     """Return how many nightly batches cover ``accepted_group_count`` groups."""
     if group_limit < 1:
@@ -179,7 +163,6 @@ def release_batch_count(accepted_group_count: int, group_limit: int = MAX_GROUPS
     if accepted_group_count < 1:
         raise ValueError("no accepted catalog groups are available")
     return math.ceil(accepted_group_count / group_limit)
-
 
 def rotated_release_group_offset(
     accepted_group_count: int,
@@ -199,7 +182,6 @@ def rotated_release_group_offset(
         reference_date = date.fromisoformat(reference_date)
     batches = release_batch_count(accepted_group_count, group_limit)
     return (reference_date.toordinal() % batches) * group_limit
-
 
 def discover_releases(
     repository: Repository,
@@ -281,29 +263,12 @@ def discover_releases(
         raise
     return DiscoveryResult(run_id, truncated)
 
-
 def _qid_order(qid: str) -> tuple[int, str]:
-    """Sort canonical QIDs by number: Q123 comes before Q1000, which text order reverses.
-
-    Without leading zeros, a shorter QID is a smaller number, and QIDs of
-    equal length compare as text in numeric order. This avoids int(), which
-    refuses strings above 4300 digits.
-    """
     return len(qid), qid
-
 
 def _parse_results(
     body: bytes, groups: set[str], max_per_group: int
 ) -> tuple[tuple[DiscoveredRelease, ...], tuple[TruncatedGroup, ...]]:
-    """Read the WDQS answer and cut each group down to ``max_per_group`` candidates.
-
-    Anyone can add a P175 statement that names a group, so a group may come
-    back with more candidates than the limit. Aborting would fail every run
-    while that edit stands. The group keeps the candidates with the lowest
-    QIDs instead: the cut depends only on the answer's content, never on its
-    order or on set and hash order, and items created after the others, such
-    as a flood of new ones, carry higher QIDs and are the ones left out.
-    """
     payload = json.loads(body)
     by_group: dict[str, set[str]] = {group: set() for group in groups}
     for binding in payload["results"]["bindings"]:

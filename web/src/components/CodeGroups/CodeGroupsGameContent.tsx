@@ -34,16 +34,12 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
 
   const resultRef = useRef<HTMLElement>(null);
   const feedbackRef = useRef<HTMLParagraphElement>(null);
-  // Only a game finished in this visit moves focus to the result; a finished
-  // game restored from storage leaves focus where the page put it.
   useFocusOnChange(resultRef, finished && playedHere.current);
   useCodeGroupsFeedbackScroll(feedback, finished, playedHere, resultRef, feedbackRef);
 
-  // The guard starts when the board mounts, so it stays in this component.
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare, shareFeedback } = useCodeGroupsShare(locale);
 
-  // The ids keep their order in the island's useId sequence.
   const shareTextId = useId();
   const shareFailedId = useId();
 
@@ -59,8 +55,7 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
   return (
     <section id="code-groups" tabIndex={-1} aria-label={messages.codeTitle} class="game-card game-card--wide code-groups" data-testid="game-board">
       <p class="code-sequence-note">{messages.codeSequenceNote}</p>
-      {/* Once the round ends the result takes the counter's place, above the
-          locked form and the history, so it shows without scrolling past them. */}
+      {}
       {finished ? (
         <CodeGroupsResult
           puzzle={puzzle}

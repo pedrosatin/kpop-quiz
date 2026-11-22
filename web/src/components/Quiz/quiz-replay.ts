@@ -7,7 +7,6 @@ import { applyRound, computeDeadline, progressConfig, resetRound } from "./quiz-
 import type { QuizLoadContext } from "./types";
 import { freshRoundProgress, type QuizProgressOverrides } from "./useQuizProgress";
 
-/** Starts the published round again with the same ten questions. */
 function replayPublishedRound(ctx: QuizLoadContext, extra: QuizProgressOverrides = {}): void {
   const { match, analytics, timerSeconds, persistProgress } = ctx;
   const startedAt = Date.now();
@@ -68,7 +67,6 @@ function handleReplayFailure(ctx: QuizLoadContext, request: number, error: unkno
   match.setState("invalid");
 }
 
-/** Draws a new catalog set when another combination exists. */
 function replayCatalogRound(ctx: QuizLoadContext): void {
   const { locale, settings: { playMode, decades }, match } = ctx;
   const request = ++match.loadRequestRef.current;
@@ -97,8 +95,6 @@ export function restartRound(ctx: QuizLoadContext): void {
     replayPublishedRound(ctx);
     return;
   }
-  // Fixed group-page sessions keep the same ten questions with no catalog
-  // notice; the home general quiz still warns when the catalog is absent.
   if (!settings.persist) {
     match.setReplayStatus(null);
     replayPublishedRound(ctx);

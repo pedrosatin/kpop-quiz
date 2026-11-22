@@ -1,25 +1,4 @@
-/*
-  Shared building blocks used by every game. A game stylesheet should only
-  describe what is unique to that game (its board, tiles or keyboard).
 
-  .btn             buttons: .btn-primary, .btn-secondary, .btn-ghost, .btn-sm, .btn-icon
-  .btn-row         a centered, wrapping row of buttons
-  .game-card       the panel that holds a game; .game-card--wide for large boards
-  .game-actions    sticky bar at the foot of a game: feedback and the main action
-  .game-layout     board and side panel: one column, two from 60rem
-  .game-hud        counters above the board (.hud-item, .hud-label, .hud-value)
-  .choice          selectable option card (radio or checkbox inside a label)
-  .callout         neutral note; .alert-error, .alert-warning for problems
-  .stale-daily-notice  date of a daily board from an earlier day, above the game
-  .badge           small pill label (.badge-success, .badge-failure)
-  .modal-*         dialog backdrop, card, header, title
-  .state, .loader  loading and error placeholders
-  .result-*        end-of-game summary, stats tiles and share box
-  .source-panel    "Ver fonte" panel, full height; .source-citation one revision
-  .text-input      single-line text field
-*/
-
-/* Buttons */
 
 .btn {
   display: inline-flex;
@@ -85,7 +64,6 @@
   }
 }
 
-/* Toggle buttons (aria-pressed) look selected when on. */
 .btn[aria-pressed="true"],
 .btn[aria-pressed="true"]:hover:not(:disabled) {
   background: var(--color-text);
@@ -99,7 +77,6 @@
   font-size: 0.8125rem;
 }
 
-/* On touch screens a small button keeps the small type but not a small target. */
 @media (pointer: coarse) {
   .btn-sm {
     min-height: var(--control-height);
@@ -135,7 +112,6 @@
     color: HighlightText;
   }
 
-  /* Opacity alone does not read as disabled on a system palette. */
   .btn:disabled,
   .btn[aria-disabled="true"] {
     opacity: 1;
@@ -144,8 +120,6 @@
     color: GrayText;
   }
 }
-
-/* Game card */
 
 .game-card {
   position: relative;
@@ -182,18 +156,6 @@
   line-height: 1.2;
 }
 
-/*
-  Action bar: the last row of a game card. It is sticky at the bottom of the
-  viewport, above the consent banner, and overlaps the end of the card while
-  the card is taller than the screen. The min-height matches a row with the
-  button, so the bar does not jump when feedback appears. Boards cap their
-  height with --play-max-h so the answered bar does not cover the answer area.
-  Only .game-actions-message is a live region (role="status"): it is mounted
-  with the instructions before the first answer, and the button and links
-  stay out of the announcement. A card with padding sets --game-actions-inset
-  to the same value and the bar reaches its edges.
-*/
-
 .game-actions {
   position: sticky;
   bottom: var(--consent-banner-height, 0px);
@@ -212,19 +174,6 @@
   box-shadow: 0 -0.5rem 1rem -0.75rem color-mix(in srgb, var(--color-text) 30%, transparent);
 }
 
-/*
-  Room above the stuck bar. StickyBarSpace publishes the bar's real height as
-  --game-actions-height while it is sticky (0 otherwise), and everything in the
-  page except the bar keeps that much scroll margin, on top of the root
-  scroll padding for the consent banner. Keyboard focus and scrollIntoView
-  then stop above the bar at its current height, including after it grows
-  with a message. The bar's own controls keep no margin: they are on screen
-  wherever the bar is stuck, and a margin there would scroll the page on
-  every Tab. Dialogs keep none either: their lists scroll inside the dialog,
-  and the margin would leave an empty band under the highlighted option.
-  lib/sticky-bar-space.ts skips the same elements on focus
-  (OUTSIDE_PLAY_SELECTOR).
-*/
 main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog"], [role="dialog"] *)) {
   scroll-margin-bottom: var(--game-actions-height, 0px);
 }
@@ -239,15 +188,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   color: var(--color-error-text);
 }
 
-/*
-  Feedback motion: per-answer correct/incorrect and end-of-game result.
-  Motion runs on the message title and mark, which are not interactive.
-  It never runs on .btn. Opt-in via data-feedback on .game-actions or the
-  result title; only games that set the attribute animate. Durations use
-  --duration-feedback / --duration-feedback-result (≤250ms). base.css sets
-  animation and transition to 0.01ms under prefers-reduced-motion.
-  See docs/feel-feedback.md.
-*/
 @keyframes feedback-correct {
   0% { transform: scale(0.96); opacity: 0.85; }
   60% { transform: scale(1.04); }
@@ -328,21 +268,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   }
 }
 
-/*
-  Board and side panel. Below 60rem .game-layout is one column in DOM order:
-  the board, then its .game-actions bar, sticky at the foot of the screen.
-  From 60rem the board takes the left column and the side panel a column of
-  --game-side-width on the right, both from the top of the card. The panel
-  is a .game-actions bar placed directly in the layout, or a
-  .game-layout-side wrapper holding the bar and anything that follows it
-  (the wrapper is display: contents below 60rem, so the bar stays sticky).
-  From 60rem the bar drops its sticky position, border, tint and negative
-  margins and stacks its content: counters, the live message, then the
-  controls or the result. The panel comes after the board in the DOM, so
-  reading and Tab order follow the columns; no rule reorders them.
-  A right or wrong answer tints only the message box in the panel.
-*/
-
 .game-layout {
   display: flex;
   flex-direction: column;
@@ -364,7 +289,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
     min-width: 0;
   }
 
-  /* The board keeps its own height when the panel grows past it. */
   .game-layout > :first-child {
     align-self: start;
   }
@@ -430,8 +354,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   }
 }
 
-/* HUD: counters shown above a board */
-
 .game-hud {
   display: flex;
   flex-wrap: wrap;
@@ -459,8 +381,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-
-/* Choice cards */
 
 .choice {
   position: relative;
@@ -514,15 +434,12 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
     border-width: 2px;
   }
 
-  /* The inset shadow that thickens the selected border is dropped. */
   .choice.selected:not(:has(input:focus-visible)),
   .choice:has(input:checked):not(:has(input:focus-visible)) {
     outline: 2px solid Highlight;
     outline-offset: -5px;
   }
 }
-
-/* Callouts and alerts */
 
 .callout {
   margin: 0;
@@ -561,13 +478,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   margin: 0;
 }
 
-/*
-  Notice above a daily board from an earlier day (StaleDailyNotice). The
-  boards sized to the viewport (Connections, Name guess, Word search) give
-  up its height and the gap below it through --stale-notice-h: two lines
-  below 40rem, one line from there, measured at 360px and 1440px in
-  Portuguese and English.
-*/
 .stale-daily-notice {
   margin-block-end: var(--space-2);
 }
@@ -593,8 +503,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
 .text-muted {
   color: var(--color-text-muted);
 }
-
-/* Badges */
 
 .badge {
   display: inline-block;
@@ -622,8 +530,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
     border-color: ButtonBorder;
   }
 }
-
-/* Modal dialogs */
 
 .modal-backdrop {
   position: fixed;
@@ -698,8 +604,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   }
 }
 
-/* Loading and error states */
-
 .state {
   min-height: 18rem;
   display: grid;
@@ -731,8 +635,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-
-/* Results */
 
 .result {
   display: grid;
@@ -787,8 +689,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   font-variant-numeric: tabular-nums;
 }
 
-/* Share box: preview of the text that will be copied, options and actions. */
-
 .share-box {
   display: grid;
   justify-items: center;
@@ -840,8 +740,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   font-weight: 600;
 }
 
-/* Text field */
-
 .text-input {
   width: 100%;
   min-height: var(--control-height);
@@ -852,8 +750,6 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   color: var(--color-text);
   font-size: 0.9375rem;
 }
-
-/* Review list shown after a game */
 
 .review-section {
   margin-top: var(--space-6);
@@ -939,23 +835,15 @@ main :where(:not(.game-actions, .game-actions *, dialog, dialog *, [role="dialog
   overflow-wrap: anywhere;
 }
 
-/*
-  "Ver fonte" panels in every game. The panel shows every source at full
-  height and the page scrolls: a box that scrolls inside the bar hid sources
-  with no sign that more followed. The bar holding an open panel stops
-  being sticky (each game's style sheet), so it does not cover the board.
-*/
 .source-panel {
   max-height: none;
   overflow: visible;
 }
 
-/* One cited revision in words, then the link that names its destination. */
 .source-citation-link {
   overflow-wrap: break-word;
 }
 
-/* End of a daily game: time left until the next challenge and the next game. */
 .daily-next {
   display: flex;
   flex: 1 1 100%;

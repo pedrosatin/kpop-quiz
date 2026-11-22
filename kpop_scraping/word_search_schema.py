@@ -64,7 +64,6 @@ _DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _WORD_PATTERN = re.compile(r"^[A-Z]{3,16}$")
 _GRID_CELL_PATTERN = re.compile(r"^[A-Z]$")
 
-
 def normalize_word(name: str) -> str:
     """Normalize a display name to uppercase ASCII alphabetic characters.
 
@@ -74,17 +73,14 @@ def normalize_word(name: str) -> str:
     decomposed = unicodedata.normalize("NFKD", name).upper()
     return "".join(c for c in decomposed if "A" <= c <= "Z")
 
-
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(f"Invalid word search puzzle schema: {message}")
-
 
 _require_hash = partial(require_hash, _require)
 _require_qid = partial(require_qid, _require)
 _require_bilingual_text = partial(require_bilingual_text, _require)
 _validate_evidence = partial(validate_evidence, _require)
-
 
 def _require_date(value: Any, field_name: str) -> None:
     _require(
@@ -98,19 +94,16 @@ def _require_date(value: Any, field_name: str) -> None:
             f"Invalid word search puzzle schema: {field_name} is not a calendar date"
         ) from exc
 
-
-# Eight linear directions on a 2D grid: (row_step, col_step)
 DIRECTIONS: list[tuple[int, int]] = [
-    (0, 1),    # Horizontal left to right
-    (0, -1),   # Horizontal right to left
-    (1, 0),    # Vertical top to bottom
-    (-1, 0),   # Vertical bottom to top
-    (1, 1),    # Diagonal down-right
-    (1, -1),   # Diagonal down-left
-    (-1, 1),   # Diagonal up-right
-    (-1, -1),  # Diagonal up-left
+    (0, 1),
+    (0, -1),
+    (1, 0),
+    (-1, 0),
+    (1, 1),
+    (1, -1),
+    (-1, 1),
+    (-1, -1),
 ]
-
 
 def find_word_occurrences(grid: list[list[str]], word: str) -> list[tuple[int, int, int, int]]:
     """Find all start and end coordinates where the target word occurs in the grid."""
@@ -130,7 +123,6 @@ def find_word_occurrences(grid: list[list[str]], word: str) -> list[tuple[int, i
 
     return occurrences
 
-
 def occurs_only_where_declared(
     grid: list[list[str]], word: str, declared: tuple[int, int, int, int]
 ) -> bool:
@@ -145,7 +137,6 @@ def occurs_only_where_declared(
         expected.add((declared[2], declared[3], declared[0], declared[1]))
     occurrences = find_word_occurrences(grid, word)
     return len(occurrences) == len(expected) and set(occurrences) == expected
-
 
 def extract_word_coordinates(
     start_row: int, start_col: int, end_row: int, end_col: int
@@ -186,7 +177,6 @@ def extract_word_coordinates(
         (start_row + i * step_r, start_col + i * step_c) for i in range(num_steps + 1)
     ]
 
-
 def check_word_in_grid(
     grid: list[list[str]], start_row: int, start_col: int, end_row: int, end_col: int
 ) -> str:
@@ -220,7 +210,6 @@ def check_word_in_grid(
 
     return "".join(chars)
 
-
 def generate_word_search_share_summary(
     reference_date: str,
     found_count: int,
@@ -235,7 +224,6 @@ def generate_word_search_share_summary(
         rem_secs = secs % 60
         return f"{summary} ({mins:02d}:{rem_secs:02d})"
     return summary
-
 
 def _validate_root_fields(payload: dict[str, Any]) -> None:
     _require(isinstance(payload, dict), "root payload must be an object")
@@ -259,12 +247,10 @@ def _validate_root_fields(payload: dict[str, Any]) -> None:
     _require_hash(payload["dataset_version"], "dataset_version")
     _require_date(payload["reference_date"], "reference_date")
 
-
 def _validate_theme(payload: dict[str, Any]) -> None:
     _require_bilingual_text(payload["theme"], "theme")
     if "theme_description" in payload:
         _require_bilingual_text(payload["theme_description"], "theme_description")
-
 
 def _validate_dimensions(payload: dict[str, Any]) -> tuple[int, int]:
     dimensions = payload["dimensions"]
@@ -285,7 +271,6 @@ def _validate_dimensions(payload: dict[str, Any]) -> tuple[int, int]:
     )
     return rows, cols
 
-
 def _validate_grid(grid: Any, rows: int, cols: int) -> None:
     _require(isinstance(grid, list), "grid must be a 2D array")
     _require(
@@ -303,7 +288,6 @@ def _validate_grid(grid: Any, rows: int, cols: int) -> None:
                 isinstance(cell, str) and bool(_GRID_CELL_PATTERN.match(cell)),
                 f"grid[{r_idx}][{c_idx}] ('{cell}') must be a single uppercase ASCII character ^[A-Z]$",
             )
-
 
 def _validate_word_entry(
     word_obj: Any,
@@ -327,13 +311,11 @@ def _validate_word_entry(
             False, f"{context} contains unexpected fields: {sorted(unexpected)}"
         )
 
-    # ID (QID)
     qid = word_obj["id"]
     _require_qid(qid, f"{context}.id")
     _require(qid not in seen_ids, f"duplicate word id {qid} at {context}")
     seen_ids.add(qid)
 
-    # Word string
     word_str = word_obj["word"]
     _require(
         isinstance(word_str, str) and bool(_WORD_PATTERN.match(word_str)),
@@ -342,7 +324,6 @@ def _validate_word_entry(
     _require(word_str not in seen_words, f"duplicate word '{word_str}' at {context}")
     seen_words.add(word_str)
 
-    # Canonical name and labels
     _require(
         isinstance(word_obj["canonical_name"], str) and len(word_obj["canonical_name"]) > 0,
         f"{context}.canonical_name must be a non-empty string",
@@ -356,7 +337,6 @@ def _validate_word_entry(
             f"{context}.labels.{lang} ('{label}') normalizes to '{norm_label}', which does not match word '{word_str}'",
         )
 
-    # Coordinates
     start_row = word_obj["start_row"]
     start_col = word_obj["start_col"]
     end_row = word_obj["end_row"]
@@ -373,36 +353,30 @@ def _validate_word_entry(
             f"{context}.{coord_name} ({coord_val}) must be an integer in range [0, dimensions.{dim_name}) ([0, {limit}))",
         )
 
-    # Coordinates straight line validation
     try:
         coords = extract_word_coordinates(start_row, start_col, end_row, end_col)
     except ValueError as exc:
         raise ValueError(f"Invalid word search puzzle schema: {context} coordinates error: {exc}") from exc
 
-    # Length validation
     _require(
         len(coords) == len(word_str),
         f"{context}.word length ({len(word_str)}) does not match coordinate segment length ({len(coords)})",
     )
 
-    # Letters alignment with grid
     grid_letters = "".join(grid[r][c] for r, c in coords)
     _require(
         grid_letters == word_str,
         f"{context}.word ('{word_str}') does not match grid letters ('{grid_letters}') along path",
     )
 
-    # Clue (optional)
     if "clue" in word_obj:
         _require_bilingual_text(word_obj["clue"], f"{context}.clue")
 
-    # Evidence
     evidence = word_obj["evidence"]
     _require(isinstance(evidence, list), f"{context}.evidence must be an array")
     _require(len(evidence) >= 1, f"{context}.evidence must contain at least one item")
     for ev_idx, ev in enumerate(evidence):
         _validate_evidence(ev, f"{context}.evidence[{ev_idx}]")
-
 
 def _validate_words(words: Any, rows: int, cols: int, grid: list[list[str]]) -> None:
     _require(isinstance(words, list), "words must be an array")
@@ -425,7 +399,6 @@ def _validate_words(words: Any, rows: int, cols: int, grid: list[list[str]]) -> 
             "coordinates; each word must occur exactly once, in any direction",
         )
 
-
 def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
     """Validate that payload conforms to kpop-word-search-puzzle-v1 specification.
 
@@ -438,12 +411,8 @@ def validate_word_search_puzzle(payload: dict[str, Any]) -> None:
     _validate_grid(grid, rows, cols)
     _validate_words(payload.get("words"), rows, cols, grid)
 
-
-
-
 def _clue_key(text: dict[str, str]) -> tuple[str, str]:
     return (text["pt-BR"].strip().casefold(), text["en"].strip().casefold())
-
 
 def validate_word_search_clues(payload: dict[str, Any]) -> None:
     """Reject clues that give the player nothing beyond the theme title.
@@ -476,7 +445,6 @@ def validate_word_search_clues(payload: dict[str, Any]) -> None:
         clued < 2 or len(clue_keys) > 1,
         "all word clues are identical; clues must tell words apart or be omitted",
     )
-
 
 def write_word_search_puzzle_atomic(
     target_path: Path, payload: dict[str, Any]

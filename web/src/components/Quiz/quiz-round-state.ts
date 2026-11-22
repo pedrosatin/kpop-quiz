@@ -66,11 +66,7 @@ export function applyRestoredSave(
   }
   ctx.stopTimer();
   match.closeGiveUpConfirm();
-  // A round played earlier in this visit must not keep this one from
-  // sending its game_complete.
   ctx.analytics.resume();
-  // The save holds a copy of the session: a daily one from an earlier day is
-  // noted again, as the loader noted the session it matched.
   match.setSession(noteDailyBoard(save.session, dailySeedDate(save.session)));
   match.setSessionSource(source);
   match.setReplayStatus(save.replay_notice);

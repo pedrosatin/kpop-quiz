@@ -4,12 +4,10 @@ interface WordSearchCellProps {
   row: number;
   col: number;
   letter: string;
-  /** Index of the found word's color, or undefined. */
   color: number | undefined;
   selected: boolean;
   revealed: boolean;
   anchor: boolean;
-  /** The one cell of the grid reached by Tab (roving tabindex). */
   focused: boolean;
   ariaLabel: string;
   /** Extra CSS class (for example a spangram highlight). */

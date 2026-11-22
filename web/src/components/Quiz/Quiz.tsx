@@ -30,7 +30,6 @@ export { groupEvidence };
 
 export function Quiz({ locale, initialAvailableDecades = [] }: {
   locale: Locale;
-  /** Decades computed from the manifest at build time, so the server-rendered setup matches the loaded one. */
   initialAvailableDecades?: QuizDecadeValue[];
 }) {
   const messages = getMessages(locale);
@@ -54,8 +53,6 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const loading: QuizLoadContext = { ...play, stopTimer };
   const load = () => loadRound(loading);
 
-  // Effects run in call order and some depend on it: a timer that expires
-  // while restoring a save runs before the autosave at the end of this list.
   useEffect(() => setHydrated(true), []);
 
   useEffect(() => {
@@ -64,8 +61,6 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   }, [locale, settings.playMode, settings.theme, settings.decadeKey]);
 
   const focus = useQuizFocus(match);
-  // Picking the general quiz while it says where it stopped restores that
-  // round; its question then takes the focus from the card.
   const selectTheme = (theme: QuizTheme) => {
     if (theme === "history" && generalResume) match.focusRestoredRef.current = true;
     settings.selectTheme(theme);
@@ -94,7 +89,6 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       otherLocaleRound={otherLocaleRound}
       actions={{
         load,
-        // Clearing filters changes decadeKey and reloads through the effect.
         retryUnavailable: () => { if (!settings.clearDecadeFilter()) load(); },
         start: () => startRound(play),
         restart: () => restartRound(loading),
@@ -105,10 +99,6 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
         revealClue: () => revealClue(play),
         selectTheme,
         playGeneral: () => {
-          // Leave the result in the same render as the theme changes: with
-          // the daily session still on screen as a "results" state, the
-          // general theme would make useRecordDailyMatch count it again as
-          // a general match.
           match.setState("loading");
           match.focusSetupRef.current = true;
           match.focusRestoredRef.current = true;

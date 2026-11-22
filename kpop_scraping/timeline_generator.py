@@ -27,7 +27,6 @@ from .timeline_schema import (
 
 QID_REGEX = re.compile(r"^Q[1-9][0-9]*$")
 
-# Bounded resampling attempts for year sets that respect the minimum gap.
 TIMELINE_MAX_SAMPLING_ATTEMPTS = 60
 
 PT_MONTHS = [
@@ -60,7 +59,6 @@ EN_MONTHS = [
     "December",
 ]
 
-
 @dataclass(frozen=True)
 class CandidateEvent:
     id: str
@@ -73,7 +71,6 @@ class CandidateEvent:
     entity_id: str
     entity_name: str
     evidence: list[dict[str, Any]]
-
 
 def format_display_date(date_str: str) -> dict[str, str]:
     """Format an ISO date string into bilingual display dates.
@@ -95,12 +92,10 @@ def format_display_date(date_str: str) -> dict[str, str]:
         m_en = EN_MONTHS[month - 1]
         return {"pt-BR": f"{m_pt} de {year}", "en": f"{m_en} {year}"}
     day = int(parts[2])
-    # Raises ValueError for a day the month does not have.
     date(int(year), month, day)
     m_pt = PT_MONTHS[month - 1]
     m_en = EN_MONTHS[month - 1]
     return {"pt-BR": f"{day} de {m_pt} de {year}", "en": f"{m_en} {day}, {year}"}
-
 
 def _parse_event_date(value_time: str | None) -> tuple[str, int] | None:
     if not value_time:
@@ -115,10 +110,8 @@ def _parse_event_date(value_time: str | None) -> tuple[str, int] | None:
     try:
         format_display_date(raw_time)
     except ValueError:
-        # A malformed date drops only its event, not the day's timeline.
         return None
     return raw_time, year
-
 
 def _stable_name(entities: Iterable[Entity]) -> str | None:
     named = [entity for entity in entities if entity.canonical_name]
@@ -126,9 +119,7 @@ def _stable_name(entities: Iterable[Entity]) -> str | None:
         return None
     return sorted(named, key=lambda entity: entity.wikidata_id)[0].canonical_name
 
-
 def _build_formation_candidates(facts: list[Fact]) -> list[CandidateEvent]:
-    """Extract group formation candidates from accepted, evidenced facts."""
     labels_by_group: dict[str, list[Entity]] = defaultdict(list)
     members_by_group: dict[str, int] = defaultdict(int)
     for fact in facts:
@@ -184,9 +175,7 @@ def _build_formation_candidates(facts: list[Fact]) -> list[CandidateEvent]:
         )
     return candidates
 
-
 def _build_birth_candidates(facts: list[Fact]) -> list[CandidateEvent]:
-    """Extract idol birth candidates from accepted, evidenced facts."""
     groups_by_person: dict[str, list[Entity]] = defaultdict(list)
     for fact in facts:
         if (
@@ -244,25 +233,14 @@ def _build_birth_candidates(facts: list[Fact]) -> list[CandidateEvent]:
         )
     return candidates
 
-
 RELEASE_ENTITY_TYPES = frozenset({"album", "release"})
-
 
 def _join_names(names: list[str], conjunction: str) -> str:
     if len(names) == 1:
         return names[0]
     return f"{', '.join(names[:-1])} {conjunction} {names[-1]}"
 
-
 def _build_release_candidates(facts: list[Fact]) -> list[CandidateEvent]:
-    """Extract release candidates from accepted, evidenced ``released_on`` facts.
-
-    A release enters the pool only with a single accepted date. Performers
-    come only from accepted ``performed_by`` facts, whose evidence is
-    published with the event because the label names them. Releases whose
-    title is shared with another release loaded (dated or not, with or without
-    performers) are left out, so every card identifies one release.
-    """
     date_facts: dict[str, list[Fact]] = defaultdict(list)
     performer_facts: dict[str, list[Fact]] = defaultdict(list)
     for fact in facts:
@@ -332,15 +310,10 @@ def _build_release_candidates(facts: list[Fact]) -> list[CandidateEvent]:
         )
         drafts.append(candidate)
 
-    # Two cards with the same title would let the player confuse them, with or
-    # without artists in the label; drop every release whose title is shared
-    # with any other release loaded, dated or not.
     ambiguous = ambiguous_release_ids(facts)
     return [candidate for candidate in drafts if candidate.entity_id not in ambiguous]
 
-
 def _satisfies_min_gap(events: list[CandidateEvent]) -> bool:
-    """Check the conservative 30-day gap over precision spans for ordered events."""
     prev_span_max = None
     for cand in sorted(events, key=lambda c: (c.date, c.id)):
         span_min, span_max = timeline_date_span(cand.date)
@@ -349,13 +322,11 @@ def _satisfies_min_gap(events: list[CandidateEvent]) -> bool:
         prev_span_max = span_max
     return True
 
-
 def _select_events_from_pool(
     pool: list[CandidateEvent],
     rng: random.Random,
     seed: str,
 ) -> list[CandidateEvent]:
-    """Pick 5 events with distinct years that respect the conservative 30-day gap."""
     by_year: dict[int, list[CandidateEvent]] = defaultdict(list)
     for cand in pool:
         by_year[cand.year].append(cand)
@@ -392,7 +363,6 @@ def _select_events_from_pool(
             )
     return chosen_events
 
-
 def _puzzle_from_theme(
     theme: dict[str, Any],
     events: list[CandidateEvent],
@@ -426,7 +396,6 @@ def _puzzle_from_theme(
     puzzle_candidate["puzzle_id"] = compute_timeline_puzzle_id(puzzle_candidate)
     validate_timeline_puzzle(puzzle_candidate)
     return puzzle_candidate
-
 
 def generate_timeline_puzzle(
     connection: sqlite3.Connection,

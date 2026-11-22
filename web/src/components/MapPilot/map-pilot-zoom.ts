@@ -1,8 +1,3 @@
-/*
-  When the narrow map zooms and when it goes back to the whole map, as pure
-  functions of the screen, the turn and the last pointer press. useMapZoom
-  holds the state and the events.
-*/
 import type { MapPilotEvent } from "../../data/map-pilot";
 import { viewContains, type MapPoint, type MapRect, type MapSize } from "./map-pilot-geometry";
 import { shapeOf } from "./map-pilot-targets";

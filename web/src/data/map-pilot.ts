@@ -95,7 +95,6 @@ export function mapPilotCountryLabel(country: MapPilotCountry, locale: "pt-BR" |
     : country.label;
 }
 
-/** A listed concert the artist headlines. It accepts extra keys. */
 function isListedConcert(event: Record<string, unknown>): boolean {
   return event.predicate === "announced_performance_city"
     && event.schedule_status === "listed"
@@ -105,7 +104,6 @@ function isListedConcert(event: Record<string, unknown>): boolean {
     && isLenientIsoDate(event.event_date);
 }
 
-/** The ids that place the event on the map, and the sources that cite it. */
 function hasEventPlaceAndSources(event: Record<string, unknown>): boolean {
   return isLenientIsoDate(event.source_checked_at)
     && typeof event.event_mbid === "string"

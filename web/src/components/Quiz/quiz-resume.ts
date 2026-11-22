@@ -23,10 +23,6 @@ export const isCatalogMissing = (error: unknown): boolean =>
   (error instanceof CatalogSelectionError && error.kind === "missing")
   || (error instanceof CatalogArtifactError && error.kind === "missing");
 
-/**
- * Unavailable storage and a legacy save for another config only set a notice.
- * An invalid payload is deleted and sets the invalid notice. A missing save does nothing.
- */
 function noteUnusableSave(
   match: QuizMatch,
   status: Exclude<QuizProgressLoadResult["status"], "ok">,
@@ -42,11 +38,6 @@ function noteUnusableSave(
   }
 }
 
-/**
- * The daily theme keeps one slot per language and mode, and its session
- * changes every day. A save from another day's challenge is neither a round to
- * resume nor a fault to report: the slot is simply out of date.
- */
 function isOtherDaySave(theme: QuizTheme, save: QuizProgressSave, session: QuizSession): boolean {
   if (theme !== "daily") return false;
   const savedDate = dailySeedDate(save.session);
@@ -87,24 +78,17 @@ export function tryResumePublished(ctx: QuizLoadContext, round: LoadedRound): vo
     applyRestoredSave(ctx, loaded.save, round.availableDecades, round.source);
     return;
   }
-  // Own-slot drift against the live artifact: drop only this config's slot.
   clearQuizProgress(config);
   match.setResumeNotice(compat === "invalid" ? "invalid" : "incompatible");
   applyRound(ctx, round);
 }
 
-/**
- * Accepts a catalog save whose locale, mode, theme and decades match this slot.
- * A mismatch clears the slot and sets the invalid notice. A non-catalog or daily
- * save returns false and stays on disk.
- */
 function isResumableCatalogSave(
   { locale, settings, match }: QuizLoadContext,
   save: QuizProgressSave,
   config: QuizProgressConfigIdentity,
 ): boolean {
   if (save.session_source !== "catalog" || save.theme === "daily") return false;
-  // Slot is already keyed by this config; a mismatch here is corrupt identity.
   if (
     save.locale !== locale
     || save.play_mode !== settings.playMode
@@ -118,12 +102,6 @@ function isResumableCatalogSave(
   return true;
 }
 
-/**
- * The session the live catalog builds for the saved question ids, or null when
- * an id is missing from it or the ids do not form a valid round. A catalog
- * round has no published bytes to compare with, so this is the artifact its
- * save is checked against.
- */
 async function catalogSessionFor(
   catalog: QuizCatalog,
   save: QuizProgressSave,
@@ -187,7 +165,6 @@ export async function tryResumeCatalog(ctx: QuizLoadContext, request: number): P
   } catch (error) {
     if (request !== match.loadRequestRef.current) return true;
     if (isCatalogMissing(error)) {
-      // Catalog gone: this config's save cannot be validated; clear only it.
       clearQuizProgress(config);
       match.setResumeNotice("incompatible");
       return false;

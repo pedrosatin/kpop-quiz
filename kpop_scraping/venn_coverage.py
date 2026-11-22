@@ -11,11 +11,9 @@ from datetime import date
 RULES_VERSION = "venn-birth-coverage-v1"
 GREGORIAN = "http://www.wikidata.org/entity/Q1985727"
 
-
 def _digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False,
                                      separators=(",", ":")).encode()).hexdigest()
-
 
 def _support(connection):
     result = defaultdict(list)
@@ -69,7 +67,6 @@ def _support(connection):
             "revision_id": revision, "source_url": url})
     return result
 
-
 def generate_venn_coverage(connection: sqlite3.Connection, reference_date: str):
     """Read only. Return every candidate, rejection, bounded triple and a sample."""
     reference = date.fromisoformat(reference_date)
@@ -122,7 +119,6 @@ def generate_venn_coverage(connection: sqlite3.Connection, reference_date: str):
             "state": "known" if known else "unknown", "reasons": sorted(reasons),
             "evidence": sorted(evidence, key=lambda e: (e["fact_base_id"], e["locator"], e["source_key"])) if known else []})
     known = [c for c in candidates if c["state"] == "known"]
-    # Only year thresholds observed in the declared pool; deterministic finite search.
     thresholds = sorted({int(c["birth_date"][:4]) + 1 for c in known})
     triples = []
     sample = None
@@ -166,7 +162,6 @@ def generate_venn_coverage(connection: sqlite3.Connection, reference_date: str):
             "unknown_count": len(candidates) - len(known),
             "rejection_counts": dict(sorted(Counter(r for c in candidates for r in c["reasons"]).items())),
             "candidates": candidates, "triples": triples, "sample": sample}
-
 
 def verify_venn_coverage(report, connection):
     """Verify structure and all semantics against the declared read-only input."""

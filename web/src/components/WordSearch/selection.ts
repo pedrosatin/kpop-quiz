@@ -11,7 +11,6 @@ export type SelectionVerdict =
   | { kind: "found" | "repeat"; wordId: string }
   | { kind: "partial" | "miss"; letters: string };
 
-/** Both ends on the word's line, so every cell between them is too. */
 function liesWithin(word: WordSearchWord, start: CellCoord, end: CellCoord): boolean {
   const path = wordPath(word);
   return path.some((cell) => sameCell(cell, start)) && path.some((cell) => sameCell(cell, end));
@@ -43,7 +42,6 @@ export function judgeSelection(
   const again = done.find(matches);
   if (again) return { kind: "repeat", wordId: again.id };
   if (pending.some(within)) return { kind: "partial", letters };
-  // A piece of a name already found points back to that name.
   const piece = done.find(within);
   return piece ? { kind: "repeat", wordId: piece.id } : { kind: "miss", letters };
 }

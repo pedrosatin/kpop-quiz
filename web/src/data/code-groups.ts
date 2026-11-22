@@ -56,9 +56,7 @@ const PUZZLE_FIELDS = [
   "schema_version", "mode", "puzzle_id", "dataset_version", "reference_date", "seed", "symbols", "secret", "max_attempts",
 ];
 
-/** A Wikidata revision of the symbol's P31 claim, linked by its permanent URL. */
 function isSymbolSource(value: unknown, qid: string): boolean {
-  // The revision must be a safe integer, unlike the revision ids of the other games.
   return isRecord(value)
     && hasExactKeys(value, ["revision_id", "locator", "url"])
     && isIntegerInRange(value.revision_id, 1, Number.MAX_SAFE_INTEGER)
@@ -83,8 +81,6 @@ export function isCodeGroupsPuzzle(value: unknown): value is CodeGroupsPuzzle {
   if (!isRecord(value)) return false;
   const p = value as unknown as CodeGroupsPuzzle;
   if (p.schema_version !== "code-groups-pilot-v1" || p.mode !== "pilot" || p.max_attempts !== 10) return false;
-  // The root is counted and its names are not checked, so a misnamed key still
-  // reaches the later field checks the way the original guard did.
   if (Object.keys(value).length !== PUZZLE_FIELDS.length) return false;
   if (![p.puzzle_id, p.dataset_version, p.seed, p.reference_date].every(isNonBlankString)) return false;
   if (!isHash(p.puzzle_id) || !isHash(p.dataset_version)) return false;
@@ -106,7 +102,6 @@ export function scoreGuess(puzzle: CodeGroupsPuzzle, ids: readonly string[]): Co
   return { ids: [...ids], exact, misplaced };
 }
 
-// Python identity uses sorted keys and the default JSON separators.
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(", ")}]`;
   if (value && typeof value === "object") {

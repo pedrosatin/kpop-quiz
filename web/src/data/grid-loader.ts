@@ -15,7 +15,7 @@ function missing(response: Response): boolean {
 
 async function readPublication(url: string, today: string): Promise<GridPublication | null> {
   const response = await fetch(url, { cache: "no-store" });
-  if (missing(response)) return null; // Legacy deployments have no sidecar.
+  if (missing(response)) return null;
   if (!response.ok) throw new GridArtifactError("invalid");
   const value: unknown = await response.json();
   if (!isGridPublication(value) || value.reference_date !== today) throw new GridArtifactError("invalid");
@@ -46,7 +46,6 @@ async function loadAuthority(root: string, day: string, today: string): Promise<
 async function authorityForGrid(root: string, grid: IntersectionGrid | null, authority: GridPublication | null, today: string) {
   if (!grid || grid.reference_date >= today) return authority;
   const origin = await loadAuthority(root, grid.reference_date, today);
-  // Reuse permission cannot revoke the origin's rejection of this identity.
   if (origin && !admitted(grid, origin, today)) return origin;
   return authority ?? origin;
 }
@@ -82,7 +81,6 @@ export async function loadIntersectionGrid(
           selectedAuthority = nextAuthority;
         }
       } catch (error) {
-        // A missing/invalid next candidate can keep an admitted main grid.
         if (!selected && authority) throw error;
       }
     }
@@ -90,7 +88,6 @@ export async function loadIntersectionGrid(
     return {
       ...withCurrentFormationLabels(selected),
       corrected: selectedAuthority?.reference_date === today && selectedAuthority.replaces.length > 0,
-      // Reused boards keep their origin `reference_date`; the challenge is today.
       challengeDate: today,
     };
   } catch (error) {

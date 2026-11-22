@@ -1,14 +1,3 @@
-// Content Security Policy helpers shared by csp-verify.mjs and the staging
-// build (astro.config.mjs). Zero dependencies.
-//
-// Production gets the policy from the Content-Security-Policy header in
-// public/_headers (Cloudflare Pages). GitHub Pages, which serves staging,
-// ignores _headers, so the staging build copies the same policy into a
-// <meta http-equiv> tag in every page (ADR 041). The copy drops two things:
-// - frame-ancestors, report-uri, report-to and sandbox, which browsers
-//   ignore in a meta policy;
-// - the analytics hosts. Staging never loads analytics (ADR 017), and the
-//   staging workflow fails when a page names one of them.
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -125,8 +114,6 @@ export function allowsUrl(sources, raw) {
     if ((scheme ? `${scheme.toLowerCase()}:` : "https:") !== url.protocol) return false;
     const hostname = host.toLowerCase();
     if (wildcard ? !url.hostname.endsWith(`.${hostname}`) : url.hostname !== hostname) return false;
-    // Without a port in the source, only the scheme's default port matches,
-    // which URL reports as an empty string.
     if (!port ? url.port !== "" : port !== "*" && port !== (url.port || (url.protocol === "https:" ? "443" : "80"))) return false;
     if (!path) return true;
     return path.endsWith("/") ? url.pathname.startsWith(path) : url.pathname === path;

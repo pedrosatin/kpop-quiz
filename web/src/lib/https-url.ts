@@ -1,9 +1,3 @@
-/**
- * The one check for URLs that come from published data. A prefix test such
- * as `startsWith("https://")` reads the raw string, while the browser parses
- * it: parsing here is what makes the check agree with the link the player
- * gets. Credentials are not refused here; `sourceTarget` refuses to link them.
- */
 
 /** The URL, parsed, when it is absolute https with a host; null otherwise. */
 export function parseHttpsUrl(value: unknown): URL | null {

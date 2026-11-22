@@ -12,10 +12,8 @@ from .evidence import WikipediaPage
 from .mediawiki import EXTRACT_OVERSIZE, MAX_EXTRACTS_PER_REQUEST, MediaWikiClient, Page
 from .storage import utc_now
 
-
 SITES = (("enwiki", "en"), ("ptwiki", "pt"), ("kowiki", "ko"))
 _LIST_TITLE = re.compile(r"^(?:list of|lista de|목록)", re.IGNORECASE)
-
 
 @dataclass(frozen=True)
 class _PageRequest:
@@ -25,7 +23,6 @@ class _PageRequest:
     language: str
     title: str
     sequence: int
-
 
 def collect_release_pages(
     repository,
@@ -100,11 +97,9 @@ def collect_release_pages(
     )
     return {qid: tuple(items) for qid, items in pages.items()}
 
-
 def _match_pages(
     requests: Sequence[_PageRequest], found: Sequence[Page]
 ) -> tuple[Page | None, ...]:
-    """Associate unordered MediaWiki results with every requested release."""
     by_title: dict[str, list[Page]] = defaultdict(list)
     by_qid: dict[str, list[Page]] = defaultdict(list)
     for page in found:
@@ -126,14 +121,10 @@ def _match_pages(
         )
     return tuple(matched)
 
-
 def _title_key(title: str) -> str:
     return " ".join(title.replace("_", " ").split()).casefold()
 
-
 def _store_page_result(repository, pages, item: _PageRequest, page: Page) -> int:
-    # A page save_pages skipped for extract drift keeps its stored revision:
-    # the row is found and the evidence reads the stored extract, as before.
     row = repository.connection.execute(
         """SELECT sp.id AS page_id,sr.id AS revision_id,
                   sr.snapshot_path,sr.content_sha256
@@ -165,7 +156,6 @@ def _store_page_result(repository, pages, item: _PageRequest, page: Page) -> int
     )
     return 1
 
-
 def _page_rejection(page: Page | None, qid: str) -> str | None:
     if page is None or page.is_missing or page.revision_id is None:
         return "page_missing"
@@ -175,7 +165,6 @@ def _page_rejection(page: Page | None, qid: str) -> str | None:
         return "page_list"
     if page.wikidata_id != qid:
         return "page_wikidata_mismatch"
-    # Checked before any read of the extract: save_pages would not store it.
     if page.is_extract_oversize:
         return EXTRACT_OVERSIZE
     if not page.extract.strip():
@@ -188,7 +177,6 @@ def _page_rejection(page: Page | None, qid: str) -> str | None:
     ):
         return "page_subject_type_mismatch"
     return None
-
 
 def _record(
     repository,

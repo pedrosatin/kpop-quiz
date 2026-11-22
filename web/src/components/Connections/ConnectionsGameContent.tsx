@@ -55,13 +55,9 @@ export function ConnectionsGameContent({
 
   const isGameOver = gameStatus === "won" || gameStatus === "lost";
 
-  // The verdict of the last guess shows in the side panel until the next
-  // tile or Clear. It never sits above the board, so the tiles do not move.
   const [feedback, setFeedback] = useState<ConnectionsFeedback | null>(null);
   const shares = useRef(0);
 
-  // Only a game finished in this visit moves focus to the result; a game
-  // restored from storage leaves focus where the page put it.
   const playedHere = useRef(false);
   const lastSubmitAt = useRef(-Infinity);
   const grid = useRef<HTMLDivElement>(null);
@@ -76,15 +72,12 @@ export function ConnectionsGameContent({
     [toggleSelectItem],
   );
 
-  // Clear disables itself, so focus moves to the board instead of the page.
   const clear = useCallback(() => {
     setFeedback(null);
     clearSelection();
     grid.current?.querySelector<HTMLButtonElement>(".connections-tile")?.focus({ preventScroll: true });
   }, [clearSelection]);
 
-  // A double click or a held Enter would send the same four names again and
-  // replace the verdict with "already tried".
   const submit = useCallback(() => {
     const now = performance.now();
     if (now - lastSubmitAt.current < SUBMIT_GUARD_MS) return;
@@ -102,8 +95,6 @@ export function ConnectionsGameContent({
     giveUp();
   };
 
-  // A solved group takes its four tiles and disables Submit, so focus moves
-  // to the first tile left instead of falling to the page.
   const refocusBoard = !isGameOver && solvedHere > 0;
   useEffect(() => {
     if (!refocusBoard) return;
@@ -143,19 +134,15 @@ export function ConnectionsGameContent({
           messages={messages}
         />
 
-        {/* The side panel: the sticky bar under the board on phones, a column
-            beside it from 60rem. Mistakes, the verdict and the controls while
-            playing, the result at the end; the board never moves. */}
+        {}
         <div class={`game-actions connections-actions${barState}`}>
-          {/* At the end the result says how many mistakes were used, so the
-              line leaves the screen but stays for screen readers. */}
+          {}
           <MistakesRemaining
             mistakesRemaining={mistakesRemaining}
             messages={messages}
             hiddenVisually={isGameOver}
           />
-          {/* Mounted from the start so the first verdict is announced. At the end
-              the result title takes the screen, and this only announces the copy. */}
+          {}
           <div
             class={`game-actions-message connections-message${isGameOver ? " visually-hidden" : ""}`}
             role="status"

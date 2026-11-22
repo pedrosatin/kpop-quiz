@@ -70,8 +70,6 @@ export function AnswerFeedback({
     ? seenClues.map((clue) => ({ text: clue.text, evidence: groupEvidence(clue.evidence) }))
     : [];
 
-  // Next replaces Submit in the same spot, so a second click or a held Enter
-  // meant for Submit must not skip the verdict.
   useLayoutEffect(() => {
     if (answered) nextShownAt.current = performance.now();
   }, [answered]);
@@ -85,8 +83,6 @@ export function AnswerFeedback({
     />
   );
 
-  // data-feedback opts into the shared feedback motion CSS; is-correct /
-  // is-incorrect still drive the bar colors for every game.
   const feedback = quizFeedbackKind(answered, right);
 
   return (

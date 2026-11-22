@@ -1,30 +1,4 @@
 #!/usr/bin/env node
-/**
- * Splits the Chromium E2E suite into shards by recorded test time, for the
- * shard matrix of .github/workflows/pages.yml.
- *
- *   plan --shard <i> --total <n> --durations <file> --out <dir>
- *     Prints the Playwright argument that selects shard i: `--test-list=<file>`
- *     when the recorded durations give a checked split, `--shard=i/n` otherwise.
- *   check --list <list.json> --report <report.json>
- *     Fails unless the merged report holds every listed test exactly once.
- *   durations --report <report.json> --out <file>
- *     Writes the per-test durations of a merged report, for the next plans.
- *
- * The split: a file in `mode: "parallel"` contributes each test as a unit and
- * any other file contributes itself as one unit, which is how Playwright groups
- * tests with `fullyParallel: false`. Units with history go first, longest
- * first, each into the lightest shard; units without history (new or renamed
- * tests) follow, each into the lightest shard. Every shard computes the same
- * split from the same inputs, so each one writes all the lists and keeps its
- * own.
- *
- * A split is used only after Playwright resolves each list and the lists
- * together hold every test of `playwright test --list` exactly once. Missing or
- * unreadable history, a listing that fails, or lists that do not add up to
- * the suite fall back to Playwright's own `--shard`, which also runs every
- * test. The fallback never runs fewer tests.
- */
 import { spawn } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
@@ -34,30 +8,13 @@ const DELIMITER = " › ";
 const PARALLEL_MODE = /^test\.describe\.configure\(\{[^}]*\bmode:\s*["']parallel["']/m;
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-/**
- * @typedef {{ key: string, project: string, file: string, titles: string[], line: number, column: number }} ListedTest
- * @typedef {{ title?: string, file?: string, line?: number, column?: number, specs?: Spec[], suites?: Suite[] }} Suite
- * @typedef {{ title: string, file?: string, line?: number, column?: number, tests?: SpecTest[] }} Spec
- * @typedef {{ projectName?: string, status?: string, results?: { duration?: number, status?: string }[] }} SpecTest
- * @typedef {{ config?: { rootDir?: string }, suites?: Suite[], errors?: unknown[] }} JsonReport
- * @typedef {{ version: 1, tests: { project: string, file: string, titles: string[], duration: number }[] }} DurationsFile
- */
-
 /** @param {string} project @param {string} file @param {string[]} titles */
 export function testKey(project, file, titles) {
   return JSON.stringify([project, file, ...titles]);
 }
 
-/**
- * The tests of a Playwright JSON report (from `--list` or from a run), one
- * entry per test and project, in report order.
- * @param {JsonReport} report
- * @returns {{ test: ListedTest, result: SpecTest }[]}
- */
 function walk(report) {
-  /** @type {{ test: ListedTest, result: SpecTest }[]} */
   const found = [];
-  /** @param {Suite} suite @param {string} file @param {string[]} titles */
   const visit = (suite, file, titles) => {
     for (const spec of suite.specs ?? []) {
       for (const result of spec.tests ?? []) {
@@ -110,7 +67,7 @@ export function durationsFromReport(report) {
  * @returns {Map<string, number>}
  */
 export function readDurations(data) {
-  const file = /** @type {Partial<DurationsFile>} */ (data);
+  const file =  (data);
   if (!file || file.version !== 1 || !Array.isArray(file.tests)) {
     throw new Error("not a version 1 durations file");
   }
@@ -126,7 +83,7 @@ export function readDurations(data) {
 }
 
 /** Whether a spec file opts all its tests into parallel mode at the top level. */
-export function isParallelFile(/** @type {string} */ source) {
+export function isParallelFile( source) {
   return PARALLEL_MODE.test(source);
 }
 
@@ -146,7 +103,6 @@ export function testListLine(test) {
   return [`[${test.project}]`, ...tokens].join(DELIMITER);
 }
 
-/** @param {number[]} values */
 function median(values) {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -162,10 +118,8 @@ function median(values) {
 export function packShards({ tests, durations, total, parallelFiles }) {
   if (!Number.isInteger(total) || total < 1) throw new Error(`invalid shard total: ${total}`);
   const known = tests.filter((test) => durations.has(test.key));
-  // A test without history weighs as much as the typical test with history.
   const estimate = median(known.map((test) => durations.get(test.key) ?? 0)) || 1;
 
-  /** @type {Map<string, ListedTest[]>} */
   const units = new Map();
   for (const test of tests) {
     const id = parallelFiles.has(test.file) ? test.key : JSON.stringify(["file", test.file]);
@@ -179,10 +133,9 @@ export function packShards({ tests, durations, total, parallelFiles }) {
     known: members.some((test) => durations.has(test.key)),
     weight: members.reduce((sum, test) => sum + (durations.get(test.key) ?? estimate), 0),
   }));
-  // History first, then heaviest first; ids break ties, so every shard sorts alike.
   weighed.sort((a, b) => Number(b.known) - Number(a.known) || b.weight - a.weight || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-  const shards = Array.from({ length: total }, () => /** @type {ListedTest[]} */ ([]));
+  const shards = Array.from({ length: total }, () =>  ([]));
   const loads = Array.from({ length: total }, () => 0);
   for (const unit of weighed) {
     const lightest = loads.indexOf(Math.min(...loads));
@@ -202,7 +155,6 @@ export function packShards({ tests, durations, total, parallelFiles }) {
  */
 export function checkPartition(suite, resolved) {
   const expected = new Set(suite.map((test) => test.key));
-  /** @type {Map<string, number>} */
   const seen = new Map();
   for (const list of resolved) for (const test of list) seen.set(test.key, (seen.get(test.key) ?? 0) + 1);
   const missing = [...expected].filter((key) => !seen.has(key));
@@ -210,12 +162,6 @@ export function checkPartition(suite, resolved) {
   const unexpected = [...seen.keys()].filter((key) => !expected.has(key));
   return { ok: missing.length + duplicated.length + unexpected.length === 0, missing, duplicated, unexpected };
 }
-
-/**
- * @typedef {(testList?: string) => Promise<JsonReport>} ListTests
- * @typedef {(file: string) => Promise<string>} ReadSource
- * @typedef {{ shard: number, total: number, durationsPath: string, outDir: string, listTests: ListTests, readSource: ReadSource, log?: (line: string) => void }} PlanOptions
- */
 
 /**
  * The Playwright argument for one shard, and why.
@@ -226,12 +172,11 @@ export async function plan({ shard, total, durationsPath, outDir, listTests, rea
   if (!Number.isInteger(total) || total < 1 || !Number.isInteger(shard) || shard < 1 || shard > total) {
     throw new Error(`invalid shard ${shard}/${total}`);
   }
-  const fallback = (/** @type {string} */ reason) => {
+  const fallback = ( reason) => {
     log(`fallback to --shard=${shard}/${total}: ${reason}`);
-    return { arg: `--shard=${shard}/${total}`, mode: /** @type {const} */ ("fallback"), reason };
+    return { arg: `--shard=${shard}/${total}`, mode:  ("fallback"), reason };
   };
 
-  /** @type {Map<string, number>} */
   let durations;
   try {
     durations = readDurations(JSON.parse(await readFile(durationsPath, "utf8")));
@@ -298,7 +243,6 @@ export async function plan({ shard, total, durationsPath, outDir, listTests, rea
 export function checkReport(list, report) {
   const reported = walk(report);
   const check = checkPartition(collectTests(list), [reported.map(({ test }) => test)]);
-  /** @type {Record<string, number>} */
   const outcomes = {};
   for (const { result } of reported) {
     const outcome = result.status ?? "unknown";
@@ -339,9 +283,7 @@ export function playwrightList(testList) {
   });
 }
 
-/** @param {string[]} argv */
 function options(argv) {
-  /** @type {Record<string, string>} */
   const found = {};
   for (let index = 0; index < argv.length; index += 2) {
     const name = argv[index];
@@ -352,14 +294,12 @@ function options(argv) {
   return found;
 }
 
-/** @param {Record<string, string>} found @param {string} name */
 function required(found, name) {
   const value = found[name];
   if (value === undefined) throw new Error(`missing --${name}`);
   return value;
 }
 
-/** @param {string} path */
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
@@ -368,7 +308,7 @@ async function readJson(path) {
 export async function main(argv) {
   const [command, ...rest] = argv;
   const found = options(rest);
-  const log = (/** @type {string} */ line) => process.stderr.write(`${line}\n`);
+  const log = ( line) => process.stderr.write(`${line}\n`);
   if (command === "plan") {
     const result = await plan({
       shard: Number(required(found, "shard")),

@@ -9,7 +9,6 @@ if (typeof HTMLCanvasElement !== "undefined") {
 
 afterEach(cleanup);
 
-// cleanup unmounts roots, but native Preact frame fallbacks can still be pending.
 if (typeof requestAnimationFrame === "function") {
   afterAll(drainRenderFrame);
 }

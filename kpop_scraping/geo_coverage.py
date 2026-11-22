@@ -11,7 +11,6 @@ from typing import Any
 
 from .person_evidence import is_coarse_birth_place
 
-
 def build_geo_coverage_report(connection: sqlite3.Connection) -> dict[str, Any]:
     """Summarize accepted catalog coverage without resolving places to countries.
 
@@ -64,7 +63,6 @@ def build_geo_coverage_report(connection: sqlite3.Connection) -> dict[str, Any]:
         ),
     }
 
-
 def _member_ids(connection: sqlite3.Connection, group_ids: set[int]) -> set[int]:
     if not group_ids:
         return set()
@@ -90,7 +88,6 @@ def _member_ids(connection: sqlite3.Connection, group_ids: set[int]) -> set[int]
         members.update(int(row["person_id"]) for row in rows)
     return members
 
-
 def _fact_rows(
     connection: sqlite3.Connection, subject_ids: set[int], predicate: str
 ) -> list[sqlite3.Row]:
@@ -114,10 +111,8 @@ def _fact_rows(
         )
     return rows
 
-
 def _chunks(values: list[int], size: int) -> list[list[int]]:
     return [values[index : index + size] for index in range(0, len(values), size)]
-
 
 def _summarize(
     rows: list[sqlite3.Row],
@@ -127,8 +122,6 @@ def _summarize(
     geographic_resolution: str | None = None,
 ) -> dict[str, Any]:
     statuses = Counter(str(row["status"]) for row in rows)
-    # An accepted birthplace less specific than the infobox's stays a historical
-    # fact, but is no candidate for a place question (ADR 027).
     coarse = [
         index
         for index, row in enumerate(rows)
@@ -174,7 +167,6 @@ def _summarize(
         result["excluded_coarse_place_facts"] = len(coarse)
     return result
 
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Write a read-only geography coverage report from an existing SQLite database"
@@ -182,7 +174,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     return parser
-
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
@@ -208,7 +199,6 @@ def main(argv: list[str] | None = None) -> int:
         f"{report['born_in']['distinct_accepted_values']} accepted birthplace candidates"
     )
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

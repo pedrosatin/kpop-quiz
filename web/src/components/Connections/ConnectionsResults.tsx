@@ -55,18 +55,12 @@ export function generateShareText({
 
 interface SourceLine {
   key: string;
-  /** Null when the fact id does not name one of the puzzle's items. */
   itemName: string | null;
   project: "Wikidata" | "Wikipedia";
   revision: number;
   url: string;
 }
 
-/**
- * Evidence of one category, one line per cited revision: an item's page
- * often backs the fact at several places of the same revision. The fact id
- * starts with the item's QID, which names the line.
- */
 function categorySources(
   puzzle: ConnectionsPuzzle,
   categoryId: string,
@@ -96,7 +90,6 @@ function categorySources(
   return [...lines.values()];
 }
 
-/** The line's site in the page's language: "Wikipédia em inglês", "Wikidata". */
 function lineSite(line: SourceLine, messages: Messages): string {
   return citedSite(line.url, messages.source.project(line.project), messages);
 }
@@ -124,13 +117,9 @@ export function ConnectionsResults({
   const titleId = useId();
   const sourceId = useId();
   const source = useRef<HTMLDivElement>(null);
-  // The buttons appear where Submit was, so a second tap or a held Enter
-  // meant for the last guess must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "connections", locale, daily: "yes" } });
 
-  // The bar stops being sticky while the panel is open, so the panel can
-  // open below the fold; bring it into view.
   useEffect(() => {
     if (sourceOpen) source.current?.scrollIntoView?.({ block: "nearest" });
   }, [sourceOpen]);

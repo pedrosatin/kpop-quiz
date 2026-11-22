@@ -10,21 +10,19 @@ from itertools import islice
 from .storage import Repository
 from .wikidata import MAX_ENTITIES_PER_REQUEST, TypeCheck, WikidataTypeClient
 
-
 CLASSIFIER_VERSION = "group-catalog-v1"
 MUSICAL_GROUP_CLASSES = frozenset(
     {
-        "Q215380",  # musical group
-        "Q216337",  # boy band
-        "Q641066",  # girl group
-        "Q2088357",  # musical ensemble
-        "Q9212979",  # musical duo
-        "Q5741069",  # rock band
+        "Q215380",
+        "Q216337",
+        "Q641066",
+        "Q2088357",
+        "Q9212979",
+        "Q5741069",
     }
 )
 _QID = re.compile(r"^Q[1-9][0-9]*$")
 _LIST_TITLE = re.compile(r"^lists?\s+of\b", re.IGNORECASE)
-
 
 @dataclass(frozen=True)
 class CatalogStats:
@@ -32,12 +30,10 @@ class CatalogStats:
     rejected: int
     pending: int
 
-
 def _batched(values: Iterable[str], size: int) -> Iterator[list[str]]:
     iterator = iter(values)
     while batch := list(islice(iterator, size)):
         yield batch
-
 
 def _local_rejection(entry: object) -> str | None:
     if _LIST_TITLE.match(entry["title"].strip()):
@@ -50,7 +46,6 @@ def _local_rejection(entry: object) -> str | None:
     if not wikidata_id or not _QID.fullmatch(wikidata_id):
         return "missing_or_invalid_wikidata_id"
     return None
-
 
 def classify_catalog(
     repository: Repository,

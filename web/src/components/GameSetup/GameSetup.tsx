@@ -84,12 +84,7 @@ export function GameSetup({
             {...(generalNote ? { generalNote } : {})}
           />
         )}
-        {/* The kind of quiz is the one choice a visit needs; Start already
-            plays today's challenge. The mode, the timer and the decades stay
-            one tap away, and the summary line says what they are set to.
-            From 60rem the open group runs in two columns: the decades on the
-            left, the mode and the timer on the right. DOM order stays the
-            reading and Tab order in both layouts. */}
+        {}
         <details class="setup-customize">
           <summary class="setup-customize-toggle">
             <span class="setup-customize-title">{messages.customize}</span>

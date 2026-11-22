@@ -115,14 +115,12 @@ const CONFIG_FIELDS = ["language", "seed", "theme", "group_id", "play_mode", "ti
 const QUESTION_FIELDS = ["id", "logical_id", "base_logical_id", "semantic_id", "fact_base_ids", "language", "type", "theme", "play_mode", "challenge_rating", "base_points", "hint_cost", "clues_available", "clues_shown", "group_ids", "prompt", "options", "answer_option_id", "explanation", "reference_date", "evidence"];
 const QUESTION_OPTIONAL_FIELDS = ["media", "decades", "group_relevance_score"];
 
-/** Non-empty strings, none repeated; with `allowEmpty` false, at least one. */
 function isDistinctStringList(value: unknown, allowEmpty = true): value is string[] {
   return isStringList(value)
     && (allowEmpty || value.length > 0)
     && hasDistinctItems(value);
 }
 
-/** Whether the evidence, already tied to `factBaseIds`, cites every one of them. */
 function citesEveryFact(evidence: Evidence[], factBaseIds: string[]): boolean {
   return new Set(evidence.map((item) => item.fact_base_id)).size === factBaseIds.length;
 }
@@ -144,9 +142,6 @@ function isEvidence(value: unknown, factBaseIds: string[]): value is Evidence {
     && isHttpsUrl(value.source_url);
 }
 
-// A clue may cite another entity's accepted fact (such as the answer's date),
-// so its facts need not be among the question's own. Every fact it names must
-// still carry evidence.
 function isClue(value: unknown): value is QuizClue {
   if (!isRecord(value) || !hasExactKeys(value, ["evidence", "fact_base_ids", "id", "text", "type"])) return false;
   if (!isHash(value.id) || value.type !== "decade" || !isNonEmptyString(value.text)
@@ -194,7 +189,6 @@ export function isLicensedMedia(value: unknown): value is LicensedMedia {
     && isDistinctStringList(value.transformations, false);
 }
 
-/** Known decades in ascending order, none repeated. */
 function isDecadeList(value: unknown): boolean {
   if (!Array.isArray(value)) return false;
   return value.every((decade) => Number.isInteger(decade) && QUIZ_DECADES.includes(decade))
@@ -202,7 +196,6 @@ function isDecadeList(value: unknown): boolean {
     && !value.some((decade, index) => index > 0 && value[index - 1] > decade);
 }
 
-/** Media, relevance score and decades: each may be absent, and the first two null. */
 function hasValidOptionalFields(value: Record<string, unknown>): boolean {
   if (Object.hasOwn(value, "media") && value.media !== null && !isLicensedMedia(value.media)) return false;
   if (Object.hasOwn(value, "group_relevance_score")
@@ -211,7 +204,6 @@ function hasValidOptionalFields(value: Record<string, unknown>): boolean {
   return !Object.hasOwn(value, "decades") || isDecadeList(value.decades);
 }
 
-/** Ids, language and the labels that place the question in a round. */
 function hasQuestionIdentity(value: Record<string, unknown>, locale: Locale): boolean {
   return isHash(value.id)
     && isHash(value.logical_id)
@@ -224,7 +216,6 @@ function hasQuestionIdentity(value: Record<string, unknown>, locale: Locale): bo
     && typeof value.challenge_rating === "string" && RATINGS.has(value.challenge_rating as ChallengeRating);
 }
 
-/** Points, texts, date and the facts and groups the question is about. */
 function hasQuestionContent(value: Record<string, unknown>): boolean {
   return isIntegerInRange(value.base_points, 1)
     && isIntegerInRange(value.hint_cost, 0)
@@ -235,7 +226,6 @@ function hasQuestionContent(value: Record<string, unknown>): boolean {
     && isDistinctStringList(value.group_ids);
 }
 
-/** The clues on offer, and the ones shown, as the play mode allows them. */
 function hasValidClues(value: Record<string, unknown>): boolean {
   if (!Array.isArray(value.clues_available)
     || !value.clues_available.every(isClue)
@@ -248,7 +238,6 @@ function hasValidClues(value: Record<string, unknown>): boolean {
     && (value.play_mode !== "expert" || clueIds.length === 0);
 }
 
-/** Four distinct options of one value type, one of them the answer. */
 function hasValidOptions(value: Record<string, unknown>): boolean {
   const { options } = value;
   if (!Array.isArray(options) || options.length !== 4 || !options.every(isOption)) return false;
@@ -261,7 +250,6 @@ function hasValidOptions(value: Record<string, unknown>): boolean {
     && optionIds.includes(value.answer_option_id);
 }
 
-/** Evidence for the question's own facts, citing each of them. */
 function hasQuestionEvidence(value: Record<string, unknown>): boolean {
   const factBaseIds = value.fact_base_ids as string[];
   return Array.isArray(value.evidence)
@@ -298,7 +286,6 @@ function isSessionConfig(config: Record<string, unknown>): boolean {
     && (config.timer_seconds === null || isIntegerInRange(config.timer_seconds, 1));
 }
 
-/** Distinct questions, each within the theme, group, decade and mode the round asked for. */
 function questionsMatchConfig(questions: QuizQuestion[], config: Record<string, unknown>): boolean {
   return hasDistinctItems(questions.map((question) => question.id))
     && hasDistinctItems(questions.map((question) => question.semantic_id))
@@ -411,7 +398,6 @@ function isCandidate(value: unknown): value is CandidateEntity {
     && isBilingualText(value.names);
 }
 
-// Unlike the other lists of names, an alias must have a character besides whitespace.
 function isAliasList(value: unknown): value is string[] {
   return isStringList(value, isNonBlankString) && hasDistinctItems(value);
 }
@@ -444,7 +430,6 @@ function isGridDimensions(value: unknown): boolean {
     && value.cols === 3;
 }
 
-/** Three criteria with distinct ids, one side of the grid. */
 function isCriteriaLine(value: unknown): value is GridCriterion[] {
   return Array.isArray(value)
     && value.length === 3
@@ -546,7 +531,6 @@ function isConnectionsDimensions(value: unknown): boolean {
     && value.total_items === 16;
 }
 
-/** Every item sits in exactly one category, and every category item is a puzzle item. */
 function categoriesPartitionItems(categories: ConnectionsCategory[], itemIds: Set<string>): boolean {
   const categoryItemSets = categories.map((c) => new Set(c.item_ids));
   for (let i = 0; i < categoryItemSets.length; i++) {
@@ -640,7 +624,6 @@ const TARGET_REQUIRED_FIELDS = [
 const CLUES_ALLOWED_FIELDS = ["debut_year", "agency", "members_count", "description"];
 const NORMALIZED_NAME_REGEX = /^[A-Z]+$/;
 
-/** An agency named in one text, or in a text per language. */
 function isAgency(value: unknown): boolean {
   return isNonEmptyString(value) || isBilingualText(value);
 }
@@ -653,7 +636,6 @@ function isNameGuessClues(value: unknown): value is NameGuessClues {
   return !("description" in value) || isBilingualText(value.description);
 }
 
-/** A name in A to Z capitals with the puzzle's word length, as answers and guesses are. */
 function isNormalizedName(value: unknown, wordLength: number): value is string {
   return typeof value === "string"
     && NORMALIZED_NAME_REGEX.test(value)

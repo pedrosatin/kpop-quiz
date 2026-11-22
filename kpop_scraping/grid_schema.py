@@ -41,22 +41,18 @@ CRITERION_FIELDS = frozenset({"id", "category", "label"})
 DIMENSIONS_FIELDS = frozenset({"rows", "cols"})
 CELL_FIELDS = frozenset({"row_index", "col_index", "valid_entity_ids", "evidence"})
 CANDIDATE_FIELDS = frozenset({"id", "canonical_name", "names"})
-# Grids published before candidates carried search aliases lack the field.
 CANDIDATE_OPTIONAL_FIELDS = frozenset({"aliases"})
 
 _DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-
 
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(f"Invalid grid schema: {message}")
 
-
 _require_hash = partial(require_hash, _require)
 _require_qid = partial(require_qid, _require)
 _require_bilingual_text = partial(require_bilingual_text, _require)
 _validate_evidence = partial(validate_evidence, _require)
-
 
 def _require_date(value: Any, field_name: str) -> None:
     _require(
@@ -69,7 +65,6 @@ def _require_date(value: Any, field_name: str) -> None:
         raise ValueError(
             f"Invalid grid schema: {field_name} is not a calendar date"
         ) from exc
-
 
 def _validate_criterion(criterion: Any, context: str) -> None:
     _require(isinstance(criterion, dict), f"{context} must be an object")
@@ -86,7 +81,6 @@ def _validate_criterion(criterion: Any, context: str) -> None:
         f"{context}.category must be one of {sorted(GRID_CATEGORIES)}",
     )
     _require_bilingual_text(criterion["label"], f"{context}.label")
-
 
 def _validate_candidate(candidate: Any, context: str) -> None:
     _require(isinstance(candidate, dict), f"{context} must be an object")
@@ -114,7 +108,6 @@ def _validate_candidate(candidate: Any, context: str) -> None:
             f"{context}.aliases must not repeat a name",
         )
 
-
 def _validate_root_fields(payload: dict[str, Any]) -> None:
     _require(isinstance(payload, dict), "root payload must be an object")
     _require(
@@ -127,7 +120,6 @@ def _validate_root_fields(payload: dict[str, Any]) -> None:
     _require_hash(payload["grid_id"], "grid_id")
     _require_hash(payload["dataset_version"], "dataset_version")
     _require_date(payload["reference_date"], "reference_date")
-
 
 def _validate_dimensions(dimensions: Any) -> None:
     _require(isinstance(dimensions, dict), "dimensions must be an object")
@@ -143,7 +135,6 @@ def _validate_dimensions(dimensions: Any) -> None:
         type(dimensions["cols"]) is int and dimensions["cols"] == 3,
         "dimensions.cols must be 3",
     )
-
 
 def _validate_axis_criteria(
     criteria: Any, context: str, singular_name: str
@@ -162,7 +153,6 @@ def _validate_axis_criteria(
         categories.add(crit["category"])
     return categories
 
-
 def _validate_candidate_pool(candidate_pool: Any) -> set[str]:
     _require(isinstance(candidate_pool, list), "candidate_pool must be a list")
     _require(len(candidate_pool) >= 1, "candidate_pool must not be empty")
@@ -174,7 +164,6 @@ def _validate_candidate_pool(candidate_pool: Any) -> set[str]:
         )
         candidate_qids.add(cand["id"])
     return candidate_qids
-
 
 def _validate_cells(cells: Any, candidate_qids: set[str]) -> None:
     _require(isinstance(cells, list), "cells must be a list")
@@ -233,7 +222,6 @@ def _validate_cells(cells: Any, candidate_qids: set[str]) -> None:
         seen_coords == expected_coords, "cells must cover all 9 positions (0..2, 0..2)"
     )
 
-
 def validate_intersection_grid(payload: dict[str, Any]) -> None:
     """Validate that payload conforms to intersection-grid-v1 specification.
 
@@ -249,9 +237,6 @@ def validate_intersection_grid(payload: dict[str, Any]) -> None:
         payload.get("col_criteria"), "col_criteria", "col criterion"
     )
 
-    # Axis orthogonality: each category may feed one axis only. A category on
-    # both axes ("3 members" on rows, "5 or fewer members" on cols) turns the
-    # row/column intersection ambiguous, so the category sets stay disjoint.
     shared_categories = row_categories & col_categories
     _require(
         not shared_categories,
@@ -260,7 +245,6 @@ def validate_intersection_grid(payload: dict[str, Any]) -> None:
 
     candidate_qids = _validate_candidate_pool(payload.get("candidate_pool"))
     _validate_cells(payload.get("cells"), candidate_qids)
-
 
 def write_intersection_grid_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
     """Validate and atomically write an intersection grid JSON file."""

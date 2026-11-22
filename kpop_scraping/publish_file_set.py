@@ -25,9 +25,7 @@ from pathlib import Path
 
 from . import workflow_commands
 
-# Paths named in the annotation; the count covers the rest.
 MAX_LISTED = 20
-
 
 def refused_entries(directory: Path, *, suffix: str | None = None, only: Sequence[str] = ()) -> list[str]:
     """Return the relative paths under ``directory`` the rule refuses, sorted."""
@@ -38,7 +36,6 @@ def refused_entries(directory: Path, *, suffix: str | None = None, only: Sequenc
     for folder, subfolders, names in os.walk(directory):
         base = Path(folder)
         for name in subfolders:
-            # os.walk lists a link to a directory here and does not enter it.
             if (base / name).is_symlink():
                 refused.append((base / name).relative_to(directory).as_posix())
         subfolders[:] = [name for name in subfolders if not (base / name).is_symlink()]
@@ -50,7 +47,6 @@ def refused_entries(directory: Path, *, suffix: str | None = None, only: Sequenc
             if not (regular and matches):
                 refused.append(relative)
     return sorted(refused)
-
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -76,7 +72,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     rule_text = f"*{args.suffix}" if args.suffix is not None else ", ".join(args.only)
     print(f"Checked {args.directory}: every file matches {rule_text}")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

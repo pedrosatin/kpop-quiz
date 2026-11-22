@@ -41,20 +41,18 @@ from .wikidata import (
     WikidataEntityClient,
 )
 
-
 EXTRACTOR_VERSION = "wikidata-facts-v3"
 HUMAN = "Q5"
 COUNTRY_CLASSES = frozenset(
     {
-        "Q6256",  # country
-        "Q3624078",  # sovereign state
-        "Q7275",  # state
-        "Q15634554",  # state with limited recognition
-        "Q1763527",  # constituent country
-        "Q112099",  # island nation
+        "Q6256",
+        "Q3624078",
+        "Q7275",
+        "Q15634554",
+        "Q1763527",
+        "Q112099",
     }
 )
-
 
 @dataclass
 class _Subject:
@@ -62,7 +60,6 @@ class _Subject:
     entity_id: int
     snapshot_id: int
     candidates: tuple[FactCandidate, ...]
-
 
 @dataclass
 class _RunState:
@@ -74,19 +71,16 @@ class _RunState:
     batches: int = 0
     ignored: int = 0
 
-
 def _enwiki_title(payload: Mapping[str, object]) -> str | None:
     sitelinks = payload.get("sitelinks")
     link = sitelinks.get("enwiki") if isinstance(sitelinks, Mapping) else None
     title = link.get("title") if isinstance(link, Mapping) else None
     return title.strip() if isinstance(title, str) and title.strip() else None
 
-
 def _batched(values: Iterable[str], size: int) -> Iterator[list[str]]:
     iterator = iter(values)
     while batch := list(islice(iterator, size)):
         yield batch
-
 
 def extract_facts(
     repository: Repository,
@@ -130,7 +124,6 @@ def extract_facts(
     store.complete_run(run_id, totals)
     return totals
 
-
 class _Run:
     def __init__(
         self,
@@ -161,8 +154,6 @@ class _Run:
         self._process_members(member_ids(group_candidates), known_groups)
         all_candidates = [c for subject in state.subjects for c in subject.candidates]
 
-        # Groups linked by member_of but outside the limit are fetched so that
-        # both sides of each membership are compared in this run.
         reference_candidates = self._reference_groups(
             all_candidates, processed_groups, catalog_by_id
         )
@@ -355,7 +346,6 @@ class _Run:
             elif classes & MUSICAL_GROUP_CLASSES:
                 self._register(qid, document, snapshot_id, SUBJECT_PROFILE, "group")
             else:
-                # Parts that are neither people nor groups do not become entities.
                 self.state.entity_types[qid] = "unsupported"
 
     def _reference_groups(
@@ -401,7 +391,6 @@ class _Run:
         return references
 
     def _resolve_values(self, candidates: list[FactCandidate]) -> set[str]:
-        """Fetch value entities and return the QIDs whose P31 is a country class."""
         state = self.state
         country_ids = sorted(country_value_ids(candidates) - set(state.entity_types))
         country_documents = self._fetch(country_ids, COUNTRY_PROFILE)
@@ -436,7 +425,6 @@ class _Run:
         processed_groups: dict[str, str],
         candidates: list[FactCandidate],
     ) -> dict[str, WikipediaPage]:
-        # Evidence pages are keyed by the catalog QID and by its resolved QID.
         page_keys = dict(processed_groups)
         for candidate in candidates:
             if candidate.predicate == "member_of" and candidate.value_id:
@@ -453,13 +441,6 @@ class _Run:
     def _person_evidence(
         self, candidates: list[FactCandidate]
     ) -> tuple[dict[str, WikipediaPage], frozenset[str] | None, list[PreservedFact]]:
-        """Return the person pages, the statements they may serve and the facts to keep.
-
-        With a person client the pages are collected for every person whose
-        birth facts lack a reliable reference. Without one nothing is fetched:
-        the pages come from the revisions that already evidence accepted
-        facts, and they may serve only those statements.
-        """
         if self.person_client is None:
             subjects = {candidate.subject_id for candidate in candidates}
             preserved = restrict_to(
@@ -482,7 +463,6 @@ class _Run:
         return collect_person_pages(self.store, self.person_client, requests), None, []
 
     def _record_observed_pages(self, decisions: list[FactDecision]) -> None:
-        """Keep what a page said when it contradicted or could not prove a fact."""
         for decision in decisions:
             observed = decision.observed
             if observed is None or decision.reason is None:

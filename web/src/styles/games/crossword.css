@@ -1,20 +1,8 @@
-/*
-  Crossword: the grid on the left, the clues and the action bar in the side
-  panel from 60rem; below that the grid, the clues and the sticky bar in DOM
-  order. Shared classes (game-card, game-layout, game-actions, btn,
-  share-preview) come from components.css.
-*/
 
 .crossword {
   --game-side-width: 22rem;
 }
 
-/* On a phone a square is at most 3rem (a 44px input inside the border), so
-   the clues and the sticky bar fit under the grid. A grid wider than the
-   board (8 or 9 columns on a phone: 28px squares at 8 columns and 25px at 9
-   on a 320px screen) shrinks its squares to fit instead of pushing the page
-   sideways: the board is the size container the grid measures. Beside the
-   side panel the square grows with --play-max-h, up to 3.5rem. */
 .crossword-board {
   --crossword-cell: 3rem;
   container-type: inline-size;
@@ -48,10 +36,6 @@
 }
 
 .crossword-cell {
-  /* The clue number keeps 0.7rem from a 2.8rem square up and shrinks with
-     the square below that, down to 0.4rem. Its right edge counts a digit as
-     0.6em plus 0.5px: Noto Sans draws one 0.572em wide, and a browser that
-     rounds glyph advances to whole pixels can add up to half a pixel. */
   --crossword-number-size: clamp(0.4rem, var(--crossword-square) * 0.25, 0.7rem);
   --crossword-number-left: min(0.15rem, var(--crossword-square) * 0.05);
   --crossword-number-end: calc(var(--crossword-number-left) + var(--crossword-number-size) * 0.6 + 0.5px);
@@ -68,9 +52,6 @@
   outline-offset: 1px;
 }
 
-/* A square the last check found wrong or empty: tinted, with a corner
-   triangle opposite the clue number, so the mark does not rely on color
-   alone. The input also carries aria-invalid. */
 .crossword-cell.is-wrong {
   border-color: var(--color-error-text);
   background: var(--color-error-bg);
@@ -95,13 +76,6 @@
   pointer-events: none;
 }
 
-/* The letter is half the square, but never under 16px: iOS Safari zooms
-   into an input with a smaller font when it takes focus. Under a 2.4rem
-   square the paddings shrink, the top one first, until the line of text
-   and the widest letter fit inside the border (--crossword-room is the
-   inner width left beside a W, 0.94em). The input is a block so it sits at
-   the top of the square instead of on the label's baseline, which pushed
-   it past the bottom border of a 25px square. */
 .crossword-cell input {
   --crossword-room: calc(var(--crossword-square) - 4px - 0.94em);
   --crossword-inline-padding: clamp(0px, var(--crossword-room) / 2, 0.2rem);
@@ -121,13 +95,6 @@
   text-transform: uppercase;
 }
 
-/* In a numbered square the letter clears the number sideways: in a small
-   square a 16px line of text and the number do not fit one above the
-   other. A centered glyph starts at (inner width + left padding - right
-   padding - glyph) / 2, so under about a 2.4rem square the left padding
-   grows, and the right one shrinks, until a W starts past
-   --crossword-number-end. The letter then sits up to 2.8px right of center
-   (in a 25px square), still inside the border. */
 .crossword-cell:has(> span) input {
   --crossword-number-right: clamp(0px, var(--crossword-room) - var(--crossword-number-end), 0.2rem);
   padding-right: var(--crossword-number-right);
@@ -178,8 +145,6 @@
   font-weight: 700;
 }
 
-/* Action bar: the message and the two controls while playing */
-
 .crossword-controls {
   display: flex;
   flex-wrap: wrap;
@@ -224,7 +189,6 @@
   gap: var(--space-2);
 }
 
-/* Only after share and copy both fail: the text to copy by hand. */
 .crossword-share-fallback {
   flex: 1 1 100%;
   display: grid;
@@ -241,10 +205,6 @@
   max-width: none;
 }
 
-/*
-  The source panel opens inside the bar at full height, like the word search
-  source (.source-panel), and the bar stops being sticky while it is open.
-*/
 .crossword-source {
   flex: 1 1 100%;
   display: grid;

@@ -14,18 +14,15 @@ from .crossword_daily import (DEFAULT_LIMITS, generate, next_context, valid_date
 from .crossword_daily_repository import load_base
 from .quiz_schema import write_json_atomic
 
-
 def protected_output(output, inputs):
     for source in inputs:
         if source and (output.resolve() == source.resolve() or
                        (output.exists() and source.exists() and output.samefile(source))):
             raise ValueError('output must not overwrite an input')
 
-
 def file_hash(path):
     with path.open('rb') as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()
-
 
 def benchmark(base, start, days, seed, previous, limits, output_dir):
     if not 1 <= days <= 366:
@@ -61,7 +58,6 @@ def benchmark(base, start, days, seed, previous, limits, output_dir):
                 min_connected_groups=min(r['connected_groups'] for r in records),
                 consecutive_intersections_empty=True, seconds=time.perf_counter() - started,
                 records=records)
-
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -103,7 +99,6 @@ def main():
         if args.benchmark_days is not None:
             if not args.benchmark_dir:
                 raise ValueError('--benchmark-dir required')
-            # Protect every planned output before any write.
             outputs = [args.benchmark_dir / 'benchmark.json'] + [args.benchmark_dir /
                        f'{(valid_date(args.reference_date) + timedelta(days=i)).isoformat()}.json'
                        for i in range(max(0, min(args.benchmark_days, 366)))]
@@ -124,11 +119,10 @@ def main():
         artifact = generate(base, args.reference_date, args.seed, previous, limits)
         write_json_atomic(args.output, artifact, lambda p: validate(p, base))
         print(f"{artifact['status']}: {artifact['attempts']} attempts; {artifact['connected_group_count']} connected groups")
-        return 0  # Explicit omission is a valid daily outcome, distinct from invalid input.
+        return 0
     except (ValueError, TypeError, KeyError, AttributeError, IndexError, OSError, sqlite3.Error) as exc:
         print(f'daily crossword rejected: {exc}')
         return 1
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

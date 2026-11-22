@@ -21,7 +21,6 @@ export function Feedback({ locale, site = import.meta.env.PUBLIC_TBBC_SITE_KEY |
   );
 }
 
-/** The vote, then the optional comment, with the error of the last attempt. */
 function FeedbackPrompt({
   t,
   state,

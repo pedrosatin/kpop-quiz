@@ -25,7 +25,6 @@ export function crosswordStorageKey(puzzle: Pick<CrosswordPuzzle, "dataset_versi
 
 const BOARD_KEY = /^kpop-crossword-[a-f0-9]{64}$/;
 
-/** Removes the saves of other boards, so replaced boards do not pile up. */
 function pruneCrosswordSaves(puzzle: CrosswordPuzzle): void {
   const keep = crosswordStorageKey(puzzle);
   for (const key of listLocalStorageKeys()) {

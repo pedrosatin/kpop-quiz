@@ -78,6 +78,5 @@ export function updateUrlParams(
       }
     }
   } catch {
-    // URL or replaceState may fail in constrained environments
   }
 }

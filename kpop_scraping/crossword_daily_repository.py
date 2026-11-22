@@ -15,10 +15,8 @@ from .storage import canonical_json
 
 PREDICATES = {'has_member', 'formed_on', 'record_label'}
 
-
 def digest(value) -> str:
     return hashlib.sha256(canonical_json(value)).hexdigest()
-
 
 def clue_text(sources: list[dict]) -> dict:
     """Describe documented relations without claiming a current affiliation."""
@@ -32,7 +30,6 @@ def clue_text(sources: list[dict]) -> dict:
         return {'pt-BR': f'Grupo formado em {formed}. Gravadora documentada: {label}.',
                 'en': f'Group formed in {formed}. Documented record label: {label}.'}
     raise ValueError('unsupported clue template')
-
 
 @dataclass
 class FactBase:
@@ -62,14 +59,12 @@ class FactBase:
                 if q not in excluded and 1 <= len(normalize(g['canonical_name'])) <= 9
                 and self.clues(q)}
 
-
 def load_base(database: Path) -> FactBase:
     """Read a consistent SQLite snapshot; no migrations or network calls."""
     with closing(sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True)) as c:
         c.execute('PRAGMA query_only=ON')
         c.execute('BEGIN')
         return read_base(c)
-
 
 def read_base(c: sqlite3.Connection) -> FactBase:
     """Read the factual universe from an open connection, which it only queries.
@@ -83,7 +78,6 @@ def read_base(c: sqlite3.Connection) -> FactBase:
         return _read_base(c)
     finally:
         c.row_factory = factory
-
 
 def _read_base(c: sqlite3.Connection) -> FactBase:
     groups = {}
@@ -129,7 +123,6 @@ def _read_base(c: sqlite3.Connection) -> FactBase:
             except ValueError:
                 continue
             sources[qid].append(source)
-    # Canonical order and deduplication make database insertion order irrelevant.
     ordered = {q: sorted({canonical_json(s): s for s in ss}.values(), key=canonical_json)
                for q, ss in sorted(sources.items())}
     return FactBase(groups, dict(matches), ordered)

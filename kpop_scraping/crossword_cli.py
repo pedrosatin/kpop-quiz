@@ -16,7 +16,6 @@ MODE = 'pilot'
 PUZZLE_ID = 'crossword-audited-01'
 MAX_SIDE = 9
 MIN_ENTRIES, MAX_ENTRIES = 3, 5
-# Field sets of schemas/crossword-pilot-v1.json (additionalProperties: false).
 ROOT_KEYS = {'schema_version', 'mode', 'puzzle_id', 'dataset_version', 'reference_date', 'rows', 'cols', 'vocabulary', 'audited_group_count', 'entries', 'cells'}
 ENTRY_KEYS = {'qid', 'canonical_name', 'aliases', 'answer', 'row', 'col', 'direction', 'number', 'clue', 'matching_qids', 'sources'}
 SOURCE_KEYS = {'url', 'locator', 'snippet', 'statement_id', 'predicate', 'value'}
@@ -61,7 +60,6 @@ def validate(p: dict) -> None:
     _check_cells_match_entries(p['cells'], cells)
 
 def _check_metadata(p: dict) -> None:
-    """Schema, mode, root fields, puzzle identity, reference date and checksum."""
     if not isinstance(p, dict) or p.get('schema_version') != SCHEMA or p.get('mode') != MODE:
         raise ValueError('unsupported crossword')
     if set(p) != ROOT_KEYS:
@@ -81,7 +79,6 @@ def _check_board_bounds(p: dict) -> tuple[int, int]:
     return rows, cols
 
 def _check_entry_count(entries: list, audited_group_count: int) -> None:
-    """Between MIN_ENTRIES and MAX_ENTRIES words, drawn from at least as many audited groups."""
     if not isinstance(entries, list) or not MIN_ENTRIES <= len(entries) <= MAX_ENTRIES:
         raise ValueError('entry count')
     if type(audited_group_count) is not int or audited_group_count < len(entries):
@@ -94,11 +91,6 @@ def _check_cell_shapes(cells: list) -> None:
         raise ValueError('cell types')
 
 def _check_entries(entries: list, rows: int, cols: int) -> tuple[dict, dict, set]:
-    """Check each entry in order and place its word on the board.
-
-    Returns the letter of every board cell, the (qid, direction) pairs that
-    own each cell and the set of entry QIDs.
-    """
     cells, owners, aliases, ids = ({}, {}, {}, set())
     for e in entries:
         _check_entry_fields(e)
@@ -119,15 +111,10 @@ def _check_entry_fields(e: dict) -> None:
         raise ValueError('unexpected fields')
 
 def _check_entry_identity(e: dict, seen_qids: set) -> None:
-    """A well-formed Wikidata QID that no earlier entry used."""
     if not isinstance(e['qid'], str) or not re.fullmatch('Q[1-9][0-9]*', e['qid']) or e['qid'] in seen_qids:
         raise ValueError('identity')
 
 def _normalized_answer(e: dict) -> str:
-    """The answer, which must be the non-empty normalization of the canonical name.
-
-    Also requires every alias to be a string.
-    """
     if not isinstance(e['canonical_name'], str) or not isinstance(e['answer'], str) or not all(isinstance(a, str) for a in e['aliases']):
         raise ValueError('normalization')
     word = normalize(e['canonical_name'])
@@ -142,7 +129,6 @@ def _check_entry_position(e: dict) -> None:
         raise ValueError('coordinates')
 
 def _register_aliases(e: dict, aliases: dict) -> None:
-    """Map the normalized name and aliases to the entry; no form may name two groups."""
     for name in [e['canonical_name'], *e['aliases']]:
         alias = normalize(name)
         if alias and alias in aliases and (aliases[alias] != e['qid']):
@@ -160,7 +146,6 @@ def _check_entry_sources(e: dict) -> None:
         validate_source(source, e['qid'])
 
 def _place_word(e: dict, word: str, rows: int, cols: int, cells: dict, owners: dict) -> None:
-    """Write the word on the board; a shared cell needs the same letter and the other direction."""
     for i, letter in enumerate(word):
         key = (e['row'] + (i if e['direction'] == 'down' else 0), e['col'] + (i if e['direction'] == 'across' else 0))
         if not (0 <= key[0] < rows and 0 <= key[1] < cols):
@@ -171,13 +156,11 @@ def _place_word(e: dict, word: str, rows: int, cols: int, cells: dict, owners: d
         owners.setdefault(key, []).append((e['qid'], e['direction']))
 
 def _check_numbering(entries: list) -> None:
-    """Numbers follow the reading order of the distinct start cells, from 1."""
     starts = sorted({(e['row'], e['col']) for e in entries})
     if any((e['number'] != starts.index((e['row'], e['col'])) + 1 for e in entries)):
         raise ValueError('numbering')
 
 def _check_connected(entries: list, owners: dict, ids: set) -> None:
-    """Every entry is reachable from the first one through shared cells."""
     reached = {entries[0]['qid']}
     for _ in entries:
         for group in owners.values():
@@ -191,7 +174,6 @@ def _check_clues_match_one_group(entries: list) -> None:
         raise ValueError('ambiguous clue')
 
 def _check_cells_match_entries(published: list, cells: dict) -> None:
-    """The published cells are exactly the placed letters, sorted by position."""
     if published != [{'row': r, 'col': c, 'answer': v} for (r, c), v in sorted(cells.items())]:
         raise ValueError('orphan or missing cells')
 

@@ -14,7 +14,6 @@ function computeFeedback(target: string, guess: string): LetterStatus[] {
     counts[char] = (counts[char] || 0) + 1;
   }
 
-  // Pass 1: exact matches
   for (let i = 0; i < n; i++) {
     if (guess[i] === target[i]) {
       result[i] = "correct";
@@ -22,7 +21,6 @@ function computeFeedback(target: string, guess: string): LetterStatus[] {
     }
   }
 
-  // Pass 2: present or absent
   for (let i = 0; i < n; i++) {
     if (result[i] === null) {
       const char = guess[i]!;
@@ -78,8 +76,6 @@ const INITIAL_STATE: GameState = {
   overflowWarned: false,
 };
 
-// Every input goes through this reducer, so each key sees the state left by the
-// previous one even when several keys arrive before the component re-renders.
 function nameGuessReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "addLetter": {
@@ -89,8 +85,6 @@ function nameGuessReducer(state: GameState, action: GameAction): GameState {
       if (state.currentInput.length < action.puzzle.word_length) {
         return { ...state, currentInput: state.currentInput + clean, errorMessage: null };
       }
-      // A full row says once that the name has no more letters; further keys
-      // change nothing until the row gets shorter.
       if (state.overflowWarned) return state;
       return { ...state, errorMessage: "tooManyLetters", overflowWarned: true };
     }
@@ -163,14 +157,12 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-B
       game: "name-guess",
       locale,
       isDaily: () => isDailyBoardRound("name-guess", puzzle, nameGuessMatchId(puzzle)),
-      // Only a give-up ends the game with attempts left.
       outcome: status === "won" ? "win" : status === "lost" ? (guesses.length < puzzle.max_attempts ? "give_up" : "loss") : null,
     },
     status !== "playing",
     guesses.length > 0,
   );
 
-  // Restore saved state
   useEffect(() => {
     const raw = getLocalStorageItem(storageKey);
     if (!raw) return;
@@ -181,19 +173,15 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-B
         dispatch({ type: "restore", saved: parsed });
       }
     } catch {
-      // Ignore a save that is not JSON or not an object.
     }
   }, [storageKey]);
 
-  // Save state on change. A finished game is saved even with zero guesses,
-  // so a give-up before the first guess survives a reload.
   useEffect(() => {
     if (guesses.length === 0 && !highContrast && status === "playing") return;
     const payload: SavedGameState = { guesses, feedbacks, status, highContrast };
     setLocalStorageItem(storageKey, JSON.stringify(payload));
   }, [guesses, feedbacks, status, highContrast, storageKey]);
 
-  // Clear transient error message after delay
   useEffect(() => {
     if (!errorMessage) return;
     const timer = setTimeout(() => dispatch({ type: "clearError" }), 2500);
@@ -225,7 +213,6 @@ export function useNameGuessGame(puzzle: NameGuessPuzzle, locale: Locale = "pt-B
     removeLocalStorageItem(storageKey);
   }, [storageKey]);
 
-  // Key status mapping for virtual keyboard
   const keyStatuses = useMemo(() => {
     const map: Record<string, LetterStatus> = {};
     for (let g = 0; g < guesses.length; g++) {
