@@ -83,8 +83,11 @@ for (const locale of locales)
       await expect(page.locator(".grid-progress")).toContainText(locale.left);
 
       // The save belongs to the published identity and holds no label text.
-      const saved = await page.evaluate((key) => localStorage.getItem(key), `kpop-grid-${legacy.grid_id}`);
-      expect(saved).not.toBeNull();
+      // The game writes it from a passive effect, so wait for it instead of
+      // reading once right after the progress text changes.
+      const saveKey = `kpop-grid-${legacy.grid_id}`;
+      await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), saveKey)).not.toBeNull();
+      const saved = await page.evaluate((key) => localStorage.getItem(key), saveKey);
       expect(JSON.parse(saved!).cells["0,0"]).toMatchObject({ solved: true, entityId: cell.valid_entity_ids[0] });
       expect(saved).not.toMatch(/Estreou|Debuted|Formado|Formed/);
 
