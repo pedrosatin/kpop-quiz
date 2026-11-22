@@ -169,27 +169,29 @@ export function StrandsGameContent({
               spangramFound={spangramFound}
               elapsedSeconds={elapsedSeconds}
             />
-            <button
-              type="button"
-              class="btn btn-primary"
-              onClick={confirmTrail}
-              disabled={!hasTrail}
-              data-testid="strands-confirm"
-            >
-              {t.confirm}
-            </button>
-            <button
-              type="button"
-              class="btn btn-secondary"
-              onClick={cancelTrail}
-              disabled={!hasTrail}
-              data-testid="strands-clear"
-            >
-              {t.clear}
-            </button>
-            <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
-              {messages.giveUp}
-            </button>
+            <div class="strands-bar-actions">
+              <button
+                type="button"
+                class="btn btn-primary"
+                onClick={confirmTrail}
+                disabled={!hasTrail}
+                data-testid="strands-confirm"
+              >
+                {t.confirm}
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary"
+                onClick={cancelTrail}
+                disabled={!hasTrail}
+                data-testid="strands-clear"
+              >
+                {t.clear}
+              </button>
+              <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
+                {messages.giveUp}
+              </button>
+            </div>
           </>
         )}
       </div>

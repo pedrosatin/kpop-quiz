@@ -4,12 +4,13 @@
   Clear beside Give up. Long rules live in "Como jogar"; the bar keeps a short
   trail hint and feedback.
 
-  Height budget (same variables as word-search.css): the 9×9 grid shrinks via
-  --ws-grid-max-h so theme, every row and the sticky bar fit 390×844, 360×740
-  with the consent banner open, and 1440×900. Cells follow --ws-cell-min (the
-  same touch-target exception as Word Search: the whole grid is one target).
-  Remeasure with getBoundingClientRect() of the grid top, bar height and last
-  row bottom against the bar top.
+  Height budget (same variables as word-search.css): on 390×844 and 1440×900 the
+  9×9 grid shrinks via --ws-grid-max-h so theme, every row and the sticky bar
+  fit without scrolling. On 360×740 with the consent banner open, the UX
+  contract only requires the top of the board above the bar; cells keep the
+  Word Search phone floor (--ws-cell-min: 1.625rem) and the page scrolls for
+  the rest of the grid. Remeasure with getBoundingClientRect() of the first
+  row, last row, bar top and cell size.
 */
 
 .strands {
@@ -73,52 +74,61 @@
   column-gap: var(--space-3);
 }
 
-.strands .word-search-actions > .btn {
+.strands .word-search-actions > .btn,
+.strands-bar-actions > .btn {
   min-height: var(--control-height);
 }
 
-/*
-  Phones: short hint on its own row; compact progress + Confirm / Clear /
-  Give up on the next. Override the shared full-width .btn rule so the three
-  actions stay side by side inside the page.
+.strands-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-width: 0;
+}
 
-  --ws-cell-min drops below Word Search's 1.625rem so a 9×9 board still fits
-  360×740 with the consent banner open (item 1 of the UX contract). The shared
-  grid formula floors at --ws-cell-min via max(...); without this floor the
-  last rows sit under the sticky bar. Cells stay one shared target (drag snaps
-  to the nearest neighbour), same exception Word Search documents at ~26px.
+/*
+  Phones: hint on its own row; compact progress on the next; Confirm / Clear /
+  Give up on a third row so labels stay whole at 360px. Keep --ws-cell-min at
+  the Word Search phone floor (1.625rem / 26px): the shared grid formula stops
+  shrinking below that and the page scrolls on short viewports (360×740 with
+  the consent banner). Cells stay one shared target (drag snaps to the nearest
+  neighbour), same exception Word Search documents around 26px.
 */
 @media (max-width: 420px) {
   .strands {
-    /* Compact two-row bar; conservative --ws-above so max-h shrinks the 9×9. */
-    --ws-actions: 7.25rem;
+    /* Message + progress + button row; conservative --ws-above for the 9×9. */
+    --ws-actions: 9.75rem;
     --ws-above: 24rem;
-    --ws-cell-min: 0.8125rem; /* 13px at 16px root; 360×740 + banner */
   }
 
   .strands .word-search-actions {
     column-gap: var(--space-2);
-    row-gap: var(--space-1);
+    row-gap: var(--space-2);
   }
 
-  /* Hint and compact progress share the first row; the three actions the second. */
   .strands .word-search-actions > .word-search-message:not(.visually-hidden) {
-    flex: 1 1 8rem;
+    flex: 1 1 100%;
     min-width: 0;
-  }
-
-  .strands .word-search-actions > .btn {
-    width: auto;
-    flex: 1 1 0;
-    min-width: 0;
-    padding-inline: var(--space-2);
   }
 
   .strands-progress {
-    flex: 0 1 auto;
-    order: 0;
+    flex: 1 1 100%;
+    justify-content: start;
     grid-template-columns: repeat(3, max-content);
-    column-gap: var(--space-2);
+    column-gap: var(--space-3);
+  }
+
+  .strands-bar-actions {
+    flex: 1 1 100%;
+  }
+
+  .strands-bar-actions > .btn {
+    width: auto;
+    flex: 1 1 0;
+    min-width: min-content;
+    padding-inline: var(--space-2);
+    white-space: nowrap;
   }
 }
 

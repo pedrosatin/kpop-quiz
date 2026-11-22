@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { serveFixedStrands } from "./helpers/fixed-daily";
+import { measureStrandsLayout, type StrandsLayoutMetrics } from "./helpers/strands-layout";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 
 test.use({ bypassCSP: true });
@@ -51,53 +52,17 @@ async function capture(page: Page, name: string) {
   });
 }
 
-/** Layout metrics that catch the broken Strands action bar and covered grid. */
-function measureStrandsLayout() {
-  const actionsEl = document.querySelector(".word-search-actions, .game-actions") as HTMLElement | null;
-  const messageEl = document.querySelector(
-    ".word-search-actions .word-search-message:not(.visually-hidden), .game-actions .game-actions-message:not(.visually-hidden)",
-  ) as HTMLElement | null;
-  const rows = [...document.querySelectorAll(".word-search-row")];
-  const lastRow = rows[rows.length - 1]?.getBoundingClientRect();
-  const actions = actionsEl?.getBoundingClientRect();
-  const consent = document.querySelector(".consent-banner")?.getBoundingClientRect();
-  const coverTop = Math.min(actions?.top ?? Infinity, consent?.top ?? Infinity, window.innerHeight);
-  const buttons = [...document.querySelectorAll(".word-search-actions > .btn, .game-actions > .btn")].map((btn) =>
-    btn.getBoundingClientRect().right,
-  );
-  const cell = document.querySelector(".word-search-cell")?.getBoundingClientRect();
-  const kicker = document.querySelector(".kicker")?.getBoundingClientRect();
-  const theme = document.querySelector("[data-testid='strands-theme']")?.getBoundingClientRect();
-  let messageLines = 0;
-  if (messageEl) {
-    const style = getComputedStyle(messageEl);
-    const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.4;
-    messageLines = lineHeight > 0 ? Math.round(messageEl.getBoundingClientRect().height / lineHeight) : 0;
-  }
-  return {
-    lastRowBottom: lastRow?.bottom ?? null,
-    actionsTop: actions?.top ?? null,
-    coverTop: Number.isFinite(coverTop) ? coverTop : null,
-    maxButtonRight: buttons.length ? Math.max(...buttons) : null,
-    scrollWidth: document.documentElement.scrollWidth,
-    innerWidth: window.innerWidth,
-    innerHeight: window.innerHeight,
-    messageLines,
-    cellSize: cell ? Math.min(cell.width, cell.height) : null,
-    kickerLeft: kicker?.left ?? null,
-    themeTop: theme?.top ?? null,
-    themeBottom: theme?.bottom ?? null,
-  };
-}
-
-type LayoutMetrics = ReturnType<typeof measureStrandsLayout>;
-
-function expectPlayableLayout(layout: LayoutMetrics, label: string) {
+/** 390×844 and 1440×900: whole grid above the sticky bar (UX contract item 1). */
+function expectPlayableLayout(layout: StrandsLayoutMetrics, label: string) {
   expect(layout.lastRowBottom, `${label}: last grid row`).not.toBeNull();
   expect(layout.actionsTop, `${label}: actions bar`).not.toBeNull();
   expect(layout.lastRowBottom!, `${label}: last row above the bar`).toBeLessThanOrEqual(layout.actionsTop! + 0.5);
   expect(layout.maxButtonRight, `${label}: action buttons`).not.toBeNull();
   expect(layout.maxButtonRight!, `${label}: buttons stay inside the page`).toBeLessThanOrEqual(layout.innerWidth + 0.5);
+  expect(layout.buttonsOverlap, `${label}: action buttons do not overlap`).toBe(false);
+  expect(layout.anyButtonTextClipped, `${label}: action button labels fully visible`).toBe(false);
+  expect(layout.minButtonHeight, `${label}: button height`).not.toBeNull();
+  expect(layout.minButtonHeight!, `${label}: buttons at least 44px tall`).toBeGreaterThanOrEqual(44 - 0.5);
   expect(layout.scrollWidth, `${label}: no horizontal overflow`).toBeLessThanOrEqual(layout.innerWidth + 0.5);
   expect(layout.messageLines, `${label}: bar text at most 2 lines`).toBeLessThanOrEqual(2);
   expect(layout.themeTop, `${label}: theme visible`).toBeGreaterThanOrEqual(-1);
@@ -105,6 +70,27 @@ function expectPlayableLayout(layout: LayoutMetrics, label: string) {
   if (layout.kickerLeft !== null) {
     expect(layout.kickerLeft, `${label}: kicker not clipped on the left`).toBeGreaterThanOrEqual(-0.5);
   }
+}
+
+/** 360×740 without banner: top of the board above the bar; cell keeps the phone floor. */
+function expectShortViewportLayout(layout: StrandsLayoutMetrics, label: string) {
+  expect(layout.firstRowTop, `${label}: first grid row`).not.toBeNull();
+  expect(layout.actionsTop, `${label}: actions bar`).not.toBeNull();
+  expect(layout.firstRowTop!, `${label}: top of the board above the bar`).toBeLessThan(
+    (layout.actionsTop ?? layout.innerHeight) + 0.5,
+  );
+  expect(layout.cellSize, `${label}: cell size`).not.toBeNull();
+  expect(layout.cellSize!, `${label}: cell at least Word Search phone floor (1.625rem)`).toBeGreaterThanOrEqual(
+    layout.cellMinPx - 0.5,
+  );
+  expect(layout.maxButtonRight, `${label}: action buttons`).not.toBeNull();
+  expect(layout.maxButtonRight!, `${label}: buttons stay inside the page`).toBeLessThanOrEqual(layout.innerWidth + 0.5);
+  expect(layout.buttonsOverlap, `${label}: action buttons do not overlap`).toBe(false);
+  expect(layout.anyButtonTextClipped, `${label}: action button labels fully visible`).toBe(false);
+  expect(layout.minButtonHeight, `${label}: button height`).not.toBeNull();
+  expect(layout.minButtonHeight!, `${label}: buttons at least 44px tall`).toBeGreaterThanOrEqual(44 - 0.5);
+  expect(layout.scrollWidth, `${label}: no horizontal overflow`).toBeLessThanOrEqual(layout.innerWidth + 0.5);
+  expect(layout.messageLines, `${label}: bar text at most 2 lines`).toBeLessThanOrEqual(2);
 }
 
 for (const route of routes) {
@@ -150,4 +136,20 @@ test("strands 390 and 1440 keep grid above the bar without overflow", async ({ p
     expectPlayableLayout(layout, viewport.label);
     await capture(page, `strands-ux-${viewport.label}`);
   }
+});
+
+test("strands 360 without banner keeps a touchable cell and a stable action bar", async ({ page, baseURL }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("kpop-quiz-consent", "rejected");
+  });
+  await serveFixedStrands(page);
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto(joinBaseUrl(baseURL!, "/pt-br/palavras-conectadas/"));
+  await expect(page.getByTestId("game-board")).toBeVisible({ timeout: 30_000 });
+  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+
+  const layout = await page.evaluate(measureStrandsLayout);
+  expectShortViewportLayout(layout, "360×740");
+  await capture(page, "strands-ux-360");
 });
