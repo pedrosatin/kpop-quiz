@@ -9,6 +9,7 @@ import {
   stripShareUrl,
 } from "./daily-set";
 import { DAILY_GAMES, statsGameId } from "./daily-progress";
+import type { SeoRouteKey } from "../i18n/catalog";
 import {
   ALL_GAME_IDS,
   createInitialPlayerStats,
@@ -95,7 +96,35 @@ describe("daily set", () => {
     expect(loadPlayerStats().dailySetsCompleted).toBe(0);
   });
 
-  it("keeps the set incomplete when Strands has no match for the date", () => {
+  it("completes the set when Strands is omitted and every published game is finished", () => {
+    const omitted = new Set<SeoRouteKey>(["strands"]);
+    for (const id of ALL_GAME_IDS.filter((id) => id !== "strands")) {
+      recordGameFinish(id, true, TODAY);
+    }
+    localStorage.setItem(
+      mapPilotStorageKey(TODAY),
+      JSON.stringify({ events: ["a"], answers: ["x"], index: 1 }),
+    );
+    expect(isDailySetComplete(TODAY, omitted)).toBe(true);
+    expect(recordDailySetComplete(TODAY, false, omitted)).toBe(true);
+    expect(loadPlayerStats().dailySetsCompleted).toBe(1);
+    expect(loadPlayerStats().lastDailySetDate).toBe(TODAY);
+  });
+
+  it("completes the set when crossword is omitted and the other published games are finished", () => {
+    const omitted = new Set<SeoRouteKey>(["crossword"]);
+    for (const id of ALL_GAME_IDS.filter((id) => id !== "crossword")) {
+      recordGameFinish(id, true, TODAY);
+    }
+    localStorage.setItem(
+      mapPilotStorageKey(TODAY),
+      JSON.stringify({ events: ["a"], answers: ["x"], index: 1 }),
+    );
+    expect(isDailySetComplete(TODAY, omitted)).toBe(true);
+    expect(isDailySetComplete(TODAY)).toBe(false);
+  });
+
+  it("still requires every game when the omission set is empty", () => {
     for (const id of ALL_GAME_IDS.filter((id) => id !== "strands")) {
       recordGameFinish(id, true, TODAY);
     }
@@ -104,8 +133,7 @@ describe("daily set", () => {
       JSON.stringify({ events: ["a"], answers: ["x"], index: 1 }),
     );
     expect(isDailySetComplete(TODAY)).toBe(false);
-    expect(recordDailySetComplete(TODAY)).toBe(false);
-    expect(loadPlayerStats().dailySetsCompleted).toBe(0);
+    expect(isDailySetComplete(TODAY, new Set())).toBe(false);
   });
 
   it("includes strands in the day share when every game has a remembered line", () => {
@@ -113,6 +141,27 @@ describe("daily set", () => {
     rememberAllLines(TODAY);
     const text = buildDailySetShareText(TODAY, "pt-BR");
     expect(text).toContain("K-pop Quiz · strands");
+  });
+
+  it("leaves an omitted game out of the day share", () => {
+    const omitted = new Set<SeoRouteKey>(["strands"]);
+    for (const id of ALL_GAME_IDS.filter((id) => id !== "strands")) {
+      recordGameFinish(id, true, TODAY);
+    }
+    localStorage.setItem(
+      mapPilotStorageKey(TODAY),
+      JSON.stringify({ events: ["a"], answers: ["x"], index: 1 }),
+    );
+    for (const key of DAILY_GAMES.filter((key) => key !== "strands")) {
+      rememberDailySetLine(
+        TODAY,
+        statsGameId(key),
+        `K-pop Quiz · ${key}\nline\nhttps://kpopquiz.online/pt-br/?s=quiz`,
+      );
+    }
+    const text = buildDailySetShareText(TODAY, "pt-BR", false, omitted);
+    expect(text).toContain("K-pop Quiz · crossword");
+    expect(text).not.toContain("strands");
   });
 
   it("strips the trailing share URL and builds the day summary", () => {

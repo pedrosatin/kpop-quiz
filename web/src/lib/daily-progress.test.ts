@@ -21,6 +21,12 @@ describe("daily progress", () => {
     expect([...completedDailyGames(TODAY)]).toEqual(["connections"]);
   });
 
+  it("skips an omitted game even when that game has a finish for the date", () => {
+    recordGameFinish("strands", true, TODAY);
+    recordGameFinish("connections", true, TODAY);
+    expect([...completedDailyGames(TODAY, new Set(["strands"]))]).toEqual(["connections"]);
+  });
+
   it("counts a reused Grade under the publication day, not the board origin", () => {
     // Same shape as ADR 047: board of 12/11 served as the challenge of 13/11.
     recordGameFinish("grid", true, "2026-11-13");

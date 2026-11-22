@@ -2,12 +2,14 @@ import { useEffect, useId, useRef, useState } from "preact/hooks";
 import type { SeoRouteKey } from "../../i18n/catalog";
 import { getMessages } from "../../i18n/catalog";
 import { dailyReferenceDate, secondsUntilNextDaily } from "../../data/daily-artifact";
+import { loadDailySetRequirement } from "../../data/daily-set-loader";
 import {
   buildDailySetShareText,
+  publishedDailyGames,
   recordDailySetComplete,
   rememberDailySetLine,
 } from "../../lib/daily-set";
-import { completedDailyGames, DAILY_DONE_EVENT, DAILY_GAMES, dailyGamePath, formatCountdown, nextDailyGame, statsGameId } from "../../lib/daily-progress";
+import { completedDailyGames, DAILY_DONE_EVENT, dailyGamePath, formatCountdown, nextDailyGame, statsGameId } from "../../lib/daily-progress";
 import { trackDailySetComplete } from "../../lib/game-analytics";
 import { loadPlayerStats } from "../../lib/player-stats";
 import type { Locale } from "../../lib/quiz-types";
@@ -25,10 +27,10 @@ interface Plan {
 
 /**
  * End of a daily game: time left until the next challenge and a link to
- * the next game not finished today. When the last daily game closes the day,
- * celebrates the set (no intermediate X/N counter) and offers the day share.
- * It reads the clock and storage only after mounting, so the server and the
- * first client render agree.
+ * the next game not finished today. When the last published daily game closes
+ * the day, celebrates the set (no intermediate X/N counter) and offers the day
+ * share. It reads the clock and storage after mounting; `daily-set.json` starts
+ * as "require all" (fail-safe) and refreshes when the loader reports omissions.
  */
 export function DailyNext({
   game,
@@ -63,30 +65,46 @@ export function DailyNext({
     if (shareText) {
       rememberDailySetLine(today, statsGameId(game), shareText);
     }
-    const done = completedDailyGames(today);
-    done.add(game);
-    const setComplete = DAILY_GAMES.every((key) => done.has(key));
-    let setJustRecorded = false;
-    if (setComplete) {
-      if (recordDailySetComplete(today, true)) {
-        celebratedDate.current = today;
-        trackDailySetComplete(locale);
+
+    const apply = (omitted: ReadonlySet<SeoRouteKey>) => {
+      const done = completedDailyGames(today, omitted);
+      done.add(game);
+      for (const key of omitted) done.add(key);
+      const setComplete = publishedDailyGames(omitted).every((key) => done.has(key));
+      let setJustRecorded = false;
+      if (setComplete) {
+        if (recordDailySetComplete(today, true, omitted)) {
+          celebratedDate.current = today;
+          trackDailySetComplete(locale);
+        }
+        setJustRecorded = celebratedDate.current === today;
       }
-      setJustRecorded = celebratedDate.current === today;
-    }
-    const stats = loadPlayerStats();
-    setPlan({
-      next: nextDailyGame(game, done),
-      deadline: start.getTime() + secondsUntilNextDaily(start) * 1000,
-      setComplete,
-      setsCompleted: stats.dailySetsCompleted,
-      setShareText: setComplete ? buildDailySetShareText(today, locale, true) : null,
-      setJustRecorded,
-    });
-    setNow(start.getTime());
+      const stats = loadPlayerStats();
+      setPlan({
+        next: nextDailyGame(game, done),
+        deadline: start.getTime() + secondsUntilNextDaily(start) * 1000,
+        setComplete,
+        setsCompleted: stats.dailySetsCompleted,
+        setShareText: setComplete ? buildDailySetShareText(today, locale, true, omitted) : null,
+        setJustRecorded,
+      });
+      setNow(start.getTime());
+    };
+
+    apply(new Set());
     window.dispatchEvent(new CustomEvent(DAILY_DONE_EVENT, { detail: game }));
+
+    let cancelled = false;
+    void loadDailySetRequirement(undefined, today).then(({ omitted }) => {
+      if (cancelled || omitted.size === 0) return;
+      apply(omitted);
+    });
+
     const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [game, locale, shareText, referenceDate]);
 
   if (!plan) return <div class="daily-next" data-testid="daily-next" />;

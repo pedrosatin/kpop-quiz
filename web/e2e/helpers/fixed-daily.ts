@@ -153,6 +153,30 @@ async function serveJson(page: Page, filename: string, json: unknown): Promise<v
   await page.route(`**/data/${filename}*`, (route) => route.fulfill({ json }));
 }
 
+export type FixedDailySetOptions = FixedClockOptions & {
+  referenceDate?: string;
+  omitted?: Record<string, string>;
+  freezeClock?: boolean;
+};
+
+export async function serveFixedDailySet(
+  page: Page,
+  options: FixedDailySetOptions = {},
+): Promise<{ schema_version: string; reference_date: string; omitted: Record<string, string> }> {
+  const referenceDate = options.referenceDate ?? FIXED_REFERENCE_DATE;
+  const omitted = options.omitted ?? {};
+  const payload = {
+    schema_version: "kpop-daily-set-v1",
+    reference_date: referenceDate,
+    omitted,
+  };
+  if (options.freezeClock !== false) {
+    await freezePageClock(page, options, referenceDate);
+  }
+  await serveJson(page, "daily-set.json", payload);
+  return payload;
+}
+
 export type FixedGridServeOptions = FixedClockOptions & {
   /**
    * Non-empty list announces a corrected day (replaces notice). Omit or pass

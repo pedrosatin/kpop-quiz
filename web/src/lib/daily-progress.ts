@@ -31,16 +31,23 @@ export function statsGameId(route: SeoRouteKey): GameId {
 }
 
 /**
- * Daily games finished on `today`. Stats keep the date of the last daily
- * match of each game (win or loss). The map reads its save of the day
+ * Published daily games finished on `today`. Stats keep the date of the last
+ * daily match of each game (win or loss). The map reads its save of the day
  * instead, which shows the result before the stats write and on a replay.
+ * Games in `omitted` are skipped (partial publication for the day).
  */
-export function completedDailyGames(today: string): Set<SeoRouteKey> {
+export function completedDailyGames(
+  today: string,
+  omitted: ReadonlySet<SeoRouteKey> = new Set(),
+): Set<SeoRouteKey> {
   const { games } = loadPlayerStats();
   return new Set(
-    DAILY_GAMES.filter((key) =>
-      key === "mapPilot" ? isMapPilotRoundFinished(today) : games[STATS_ID[key]]?.lastPlayedDate === today,
-    ),
+    DAILY_GAMES.filter((key) => {
+      if (omitted.has(key)) return false;
+      return key === "mapPilot"
+        ? isMapPilotRoundFinished(today)
+        : games[STATS_ID[key]]?.lastPlayedDate === today;
+    }),
   );
 }
 
