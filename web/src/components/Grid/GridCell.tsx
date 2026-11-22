@@ -89,7 +89,6 @@ export function GridCell({
           <span class="cell-attempt-text">{cellState.lastAttempt}</span>
         </span>
       )}
-      {}
       {!revealed && !cellState.solved && !cellState.failed && !disabled && (
         <span class="cell-empty-prompt" aria-hidden="true">
           +

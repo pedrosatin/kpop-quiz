@@ -28,7 +28,6 @@ function wordSources(puzzle: StrandsPuzzle, wordKey: string): SourceLine[] {
     try {
       if (new URL(evidence.source_url).hostname === "www.wikidata.org") project = "Wikidata";
     } catch {
-      // Keep Wikipedia as the fallback label when the URL cannot be parsed.
     }
     lines.set(key, {
       key,

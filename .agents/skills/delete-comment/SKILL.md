@@ -12,7 +12,7 @@ Audit, categorize, and eliminate non-exempt code comments while moving valuable 
 Do not delete and do not count toward the baseline:
 - License headers (`SPDX-License-Identifier`, `Copyright`)
 - Shebangs (`#!`)
-- Tool directives (`# noqa`, `# type:`, `# pragma:`, encoding pragmas, `// @ts-*`, `eslint-disable`/`oxlint-disable`, `prettier-ignore`, `/// <reference>`, GitHub Actions `# vX.Y.Z` SHA-pin annotations)
+- Tool directives (`# noqa`, `# type:`, `# pragma:`, encoding pragmas, `// @ts-*`, `eslint-disable`/`oxlint-disable`, `prettier-ignore`, `/// <reference>`, JSDoc `@type`/`@typedef`/`@template`/`@satisfies`/`@import` for TypeScript checkJS, GitHub Actions `# vX.Y.Z` SHA-pin annotations)
 - Public API contract docstrings / JSDocs (public Python modules/classes/functions, exported JS/TS declarations, Astro `Props` contracts)
 
 ## Categorize Each Non-Exempt Comment

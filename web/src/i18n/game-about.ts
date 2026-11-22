@@ -1,14 +1,5 @@
 import type { Locale } from "../lib/quiz-types";
 
-// Static copy rendered under each game (GameAbout.astro), so the served HTML
-// explains the game, its sources and the FAQ before any island loads. Facts
-// here must match the code: the 15:00 UTC cron in daily-puzzles-cron.yml, the
-// Sao Paulo midnight switch in daily-artifact.ts, the generators under
-// kpop_scraping/ (connections_generator.py, name_guess_generator.py,
-// timeline_generator.py, word_search_generator.py, map_pilot_refresh.py,
-// crossword_cli.py, strands_cli.py) and
-// the map refresh workflow. Headings carry the game name, so each route gets
-// its own H2s and most FAQ entries; one generic entry per game stays.
 
 export type GameAboutKey = "grid" | "connections" | "nameGuess" | "wordSearch" | "mapPilot" | "timeline" | "code" | "crossword" | "strands";
 
@@ -30,8 +21,6 @@ export interface GameAboutMessages {
   games: Record<GameAboutKey, GameAboutCopy>;
 }
 
-// Generic FAQ entries: each game keeps exactly one, and the choice rotates so
-// no single entry repeats on every route.
 const PT_FREE =
   "Sim. Todos os jogos do K-pop Quiz são gratuitos e rodam no navegador, no celular ou no computador, sem instalar nada.";
 const PT_ACCOUNT =

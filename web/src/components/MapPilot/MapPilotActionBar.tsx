@@ -83,7 +83,6 @@ export function MapPilotActionBar({
           onChooseCountry={actions.submitAnswer}
           onEmptySubmit={actions.promptPick}
         />
-        {}
         <button type="button" class="btn btn-secondary" onClick={actions.requestGiveUp}>
           {messages.giveUp}
         </button>

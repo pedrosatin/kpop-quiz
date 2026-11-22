@@ -98,7 +98,6 @@ function GridSideColumn({
         </aside>
       )}
       <div class={`game-actions grid-actions${barState}`}>
-        {}
         <div
           class={`game-actions-message grid-message${isComplete ? " visually-hidden" : ""}`}
           role="status"

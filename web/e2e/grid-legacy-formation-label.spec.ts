@@ -83,8 +83,6 @@ for (const locale of locales)
       await expect(page.locator(".grid-progress")).toContainText(locale.left);
 
       // The save belongs to the published identity and holds no label text.
-      // The game writes it from a passive effect, so wait for it instead of
-      // reading once right after the progress text changes.
       const saveKey = `kpop-grid-${legacy.grid_id}`;
       await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), saveKey)).not.toBeNull();
       const saved = await page.evaluate((key) => localStorage.getItem(key), saveKey);

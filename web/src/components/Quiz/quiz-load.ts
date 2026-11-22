@@ -37,11 +37,6 @@ export function loadPublished(
     });
 }
 
-/**
- * Fresh catalog draw for setup only. When `keepExistingSave` is true (open
- * setup from the finished daily screen), an in-progress save stays on disk
- * and does not raise the incompatible notice.
- */
 function drawCatalogForSetup(
   ctx: QuizLoadContext,
   request: number,
@@ -76,7 +71,6 @@ function drawCatalogForSetup(
 function loadCatalogRound(ctx: QuizLoadContext, request: number, skipResume = false): Promise<void> {
   const { match } = ctx;
   if (skipResume) return drawCatalogForSetup(ctx, request, true);
-  // Resume runs before drawing a new catalog set so the same selection returns.
   return tryResumeCatalog(ctx, request).then((resumed) => {
     if (request !== match.loadRequestRef.current || resumed) return;
     return drawCatalogForSetup(ctx, request);
@@ -86,7 +80,6 @@ function loadCatalogRound(ctx: QuizLoadContext, request: number, skipResume = fa
 function showLoadFailure(match: QuizMatch, request: number, error: unknown): void {
   if (request !== match.loadRequestRef.current) return;
   if (error instanceof CatalogSelectionError) {
-    // Missing already fell back above; treat a stray missing as invalid path noise.
     match.setState(error.kind === "unavailable" ? "unavailable" : "invalid");
     return;
   }

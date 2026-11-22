@@ -96,10 +96,6 @@ describe("daily set", () => {
   });
 
   it("keeps the set incomplete when Strands has no match for the date", () => {
-    // Client rule: every DAILY_GAMES entry needs a recorded match. A day whose
-    // publication omitted strands.daily.json still leaves the set open until
-    // the player can finish Strands (or until a later change teaches the
-    // client to skip omitted games from daily-set.json).
     for (const id of ALL_GAME_IDS.filter((id) => id !== "strands")) {
       recordGameFinish(id, true, TODAY);
     }

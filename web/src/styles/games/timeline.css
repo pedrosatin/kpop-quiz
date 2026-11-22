@@ -1,10 +1,3 @@
-/* Timeline game: board, cards, controls, results, evidence, and share */
-
-/*
-  Compact shell for the Timeline only: shorter intro and page padding so the
-  five play cards and the sticky action bar fit one laptop viewport
-  (1280x720 and up) without a second column.
-*/
 .page-shell:has(#timeline) {
   padding-block: var(--space-2) var(--space-5);
 }
@@ -28,11 +21,7 @@
   max-width: var(--game-max);
   margin-inline: auto;
 }
-/*
-  A drop reorders the cards, and scroll anchoring would then scroll the page
-  back by one card, leaving the dropped card under the sticky bar. The list
-  is no anchor, so the dropped card stays under the pointer.
-*/
+
 .timeline-board-list { overflow-anchor: none; }
 .timeline-board-list,
 .timeline-results-list {
@@ -58,11 +47,7 @@
   transition: transform var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
   touch-action: manipulation;
 }
-/*
-  Play cards: badge, title and move buttons share one row so five cards clear
-  the sticky bar on common laptop heights. display:contents keeps the DOM
-  (header / body wrappers) for tests and a11y while the grid places the parts.
-*/
+
 .timeline-card {
   user-select: none;
   display: grid;
@@ -190,12 +175,7 @@
   line-height: 1.35;
   color: var(--color-text-muted);
 }
-/*
-  Short laptop windows: hide the play-card description from view so five
-  cards clear the sticky bar. Screen readers still read it (same rules as
-  .visually-hidden). The title stays fully visible (no clamp), and results
-  keep the description. 50rem = 800px covers 1280x720 and 1366x768.
-*/
+
 @media (max-height: 50rem) {
   .timeline-card > .timeline-card-body > .timeline-card-description,
   .timeline-card > .timeline-card-description {
@@ -220,13 +200,7 @@
   gap: var(--space-2);
   padding-top: 0;
 }
-/*
-  During a drag the sticky bar covers the bottom of the window, where the
-  browser autoscrolls, and it takes no drop. Hiding it there lets the drag
-  scroll and drop on the cards under it. visibility keeps its box, so nothing
-  moves. The bar is back on drop and on dragend, and outside a drag its focus
-  and ARIA do not change.
-*/
+
 .timeline-board-wrapper.is-dragging .timeline-controls { visibility: hidden; }
 .timeline-btn-submit,
 .timeline-share-btn {

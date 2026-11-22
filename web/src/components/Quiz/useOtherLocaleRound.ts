@@ -54,8 +54,6 @@ export function useOtherLocaleRound(locale: Locale): OtherLocaleRound | null {
       setRound(null);
       return;
     }
-    // Wait for the live-artifact check before offering "Continuar", so a
-    // stale save never gets a resume promise that the other page would deny.
     setRound(null);
     void checkOtherLocaleSaveCompatibility(save).then((compat) => {
       if (cancelled) return;

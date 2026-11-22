@@ -40,7 +40,6 @@ export function GameNav({ games, locale }: { games: GameNavItem[]; locale: Local
           aria-current={game.isActive ? "page" : undefined}
         >
           {game.label}
-          {}
           {done.has(game.key) && (
             <>
               {" "}

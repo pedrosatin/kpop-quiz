@@ -134,15 +134,12 @@ export function ConnectionsGameContent({
           messages={messages}
         />
 
-        {}
         <div class={`game-actions connections-actions${barState}`}>
-          {}
           <MistakesRemaining
             mistakesRemaining={mistakesRemaining}
             messages={messages}
             hiddenVisually={isGameOver}
           />
-          {}
           <div
             class={`game-actions-message connections-message${isGameOver ? " visually-hidden" : ""}`}
             role="status"

@@ -121,15 +121,12 @@ export function WordSearchGameContent({
         />
       </div>
 
-      {}
       <div class={`game-actions word-search-actions${barState}`}>
-        {}
         <div
           class={`game-actions-message word-search-message${completed ? " visually-hidden" : ""}`}
           role="status"
           aria-live="polite"
         >
-          {}
           {completed ? (
             <WordSearchShareNote note={shareNote} messages={messages} />
           ) : (

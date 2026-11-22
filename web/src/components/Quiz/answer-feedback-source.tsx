@@ -40,7 +40,6 @@ export function AnswerFeedbackSource({
         {sourceOpen ? messages.hideSource : messages.showSource}
       </button>
       <div ref={panel} class="quiz-source source-panel" id={sourceId} hidden={!sourceOpen}>
-        {}
         {answers && <p>{answers}</p>}
         <p>{explanation}</p>
         {evidence.map((item) => (

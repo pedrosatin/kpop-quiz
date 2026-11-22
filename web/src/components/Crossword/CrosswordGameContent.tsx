@@ -138,9 +138,7 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
             onSelect={select}
           />
 
-          {}
           <div class={`game-actions crossword-actions${barState}`}>
-            {}
             <div
               class={`game-actions-message crossword-message${finished ? " visually-hidden" : ""}`}
               role="status"

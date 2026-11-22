@@ -79,7 +79,6 @@ export function QuizResult({
 
   return (
     <section id="quiz" class="game-card game-card--wide result quiz-result" data-testid="game-result" aria-labelledby="result-heading">
-      {}
       <div class="quiz-result-summary">
         <h2
           id="result-heading"

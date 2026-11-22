@@ -19,8 +19,6 @@ import { serveFixedTimeline } from "./helpers/fixed-daily";
 // run whose pointer ended on the card above the bar, scrolled by the edge
 // autoscroll or by the wheel, so the helpers below re-measure the card on
 // every step and only aim at the part the bar leaves visible.
-// Compact play cards fit a 500 px window, so this suite uses 360 px to keep
-// the last card out of reach until the page scrolls.
 //
 // Firefox under Playwright does not autoscroll during a drag: with the pointer
 // held at the bottom edge for 300 moves, scrollY stayed put. The wheel scrolls

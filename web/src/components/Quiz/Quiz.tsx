@@ -105,8 +105,6 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
           selectTheme("history");
         },
         openSetup: () => {
-          // Same theme switch as playGeneral, but skip restoring a saved
-          // general round so the player can change mode on the setup.
           match.setState("loading");
           match.focusSetupRef.current = true;
           match.skipResumeRef.current = true;

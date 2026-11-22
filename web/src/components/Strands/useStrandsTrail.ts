@@ -130,8 +130,6 @@ export function useStrandsTrail({ dimensions, grid, playing, judge }: StrandsTra
     gestureStart.current = null;
     draggedBeyondStart.current = false;
     if (!playingRef.current) return;
-    // Drag: confirm when long enough; too-short clears with the same feedback as Enter.
-    // Simple tap: leave the trail for more taps or the Confirm button.
     if (wasDrag) confirm();
   }, [confirm]);
 
@@ -176,7 +174,6 @@ export function useStrandsTrail({ dimensions, grid, playing, judge }: StrandsTra
       col: clamp(focusedRef.current.col + move[1], dimensions.cols),
     };
     focusCell(next);
-    // Holding a marked trail: arrow into a neighbour extends (or undoes).
     if (pathRef.current.length > 0) {
       setTrail(extendTrail(pathRef.current, next));
     }

@@ -109,8 +109,6 @@ test.describe("daily artifact boot contract", () => {
     const state = page.getByTestId("game-missing");
     await expect(state).toHaveAttribute("data-error-kind", published ? "missing" : "invalid");
     if (published) {
-      // The page has settled on the missing state, so the board the boot
-      // requires will not come: refuse it in 1s, not after the boot's 30s.
       await expect(bootRoute(page, route, baseURL!, { boardTimeoutMs: 1_000 })).rejects.toThrow(/game-board/);
     } else {
       // The boot finds the missing state at once and refuses its kind.

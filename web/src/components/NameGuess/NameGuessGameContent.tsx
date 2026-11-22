@@ -146,10 +146,8 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
           />
         </div>
 
-        {}
         <div class="game-layout-side">
           <div class={`game-actions name-guess-actions${actionsState}`}>
-            {}
             <div class="game-hud name-guess-hud">
               <p class="hud-item hud-label">
                 {t.subtitle} · <span class="name-guess-date">{formatCalendarDate(puzzle.reference_date, locale)}</span>
@@ -158,13 +156,11 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
                 {t.attemptsLeft}: {attemptsRemaining}/{puzzle.max_attempts}
               </p>
             </div>
-            {}
             {errorDisplay && (
               <p class="alert-error name-guess-toast" aria-hidden="true">
                 {errorDisplay}
               </p>
             )}
-            {}
             <div class="game-actions-message visually-hidden" role="status" aria-live="polite">
               {errorDisplay && <p>{errorDisplay}</p>}
               {shareMessage}
@@ -193,7 +189,6 @@ export function NameGuessGameContent({ puzzle, locale, t, giveUpLabel }: NameGue
             )}
           </div>
 
-          {}
           <div class="name-guess-options">
             {!isGameOver && (
               <button

@@ -10,7 +10,6 @@ interface WordSearchCellProps {
   anchor: boolean;
   focused: boolean;
   ariaLabel: string;
-  /** Extra CSS class (for example a spangram highlight). */
   extraClass?: string | undefined;
 }
 

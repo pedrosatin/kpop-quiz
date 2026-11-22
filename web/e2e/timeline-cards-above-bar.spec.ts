@@ -3,15 +3,10 @@ import { expect, test } from "./fixtures/consent";
 import { expectBoardDirectReady } from "./helpers/boot";
 import { serveFixedTimeline } from "./helpers/fixed-daily";
 
-// On load, every Timeline play card must sit above the sticky action bar so
-// the player can read and reorder without scrolling. Compact card and intro
-// spacing keep the five-card board clear on common laptop windows and on a
-// phone-sized 390x844 window (prod-playtest issue 25).
 
 const base = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
 const PATH = "/pt-br/linha-do-tempo/";
 
-/** Rounding slack between getBoundingClientRect edges. */
 const EPSILON_PX = 1;
 
 const viewports = [

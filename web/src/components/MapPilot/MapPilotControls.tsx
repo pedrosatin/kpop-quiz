@@ -71,7 +71,6 @@ export function MapPilotPickForm({
           </option>
         ))}
       </select>
-      {}
       <button class="btn btn-primary" type="submit" aria-disabled={listChoice ? undefined : "true"}>{copy.answer}</button>
     </form>
   );

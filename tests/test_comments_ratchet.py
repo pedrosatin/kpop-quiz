@@ -51,12 +51,17 @@ class CommentRatchetBaselineTests(unittest.TestCase):
             "  // internal note\n"
             "  return pattern.source;\n"
             "}\n"
+            "/** @typedef {{ id: string }} SampleId */\n"
+            "const file = /** @type {SampleId} */ ({ id: \"a\" });\n"
         )
         hits = check_comments.scan_js_ts("sample.ts", ts_src)
         active = [h for h in hits if h.exempt_reason is None]
         self.assertEqual([h.text for h in active], ["// internal note"])
         exempt_reasons = [h.exempt_reason for h in hits if h.exempt_reason is not None]
-        self.assertEqual(exempt_reasons, ["tool_directive", "tool_directive", "public_api_doc"])
+        self.assertEqual(
+            exempt_reasons,
+            ["tool_directive", "tool_directive", "public_api_doc", "tool_directive", "tool_directive"],
+        )
 
     def test_other_language_scanners_handle_astro_css_shell_yaml_and_jsonc(self):
         astro_src = (

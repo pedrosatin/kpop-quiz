@@ -117,8 +117,6 @@ async function startDrag(page: Page, index: number): Promise<{ x: number; y: num
 }
 
 for (const locale of locales) {
-  // Compact cards clear the bar in 1280x720; a shorter window brings a lower
-  // card back under the sticky band so the drop-through-bar path stays covered.
   test.describe(`under-bar drop ${locale.id}`, () => {
     test.use({ viewport: { width: 1280, height: 480 } });
 

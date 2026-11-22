@@ -84,7 +84,6 @@ export function GameSetup({
             {...(generalNote ? { generalNote } : {})}
           />
         )}
-        {}
         <details class="setup-customize">
           <summary class="setup-customize-toggle">
             <span class="setup-customize-title">{messages.customize}</span>

@@ -69,8 +69,6 @@ function replayNoticeText(status: ReplayNotice, messages: Messages): string | un
   return undefined;
 }
 
-// What Play again repeats is told on the result, beside that button, and not
-// here. A daily quiz already counted today never reaches the setup.
 function setupNoticeText({ resumeNotice }: QuizMatch, messages: Messages): string | undefined {
   if (resumeNotice === "incompatible") return messages.quizResumeIncompatible;
   if (resumeNotice === "invalid") return messages.quizResumeInvalid;
@@ -78,26 +76,12 @@ function setupNoticeText({ resumeNotice }: QuizMatch, messages: Messages): strin
   return undefined;
 }
 
-// Only the general quiz ends with Play again, so only it says what a replay
-// repeats. Today's daily result opened again from its save says it is the
-// day's saved result, as when the daily quiz is picked from another mode.
 function resultNoticeText({ resumeNotice, replayStatus, restoredVisit }: QuizMatch, messages: Messages, offersReplay: boolean): string | undefined {
   if (resumeNotice === "storage-unavailable") return messages.quizStorageUnavailable;
   if (!offersReplay) return restoredVisit ? messages.quizDailyDoneResult : undefined;
   return replayNoticeText(replayStatus, messages);
 }
 
-// While the session loads, the setup is already on screen with Start
-// disabled: the server renders it, so the card keeps its final height and
-// the content below does not shift when the data arrives.
-// The server has no localStorage or URL, so its HTML marks the default mode,
-// theme and timer as selected. hydrate() reuses that DOM without patching
-// class attributes, so the default card would stay highlighted next to the
-// stored choice. Changing choicesKey after the first effect remounts the
-// choices with client state, but not the "Customize" <details>, which stays
-// open if the player opened it first. The summary line may then grow from one
-// line to two (Expert with the timer); on phones it keeps room for two lines,
-// so the cards and Start do not move.
 function QuizSetupScreen({ messages, settings, match, hydrated, actions, generalResume, focus, otherLocaleRound }: QuizScreenProps) {
   const { state, session, loadedRequestKey } = match;
   return (
@@ -144,19 +128,12 @@ function QuizResultScreen({
   );
 }
 
-/**
- * Date of today's daily quiz when the setup on screen is for it and the day
- * already counts (ADR 030), so picking the daily quiz shows the day's result
- * instead of a second round of it. A setup left over from another kind of
- * quiz, before the daily one loads, is not checked.
- */
 function countedDailyDate({ state, session, loadedRequestKey }: QuizMatch, settings: QuizSettings): string | undefined {
   if (state !== "setup" || !session || loadedRequestKey !== settings.requestKey) return undefined;
   const date = quizDailyDate(session, settings.theme);
   return date !== undefined && isDailyMatchRecorded("quiz", date) ? date : undefined;
 }
 
-/** Actions shared by both finished-daily layouts: setup shortcut, general quiz, in-progress note. */
 function DailyDoneActions({
   messages,
   actions,
@@ -185,14 +162,6 @@ function DailyDoneActions({
   );
 }
 
-/**
- * Today's daily quiz, already finished. The result saved in this language is
- * shown read-only only when it matches the published session on screen; with
- * none (the day was played in the other language, on an earlier board of the
- * date, or the save was cleared) the shared `DailyDone` card says the day
- * counts. Both end with `DailyNext`, a shortcut to the setup, and the general
- * quiz.
- */
 function QuizDailyDoneScreen({
   locale, messages, settings, actions, date, match, dailyDoneGeneralResume,
 }: QuizScreenProps & { date: string }) {
@@ -231,11 +200,6 @@ function QuizDailyDoneScreen({
   );
 }
 
-/**
- * The same link in the action bar, over the round rules, so a phone shows it
- * without scrolling. One link holds the whole line, so its target is the
- * whole hint, at least 44px tall. A stale save is text only: no resume promise.
- */
 function OtherLocaleHint({ round, messages }: { round: OtherLocaleRound; messages: Messages }) {
   if (!round.resumable) {
     return (
@@ -251,12 +215,6 @@ function OtherLocaleHint({ round, messages }: { round: OtherLocaleRound; message
   );
 }
 
-/**
- * Says that a round is saved in progress in the other language and links to
- * it there when the save still matches the live artifact. Nothing is deleted:
- * starting a game here uses this language's own slot, and the other round
- * stays saved until it is finished or cleared there.
- */
 function OtherLocaleNotice({ round, messages }: { round: OtherLocaleRound; messages: Messages }) {
   return (
     <div class="callout other-locale-round" data-testid="quiz-other-locale-round">
@@ -337,10 +295,6 @@ function QuizStateScreen(props: QuizScreenProps) {
     return <QuizState label={messages.quizReplayUnavailable} action={messages.retry} onAction={actions.retryUnavailable} wide />;
   }
   if (state === "loading" || state === "setup") {
-    // Below the setup card: the notice appears after hydration, and there it
-    // moves neither the card nor its action bar (rule 4 of the UX contract).
-    // While loading, the language's own round may still be restored, so the
-    // notice waits for the setup.
     return (
       <>
         <QuizSetupScreen {...props} />

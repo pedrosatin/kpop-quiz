@@ -8,6 +8,17 @@ const DELIMITER = " › ";
 const PARALLEL_MODE = /^test\.describe\.configure\(\{[^}]*\bmode:\s*["']parallel["']/m;
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+
+/**
+ * @typedef {{ key: string, project: string, file: string, titles: string[], line: number, column: number }} ListedTest
+ * @typedef {{ title?: string, file?: string, line?: number, column?: number, specs?: Spec[], suites?: Suite[] }} Suite
+ * @typedef {{ title: string, file?: string, line?: number, column?: number, tests?: SpecTest[] }} Spec
+ * @typedef {{ projectName?: string, status?: string, results?: { duration?: number, status?: string }[] }} SpecTest
+ * @typedef {{ config?: { rootDir?: string }, suites?: Suite[], errors?: unknown[] }} JsonReport
+ * @typedef {{ version: 1, tests: { project: string, file: string, titles: string[], duration: number }[] }} DurationsFile
+ */
+
+
 /** @param {string} project @param {string} file @param {string[]} titles */
 export function testKey(project, file, titles) {
   return JSON.stringify([project, file, ...titles]);
@@ -67,7 +78,7 @@ export function durationsFromReport(report) {
  * @returns {Map<string, number>}
  */
 export function readDurations(data) {
-  const file =  (data);
+  const file = /** @type {Partial<DurationsFile>} */ (data);
   if (!file || file.version !== 1 || !Array.isArray(file.tests)) {
     throw new Error("not a version 1 durations file");
   }
@@ -83,7 +94,7 @@ export function readDurations(data) {
 }
 
 /** Whether a spec file opts all its tests into parallel mode at the top level. */
-export function isParallelFile( source) {
+export function isParallelFile(/** @type {string} */ source) {
   return PARALLEL_MODE.test(source);
 }
 
@@ -135,7 +146,7 @@ export function packShards({ tests, durations, total, parallelFiles }) {
   }));
   weighed.sort((a, b) => Number(b.known) - Number(a.known) || b.weight - a.weight || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-  const shards = Array.from({ length: total }, () =>  ([]));
+  const shards = Array.from({ length: total }, () => /** @type {ListedTest[]} */ ([]));
   const loads = Array.from({ length: total }, () => 0);
   for (const unit of weighed) {
     const lightest = loads.indexOf(Math.min(...loads));
@@ -172,9 +183,9 @@ export async function plan({ shard, total, durationsPath, outDir, listTests, rea
   if (!Number.isInteger(total) || total < 1 || !Number.isInteger(shard) || shard < 1 || shard > total) {
     throw new Error(`invalid shard ${shard}/${total}`);
   }
-  const fallback = ( reason) => {
+  const fallback = (/** @type {string} */ reason) => {
     log(`fallback to --shard=${shard}/${total}: ${reason}`);
-    return { arg: `--shard=${shard}/${total}`, mode:  ("fallback"), reason };
+    return { arg: `--shard=${shard}/${total}`, mode: /** @type {const} */ ("fallback"), reason };
   };
 
   let durations;
@@ -308,7 +319,7 @@ async function readJson(path) {
 export async function main(argv) {
   const [command, ...rest] = argv;
   const found = options(rest);
-  const log = ( line) => process.stderr.write(`${line}\n`);
+  const log = (/** @type {string} */ line) => process.stderr.write(`${line}\n`);
   if (command === "plan") {
     const result = await plan({
       shard: Number(required(found, "shard")),

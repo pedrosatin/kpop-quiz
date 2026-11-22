@@ -52,7 +52,6 @@ async function capture(page: Page, name: string) {
   });
 }
 
-/** 390×844 and 1440×900: whole grid above the sticky bar (UX contract item 1). */
 function expectPlayableLayout(layout: StrandsLayoutMetrics, label: string) {
   expect(layout.lastRowBottom, `${label}: last grid row`).not.toBeNull();
   expect(layout.actionsTop, `${label}: actions bar`).not.toBeNull();
@@ -72,7 +71,6 @@ function expectPlayableLayout(layout: StrandsLayoutMetrics, label: string) {
   }
 }
 
-/** 360×740 without banner: top of the board above the bar; cell keeps the phone floor. */
 function expectShortViewportLayout(layout: StrandsLayoutMetrics, label: string) {
   expect(layout.firstRowTop, `${label}: first grid row`).not.toBeNull();
   expect(layout.actionsTop, `${label}: actions bar`).not.toBeNull();

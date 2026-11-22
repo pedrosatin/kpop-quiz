@@ -152,7 +152,6 @@ export function GridResults({
         </div>
       )}
 
-      {}
       <div ref={source} id={sourceId} class="grid-source source-panel" hidden={!sourceOpen}>
         {sourceOpen && <GridReview grid={grid} cellStates={cellStates} locale={locale} messages={messages} />}
       </div>

@@ -19,13 +19,6 @@ export function useQuizFocus({ state, questionIndex, restoredVisit, focusQuestio
     }
   }, [questionIndex, state]);
 
-  // A round the player chose to continue replaces the control they used, so
-  // its question takes the focus instead of the page.
-  // "Jogar o Quiz geral" unmounts with the result it sits on. The general
-  // quiz then opens either a saved round, whose question takes the focus
-  // above, or its setup, whose title takes it here. preventScroll plus
-  // scrolling the setup card keeps the kicker "Antes de começar" on screen
-  // at 390px instead of letting focus() pin the h2 to the top edge.
   useEffect(() => {
     if (focusRestoredRef.current && (state === "question.ready" || state === "question.answered")) {
       headingRef.current?.focus();

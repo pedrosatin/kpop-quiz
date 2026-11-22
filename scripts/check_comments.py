@@ -76,6 +76,7 @@ JS_DIRECTIVE_RE = re.compile(
     r"|(?://|/\*)\s*(?:v8|c8)\s+ignore\b"
     r"|/\*\s*@vite-ignore\b"
     r"|/\*\s*stylelint-(?:disable|enable)\b"
+    r"|/\*\*?[\s*]*(?:@(?:type|typedef|template|satisfies|import)\b)"
     r")"
 )
 

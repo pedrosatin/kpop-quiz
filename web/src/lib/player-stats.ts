@@ -8,8 +8,8 @@ export interface GameStats {
   won: number;
   currentStreak: number;
   maxStreak: number;
-  lastPlayedDate?: string; // YYYY-MM-DD
-  guessDistribution?: Record<number, number>; // para o Name Guess (1 a 6)
+  lastPlayedDate?: string;
+  guessDistribution?: Record<number, number>;
 }
 
 export interface OverallStats {
@@ -17,7 +17,7 @@ export interface OverallStats {
   won: number;
   currentStreak: number;
   maxStreak: number;
-  lastPlayedDate?: string; // YYYY-MM-DD
+  lastPlayedDate?: string;
 }
 
 export interface DailySetLines {
@@ -38,12 +38,6 @@ export interface PlayerStats {
 
 export const PLAYER_STATS_STORAGE_KEY = "kpop-player-stats-v1";
 export const ALL_GAME_IDS: GameId[] = ["quiz", "grid", "connections", "name-guess", "word-search", "timeline", "map", "code", "crossword", "strands"];
-/**
- * Stats added after v1. `parsePlayerStatsJson` still accepts an export from
- * before the game existed, normalizing the missing entries to zeroed stats
- * that `applyPlayerStatsFile` then writes, so a stats file keeps importing
- * across graduations.
- */
 const LATER_GAME_IDS: GameId[] = ["map", "code", "crossword", "strands"];
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -233,8 +227,6 @@ export function calculateOverallStreak(
   if (!lastPlayedDate) return 1;
   const diff = getDaysDifference(lastPlayedDate, currentDate);
   if (diff < 0) return prevStreak;
-  // A day with a finished game is worth at least 1, including a 0 saved by
-  // the earlier rule, which reset the overall streak on a loss.
   if (diff === 0) return Math.max(prevStreak, 1);
   return diff === 1 ? prevStreak + 1 : 1;
 }
@@ -288,14 +280,12 @@ export function recordGameFinish(
     overall.lastPlayedDate = latestDate(overall.lastPlayedDate, dailyDate);
   }
 
-  // Counts update
   game.played += 1;
   stats.overall.played += 1;
   if (isWin) {
     game.won += 1;
     stats.overall.won += 1;
 
-    // Guess distribution for name-guess
     if (gameId === "name-guess" && typeof guessCount === "number" && guessCount >= 1 && guessCount <= 6) {
       if (!game.guessDistribution) {
         game.guessDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
@@ -311,12 +301,10 @@ export function recordGameFinish(
 
 const MATCH_RECORD_KEY_PREFIX = "kpop-match-recorded-";
 
-/** A non-negative integer small enough that adding to it stays exact. */
 function isValidCounter(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
-/** A `YYYY-MM-DD` date that exists on the calendar: "2026-02-30" does not. */
 function isCalendarDate(value: string): boolean {
   if (!DATE_PATTERN.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number) as [number, number, number];
@@ -324,12 +312,6 @@ function isCalendarDate(value: string): boolean {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
-/**
- * The counters and last daily date of one stats block, as the app writes
- * them. The date is the day of a daily challenge, so it cannot be after
- * today's (`dailyReferenceDate`): a later date would freeze the streak,
- * because `recordGameFinish` ignores dates before the last recorded one.
- */
 function validateStatsBlock(raw: unknown, today: string): raw is Record<string, unknown> {
   if (!isPlainObject(raw)) return false;
   const record = raw as Record<string, unknown>;
@@ -342,7 +324,6 @@ function validateStatsBlock(raw: unknown, today: string): raw is Record<string, 
   const currentStreak = record["currentStreak"] as number;
   const maxStreak = record["maxStreak"] as number;
   if (maxStreak < currentStreak) return false;
-  // Each day in a streak is at least one finished game.
   if (currentStreak > played) return false;
   const lastPlayedDate = record["lastPlayedDate"];
   if (lastPlayedDate !== undefined) {
@@ -397,8 +378,6 @@ function validateImportedGames(
     if (!ALL_GAME_IDS.includes(key as GameId)) return { success: false, error: "unknown-game" };
   }
   for (const gameId of ALL_GAME_IDS) {
-    // Games added after v1 may be absent from an older export; the import
-    // normalizes them to zeroed stats instead of rejecting the whole file.
     if (LATER_GAME_IDS.includes(gameId) && gamesRaw[gameId] === undefined) continue;
     const entry = gamesRaw[gameId];
     if (entry === undefined) {
@@ -458,7 +437,6 @@ function buildImportedGames(gamesRaw: Record<string, unknown>): Record<GameId, G
       games[gameId] = createDefaultGameStats(false);
       continue;
     }
-    // Every game id was validated above, so each entry is a plain object here.
     games[gameId] = buildImportedGameStats(gameId, gamesRaw[gameId] as Record<string, unknown>);
   }
   return games;
@@ -503,7 +481,6 @@ export function parsePlayerStatsJson(raw: string, today: string = dailyReference
 /** Replaces every local stat with the file's. Day markers stay (ADR 030). */
 export function applyPlayerStatsFile(file: PlayerStatsFile): ImportPlayerStatsResult {
   savePlayerStats(file.stats);
-  // savePlayerStats fails silently by design, so confirm the write landed.
   if (JSON.stringify(loadPlayerStats()) !== JSON.stringify(file.stats)) {
     return { success: false, error: "io-error" };
   }
@@ -520,8 +497,6 @@ export function importPlayerStatsJson(raw: string): ImportPlayerStatsResult {
   return parsed.success ? applyPlayerStatsFile(parsed.file) : parsed;
 }
 
-// Note: exportPlayerStatsJson and resetPlayerStats stay best-effort under
-// storage failure, matching this module's fail-silent storage convention.
 
 export function resetPlayerStats(): void {
   savePlayerStats(createInitialPlayerStats());

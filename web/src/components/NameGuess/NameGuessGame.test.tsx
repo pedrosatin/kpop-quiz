@@ -241,7 +241,6 @@ describe("NameGuessGame component", () => {
 
     typeGuess("TWICE");
 
-    // Game is won
     expect(screen.getByText(tPt.wonTitle)).toBeInTheDocument();
 
     // The description, the stats and the source open from the result bar.

@@ -91,7 +91,6 @@ export function WordSearchList({
           />
         ))}
       </ul>
-      {}
       {!completed && onToggleEasyMode && (
         <button type="button" class="btn btn-secondary btn-sm toggle-mode-btn" onClick={onToggleEasyMode}>
           {isEasy ? t.hideWords : t.showWords}

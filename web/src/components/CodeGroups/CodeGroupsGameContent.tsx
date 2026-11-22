@@ -55,7 +55,6 @@ export function CodeGroupsGameContent({ puzzle, locale, messages }: CodeGroupsGa
   return (
     <section id="code-groups" tabIndex={-1} aria-label={messages.codeTitle} class="game-card game-card--wide code-groups" data-testid="game-board">
       <p class="code-sequence-note">{messages.codeSequenceNote}</p>
-      {}
       {finished ? (
         <CodeGroupsResult
           puzzle={puzzle}
