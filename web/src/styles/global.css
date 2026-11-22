@@ -11,6 +11,7 @@
 @import "./games/connections.css";
 @import "./games/name-guess.css";
 @import "./games/word-search.css";
+@import "./games/strands.css";
 @import "./games/map-pilot.css";
 @import "./games/timeline.css";
 @import "./games/crossword.css";

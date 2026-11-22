@@ -1,0 +1,50 @@
+/*
+  Strands reuses the Word Search letter grid, chips and action bar. This file
+  only adds theme/spangram markers and a slightly taller progress row.
+*/
+
+.strands {
+  --ws-list: 5.5rem;
+}
+
+.strands-theme-label {
+  margin: 0 0 var(--space-1);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.word-search-cell.is-spangram.is-found {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.word-search-item.is-spangram {
+  font-weight: 600;
+}
+
+.word-search-item.is-spangram.is-found {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.strands-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.strands-result {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.strands-result-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.strands-state .loading-message,
+.strands-state .state-error {
+  margin: 0;
+}
