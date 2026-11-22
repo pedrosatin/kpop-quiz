@@ -9,6 +9,14 @@ from itertools import islice
 from .catalog import MUSICAL_GROUP_CLASSES
 from .entities import extract_aliases, instance_of, matching_names
 from .evidence import WikipediaPage, assess_references
+from .fact_limits import (
+    FactTruncation,
+    cap_has_member_candidates,
+    cap_matching_names,
+    cap_member_ids,
+    cap_pages_wikitext,
+    record_issues,
+)
 from .fact_store import CatalogGroup, FactRunTotals, FactStore, count_statuses
 from .facts import (
     ExtractedFacts,
@@ -68,6 +76,8 @@ class _RunState:
     names: dict[str, tuple[str, ...]] = field(default_factory=dict)
     person_pages: dict[str, PersonPageRequest] = field(default_factory=dict)
     subjects: list[_Subject] = field(default_factory=list)
+    truncations: list[FactTruncation] = field(default_factory=list)
+    preserved_members_by_subject: dict[str, set[str]] = field(default_factory=dict)
     batches: int = 0
     ignored: int = 0
 
@@ -150,8 +160,13 @@ class _Run:
         known_groups = set(catalog_by_id)
 
         processed_groups = self._process_groups(groups)
+        self._cap_group_memberships()
         group_candidates = [c for subject in state.subjects for c in subject.candidates]
-        self._process_members(member_ids(group_candidates), known_groups)
+        members, run_truncation = cap_member_ids(member_ids(group_candidates))
+        if run_truncation is not None:
+            state.truncations.append(run_truncation)
+            self._drop_run_capped_members(set(members))
+        self._process_members(members, known_groups)
         all_candidates = [c for subject in state.subjects for c in subject.candidates]
 
         reference_candidates = self._reference_groups(
@@ -160,6 +175,11 @@ class _Run:
         countries = self._resolve_values(all_candidates)
         pages = self._pages(processed_groups, all_candidates)
         person_pages, person_statements, preserved = self._person_evidence(all_candidates)
+        pages, page_cuts = cap_pages_wikitext(pages)
+        person_pages, person_cuts = cap_pages_wikitext(person_pages)
+        state.truncations.extend(page_cuts)
+        state.truncations.extend(person_cuts)
+        record_issues(self.store, self.run_id, state.truncations)
 
         context = ValidationContext(
             names=state.names,
@@ -174,6 +194,11 @@ class _Run:
         by_statement = {d.candidate.statement.statement_id: d for d in decisions}
         if self.person_client is None:
             assert_none_downgraded(preserved, by_statement)
+        preserve_people = frozenset(
+            qid
+            for qids in state.preserved_members_by_subject.values()
+            for qid in qids
+        )
         for subject in state.subjects:
             self.store.save_facts(
                 self.run_id,
@@ -182,6 +207,9 @@ class _Run:
                 subject.snapshot_id,
                 [by_statement[c.statement.statement_id] for c in subject.candidates],
                 state.entity_ids,
+                preserve_member_qids=frozenset(
+                    state.preserved_members_by_subject.get(subject.wikidata_id, ())
+                ),
             )
         processed_page_ids = {
             catalog_by_id[requested_id].source_page_id
@@ -196,7 +224,9 @@ class _Run:
         stale = self.store.mark_catalog_subjects_stale(
             self.run_id, unavailable_page_ids
         )
-        stale += self.store.mark_stale_facts(self.run_id)
+        stale += self.store.mark_stale_facts(
+            self.run_id, preserve_person_qids=preserve_people
+        )
 
         totals = count_statuses(decisions)
         return FactRunTotals(
@@ -209,6 +239,7 @@ class _Run:
             superseded=totals["superseded"],
             ignored=state.ignored,
             stale=stale,
+            truncations=tuple(state.truncations),
         )
 
     def _fetch(
@@ -250,12 +281,67 @@ class _Run:
         entity_id, stored_type = self.store.save_entity(
             document, snapshot_id, profile.name, entity_type, source_page_id
         )
-        names = matching_names(extract_aliases(document.payload))
+        names, name_cut = cap_matching_names(
+            matching_names(extract_aliases(document.payload)),
+            document.wikidata_id,
+        )
+        if name_cut is not None:
+            self.state.truncations.append(name_cut)
         for key in {requested_id, document.wikidata_id}:
             self.state.entity_ids[key] = entity_id
             self.state.entity_types[key] = stored_type
             self.state.names[key] = names
         return entity_id
+
+    def _cap_group_memberships(self) -> None:
+        for index, subject in enumerate(self.state.subjects):
+            before = {
+                candidate.value_id
+                for candidate in subject.candidates
+                if candidate.predicate == "has_member" and candidate.value_id
+            }
+            capped, cuts = cap_has_member_candidates(subject.candidates)
+            if not cuts:
+                continue
+            after = {
+                candidate.value_id
+                for candidate in capped
+                if candidate.predicate == "has_member" and candidate.value_id
+            }
+            self.state.preserved_members_by_subject.setdefault(
+                subject.wikidata_id, set()
+            ).update(before - after)
+            self.state.truncations.extend(cuts)
+            self.state.subjects[index] = _Subject(
+                subject.wikidata_id,
+                subject.entity_id,
+                subject.snapshot_id,
+                capped,
+            )
+
+    def _drop_run_capped_members(self, kept_members: set[str]) -> None:
+        for index, subject in enumerate(self.state.subjects):
+            kept: list[FactCandidate] = []
+            dropped = False
+            for candidate in subject.candidates:
+                if (
+                    candidate.predicate == "has_member"
+                    and candidate.value_id
+                    and candidate.value_id not in kept_members
+                ):
+                    self.state.preserved_members_by_subject.setdefault(
+                        subject.wikidata_id, set()
+                    ).add(candidate.value_id)
+                    dropped = True
+                else:
+                    kept.append(candidate)
+            if dropped:
+                self.state.subjects[index] = _Subject(
+                    subject.wikidata_id,
+                    subject.entity_id,
+                    subject.snapshot_id,
+                    tuple(kept),
+                )
 
     def _add_subject(
         self,

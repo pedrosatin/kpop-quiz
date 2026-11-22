@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, field
 
 from . import rebuild_phases
 from .entities import Alias, canonical_name, extract_aliases
 from .evidence import EVIDENCE_RULES_VERSION, WikipediaPage
+from .fact_limits import FactTruncation
 from .sources import SOURCE_POLICY_VERSION, classify_source
 from .storage import Repository, SnapshotIntegrityError, canonical_json, utc_now
 from .validation import (
@@ -55,6 +56,7 @@ class FactRunTotals:
     superseded: int
     ignored: int
     stale: int = 0
+    truncations: tuple[FactTruncation, ...] = field(default=(), compare=False)
     birth_before: tuple[BirthCoverage, ...] = field(default=(), compare=False)
     birth_after: tuple[BirthCoverage, ...] = field(default=(), compare=False)
 
@@ -533,6 +535,7 @@ class FactStore:
         snapshot_id: int,
         decisions: Iterable[FactDecision],
         entity_ids: Mapping[str, int],
+        preserve_member_qids: Collection[str] = (),
     ) -> None:
         """Upsert the subject's facts by statement ID and remove stale statements."""
         now = utc_now()
@@ -550,7 +553,9 @@ class FactStore:
             )
             self._save_fact_evidence(fact_id, snapshot_id, decision)
 
-        self._delete_removed_statements(subject_entity_id, current)
+        self._delete_removed_statements(
+            subject_entity_id, current, preserve_member_qids
+        )
         self.connection.execute(
             "UPDATE entities SET last_fact_run_id=? WHERE id=?",
             (run_id, subject_entity_id),
@@ -675,17 +680,30 @@ class FactStore:
             )
 
     def _delete_removed_statements(
-        self, subject_entity_id: int, current: Iterable[str]
+        self,
+        subject_entity_id: int,
+        current: Iterable[str],
+        preserve_member_qids: Collection[str] = (),
     ) -> None:
         keep = set(current)
-        removed = [
-            int(row["id"])
-            for row in self.connection.execute(
-                "SELECT id, statement_id FROM facts WHERE subject_entity_id=?",
-                (subject_entity_id,),
-            )
-            if row["statement_id"] not in keep
-        ]
+        preserve = set(preserve_member_qids)
+        removed: list[int] = []
+        for row in self.connection.execute(
+            """
+            SELECT id, statement_id, predicate, value_wikidata_id
+            FROM facts WHERE subject_entity_id=?
+            """,
+            (subject_entity_id,),
+        ):
+            if row["statement_id"] in keep:
+                continue
+            if (
+                row["predicate"] == "has_member"
+                and row["value_wikidata_id"]
+                and row["value_wikidata_id"] in preserve
+            ):
+                continue
+            removed.append(int(row["id"]))
         for i in range(0, len(removed), 900):
             batch = removed[i : i + 900]
             placeholders = ",".join("?" * len(batch))
@@ -697,7 +715,9 @@ class FactStore:
             )
 
     @rebuild_phases.timed(rebuild_phases.STORAGE)
-    def mark_stale_facts(self, run_id: int) -> int:
+    def mark_stale_facts(
+        self, run_id: int, preserve_person_qids: Collection[str] = ()
+    ) -> int:
         """Mark facts whose subject left the catalog or every group member list.
 
         Groups need an accepted catalog entry for their source page. The source
@@ -724,14 +744,29 @@ class FactStore:
             (STALE, run_id, ACCEPTED),
         )
         stale = cursor.rowcount
+        preserved = sorted({qid for qid in preserve_person_qids if qid})
+        if preserved:
+            placeholders = ",".join("?" for _ in preserved)
+            person_filter = f"AND e.wikidata_id NOT IN ({placeholders})"
+            person_params: tuple[object, ...] = (
+                STALE,
+                run_id,
+                ACCEPTED,
+                ACCEPTED,
+                *preserved,
+            )
+        else:
+            person_filter = ""
+            person_params = (STALE, run_id, ACCEPTED, ACCEPTED)
         cursor = self.connection.execute(
-            """
+            f"""
             UPDATE facts
             SET status=?, status_reason='subject_not_listed_by_group', fact_run_id=?
             WHERE status = ?
               AND subject_entity_id IN (
                 SELECT e.id FROM entities e
                 WHERE e.entity_type = 'person'
+                  {person_filter}
                   AND NOT EXISTS (
                     SELECT 1 FROM facts member
                     WHERE member.predicate = 'has_member'
@@ -740,7 +775,7 @@ class FactStore:
                   )
               )
             """,
-            (STALE, run_id, ACCEPTED, ACCEPTED),
+            person_params,
         )
         return stale + cursor.rowcount
 
