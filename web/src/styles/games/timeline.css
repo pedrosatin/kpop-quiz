@@ -191,14 +191,23 @@
   color: var(--color-text-muted);
 }
 /*
-  Short laptop windows: drop the play-card description so five cards clear
-  the sticky bar. The title stays fully visible (no clamp). Results keep the
-  description. 50rem = 800px covers 1280x720 and 1366x768; 1440x900 keeps it.
+  Short laptop windows: hide the play-card description from view so five
+  cards clear the sticky bar. Screen readers still read it (same rules as
+  .visually-hidden). The title stays fully visible (no clamp), and results
+  keep the description. 50rem = 800px covers 1280x720 and 1366x768.
 */
 @media (max-height: 50rem) {
   .timeline-card > .timeline-card-body > .timeline-card-description,
   .timeline-card > .timeline-card-description {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 }
 .timeline-controls,
