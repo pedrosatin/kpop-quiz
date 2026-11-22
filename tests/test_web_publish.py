@@ -13,14 +13,17 @@ from kpop_scraping.code_groups_cli import validate as validate_code_groups_puzzl
 from kpop_scraping.connections_schema import validate_connections_puzzle
 from kpop_scraping.grid_schema import validate_intersection_grid
 from kpop_scraping.name_guess_schema import validate_name_guess_puzzle
+from kpop_scraping.strands_schema import validate_strands_puzzle
 from kpop_scraping.timeline_schema import validate_timeline_puzzle
 from kpop_scraping.word_search_schema import validate_word_search_puzzle
+from tests.daily_fixtures import strands_puzzle_for
 from tests.test_word_search_schema import plant_repeated_word
 from kpop_scraping.web_publish import (
     CODE_GROUPS_DAILY_FILENAME,
     CONNECTIONS_DAILY_FILENAME,
     GRID_DAILY_FILENAME,
     NAME_GUESS_DAILY_FILENAME,
+    STRANDS_DAILY_FILENAME,
     TIMELINE_DAILY_FILENAME,
     WORD_SEARCH_DAILY_FILENAME,
     build_manifest,
@@ -102,6 +105,9 @@ class WebPublishTests(unittest.TestCase):
 
     def code_groups(self, seed: str = "kpop-code-groups-daily-2026-10-12"):
         return build_code_groups_puzzle(seed)
+
+    def strands(self, reference_date: str = "2026-10-20"):
+        return strands_puzzle_for(reference_date)
 
     def test_publishes_and_verifies_canonical_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -890,6 +896,63 @@ class WebPublishTests(unittest.TestCase):
 
             publish(output, self.sessions(), code_groups=self.code_groups())
             code_present = main(["--output-dir", str(output), "--verify", "--require-code-groups"])
+            self.assertEqual(code_present, 0)
+
+    def test_verify_validates_existing_strands_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), strands=self.strands())
+            verify(output)
+            verify(output, require_strands=True)
+
+    def test_verify_require_strands_fails_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            with self.assertRaisesRegex(ValueError, "missing required strands artifact"):
+                verify(output, require_strands=True)
+
+    def test_verify_require_strands_false_passes_when_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            verify(output, require_strands=False)
+            verify(output)
+
+    def test_publish_with_strands(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions(), strands=self.strands())
+            puzzle_path = output / STRANDS_DAILY_FILENAME
+            self.assertTrue(puzzle_path.is_file())
+            self.assertEqual(puzzle_path.read_bytes()[-1:], b"\n")
+            payload = json.loads(puzzle_path.read_text(encoding="utf-8"))
+            validate_strands_puzzle(payload)
+            verify(output, require_strands=True)
+
+    def test_publish_with_invalid_strands_fails_before_creating_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            invalid_puzzle = {"schema_version": "invalid"}
+            with self.assertRaises(ValueError):
+                publish(output, self.sessions(), strands=invalid_puzzle)
+            self.assertFalse((output / STRANDS_DAILY_FILENAME).exists())
+
+    def test_cli_require_strands_without_verify_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            code = main(["--output-dir", str(output), "--require-strands"])
+            self.assertEqual(code, 1)
+
+    def test_cli_verify_with_require_strands(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            publish(output, self.sessions())
+            code_missing = main(["--output-dir", str(output), "--verify", "--require-strands"])
+            self.assertEqual(code_missing, 1)
+
+            publish(output, self.sessions(), strands=self.strands())
+            code_present = main(["--output-dir", str(output), "--verify", "--require-strands"])
             self.assertEqual(code_present, 0)
 
 

@@ -42,6 +42,7 @@ from .web_publish import (
     GRID_DAILY_FILENAME,
     MANIFEST_FILENAME,
     NAME_GUESS_DAILY_FILENAME,
+    STRANDS_DAILY_FILENAME,
     TIMELINE_DAILY_FILENAME,
     WORD_SEARCH_DAILY_FILENAME,
 )
@@ -90,6 +91,7 @@ BOARDS: dict[str, tuple[str, Callable[[dict[str, Any]], str | None]]] = {
     "timeline": (TIMELINE_DAILY_FILENAME, _puzzle_id),
     "code-groups": (CODE_GROUPS_DAILY_FILENAME, _puzzle_id),
     "crossword": (CROSSWORD_DAILY_FILENAME, _crossword_id),
+    "strands": (STRANDS_DAILY_FILENAME, _puzzle_id),
 }
 
 

@@ -15,29 +15,61 @@ not a new generation of everything:
 Each test gets its own copy of both, and nothing a test changes reaches
 another one. The generation and determinism tests do not use this module,
 and each flow keeps at least one test that generates for real.
+
+The daily runner fixture database does not hold a roster that fills a 9x9
+Strands grid, so ``published_set`` and ``reuse_quiz`` stub
+``generate_strands_puzzle`` with the schema fixture dated to the request.
+Tests that exercise a Strands miss patch the generator themselves.
 """
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import io
+import json
 import pickle
 import shutil
 import sqlite3
 import tempfile
 import unittest
 from contextlib import redirect_stderr
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable
 from unittest.mock import patch
 
 from kpop_scraping import daily_puzzles_runner
 from kpop_scraping.daily_puzzles_runner import run_daily_puzzles
+from kpop_scraping.strands_schema import compute_strands_puzzle_id, validate_strands_puzzle
 
 _real_generate_quiz = daily_puzzles_runner._generate_quiz
 _workspace: tempfile.TemporaryDirectory | None = None
 _sets: dict[tuple, tuple[Path, list[dict[str, Any]]]] = {}
 _quizzes: dict[tuple, bytes] = {}
+_STRANDS_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "strands_puzzle_valid.json"
+_strands_template: dict[str, Any] | None = None
+
+
+def strands_puzzle_for(reference_date: str | date) -> dict[str, Any]:
+    """Return the Strands schema fixture sealed for ``reference_date``."""
+    global _strands_template
+    if _strands_template is None:
+        _strands_template = json.loads(_STRANDS_FIXTURE.read_text(encoding="utf-8"))
+        validate_strands_puzzle(_strands_template)
+    day = reference_date.isoformat() if isinstance(reference_date, date) else reference_date
+    payload = copy.deepcopy(_strands_template)
+    payload["reference_date"] = day
+    payload["puzzle_id"] = compute_strands_puzzle_id(payload)
+    validate_strands_puzzle(payload)
+    return payload
+
+
+def _stub_strands_puzzle(connection, seed, reference_date=None, **kwargs):
+    del connection, seed, kwargs
+    if reference_date is None:
+        raise ValueError("strands fixture stub needs a reference_date")
+    return strands_puzzle_for(reference_date)
 
 
 def _root() -> Path:
@@ -74,6 +106,9 @@ def _generate_quiz_once(
 def reuse_quiz(test: unittest.TestCase) -> None:
     """Serve the quiz of every run in ``test`` from ``_generate_quiz_once``."""
     test.enterContext(patch.object(daily_puzzles_runner, "_generate_quiz", _generate_quiz_once))
+    test.enterContext(
+        patch.object(daily_puzzles_runner, "generate_strands_puzzle", _stub_strands_puzzle)
+    )
 
 
 def _rebased(value: Any, source: str, target: str) -> Any:
@@ -116,6 +151,7 @@ def published_set(
             seed(source)
         results = []
         with patch.object(daily_puzzles_runner, "_generate_quiz", _generate_quiz_once), \
+                patch.object(daily_puzzles_runner, "generate_strands_puzzle", _stub_strands_puzzle), \
                 redirect_stderr(io.StringIO()):
             for run in runs:
                 results.append(run_daily_puzzles(database=database, output_dir=source, **run))

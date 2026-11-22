@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Convenience command-line script to generate and publish daily K-pop puzzles."""
+"""Convenience command-line script to generate and publish daily K-pop puzzles.
+
+Delegates to ``kpop_scraping.daily_puzzles_cli``, which generates the quiz
+sessions and the daily boards (grid, connections, name guess, word search,
+timeline, group code, crossword and strands) under the partial-publish policy.
+"""
 
 from __future__ import annotations
 

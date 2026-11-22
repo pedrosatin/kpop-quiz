@@ -1,6 +1,6 @@
 """Unified daily puzzle generation and publishing runner.
 
-Deterministically generates and atomically publishes the 8 daily K-pop puzzle games:
+Deterministically generates and atomically publishes the daily K-pop puzzle games:
 1. Daily bilingual quiz sessions (and session.pt-BR.json, session.en.json)
 2. Intersection grid (grid.daily.json)
 3. Connections puzzle (connections.daily.json)
@@ -9,6 +9,7 @@ Deterministically generates and atomically publishes the 8 daily K-pop puzzle ga
 6. Timeline puzzle (timeline.daily.json)
 7. Group code pilot (code-groups.daily.json)
 8. Crossword (crossword.daily.json, with crossword-publication.<date>.json)
+9. Strands (strands.daily.json)
 
 Failure policy (partial publish): each game is generated and validated on
 its own, and a failure of any kind (``MemoryError`` included) leaves only
@@ -84,6 +85,8 @@ from .grid_publication import publication, read_publication, write_publication
 from .grid_schema import validate_intersection_grid, write_intersection_grid_atomic
 from .name_guess_generator import generate_name_guess_puzzle
 from .name_guess_schema import validate_name_guess_puzzle
+from .strands_generator import generate_strands_puzzle
+from .strands_schema import validate_strands_puzzle
 from .quiz_catalog import (
     build_catalog,
     build_catalog_manifest,
@@ -108,6 +111,7 @@ from .web_publish import (
     LOCALES,
     MANIFEST_FILENAME,
     NAME_GUESS_DAILY_FILENAME,
+    STRANDS_DAILY_FILENAME,
     TIMELINE_DAILY_FILENAME,
     WORD_SEARCH_DAILY_FILENAME,
     create_daily_sessions,
@@ -235,7 +239,7 @@ def generate_daily_puzzles(
     related_clues: bool = False,
     crossword_previous: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Deterministically generate the 8 daily puzzles for reference_date.
+    """Deterministically generate the daily puzzles for reference_date.
 
     The quiz sessions always come out without related decade clues: those are
     the ones the v2 manifest lists, and a client released before the clues
@@ -324,6 +328,14 @@ def generate_daily_puzzles(
     if crossword_public is not None:
         omitted_public["crossword"] = crossword_public
 
+    # 9. Strands. Never an earlier board: a solver miss omits only this game.
+    strands = generate("strands", lambda: _checked(
+        generate_strands_puzzle(
+            connection, seed=f"kpop-strands-daily-{iso_date}", reference_date=ref_date
+        ),
+        validate_strands_puzzle,
+    ))
+
     sessions = quiz.get("sessions")
     return {
         "reference_date": iso_date,
@@ -346,6 +358,7 @@ def generate_daily_puzzles(
         "code_groups": code_groups,
         "crossword": crossword,
         "crossword_record": crossword_record,
+        "strands": strands,
         # Full reasons for the run's log and result; the public record of
         # the day (daily-set.json) gets the short ones.
         "omitted": omitted,
@@ -444,6 +457,8 @@ def publish_daily_puzzles(
     current eligibility policy for its answers, not only the schema.
     The group code pilot never reuses an earlier artifact: the day publishes
     without ``code-groups.daily.json`` and ``code_groups_skipped`` says why.
+    Strands follows the same rule: a solver miss omits ``strands.daily.json``
+    and ``strands_skipped`` records the reason.
     With ``prune``, game files outside the new set are removed. Publication
     history remains available to reject cached artifacts from earlier days.
     """
@@ -458,6 +473,7 @@ def publish_daily_puzzles(
         puzzles["sessions"], puzzles["grid"], puzzles["connections"], puzzles["name_guess"],
         puzzles["word_search"], puzzles["timeline"], puzzles["code_groups"],
         crossword if crossword is not None and crossword["status"] == "ready" else None,
+        puzzles.get("strands"),
     ]
     if all(artifact is None for artifact in generated):
         raise NoGamePublishedError(
@@ -480,6 +496,7 @@ def publish_daily_puzzles(
             code_groups=puzzles["code_groups"],
             enriched_sessions=puzzles.get("enriched_sessions"),
             crossword=crossword,
+            strands=puzzles.get("strands"),
         )
         crossword_record = puzzles.get("crossword_record")
         if crossword_record is not None:
@@ -503,6 +520,11 @@ def publish_daily_puzzles(
         code_groups_skipped = (
             {"error": errors.get("code-groups") or "unknown error"}
             if puzzles["code_groups"] is None
+            else None
+        )
+        strands_skipped = (
+            {"error": errors.get("strands") or "unknown error"}
+            if puzzles.get("strands") is None
             else None
         )
         write_daily_set(staging_dir, daily_set(
@@ -553,6 +575,8 @@ def publish_daily_puzzles(
             "timeline_id": _board_id(puzzles["timeline"]),
             "code_groups_id": _board_id(puzzles["code_groups"]),
             "code_groups_skipped": code_groups_skipped,
+            "strands_id": _board_id(puzzles.get("strands")),
+            "strands_skipped": strands_skipped,
             **{
                 key: {"error": errors[game]} if game in errors else None
                 for game, key in SKIPPED_KEYS.items()
@@ -860,10 +884,11 @@ def _published_result(output_dir: Path, reference_date: str, **flags: Any) -> di
         if grid is None
         else None
     )
-    # The group code artifact is optional in a published set; sets published
-    # before the daily integration, and days published under the partial
-    # publish policy, have no file to read.
+    # The group code and Strands artifacts are optional in a published set;
+    # sets published before those integrations, and days published under the
+    # partial publish policy, have no file to read.
     code_groups = read(CODE_GROUPS_DAILY_FILENAME)
+    strands = read(STRANDS_DAILY_FILENAME)
     manifest = read(MANIFEST_FILENAME)
     skipped = {
         key: (
@@ -886,6 +911,10 @@ def _published_result(output_dir: Path, reference_date: str, **flags: Any) -> di
         "code_groups_id": _board_id(code_groups),
         "code_groups_skipped": (
             {"published_without_code_groups": True} if code_groups is None else None
+        ),
+        "strands_id": _board_id(strands),
+        "strands_skipped": (
+            {"published_without_strands": True} if strands is None else None
         ),
         **skipped,
         **_crossword_result(read(CROSSWORD_DAILY_FILENAME), read_crossword_record(output_dir, reference_date)),

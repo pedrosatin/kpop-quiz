@@ -169,6 +169,20 @@ def report_skipped_code_groups(code_groups_skipped: dict[str, Any] | None) -> No
     warn("Daily group code missing", message)
 
 
+def report_skipped_strands(strands_skipped: dict[str, Any] | None) -> None:
+    """Make a day published without the Strands puzzle visible in the run summary."""
+    if not strands_skipped:
+        return
+    if strands_skipped.get("published_without_strands"):
+        message = "The published set for this day carries no strands.daily.json"
+    else:
+        message = (
+            "Day published without Strands because generation "
+            f"failed: {strands_skipped['error']}"
+        )
+    warn("Daily strands omitted", message)
+
+
 # Result key, warning title and published file of each game reported by
 # report_skipped_games; the grid, the group code pilot and the crossword have
 # reporters of their own.
@@ -348,6 +362,7 @@ def main(argv: list[str] | None = None) -> int:
         report_revalidated_grid(result.get("grid_revalidated"))
         report_skipped_grid(result.get("grid_skipped"))
         report_skipped_code_groups(result.get("code_groups_skipped"))
+        report_skipped_strands(result.get("strands_skipped"))
         report_skipped_games(result)
         report_ambiguous_connections(result)
         report_skipped_crossword(result.get("crossword_skipped"), result.get("crossword_confirmed"))
@@ -370,6 +385,7 @@ def main(argv: list[str] | None = None) -> int:
             report_reused_grid(result["next"].get("grid_reused"))
             report_skipped_grid(result["next"].get("grid_skipped"))
             report_skipped_code_groups(result["next"].get("code_groups_skipped"))
+            report_skipped_strands(result["next"].get("strands_skipped"))
             report_skipped_games(result["next"])
             report_skipped_crossword(result["next"].get("crossword_skipped"))
             report_word_search_fallback(result["next"].get("word_search_fallback"))

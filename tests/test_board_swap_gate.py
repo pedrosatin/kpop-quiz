@@ -22,6 +22,7 @@ DAY_START = datetime(2026, 10, 19, 0, tzinfo=SAO_PAULO)
 GAMES = {
     "quiz": "q1", "grid": "g1", "connections": "c1", "name-guess": "n1",
     "word-search": "w1", "timeline": "t1", "code-groups": "k1", "crossword": "x1",
+    "strands": "s1",
 }
 
 
@@ -61,6 +62,7 @@ def write_set(directory: Path, day: str, **changes: str | None) -> None:
         "crossword": ("crossword.daily.json", {
             "reference_date": day, "status": "ready", "dataset_version": boards["crossword"],
         }),
+        "strands": ("strands.daily.json", puzzle("strands")),
     }
     directory.mkdir(parents=True, exist_ok=True)
     for game, (name, payload) in files.items():

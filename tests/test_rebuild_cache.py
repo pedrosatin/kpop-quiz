@@ -72,7 +72,10 @@ class SchemaCacheTest(unittest.TestCase):
                     with redirect_stderr(io.StringIO()):
                         result = run_daily_puzzles(database=db, output_dir=root / "published", reference_date="2026-11-18")
                     self.assertEqual(result["reference_date"], "2026-11-18")
-                    for game in ("grid", "connections", "name-guess", "word-search", "timeline", "code-groups", "crossword"):
+                    for game in (
+                        "grid", "connections", "name-guess", "word-search",
+                        "timeline", "code-groups", "crossword", "strands",
+                    ):
                         artifact = root / "published" / f"{game}.daily.json"
                         self.assertTrue(artifact.is_file(), (game, result))
                     self.assertTrue(any("session.daily" in name for name in result["published_files"]))
