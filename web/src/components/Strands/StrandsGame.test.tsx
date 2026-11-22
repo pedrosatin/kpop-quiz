@@ -15,7 +15,7 @@ function cell(row: number, col: number): HTMLElement {
   return document.querySelector<HTMLElement>(`[data-row="${row}"][data-col="${col}"]`)!;
 }
 
-/** Drive the shared grid handlers with integer cell positions. */
+/** Drive the shared grid handlers with a continuous drag (confirms on release). */
 function selectByHandlers(word: StrandsWord) {
   const path = pathFromCells(word.cells);
   const first = path[0]!;
@@ -27,9 +27,28 @@ function selectByHandlers(word: StrandsWord) {
   fireEvent.pointerUp(cell(last.row, last.col), { pointerId: 1, buttons: 0 });
 }
 
+/** One-cell tap: extends the trail without confirming. */
+function tapCell(row: number, col: number, pointerId = 1) {
+  fireEvent.pointerDown(cell(row, col), { pointerId, buttons: 1 });
+  fireEvent.pointerUp(cell(row, col), { pointerId, buttons: 0 });
+}
+
+/** Build a trail by tapping each cell, then submit with the Confirm button. */
+function tapPathAndConfirm(word: StrandsWord) {
+  const path = pathFromCells(word.cells);
+  for (const step of path) {
+    tapCell(step.row, step.col);
+  }
+  fireEvent.click(screen.getByTestId("strands-confirm"));
+}
+
 function press(key: string) {
   const target = document.activeElement ?? screen.getByRole("grid");
   fireEvent.keyDown(target, { key });
+}
+
+function statusRegion(): HTMLElement {
+  return screen.getByRole("status");
 }
 
 describe("StrandsGame board", () => {
@@ -108,8 +127,107 @@ describe("StrandsGame board", () => {
     fireEvent.pointerUp(cell(0, 2), { pointerId: 1 });
 
     await waitFor(() => {
-      expect(screen.getByRole("status").textContent).toMatch(/não é uma palavra|ALP/i);
+      expect(statusRegion().textContent).toMatch(/não é uma palavra|ALP/i);
     });
+  });
+
+  it("clears a short drag and shows too-short feedback", async () => {
+    render(<StrandsGame locale="pt-BR" puzzle={puzzle} />);
+    fireEvent.pointerDown(cell(0, 0), { pointerId: 1, buttons: 1 });
+    fireEvent.pointerMove(cell(0, 1), { pointerId: 1, buttons: 1 });
+    fireEvent.pointerUp(cell(0, 1), { pointerId: 1, buttons: 0 });
+
+    await waitFor(() => {
+      expect(statusRegion()).toHaveTextContent(tPt.tooShortFeedback);
+    });
+    expect(cell(0, 0)).not.toHaveClass("is-selected");
+    expect(cell(0, 1)).not.toHaveClass("is-selected");
+    expect(screen.getByTestId("strands-confirm")).toBeDisabled();
+  });
+
+  it("builds a long word by taps and confirms with the button", async () => {
+    render(<StrandsGame locale="pt-BR" puzzle={puzzle} />);
+    const member = puzzle.words.find((word) => !word.is_spangram)!;
+    expect(member.cells.length).toBeGreaterThanOrEqual(4);
+
+    const path = pathFromCells(member.cells);
+    for (const step of path.slice(0, 3)) {
+      tapCell(step.row, step.col);
+    }
+    expect(statusRegion().textContent).toMatch(/Trilha:/);
+    expect(screen.getByTestId("strands-confirm")).toBeEnabled();
+
+    for (const step of path.slice(3)) {
+      tapCell(step.row, step.col);
+    }
+    fireEvent.click(screen.getByTestId("strands-confirm"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("found-counter")).toHaveTextContent(
+        tPt.progress(1, puzzle.words.length),
+      );
+    });
+    expect(statusRegion()).toHaveTextContent(
+      tPt.foundFeedback(member.labels["pt-BR"], 1, puzzle.words.length),
+    );
+  });
+
+  it("undoes the last letter when the previous cell is tapped again", () => {
+    render(<StrandsGame locale="pt-BR" puzzle={puzzle} />);
+    tapCell(0, 0);
+    tapCell(0, 1);
+    expect(statusRegion().textContent).toMatch(/AL/);
+    tapCell(0, 0);
+    expect(statusRegion().textContent).toMatch(/Trilha: A\./);
+    expect(statusRegion().textContent).not.toMatch(/AL/);
+  });
+
+  it("reports a repeat when the same word is found twice", async () => {
+    render(<StrandsGame locale="pt-BR" puzzle={puzzle} />);
+    const member = puzzle.words.find((word) => !word.is_spangram)!;
+    tapPathAndConfirm(member);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("found-counter")).toHaveTextContent(
+        tPt.progress(1, puzzle.words.length),
+      );
+    });
+
+    tapPathAndConfirm(member);
+
+    await waitFor(() => {
+      expect(statusRegion()).toHaveTextContent(
+        tPt.repeatFeedback(member.labels["pt-BR"]),
+      );
+    });
+    expect(screen.getByTestId("found-counter")).toHaveTextContent(
+      tPt.progress(1, puzzle.words.length),
+    );
+  });
+
+  it("announces progress in the status when a word is found", async () => {
+    render(<StrandsGame locale="pt-BR" puzzle={puzzle} />);
+    const spangram = puzzle.words.find((word) => word.is_spangram)!;
+    selectByHandlers(spangram);
+
+    await waitFor(() => {
+      expect(statusRegion()).toHaveTextContent(
+        tPt.spangramFeedback(spangram.labels["pt-BR"], 1, puzzle.words.length),
+      );
+    });
+    expect(statusRegion().textContent).toMatch(/1 de 7 palavras/);
+  });
+
+  it("keeps Confirm and Clear disabled until a trail exists", () => {
+    render(<StrandsGame locale="pt-BR" puzzle={puzzle} />);
+    expect(screen.getByTestId("strands-confirm")).toBeDisabled();
+    expect(screen.getByTestId("strands-clear")).toBeDisabled();
+    tapCell(0, 0);
+    expect(screen.getByTestId("strands-confirm")).toBeEnabled();
+    expect(screen.getByTestId("strands-clear")).toBeEnabled();
+    fireEvent.click(screen.getByTestId("strands-clear"));
+    expect(statusRegion()).toHaveTextContent(tPt.cancelFeedback);
+    expect(screen.getByTestId("strands-confirm")).toBeDisabled();
   });
 });
 

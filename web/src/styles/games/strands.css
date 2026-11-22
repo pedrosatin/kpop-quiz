@@ -1,6 +1,7 @@
 /*
   Strands reuses the Word Search letter grid, chips and action bar. This file
-  only adds theme/spangram markers and a slightly taller progress row.
+  only adds theme/spangram markers, a taller progress row and room for the
+  Confirm / Clear buttons beside Give up.
 */
 
 .strands {
@@ -32,6 +33,19 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
+}
+
+/* Confirm and Clear stay mounted (disabled when empty) so the bar height
+   does not jump; .btn already targets 44px via --control-height. */
+.strands .word-search-actions > .btn {
+  min-height: var(--control-height);
+}
+
+@media (max-width: 420px) {
+  .strands {
+    /* Message + progress + two button rows (Confirm/Clear + Give up). */
+    --ws-actions: 10.25rem;
+  }
 }
 
 .strands-result {

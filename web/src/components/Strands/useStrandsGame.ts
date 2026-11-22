@@ -99,6 +99,8 @@ export function useStrandsGame(puzzle: StrandsPuzzle, locale: Locale) {
     handleCellPointerEnter: whilePlaying(status, trail.handleCellPointerEnter),
     handleCellPointerUp: whilePlaying(status, trail.handleCellPointerUp),
     handleKeyDown: whilePlaying(status, trail.handleKeyDown),
+    confirmTrail: whilePlaying(status, trail.confirm),
+    cancelTrail: whilePlaying(status, trail.cancel),
     giveUp,
   };
 }

@@ -48,8 +48,11 @@ export function StrandsGameContent({
     handleCellPointerEnter,
     handleCellPointerUp,
     handleKeyDown,
+    confirmTrail,
+    cancelTrail,
     giveUp,
   } = useStrandsGame(puzzle, locale);
+  const hasTrail = path.length > 0;
 
   const completed = status === "completed";
   const finishedOnLoad = useRef(completed);
@@ -119,6 +122,8 @@ export function StrandsGameContent({
               activeLetters={activeLetters}
               lastCheck={lastCheck}
               wordName={wordName}
+              foundCount={foundKeys.length}
+              totalWords={puzzle.words.length}
             />
           )}
         </div>
@@ -141,6 +146,24 @@ export function StrandsGameContent({
               spangramFound={spangramFound}
               elapsedSeconds={elapsedSeconds}
             />
+            <button
+              type="button"
+              class="btn btn-primary"
+              onClick={confirmTrail}
+              disabled={!hasTrail}
+              data-testid="strands-confirm"
+            >
+              {t.confirm}
+            </button>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onClick={cancelTrail}
+              disabled={!hasTrail}
+              data-testid="strands-clear"
+            >
+              {t.clear}
+            </button>
             <button type="button" class="btn btn-secondary" onClick={requestGiveUp}>
               {messages.giveUp}
             </button>

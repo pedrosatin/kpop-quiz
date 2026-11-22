@@ -103,12 +103,18 @@ export interface StrandsMessages {
   foundState: string;
   progress: (found: number, total: number) => string;
   progressAnnouncement: (found: number, total: number, spangramFound: boolean) => string;
-  foundFeedback: (name: string) => string;
-  spangramFeedback: (name: string) => string;
+  /** Status after a find: name plus running word count. */
+  foundFeedback: (name: string, found: number, total: number) => string;
+  /** Status after finding the spangram: name plus running word count. */
+  spangramFeedback: (name: string, found: number, total: number) => string;
   repeatFeedback: (name: string) => string;
   missFeedback: (letters: string) => string;
   tooShortFeedback: string;
   cancelFeedback: string;
+  /** Confirms the current trail (same as Enter). */
+  confirm: string;
+  /** Clears the current trail (same as Escape). */
+  clear: string;
   congratulations: string;
   resultSummary: (total: number, time: string) => string;
   loading: string;
@@ -1029,18 +1035,21 @@ const catalogs: Record<Locale, Messages> = {
       timerLabel: "Tempo",
       lettersCount: (count) => (count === 1 ? "1 letra" : `${count} letras`),
       selectionLabel: "Trilha:",
-      selectionHint: "Ligue letras vizinhas em uma trilha contínua. Espaço marca, Enter confirma, Esc cancela.",
+      selectionHint:
+        "Ligue letras vizinhas. Toque ou Espaço estende a trilha; Confirmar ou Enter confirma; Limpar ou Esc descarta.",
       pathHint: (letters) => `Trilha: ${letters}.`,
       foundState: "encontrada",
       progress: (found, total) => `${found} de ${total}`,
       progressAnnouncement: (found, total, spangramFound) =>
         `${found} de ${total} palavras.${spangramFound ? " Spangram encontrado." : " Spangram ainda não encontrado."}`,
-      foundFeedback: (name) => `Achou: ${name}.`,
-      spangramFeedback: (name) => `Spangram: ${name}.`,
+      foundFeedback: (name, found, total) => `Achou: ${name}. ${found} de ${total} palavras.`,
+      spangramFeedback: (name, found, total) => `Spangram: ${name}. ${found} de ${total} palavras.`,
       repeatFeedback: (name) => `Você já achou ${name}.`,
       missFeedback: (letters) => `${letters} não é uma palavra do tema.`,
       tooShortFeedback: "A trilha precisa de pelo menos três letras.",
       cancelFeedback: "Trilha cancelada.",
+      confirm: "Confirmar",
+      clear: "Limpar",
       congratulations: "Parabéns!",
       resultSummary: (total, time) => `${total} palavras em ${time}.`,
       loading: "Carregando as palavras conectadas de hoje...",
@@ -1601,25 +1610,28 @@ const catalogs: Record<Locale, Messages> = {
       timerLabel: "Time",
       lettersCount: (count) => (count === 1 ? "1 letter" : `${count} letters`),
       selectionLabel: "Path:",
-      selectionHint: "Link neighboring letters in a continuous path. Space marks, Enter confirms, Esc cancels.",
+      selectionHint:
+        "Link neighboring letters. Tap or Space extends the path; Submit or Enter confirms; Clear or Esc clears it.",
       pathHint: (letters) => `Path: ${letters}.`,
       foundState: "found",
       progress: (found, total) => `${found} of ${total}`,
       progressAnnouncement: (found, total, spangramFound) =>
         `${found} of ${total} words.${spangramFound ? " Spangram found." : " Spangram not found yet."}`,
-      foundFeedback: (name) => `Found: ${name}.`,
-      spangramFeedback: (name) => `Spangram: ${name}.`,
+      foundFeedback: (name, found, total) => `Found: ${name}. ${found} of ${total} words.`,
+      spangramFeedback: (name, found, total) => `Spangram: ${name}. ${found} of ${total} words.`,
       repeatFeedback: (name) => `You already found ${name}.`,
       missFeedback: (letters) => `${letters} is not a theme word.`,
       tooShortFeedback: "The path needs at least three letters.",
       cancelFeedback: "Path canceled.",
+      confirm: "Submit",
+      clear: "Clear",
       congratulations: "Well done!",
       resultSummary: (total, time) => `${total} words in ${time}.`,
       loading: "Loading today's strands...",
       loadError: "The game could not be loaded.",
       artifactMissing: "Today's strands puzzle has not been published yet.",
       incompatibleVersion: "This board version is not compatible with the site.",
-      offline: "You are offline. Try again when the network is back.",
+      offline: "You're offline. Try again once you're connected.",
       retry: "Try again",
       cellAria: (row, col, letter, isSelected, isFound, isSpangram = false) => {
         const state = isFound

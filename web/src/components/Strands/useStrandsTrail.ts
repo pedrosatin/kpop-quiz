@@ -32,8 +32,8 @@ export interface StrandsTrailOptions {
 
 /**
  * Continuous trail selection: eight neighbours, undo by revisiting the
- * previous cell, no reuse in the same trail. Pointer drag and keyboard
- * (arrows, Space to mark/extend, Enter to confirm, Esc to cancel).
+ * previous cell, no reuse in the same trail. Drag confirms on release;
+ * a simple tap only extends the trail (Confirm / Enter submit it).
  */
 export function useStrandsTrail({ dimensions, grid, playing, judge }: StrandsTrailOptions) {
   const [focusedCell, setFocusedCell] = useState<CellCoord>({ row: 0, col: 0 });
@@ -46,6 +46,8 @@ export function useStrandsTrail({ dimensions, grid, playing, judge }: StrandsTra
   const pathRef = useRef(path);
   pathRef.current = path;
   const dragPointer = useRef<number | null>(null);
+  const gestureStart = useRef<CellCoord | null>(null);
+  const draggedBeyondStart = useRef(false);
   const playingRef = useRef(playing);
   playingRef.current = playing;
 
@@ -65,6 +67,8 @@ export function useStrandsTrail({ dimensions, grid, playing, judge }: StrandsTra
 
   const clear = useCallback(() => {
     dragPointer.current = null;
+    gestureStart.current = null;
+    draggedBeyondStart.current = false;
     setTrail([]);
   }, [setTrail]);
 
@@ -94,6 +98,8 @@ export function useStrandsTrail({ dimensions, grid, playing, judge }: StrandsTra
     if (dragPointer.current !== null && dragPointer.current !== pointerId) return;
     const cell = nearestCell({ row, col }, dimensions);
     dragPointer.current = pointerId;
+    gestureStart.current = cell;
+    draggedBeyondStart.current = false;
     setLastCheck(null);
     if (pathRef.current.length === 0) {
       setTrail([cell]);
@@ -107,6 +113,9 @@ export function useStrandsTrail({ dimensions, grid, playing, judge }: StrandsTra
     if (!playingRef.current) return;
     if (dragPointer.current === null || dragPointer.current !== pointerId) return;
     const cell = nearestCell({ row, col }, dimensions);
+    if (gestureStart.current && !sameCell(gestureStart.current, cell)) {
+      draggedBeyondStart.current = true;
+    }
     const next = extendTrail(pathRef.current, cell);
     if (next.length !== pathRef.current.length || !sameCell(next[next.length - 1], pathRef.current[pathRef.current.length - 1])) {
       setTrail(next);
@@ -116,9 +125,14 @@ export function useStrandsTrail({ dimensions, grid, playing, judge }: StrandsTra
 
   const handleCellPointerUp = useCallback((_row: number, _col: number, pointerId = 0) => {
     if (dragPointer.current !== pointerId) return;
+    const wasDrag = draggedBeyondStart.current;
     dragPointer.current = null;
+    gestureStart.current = null;
+    draggedBeyondStart.current = false;
     if (!playingRef.current) return;
-    if (pathRef.current.length >= 3) confirm();
+    // Drag: confirm when long enough; too-short clears with the same feedback as Enter.
+    // Simple tap: leave the trail for more taps or the Confirm button.
+    if (wasDrag) confirm();
   }, [confirm]);
 
   useEffect(() => {

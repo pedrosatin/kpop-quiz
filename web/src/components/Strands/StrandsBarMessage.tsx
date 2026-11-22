@@ -6,18 +6,22 @@ interface StrandsBarMessageProps {
   activeLetters: string;
   lastCheck: TrailCheck | null;
   wordName: (key: string) => string;
+  foundCount: number;
+  totalWords: number;
 }
 
 function verdictText(
   check: TrailCheck,
   t: Messages["strands"],
   wordName: (key: string) => string,
+  foundCount: number,
+  totalWords: number,
 ): string {
   switch (check.kind) {
     case "found":
       return check.isSpangram
-        ? t.spangramFeedback(wordName(check.wordKey))
-        : t.foundFeedback(wordName(check.wordKey));
+        ? t.spangramFeedback(wordName(check.wordKey), foundCount, totalWords)
+        : t.foundFeedback(wordName(check.wordKey), foundCount, totalWords);
     case "repeat":
       return t.repeatFeedback(wordName(check.wordKey));
     case "miss":
@@ -35,6 +39,8 @@ export function StrandsBarMessage({
   activeLetters,
   lastCheck,
   wordName,
+  foundCount,
+  totalWords,
 }: StrandsBarMessageProps) {
   if (activeLetters.length > 0) {
     return (
@@ -46,7 +52,7 @@ export function StrandsBarMessage({
     );
   }
   if (lastCheck) {
-    return <>{verdictText(lastCheck, t, wordName)}</>;
+    return <>{verdictText(lastCheck, t, wordName, foundCount, totalWords)}</>;
   }
   return <>{t.selectionHint}</>;
 }
