@@ -66,6 +66,9 @@ const CODE_GROUPS_CALENDAR_DATES = [
   { value: "2023-02-29", accepted: false, label: "Feb 29 in a common year" },
   { value: "2026-02-30", accepted: false, label: "Feb 30" },
   { value: "2026-13-01", accepted: false, label: "month 13" },
+  { value: "2026-00-01", accepted: false, label: "month 00" },
+  { value: "2026-01-00", accepted: false, label: "day 00" },
+  { value: "2026-01-32", accepted: false, label: "day 32" },
   { value: "0099-01-01", accepted: true, label: "year 0099" },
 ] as const;
 
