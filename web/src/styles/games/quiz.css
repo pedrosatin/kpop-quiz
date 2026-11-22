@@ -1,7 +1,3 @@
-/* Multiple-choice quiz: setup form, question, answer options and feedback. */
-
-/* Setup */
-
 .quiz-setup fieldset {
   min-width: 0;
   margin: 0 0 var(--space-5);
@@ -60,16 +56,11 @@
   accent-color: var(--color-theme);
 }
 
-/* Setup, question and result share the 64rem card (.game-card--wide), so
-   the card keeps its width from one state to the next; Start, Submit and
-   Next sit in the sticky .game-actions bar at the foot of it. */
-
 .quiz-setup,
 .quiz-round {
   --game-actions-inset: var(--space-4);
 }
 
-/* Room for the kicker above the focused setup title after "Jogar o Quiz geral". */
 .quiz-setup {
   scroll-margin-top: var(--space-4);
 }
@@ -89,10 +80,6 @@
   margin-bottom: 0;
 }
 
-/* Customize: the mode, the timer and the decades sit closed under one row
-   that names their current values, so the kind of quiz and Start are what a
-   visit sees first. The row is a full-width control at least as tall as
-   --control-height. */
 .setup-customize {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
@@ -147,10 +134,6 @@
   font-size: 0.875rem;
 }
 
-/* The server writes the default summary, one line. The stored mode and timer
-   arrive after hydration and may need two ("Modo Especialista · 20 segundos
-   por pergunta"), so on phones the line keeps room for two from the start and
-   the row does not grow under the player's thumb. */
 @media (max-width: 40rem) {
   .setup-customize-summary {
     min-height: 2lh;
@@ -167,8 +150,6 @@
   }
 }
 
-/* From 60rem the open group runs in two columns: the decades on the left,
-   the mode and the timer on the right. */
 @media (min-width: 60rem) {
   .setup-customize-body--split {
     display: grid;
@@ -181,7 +162,7 @@
     margin-bottom: 0;
   }
 
-  /* Four decades on one row of the half-width column, not three and one. */
+  
   .decade-options {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
   }
@@ -191,10 +172,6 @@
   }
 }
 
-/* Question round */
-
-/* Keep the reading area above the actions, including when consent or source
-   details change height. The question scrolls without passing under the bar. */
 @media (max-width: 59.999rem) {
   .quiz-round {
     display: grid;
@@ -204,10 +181,7 @@
     scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-4));
   }
 
-  /* The grid already pins the bar as the last row of the capped round. The
-     shared sticky offset lets the bar ride up over the question scrollport
-     when the consent banner grows after the round was positioned, so the
-     round keeps the bar in flow and lets scroll margin keep it reachable. */
+  
   .quiz-round .quiz-actions {
     position: static;
   }
@@ -243,9 +217,7 @@
     line-clamp: unset;
   }
 
-  /* An open source panel reads at full height (.source-panel): the round
-     drops its cap and grows with the panel, so the page scrolls instead of
-     the question or the panel. */
+  
   .quiz-round:has(.quiz-source:not([hidden])) {
     max-height: none;
   }
@@ -284,8 +256,6 @@
   margin-bottom: var(--space-4);
 }
 
-/* The notice replaces the clue: one quiet line, on screen before and after
-   the answer, so the options under it keep their place. */
 .quiz-clue--absent {
   margin: 0;
   color: var(--color-text-muted);
@@ -385,8 +355,6 @@
   color: var(--color-error-bg);
 }
 
-/* On phones the question, four options and the action bar share one screen
-   below the intro, so rows shrink to the 44px touch target. */
 @media (max-width: 420px) {
   .quiz-round .progress-track {
     margin: var(--space-2) 0 var(--space-3);
@@ -413,20 +381,15 @@
   }
 }
 
-/* Action bar: verdict, sources toggle and Next */
-
 .quiz-actions .game-actions-message {
   flex-basis: 100%;
-  /* The message always takes two lines, so answering does not grow the bar
-     or move the card. The hint before an answer sits in the middle. */
+  
   display: flex;
   flex-direction: column;
   justify-content: center;
   min-height: calc(2lh + 0.2rem);
 }
 
-/* Desktop keeps the compact verdict; mobile uses the scrollable message
-   above. The sources panel repeats the full answers at every width. */
 .quiz-verdict {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -435,8 +398,6 @@
   overflow: hidden;
 }
 
-/* Toggle, sources panel and Next follow DOM order: the open panel takes its
-   own row between the toggle and Next. */
 .quiz-actions-buttons {
   display: flex;
   flex: 1 1 auto;
@@ -445,8 +406,6 @@
   gap: var(--space-2);
 }
 
-/* Opens inside the bar at full height (.source-panel), so the explanation
-   shows next to Next; a long one grows the page, not a box inside it. */
 .quiz-source {
   flex-basis: 100%;
   font-size: 0.875rem;
@@ -464,12 +423,6 @@
   overflow-wrap: anywhere;
 }
 
-/* From 60rem the wide card has room for the message and the buttons on one
-   row: hint or verdict on the left, Submit or the toggle and Next on the
-   right. The message keeps its two-line height, so answering does not move
-   the card. The buttons wrapper drops out of the layout (it has no role), so
-   an open panel takes a full-width row below, still between the toggle and
-   Next in DOM order, and Next follows at the right. */
 @media (min-width: 60rem) {
   .quiz-actions {
     flex-wrap: wrap;
@@ -493,9 +446,7 @@
     margin-inline-start: auto;
   }
 
-  /* An open panel grows the bar past a short window. Like the other games'
-     bars, it then stops being sticky, so it never covers the question and
-     the page scrolls to Next. */
+  
   .quiz-actions:has(.quiz-source:not([hidden])) {
     position: static;
   }
@@ -511,15 +462,11 @@
   }
 }
 
-/* Result */
-
 .quiz-result-summary {
   display: grid;
   gap: var(--space-4);
 }
 
-/* Finished daily: short note and the two next actions on one equal-width row
-   so DailyNext stays above the fold at 390×844 with a general round in progress. */
 .quiz-daily-done-note {
   margin: 0;
   color: var(--color-text-muted);
@@ -563,9 +510,6 @@
   }
 }
 
-/* From 60rem the title and buttons sit at the left of the stats, and
-   the review runs in two columns. Items fill each row left to right, the
-   same order as the DOM, and an opened source grows its own row only. */
 @media (min-width: 60rem) {
   .quiz-result {
     text-align: start;
@@ -584,8 +528,7 @@
     grid-area: title;
   }
 
-  /* Keep .score-summary a plain div with no role: some browsers drop the
-     role of an element with display: contents. */
+  
   .quiz-result .score-summary {
     display: contents;
   }
@@ -612,7 +555,7 @@
     align-items: flex-start;
   }
 
-  /* Cards in a row stretch to the same height while their sources are closed. */
+  
   .quiz-result .review-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -639,8 +582,6 @@
   font-size: 0.8125rem;
   font-weight: 600;
 }
-
-/* Licensed media and attribution */
 
 .quiz-media {
   margin: var(--space-3) 0;
@@ -708,10 +649,6 @@
 .feedback textarea { display: block; width: 100%; min-height: 6rem; margin-block: 0.5rem; }
 .feedback .btn-row { margin-top: 0.75rem; }
 
-/* Below the setup card: a round saved in progress in the other language and
-   the link that resumes it there. It appears after hydration; below the card
-   it moves neither the card nor the action bar. The link keeps the 44px
-   control height and sits 8px under the sentence. */
 .other-locale-round {
   max-width: 64rem;
   margin: var(--space-4) auto 0;
@@ -733,11 +670,6 @@
   }
 }
 
-/* The setup's action bar with a round saved in the other language: the link
-   sits over the round rules in one grid cell. The rules stay in the layout,
-   hidden, so the bar keeps the height it had before hydration and Start does
-   not move. The link fills the cell, at least 44px tall, and must not need
-   more lines than the rules (two at 360px in both languages). */
 .setup-hint {
   display: grid;
 }
@@ -747,8 +679,6 @@
   min-width: 0;
 }
 
-/* The rules keep their own margins: .game-actions-message p would add
-   0.1rem above and below and grow the bar by 3px. */
 .setup-hint .setup-rules {
   margin: 0;
   visibility: hidden;

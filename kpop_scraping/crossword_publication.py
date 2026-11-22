@@ -35,16 +35,13 @@ PILOT_FILENAME = 'crossword-pilot.json'
 _HASH = re.compile(r'[0-9a-f]{64}')
 _QID = re.compile(r'Q[1-9][0-9]*')
 
-
 def filename(reference_date: str) -> str:
     if not isinstance(reference_date, str) or date.fromisoformat(reference_date).isoformat() != reference_date:
         raise ValueError('Invalid crossword publication date')
     return f'{PREFIX}{reference_date}.json'
 
-
 def _hash_or_none(value: Any) -> bool:
     return value is None or (isinstance(value, str) and bool(_HASH.fullmatch(value)))
-
 
 def validate_record(value: Any) -> None:
     if not isinstance(value, dict) or set(value) != FIELDS or value['schema_version'] != VERSION:
@@ -77,9 +74,7 @@ def validate_record(value: Any) -> None:
         if set(qids) & set(value['previous']['qids']):
             raise ValueError('Crossword repeats a group of the previous day')
     elif (value['dataset_version'] is None) != (value['previous'] is None) or reason is None:
-        # An omitted artifact records its history; an omission without one says why.
         raise ValueError('Invalid omitted crossword publication')
-
 
 def _record(**fields: Any) -> dict:
     value = dict(schema_version=VERSION, source='daily', qids=[], dataset_version=None,
@@ -87,7 +82,6 @@ def _record(**fields: Any) -> dict:
     value.update(fields)
     validate_record(value)
     return value
-
 
 def record_from_artifact(artifact: dict) -> dict:
     """Record of a ``crossword-daily-v1`` artifact, ready or omitted."""
@@ -99,18 +93,15 @@ def record_from_artifact(artifact: dict) -> dict:
                    previous=artifact['previous'],
                    reason=None if ready else 'generation attempts exhausted')
 
-
 def omission_record(reference_date: str, reason: str) -> dict:
     """A day published without any crossword artifact."""
     return _record(reference_date=reference_date, state='omitted', reason=reason)
-
 
 def pilot_record(reference_date: str, board: dict) -> dict:
     """The fixed audited board a set published before the daily integration served."""
     pilot.validate(board)
     return _record(reference_date=reference_date, source='pilot', state='played',
                    qids=list(board['vocabulary']), dataset_version=board['dataset_version'])
-
 
 def read_record(directory: Path, reference_date: str) -> dict | None:
     path = Path(directory) / filename(reference_date)
@@ -121,7 +112,6 @@ def read_record(directory: Path, reference_date: str) -> dict | None:
     if value['reference_date'] != reference_date:
         raise ValueError('Crossword publication date mismatch')
     return value
-
 
 def write_record(directory: Path, value: dict) -> None:
     validate_record(value)
@@ -135,10 +125,8 @@ def write_record(directory: Path, value: dict) -> None:
             write_json_atomic(archive, previous, validate_record)
     write_json_atomic(target, value, validate_record)
 
-
 def has_history(directory: Path) -> bool:
     return any(Path(directory).glob(f'{PREFIX}*.json'))
-
 
 def read_pilot(directory: Path) -> dict | None:
     """The audited pilot board in directory, when present and valid."""
@@ -151,7 +139,6 @@ def read_pilot(directory: Path) -> dict | None:
     except (OSError, ValueError):
         return None
     return board
-
 
 def confirmed_record(
     directory: Path, reference_date: str, served_ahead: Path | None = None
@@ -179,7 +166,6 @@ def confirmed_record(
     board = read_pilot(directory)
     return pilot_record(reference_date, board) if board is not None else None
 
-
 def context_for(reference_date: str, previous_record: dict | None) -> dict | None:
     """History context to generate reference_date from the record of the day before."""
     if previous_record is None:
@@ -189,7 +175,6 @@ def context_for(reference_date: str, previous_record: dict | None) -> dict | Non
         raise ValueError('Crossword publication is not the previous day')
     return history_context(reference_date, {
         'state': previous_record['state'], 'date': expected, 'qids': list(previous_record['qids'])})
-
 
 def verify_history(*directories: Path) -> None:
     """Validate every record and that no two consecutive played days share a group.

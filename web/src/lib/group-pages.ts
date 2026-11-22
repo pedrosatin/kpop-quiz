@@ -44,17 +44,17 @@ export const GROUP_PAGES: readonly GroupPageDefinition[] = [
     wikidataId: "Q46134670",
     name: "Stray Kids",
     currentMemberIds: [
-      "Q59670293", // Bang Chan
-      "Q59260597", // Lee Know
-      "Q61100669", // Changbin
-      "Q57601775", // Hyunjin
-      "Q60994278", // Han
-      "Q61100678", // Felix
-      "Q60467634", // Seungmin
-      "Q59831589", // I.N
+      "Q59670293",
+      "Q59260597",
+      "Q61100669",
+      "Q57601775",
+      "Q60994278",
+      "Q61100678",
+      "Q60467634",
+      "Q59831589",
     ],
     formerMemberIds: [
-      "Q61100680", // Kim Woo-jin (valid_to 2019-10-28)
+      "Q61100680",
     ],
   },
 ];

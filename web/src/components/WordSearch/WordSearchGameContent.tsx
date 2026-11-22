@@ -21,11 +21,8 @@ import { DailyDone, useDailyMatchDone } from "../Results/DailyDone";
 interface WordSearchGameContentProps {
   puzzle: WordSearchPuzzle;
   locale: Locale;
-  /** When false, free-play: no daily stats, DailyDone, or daily share. */
   daily?: boolean;
-  /** Overrides the default home word-search share URL (used by group pages). */
   shareUrl?: string;
-  /** Inside a group-page section (already an h2), demote inner titles to h3. */
   headingLevel?: 2 | 3;
 }
 
@@ -62,8 +59,6 @@ export function WordSearchGameContent({
   const completed = status === "completed";
   const gaveUp = hasGivenUp(status, foundCount, totalWords);
 
-  // Only a puzzle finished in this visit moves focus to the result; one
-  // restored from storage leaves focus where the page put it.
   const finishedOnLoad = useRef(completed);
   const resultTitle = useRef<HTMLHeadingElement>(null);
   useFocusOnChange(resultTitle, completed && !finishedOnLoad.current);
@@ -84,8 +79,6 @@ export function WordSearchGameContent({
     completed,
   );
 
-  // Names are resolved against the whole list, so two words that differ only
-  // by a disambiguator keep it.
   const displayNames = buildLocalizedDisplayNames(puzzle.words, locale);
   const wordName = (id: string) => displayNames.get(id) ?? "";
 
@@ -128,18 +121,12 @@ export function WordSearchGameContent({
         />
       </div>
 
-      {/* Selection, verdict and progress while playing, the result at the
-          end; the grid above never moves. */}
       <div class={`game-actions word-search-actions${barState}`}>
-        {/* Mounted from the start so the first verdict is announced. At the end
-            the result title takes its place, and this only announces the copy. */}
         <div
           class={`game-actions-message word-search-message${completed ? " visually-hidden" : ""}`}
           role="status"
           aria-live="polite"
         >
-          {/* While playing it says what the selection is doing; at the end
-              it only announces a copy, and the result title takes its place. */}
           {completed ? (
             <WordSearchShareNote note={shareNote} messages={messages} />
           ) : (

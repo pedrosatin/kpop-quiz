@@ -1,12 +1,3 @@
-// Regenerates the Open Graph cards in public/og/: one 1200x630 PNG per
-// indexable route (ADR 021). Run it after changing a game name, the tagline
-// or the card layout, then commit the PNGs:
-//   npm run og:generate
-// Chromium from the Playwright devDependency renders the card with the
-// self-hosted variable fonts (npm run playwright:install fetches it). Names,
-// paths and the tagline come from the TypeScript modules the site uses, loaded
-// through Vite like the build does, so extensionless imports and type-only
-// imports inside them keep working.
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,7 +17,6 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-// Light theme colors from src/styles/tokens.css.
 const style = (width, height) => `
 @font-face {
   font-family: "Space Grotesk";
@@ -68,7 +58,6 @@ body {
 .stripe i { flex: 1; }
 `;
 
-// Connections difficulty colors as the bottom stripe.
 const STRIPE = ["#FDE047", "#86EFAC", "#93C5FD", "#D8B4FE"]
   .map((color) => `<i style="background:${color}"></i>`)
   .join("");
@@ -124,8 +113,6 @@ async function main() {
   const host = new URL(SEO_PROD_ORIGIN).host;
   const outDir = join(publicDir, ...SEO_OG_IMAGE_DIR.split("/").filter(Boolean));
 
-  // Render into a scratch directory and swap it in at the end, so a failure
-  // (no Chromium, a broken layout) leaves the committed cards untouched.
   rmSync(tmpDir, { recursive: true, force: true });
   mkdirSync(tmpDir, { recursive: true });
 
@@ -159,7 +146,6 @@ async function main() {
       );
       await page.evaluate(async () => {
         await document.fonts.ready;
-        // Shrink long game names until they fit on one line.
         const title = document.querySelector(".title");
         const room = document.body.clientWidth - 2 * 88;
         let size = parseFloat(getComputedStyle(title).fontSize);

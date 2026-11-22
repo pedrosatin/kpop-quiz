@@ -11,17 +11,14 @@ from . import rebuild_phases
 from .http_request import DEFAULT_USER_AGENT
 from .mediawiki import MaxlagBudget, MediaWikiClient, MediaWikiError
 
-
 MAX_ENTITIES_PER_REQUEST = 50
 WIKIDATA_ID = re.compile(r"^Q[1-9][0-9]*$")
-
 
 @dataclass(frozen=True)
 class TypeCheck:
     wikidata_id: str
     revision_id: int
     instance_of: tuple[str, ...]
-
 
 @dataclass(frozen=True)
 class EntityProfile:
@@ -38,20 +35,14 @@ class EntityProfile:
             parameters["sitefilter"] = self.sitefilter
         return parameters
 
-
 SUBJECT_PROFILE = EntityProfile(
     name="subject-v1",
     props="info|labels|aliases|claims|sitelinks/urls",
     sitefilter="enwiki|ptwiki|kowiki",
 )
 LABEL_PROFILE = EntityProfile(name="label-v1", props="info|labels|aliases")
-# Values that must be countries need P31, so they are requested with claims.
 COUNTRY_PROFILE = EntityProfile(name="country-v1", props="info|labels|aliases|claims")
-# Only the current revision of each entity, for the incremental rebuild. No
-# snapshot is ever stored under this profile: it only decides which stored
-# snapshots of the other profiles are still current.
 REVISION_PROFILE = EntityProfile(name="revision-only", props="info", languages="en")
-
 
 @dataclass(frozen=True)
 class EntityDocument:
@@ -66,17 +57,13 @@ class EntityDocument:
     def redirected(self) -> bool:
         return self.requested_id != self.wikidata_id
 
-
 @dataclass(frozen=True)
 class EntityBatch:
     documents: tuple[EntityDocument, ...]
     missing: tuple[str, ...]
 
-
 def _is_missing(entity: Any) -> bool:
-    # Wikibase returns "missing": "" for deleted items, even with formatversion=2.
     return not isinstance(entity, dict) or "missing" in entity
-
 
 class WikidataTypeClient(MediaWikiClient):
     """Fetch only entity revision IDs and direct P31 values."""
@@ -131,7 +118,6 @@ class WikidataTypeClient(MediaWikiClient):
                 revision_id=revision_id,
                 instance_of=_instance_of_values(entity),
             )
-
 
 class WikidataEntityClient(WikidataTypeClient):
     """Fetch complete entity documents for fact extraction."""
@@ -195,7 +181,6 @@ class WikidataEntityClient(WikidataTypeClient):
             return EntityBatch(tuple(documents), tuple(missing))
         return EntityBatch((), tuple(missing))
 
-
 def _entity_documents(
     payload: dict[str, Any],
     requested_ids: list[str],
@@ -221,12 +206,9 @@ def _entity_documents(
             raise MediaWikiError(f"Wikidata entity {requested_id} has no valid ID")
         if not isinstance(revision_id, int) or revision_id < 1:
             raise MediaWikiError(f"Wikidata entity {requested_id} has no revision ID")
-        # "redirects" depends on the requested ID, not on the entity revision.
-        # Keeping it would give the same revision two different hashes.
         payload = {key: value for key, value in entity.items() if key != "redirects"}
         documents.append(EntityDocument(requested_id, wikidata_id, revision_id, payload))
     return documents, missing
-
 
 def _instance_of_values(entity: dict[str, Any]) -> tuple[str, ...]:
     values: list[str] = []

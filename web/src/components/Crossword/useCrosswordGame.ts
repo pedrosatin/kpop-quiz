@@ -68,7 +68,6 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
       game: "crossword",
       locale,
       isDaily: () => !isDailyMatchRecorded("crossword", puzzle.reference_date, crosswordMatchId(puzzle)),
-      // Revealing the board is how the player gives up; the round has no loss.
       outcome: status === "won" ? "win" : status === "revealed" ? "give_up" : null,
     },
     finished,
@@ -81,8 +80,6 @@ export function useCrosswordGame(puzzle: CrosswordPuzzle, locale: Locale): UseCr
     storeCrosswordSave(puzzle, { values, status, checks });
   }, [puzzle, values, status, checks, finished]);
 
-  // The crossword loader never serves an earlier day's board, so the round
-  // skips the stale check of `dailyBoardRound`.
   useRecordDailyMatch("crossword", { matchId: crosswordMatchId(puzzle), date: puzzle.reference_date }, finished, status === "won");
 
   const setLetters = useCallback(

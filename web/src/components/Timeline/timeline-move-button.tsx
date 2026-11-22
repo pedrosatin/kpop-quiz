@@ -10,7 +10,6 @@ interface TimelineMoveButtonProps {
 
 const ARROWS: Record<MoveDirection, string> = { up: "↑", down: "↓" };
 
-/** Cancels the repeated keydowns of a held key. */
 function ignoreRepeat(e: KeyboardEvent) {
   if (e.repeat) e.preventDefault();
 }

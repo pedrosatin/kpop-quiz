@@ -11,10 +11,6 @@ import {
   type QuizProgressSave,
 } from "./storage";
 
-// Read-only looks at the progress slots of other configs. Nothing here
-// deletes, migrates or rewrites a save: each config cleans its own slot when
-// the player opens it.
-
 /**
  * The finished daily round of `date` saved in this language that still matches
  * the published session on screen. A save from an earlier board of the same
@@ -53,10 +49,6 @@ export function findOtherLocaleRound(locale: Locale, today: string = dailyRefere
     .sort((a, b) => b.started_at_ms - a.started_at_ms)[0] ?? null;
 }
 
-/**
- * Rebuild the catalog session the other language's page would load for this
- * save, then compare. A question that left the catalog is incompatible.
- */
 async function checkCatalogSaveCompatibility(
   save: QuizProgressSave,
 ): Promise<QuizProgressCompatResult> {

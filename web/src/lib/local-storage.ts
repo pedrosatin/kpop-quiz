@@ -1,14 +1,3 @@
-/**
- * localStorage access that never throws.
- *
- * Private mode, a full quota or a browser that blocks storage make the
- * Storage API throw, and so does reading `window.localStorage` itself. Each
- * function here turns that exception into a return value, so a game keeps
- * playing without its save. On the server there is no `window`, which reads
- * as unavailable storage too.
- *
- * Keys, the stored format, parsing and validation stay with each caller.
- */
 
 /** A read that tells a missing key (`value: null`) from unusable storage. */
 export type LocalStorageRead = { status: "ok"; value: string | null } | { status: "unavailable" };

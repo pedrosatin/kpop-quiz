@@ -16,8 +16,6 @@ export function wordSearchMatchId(puzzle: WordSearchPuzzle): string {
 
 function ignoreInput(): void {}
 
-// A finished board ignores pointer and key input; while it is in play the
-// handler keeps its identity between renders.
 function whilePlaying<A extends unknown[]>(status: GameStatus, handler: (...args: A) => void): (...args: A) => void {
   return status === "in_progress" ? handler : ignoreInput;
 }
@@ -57,7 +55,6 @@ export function useWordSearchGame(
       locale,
       isDaily: () => daily && isDailyBoardRound("word-search", puzzle, wordSearchMatchId(puzzle)),
       outcome: roundOutcome(status, foundWordIds.length, puzzle.words.length),
-      // Group-page free play must not read home word-search streaks for return bands.
       omitReturnBands: !daily,
     },
     status === "completed",
@@ -95,7 +92,6 @@ export function useWordSearchGame(
 
   const foundCellsMap = useMemo(() => foundCellColors(puzzle.words, foundWordIds), [puzzle.words, foundWordIds]);
 
-  // Cells of words the player never found, marked after give-up.
   const revealedCells = useMemo(
     () => revealedCellKeys(status, puzzle.words, foundWordIds),
     [status, puzzle.words, foundWordIds]
@@ -107,7 +103,6 @@ export function useWordSearchGame(
     if (status !== "in_progress") return;
     analytics.start();
     cancelSelection();
-    // Revealing the words shows every answer in the list at once.
     setEasyMode(true);
     setStatus("completed");
   }, [cancelSelection, status]);

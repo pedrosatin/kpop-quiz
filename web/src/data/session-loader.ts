@@ -10,11 +10,6 @@ export class QuizArtifactError extends Error {
 }
 
 type ManifestEntry = { path: string; sha256: string; session_id: string };
-// manifest-v2.json lists sessions every released client accepts. manifest-v3.json
-// has the same shape and lists the same sessions with the decade clues that cite
-// another fact of the answer; a client released before those clues rejects such
-// a session, so it only ever reads v2. This client prefers v3 and falls back to
-// v2 whenever v3 is absent or cannot be used.
 type ManifestSchema = "kpop-quiz-web-manifest-v2" | "kpop-quiz-web-manifest-v3";
 type Manifest = {
   schema_version: ManifestSchema;
@@ -106,8 +101,6 @@ function dailySessionDate(session: QuizSession): string | null {
   return DAILY_SEED.exec(session.config.seed)?.[1] ?? null;
 }
 
-// Daily sessions for the next day are published ahead under data/next/.
-// See daily-artifact.ts.
 async function nextDailySession(current: QuizSession, sessionKey: string, locale: Locale, playMode: PlayMode, baseUrl: string): Promise<QuizSession | null> {
   const today = dailyReferenceDate();
   const currentDate = dailySessionDate(current);
@@ -125,7 +118,6 @@ async function nextDailySession(current: QuizSession, sessionKey: string, locale
   }
 }
 
-/** Daily session from data/next/ alone when the main directory has none for today. */
 async function dailyFromNextOnly(
   sessionKey: string,
   locale: Locale,
@@ -147,12 +139,6 @@ async function dailyFromNextOnly(
   }
 }
 
-/**
- * Runs `read` against the manifest of `dir`, preferring the one with the
- * enriched sessions. Anything that goes wrong with it (absent, malformed, a
- * session it names that cannot be used) only costs the enrichment: the same
- * read then runs against the v2 manifest, whose errors are the ones reported.
- */
 async function withManifest<T>(baseUrl: string, dir: string, read: (manifest: Manifest) => Promise<T>): Promise<T> {
   try {
     const response = await fetch(dataUrl(`${dir}${ENRICHED_MANIFEST.filename}`, baseUrl));
@@ -161,7 +147,6 @@ async function withManifest<T>(baseUrl: string, dir: string, read: (manifest: Ma
       if (isManifest(manifest, ENRICHED_MANIFEST.schema)) return await read(manifest);
     }
   } catch {
-    // Fall through to the manifest every client can read.
   }
   const response = await fetch(dataUrl(`${dir}${LEGACY_MANIFEST.filename}`, baseUrl));
   if (response.status === 404) throw new QuizArtifactError("missing");

@@ -1,7 +1,3 @@
-/*
-  Stylesheet entry point. Order matters: tokens, then page chrome, then shared
-  building blocks, then feature and game styles that build on them.
-*/
 @import "./tokens.css";
 @import "./base.css";
 @import "./components.css";

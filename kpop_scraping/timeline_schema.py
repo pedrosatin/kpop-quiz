@@ -27,9 +27,6 @@ from .puzzle_schema import (
 )
 from .quiz_schema import write_json_atomic
 
-# The generator writes v2. v1 stays readable because a published day keeps
-# its bytes: the cron promotes next/ and keeps already published days, so a
-# v1 artifact can still be verified after the bump.
 TIMELINE_SCHEMA_VERSION = "kpop-timeline-puzzle-v2"
 TIMELINE_LEGACY_SCHEMA_VERSION = "kpop-timeline-puzzle-v1"
 TIMELINE_MIN_YEAR = 1980
@@ -72,16 +69,13 @@ EVENT_TYPES_BY_SCHEMA_VERSION = {
 
 _DATE_PATTERN = re.compile(r"^\d{4}(-\d{2}(-\d{2})?)?$")
 
-
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(f"Invalid timeline puzzle schema: {message}")
 
-
 _require_hash = partial(require_hash, _require)
 _require_qid = partial(require_qid, _require)
 _require_bilingual_text = partial(require_bilingual_text, _require)
-
 
 def _require_date(value: Any, field_name: str) -> None:
     _require(
@@ -104,7 +98,6 @@ def _require_date(value: Any, field_name: str) -> None:
         except ValueError as exc:
             raise ValueError(f"Invalid timeline puzzle schema: {field_name} is not a valid calendar date") from exc
 
-
 def timeline_date_span(date_str: str) -> tuple[date, date]:
     """Return the (earliest, latest) possible dates for a partially precise date.
 
@@ -121,7 +114,6 @@ def timeline_date_span(date_str: str) -> tuple[date, date]:
     if len(parts) == 2:
         return date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1])
     return date(year, month, int(parts[2])), date(year, month, int(parts[2]))
-
 
 def _validate_evidence(evidence: Any, context: str) -> None:
     _require(isinstance(evidence, dict), f"{context} must be an object")
@@ -155,13 +147,11 @@ def _validate_evidence(evidence: Any, context: str) -> None:
         f"{context}.source_url must be a valid https URL",
     )
 
-
 def compute_timeline_puzzle_id(payload: dict[str, Any]) -> str:
     """Compute deterministic SHA-256 hash for a timeline puzzle payload."""
     data = {k: v for k, v in payload.items() if k != "puzzle_id"}
     serialized = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
-
 
 def validate_timeline_puzzle(payload: dict[str, Any]) -> None:
     """Validate timeline puzzle against strict structural and factual rules."""
@@ -228,8 +218,6 @@ def validate_timeline_puzzle(payload: dict[str, Any]) -> None:
                 f"{context}.date ('{curr_date_str}') must be strictly greater than preceding event date ('{prev_date_str}')",
             )
 
-        # Minimum temporal distance between consecutive events, evaluated
-        # conservatively over the precision spans of both dates.
         span_min, span_max = timeline_date_span(curr_date_str)
         if prev_span_max is not None:
             _require(
@@ -256,14 +244,11 @@ def validate_timeline_puzzle(payload: dict[str, Any]) -> None:
         for ev_idx, item in enumerate(evidence):
             _validate_evidence(item, f"{context}.evidence[{ev_idx}]")
 
-    # Year-only dates are tolerated only when every event in the round falls
-    # in a distinct year.
     if has_year_only_date:
         _require(
             len(set(event_years)) == len(event_years),
             "events with year-only dates require all events to fall in distinct years",
         )
-
 
 def write_timeline_puzzle_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
     """Validate and atomically write a timeline puzzle JSON file."""

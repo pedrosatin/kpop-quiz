@@ -1,5 +1,3 @@
-// CI guard for Trilha B (SEO + LLM indexing). Zero dependencies.
-// Usage: node scripts/seo-verify.mjs [--dir web/dist] [--env prod|staging]
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -60,10 +58,6 @@ const EXPECTED_LLMS = [
 
 const GROUP_PAGE_PATHS = EXPECTED_PATHS.filter((path) => path.endsWith("/stray-kids/"));
 
-// Game routes carry static text under the island (GameAbout.astro). Google
-// renders the islands too, but this text is in the served HTML either way.
-// The H2s carry the game name, so the check matches the shape, not one
-// fixed string per locale. Group landing pages use their own body copy.
 const GAME_ABOUT_PATHS = EXPECTED_PATHS.filter(
   (path) => path !== "/pt-br/" && path !== "/en/" && !GROUP_PAGE_PATHS.includes(path),
 );
@@ -92,8 +86,6 @@ function countWords(text) {
   return text.split(" ").filter((word) => /[\p{L}\p{N}]/u.test(word)).length;
 }
 
-// The GameAbout block is the outermost <div class="game-about">; nested divs
-// are balanced by counting open and close tags.
 function gameAboutHtml(html) {
   const start = html.search(/<div[^>]*class="game-about"/);
   if (start < 0) return null;
@@ -133,15 +125,12 @@ function metaContent(html, attr, name) {
   return tag?.[0].match(/content="([^"]*)"/)?.[1];
 }
 
-/** Width and height from the IHDR chunk, or null when the file is not a PNG. */
 function pngSize(path) {
   const bytes = readFileSync(path);
   if (bytes.subarray(1, 4).toString("latin1") !== "PNG") return null;
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
 
-// Large card: absolute og:image on the production host whose file ships in
-// this build with the declared 1200x630 size, mirrored in twitter:image.
 function checkOgImage(dist, html, label) {
   const image = metaContent(html, "property", "og:image");
   if (!check(image?.startsWith(`${PROD_ORIGIN}/og/`), `${label} og:image must be an absolute ${PROD_ORIGIN}/og/ URL, got ${image}`)) {
@@ -152,7 +141,6 @@ function checkOgImage(dist, html, label) {
   check(metaContent(html, "property", "og:image:width") === String(OG_WIDTH), `${label} og:image:width must be ${OG_WIDTH}`);
   check(metaContent(html, "property", "og:image:height") === String(OG_HEIGHT), `${label} og:image:height must be ${OG_HEIGHT}`);
   check(Boolean(metaContent(html, "property", "og:image:alt")), `${label} missing og:image:alt`);
-  // The query is a cache-buster: ?v=<first 8 hex of the PNG's sha256>.
   const [imagePath, query = ""] = image.slice(PROD_ORIGIN.length).split("?");
   const file = join(dist, ...imagePath.split("/").filter(Boolean));
   if (!check(existsSync(file), `${label} og:image ${image} has no file in the build`)) return;
@@ -168,7 +156,6 @@ function checkOgImage(dist, html, label) {
 const noindexRe = /<meta[^>]*name="robots"[^>]*content="noindex"[^>]*>/;
 
 function checkSitemap(dist) {
-  // Sitemap: parseable XML with exactly the 14 canonical prod URLs.
   const sitemapCandidates = existsSync(dist)
     ? readdirSync(dist).filter((name) => /^sitemap.*\.xml$/.test(name))
     : [];
@@ -204,17 +191,12 @@ function checkSitemap(dist) {
 }
 
 function checkRobots(dist, env) {
-  // Robots: env-aware content.
   const robotsPath = join(dist, "robots.txt");
   check(existsSync(robotsPath), "dist/robots.txt missing");
   if (existsSync(robotsPath)) {
     const robots = readFileSync(robotsPath, "utf-8");
     if (env === "prod") {
       check(robots.includes("Allow: /"), "prod robots.txt must Allow: /");
-      // /data/next/ holds the next day's puzzles (published around 12:00 BRT
-      // for the following day), so keep those answers out of crawlers. The
-      // rest of /data/ stays crawlable for the Web Rendering Service, and the
-      // islands fall back to the main artifact when the next/ fetch fails.
       const disallows = robots.split("\n").filter((line) => line.startsWith("Disallow:"));
       check(
         JSON.stringify(disallows) === JSON.stringify(["Disallow: /data/next/"]),
@@ -232,7 +214,6 @@ function checkRobots(dist, env) {
 }
 
 function checkRouteHtml(dist, env) {
-  // Route HTML: canonical/hreflang/OG present, noindex policy per env.
   const htmls = routeHtmlPaths(dist);
   for (const htmlPath of htmls) {
     check(existsSync(htmlPath), `${htmlPath} missing`);
@@ -297,7 +278,6 @@ function checkRouteHtml(dist, env) {
 }
 
 function checkGroupPages(dist) {
-  // Group landing pages: own body copy with ≥300 words and a quiz landmark.
   for (const routePath of GROUP_PAGE_PATHS) {
     const htmlPath = join(dist, ...routePath.split("/").filter(Boolean), "index.html");
     if (!existsSync(htmlPath)) continue;
@@ -315,7 +295,6 @@ function checkGroupPages(dist) {
 }
 
 function checkGameText(dist) {
-  // Game routes: static text with the expected H2s and at least 300 words.
   for (const routePath of GAME_ABOUT_PATHS) {
     const htmlPath = join(dist, ...routePath.split("/").filter(Boolean), "index.html");
     if (!existsSync(htmlPath)) continue;
@@ -344,7 +323,6 @@ function checkGameText(dist) {
 }
 
 function checkIndexNow(dist) {
-  // IndexNow: one <32 hex>.txt at the root whose content is the key itself.
   const indexNowKeys = existsSync(dist)
     ? readdirSync(dist).filter((name) => /^[0-9a-f]{32}\.txt$/.test(name))
     : [];
@@ -356,9 +334,6 @@ function checkIndexNow(dist) {
 }
 
 function checkRootRedirect(dist) {
-  // ADR 044: the domain root is a 301 to /pt-br/, not a rendered page.
-  // Cloudflare Pages applies _redirects before static assets
-  // (https://developers.cloudflare.com/pages/configuration/redirects/).
   check(!existsSync(join(dist, "index.html")), "dist/index.html must not exist; / redirects to /pt-br/");
   const redirectsPath = join(dist, "_redirects");
   check(existsSync(redirectsPath), "dist/_redirects missing");
@@ -372,7 +347,6 @@ function checkRootRedirect(dist) {
       "dist/_redirects must send / to /pt-br/ with 301",
     );
   }
-  // WebSite JSON-LD lives on the Portuguese quiz landing (and the English one).
   const ptQuiz = join(dist, "pt-br", "index.html");
   if (existsSync(ptQuiz)) {
     const html = readFileSync(ptQuiz, "utf-8");
@@ -388,7 +362,6 @@ function checkRootRedirect(dist) {
 }
 
 function checkPrivacy(dist) {
-  // Privacy pages stay noindex in every environment.
   for (const routePath of ["/pt-br/privacidade/", "/en/privacy/"]) {
     const htmlPath = join(dist, ...routePath.split("/").filter(Boolean), "index.html");
     check(existsSync(htmlPath), `${htmlPath} missing`);
@@ -400,8 +373,6 @@ function checkPrivacy(dist) {
 }
 
 function checkNotFound(dist) {
-  // 404 page: Cloudflare Pages (and GitHub Pages) serve dist/404.html with
-  // HTTP 404 for unknown paths instead of falling back to the home page.
   const notFound = join(dist, "404.html");
   check(existsSync(notFound), "dist/404.html missing");
   if (existsSync(notFound)) {
@@ -417,7 +388,6 @@ function checkNotFound(dist) {
 }
 
 function checkHeaders(dist) {
-  // Defense in depth: _headers ships X-Robots-Tag for /data/*.
   const headersPath = join(dist, "_headers");
   check(existsSync(headersPath), "dist/_headers missing");
   if (existsSync(headersPath)) {
@@ -431,7 +401,6 @@ function checkHeaders(dist) {
 }
 
 function checkLlms(dist) {
-  // LLM surface ships in every build.
   check(existsSync(join(dist, "llms.txt")), "dist/llms.txt missing");
   for (const name of EXPECTED_LLMS) {
     check(existsSync(join(dist, "llms", name)), `dist/llms/${name} missing`);

@@ -6,14 +6,11 @@ from dataclasses import dataclass
 from ipaddress import ip_address
 from urllib.parse import urlparse
 
-
 SOURCE_POLICY_VERSION = "sources-v2"
 RELIABLE = "reliable"
 UNRELIABLE = "unreliable"
 UNREVIEWED = "unreviewed"
 
-# This local subset covers only suffixes reviewed for the observed source sample.
-# Unknown suffixes remain unreviewed instead of falling back to the last two labels.
 _TWO_LABEL_SUFFIXES = frozenset(
     {
         "co.kr", "or.kr", "ne.kr", "go.kr", "re.kr", "ac.kr",
@@ -25,11 +22,8 @@ _ONE_LABEL_SUFFIXES = frozenset(
     {"com", "org", "net", "kr", "jp", "cz", "wiki", "world"}
 )
 
-# Reviewed sources. Official sites of agencies and groups are primary sources for
-# membership and birth dates. News outlets and charts have editorial control.
 RELIABLE_SOURCES = frozenset(
     {
-        # Agencies and official group sites.
         "domain:jype.com",
         "domain:smtown.com",
         "domain:ygfamily.com",
@@ -54,7 +48,6 @@ RELIABLE_SOURCES = frozenset(
         "domain:4min.co.kr",
         "domain:after--school.jp",
         "domain:twicejapan.com",
-        # News and charts.
         "domain:yna.co.kr",
         "domain:joins.com",
         "domain:koreaherald.com",
@@ -67,21 +60,19 @@ RELIABLE_SOURCES = frozenset(
     }
 )
 
-# User-generated catalogs, fan wikis, sites derived from Wikipedia and the
-# Wikimedia projects themselves.
 UNRELIABLE_SOURCES = frozenset(
     {
-        "wikidata:Q3561957",  # ČSFD
+        "wikidata:Q3561957",
         "domain:csfd.cz",
-        "wikidata:Q37312",  # IMDb
+        "wikidata:Q37312",
         "domain:imdb.com",
-        "wikidata:Q504063",  # Discogs
+        "wikidata:Q504063",
         "domain:discogs.com",
-        "wikidata:Q14005",  # MusicBrainz
+        "wikidata:Q14005",
         "domain:musicbrainz.org",
-        "wikidata:Q328",  # English Wikipedia
-        "wikidata:Q52",  # Wikipedia
-        "wikidata:Q2013",  # Wikidata
+        "wikidata:Q328",
+        "wikidata:Q52",
+        "wikidata:Q2013",
         "domain:wikipedia.org",
         "domain:wikidata.org",
         "domain:wikimedia.org",
@@ -92,12 +83,10 @@ UNRELIABLE_SOURCES = frozenset(
     }
 )
 
-
 @dataclass(frozen=True)
 class SourceVerdict:
     key: str
     status: str
-
 
 def registrable_domain(url: str) -> str | None:
     """Return a registrable domain only for the reviewed suffix subset."""
@@ -135,7 +124,6 @@ def registrable_domain(url: str) -> str | None:
     else:
         return None
     return ".".join(labels[-size:]) if len(labels) >= size else None
-
 
 def classify_source(key: str) -> str:
     if key.startswith("domain:"):

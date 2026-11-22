@@ -10,7 +10,6 @@ from .quiz_schema import SESSION_SCHEMA_VERSION, validate_dataset, validate_sess
 from .quiz_templates import SUPPORTED_LANGUAGES
 from .quiz_utils import digest, hash_payload
 
-
 def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any]:
     """Select and order ten questions from a validated dataset."""
     validate_dataset(dataset)
@@ -60,7 +59,6 @@ def create_session(dataset: dict[str, Any], config: QuizConfig) -> dict[str, Any
     validate_session(payload)
     return payload
 
-
 def eligible_questions(dataset: dict[str, Any], config: QuizConfig) -> list[dict[str, Any]]:
     """Questions a session of ``config`` may draw from, in dataset order.
 
@@ -78,10 +76,7 @@ def eligible_questions(dataset: dict[str, Any], config: QuizConfig) -> list[dict
         and question["play_mode"] == config.play_mode
     ]
     relevance_filtered = _filter_by_group_relevance(eligible, config.play_mode)
-    # A partial measurement keeps the previous pool. A filtered pool smaller
-    # than ten questions also falls back, so a threshold cannot block publication.
     return relevance_filtered if len(relevance_filtered) >= 10 else eligible
-
 
 def _session_question(question: dict[str, Any], seed: str) -> dict[str, Any]:
     copied = {key: value for key, value in question.items() if key != "options"}
@@ -91,13 +86,11 @@ def _session_question(question: dict[str, Any], seed: str) -> dict[str, Any]:
     )
     return copied
 
-
 def _filter_by_group_relevance(
     eligible: list[dict[str, Any]], play_mode: str
 ) -> list[dict[str, Any]]:
     if play_mode == "standard":
         return eligible
-    # Apply the threshold only when every eligible group-scoped question has a score.
     if any(
         question.get("group_ids") and question.get("group_relevance_score") is None
         for question in eligible

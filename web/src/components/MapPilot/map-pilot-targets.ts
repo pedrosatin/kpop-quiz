@@ -1,8 +1,3 @@
-/*
-  What each country of the map looks like and does, as pure functions of the
-  turn and the view: the path of every country and the round target drawn
-  over the countries of the round (see map-pilot-geometry.ts for the sizes).
-*/
 import {
   DOT_BELOW_PX,
   DOT_RADIUS_PX,

@@ -1,6 +1,3 @@
-/* Only what is unique to the group code game. Shared classes (game-card,
-   btn, share-preview, visually-hidden) come from components.css; colors come
-   from tokens.css through currentColor and the shared state classes. */
 .code-groups .code-sequence-note {
   color: var(--color-text-muted);
   font-size: 0.875rem;
@@ -10,8 +7,6 @@
   margin-block: 0.5rem;
 }
 .code-groups fieldset {
-  /* Browsers default fieldset to min-width: min-content; long option
-     labels would otherwise force horizontal scroll on phones. */
   min-width: 0;
   max-width: 100%;
   border: 1px solid currentColor;
@@ -43,14 +38,11 @@
   color: inherit;
   width: 100%;
 }
-/* A finished round locks the slots; they fade like the locked button, so the
-   form reads as closed in the same way before and after a reload. */
 .code-slots select:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
 @media (forced-colors: active) {
-  /* Opacity alone does not mark a disabled control in the system palette. */
   .code-slots select:disabled {
     opacity: 1;
     background: Canvas;

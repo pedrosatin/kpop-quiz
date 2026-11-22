@@ -1,9 +1,3 @@
-/*
-  The round's save as the game reads and writes it. The stored format, its
-  key and the finished check live in map-pilot-save.ts, which the daily
-  progress of every page imports. The reading, the checks and the choice of
-  when to save stay here, so the other pages do not download them.
-*/
 import type { MapPilotEvent } from "../../data/map-pilot";
 import { isRecord } from "../../lib/guards";
 import { getLocalStorageItem, listLocalStorageKeys, removeLocalStorageItem } from "../../lib/local-storage";
@@ -12,7 +6,6 @@ import type { RoundState } from "./map-pilot-turn";
 
 const ROUND_KEY = /^kpop-map-\d{4}-\d{2}-\d{2}$/;
 
-/** Removes the saves of other days, so old rounds do not pile up in storage. */
 function pruneMapPilotSaves(roundDate: string): void {
   const keep = mapPilotStorageKey(roundDate);
   for (const key of listLocalStorageKeys()) {
@@ -28,7 +21,6 @@ function parseJson(raw: string): unknown {
   }
 }
 
-/** Checks the round's event MBIDs in order. A data refresh that changes the round invalidates the save. */
 function isRoundEvents(events: unknown, round: readonly MapPilotEvent[]): events is string[] {
   return Array.isArray(events)
     && events.length === round.length
@@ -39,23 +31,16 @@ function isPlayableAnswers(answers: unknown, playableFeatures: ReadonlySet<strin
   return Array.isArray(answers) && answers.every((id) => typeof id === "string" && playableFeatures.has(id));
 }
 
-/** A date of the round, or the round's length while the result shows. */
 function isRoundIndex(index: unknown, roundLength: number): index is number {
   return Number.isInteger(index) && (index as number) >= 0 && (index as number) <= roundLength;
 }
 
-/** A give-up mark is a boolean, and a give-up jumps straight to the result. */
 function isGiveUpMark(gaveUp: unknown, index: number, roundLength: number): boolean {
   if (gaveUp === undefined) return true;
   if (typeof gaveUp !== "boolean") return false;
   return gaveUp === false || index === roundLength;
 }
 
-/**
- * Play reaches `index` answers, or one more while the date on screen is
- * answered. A give-up jumps straight to the result, so a finished round may
- * hold fewer answers than dates.
- */
 function isReachableAnswerCount(count: number, index: number, roundLength: number): boolean {
   if (count > roundLength) return false;
   if (index === roundLength) return true;

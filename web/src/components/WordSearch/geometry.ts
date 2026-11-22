@@ -50,7 +50,6 @@ export function nearestCell(position: GridPosition, dimensions: WordSearchDimens
   };
 }
 
-/** How many steps fit from start along one axis before leaving the grid. */
 function stepsLeft(start: number, step: number, size: number): number {
   if (step > 0) return size - 1 - start;
   if (step < 0) return start;

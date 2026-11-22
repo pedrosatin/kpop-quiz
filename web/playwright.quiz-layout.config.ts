@@ -1,7 +1,5 @@
 import { defineConfig } from "@playwright/test";
 
-// Separate fixture build: consent must be real without depending on a secret
-// or replacing the normal production artifact.
 export default defineConfig({
   testDir: "./tests",
   testMatch: "**/*.pw.ts",

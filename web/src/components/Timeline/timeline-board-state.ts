@@ -2,8 +2,6 @@ import type { Locale, TimelineEvent } from "../../lib/quiz-types";
 import type { TimelineBoardMessages, TimelineCardMessages } from "./types";
 import { defaultTimelineMessages } from "./types";
 
-// Rules of the board and its cards, kept apart from the components that render them.
-
 export type MoveDirection = "up" | "down";
 
 /** The card title in `locale`, then in Portuguese, then the entity name. */
@@ -93,7 +91,6 @@ interface CardMoveLimitsInput {
   canMoveDown: boolean | undefined;
 }
 
-/** Whether a move is off: always on a submitted board, then by the explicit limit, else at the end. */
 function isMoveDisabled(isSubmitted: boolean, allowed: boolean | undefined, atEnd: boolean): boolean {
   if (isSubmitted) return true;
   if (allowed !== undefined) return !allowed;

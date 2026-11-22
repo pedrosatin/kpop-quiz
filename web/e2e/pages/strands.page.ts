@@ -19,10 +19,6 @@ export class StrandsPage {
     private readonly baseURL: string,
   ) {}
 
-  /**
-   * Opens the frozen board. Pass `served: true` when the test already routed
-   * its own artifact.
-   */
   async open({ served = false, path = STRANDS_PATH }: { served?: boolean; path?: string } = {}): Promise<void> {
     if (!served) this.puzzle = await serveFixedStrands(this.page);
     const url = joinBaseUrl(this.baseURL, path);
@@ -36,10 +32,6 @@ export class StrandsPage {
     return this.puzzle;
   }
 
-  /**
-   * Drag through every cell of a word via PointerEvents on the grid (same
-   * path the component listens to). Release confirms the trail.
-   */
   async findByDrag(word: StrandsWord): Promise<void> {
     const path = word.cells.map(([row, col]) => ({ row, col }));
     await this.page.locator(".word-search-grid").evaluate((grid, cells) => {
@@ -75,7 +67,6 @@ export class StrandsPage {
     }, path);
   }
 
-  /** Tap each cell of a word, then press Confirm. */
   async findByTapConfirm(word: StrandsWord): Promise<void> {
     for (const [row, col] of word.cells) {
       await this.page.locator(cellSelector(row, col)).click();

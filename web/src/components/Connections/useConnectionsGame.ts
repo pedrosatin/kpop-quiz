@@ -36,9 +36,6 @@ export function loadSavedState(key: string | null): ConnectionsStoredState | nul
     ) {
       return null;
     }
-    // A finished game keeps an empty board; one in progress never has one.
-    // A win has all four categories solved. Anything else is discarded, so a
-    // broken save never shows a result the player did not reach.
     if (p.gameStatus === "in_progress") return p.boardItemIds.length > 0 ? p : null;
     if (p.gameStatus !== "won" && p.gameStatus !== "lost") return null;
     if (p.boardItemIds.length > 0) return null;
@@ -75,14 +72,12 @@ export function useConnectionsGame(puzzle: ConnectionsPuzzle | null, _locale: Lo
       game: "connections",
       locale: _locale,
       isDaily: () => puzzle !== null && isDailyBoardRound("connections", puzzle, connectionsMatchId(puzzle)),
-      // Only a give-up ends the game with mistakes left.
       outcome: gameStatus === "won" ? "win" : gameStatus === "lost" ? (mistakesRemaining > 0 ? "give_up" : "loss") : null,
     },
     gameStatus !== "in_progress",
     guessHistory.length > 0,
   );
 
-  // Sync to localStorage
   useEffect(() => {
     if (!storageKey || !puzzle) return;
     const stateToStore: ConnectionsStoredState = {

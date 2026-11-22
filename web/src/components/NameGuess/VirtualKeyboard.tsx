@@ -21,9 +21,6 @@ export function VirtualKeyboard({
   onBackspace,
   t,
 }: VirtualKeyboardProps) {
-  // Enter on a focused letter key sends the guess, as on a physical keyboard;
-  // left to the browser it would press the key and type its letter again.
-  // Space and clicks still type the letter, and ENTER and DEL keep Enter.
   function submitOnEnter(e: KeyboardEvent) {
     if (e.key !== "Enter" || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
     e.preventDefault();
@@ -60,9 +57,6 @@ export function VirtualKeyboard({
               <button
                 key={key}
                 type="button"
-                // A click or tap leaves focus where it was. Otherwise the key keeps focus
-                // and a later physical Enter presses it again instead of submitting.
-                // Tab still focuses the keys for keyboard users.
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleKeyClick(key)}
                 onKeyDown={isSpecial ? undefined : submitOnEnter}

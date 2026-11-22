@@ -52,8 +52,6 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
   const inputs = useRef<CrosswordInputs>({});
   const cursor = useRef<string | null>(null);
 
-  // Only a round finished in this visit moves focus to the result; a round
-  // restored from storage leaves focus where the page put it.
   const playedHere = useRef(false);
   const resultTitle = useRef<HTMLHeadingElement>(null);
   useFocusOnChange(resultTitle, finished && playedHere.current);
@@ -89,11 +87,6 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
     if (board.current) revealBoard(board.current);
     setActive(index);
   };
-  // A wrong check leaves the player on the square they were typing in, with
-  // the same word, so they can fix the marked squares right away. Without
-  // one (a restored round checked before touching the grid) focus stays on
-  // the button. The square gets focus after the render that marks it, so it
-  // is already invalid when announced.
   const returnToCursor = useRef(false);
   const check = () => {
     playedHere.current = true;
@@ -145,12 +138,7 @@ export function CrosswordGameContent({ puzzle, locale, messages }: CrosswordGame
             onSelect={select}
           />
 
-          {/* The verdict and the controls while playing, the result at the
-              end; the grid above never moves. */}
           <div class={`game-actions crossword-actions${barState}`}>
-            {/* Mounted from the start so the first verdict is announced. At the
-                end the result title takes its place, and this only announces
-                the copy. */}
             <div
               class={`game-actions-message crossword-message${finished ? " visually-hidden" : ""}`}
               role="status"

@@ -82,7 +82,6 @@ export function CrosswordResult({
   const shareText = generateCrosswordShareText(puzzle, values, status, checks, messages, locale);
   const won = status === "won";
 
-  // The bar stops being sticky while the panel is open; bring the panel into view.
   useEffect(() => {
     if (sourceOpen) source.current?.scrollIntoView?.({ block: "nearest" });
   }, [sourceOpen]);

@@ -24,8 +24,6 @@ export function gridChallengeDate(grid: IntersectionGrid, challengeDate?: string
 }
 
 export function gridMatchId(grid: IntersectionGrid, challengeDate?: string): string {
-  // Empty board date keeps the legacy match id keyed by grid_id, even when a
-  // publication day is supplied (a board without a date has no challenge day).
   if (!grid.reference_date) return `grid-${grid.grid_id}`;
   if (challengeDate) return `grid-${challengeDate}`;
   return `grid-${grid.reference_date}`;
@@ -75,7 +73,6 @@ function candidateName(
   return (names ?? displayNamesFor(grid, locale)).get(id);
 }
 
-/** Adds the names of the saved QIDs in the page's language. */
 function nameCells(
   cells: Record<string, GridStoredCell>,
   grid: IntersectionGrid | null,
@@ -94,12 +91,6 @@ function nameCells(
   return named;
 }
 
-/**
- * Reads a saved game of this grid (format in GridStoredState). A save that
- * names a group the cell does not accept, a group outside the pool, uses a
- * group twice or counts more guesses than allowed is dropped, so a stale or
- * edited save never shows a board the player did not reach.
- */
 function loadSavedGrid(grid: IntersectionGrid, challengeDate: string): GridStoredState | null {
   const raw = getLocalStorageItem(gridStorageKey(grid, challengeDate));
   if (!raw) return null;
@@ -141,16 +132,10 @@ function loadSavedGrid(grid: IntersectionGrid, challengeDate: string): GridStore
       touched += Math.max(1, tried.length);
     }
   }
-  // Every right group and every wrong group tried took a guess.
   if (touched > (guessesUsed as number)) return null;
   return { guessesUsed: guessesUsed as number, cells: restored, ...(gaveUp === true ? { gaveUp: true as const } : {}) };
 }
 
-/**
- * The wrong groups a saved failed cell tried, without repeats, or null when
- * one is not a pool QID. A save from before `triedIds` has only the last
- * one, which then counts as the one group tried.
- */
 function restoreTried(state: Partial<GridStoredCell>, pool: Set<string>): string[] | null {
   const last: unknown = state.lastAttemptId;
   const tried: unknown = state.triedIds ?? [];
@@ -161,11 +146,6 @@ function restoreTried(state: Partial<GridStoredCell>, pool: Set<string>): string
   return [...ids];
 }
 
-/**
- * The board after a guess in the selected cell, or "already_tried" when the
- * cell already refused this group, which costs no guess. A wrong group is
- * added to the cell's triedIds.
- */
 function judgeGuess(
   grid: IntersectionGrid,
   cells: Record<string, GridStoredCell>,
@@ -197,8 +177,6 @@ function createEmptyCells(): Record<string, GridStoredCell> {
   return cells;
 }
 
-// The picker is open while a cell is selected during play; the selection is
-// the only record of it.
 function pickerStatus(status: GridGameStatus, selectedCell: CellCoordinates | null): GridGameStatus {
   return status === "ready" && selectedCell ? "cell_selected" : status;
 }
@@ -226,7 +204,6 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   const [selectedCell, setSelectedCell] = useState<CellCoordinates | null>(null);
   const [guessesUsed, setGuessesUsed] = useState<number>(0);
   const [gaveUp, setGaveUp] = useState<boolean>(false);
-  // QIDs only; `cells` below adds the names in the page's language.
   const [storedCells, setCells] = useState<Record<string, GridStoredCell>>(createEmptyCells);
   const [usedEntityIds, setUsedEntityIds] = useState<Set<string>>(new Set());
   const [uniquenessError, setUniquenessError] = useState<string | null>(null);
@@ -277,9 +254,6 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
 
   const cells = useMemo(() => nameCells(storedCells, grid, locale), [storedCells, grid, locale]);
 
-  // Save after every guess, so a reload keeps the board and the result. An
-  // untouched board is not saved: loading a grid writes nothing. A give-up
-  // is saved even with zero guesses, so the result survives a reload.
   useEffect(() => {
     if (!grid || !challengeDate || status === "loading" || status === "error" || (guessesUsed === 0 && !gaveUp)) return;
     const state: GridStoredState = { guessesUsed, cells: storedCells, ...(gaveUp ? { gaveUp: true as const } : {}) };
@@ -309,8 +283,6 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
       return { success: false, reason: "already_used" as const };
     }
 
-    // A group already refused in this cell costs nothing: the owner closes
-    // the picker and says so.
     const outcome = judgeGuess(grid, storedCells, selectedCell, candidate.id);
     const where = { row: selectedCell.row, col: selectedCell.col, name: displayName };
     if (outcome === "already_tried") return { success: false, reason: "already_tried" as const, ...where };

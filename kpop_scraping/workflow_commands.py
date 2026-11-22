@@ -19,16 +19,13 @@ from __future__ import annotations
 import sys
 from typing import TextIO
 
-
 def escape_data(text: str) -> str:
     """Escape the message of a command: ``%``, CR and LF."""
     return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
-
 def escape_property(text: str) -> str:
     """Escape a property value such as ``title``: the message escapes plus ``:`` and ``,``."""
     return escape_data(text).replace(":", "%3A").replace(",", "%2C")
-
 
 def format_command(command: str, message: str, **properties: str | None) -> str:
     """Return one ``::command key=value,...::message`` line without its line break.
@@ -42,20 +39,14 @@ def format_command(command: str, message: str, **properties: str | None) -> str:
     head = f"{command} {listed}" if listed else command
     return f"::{head}::{escape_data(message)}"
 
-
 def warning(message: str, title: str | None = None, *, stream: TextIO | None = None) -> None:
     _write("warning", message, title, stream)
-
 
 def error(message: str, title: str | None = None, *, stream: TextIO | None = None) -> None:
     _write("error", message, title, stream)
 
-
 def notice(message: str, title: str | None = None, *, stream: TextIO | None = None) -> None:
     _write("notice", message, title, stream)
 
-
 def _write(command: str, message: str, title: str | None, stream: TextIO | None) -> None:
-    # Flushed at once: in GitHub Actions stdout is a pipe, so Python buffers
-    # it, and a SIGTERM from a step or attempt timeout would drop the line.
     print(format_command(command, message, title=title), file=stream or sys.stdout, flush=True)

@@ -46,12 +46,10 @@ export function useMapRoundActions({
   const confirmGiveUpOpenRef = useRef(false);
   const isComplete = round.length > 0 && game.index >= round.length;
 
-  /** A country can be picked while the date on screen has no answer. */
   function canPick(featureId: string): boolean {
     return !isComplete && game.answers.length <= game.index && playableFeatures.has(featureId);
   }
 
-  /** Every action of the player starts the round and clears the pending pick. */
   function act() {
     analytics.start();
     playedHere.current = true;
@@ -73,8 +71,6 @@ export function useMapRoundActions({
   }
 
   function nextQuestion() {
-    // Next takes the place of the answer controls: the second tap of a double
-    // tap, or a second Enter, meant for the answer must not skip the verdict.
     if (performance.now() - answeredAt.current < NEXT_GUARD_MS) return;
     act();
     setListChoice("");

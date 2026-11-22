@@ -3,17 +3,6 @@ import { isQuestion, type Locale, type PlayMode, type QuizQuestion } from "../li
 import type { QuizDecadeValue } from "../components/Quiz/url-params";
 import { QuizArtifactError } from "./session-loader";
 
-/**
- * Consumer of the static question catalog (ADR 026).
- *
- * The catalog lists, per language and play mode, every question a new round may
- * draw from and which of them each filter allows. Nothing here is wired to the
- * Quiz yet: a round still comes from `session-loader.ts`. This module only
- * returns a catalog after every layer agrees (manifest, bytes, schema, identity,
- * language, mode, version, pools); anything else is a `CatalogArtifactError`,
- * with no fallback to content that was not validated.
- */
-
 /** Why a catalog artifact was refused; `kind` is what the UI maps to a message. */
 export class CatalogArtifactError extends QuizArtifactError {
   constructor(kind: "missing" | "invalid", public readonly reason: string) {
@@ -76,7 +65,6 @@ export function replayStatus(eligible: number): ReplayStatus {
   return eligible === SESSION_SIZE ? "repeats" : "unavailable";
 }
 
-/** The version a catalog manifest must declare for its dataset and shard hashes. */
 async function expectedCatalogVersion(datasetVersion: string, shards: Record<string, ManifestEntry>): Promise<string> {
   const lines = [MANIFEST_SCHEMA, datasetVersion, ...Object.keys(shards).sort().map((key) => `${key}:${shards[key]!.sha256}`)];
   return sha256(new TextEncoder().encode(lines.join("\n")));
@@ -152,7 +140,6 @@ function invalidShard(reason: string): CatalogArtifactError {
   return new CatalogArtifactError("invalid", reason);
 }
 
-/** The shard's own fields, and the dataset, date, language and mode it must belong to. */
 function checkShardHeader(
   payload: unknown, manifest: CatalogManifest, locale: Locale, playMode: PlayMode,
 ): asserts payload is Record<string, unknown> {
@@ -170,7 +157,6 @@ function checkShardHeader(
   }
 }
 
-/** The questions the manifest counts, valid, in logical id order, none repeated. */
 function checkShardQuestions(
   questions: unknown, manifest: CatalogManifest, entry: ManifestEntry, locale: Locale, playMode: PlayMode,
 ): asserts questions is QuizQuestion[] {
@@ -189,11 +175,6 @@ function checkShardQuestions(
   }
 }
 
-/**
- * Every pool the manifest counts, as ascending indexes into the questions,
- * each decade pool holding only questions of that decade, and no question
- * left out of all of them.
- */
 function checkShardPools(
   pools: unknown, questions: QuizQuestion[], entry: ManifestEntry,
 ): asserts pools is Record<CatalogPoolKey, number[]> {
@@ -231,8 +212,6 @@ function parseShard(
   };
 }
 
-// Validated shards by content hash: the manifest is fetched on every load, so a
-// newer catalog is always noticed, and a shard seen before is not parsed again.
 const validated = new Map<string, QuizCatalog>();
 
 /** Forget validated shards (tests, and a way to drop them after a failure). */

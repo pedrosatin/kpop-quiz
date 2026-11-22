@@ -15,7 +15,6 @@ function cell(row: number, col: number): HTMLElement {
   return document.querySelector<HTMLElement>(`[data-row="${row}"][data-col="${col}"]`)!;
 }
 
-/** Drive the shared grid handlers with a continuous drag (confirms on release). */
 function selectByHandlers(word: StrandsWord) {
   const path = pathFromCells(word.cells);
   const first = path[0]!;
@@ -27,13 +26,11 @@ function selectByHandlers(word: StrandsWord) {
   fireEvent.pointerUp(cell(last.row, last.col), { pointerId: 1, buttons: 0 });
 }
 
-/** One-cell tap: extends the trail without confirming. */
 function tapCell(row: number, col: number, pointerId = 1) {
   fireEvent.pointerDown(cell(row, col), { pointerId, buttons: 1 });
   fireEvent.pointerUp(cell(row, col), { pointerId, buttons: 0 });
 }
 
-/** Build a trail by tapping each cell, then submit with the Confirm button. */
 function tapPathAndConfirm(word: StrandsWord) {
   const path = pathFromCells(word.cells);
   for (const step of path) {

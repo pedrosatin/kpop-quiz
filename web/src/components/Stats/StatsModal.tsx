@@ -61,7 +61,6 @@ export function StatsModal({
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
-  // Reload stats whenever modal opens
   useEffect(() => {
     if (isOpen) {
       setLoadedStats(propStats || loadPlayerStats());
@@ -69,15 +68,11 @@ export function StatsModal({
     }
   }, [isOpen, initialTab, propStats]);
 
-  // Install keyboard handling when the dialog is mounted.
   useLayoutEffect(() => {
     if (!isOpen) return;
 
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
 
-    // Focus goes to Close only if nothing inside the dialog has it yet. On a
-    // busy device the timer may fire after the player picked a stats file,
-    // and the import confirmation has already put focus on its Cancel.
     const timer = setTimeout(() => {
       if (modalRef.current?.contains(document.activeElement)) return;
       closeBtnRef.current?.focus();
@@ -97,14 +92,10 @@ export function StatsModal({
     return () => {
       clearTimeout(timer);
       window.removeEventListener("keydown", handleKeyDown);
-      // preventScroll keeps the page where the player left it: the header
-      // button may be off screen when the window was opened by script.
       (returnFocusRef?.current ?? previouslyFocusedRef.current)?.focus({ preventScroll: true });
     };
   }, [isOpen, onClose, returnFocusRef]);
 
-  // The optional stats prop pins the view for tests; the production caller
-  // StatsNavTrigger never passes it, so post-import refresh flows through loadedStats.
   const currentStats = propStats || loadedStats;
 
   const currentMetrics = useMemo(() => {

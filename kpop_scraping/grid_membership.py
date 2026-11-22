@@ -14,11 +14,6 @@ from datetime import date
 
 from .quiz_models import Entity, Fact
 
-# Only complete present-tense enumerations with an explicit total are supported.
-# An unsupported construction remains unknown, rather than a smaller roster.
-# The enumeration may end with one clause naming who left, as in "..., while
-# former member Wonho left the group in October 2019."; the clause adds no
-# member and cannot name anyone on the roster.
 _ROSTER = re.compile(
     r"The (?:group|band) (?:currently )?(?:consists of|is (?:currently )?composed of|has) "
     r"(?P<count>\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen) "
@@ -26,14 +21,11 @@ _ROSTER = re.compile(
     r"(?:, while former members? (?P<former>[^.,]+?) (?:left|departed) the group"
     r"(?: in (?:[A-Z][a-z]+ )?\d{4})?)?\.", re.I,
 )
-# A revision is identified by what the source says (key, page id, revision id),
-# never by a local row id, so equivalent databases select the same proof.
 Revision = tuple[str, int, int]
 _NUMBERS = dict(zip(
     ("two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen"),
     range(2, 14),
 ))
-
 
 def _roster(snippet: str, identities: dict[str, set[str]]) -> frozenset[str] | None:
     match = _ROSTER.fullmatch(snippet)
@@ -56,7 +48,6 @@ def _roster(snippet: str, identities: dict[str, set[str]]) -> frozenset[str] | N
         return None
     return frozenset(members)
 
-
 def _former_member(snippet: str, person: Entity | None) -> bool:
     if person is None:
         return False
@@ -72,16 +63,12 @@ def _former_member(snippet: str, person: Entity | None) -> bool:
         for name in person.identity_names()
     )
 
-
 def _period_allows(fact: Fact, reference_date: date) -> bool:
-    # Qualifiers may veto a contradictory roster, but never prove membership.
-    # Compare at their recorded precision, without inventing a month or day.
     value = reference_date.isoformat()
     return not (
         fact.valid_from and fact.valid_from > value[:len(fact.valid_from)]
         or fact.valid_to and fact.valid_to < value[:len(fact.valid_to)]
     )
-
 
 def grid_member_facts(
     connection: sqlite3.Connection,
@@ -150,8 +137,6 @@ def grid_member_facts(
             continue
         expected = rosters[0]
         revisions = {revision for revision, _ in lists}
-        # Former-member proof is bounded to the revisions of the cited lists
-        # and never overrides a positive current claim for the same person.
         if any(
             (person in expected and bool(revisions & historical[statement]))
             or person not in expected and (
@@ -179,8 +164,6 @@ def grid_member_facts(
                 break
             valid[key] = members
         else:
-            # Use one complete list, the newest cited revision; do not mix
-            # evidence across lists. Ties break on source identity and text.
             newest = max(valid, key=lambda key: (key[0][2], key[0][0], key[0][1], key[1]))
             selected.extend(valid[newest])
     return selected

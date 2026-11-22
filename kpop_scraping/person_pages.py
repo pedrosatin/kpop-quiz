@@ -28,7 +28,6 @@ from .storage import utc_now
 LANGUAGE = "en"
 CATEGORY = "person-wikipedia-evidence"
 
-
 @dataclass(frozen=True)
 class PersonPageRequest:
     qid: str
@@ -36,14 +35,12 @@ class PersonPageRequest:
     snapshot_id: int
     title: str
 
-
 @dataclass(frozen=True)
 class _Kept:
     request: PersonPageRequest
     page: Page
     source_page_id: int
     source_revision_id: int
-
 
 def collect_person_pages(
     store: FactStore,
@@ -87,7 +84,6 @@ def collect_person_pages(
             _record(store, run_id, item.request, "rejected", "wikitext_unavailable", item.page)
             continue
         _record(store, run_id, item.request, "accepted", None, item.page, item)
-        # The extract stays empty: only the infobox in the wikitext may prove a fact.
         pages[item.request.qid] = WikipediaPage(
             item.source_revision_id,
             LANGUAGE,
@@ -105,7 +101,6 @@ def collect_person_pages(
     )
     return pages
 
-
 def _page_rejection(page: Page | None, qid: str) -> str | None:
     if page is None or page.is_missing or page.revision_id is None:
         return "page_missing"
@@ -115,19 +110,11 @@ def _page_rejection(page: Page | None, qid: str) -> str | None:
         return "page_disambiguation"
     if page.wikidata_id != qid:
         return "page_wikidata_mismatch"
-    # save_pages skips a page this large, and _keep would then find no stored revision.
     if page.is_extract_oversize:
         return EXTRACT_OVERSIZE
     return None
 
-
 def _keep(store: FactStore, run_id: int, request: PersonPageRequest, page: Page) -> _Kept:
-    """Store the revision as an immutable snapshot, without a catalog entry.
-
-    A revision save_pages skipped for extract drift is already stored, so the
-    lookup finds it. The person page reads only its wikitext, which the
-    extract does not change.
-    """
     store.repository.save_pages(
         run_id, (page,), provider="wikipedia", language=LANGUAGE, create_catalog_entries=False
     )
@@ -147,9 +134,7 @@ def _keep(store: FactStore, run_id: int, request: PersonPageRequest, page: Page)
         )
     return _Kept(request, page, int(row["page_id"]), int(row["revision_id"]))
 
-
 def _wikitexts(store: FactStore, client: MediaWikiClient, kept: Sequence[_Kept]) -> dict[int, str]:
-    """Read the stored wikitext of each kept revision, downloading what is missing."""
     texts: dict[int, str] = {}
     missing: list[_Kept] = []
     for item in kept:
@@ -168,7 +153,6 @@ def _wikitexts(store: FactStore, client: MediaWikiClient, kept: Sequence[_Kept])
             store.save_revision_wikitext(item.source_revision_id, LANGUAGE, source)
             texts[item.source_revision_id] = source["wikitext"]
     return texts
-
 
 def _record(
     store: FactStore,

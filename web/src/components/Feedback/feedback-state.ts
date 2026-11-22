@@ -16,7 +16,6 @@ export type FeedbackEvent =
 
 export function feedbackReducer(state: FeedbackState, event: FeedbackEvent): FeedbackState {
   switch (event.type) {
-    // A new attempt hides the error of the last one.
     case "sent":
       return { ...state, pending: true, error: "" };
     case "voteConfirmed":

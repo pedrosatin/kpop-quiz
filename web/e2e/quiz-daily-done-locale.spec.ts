@@ -111,7 +111,6 @@ for (const locale of ["pt-BR", "en"] as const) {
     await result.getByRole("button", { name: t.playGeneral }).click();
     await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
     expect(new URL(page.url()).searchParams.get("theme")).toBe("history");
-    // The card's label covers its radio, as a tap on the card does.
     await page.getByRole("radio", { name: t.daily }).locator("xpath=ancestor::label").click();
 
     await expect(result.getByRole("heading", { name: t.result })).toBeVisible();

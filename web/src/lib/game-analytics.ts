@@ -47,8 +47,6 @@ export interface GameRoundContext extends GameAnalyticsContext {
 type EventDetails = Record<string, string | undefined>;
 type GameAnalyticsEvent = "game_start" | "game_complete" | "share" | "daily_set_complete";
 
-// Only ConsentBanner enables measurement, and only when it is mounted on a
-// production page with a measurement ID. Saved consent alone cannot enable it.
 let measurementId = "";
 let accepted = false;
 export function setGameAnalyticsConsent(id: string, consent: boolean): void {
@@ -59,14 +57,11 @@ export function setGameAnalyticsConsent(id: string, consent: boolean): void {
 function sendRawEvent(event: GameAnalyticsEvent, params: Record<string, string>): void {
   if (typeof window === "undefined" || !accepted || !measurementId) return;
   try {
-    // Honor a rejection made in another tab, too. Private-mode storage reads
-    // as no choice; the explicit in-memory choice still applies to this visit.
     if (getLocalStorageItem("kpop-quiz-consent") === "rejected") return;
     const w = window as unknown as Record<string, unknown>;
     if (w[`ga-disable-${measurementId}`] === true || typeof w.gtag !== "function") return;
     (w.gtag as (...args: unknown[]) => void)("event", event, { ...params, send_to: measurementId });
   } catch {
-    // Analytics must never interrupt a game.
   }
 }
 
@@ -128,9 +123,6 @@ export function streakBucket(streak: number): string {
   return streak <= 7 ? "4-7" : "8+";
 }
 
-// The Map records stats, but its analytics never sent return bands and still sends none.
-// Group-page free play also omits them so the pilot never reads home-game streaks.
-// daily_set is share-only and has no per-game stats entry.
 function gameStats(context: GameRoundContext) {
   if (context.omitReturnBands || context.game === "map" || context.game === "daily_set") return null;
   return loadPlayerStats().games[context.game];
@@ -146,7 +138,6 @@ function readRoundSnapshot(context: GameRoundContext): RoundSnapshot {
     const stats = gameStats(context);
     return {
       daily: context.isDaily() ? "yes" : "no",
-      // The day turns in Sao Paulo, like the daily boards whose dates are stored.
       daysSinceLast: stats ? daysSinceLastBucket(stats.lastPlayedDate, dailyReferenceDate()) : undefined,
     };
   } catch {
@@ -159,22 +150,16 @@ export function useGameAnalytics(context: GameRoundContext, finished: boolean, r
   const started = useRef(resumed);
   const playedHere = useRef(false);
   const completed = useRef(false);
-  // A restored save marks the game as started, but only until the player
-  // resets: the next round of the same visit starts (and is counted) afresh.
   const restartedHere = useRef(false);
   if (resumed && !playedHere.current && !restartedHere.current) started.current = true;
   const contextRef = useRef(context);
   contextRef.current = context;
-  // Taken when the round begins, because saving its result overwrites the
-  // last played date and marks the day's board as already played.
   const round = useRef<RoundSnapshot | null>(null);
   const [completions, setCompletions] = useState(0);
 
   useEffect(() => {
     if (!finished || !playedHere.current || completed.current) return;
     completed.current = true;
-    // The game saves its stats in an effect of this same commit, before or
-    // after this one depending on the game. The next commit follows both.
     setCompletions((n) => n + 1);
   }, [finished]);
 
@@ -186,7 +171,6 @@ export function useGameAnalytics(context: GameRoundContext, finished: boolean, r
       daily: round.current.daily,
       outcome: current.outcome ?? undefined,
       days_since_last: round.current.daysSinceLast,
-      // Whatever streak rule player-stats applies; a change there shifts this band.
       streak_bucket: stats ? streakBucket(stats.currentStreak) : undefined,
     });
   }, [completions]);
@@ -205,12 +189,6 @@ export function useGameAnalytics(context: GameRoundContext, finished: boolean, r
     completed.current = false;
     round.current = null;
   };
-  /**
-   * A saved round restored later in a visit that already played one, e.g.
-   * the general quiz picked from the daily result. Like a restore on a new
-   * visit, it was started on an earlier visit and sends no game_start, and
-   * it sends game_complete once it is finished here.
-   */
   const resume = () => {
     started.current = true;
     playedHere.current = false;

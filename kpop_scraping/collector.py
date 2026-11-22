@@ -7,12 +7,10 @@ from . import rebuild_phases
 from .mediawiki import MAX_EXTRACTS_PER_REQUEST, MAX_REVISIONS_PER_REQUEST, MediaWikiClient, Page
 from .storage import Repository
 
-
 def batched(values: Iterable[int], size: int) -> Iterator[list[int]]:
     iterator = iter(values)
     while batch := list(islice(iterator, size)):
         yield batch
-
 
 def collect_category(
     client: MediaWikiClient,
@@ -56,13 +54,11 @@ def collect_category(
         repository.fail_run(run_id, str(exc))
         raise
 
-
 def _downloaded_pages(
     client: MediaWikiClient, page_ids: Sequence[int]
 ) -> Iterator[tuple[list[int], list[Page]]]:
     for page_id_batch in batched(page_ids, MAX_EXTRACTS_PER_REQUEST):
         yield page_id_batch, client.get_pages(page_id_batch)
-
 
 def _incremental_pages(
     client: MediaWikiClient,
@@ -100,8 +96,6 @@ def _incremental_pages(
         f"{provider} {language} pages", reused=len(pages), fetched=len(stale)
     )
     requested = set(stale)
-    # A page the answer holds but no request named, saved last as the full
-    # collection would save it after the pages of its batch.
     extra: list[Page] = []
     for page_id_batch in batched(stale, MAX_EXTRACTS_PER_REQUEST):
         for page in client.get_pages(page_id_batch):
@@ -117,12 +111,6 @@ def _incremental_pages(
     if extra:
         yield [], extra
 
-
 def _in_request_order(page_ids: Sequence[int], pages: Iterable[Page]) -> list[Page]:
-    """Order pages as requested; a page the request did not name goes last.
-
-    The API may answer in another order. Saving in the category's order
-    makes the rows the full and the incremental collection write identical.
-    """
     position = {page_id: index for index, page_id in enumerate(page_ids)}
     return sorted(pages, key=lambda page: position.get(page.page_id, len(position)))

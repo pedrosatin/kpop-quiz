@@ -18,12 +18,10 @@ ROOT_KEYS = {'schema_version', 'reference_date', 'seed', 'base_id', 'previous', 
              'status', 'attempts', 'rejections', 'eligible_group_count', 'connected_group_count',
              'puzzle', 'dataset_version'}
 
-
 def valid_date(value):
     if not isinstance(value, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
         raise ValueError('invalid date')
     return date.fromisoformat(value)
-
 
 def history_context(reference_date: str, previous: dict) -> dict:
     day = valid_date(reference_date)
@@ -42,7 +40,6 @@ def history_context(reference_date: str, previous: dict) -> dict:
         raise ValueError('history state and QIDs disagree')
     return dict(state=state, date=expected.isoformat(), qids=sorted(qids))
 
-
 def next_context(artifact: dict, base: FactBase) -> dict:
     """Validate a previous artifact before deriving its played/omitted context."""
     validate(artifact, base)
@@ -50,25 +47,21 @@ def next_context(artifact: dict, base: FactBase) -> dict:
             'date': artifact['reference_date'],
             'qids': artifact['puzzle']['vocabulary'] if artifact['puzzle'] else []}
 
-
 def limits_checked(limits):
     if not isinstance(limits, dict) or set(limits) != set(DEFAULT_LIMITS) or any(
             type(v) is not int or v < 1 or v > 1000000 for v in limits.values()):
         raise ValueError('invalid generation budgets')
     return limits
 
-
 def domains_for(entries, base):
     return [[(q, pilot.normalize(base.groups[q]['canonical_name']))
              for q in base.matching(e['sources'])] for e in entries]
-
 
 def check_board(board, reference_date):
     """Board rules that need no fact base: shape, geometry, numbering and proof form."""
     if not isinstance(board, dict) or set(board) != {
             'rows', 'cols', 'entries', 'vocabulary', 'cells', 'audited_group_count', 'proof'}:
         raise ValueError('unexpected board fields')
-    # Reuse all existing alias, evidence, numbering, cell and connectivity rules.
     probe = {k: v for k, v in board.items() if k != 'proof'}
     probe.update(schema_version=pilot.SCHEMA, mode=pilot.MODE, puzzle_id=pilot.PUZZLE_ID,
                  reference_date=reference_date)
@@ -82,7 +75,6 @@ def check_board(board, reference_date):
             or type(stored_proof['solutions']) is not int or type(stored_proof['nodes']) is not int
             or stored_proof['complete'] is not True or stored_proof['solutions'] != 1):
         raise ValueError('invalid proof')
-
 
 def validate_board(board, reference_date, base, proof_nodes):
     check_board(board, reference_date)
@@ -99,7 +91,6 @@ def validate_board(board, reference_date, base, proof_nodes):
     proof = count_assignments(board['entries'], domains_for(board['entries'], base), proof_nodes)
     if proof['solutions'] != 1 or board['proof'] != proof:
         raise ValueError('unique assignment not proven')
-
 
 def validate_published(p: dict) -> None:
     """Rules a publisher can check without the fact base.
@@ -141,7 +132,6 @@ def validate_published(p: dict) -> None:
     else:
         raise ValueError('unknown daily status')
 
-
 def validate(p: dict, base: FactBase) -> None:
     """Recompute factual matching and bounded proof; checksum alone is insufficient."""
     validate_published(p)
@@ -155,7 +145,6 @@ def validate(p: dict, base: FactBase) -> None:
         validate_board(p['puzzle'], p['reference_date'], base, p['limits']['proof_nodes'])
         if set(p['puzzle']['vocabulary']) - set(eligible):
             raise ValueError('ineligible or consecutive group')
-
 
 def generate(base: FactBase, reference_date: str, seed: str, previous: dict,
              limits: dict | None = None) -> dict:

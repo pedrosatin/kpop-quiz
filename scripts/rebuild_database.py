@@ -63,7 +63,6 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-# Ensure repo root is on sys.path when invoked directly as scripts/rebuild_database.py
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -74,28 +73,17 @@ from kpop_scraping.exit_codes import EXIT_DETERMINISTIC, EXIT_OK, EXIT_TRANSIENT
 DEFAULT_MAX_ATTEMPTS = 3
 DEFAULT_ATTEMPT_TIMEOUT_SECONDS = 30 * 60.0
 DEFAULT_RETRY_WAIT_SECONDS = 10 * 60.0
-# Time between SIGTERM and SIGKILL for an attempt that passed its timeout.
 DEFAULT_KILL_GRACE_SECONDS = 30.0
-# Wall time every attempt and wait of the step may use together before the
-# day falls back to the cached database (docs/decisions/043). A night with a
-# lagged Wikidata used to spend 3 attempts with their 15-minute maxlag budget
-# and 2 waits, about 66 minutes, before that fallback.
 DEFAULT_BUDGET_SECONDS = 45 * 60.0
-# An attempt shorter than this is not started: a clean rebuild takes about
-# 80 seconds, and one that waits for maxlag needs minutes more.
 DEFAULT_MIN_ATTEMPT_SECONDS = 5 * 60.0
 
-# Exit codes of this script that do not come from the collector.
 EXIT_USAGE = 2
-EXIT_ATTEMPT_TIMED_OUT = 124  # the code timeout(1) uses
-EXIT_COMMAND_NOT_STARTED = 127  # the code a shell uses for a missing command
+EXIT_ATTEMPT_TIMED_OUT = 124
+EXIT_COMMAND_NOT_STARTED = 127
 
 BACKUP_SUFFIX = ".cached"
-# Signals that stop this script; each kills the running attempt first.
 STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM)
-# Files SQLite keeps beside a database while a transaction is open.
 SQLITE_SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
-
 
 @dataclass(frozen=True)
 class Limits:
@@ -116,7 +104,6 @@ class Limits:
         )
         return min(unbounded, self.budget + self.kill_grace)
 
-
 def limits_from_environment(environ: Mapping[str, str]) -> Limits:
     """Read the limits, falling back to the defaults for unset or empty variables."""
 
@@ -128,7 +115,6 @@ def limits_from_environment(environ: Mapping[str, str]) -> Limits:
             value = float(text)
         except ValueError:
             value = math.nan
-        # NaN fails every comparison, so "nan" and unreadable text end here too.
         if not minimum <= value < math.inf:
             raise ValueError(f"{name} must be a number of at least {minimum:g}, got {text!r}")
         return value
@@ -145,10 +131,8 @@ def limits_from_environment(environ: Mapping[str, str]) -> Limits:
         min_attempt=number("REBUILD_MIN_ATTEMPT_SECONDS", DEFAULT_MIN_ATTEMPT_SECONDS, 0.001),
     )
 
-
 def backup_path(database: Path) -> Path:
     return database.with_name(database.name + BACKUP_SUFFIX)
-
 
 def run_attempt(command: Sequence[str], timeout: float, kill_grace: float) -> int | None:
     """Run one attempt and return its exit code, or ``None`` when the timeout killed it."""
@@ -164,14 +148,9 @@ def run_attempt(command: Sequence[str], timeout: float, kill_grace: float) -> in
             process.wait()
         return None
     finally:
-        # Reached with the attempt alive only when SIGINT or SIGTERM stopped
-        # this script (a cancelled run, the step timeout; see
-        # _stop_attempt_on_signals). Do not leave it writing to a database the
-        # next step is about to replace.
         if process.poll() is None:
             process.kill()
             process.wait()
-
 
 def rebuild(
     database: Path,
@@ -190,8 +169,6 @@ def rebuild(
     elif database.is_file():
         _copy_whole(database, backup)
     if schema_cache and not reuse:
-        # The old schema cannot supply publication or snapshot reuse safely.
-        # Give the collector an empty archive: --incremental downloads everything.
         database.unlink(missing_ok=True)
         rebuild_cache.marker_path(database).unlink(missing_ok=True)
         shutil.rmtree(database.parent / "raw", ignore_errors=True)
@@ -201,7 +178,6 @@ def rebuild(
 
     for attempt in range(1, limits.max_attempts + 1):
         label = f"Rebuild attempt {attempt} of {limits.max_attempts}"
-        # The attempt ends, killed if need be, by the end of the budget.
         left = deadline - clock() - limits.kill_grace
         if left < min(limits.min_attempt, limits.attempt_timeout):
             return _give_up(
@@ -231,7 +207,6 @@ def rebuild(
             return _give_up(reason, EXIT_ATTEMPT_TIMED_OUT)
         if code != EXIT_TRANSIENT:
             kind = "a deterministic error" if code == EXIT_DETERMINISTIC else "an unexpected error"
-            # A negative code is the signal that ended the attempt.
             status = 128 - code if code < 0 else code
             return _give_up(f"attempt {attempt} ended in {kind} (exit {status})", status)
         if attempt < limits.max_attempts:
@@ -252,25 +227,14 @@ def rebuild(
         EXIT_TRANSIENT,
     )
 
-
 def _copy_whole(source: Path, target: Path) -> None:
-    """Copy ``source`` to ``target`` so that ``target`` is either complete or absent.
-
-    A copy cut short (a full disk) would otherwise sit at ``target``, and
-    restore-cache would move it over the intact database.
-    """
     partial = target.with_name(target.name + ".tmp")
-    # A copy left by an earlier run is stale; it must not survive a failed copy.
     target.unlink(missing_ok=True)
     try:
-        # copyfile gives the copy the time it ran as its mtime, and os.replace
-        # keeps it; restore-cache relies on that to tell which raw snapshots
-        # the attempts wrote.
         shutil.copyfile(source, partial)
         os.replace(partial, target)
     finally:
         partial.unlink(missing_ok=True)
-
 
 def restore_cache(database: Path, raw_dir: Path, reason: str) -> int:
     """Put the cached database back after a rebuild that did not finish."""
@@ -278,13 +242,7 @@ def restore_cache(database: Path, raw_dir: Path, reason: str) -> int:
     if not backup.is_file():
         workflow_commands.error("Rebuild failed and no cached database is available")
         return 1
-    # The failed attempts wrote raw snapshots that the restored database does
-    # not reference. Delete them so they do not reach the cache. Only files
-    # written after the rebuild started are newer than the backup.
     removed = _delete_files_newer_than(raw_dir, backup.stat().st_mtime_ns)
-    # An attempt stopped in the middle of a transaction leaves its journal
-    # beside the database. It belongs to the discarded file: on the next open
-    # SQLite would roll its pages back into the restored one.
     for suffix in SQLITE_SIDECAR_SUFFIXES:
         database.with_name(database.name + suffix).unlink(missing_ok=True)
     os.replace(backup, database)
@@ -292,7 +250,6 @@ def restore_cache(database: Path, raw_dir: Path, reason: str) -> int:
     cause = f"Rebuild failed: {reason}" if reason else "Rebuild did not finish"
     workflow_commands.warning(f"{cause}; puzzles use the cached database", title="Database not refreshed")
     return EXIT_OK
-
 
 def _delete_files_newer_than(directory: Path, mtime_ns: int) -> int:
     removed = 0
@@ -306,28 +263,17 @@ def _delete_files_newer_than(directory: Path, mtime_ns: int) -> int:
                 removed += 1
     return removed
 
-
 def _stop_attempt_on_signals() -> None:
-    """Turn SIGINT and SIGTERM into ``SystemExit(128 + signal)``.
-
-    ``run_attempt`` kills the attempt on the way out, and the script ends with
-    130 (SIGINT) or 143 (SIGTERM) without a traceback. The runner sends SIGINT
-    first when the step times out or the run is cancelled; Python's default
-    would raise ``KeyboardInterrupt`` and print a traceback.
-    """
 
     def handler(signum: int, _frame: object) -> None:
         name = signal.Signals(signum).name
-        # os.write, because print may be in the middle of a write to stdout.
         os.write(1, f"Rebuild stopped by {name}; killing the running attempt\n".encode())
         raise SystemExit(128 + signum)
 
     for stop_signal in STOP_SIGNALS:
         signal.signal(stop_signal, handler)
 
-
 def _give_up(reason: str, code: int) -> int:
-    """Report why the database was not refreshed; the next step reads the reason."""
     _log(f"Rebuild failed: {reason}")
     output = os.environ.get("GITHUB_OUTPUT")
     if output:
@@ -335,16 +281,12 @@ def _give_up(reason: str, code: int) -> int:
             handle.write(f"failure={' '.join(reason.split())}\n")
     return code
 
-
 def _duration(seconds: float) -> str:
     minutes = seconds / 60
     return f"{minutes:g} min" if minutes >= 1 and minutes == int(minutes) else f"{seconds:g} s"
 
-
 def _log(message: str) -> None:
-    # Flushed so the line lands before the attempt's own output in the log.
     print(message, flush=True)
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -373,7 +315,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     return parser
 
-
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     command: list[str] = []
@@ -395,7 +336,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_USAGE
     _stop_attempt_on_signals()
     return rebuild(args.database, command, limits, schema_cache=args.schema_cache)
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

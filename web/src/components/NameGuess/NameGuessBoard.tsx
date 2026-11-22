@@ -42,7 +42,6 @@ export function NameGuessBoard({
   }
 
   return (
-    // tabIndex -1 lets a script move focus here without adding a tab stop.
     <div
       {...(boardRef ? { ref: boardRef } : {})}
       tabIndex={-1}

@@ -42,28 +42,16 @@ from .official_schedule import ScheduleEntry, parse_yg_tour_schedule
 from .tour_events import CountryIdentity, TourEventContext, assess_tour_event_candidate
 from .wikidata import MAX_ENTITIES_PER_REQUEST, EntityProfile, WikidataEntityClient
 
-
 SCHEMA_VERSION = "kpop-map-pilot-events-v2"
 MAP_DATASET = "Natural Earth Admin 0 - Countries"
 MAP_DATASET_VERSION = "5.1.1"
 MAP_SCALE = "1:10m"
 DEFAULT_OUTPUT = Path("data/map-pilot/deadline-events.json")
 DEFAULT_MAP = Path("web/src/data/map-pilot/world-map.json")
-# Network and HTTP errors: 8 retries back off for up to 255 s in total, while
-# the default 3 give up after 7 s.
 WIKIDATA_RETRIES = 8
-# Wikidata's maxlag answers draw from their own budget. map-pilot-refresh.yml
-# runs this command up to 4 times, 15 minutes apart, in a 90-minute step, so
-# each run waits at most 5 minutes instead of the collector's 15.
 WIKIDATA_MAXLAG_BUDGET_SECONDS = 5 * 60.0
-# A series costs one lookup per event, and each event one per new venue and
-# per new area above it, 1.1 s apart. The dataset of 2026-11-01 accepts 31
-# events of the DEADLINE series. A series above the cap fails before its
-# first event lookup instead of running for hours, and an area chain that
-# never reaches a country stops at MAX_AREA_DEPTH.
 MAX_SERIES_EVENTS = 200
 MAX_AREA_DEPTH = 10
-
 
 @dataclass(frozen=True)
 class PilotConfig:
@@ -77,7 +65,6 @@ class PilotConfig:
     def schedule_host(self) -> str:
         return self.schedule_url.split("/")[2]
 
-
 DEADLINE_TOUR = PilotConfig(
     name="BLACKPINK DEADLINE WORLD TOUR",
     subject_wikidata_id="Q25056945",
@@ -85,7 +72,6 @@ DEADLINE_TOUR = PilotConfig(
     series_mbid="510f1af4-7a2e-40f2-abd4-776d8da29b94",
     schedule_url="https://artist.ygfamily.com/ARTISTS/BLACKPINK/concert/2025TOUR/index2.html",
 )
-
 
 @dataclass
 class MusicBrainzSnapshot:
@@ -95,25 +81,18 @@ class MusicBrainzSnapshot:
     places: dict[str, dict[str, Any]] = field(default_factory=dict)
     areas: dict[str, dict[str, Any]] = field(default_factory=dict)
 
-
 @dataclass(frozen=True)
 class AreaCountryClaim:
     revision_id: int
     country_ids: frozenset[str]
 
-
 class DatasetError(ValueError):
     pass
-
-
-# Collection -----------------------------------------------------------------
-
 
 def fetch_schedule_html(url: str, user_agent: str = DEFAULT_USER_AGENT, timeout: float = 30) -> str:
     with open_url(url, timeout=timeout, user_agent=user_agent, headers={"Accept": "text/html"}) as response:
         charset = response.headers.get_content_charset() or "utf-8"
         return response.read().decode(charset)
-
 
 def collect_musicbrainz(client: MusicBrainzClient, config: PilotConfig) -> MusicBrainzSnapshot:
     snapshot = MusicBrainzSnapshot(
@@ -142,7 +121,6 @@ def collect_musicbrainz(client: MusicBrainzClient, config: PilotConfig) -> Music
             while area_id and area_id not in snapshot.areas:
                 depth += 1
                 if depth > MAX_AREA_DEPTH:
-                    # The MBID comes from MusicBrainz and ends up in the job log.
                     raise MusicBrainzError(
                         f"MusicBrainz area hierarchy of place {workflow_commands.escape_data(place_id)} "
                         f"is deeper than {MAX_AREA_DEPTH} levels"
@@ -152,9 +130,7 @@ def collect_musicbrainz(client: MusicBrainzClient, config: PilotConfig) -> Music
                 area_id = _parent_area_id(area)
     return snapshot
 
-
 AREA_COUNTRY_PROFILE = EntityProfile(name="area-country-v1", props="info|claims", languages="en")
-
 
 def collect_area_countries(
     client: WikidataEntityClient, wikidata_ids: Iterable[str]
@@ -169,10 +145,6 @@ def collect_area_countries(
                 country_ids=current_item_values(document.payload, "P17"),
             )
     return claims
-
-
-# Extraction and joins -------------------------------------------------------
-
 
 def current_item_values(entity: Mapping[str, Any], property_id: str) -> frozenset[str]:
     """Return item values of the best current rank, skipping ended statements."""
@@ -189,7 +161,6 @@ def current_item_values(entity: Mapping[str, Any], property_id: str) -> frozense
             values.add(value["id"])
     return frozenset(values)
 
-
 def wikidata_ids(entity: Mapping[str, Any]) -> list[str]:
     prefix = "https://www.wikidata.org/wiki/"
     return sorted(
@@ -202,7 +173,6 @@ def wikidata_ids(entity: Mapping[str, Any]) -> list[str]:
         }
     )
 
-
 def area_chain(snapshot: MusicBrainzSnapshot, area_id: str | None) -> list[dict[str, Any]]:
     chain: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -213,7 +183,6 @@ def area_chain(snapshot: MusicBrainzSnapshot, area_id: str | None) -> list[dict[
         area_id = _parent_area_id(area)
     return chain
 
-
 def area_wikidata_ids(snapshot: MusicBrainzSnapshot) -> set[str]:
     """QIDs of the areas that directly contain each venue."""
     ids: set[str] = set()
@@ -222,7 +191,6 @@ def area_wikidata_ids(snapshot: MusicBrainzSnapshot) -> set[str]:
         if area:
             ids.update(wikidata_ids(area))
     return ids
-
 
 def build_map_pilot_dataset(
     config: PilotConfig,
@@ -323,7 +291,6 @@ def build_map_pilot_dataset(
     validate_map_pilot_dataset(dataset, world_map)
     return dataset, sorted(excluded, key=lambda row: row["event_mbid"])
 
-
 _VALIDATOR_FIELDS = (
     "source_url",
     "subject_wikidata_id",
@@ -341,7 +308,6 @@ _VALIDATOR_FIELDS = (
     "source_checked_at",
     "tour_mbid",
 )
-
 
 def _event_row(
     config: PilotConfig,
@@ -418,14 +384,12 @@ def _event_row(
         "",
     )
 
-
 def _related_ids(entity: Mapping[str, Any], target_type: str, relation_type: str) -> list[str]:
     return [
         relation[target_type]["id"]
         for relation in entity.get("relations", [])
         if relation.get("target-type") == target_type and relation.get("type") == relation_type
     ]
-
 
 def _parent_area_id(area: Mapping[str, Any]) -> str | None:
     if area.get("type") == "Country":
@@ -439,10 +403,8 @@ def _parent_area_id(area: Mapping[str, Any]) -> str | None:
     ]
     return parents[0] if len(parents) == 1 else None
 
-
 def _label(value: str) -> str:
     return " ".join(value.casefold().split())
-
 
 def _feature_collection(world_map: Mapping[str, Any]) -> dict[str, Any]:
     return {
@@ -460,16 +422,11 @@ def _feature_collection(world_map: Mapping[str, Any]) -> dict[str, Any]:
         ],
     }
 
-
-# Validation -----------------------------------------------------------------
-
-
 _EVENT_FIELDS = frozenset(
     {*_VALIDATOR_FIELDS, "predicate", "city_area_type", "country_check_wikidata_id",
      "country_check_wikidata_revid", "musicbrainz_event_url", "map_feature_id", "map_dataset",
      "map_dataset_version", "map_scale", "status"}
 )
-
 
 def validate_map_pilot_dataset(dataset: Mapping[str, Any], world_map: Mapping[str, Any]) -> None:
     """Check a dataset offline. Raise ``DatasetError`` on the first problem."""
@@ -515,14 +472,9 @@ def validate_map_pilot_dataset(dataset: Mapping[str, Any], world_map: Mapping[st
     for row in dataset.get("unmatched_schedule_dates", []):
         _check(row["event_date"] not in seen_dates, f"unmatched date also has an event: {row['event_date']}")
 
-
 def _check(condition: bool, message: str) -> None:
     if not condition:
         raise DatasetError(message)
-
-
-# CLI --------------------------------------------------------------------------
-
 
 def verify_dataset_file(path: Path, map_path: Path) -> int:
     """Run ``validate_map_pilot_dataset`` on a file; 0 when it passes, 1 otherwise.
@@ -536,13 +488,10 @@ def verify_dataset_file(path: Path, map_path: Path) -> int:
         world_map = json.loads(map_path.read_text(encoding="utf-8"))
         validate_map_pilot_dataset(dataset, world_map)
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
-        # DatasetError and json.JSONDecodeError are ValueErrors; the others
-        # come from a file whose rows lack a field or have the wrong type.
         workflow_commands.error(f"{path}: {type(error).__name__}: {error}", title="Map pilot dataset invalid")
         return 1
     print(f"Verified {path}: {len(dataset['events'])} events, {len(dataset.get('countries', []))} countries")
     return 0
-
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -583,9 +532,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"Schedule dates: {len(schedule)}; MusicBrainz events: {len(snapshot.events)}; "
         f"accepted: {len(dataset['events'])}; countries: {len(dataset['countries'])}"
     )
-    # Destinations come from the schedule page and MBIDs and reasons from
-    # MusicBrainz. Escaped as workflow command data, a value cannot break the
-    # line and start a command of its own in the job log.
     escape = workflow_commands.escape_data
     for row in dataset["unmatched_schedule_dates"]:
         detail = f"{row['event_date']} {row['official_destination']}"
@@ -594,7 +540,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         detail = f"{row['event_mbid']}: {row['reason']}"
         print(f"excluded event {escape(detail)}", file=sys.stderr)
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

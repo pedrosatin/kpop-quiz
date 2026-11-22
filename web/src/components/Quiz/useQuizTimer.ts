@@ -38,7 +38,6 @@ export function useQuizTimer({ active, deadlineMs, onExpire }: UseQuizTimerOptio
   }, [active, deadlineMs]);
 
   const stopTimer = () => {
-    // Parent clears deadlineMs; this exists for call-site symmetry with Q03.
   };
 
   return { secondsLeft, stopTimer };

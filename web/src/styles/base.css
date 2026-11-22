@@ -1,4 +1,3 @@
-/* Fonts, reset, page chrome (header, game navigation, footer) and page layout. */
 
 @font-face {
   font-family: "Space Grotesk";
@@ -35,7 +34,6 @@ html {
   color: var(--color-text);
   background: var(--color-canvas);
   overflow-x: hidden;
-  /* Keyboard focus and in-page jumps stop above the open consent banner. */
   scroll-padding-bottom: var(--consent-banner-height, 0px);
 }
 
@@ -43,7 +41,6 @@ body {
   margin: 0;
   min-height: 100vh;
   min-height: 100dvh;
-  /* The end of the page, footer included, scrolls clear of the open consent banner. */
   padding-bottom: var(--consent-banner-height, 0px);
   display: flex;
   flex-direction: column;
@@ -78,7 +75,6 @@ a:hover {
   text-decoration-thickness: 0.14em;
 }
 
-/* Taps on controls never wait for a double-tap zoom. */
 a,
 button,
 input,
@@ -94,7 +90,6 @@ textarea {
   outline-offset: 0.15rem;
 }
 
-/* Headings receive focus from code to announce a new step; they are not controls. */
 [tabindex="-1"]:focus {
   outline: none;
 }
@@ -135,8 +130,6 @@ textarea {
 .skip-link:focus {
   transform: translateY(0);
 }
-
-/* Header */
 
 .site-header {
   min-height: 3.5rem;
@@ -179,7 +172,6 @@ textarea {
   color: var(--color-action);
 }
 
-/* One icon per mode, chosen by html[data-theme]; no attribute means the system theme. */
 .theme-toggle .theme-icon {
   display: none;
   flex: none;
@@ -214,7 +206,6 @@ textarea {
   display: none;
 }
 
-/* On phones the language link shortens to EN/PT so the header stays on one row. */
 @media (max-width: 40rem) {
   .language-full {
     display: none;
@@ -224,8 +215,6 @@ textarea {
     display: inline;
   }
 }
-
-/* Game navigation */
 
 .game-nav-bar {
   position: relative;
@@ -250,7 +239,6 @@ textarea {
   display: none;
 }
 
-/* Fades the edge that still has hidden items, so it is clear the bar scrolls. */
 .game-nav-bar[data-overflow~="end"] .game-nav-container {
   mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent);
 }
@@ -289,7 +277,6 @@ textarea {
   }
 }
 
-/* Positioned so the hidden text scrolls with the tabs instead of widening the page. */
 .game-nav-done {
   position: relative;
   font-weight: 700;
@@ -301,11 +288,6 @@ textarea {
   font-weight: 700;
 }
 
-/*
-  Forced colors draw a Canvas backplate behind text, which hides a
-  HighlightText label on a Highlight fill. Such elements opt out with
-  forced-color-adjust: none and set only system colors.
-*/
 @media (forced-colors: active) {
   .game-nav-item.is-active,
   .skip-link {
@@ -315,20 +297,6 @@ textarea {
   }
 }
 
-/*
-  Page layout: a short intro above the game. Every game page shares this
-  width; each game card sets its own max-width inside it, and the intro takes
-  the same width (.intro--wide for 64rem cards) so both share a left edge.
-
-  The intro reads left to right in three short rows: the kicker, the title on
-  one line where it fits, and one sentence. "How to play" sits at the right
-  of the kicker row; its steps open under the sentence, full width, and the
-  button does not move. The kicker row is as tall as the button so the title
-  never runs under it. The details element comes right after the kicker in
-  the DOM, so Tab reaches the button before the title; flex order moves the
-  steps under the sentence.
-*/
-
 .page-shell {
   width: min(100% - 2rem, var(--game-max-wide));
   margin: 0 auto;
@@ -336,14 +304,6 @@ textarea {
 }
 
 .intro {
-  /*
-    Room for "How to play" (.btn-sm) beside the kicker, built from the
-    button's parts: inline padding, borders, the gap to the arrow, and the
-    longest label ("How to play", about 6.5em) with its arrow at the
-    button's 0.8125rem type. It grows with the root font size and zoom. A
-    browser minimum font size enlarges the label but not rem or em lengths,
-    so the kicker text may then run under the button on phones.
-  */
   --intro-help-width: calc(2 * var(--space-3) + var(--space-2) + 4px + 6.75 * 0.8125rem);
   --intro-help-height: 2.25rem;
   position: relative;
@@ -445,8 +405,6 @@ textarea {
   text-transform: uppercase;
 }
 
-/* Platform overview (home intro footer content) */
-
 .platform-overview {
   margin-top: var(--space-7);
   padding: var(--space-6) 0 var(--space-2);
@@ -501,8 +459,6 @@ textarea {
   line-height: 1.45;
 }
 
-/* Static text under each game (GameAbout.astro) */
-
 .game-about {
   max-width: 48rem;
   margin-top: var(--space-7);
@@ -536,8 +492,6 @@ textarea {
   margin: 0 0 var(--space-3);
 }
 
-/* Footer */
-
 footer {
   margin-top: auto;
   padding: var(--space-5) max(var(--space-4), calc((100% - var(--content-max)) / 2));
@@ -560,8 +514,6 @@ footer p {
   border: 0;
   cursor: pointer;
 }
-
-/* Privacy notice and 404 page */
 
 .privacy-notice,
 .not-found {
@@ -591,16 +543,6 @@ footer p {
   color: var(--color-text-muted);
 }
 
-/*
-  Consent banner. It stays fixed at the bottom, and ConsentBanner publishes its
-  height as --consent-banner-height so the sticky action bars ride above it and
-  the boards leave room for it. At the phone sizes the e2e spec covers it takes
-  at most 130px: the sentence with the policy link inline, then Reject and
-  Accept side by side with the tool name on a second line. Wider screens keep
-  the labels on one line, and from about 1280px the text and the buttons share
-  one row.
-*/
-
 .consent-banner {
   position: fixed;
   inset-inline: 0;
@@ -625,7 +567,6 @@ footer p {
 }
 
 .consent-banner-link {
-  /* Vertical padding on an inline link grows the tap area without moving the lines. */
   padding-block: var(--space-1);
   white-space: nowrap;
 }

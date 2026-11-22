@@ -10,12 +10,11 @@ from typing import Any
 
 from .sources import registrable_domain
 
-
 NAME_LANGUAGES = ("pt", "en", "ko")
 NATIVE_NAME_PROPERTIES = ("P1559", "P1705")
 ROMANIZATION_PROPERTIES = {
-    "P2125": "ko-Latn-RR",  # Revised Romanization
-    "P2126": "ko-Latn-MR",  # McCune-Reischauer
+    "P2125": "ko-Latn-RR",
+    "P2126": "ko-Latn-MR",
 }
 GREGORIAN_CALENDAR = "http://www.wikidata.org/entity/Q1985727"
 PRECISION_YEAR = 9
@@ -25,7 +24,6 @@ RANKS = ("preferred", "normal", "deprecated")
 
 _TIME = re.compile(r"^\+(\d{4})-(\d{2})-(\d{2})T00:00:00Z$")
 
-
 class TimeValueError(ValueError):
     """Raised with a stable reason code when a Wikidata time is unusable."""
 
@@ -33,14 +31,12 @@ class TimeValueError(ValueError):
         super().__init__(reason)
         self.reason = reason
 
-
 @dataclass(frozen=True)
 class Alias:
     name: str
     language: str
     alias_type: str
     source_property: str | None = None
-
 
 @dataclass(frozen=True)
 class TimeValue:
@@ -59,13 +55,11 @@ class TimeValue:
         size = min(len(mine), len(theirs))
         return mine[:size] == theirs[:size]
 
-
 @dataclass(frozen=True)
 class QualifierTime:
     time: TimeValue | None
     snaktype: str
     error: str | None = None
-
 
 @dataclass(frozen=True)
 class Reference:
@@ -73,13 +67,11 @@ class Reference:
     properties: tuple[str, ...]
     source_keys: tuple[str, ...] = ()
 
-
 @dataclass(frozen=True)
 class StatementIssue:
     property_id: str
     statement_id: str | None
     detail: str
-
 
 @dataclass(frozen=True)
 class Statement:
@@ -95,7 +87,6 @@ class Statement:
     end_times: tuple[QualifierTime, ...]
     qualifiers: Mapping[str, Any]
     references: tuple[Reference, ...]
-
 
 def canonical_name(entity: Mapping[str, Any]) -> str:
     """Prefer a Latin-script name; Korean labels come last, before the QID.
@@ -121,7 +112,6 @@ def canonical_name(entity: Mapping[str, Any]) -> str:
     if sitelink:
         return re.sub(r"\s+\([^)]*\)$", "", sitelink)
     return _text(labels.get("ko")) or str(entity.get("id"))
-
 
 def extract_aliases(entity: Mapping[str, Any]) -> list[Alias]:
     """Return labels, aliases, native names and romanizations without duplicates."""
@@ -169,7 +159,6 @@ def extract_aliases(entity: Mapping[str, Any]) -> list[Alias]:
         key=lambda alias: (alias.alias_type, alias.language, alias.name),
     )
 
-
 def matching_names(aliases: Iterable[Alias]) -> tuple[str, ...]:
     """Names in Latin script that can appear in an English Wikipedia extract."""
     names = {
@@ -179,14 +168,12 @@ def matching_names(aliases: Iterable[Alias]) -> tuple[str, ...]:
     }
     return tuple(sorted(names, key=lambda name: (-len(name), name)))
 
-
 def instance_of(entity: Mapping[str, Any]) -> frozenset[str]:
     return frozenset(
         statement.item_id
         for statement in parse_statements(entity, ("P31",))
         if statement.rank != "deprecated" and statement.item_id
     )
-
 
 def parse_statements(
     entity: Mapping[str, Any],
@@ -215,7 +202,6 @@ def parse_statements(
                         )
                     )
     return statements
-
 
 def parse_time(value: Any) -> TimeValue:
     if not isinstance(value, dict):
@@ -248,7 +234,6 @@ def parse_time(value: Any) -> TimeValue:
             raise TimeValueError("invalid_time_value") from exc
         parts.append(day)
     return TimeValue("-".join(parts), precision, calendar)
-
 
 def _parse_statement(property_id: str, raw: Any) -> Statement:
     if not isinstance(raw, dict):
@@ -304,7 +289,6 @@ def _parse_statement(property_id: str, raw: Any) -> Statement:
         references=references,
     )
 
-
 def _parse_reference(reference: Mapping[str, Any]) -> Reference:
     snaks = reference.get("snaks") or {}
     keys: list[str] = []
@@ -325,7 +309,6 @@ def _parse_reference(reference: Mapping[str, Any]) -> Reference:
         source_keys=tuple(dict.fromkeys(keys)),
     )
 
-
 def _qualifier_times(snaks: Any) -> tuple[QualifierTime, ...]:
     if not isinstance(snaks, list):
         return ()
@@ -344,13 +327,11 @@ def _qualifier_times(snaks: Any) -> tuple[QualifierTime, ...]:
             result.append(QualifierTime(None, snaktype, exc.reason))
     return tuple(result)
 
-
 def _snak_value(snak: Any) -> Any:
     if not isinstance(snak, dict) or snak.get("snaktype") != "value":
         return None
     datavalue = snak.get("datavalue")
     return datavalue.get("value") if isinstance(datavalue, dict) else None
-
 
 def _text(value: Any) -> str:
     if isinstance(value, dict):

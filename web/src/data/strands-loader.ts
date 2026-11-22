@@ -27,7 +27,6 @@ function dataUrl(filename: string, baseUrl: string): string {
   return `${base}data/${filename}`;
 }
 
-/** Python `canonical_json`: sorted keys, compact separators, raw UTF-8. */
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
   if (value && typeof value === "object") {

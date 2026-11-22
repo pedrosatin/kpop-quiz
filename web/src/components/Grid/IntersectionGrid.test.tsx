@@ -878,8 +878,8 @@ describe("IntersectionGrid with a grid published before the Formado/Formed wordi
  * count on the reuse day without a new play.
  */
 describe("IntersectionGrid reused Grade of 2026-11-13 with a finished origin save", () => {
-  const reuseDay = publication13.reference_date; // 2026-11-13
-  const originDay = publication13.grid_reference_date!; // 2026-11-12
+  const reuseDay = publication13.reference_date;
+  const originDay = publication13.grid_reference_date!;
   const reusedGrid = reusedGridJson as unknown as IntersectionGridType;
   const originKey = `kpop-grid-${reusedGrid.grid_id}`;
   const reuseKey = `kpop-grid-${reusedGrid.grid_id}-${reuseDay}`;

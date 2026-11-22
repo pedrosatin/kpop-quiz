@@ -2,8 +2,6 @@ import type { TimelineEvent, TimelinePuzzle } from "../../lib/quiz-types";
 import type { TimelineGameStatus, TimelineStoredState } from "./types";
 import { getInitialTimelineEventIds, isEventOrderOf } from "./timeline-utils";
 
-// Rules of a timeline match, kept apart from the hook that holds its state.
-
 export interface TimelineGameStart {
   orderedEventIds: string[];
   gameStatus: TimelineGameStatus;

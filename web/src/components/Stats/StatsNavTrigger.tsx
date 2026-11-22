@@ -16,8 +16,6 @@ export function StatsNavTrigger({ locale, game }: StatsNavTriggerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<StatsTabId>(defaultTab);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  // The element that gets focus back on close. The header button is set
-  // explicitly: a tap in Safari, or a scripted click, does not focus it.
   const returnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {

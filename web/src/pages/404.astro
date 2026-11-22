@@ -2,8 +2,6 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getMessages } from "../i18n/catalog";
 
-// Served by Cloudflare Pages (and GitHub Pages in staging) with HTTP 404 for
-// any unknown path. No canonical/hreflang and always noindex.
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const pt = getMessages("pt-BR");
 const en = getMessages("en");

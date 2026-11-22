@@ -25,7 +25,6 @@ export function useQuizAnalytics(locale: Locale, settings: QuizSettings, match: 
         return dailyDate !== undefined && !isDailyMatchRecorded("quiz", dailyDate);
       },
       outcome: quizOutcome(match),
-      // Group pages (persist=false) must not read home-quiz streaks for return bands.
       omitReturnBands: !settings.persist,
     },
     match.state === "results",

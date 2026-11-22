@@ -16,13 +16,10 @@ import { useGameShareAction } from "./use-game-share-action";
 
 interface Plan {
   next: SeoRouteKey | null;
-  /** Epoch ms of the next midnight in Sao Paulo. */
   deadline: number;
-  /** True when every daily game of today is finished. */
   setComplete: boolean;
   setsCompleted: number;
   setShareText: string | null;
-  /** True the first time this visit records today's set. */
   setJustRecorded: boolean;
 }
 
@@ -41,12 +38,7 @@ export function DailyNext({
 }: {
   game: SeoRouteKey;
   locale: Locale;
-  /** Full share text of this game (URL included); stored for the day summary. */
   shareText?: string;
-  /**
-   * The board's challenge date (`reference_date` / `quizDailyDate`). Defaults
-   * to today's Sao Paulo date when omitted (e.g. a countdown-only mount).
-   */
   referenceDate?: string | undefined;
 }) {
   const messages = getMessages(locale);
@@ -54,9 +46,6 @@ export function DailyNext({
   const [now, setNow] = useState(0);
   const shareTextId = useId();
   const shareFailedId = useId();
-  // Date whose set this mount recorded. The effect reruns when shareText
-  // changes (e.g. the high-contrast share toggle), and the second
-  // recordDailySetComplete call returns false; the celebration must stay.
   const celebratedDate = useRef<string | null>(null);
   const { copied, shareFailed, handleShare } = useGameShareAction({
     analytics: {
@@ -75,9 +64,6 @@ export function DailyNext({
       rememberDailySetLine(today, statsGameId(game), shareText);
     }
     const done = completedDailyGames(today);
-    // The game that just finished may not have flushed lastPlayedDate yet for
-    // the map (save-based) path; include the current route so the last game
-    // sees a complete set in the same paint as DailyNext mounts.
     done.add(game);
     const setComplete = DAILY_GAMES.every((key) => done.has(key));
     let setJustRecorded = false;

@@ -22,8 +22,6 @@ test.describe(`strands layout with consent banner ${LOCAL_BUILD_TAG}`, () => {
   function expectShortViewportBar(layout: StrandsLayoutMetrics, label: string) {
     expect(layout.firstRowTop, `${label}: first grid row`).not.toBeNull();
     expect(layout.actionsTop, `${label}: actions bar`).not.toBeNull();
-    // UX contract item 1: at 360×740 with the banner, only the top of the board
-    // must stay above the bar; the page may scroll for the rest of the grid.
     expect(layout.firstRowTop!, `${label}: top of the board above the bar`).toBeLessThan(
       (layout.actionsTop ?? layout.innerHeight) + 0.5,
     );

@@ -21,30 +21,15 @@ from typing import Any
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, OpenerDirector, Request, build_opener
 
-
 DEFAULT_USER_AGENT = "kpop-quiz/0.1 (https://github.com/pedrosatin/kpop-quiz)"
 _CONTACT = re.compile(r"https?://\S+|[^\s@()<>]+@[^\s@()<>]+\.[^\s@()<>]+")
 
-# The largest body the pipeline has received is a Wikidata ``wbgetentities``
-# batch of country entities: the 24 country-v1 snapshots in data/raw add up
-# to 17 MB of JSON on 2026-11-14, Q30 alone to 1.6 MB, and one batch may ask
-# for 50 entities. The largest Wikipedia revision wikitext is 288 KB. The
-# limit leaves room for larger batches and still stops a body that would not
-# fit in the runner's memory once parsed.
 DEFAULT_MAX_RESPONSE_BYTES = 64 * 1024 * 1024
-
 
 class ResponseRefusedError(RuntimeError):
     """A response broke a limit of :func:`open_url`: its size or its redirect."""
 
-
 class _NoDowngradeRedirectHandler(HTTPRedirectHandler):
-    """Follow redirects, except one that leaves https.
-
-    urllib copies the request headers to the redirected request, so a
-    downgrade would send them, and the API key header of a client, in clear
-    text.
-    """
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
         target = urlsplit(newurl).scheme
@@ -56,31 +41,15 @@ class _NoDowngradeRedirectHandler(HTTPRedirectHandler):
             )
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
-
 @cache
 def _opener() -> OpenerDirector:
-    # Built on the first request, never on import.
     return build_opener(_NoDowngradeRedirectHandler)
-
 
 def urlopen(request: Request, *, timeout: float) -> Any:
     """Default transport: urllib's handlers with the redirect rule above."""
     return _opener().open(request, timeout=timeout)
 
-
 class _BoundedResponse:
-    """Delegate to a response and refuse to read more than ``limit`` bytes.
-
-    A ``read()`` without a size asks the response for everything when
-    http.client knows the body length, which is then within the limit, so a
-    body cut short still raises ``IncompleteRead`` as before. Without a known
-    length it asks for one byte more than the limit allows.
-
-    ``read`` is the only way to the body. The other readers of the response
-    and its underlying file (``_UNBOUNDED``) raise ``AttributeError``, since
-    they would bypass the count. Every other attribute, such as ``headers``
-    and ``status``, comes from the response.
-    """
 
     _UNBOUNDED = frozenset({"readline", "readlines", "readinto", "readinto1", "read1", "peek", "fp", "file"})
 
@@ -126,7 +95,6 @@ class _BoundedResponse:
         if name in self._UNBOUNDED:
             raise AttributeError(f"{name} would read past the response limit; use read()")
         return getattr(self._response, name)
-
 
 def open_url(
     url: str,

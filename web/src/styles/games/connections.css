@@ -1,41 +1,8 @@
-/*
-  Connections: board, tiles, solved-category banners, the mistakes dots and
-  the side panel. The card, buttons, the sticky .game-actions bar and the
-  .game-layout columns come from components.css.
-
-  Below 60rem the panel is the bar under the board: mistakes, the verdict of
-  each guess and the controls, or the result at the end. The message always
-  takes two lines, so a guess never moves the board. From 60rem the same
-  panel is a column beside the board (see the end of this file). A solved
-  category's banner takes the height of the row it replaces.
-*/
 
 .connections-game {
   --game-actions-inset: var(--space-4);
   --game-side-width: 18rem;
   --cx-gap: var(--space-2);
-  /*
-    Height budget: the rows shrink so the board and the whole bar fit the
-    viewport. Measured at 390x844 and 768x1024 (one column) and at
-    1362x940 and 1440x900 (two columns), worst of both locales:
-      --cx-above    page top to the board: site header, game nav, GameIntro
-                    and the card's top border and padding
-      --cx-actions  one column: the bar (mistakes line, two-line message,
-                    controls, padding) and the margin above it; two
-                    columns: the card's bottom padding and border and a
-                    small margin to the viewport's edge
-    To remeasure, load the game scrolled to the top and read the board's
-    getBoundingClientRect().top for --cx-above, and the bar's height plus
-    its margin-top for --cx-actions; keep the largest of each. Rows stop at
-    --control-height, the touch target; below that the page scrolls and the
-    sticky bar stays. --intro-coarse-extra covers touch screens wider than
-    a phone.
-    Board top: 279px at 390x844 on a touch screen, 276px at 768x1024 on a
-    touch screen (8px of it --intro-coarse-extra), 277px at 1362x940 and
-    1440x900 with a fine pointer. Bar while playing: 203px at 390x844,
-    where the controls take two rows (see the 26.5rem block), and 167px at
-    768x1024; the result bar is measured below.
-  */
   --cx-above: calc(17.5rem + var(--intro-coarse-extra));
   --cx-actions: 10.5rem;
   --cx-row-max: 4.5rem;
@@ -55,12 +22,6 @@
   }
 }
 
-/*
-  At the end every row is a banner and the bar holds the result, which is
-  taller than the controls. The banners give up height so all four stay
-  above the bar: the budget uses the result bar instead (measured the same
-  way, with the result of a lost game, whose summary is the longest).
-*/
 .connections-game:has(.connections-result) {
   --cx-actions: 14rem;
 }
@@ -71,7 +32,6 @@
   }
 }
 
-/* Beside the board the panel takes no height from it: taller rows. */
 @media (min-width: 60rem) {
   .connections-game,
   .connections-game:has(.connections-result) {
@@ -81,13 +41,10 @@
   }
 }
 
-/* Mistakes left: the first line of the bar, the top of the side panel. */
 .connections-actions .mistakes-remaining {
   flex: 1 1 100%;
   font-size: 0.875rem;
 }
-
-/* Mistakes left, one dot per attempt */
 
 .mistakes-dots {
   display: inline-flex;
@@ -111,8 +68,6 @@
   opacity: 0.35;
 }
 
-/* Board */
-
 .connections-board,
 .connections-solved-categories {
   display: flex;
@@ -120,10 +75,6 @@
   gap: var(--cx-gap);
 }
 
-/* Solved-category banners, colored by difficulty level */
-
-/* A banner replaces one row of tiles and keeps its height; a list of names
-   too long for two lines grows it. */
 .connections-banner {
   display: flex;
   align-items: center;
@@ -177,8 +128,6 @@
   line-height: 1.25;
 }
 
-/* Tiles: four columns at every width, rows sized by --cx-row */
-
 .connections-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -205,12 +154,6 @@
   transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
-/*
-  ConnectionsBoard sets the font size of each name so every word fits on one
-  line (fitTileText, 15px down to 11px). If none fits, the name may break
-  after ":", "-", "." or "/" (has-breaks), and a word still too wide at 11px breaks
-  inside (is-broken), with a hyphen where the browser knows the language.
-*/
 .connections-tile-text {
   display: block;
   max-width: 100%;
@@ -231,8 +174,6 @@
   hyphens: auto;
 }
 
-/* Hover only tints the background and darkens the border: the text keeps the
-   regular text color, so contrast stays the same in both themes. */
 @media (hover: hover) {
   .connections-tile:hover:not(:disabled):not(.selected) {
     border-color: var(--color-text);
@@ -240,7 +181,6 @@
   }
 }
 
-/* Selected tiles are inverted, a change that does not depend on hue. */
 .connections-tile.selected {
   border-color: var(--color-text);
   background: var(--color-text);
@@ -257,9 +197,6 @@
   cursor: not-allowed;
 }
 
-/* Action bar: controls while playing, the result at the end */
-
-/* The message always takes two lines, so a verdict does not grow the bar. */
 .connections-message {
   display: flex;
   flex-direction: column;
@@ -272,8 +209,6 @@
   min-height: 0;
 }
 
-/* A long explanation is cut at two lines on screen; the live region still
-   announces all of it, and "Show source" at the end repeats it. */
 .connections-feedback {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -286,8 +221,6 @@
   font-weight: 800;
 }
 
-/* Shuffle and Clear on the left, Submit on the right, in one row where the
-   four fit and in two rows of two on narrow phones (below). */
 .connections-controls {
   display: flex;
   flex: 1 1 100%;
@@ -315,12 +248,6 @@
   }
 }
 
-/*
-  The Portuguese labels need about 352px of bar in one row, which a
-  viewport narrower than about 418px does not give: two rows of two up to
-  26.5rem, in both languages. The bar is one row of buttons taller, so the
-  height budget grows by that row (see --cx-actions above).
-*/
 @media (max-width: 26.5rem) {
   .connections-game {
     --cx-actions: 13.75rem;
@@ -341,7 +268,6 @@
   gap: var(--space-2) var(--space-5);
 }
 
-/* Title and summary share a line when they fit, so the bar stays short. */
 .connections-verdict {
   display: flex;
   flex: 1 1 12rem;
@@ -381,7 +307,6 @@
   color: inherit;
 }
 
-/* Only after share and copy both fail: the text to copy by hand. */
 .connections-share-fallback {
   flex: 1 1 100%;
   display: grid;
@@ -424,11 +349,6 @@
   }
 }
 
-/*
-  The source panel opens inside the bar at full height (.source-panel). A
-  sticky bar that tall would cover the board, so the bar stops being sticky
-  while the panel is open; opening it scrolls it into view.
-*/
 .connections-source {
   flex: 1 1 100%;
   display: grid;
@@ -465,12 +385,6 @@
   overflow-wrap: anywhere;
 }
 
-/*
-  From 60rem the panel is a column beside the board, as tall as the board:
-  mistakes and the verdict at the top, the controls at the foot, level with
-  the last row. The verdict has room for the whole explanation there. At the
-  end the result stacks in the same column, its buttons one per row.
-*/
 @media (min-width: 60rem) {
   .connections-actions .mistakes-remaining {
     flex: none;
@@ -540,7 +454,6 @@
     border: 2px solid CanvasText;
   }
 
-  /* Without the level colors, the banner shows its level as text. */
   .connections-banner-level {
     position: static;
     width: auto;

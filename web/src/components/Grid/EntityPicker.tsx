@@ -31,7 +31,6 @@ export function EntityPicker({
   messages,
 }: EntityPickerProps) {
   const [query, setQuery] = useState("");
-  // The option the player moved to with the arrow keys; typing clears it.
   const [navIndex, setNavIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
@@ -41,15 +40,10 @@ export function EntityPicker({
   const backdropRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  // The owner returns focus when the picker closes: to the cell after Close
-  // or Escape, and to the next open cell after a guess.
   useEffect(() => {
     inputRef.current?.focus({ preventScroll: true });
   }, []);
 
-  // A phone keyboard covers the bottom of the layout viewport without
-  // resizing it, so the backdrop follows the visual viewport and the list
-  // shrinks to the part of the screen above the keyboard.
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
     const backdrop = backdropRef.current;
@@ -72,7 +66,6 @@ export function EntityPicker({
     [candidatePool, locale],
   );
 
-  // Names are put in compared form once per pool, not on every keystroke.
   const searchIndex = useMemo(
     () => buildCandidateIndex(candidatePool, locale, displayNames),
     [candidatePool, locale, displayNames],
@@ -80,14 +73,10 @@ export function EntityPicker({
 
   const filtered = useMemo(() => searchCandidates(searchIndex, query), [searchIndex, query]);
 
-  // Enter sends only a group the player chose: one reached with the arrow
-  // keys, or the one the search names. An empty search highlights nothing,
-  // so Enter on it sends nothing.
   const activeIndex = navIndex ?? namedMatchIndex(filtered, query);
   const activeCandidate = activeIndex >= 0 ? filtered[activeIndex]?.candidate : undefined;
   const activeOptionId = activeCandidate ? `candidate-opt-${activeCandidate.id}` : undefined;
 
-  // Arrow keys move the highlight; keep it inside the scrolled list.
   useEffect(() => {
     if (!activeOptionId) return;
     const option = listRef.current?.querySelector<HTMLElement>(`[id="${activeOptionId}"]`);
@@ -170,7 +159,6 @@ export function EntityPicker({
             }}
             placeholder={messages.gridPickerSearchPlaceholder}
             autocomplete="off"
-            // The list stays open under the field while the picker is open.
             role="combobox"
             aria-expanded="true"
             aria-autocomplete="list"
@@ -221,7 +209,6 @@ function CandidateOption({
 }: {
   candidate: CandidateEntity;
   name: string;
-  /** The other name the search matched, shown beside the group's name. */
   alias: string | null;
   active: boolean;
   badge: string | null;
@@ -245,10 +232,6 @@ function CandidateOption({
   );
 }
 
-/**
- * Why a group cannot go in this cell, in words: it is the answer of another
- * cell, or it was already refused here. Null when it can.
- */
 function candidateBadge(
   id: string,
   used: Set<string>,
@@ -260,13 +243,10 @@ function candidateBadge(
   return null;
 }
 
-/** The option an arrow key moves to; the first arrow from no highlight lands on the first group. */
 function movedIndex(key: "ArrowDown" | "ArrowUp", active: number, count: number): number {
   return key === "ArrowDown" ? Math.min(active + 1, count - 1) : Math.max(active - 1, 0);
 }
 
-// Tab and Shift+Tab cycle between the search field and Close, so focus
-// never reaches the page behind the dialog.
 function trapTab(e: KeyboardEvent, dialog: HTMLElement | null) {
   const focusables = [
     ...(dialog?.querySelectorAll<HTMLElement>("button, input, [href], [tabindex]:not([tabindex='-1'])") ?? []),

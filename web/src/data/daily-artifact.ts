@@ -1,12 +1,7 @@
-// The daily workflow publishes each day's puzzles one day ahead under
-// data/next/. The site switches to them at midnight in Sao Paulo, the time
-// zone of the generator's reference date, even before the next run
-// promotes them to data/.
 
 const DAILY_TIME_ZONE = "America/Sao_Paulo";
 
 export function dailyReferenceDate(now: Date = new Date()): string {
-  // en-CA formats dates as YYYY-MM-DD.
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: DAILY_TIME_ZONE,
     year: "numeric",
@@ -37,9 +32,6 @@ export function nextDataUrl(filename: string, baseUrl: string): string {
   return `${base}data/next/${filename}`;
 }
 
-// Boards a loader served after their day, with that day: neither data/ nor
-// data/next/ had today's challenge. Decided once, when the board is loaded,
-// so a board loaded before midnight stays today's until the page reloads.
 const staleBoards = new WeakMap<object, string>();
 
 /**
@@ -91,7 +83,6 @@ export async function loadNextDailyWhenMissing<T extends { reference_date: strin
       return noteDailyBoard(payload, payload.reference_date, today);
     }
   } catch {
-    // Keep missing.
   }
   return null;
 }
@@ -132,7 +123,6 @@ async function newerDaily<T extends { reference_date: string }>(
       return payload;
     }
   } catch {
-    // Keep the main artifact.
   }
   return current;
 }

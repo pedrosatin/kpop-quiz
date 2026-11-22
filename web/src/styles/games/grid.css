@@ -1,18 +1,8 @@
-/*
-  Intersection grid: the 3x3 board, its criterion headers and cell states,
-  plus the few picker and share details the shared primitives do not cover.
-*/
 
 .grid-game.game-card {
   --game-actions-inset: var(--space-4);
 }
 
-/*
-  Same-day correction notice. Below 60rem it sits between the board and the
-  sticky bar (game-layout-side is display: contents). From 60rem it lives in
-  the side column with Give up, so a second card above the board cannot push
-  the button under the fold at 1280x800.
-*/
 .grid-correction {
   margin: 0 0 var(--space-3);
   padding: var(--space-3);
@@ -35,8 +25,6 @@
   }
 }
 
-/* Board */
-
 .grid-board-wrapper {
   padding: var(--space-1) 0;
 }
@@ -50,7 +38,6 @@
   table-layout: fixed;
 }
 
-/* On the narrowest phones the board borrows part of the card padding. */
 @media (max-width: 22.49rem) {
   .grid-board-wrapper {
     margin-inline: calc(var(--space-2) * -1);
@@ -123,8 +110,6 @@
   }
 }
 
-/* Cells */
-
 .grid-cell-wrapper {
   height: 5rem;
   padding: 0;
@@ -184,7 +169,6 @@
   color: var(--color-error-text);
 }
 
-/* An answer shown by give-up: neutral, neither right nor wrong. */
 .grid-cell-btn.revealed {
   border-style: dashed;
   background: var(--color-surface-muted);
@@ -215,7 +199,6 @@
   text-decoration: line-through;
 }
 
-/* A long name must not grow its row; the cell label keeps the full name. */
 .cell-solved-name strong,
 .cell-revealed-name strong,
 .cell-attempt-text {
@@ -236,12 +219,6 @@
   font-size: 1rem;
   font-weight: 700;
 }
-
-/*
-  Picker: the search field and alert stay put while the list scrolls. The
-  backdrop follows the visual viewport (set by EntityPicker), so with a
-  phone keyboard open the dialog sits above it and the list shrinks.
-*/
 
 .grid-picker-backdrop {
   inset: auto 0;
@@ -266,7 +243,6 @@
   }
 }
 
-/* Reserve one alert line so the list does not jump when an error appears. */
 .picker-alert-region {
   min-block-size: 2.5rem;
 }
@@ -332,7 +308,6 @@
   font-weight: 500;
 }
 
-/* The other name the search matched, such as SNSD under Girls' Generation. */
 .candidate-alias {
   color: var(--color-text-muted);
   font-size: 0.8125rem;
@@ -345,16 +320,6 @@
   text-align: center;
 }
 
-/*
-  Below 60rem, at the end the bar holds the result, about 245px tall on a
-  phone and up to 175px on a tablet when the verdict of the last guess
-  takes a second line, and would cover the last row. The icon moves beside
-  the name, names keep two lines and the rows get shorter, so all nine cells
-  stay above the bar at 390x844 and 768x1024. On phones a right cell drops
-  its check mark to keep the name's width; a wrong one still has the cross
-  and the strike-through, so the states differ by more than color. From
-  60rem the result sits beside the board and the cells keep their size.
-*/
 @media (max-width: 59.99rem) {
   .grid-game:has(.grid-result) :is(.cell-solved-name, .cell-revealed-name, .cell-failed-status) {
     flex-direction: row;
@@ -392,14 +357,11 @@
   }
 }
 
-/* Side panel: verdict and counters while playing, the result at the end */
-
 .grid-actions {
   flex-wrap: nowrap;
   column-gap: var(--space-3);
 }
 
-/* The message always takes two lines, so a verdict does not grow the bar. */
 .grid-message {
   display: flex;
   flex-direction: column;
@@ -420,14 +382,6 @@
   overflow: hidden;
 }
 
-/*
-  A refused guess takes the two lines of the message: the verdict, then the
-  limit of the catalog. The count of guesses left is already in the bar, so the
-  note does not repeat that the guess was spent. Each line stays on one line, and
-  the shortest sentence that says it keeps it whole at 360px. A group already
-  tried in the cell uses the same two lines: the warning, then that no guess
-  was spent.
-*/
 .grid-message p:is(.grid-refused, .grid-repeat) {
   display: block;
 }
@@ -464,12 +418,6 @@
   flex-wrap: wrap;
 }
 
-/*
-  Phones: the shared bar stretches its button to the full width up to 420px,
-  and in a nowrap row that pushed the bar past the screen (504px at 390px)
-  and squeezed the message to no width. The message takes its own line; the
-  counters and the button share the line under it.
-*/
 @media (max-width: 30rem) {
   .grid-actions {
     flex-wrap: wrap;
@@ -530,7 +478,6 @@
   color: inherit;
 }
 
-/* Only after share and copy both fail: the text to copy by hand. */
 .grid-share-fallback {
   flex: 1 1 100%;
   display: grid;
@@ -564,11 +511,6 @@
   }
 }
 
-/*
-  The answers panel opens inside the bar at full height (.source-panel). A
-  sticky bar that tall would cover the board, so the bar stops being sticky
-  while the panel is open; opening it scrolls it into view.
-*/
 .grid-source {
   flex: 1 1 100%;
   scroll-margin-bottom: calc(var(--consent-banner-height, 0px) + var(--space-3));
@@ -615,23 +557,12 @@
   font-size: 0.8125rem;
 }
 
-/*
-  From 60rem: the board fills the left column of .game-layout and the panel
-  sits beside it, the verdict at the top and the counters at the foot, level
-  with the last row. The cells take the height the bar took under the board:
-  --grid-above is the page top to the first row of cells (header, nav,
-  intro, card padding and the criteria row), measured at 1362x940 and
-  1440x900 in both locales (377px); --grid-below is the card's bottom
-  padding and a margin to the viewport's edge. Rows stop at 5rem, their
-  size below 60rem, and at 6.5rem.
-*/
 @media (min-width: 60rem) {
   .grid-game {
     --grid-above: calc(23.75rem + var(--intro-coarse-extra));
     --grid-below: 3rem;
   }
 
-  /* Notice shares the side column; keep Give up at the foot of that column. */
   .grid-game--corrected .game-layout-side {
     justify-content: flex-start;
   }
@@ -674,7 +605,6 @@
     flex: none;
   }
 
-  /* The side panel has room to wrap: a long group name or note is never cut. */
   :is(.grid-refused, .grid-repeat) :is(.grid-verdict, .grid-catalog-limit) {
     overflow: visible;
     white-space: normal;

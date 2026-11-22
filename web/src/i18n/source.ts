@@ -1,11 +1,6 @@
 import type { Locale } from "../lib/quiz-types";
 import type { SourcePlace, SourceProject, SourceSite } from "../lib/source-label";
 
-// Copy for one cited revision, shared by every game's "Ver fonte" panel:
-// "Wikipédia em inglês, revisão 123, no resumo do artigo." and a link that
-// names where it leads. Property names cover the statements the published
-// games cite; another property falls back to its id.
-
 export interface SourceMessages {
   /** The site and its language: "Wikipédia em inglês", "Wikidata". */
   site: (site: SourceSite) => string;

@@ -3,16 +3,13 @@ from __future__ import annotations
 
 from .crossword_cli import normalize
 
-
 class BudgetExhausted(ValueError):
     pass
-
 
 def positions(entry):
     dr, dc = (0, 1) if entry['direction'] == 'across' else (1, 0)
     return [(entry['row'] + i * dr, entry['col'] + i * dc)
             for i in range(len(entry['answer']))]
-
 
 def geometry(entries: list[dict], *, complete=True) -> dict:
     cells, owners = {}, {}
@@ -34,7 +31,6 @@ def geometry(entries: list[dict], *, complete=True) -> dict:
     rs, cs = [r for r, _ in cells], [c for _, c in cells]
     if max(rs) - min(rs) >= 9 or max(cs) - min(cs) >= 9:
         raise ValueError('board bounds')
-    # Every maximal horizontal/vertical run of 2+ cells must be a declared slot.
     for r, c in cells:
         for direction, dr, dc in [('across', 0, 1), ('down', 1, 0)]:
             if (r - dr, c - dc) in cells:
@@ -53,7 +49,6 @@ def geometry(entries: list[dict], *, complete=True) -> dict:
         raise ValueError('disconnected slots')
     return cells
 
-
 def canonical_board(entries):
     cells = geometry(entries)
     top, left = min(r for r, _ in cells), min(c for _, c in cells)
@@ -66,7 +61,6 @@ def canonical_board(entries):
     return {'rows': max(r for r, _ in cells) + 1, 'cols': max(c for _, c in cells) + 1,
             'entries': result, 'vocabulary': sorted(e['qid'] for e in result),
             'cells': [{'row': r, 'col': c, 'answer': ch} for (r, c), ch in sorted(cells.items())]}
-
 
 def count_assignments(entries, domains, node_limit=10000):
     """Count up to two assignments, never label an interrupted proof complete.
@@ -104,7 +98,6 @@ def count_assignments(entries, domains, node_limit=10000):
     visit(0, {}, set())
     return {'solutions': solutions, 'complete': True, 'nodes': nodes}
 
-
 def connected_count(groups):
     unseen = set(groups)
     largest = 0
@@ -120,7 +113,6 @@ def connected_count(groups):
         unseen -= reached
         largest = max(largest, len(reached))
     return largest
-
 
 def place(groups, rng, target, node_limit):
     """One greedy randomized attempt; every added slot crosses the existing board."""

@@ -22,7 +22,6 @@ from typing import Iterator, Sequence, TypeVar
 
 T = TypeVar("T")
 
-
 def shuffled_indices(total: int, rng: random.Random) -> Iterator[int]:
     """Yield each integer of ``range(total)`` once, in an order drawn from ``rng``.
 
@@ -44,7 +43,6 @@ def shuffled_indices(total: int, rng: random.Random) -> Iterator[int]:
         yield displaced.get(pick, pick)
         displaced[pick] = current
 
-
 def combination_at(rank: int, n: int, k: int) -> tuple[int, ...]:
     """Return the k-subset of ``range(n)`` with this rank, in ascending order.
 
@@ -59,7 +57,6 @@ def combination_at(rank: int, n: int, k: int) -> tuple[int, ...]:
     positions: list[int] = []
     upper = n - 1
     for size in range(k, 0, -1):
-        # C(size - 1, size) = 0 <= rank, so the answer is in [size - 1, upper].
         low, high = size - 1, upper
         while low < high:
             middle = (low + high + 1) // 2
@@ -73,7 +70,6 @@ def combination_at(rank: int, n: int, k: int) -> tuple[int, ...]:
     positions.reverse()
     return tuple(positions)
 
-
 def shuffled_combinations(
     items: Sequence[T], k: int, rng: random.Random
 ) -> Iterator[tuple[T, ...]]:
@@ -86,7 +82,6 @@ def shuffled_combinations(
     n = len(items)
     for rank in shuffled_indices(comb(n, k), rng):
         yield tuple(items[position] for position in combination_at(rank, n, k))
-
 
 def shuffled_blocks(sizes: Sequence[int], rng: random.Random) -> Iterator[tuple[int, int]]:
     """Yield each ``(block, offset)`` with ``offset < sizes[block]`` once, in an order drawn from ``rng``.

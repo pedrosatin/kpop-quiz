@@ -23,7 +23,6 @@ export function codeGroupsStorageKey(roundDate: string): string {
 
 const ROUND_KEY = /^kpop-code-\d{4}-\d{2}-\d{2}$/;
 
-/** Removes the saves of other days, so old rounds do not pile up in storage. */
 function pruneCodeGroupsSaves(roundDate: string): void {
   const keep = codeGroupsStorageKey(roundDate);
   for (const key of listLocalStorageKeys()) {
@@ -35,22 +34,16 @@ function isSymbolId(id: unknown, puzzle: CodeGroupsPuzzle): id is string {
   return typeof id === "string" && puzzle.symbols.some((s) => s.qid === id);
 }
 
-/** Four distinct groups, all among the six symbols. */
 function isSavedGuess(ids: unknown, puzzle: CodeGroupsPuzzle): ids is string[] {
   if (!Array.isArray(ids) || ids.length !== 4 || new Set(ids).size !== 4) return false;
   return ids.every((id) => isSymbolId(id, puzzle));
 }
 
-/** No more guesses than the limit, each a valid guess. */
 function isSavedHistory(history: unknown, puzzle: CodeGroupsPuzzle): history is string[][] {
   if (!Array.isArray(history) || history.length > puzzle.max_attempts) return false;
   return history.every((ids) => isSavedGuess(ids, puzzle));
 }
 
-/**
- * Four slots, each empty or a symbol. A round out of attempts keeps its slots
- * empty, because the game clears them when the round ends.
- */
 function isSavedSelection(selection: unknown, history: readonly string[][], puzzle: CodeGroupsPuzzle): selection is string[] {
   if (!Array.isArray(selection) || selection.length !== 4) return false;
   if (history.length === puzzle.max_attempts && selection.some((id) => id !== "")) return false;

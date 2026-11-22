@@ -9,15 +9,12 @@ from pathlib import Path
 
 from .storage import MIGRATIONS
 
-
 def schema_version() -> str:
     """Hash every migration, including edits to an existing migration's DDL."""
     return hashlib.sha256(json.dumps(MIGRATIONS, ensure_ascii=True).encode()).hexdigest()
 
-
 def marker_path(database: Path) -> Path:
     return database.with_name(database.name + ".schema")
-
 
 def compatible(database: Path) -> bool:
     marker = marker_path(database)
@@ -27,14 +24,11 @@ def compatible(database: Path) -> bool:
         and marker.read_text().strip() == schema_version()
     )
 
-
 def install_reserve(target: Path) -> None:
     """Install the publication-only database shipped with the source, without network."""
     reserve = Path(__file__).resolve().parents[1] / "data" / "publication-reserve.sqlite.gz"
     target.write_bytes(gzip.decompress(reserve.read_bytes()))
 
-
-# Only public inputs read by the generators: no run logs or local snapshot paths.
 PUBLIC_COLUMNS = {
     "entities": "id,wikidata_id,entity_type,canonical_name",
     "entity_aliases": "entity_id,language,name,alias_type",
@@ -47,7 +41,6 @@ PUBLIC_COLUMNS = {
     "wikidata_type_checks": "id,wikidata_id,external_revision_id,instance_of_json",
 }
 
-
 def export_reserve(source: Path, target: Path) -> None:
     """Export a reviewed collection as a compact, publication-only SQLite reserve."""
     with sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True) as original, sqlite3.connect(":memory:") as output:
@@ -58,7 +51,6 @@ def export_reserve(source: Path, target: Path) -> None:
             output.executemany(f"INSERT INTO {table} VALUES ({','.join('?' for _ in names)})", rows)
         output.commit()
         target.write_bytes(gzip.compress(output.serialize(), mtime=0))
-
 
 if __name__ == "__main__":
     print(schema_version())

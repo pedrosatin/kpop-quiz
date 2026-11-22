@@ -4,8 +4,6 @@ import type { ConnectionsBoardProps } from "./types";
 import { CategoryBanner } from "./CategoryBanner";
 import { ConnectionsTile } from "./ConnectionsTile";
 
-// Tile font range in px at a 16px root (scaled with the root size): the
-// largest size a name keeps, and the smallest before a word may break inside.
 const TILE_FONT_MAX = 15;
 const TILE_FONT_MIN = 11;
 const TILE_FONT_STEP = 0.5;
@@ -65,9 +63,6 @@ export function ConnectionsBoard({
   const ownGrid = useRef<HTMLDivElement>(null);
   const grid = gridRef ?? ownGrid;
 
-  // Fit each name to its tile before paint, again when the tiles resize and
-  // once the web font arrives (it swaps in after the fallback was measured).
-  // Sorted ids: Shuffle moves the same tiles, so their fit still holds.
   const itemKey = boardItems.map((item) => item.id).sort().join(",");
   useLayoutEffect(() => {
     const node = grid.current;
@@ -83,9 +78,6 @@ export function ConnectionsBoard({
     if (fonts && fonts.status !== "loaded") fonts.ready.then(fitAll, () => {});
     let observer: ResizeObserver | undefined;
     if (typeof ResizeObserver !== "undefined") {
-      // The first callback reports the size fitAll just used; skip it.
-      // Fitting never changes the tile size (fixed rows and columns), so
-      // later callbacks cannot loop.
       let first = true;
       observer = new ResizeObserver(() => {
         if (first) {

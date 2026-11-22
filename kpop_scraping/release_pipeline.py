@@ -14,7 +14,6 @@ from .revision_reuse import entity_batches
 from .validation import ValidationContext, validate_facts
 from .wikidata import LABEL_PROFILE, SUBJECT_PROFILE, WikidataEntityClient
 
-
 def collect_release_facts(
     repository,
     client: WikidataEntityClient,
@@ -46,7 +45,6 @@ def collect_release_facts(
     store.complete_run(run_id, totals)
     return totals
 
-
 def _completed_discovery_scope(repository, discovery_run_id: int) -> frozenset[int]:
     run = repository.connection.execute(
         "SELECT status FROM release_discovery_runs WHERE id=?", (discovery_run_id,)
@@ -67,7 +65,6 @@ def _completed_discovery_scope(repository, discovery_run_id: int) -> frozenset[i
     if not group_ids:
         raise ValueError(f"release discovery run {discovery_run_id} has no groups")
     return group_ids
-
 
 def _collect(
     repository,
@@ -242,18 +239,10 @@ def _collect(
         ignored,
     )
 
-
 def _split(values: list[str], size: int) -> list[list[str]]:
     return [values[offset : offset + size] for offset in range(0, len(values), size)]
 
-
 def _catalog_group_names(connection, entity_id: int) -> tuple[str, ...]:
-    """Return a catalog group's aliases plus the spelling of its own page title.
-
-    Wikipedia may write a name in another case than Wikidata ("Exo", "EXO").
-    The title of the page the catalog accepted for this group only adds that
-    spelling of a known alias, never a different name.
-    """
     aliases = [
         row["name"]
         for row in connection.execute(
@@ -275,12 +264,6 @@ def _catalog_group_names(connection, entity_id: int) -> tuple[str, ...]:
             aliases.append(spelling)
     return tuple(aliases)
 
-
-# True when the current discovery may have hidden the release of {row}: the
-# per-group limit cut its group, its QID comes after the last kept one, and
-# the run has no candidate for it in that group. Canonical QIDs (no leading
-# zeros) compare as numbers by length, then text; CAST(... AS INTEGER) would
-# saturate at 2**63 - 1.
 _HIDDEN_BY_CUT = """EXISTS (
     SELECT 1 FROM release_discovery_groups cut
     WHERE cut.run_id=:discovery_run AND cut.group_entity_id={row}.group_entity_id
@@ -299,10 +282,6 @@ _HIDDEN_BY_CUT = """EXISTS (
       )
 )"""
 
-# Entities of earlier rows in the batch's groups that the current run did not
-# accept and that no accepted row still holds: a row of a group outside the
-# batch, or one the cut may have hidden. Runs after the candidate update, so
-# the accepted rows left in the batch's groups are matched or hidden.
 _RETIRED_RELEASES = f"""
     SELECT DISTINCT previous.entity_id FROM release_candidates previous
     WHERE previous.run_id<>:discovery_run AND previous.entity_id IS NOT NULL
@@ -325,15 +304,7 @@ _RETIRED_RELEASES = f"""
             )
       )"""
 
-
 def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) -> None:
-    """Retire accepted releases that the latest discovery of their group no longer found.
-
-    When the per-group limit cut a group, a missing release whose QID comes
-    after the last kept candidate may sit among the discarded ones, so it
-    stays accepted with its facts and pages. A missing or rejected release at
-    or below that QID is retired as in a complete discovery.
-    """
     parameters = {"discovery_run": discovery_run_id, "fact_run": fact_run_id}
     connection.execute(
         f"""UPDATE release_candidates AS previous
@@ -362,16 +333,13 @@ def _mark_stale_releases(connection, discovery_run_id: int, fact_run_id: int) ->
         parameters,
     )
 
-
 def _reject(repository, rows, reason, resolved=None, snapshot_id=None):
     repository.connection.executemany(
         "UPDATE release_candidates SET state='rejected',reason=?,resolved_wikidata_id=?,snapshot_id=? WHERE id=?",
         [(reason, resolved, snapshot_id, row["id"]) for row in rows],
     )
 
-
 def _performer_entity_ids(extracted, entity_ids):
-    """Resolve P175 values to stored identities before matching catalog groups."""
     return {
         entity_ids[candidate.value_id]
         for candidate in extracted.candidates

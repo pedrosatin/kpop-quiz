@@ -10,7 +10,6 @@ function isLastQuestion({ session, questionIndex }: QuizMatch): boolean {
   return questionIndex === (session?.questions.length ?? 0) - 1;
 }
 
-/** Stores the measured round time when `measure` allows it; returns the value to persist. */
 function settleElapsed(match: QuizMatch, measure: boolean): number {
   const { startTimeRef, elapsedSeconds, setElapsedSeconds } = match;
   if (!measure || !startTimeRef.current) return elapsedSeconds;
@@ -22,8 +21,6 @@ function settleElapsed(match: QuizMatch, measure: boolean): number {
 export function startRound(ctx: QuizPlayContext): void {
   const { analytics, settings, match, timerSeconds, persistProgress } = ctx;
   analytics.start();
-  // Group pages set persist=false so a round there must not overwrite the
-  // home quiz's saved play mode or timer preference.
   if (settings.persist) {
     saveStoredPlayMode(settings.playMode);
     saveStoredTimerEnabled(settings.timerEnabled);
@@ -128,7 +125,6 @@ export function advanceRound(ctx: QuizPlayContext): void {
 function giveUp({ match, question, persistProgress, analytics }: QuizPlayContext): void {
   const { session, state, questionIndex, revealedClues, history, gaveUpRef } = match;
   if (!session || state === "results" || gaveUpRef.current) return;
-  // A restored round never passes through start(), so its result would go unsent.
   analytics.start();
   gaveUpRef.current = true;
   match.setDeadlineMs(null);
@@ -137,9 +133,6 @@ function giveUp({ match, question, persistProgress, analytics }: QuizPlayContext
   if (state !== "question.answered" && question) {
     extra.push({ question, selectedOptionId: null, isCorrect: false, cluesUsedCount: revealedClues.length });
   }
-  // The current question is already in history when answered (submit
-  // recorded it) or pushed above when not, so the loop always resumes
-  // after it.
   for (let i = questionIndex + 1; i < session.questions.length; i++) {
     extra.push({ question: session.questions[i]!, selectedOptionId: null, isCorrect: false, cluesUsedCount: 0 });
   }
@@ -156,7 +149,6 @@ function giveUp({ match, question, persistProgress, analytics }: QuizPlayContext
 }
 
 export function confirmGiveUp(ctx: QuizPlayContext): void {
-  // A delayed click after timeout (or Escape) must not end the round.
   ctx.match.confirmGiveUp(() => giveUp(ctx));
 }
 

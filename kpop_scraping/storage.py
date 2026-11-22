@@ -21,10 +21,8 @@ from typing import Any
 from . import rebuild_phases
 from .mediawiki import EXTRACT_OVERSIZE, MAX_EXTRACT_BYTES, Page
 
-
 class SnapshotIntegrityError(RuntimeError):
     """Raised when immutable snapshot content does not match its identity."""
-
 
 class SnapshotPathError(SnapshotIntegrityError):
     """A snapshot path resolves outside the raw directory.
@@ -33,11 +31,7 @@ class SnapshotPathError(SnapshotIntegrityError):
     for divergent content, so the file at that path is not quarantined.
     """
 
-
-# collection_issues code of a page whose fetched extract differs from the
-# stored snapshot of the same revision (ADR 036).
 EXTRACT_DRIFT = "extract_drift"
-
 
 @dataclass(frozen=True)
 class ExtractDrift:
@@ -65,18 +59,10 @@ class ExtractDrift:
             f"{self.stored_extract_sha256} stored, {self.fetched_extract_sha256} fetched"
         )
 
-
 def _text_sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
-
 def _revision_content(payload: Any) -> tuple[int, int, str] | None:
-    """Return fields fixed by a MediaWiki page revision.
-
-    Action API metadata such as ``touched`` can change without a new revision.
-    It remains preserved in the original snapshot, but it must not make a
-    repeated fetch of the same revision look like changed source content.
-    """
     if not isinstance(payload, dict):
         return None
     revisions = payload.get("revisions")
@@ -97,9 +83,7 @@ def _revision_content(payload: Any) -> tuple[int, int, str] | None:
         return None
     return page_id, revision_id, extract.strip()
 
-
 Migration = tuple[int, str, Sequence[str]]
-
 
 MIGRATIONS: tuple[Migration, ...] = (
     (
@@ -743,9 +727,6 @@ MIGRATIONS: tuple[Migration, ...] = (
         11,
         "fact_run_evidence_rules_version",
         (
-            # EVIDENCE_RULES_VERSION of the code that decided the run's facts.
-            # Runs recorded before this migration keep NULL: their version is
-            # not known.
             "ALTER TABLE fact_runs ADD COLUMN evidence_rules_version TEXT",
         ),
     ),
@@ -753,16 +734,8 @@ MIGRATIONS: tuple[Migration, ...] = (
         12,
         "release_discovery_discarded_candidates",
         (
-            # WDQS candidates of the group that the per-group limit left out
-            # of this run. Runs recorded before this migration aborted above
-            # the limit, so 0 is true for them.
             """ALTER TABLE release_discovery_groups ADD COLUMN candidates_discarded
             INTEGER NOT NULL DEFAULT 0 CHECK(candidates_discarded >= 0)""",
-            # Highest QID the cut kept, set only when candidates were
-            # discarded. Every discarded candidate comes after it in numeric
-            # order, so _mark_stale_releases retires the group's releases at
-            # or below it as usual. Canonical form (no leading zeros) lets SQL
-            # compare QIDs as numbers by length, then text.
             """ALTER TABLE release_discovery_groups ADD COLUMN last_kept_wikidata_id TEXT
             CHECK(
                 (candidates_discarded = 0 AND last_kept_wikidata_id IS NULL)
@@ -777,10 +750,8 @@ MIGRATIONS: tuple[Migration, ...] = (
     ),
 )
 
-
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
-
 
 def canonical_json(payload: Any) -> bytes:
     """Serialize JSON to the stable byte representation used for hashes."""
@@ -792,13 +763,11 @@ def canonical_json(payload: Any) -> bytes:
         separators=(",", ":"),
     ).encode("utf-8")
 
-
 def spreadsheet_safe(value: Any) -> Any:
     """Prevent external text from being interpreted as a spreadsheet formula."""
     if isinstance(value, str) and value.lstrip().startswith(("=", "+", "-", "@")):
         return f"'{value}"
     return value
-
 
 def apply_migrations(
     connection: sqlite3.Connection,
@@ -845,7 +814,6 @@ def apply_migrations(
             if version == 6 and foreign_keys:
                 connection.execute("PRAGMA foreign_keys = ON")
 
-
 class SnapshotStore:
     """Write and verify gzip-compressed JSON snapshots.
 
@@ -857,8 +825,6 @@ class SnapshotStore:
 
     ORPHAN_DIR = ".orphans"
 
-    # A path segment from a fixed alphabet; "." and ".." would name raw_dir
-    # itself or its parent.
     _SAFE_SEGMENT = re.compile(r"^(?!\.\.?$)[A-Za-z0-9._-]+$")
     _ENTITY_ID = re.compile(r"^Q[1-9][0-9]*$")
 
@@ -931,32 +897,15 @@ class SnapshotStore:
         )
 
     def _contained(self, relative_path: str | Path) -> Path:
-        """Return ``raw_dir / relative_path`` once it resolves inside ``raw_dir``.
-
-        ``..``, an absolute path and a symbolic link that leads out of
-        ``raw_dir`` all raise ``SnapshotPathError``.
-        """
         path = self.raw_dir / relative_path
         if not path.resolve().is_relative_to(self.raw_dir.resolve()):
             raise SnapshotPathError(f"snapshot path {str(relative_path)!r} is outside the raw directory")
         return path
 
     def _write(self, relative_path: Path, content: bytes) -> tuple[str, str]:
-        # A path that leaves raw_dir is refused here, and the quarantine below
-        # re-raises the same error, so a file behind a link is neither written
-        # over nor quarantined.
         target = self._contained(relative_path)
         digest = hashlib.sha256(content).hexdigest()
 
-        # Callers write only snapshots their own database does not reference
-        # yet. A file with different content at this path is therefore an
-        # orphan for that database, usually left by a run that failed after
-        # writing it and whose database was then restored from an older copy.
-        # A later fetch of the same revision differs from it in volatile
-        # metadata such as ``touched``, so the hash check alone would reject
-        # every retry. Another database that shares this raw_dir may still
-        # reference the old bytes, so the file moves to the quarantine instead
-        # of being overwritten; that database can recover it from there.
         if target.exists():
             try:
                 self.verify(relative_path.as_posix(), digest)
@@ -988,11 +937,6 @@ class SnapshotStore:
         return relative_path.as_posix(), digest
 
     def _quarantine(self, relative_path: Path, expected_digest: str) -> Path:
-        """Move a mismatching file under ``ORPHAN_DIR``, named by its own hash.
-
-        The ``.orphan`` suffix keeps quarantined files out of ``*.json.gz``
-        searches over raw_dir.
-        """
         target = self.raw_dir / relative_path
         existing_digest = hashlib.sha256(target.read_bytes()).hexdigest()
         quarantine = (
@@ -1047,7 +991,6 @@ class SnapshotStore:
     def verify(self, relative_path: str, expected_digest: str) -> None:
         self.read(relative_path, expected_digest)
 
-
 class Repository:
     def __init__(self, database_path: Path, raw_dir: Path | None = None) -> None:
         database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1055,8 +998,6 @@ class Repository:
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.snapshots = SnapshotStore(raw_dir or database_path.parent / "raw")
-        # Pages save_pages skipped for ExtractDrift since this object opened;
-        # the CLI lists them in the run summary.
         self.extract_drifts: list[ExtractDrift] = []
         self._apply_migrations()
 
@@ -1131,16 +1072,6 @@ class Repository:
         provider: str,
         language: str,
     ) -> ExtractDrift | None:
-        """Check a repeated fetch of a stored revision against its snapshot.
-
-        A snapshot that cannot be read, fails its SHA-256 or does not hold
-        this page and revision raises ``SnapshotIntegrityError``, and so does
-        a fetched payload that names another page or revision or carries no text
-        extract. A sound
-        snapshot whose extract differs from the fetched one is returned as an
-        ``ExtractDrift``: the snapshot stays the observation of record for the
-        revision, and the caller skips the page.
-        """
         if existing["content_sha256"] == digest:
             self.snapshots.verify(existing["snapshot_path"], digest)
             return None

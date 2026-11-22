@@ -24,8 +24,6 @@ export function AnswerFeedbackSource({
   onToggle: () => void;
 }) {
   const panel = useRef<HTMLDivElement>(null);
-  // On phones the open panel grows the round past the screen; bring the bar
-  // into view so the panel and Next show together when they fit.
   useEffect(() => {
     if (sourceOpen) panel.current?.closest(".game-actions")?.scrollIntoView?.({ block: "nearest" });
   }, [sourceOpen]);
@@ -42,7 +40,6 @@ export function AnswerFeedbackSource({
         {sourceOpen ? messages.hideSource : messages.showSource}
       </button>
       <div ref={panel} class="quiz-source source-panel" id={sourceId} hidden={!sourceOpen}>
-        {/* The bar clamps the verdict to two lines; the full answers stay here. */}
         {answers && <p>{answers}</p>}
         <p>{explanation}</p>
         {evidence.map((item) => (

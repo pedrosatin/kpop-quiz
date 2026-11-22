@@ -17,18 +17,15 @@ from .evidence import (
 from .facts import FactCandidate
 from .person_evidence import PERSON_BIRTH_FIELDS, VALUE_AMBIGUOUS, VALUE_DIFFERS, person_infobox_check
 
-
 ACCEPTED = "accepted"
 REJECTED = "rejected"
 CONFLICT = "conflict"
 SUPERSEDED = "superseded"
 STALE = "stale"
-# A fact rejected with one of these reasons keeps the page text in ``observed``.
 PAGE_CONTRADICTION_REASONS = frozenset({VALUE_DIFFERS, VALUE_AMBIGUOUS, FORMATION_CATEGORY_DIFFERS})
 EVIDENCE_REASONS = frozenset(
     {"missing_evidence", "unreliable_reference_source", "unreviewed_reference_source"}
 )
-
 
 @dataclass(frozen=True)
 class ValidationContext:
@@ -38,14 +35,8 @@ class ValidationContext:
     release_pages: Mapping[str, tuple[WikipediaPage, ...]] = field(default_factory=dict)
     release_performers: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     countries: frozenset[str] = field(default_factory=frozenset)
-    # Pages of people keyed by their Wikidata QID; only identity-checked pages.
     person_pages: Mapping[str, WikipediaPage] = field(default_factory=dict)
-    # Statements the person pages may serve. None leaves them unrestricted;
-    # a run that did not collect person pages passes only the statements the
-    # infobox rule had already accepted, so it can keep them without ever
-    # accepting a new fact from this source.
     person_evidence_statements: frozenset[str] | None = None
-
 
 @dataclass(frozen=True)
 class FactDecision:
@@ -54,28 +45,18 @@ class FactDecision:
     reason: str | None
     flags: tuple[str, ...]
     evidence: tuple[EvidenceItem, ...]
-    # What the page says when it contradicts the fact or cannot be read; it
-    # supports nothing and is kept only for the reviewer.
     observed: EvidenceItem | None = None
-
 
 class EvidenceSearch(NamedTuple):
     evidence: tuple[EvidenceItem, ...]
     reason: str
     observed: EvidenceItem | None = None
 
-
 class _PageSearch(NamedTuple):
-    """What the collected pages say about one value of one subject.
-
-    ``reason`` replaces the reason from the statement's own references when
-    the page contradicts the value or cannot be read.
-    """
 
     evidence: tuple[EvidenceItem, ...]
     reason: str | None = None
     observed: EvidenceItem | None = None
-
 
 def find_evidence(
     candidate: FactCandidate,
@@ -103,7 +84,6 @@ def find_evidence(
             return EvidenceSearch((), reason)
     elif not candidate.spec.wikipedia_evidence:
         return EvidenceSearch(assessment.evidence, reason)
-    # The page search reads only these fields of the candidate.
     key = (candidate.spec, candidate.subject_id, candidate.value_id, candidate.time)
     found = page_searches.get(key) if page_searches is not None else None
     if found is None:
@@ -114,7 +94,6 @@ def find_evidence(
         if page_searches is not None:
             page_searches[key] = found
     return EvidenceSearch(found.evidence, found.reason or reason, found.observed)
-
 
 def _wikipedia_search(candidate: FactCandidate, context: ValidationContext) -> _PageSearch:
     predicate = candidate.predicate
@@ -137,7 +116,6 @@ def _wikipedia_search(candidate: FactCandidate, context: ValidationContext) -> _
             context.release_performers.get(group_id or "", ()),
         )
         if predicate == "formed_on" and candidate.time:
-            # A formation-year category with another year vetoes the extract too.
             category = formation_category_check(page, candidate.time)
             if category.observed:
                 return _PageSearch((), FORMATION_CATEGORY_DIFFERS, category.observed)
@@ -145,7 +123,6 @@ def _wikipedia_search(candidate: FactCandidate, context: ValidationContext) -> _
         if item:
             return _PageSearch((item,))
     return _PageSearch(())
-
 
 def _person_search(candidate: FactCandidate, context: ValidationContext) -> _PageSearch:
     page = context.person_pages.get(candidate.subject_id)
@@ -161,7 +138,6 @@ def _person_search(candidate: FactCandidate, context: ValidationContext) -> _Pag
     if check.evidence:
         return _PageSearch((check.evidence,))
     return _PageSearch((), check.rejection_reason, check.observed)
-
 
 def validate_facts(
     candidates: Iterable[FactCandidate],
@@ -184,7 +160,6 @@ def validate_facts(
             decisions[decision.candidate.statement.statement_id] = decision
     _cross_check_memberships(decisions, list(reference_candidates))
     return [decisions[candidate.statement.statement_id] for candidate in ordered]
-
 
 def _validate_group(
     group: list[FactCandidate],
@@ -233,7 +208,6 @@ def _validate_group(
         else:
             active.append(candidate)
 
-    # Duplicate statements of one value read the pages once (see find_evidence).
     page_searches: dict[tuple, _PageSearch] = {}
     for candidate in active:
         found, reason, seen = find_evidence(candidate, context, page_searches)
@@ -296,21 +270,17 @@ def _validate_group(
             decide(candidate, REJECTED, evidence_reason[statement_id])
     return [results[candidate.statement.statement_id] for candidate in group]
 
-
 def _preferred_properties(candidates: Iterable[FactCandidate]) -> set[str]:
-    """Wikidata ranks compete inside one property, so P463 and P361 stay apart."""
     return {
         candidate.statement.property_id
         for candidate in candidates
         if candidate.statement.rank == "preferred"
     }
 
-
 def _value_key(candidate: FactCandidate) -> str:
     if candidate.value_id is not None:
         return candidate.value_id
     return candidate.time.value if candidate.time else ""
-
 
 def _period_key(candidate: FactCandidate) -> tuple:
     return (
@@ -318,24 +288,15 @@ def _period_key(candidate: FactCandidate) -> tuple:
         candidate.valid_to.value if candidate.valid_to else None,
     )
 
-
 @dataclass
 class _Side:
     candidate: FactCandidate
     decision_id: str | None
 
-
 def _cross_check_memberships(
     decisions: dict[str, FactDecision],
     reference_candidates: list[FactCandidate],
 ) -> None:
-    """Compare P527 on the group with P463/P361 on the person.
-
-    A membership is eligible only when P527 and P463/P361 both describe it.
-    Incompatible dates become ``membership_period_mismatch``. A boundary found
-    on one side only becomes ``membership_period_unconfirmed``. In particular,
-    a missing P582 does not prove that the membership is current.
-    """
     pairs: dict[tuple[str, str], tuple[list[_Side], list[_Side]]] = {}
 
     def add(candidate: FactCandidate, decision_id: str | None) -> None:
@@ -405,10 +366,8 @@ def _cross_check_memberships(
             reason="membership_counterpart_unverified",
         )
 
-
 def _boundaries(side: _Side) -> tuple:
     return side.candidate.valid_from, side.candidate.valid_to
-
 
 def _compatible(first: _Side, second: _Side) -> bool:
     for mine, theirs in zip(_boundaries(first), _boundaries(second)):
@@ -416,13 +375,11 @@ def _compatible(first: _Side, second: _Side) -> bool:
             return False
     return True
 
-
 def _shared_boundaries(first: _Side, second: _Side) -> int:
     return sum(
         mine is not None and theirs is not None
         for mine, theirs in zip(_boundaries(first), _boundaries(second))
     )
-
 
 def _asymmetric(first: _Side, second: _Side) -> bool:
     return any(

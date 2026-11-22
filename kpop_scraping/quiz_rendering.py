@@ -11,16 +11,10 @@ from .quiz_templates import render
 from .quiz_utils import digest, hash_payload
 from .release_quiz_drafts import _contains_identity, _group_identities as _entity_identities
 
-
 def _group_relevance_score(
     group_ids: tuple[str, ...] | list[str],
     relevance_by_group: dict[str, int] | None,
 ) -> int | None:
-    """Return the highest group score, or None if any group was not measured.
-
-    Missing groups are not zero. A zero would look like an obscure group and
-    would drop the question from assisted mode.
-    """
     if not group_ids or not relevance_by_group:
         return None
     scores: list[int] = []
@@ -31,11 +25,7 @@ def _group_relevance_score(
         scores.append(score)
     return max(scores)
 
-
-# Questions about one person whose options never name a group, so naming the
-# person's groups in the prompt identifies them without giving the answer away.
 _PERSON_SUBJECT_TYPES = frozenset({"age_on_date", "birth_date_or_place"})
-
 
 def _render_draft(
     draft: Draft,
@@ -56,9 +46,6 @@ def _render_draft(
         if key in values:
             values[key.removesuffix("_id")] = entities[values[key]].name(language)
     if draft.question_type in _PERSON_SUBJECT_TYPES and draft.group_ids:
-        # Stage names repeat across groups (Hyunjin of Stray Kids and of
-        # LOONA). The sourced groups say which person the prompt asks about;
-        # the draft's identity facts cite those memberships.
         groups = " · ".join(entities[group_id].name(language) for group_id in draft.group_ids)
         values["person"] = f"{values['person']} ({groups})"
     if "record_label_id" in values:
@@ -117,8 +104,6 @@ def _render_draft(
         ),
         "fact_base_ids": [*draft.fact_base_ids, *draft.identity_fact_base_ids],
         "group_ids": list(draft.group_ids),
-        # The generator replaces this placeholder with decades derived from
-        # cited group formation facts.
         "decades": [],
         "id": hash_payload({"language": language, "logical_id": logical_id}),
         "language": language,
@@ -130,22 +115,16 @@ def _render_draft(
         "theme": draft.theme,
         "type": draft.question_type,
     }
-    # For several groups, the best-known measured one sets mode eligibility.
-    # Leave the field off when any referenced group has no measurement.
     score = _group_relevance_score(draft.group_ids, relevance_by_group)
     if score is not None:
         base_question["group_relevance_score"] = score
     return base_question
 
-
-# Dated predicate, per entity kind, that can narrow a question whose answer is
-# an entity. The clue cites the answer entity's own accepted fact.
 _DATED_PREDICATE_BY_KIND = {
     "group": "formed_on",
     "person": "born_on",
     "release": "released_on",
 }
-# Questions whose prompt or options already show dates get no related clue.
 _RELATED_CLUE_TYPES = frozenset({
     "group_for_member",
     "group_for_record_label",
@@ -155,7 +134,6 @@ _RELATED_CLUE_TYPES = frozenset({
 })
 
 DatedFacts = dict[tuple[str, str], tuple[Fact, ...]]
-
 
 def index_dated_facts(facts: list[Fact] | tuple[Fact, ...]) -> DatedFacts:
     """Index accepted, evidenced facts with a year-or-finer date by predicate and subject."""
@@ -169,7 +147,6 @@ def index_dated_facts(facts: list[Fact] | tuple[Fact, ...]) -> DatedFacts:
         ):
             indexed.setdefault((fact.predicate, fact.subject.wikidata_id), []).append(fact)
     return {key: tuple(value) for key, value in indexed.items()}
-
 
 def render_play_mode_variants(
     draft: Draft,
@@ -200,9 +177,6 @@ def render_play_mode_variants(
         question["clues_available"] = [] if play_mode == "expert" else clues
         question["clues_shown"] = [clues[0]["id"]] if play_mode == "assisted" and clues else []
         if play_mode == "assisted" and not _prompt_names_an_entity(draft):
-            # Group labels may only help where the prompt names no entity.
-            # On member questions the parenthetical would repeat the asked
-            # group on the answer option and give it away.
             question["options"] = _add_group_labels_to_people(
                 question["options"], language, entities, person_memberships
             )
@@ -217,14 +191,12 @@ def render_play_mode_variants(
         variants.append(question)
     return variants
 
-
 def _add_group_labels_to_people(
     options: list[dict[str, str]],
     language: str,
     entities: dict[str, Entity],
     person_memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
 ) -> list[dict[str, str]]:
-    """Append each person's sourced group names to their option label."""
     labeled_options = []
     for option in options:
         group_ids = tuple(
@@ -237,9 +209,6 @@ def _add_group_labels_to_people(
         labeled_options.append({**option, "label": f"{option['label']} ({groups})"})
     return labeled_options
 
-
-# Which draft value each prompt names. The answer must never be derivable
-# from the prompt text plus an option label, so labels may not repeat these.
 _PROMPT_NAMED_ENTITY_KEYS = {
     "age_on_date": "person_id",
     "birth_date_or_place": "person_id",
@@ -254,7 +223,6 @@ _PROMPT_NAMED_ENTITY_KEYS = {
     "release_year": "release_id",
 }
 
-
 def _prompt_named_entity_id(draft: Draft) -> str | None:
     named_key = _PROMPT_NAMED_ENTITY_KEYS.get(draft.question_type)
     if named_key is None:
@@ -262,17 +230,14 @@ def _prompt_named_entity_id(draft: Draft) -> str | None:
     value = draft.values.get(named_key)
     return value if isinstance(value, str) else None
 
-
 def _prompt_names_an_entity(draft: Draft) -> bool:
     return _prompt_named_entity_id(draft) is not None
-
 
 def _assert_options_do_not_echo_prompt(
     draft: Draft,
     options: list[dict[str, Any]],
     entities: dict[str, Entity],
 ) -> None:
-    """Reject any option label that repeats the entity named in the prompt."""
     named_id = _prompt_named_entity_id(draft)
     if named_id is None:
         return
@@ -287,17 +252,12 @@ def _assert_options_do_not_echo_prompt(
                     f"{option['label']!r} mentions {identity!r}"
                 )
 
-
 NO_CLUE_RULE = "no_clue_rule_for_type"
 CLUE_NOT_NARROWING = "clue_does_not_narrow_options"
 CLUE_ISOLATES_ANSWER = "clue_would_isolate_answer"
 CLUE_NO_DECADE = "clue_answer_date_missing_or_ambiguous"
 CLUE_ECHOES_ANSWER = "clue_text_repeats_answer"
-# A related clue cites a fact outside the question's own, which a client
-# released before it was allowed rejects. Generation leaves these clues off
-# until the publisher turns them on (see ``generate_dataset``).
 CLUE_RELATED_DISABLED = "related_clues_not_enabled"
-
 
 def _clues_for_draft(
     draft: Draft,
@@ -306,7 +266,6 @@ def _clues_for_draft(
     dated_facts: DatedFacts | None,
     entities: dict[str, Entity],
 ) -> tuple[list[dict[str, Any]], str | None]:
-    """Return the safe clues of a question, or the reason there are none."""
     if draft.answer[1] == "time" or draft.question_type == "age_on_date":
         return _temporal_clues(draft, language, question)
     if draft.question_type in _RELATED_CLUE_TYPES:
@@ -314,7 +273,6 @@ def _clues_for_draft(
             return [], CLUE_RELATED_DISABLED
         return _related_decade_clues(draft, language, question, dated_facts, entities)
     return [], NO_CLUE_RULE
-
 
 def _decade_text(decade: str, language: str, subject: str) -> str:
     label = f"{decade}0"
@@ -330,10 +288,8 @@ def _decade_text(decade: str, language: str, subject: str) -> str:
         "release": f"The correct release came out in the {label}s.",
     }[subject]
 
-
 def _fact_decades(facts: tuple[Fact, ...]) -> set[str]:
     return {(fact.value_time or "")[:3] for fact in facts}
-
 
 def _related_decade_clues(
     draft: Draft,
@@ -342,12 +298,6 @@ def _related_decade_clues(
     dated_facts: DatedFacts,
     entities: dict[str, Entity],
 ) -> tuple[list[dict[str, Any]], str | None]:
-    """Build a decade clue from the answer entity's own dated fact.
-
-    Only options whose own accepted facts all name a different decade count as
-    ruled out; an option without a dated fact stays possible. The clue is kept
-    only when it rules out at least one option and leaves at least two.
-    """
     answer_value, answer_kind = draft.answer
     predicate = _DATED_PREDICATE_BY_KIND.get(answer_kind)
     if predicate is None:
@@ -384,7 +334,6 @@ def _related_decade_clues(
         "type": "decade",
     }], None
 
-
 def _merge_clue_evidence(facts: tuple[Fact, ...]) -> tuple[Any, ...]:
     unique = {
         (item.fact_base_id, item.source_url, item.locator, item.source_key, item.revision_id): item
@@ -392,7 +341,6 @@ def _merge_clue_evidence(facts: tuple[Fact, ...]) -> tuple[Any, ...]:
         for item in fact.evidence
     }
     return tuple(unique[key] for key in sorted(unique))
-
 
 def _temporal_clues(
     draft: Draft, language: str, question: dict[str, Any]
@@ -444,15 +392,12 @@ def _temporal_clues(
         "type": "decade",
     }], None
 
-
 def _narrowing_reason(matching_options: int, option_count: int) -> str | None:
-    """Reject a clue that isolates the answer or rules out no option."""
     if matching_options < 2:
         return CLUE_ISOLATES_ANSWER
     if matching_options >= option_count:
         return CLUE_NOT_NARROWING
     return None
-
 
 def _option_label(value: str, kind: str, language: str, entities: dict[str, Entity]) -> str:
     if kind in {"group", "person", "organization", "release", "album"}:
@@ -461,7 +406,6 @@ def _option_label(value: str, kind: str, language: str, entities: dict[str, Enti
         return value
     precision = 9 if len(value) == 4 else 10 if len(value) == 7 else 11
     return _format_date(value, precision, language)
-
 
 def _draft_predicate(draft: Draft) -> str:
     if draft.question_type == "chronological_comparison":
@@ -482,7 +426,6 @@ def _draft_predicate(draft: Draft) -> str:
         return "released_on"
     return "has_member+member_of"
 
-
 def _format_date(value: str, precision: int, language: str) -> str:
     if precision == 9:
         return value[:4]
@@ -496,7 +439,6 @@ def _format_date(value: str, precision: int, language: str) -> str:
     if language == "pt-BR":
         return f"{numeric_day} de {month_name} de {year}"
     return f"{numeric_day} {month_name} {year}"
-
 
 _MONTHS = {
     "pt-BR": (

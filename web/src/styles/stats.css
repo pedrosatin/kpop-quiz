@@ -1,4 +1,3 @@
-/* Player statistics: header trigger and modal (tabs and guess distribution). */
 
 .stats-trigger-icon {
   flex: none;
@@ -25,8 +24,6 @@
   max-width: 34rem;
 }
 
-/* The card scrolls when its content is taller than the screen; without this
-   the tab list, a scroll container itself, shrinks to its border. */
 .stats-modal-card > * {
   flex-shrink: 0;
 }
@@ -176,7 +173,6 @@
   }
 }
 
-/* Import confirmation: the file's totals next to the ones on this device. */
 .stats-import-confirm {
   display: flex;
   flex-direction: column;
@@ -217,15 +213,12 @@
   text-align: left;
 }
 
-/* Confirm and Cancel of both confirmations keep 8px between them. */
 .stats-confirm-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-/* On phones Export, Import and Clear wrap onto two rows; keep 8px between
-   targets there. Wider screens keep their single row as it was. */
 @media (max-width: 40rem) {
   .stats-portability-actions {
     display: flex;

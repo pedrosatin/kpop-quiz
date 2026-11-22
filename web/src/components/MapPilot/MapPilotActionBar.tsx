@@ -47,7 +47,6 @@ export function MapPilotActionBar({
   const notices = useRef(0);
   const { isComplete, answerState, questionIndex } = turn;
 
-  // One slot of the bar holds the result, Next or the answer controls.
   let controls: ComponentChildren;
   if (isComplete) {
     controls = (
@@ -84,7 +83,6 @@ export function MapPilotActionBar({
           onChooseCountry={actions.submitAnswer}
           onEmptySubmit={actions.promptPick}
         />
-        {/* After an answer the bar keeps only Next: giving up waits for the next date. */}
         <button type="button" class="btn btn-secondary" onClick={actions.requestGiveUp}>
           {messages.giveUp}
         </button>
@@ -93,7 +91,6 @@ export function MapPilotActionBar({
   }
 
   return (
-    // Only the message is a live region, so the buttons and links are not announced.
     <div class={`game-actions map-pilot-actions${mapPilotBarState(answerState)}`}>
       <div
         class={classes("game-actions-message", isComplete && "visually-hidden")}

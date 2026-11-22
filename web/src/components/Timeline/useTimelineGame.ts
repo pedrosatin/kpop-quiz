@@ -44,8 +44,6 @@ export function useTimelineGame(
     [storageKey, puzzle]
   );
 
-  // The order the player was building before a reload. Ignored once the
-  // board has a submitted save.
   const initialDraft = useMemo(
     () => (initialSaved ? null : loadTimelineDraft(storageKey, puzzle)),
     [initialSaved, storageKey, puzzle]
@@ -66,11 +64,9 @@ export function useTimelineGame(
       outcome: timelineOutcome(gameStatus, gaveUp, score === puzzle.events.length),
     },
     gameStatus === "submitted",
-    // A draft exists only after a move, which already started the round.
     Boolean(initialSaved ?? initialDraft),
   );
 
-  // Set by a move in this visit, so mounting never writes a draft.
   const movedHere = useRef(false);
 
   useEffect(() => {

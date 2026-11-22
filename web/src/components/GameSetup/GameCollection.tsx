@@ -23,8 +23,6 @@ export function GameCollection({
   disabled = false,
   generalNote,
 }: GameCollectionProps) {
-  // Today's challenge is the default and comes first, so on a phone the
-  // selected card is the one above the sticky Start bar.
   const options: ThemeOption[] = [
     {
       id: "daily",

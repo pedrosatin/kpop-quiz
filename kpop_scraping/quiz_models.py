@@ -9,10 +9,8 @@ from typing import Any
 GENERATOR_VERSION = "quiz-generator-v12"
 DEFAULT_REFERENCE_DATE = date(2026, 9, 13)
 
-
 class InsufficientQuestionsError(ValueError):
     """Raised when filters leave fewer than ten questions."""
-
 
 @dataclass(frozen=True)
 class QuizConfig:
@@ -24,7 +22,6 @@ class QuizConfig:
     timer_seconds: int | None = None
     decade: int | None = None
 
-
 @dataclass(frozen=True)
 class Entity:
     wikidata_id: str
@@ -34,9 +31,6 @@ class Entity:
     aliases: tuple[str, ...] = ()
 
     def name(self, language: str) -> str:
-        # Person and group names are identities, not translations.  Using one
-        # canonical label prevents aliases and former names from changing when
-        # the interface language changes.
         if self.entity_type in {"person", "group"}:
             return self.canonical_name
         preferred = "pt" if language == "pt-BR" else "en"
@@ -45,7 +39,6 @@ class Entity:
 
     def identity_names(self) -> tuple[str, ...]:
         return tuple(dict.fromkeys((self.canonical_name, *self.names.values(), *self.aliases)))
-
 
 @dataclass(frozen=True)
 class Evidence:
@@ -64,7 +57,6 @@ class Evidence:
             "source_url": self.source_url,
         }
 
-
 @dataclass(frozen=True)
 class Fact:
     statement_id: str
@@ -80,7 +72,6 @@ class Fact:
     flags: tuple[str, ...]
     evidence: tuple[Evidence, ...]
 
-
 @dataclass(frozen=True)
 class Draft:
     key: tuple[str, ...]
@@ -93,8 +84,5 @@ class Draft:
     values: dict[str, Any]
     evidence: tuple[Evidence, ...]
     fact_base_ids: tuple[str, ...]
-    # Facts that identify the person the prompt asks about (their groups).
-    # Rendering cites them after the answer facts; the semantic id and the
-    # clues ignore them.
     identity_evidence: tuple[Evidence, ...] = ()
     identity_fact_base_ids: tuple[str, ...] = ()

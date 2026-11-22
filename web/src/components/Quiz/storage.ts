@@ -219,7 +219,6 @@ function isHistoryEntry(value: unknown): value is QuizProgressHistoryEntry {
 const MACHINE_STATES = new Set(["question.ready", "question.answered", "results"]);
 const REPLAY_NOTICES = new Set([null, "ok", "repeats", "legacy-repeats"]);
 
-/** Schema, session identity and where the session came from. */
 function hasEnvelopeFields(raw: Record<string, unknown>): boolean {
   return raw.schema_version === QUIZ_PROGRESS_SCHEMA
     && isNonEmptyString(raw.session_id)
@@ -228,7 +227,6 @@ function hasEnvelopeFields(raw: Record<string, unknown>): boolean {
     && (raw.catalog_version === undefined || isNonEmptyString(raw.catalog_version));
 }
 
-/** The config the round was set up with. */
 function hasRoundConfig(raw: Record<string, unknown>): boolean {
   return isLocale(raw.locale)
     && isPlayMode(raw.play_mode)
@@ -237,7 +235,6 @@ function hasRoundConfig(raw: Record<string, unknown>): boolean {
     && typeof raw.timer_enabled === "boolean";
 }
 
-/** Where the player is in the round: question, choice, score, clues and history. */
 function hasRoundPosition(raw: Record<string, unknown>): boolean {
   return typeof raw.machine_state === "string" && MACHINE_STATES.has(raw.machine_state)
     && isIntegerInRange(raw.question_index, 0)
@@ -248,7 +245,6 @@ function hasRoundPosition(raw: Record<string, unknown>): boolean {
     && Array.isArray(raw.history) && raw.history.every(isHistoryEntry);
 }
 
-/** Deadline, start, elapsed time and how the round ended. */
 function hasRoundClock(raw: Record<string, unknown>): boolean {
   return (raw.question_deadline_ms === null || isFiniteNumber(raw.question_deadline_ms))
     && isFiniteNumber(raw.started_at_ms)
@@ -257,7 +253,6 @@ function hasRoundClock(raw: Record<string, unknown>): boolean {
     && REPLAY_NOTICES.has(raw.replay_notice as string | null);
 }
 
-/** The envelope names the embedded session, and a catalog round its catalog version. */
 function envelopeMatchesSession(save: QuizProgressSave): boolean {
   if (save.session.session_id !== save.session_id) return false;
   if (save.session.dataset_version !== save.dataset_version) return false;
@@ -284,7 +279,6 @@ export function progressMatchesSession(save: QuizProgressSave): boolean {
   if (total === 0) return false;
   if (question_index < 0 || question_index >= total) return false;
   if (machine_state === "results") {
-    // Give-up may finish from any index; history must cover the whole round.
     if (history.length !== total) return false;
   } else if (machine_state === "question.ready") {
     if (history.length !== question_index) return false;
@@ -340,7 +334,6 @@ export function checkQuizProgressCompatibility(
       return "incompatible";
     }
   }
-  // Question sequence must match the live session (published bytes or restored catalog set).
   if (save.session.questions.length !== context.session.questions.length) return "incompatible";
   for (let i = 0; i < save.session.questions.length; i++) {
     if (save.session.questions[i]!.id !== context.session.questions[i]!.id) return "incompatible";
@@ -506,7 +499,6 @@ export function listQuizProgressSaves(): QuizProgressSave[] {
   for (const key of listLocalStorageKeys()) {
     if (!key.startsWith(QUIZ_PROGRESS_STORAGE_PREFIX)) continue;
     const read = readLocalStorage(key);
-    // A read that fails empties the whole list.
     if (read.status === "unavailable") return [];
     if (read.value === null) continue;
     const parsed = parseStored(read.value);
@@ -520,9 +512,6 @@ export function saveQuizProgress(save: QuizProgressSave): QuizProgressWriteResul
   const key = quizProgressStorageKeyFromSave(save);
   const written = writeRaw(key, JSON.stringify(save));
   if (written === "ok") {
-    // Drop the legacy key only when it is invalid or already belongs to this
-    // config. A legacy save for another config must survive until that config
-    // adopts it.
     const legacy = readLocalStorage(QUIZ_PROGRESS_LEGACY_STORAGE_KEY);
     if (legacy.status === "ok" && legacy.value !== null) {
       const parsed = parseStored(legacy.value);
@@ -564,7 +553,6 @@ export function loadStoredPreferences(): {
 } {
   let playMode: PlayMode | null = null;
   let timerEnabled: boolean | null = null;
-  // Storage is optional; private browsing may deny access, which reads as no preference.
   const storedMode = getLocalStorageItem(STORAGE_PLAY_MODE);
   if (storedMode === "assisted" || storedMode === "standard" || storedMode === "expert") {
     playMode = storedMode;

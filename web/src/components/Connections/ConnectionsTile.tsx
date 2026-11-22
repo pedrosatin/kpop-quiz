@@ -7,7 +7,6 @@ import type { ConnectionsTileProps } from "./types";
  * does not fit at the smallest font (see fitTileText).
  */
 export function tileNameParts(name: string): string[] {
-  // No lookbehind: Safari before 16.4 fails to parse it and drops the chunk.
   return name.replace(/([:\-./])(?=\S)/g, "$1\n").split("\n");
 }
 
@@ -19,9 +18,6 @@ export function ConnectionsTile({
   locale,
   displayName: displayNameProp,
 }: ConnectionsTileProps) {
-  // The board resolves every tile against its peers; alone, a tile keeps the
-  // published label (plus any reviewed override), so a suffix that keeps two
-  // names apart is never dropped.
   const displayName =
     displayNameProp || alignLoneLabel(item.labels[locale], item.canonical_name, item.id, locale);
 

@@ -7,7 +7,7 @@
     "dev": "astro dev",
     "build": "astro check && astro build",
     "typecheck": "astro check",
-    "test": "vitest run",
+    "test": "vitest run && python3 ../scripts/check_comments.py --scope web",
     "test:watch": "vitest",
     "pretest:e2e": "npm run build",
     "test:e2e": "playwright test --project=chromium",

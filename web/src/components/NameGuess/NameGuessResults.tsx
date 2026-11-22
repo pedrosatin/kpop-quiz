@@ -53,9 +53,7 @@ interface NameGuessResultsProps {
   locale: Locale;
   highContrast: boolean;
   t: NameGuessTranslations;
-  /** Called after the clipboard took the result, so the bar can announce it. */
   onCopied?: () => void;
-  /** Called when neither the share sheet nor the clipboard took the result. */
   onShareFailed?: () => void;
   titleRef?: RefObject<HTMLHeadingElement> | undefined;
 }
@@ -86,35 +84,25 @@ export function NameGuessResults({
   const details = useRef<HTMLDivElement>(null);
   const won = status === "won";
   const target = puzzle.target;
-  // The artifact publishes the label as the source gave it, and its puzzle_id
-  // covers it. Only the target is shown, so there are no peers to prove the
-  // short form unique: a Wikipedia note stays (see `alignLoneLabel`) and only
-  // a reviewed override changes the spelling.
   const targetDisplayName = alignLoneLabel(
     target.labels[locale],
     target.canonical_name,
     target.id,
     locale,
   );
-  // The buttons appear where the keyboard was, so a second tap or a held key
-  // meant for the last guess must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "name-guess", locale, daily: "yes" } });
 
-  // The bar stops being sticky while the panel is open, so the panel can open
-  // below the fold; bring it into view.
   useEffect(() => {
     if (detailsOpen) details.current?.scrollIntoView?.({ block: "nearest" });
   }, [detailsOpen]);
 
-  // The field opens below the buttons; bring it into view.
   useEffect(() => {
     if (shareFailed) fallback.current?.scrollIntoView?.({ block: "nearest" });
   }, [shareFailed]);
 
   const shareText = generateShareText({ puzzle, feedbacks, won, attempts: guesses.length, highContrast, locale });
 
-  // The source link does not depend on the clues, so either one opens the panel.
   const hasDetails = Boolean(target.clues || target.evidence[0]);
 
   return (
@@ -183,7 +171,6 @@ export function NameGuessResults({
   );
 }
 
-/** The panel behind "Ver fonte": description, stats and the cited revision. */
 function NameGuessDetails({ target, locale, t }: { target: NameGuessPuzzle["target"]; locale: Locale; t: NameGuessTranslations }) {
   const clues = target.clues;
   const agencyName = typeof clues?.agency === "object" ? clues.agency[locale] : clues?.agency;

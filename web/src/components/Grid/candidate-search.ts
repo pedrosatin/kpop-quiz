@@ -64,7 +64,6 @@ export function searchCandidates(index: CandidateSearchEntry[], query: string): 
     const match = matchEntry(entry, norm);
     if (match) matches.push(match);
   }
-  // Array.prototype.sort is stable, so each tier keeps the pool order.
   return matches.sort((a, b) => a.rank - b.rank);
 }
 

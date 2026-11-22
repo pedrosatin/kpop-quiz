@@ -29,7 +29,6 @@ from .quiz_templates import SUPPORTED_LANGUAGES, TEMPLATE_VERSION
 from .quiz_utils import hash_payload
 from .sources import SOURCE_POLICY_VERSION
 
-
 def generate_dataset(
     connection: sqlite3.Connection,
     reference_date: date = DEFAULT_REFERENCE_DATE,
@@ -87,8 +86,6 @@ def generate_dataset(
             rendered = []
             outcomes: Counter[str] = Counter()
             for language in selected_languages:
-                # Clue eligibility does not depend on the language, so the
-                # first one is enough to count each logical question once.
                 for question in render_play_mode_variants(
                     draft, language, reference_date, entities_by_qid,
                     person_memberships, relevance_by_group, dated_facts,
@@ -97,8 +94,6 @@ def generate_dataset(
                     question["decades"] = decades
                     rendered.append(question)
         except ValueError:
-            # A distractor can still echo a group alias after draft filters;
-            # drop the logical question instead of aborting the daily publish.
             rejected["option_label_echoes_prompt"] += 1
             continue
         kept_drafts.append(draft)
@@ -159,11 +154,9 @@ def generate_dataset(
     validate_report(report)
     return payload, report
 
-
 def _clue_coverage(
     outcomes_by_type: dict[str, Counter[str]],
 ) -> dict[str, Any]:
-    """Count logical questions with a safe clue, and why the others have none."""
     by_type = {
         question_type: {
             "questions": sum(outcomes_by_type[question_type].values()),
@@ -182,9 +175,7 @@ def _clue_coverage(
         "with_clue": sum(item["with_clue"] for item in by_type.values()),
     }
 
-
 SESSION_DECADES = frozenset({1990, 2000, 2010, 2020})
-
 
 def _performers_by_release(facts: Sequence[Fact]) -> dict[str, tuple[str, ...]]:
     grouped: dict[str, set[str]] = {}
@@ -198,14 +189,12 @@ def _performers_by_release(facts: Sequence[Fact]) -> dict[str, tuple[str, ...]]:
         for release_id, group_ids in grouped.items()
     }
 
-
 def _subject_decades(
     draft: Draft,
     group_decades: dict[str, int],
     memberships: dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]],
     performers: dict[str, tuple[str, ...]],
 ) -> list[int]:
-    """Formation decades of the answer subject, limited to 1990, 2000, 2010, and 2020."""
     if draft.question_type == "chronological_comparison":
         if draft.values.get("comparison_kind") == "person":
             group_ids = tuple(
@@ -223,11 +212,9 @@ def _subject_decades(
         if (decade := group_decades.get(group_id)) in SESSION_DECADES
     })
 
-
 def _person_memberships(
     facts: Sequence[Fact],
 ) -> dict[str, tuple[tuple[str, tuple[Fact, ...]], ...]]:
-    """Return each person's sourced group intervals, ordered by group id."""
     grouped: dict[str, list[tuple[str, tuple[Fact, ...]]]] = {}
     for group, person, pair_facts in _membership_pairs(list(facts)):
         grouped.setdefault(person.wikidata_id, []).append(

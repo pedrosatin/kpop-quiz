@@ -18,8 +18,6 @@ export type TimelineEventType =
   | "birth"
   | "release";
 
-// v2 added the release event type. Published v1 days keep their bytes, so
-// the loader accepts both versions.
 export type TimelineSchemaVersion = "kpop-timeline-puzzle-v1" | "kpop-timeline-puzzle-v2";
 
 export interface BilingualText {
@@ -108,8 +106,6 @@ const EVIDENCE_REQUIRED_KEYS = [
   "source_url",
 ];
 
-// Like the word search and unlike the other games, a timeline text needs a
-// character besides whitespace.
 function isBilingualText(value: unknown): value is BilingualText {
   return isRecord(value)
     && hasExactKeys(value, BILINGUAL_KEYS)

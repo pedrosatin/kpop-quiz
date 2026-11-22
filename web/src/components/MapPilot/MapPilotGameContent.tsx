@@ -53,7 +53,6 @@ export function MapPilotGameContent({
     {
       game: "map",
       locale,
-      // The save is what remembers a replay.
       isDaily: () => !game.replay,
       outcome: turn.outcome,
     },
@@ -64,12 +63,7 @@ export function MapPilotGameContent({
   useRecordDailyMatch("map", mapDailyRound(game.date, game.replay === true), isComplete, turn.outcome === "win");
   useSaveMapRound(game, round, isComplete);
 
-  // Only what the player does in this visit moves focus; a round restored
-  // from storage leaves focus where the page put it. Next appears in the
-  // sticky action bar, already in view, so focusing it lets Enter advance
-  // without moving the page.
   useFocusOnChange(nextButton, turn.answerState !== null && actions.playedHere.current, questionIndex);
-  // At the end the result takes the bar, so focus its title to start reading there.
   useFocusOnChange(resultTitle, isComplete && actions.playedHere.current);
 
   const sortedCountries = useMemo(

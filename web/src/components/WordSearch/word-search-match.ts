@@ -4,7 +4,6 @@ import type { Locale } from "../../lib/quiz-types";
 import { sameCell } from "./geometry";
 import { getLinearPath } from "./utils";
 
-/** Shorter names would match too many stray letters on the grid. */
 const MIN_NAME_LENGTH = 3;
 
 /** Keeps the letters of a name, without accents and in upper case, as names appear on the grid. */
@@ -53,7 +52,6 @@ export function occurrences(text: string, name: string): number[] {
   return found;
 }
 
-/** The selection runs from `from` to `to`, in either direction, and its letters read `name` that way. */
 function spells(
   start: CellCoord,
   end: CellCoord,

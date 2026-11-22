@@ -60,8 +60,6 @@ export function AnswerFeedbackMessage({
   }
 
   const title = timedOut ? messages.timedOut : right ? messages.correct : messages.incorrect;
-  // Mark is decorative; the live region already announces the title text.
-  // U+FE0E keeps the stopwatch as text (not a colored emoji); ✓/✗ inherit title color.
   const mark = right ? "✓" : timedOut ? "⏱\uFE0E" : "✗";
   return (
     <p class="quiz-verdict">

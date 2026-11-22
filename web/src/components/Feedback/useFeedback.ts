@@ -6,10 +6,6 @@ import { COMMENT_SAVED, RATING_TIMEOUT_MS, VOTE_CREATED, commentPath, isConfirme
 import { canSendComment, canVote, feedbackReducer, initialFeedbackState } from "./feedback-state";
 import { useCommentFocus } from "./useCommentFocus";
 
-/**
- * Set when the service confirms a vote or a comment, or when the player
- * dismisses, so later results do not ask again.
- */
 const STORAGE = "ponder-feedback-dismissed";
 
 /** Visibility, the typed comment and the rating requests of the widget. */
@@ -20,7 +16,6 @@ export function useFeedback(locale: Locale, site: string) {
   const [state, dispatch] = useReducer(feedbackReducer, initialFeedbackState);
   const request = useRef<AbortController | null>(null);
   const attempt = useRef<CommentAttempt | null>(null);
-  // Unusable storage reads as "not dismissed", so the widget still asks.
   useEffect(() => {
     setVisible(Boolean(site) && getLocalStorageItem(STORAGE) !== "1");
     return () => { const current = request.current; request.current = null; current?.abort(); };
@@ -32,8 +27,6 @@ export function useFeedback(locale: Locale, site: string) {
     setVisible(false);
   }
 
-  // One request at a time. A reply that arrives after the widget is gone, or
-  // after a newer request took over, changes nothing.
   async function send(path: string, body: object, expected: { status: number; voteId: string }, accept: (voteId: string) => void, failure: string) {
     if (request.current) return;
     const controller = new AbortController();

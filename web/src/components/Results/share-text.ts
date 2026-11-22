@@ -33,8 +33,6 @@ export async function shareTextToUser(
   text: string,
   deps?: ShareTextDeps,
 ): Promise<ShareOutcome> {
-  // When deps is passed (tests), only those functions run. Production omits
-  // deps and reads navigator through the capability helpers.
   const share = deps
     ? deps.share
     : canUseNativeShare()

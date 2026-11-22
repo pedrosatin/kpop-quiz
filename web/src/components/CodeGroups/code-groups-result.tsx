@@ -25,7 +25,6 @@ export interface CodeGroupsResultProps {
   };
 }
 
-/** The text to copy by hand when neither the share sheet nor the clipboard took it. */
 function ShareFallback({ text, textId, failedId, messages }: { text: string; textId: string; failedId: string; messages: Messages }) {
   return (
     <div class="code-share-fallback">
@@ -45,7 +44,6 @@ function ShareFallback({ text, textId, failedId, messages }: { text: string; tex
   );
 }
 
-/** The six groups with a link to the Wikidata revision each one came from. */
 function GroupSources({ puzzle, nameByQid, messages }: Pick<CodeGroupsResultProps, "puzzle" | "nameByQid" | "messages">) {
   return (
     <ul>

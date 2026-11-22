@@ -78,13 +78,9 @@ export function GridResults({
   const sourceId = useId();
   const shareFailedId = useId();
   const source = useRef<HTMLDivElement>(null);
-  // The buttons appear where the counters were, right after the last pick,
-  // so a second tap or a held Enter must not share the result.
   const { guarded, ignoreRepeat } = useResultActionGuard();
   const { copied, shareFailed, handleShare } = useGameShareAction({ onCopied, onShareFailed, analytics: { game: "grid", locale, daily: "yes" } });
 
-  // The bar stops being sticky while the panel is open, so the panel can
-  // open below the fold; bring it into view.
   useEffect(() => {
     if (sourceOpen) source.current?.scrollIntoView?.({ block: "nearest" });
   }, [sourceOpen]);
@@ -156,7 +152,6 @@ export function GridResults({
         </div>
       )}
 
-      {/* Rendered on request: the busiest cells cite hundreds of places. */}
       <div ref={source} id={sourceId} class="grid-source source-panel" hidden={!sourceOpen}>
         {sourceOpen && <GridReview grid={grid} cellStates={cellStates} locale={locale} messages={messages} />}
       </div>

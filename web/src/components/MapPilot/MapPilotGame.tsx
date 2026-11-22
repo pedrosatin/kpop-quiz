@@ -22,9 +22,6 @@ const countryByFeature = new Map(mapPilotCountries.map((country) => [country.map
 
 export function MapPilotGame({ locale, seedDate }: MapPilotGameProps) {
   const copy = MAP_PILOT_COPY[locale];
-  // The static build and the visitor's browser disagree on "today", so the
-  // daily round and its save are read only after hydration. The day turns at
-  // midnight in Sao Paulo, like the other daily games.
   const [game, setGame] = useState<RoundState | null>(null);
   useEffect(() => {
     if (game !== null) return;

@@ -33,10 +33,8 @@ HANDLE = re.compile(r"^[0-9A-Za-z._-]{3,30}$")
 _TIME = re.compile(r"^\+(\d{4})-(\d{2})-(\d{2})T")
 RANK_ORDER = {"preferred": 0, "normal": 1}
 
-
 class SignalError(ValueError):
     """A Wikidata claim or YouTube statistics payload cannot be used."""
-
 
 def extract_group_signals(entity: Mapping[str, Any]) -> dict[str, Any]:
     """Return channel IDs, handles, and YouTube subscriber snapshots.
@@ -78,7 +76,6 @@ def extract_group_signals(entity: Mapping[str, Any]) -> dict[str, Any]:
         )
     return {"channels": channels, "handles": handles, "subscriber_snapshots": snapshots}
 
-
 def select_rankable_signals(groups: list[dict[str, Any]]) -> None:
     """Choose one subscriber total per group and reject channels used twice.
 
@@ -115,7 +112,6 @@ def select_rankable_signals(groups: list[dict[str, Any]]) -> None:
         group["selected_as_of"] = chosen["point_in_time"] if chosen else None
         group["usable_for_rank"] = bool(chosen) and not chosen.get("shared")
 
-
 def fetch_youtube_statistics(
     channel_ids: list[str],
     api_key: str,
@@ -128,8 +124,6 @@ def fetch_youtube_statistics(
         raise SignalError("YouTube statistics accepts 1 to 50 channel IDs")
     if any(CHANNEL_ID.fullmatch(channel_id) is None for channel_id in channel_ids):
         raise SignalError("YouTube statistics received a channel ID that is not a UC id")
-    # The key goes in a header, so it stays out of the URL that proxies, logs
-    # and exception messages may record.
     url = YOUTUBE_STATISTICS_URL + "?" + urlencode({"part": "statistics", "id": ",".join(channel_ids)})
     request_failed = False
     try:
@@ -149,7 +143,6 @@ def fetch_youtube_statistics(
     if unexpected:
         raise SignalError(f"YouTube statistics returned unexpected channel IDs: {unexpected!r}")
     return parsed
-
 
 def parse_youtube_statistics(payload: object) -> dict[str, dict[str, int | bool | None]]:
     """Read subscriber, view, and video counts from a ``channels.list`` body."""
@@ -176,7 +169,6 @@ def parse_youtube_statistics(payload: object) -> dict[str, dict[str, int | bool 
         }
     return parsed
 
-
 def _choose_snapshot(
     channels: list[dict[str, Any]], snapshots: list[dict[str, Any]]
 ) -> dict[str, Any] | None:
@@ -199,14 +191,12 @@ def _choose_snapshot(
             return max(matched, key=_snapshot_sort_key)
     return None
 
-
 def _snapshot_sort_key(snapshot: Mapping[str, Any]) -> tuple[str, int, int]:
     return (
         str(snapshot["point_in_time"] or ""),
         -RANK_ORDER.get(str(snapshot["rank"]), 9),
         int(snapshot["count"]),
     )
-
 
 def _external_ids(entity: Mapping[str, Any], property_id: str, pattern: re.Pattern[str]) -> list[dict[str, str]]:
     found: dict[str, tuple[str, str]] = {}
@@ -235,7 +225,6 @@ def _external_ids(entity: Mapping[str, Any], property_id: str, pattern: re.Patte
         for value, (rank, statement_id) in sorted(found.items())
     ]
 
-
 def _statement_id(statement: Mapping[str, Any]) -> str | None:
     statement_id = statement.get("id")
     if not isinstance(statement_id, str):
@@ -243,14 +232,12 @@ def _statement_id(statement: Mapping[str, Any]) -> str | None:
     stripped = statement_id.strip()
     return stripped or None
 
-
 def _statements(entity: Mapping[str, Any], property_id: str) -> list[Mapping[str, Any]]:
     claims = entity.get("claims")
     raw = claims.get(property_id) if isinstance(claims, Mapping) else None
     if not isinstance(raw, list):
         return []
     return [statement for statement in raw if isinstance(statement, Mapping)]
-
 
 def _qualifier_strings(
     statement: Mapping[str, Any], property_id: str, pattern: re.Pattern[str]
@@ -265,7 +252,6 @@ def _qualifier_strings(
         if isinstance((value := _string(snak)), str) and pattern.fullmatch(value)
     ]
 
-
 def _point_in_time(statement: Mapping[str, Any]) -> str | None:
     qualifiers = statement.get("qualifiers")
     raw = qualifiers.get(POINT_IN_TIME_PROPERTY) if isinstance(qualifiers, Mapping) else None
@@ -274,14 +260,12 @@ def _point_in_time(statement: Mapping[str, Any]) -> str | None:
     dates = [date for snak in raw if isinstance((date := _time(snak)), str)]
     return max(dates) if dates else None
 
-
 def _string(snak: object) -> str | None:
     value = _datavalue(snak)
     if not isinstance(value, str):
         return None
     stripped = value.strip()
     return stripped or None
-
 
 def _quantity(snak: object) -> int | None:
     value = _datavalue(snak)
@@ -295,7 +279,6 @@ def _quantity(snak: object) -> int | None:
     if number != number.to_integral_value() or number < 0:
         return None
     return int(number)
-
 
 def _time(snak: object) -> str | None:
     value = _datavalue(snak)
@@ -313,13 +296,11 @@ def _time(snak: object) -> str | None:
         return f"{year}-{month}"
     return year
 
-
 def _datavalue(snak: object) -> object:
     if not isinstance(snak, Mapping) or snak.get("snaktype") != "value":
         return None
     datavalue = snak.get("datavalue")
     return datavalue.get("value") if isinstance(datavalue, Mapping) else None
-
 
 def _api_count(statistics: Mapping[str, Any], field: str, channel_id: str) -> int:
     raw = statistics.get(field)

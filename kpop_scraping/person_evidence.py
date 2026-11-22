@@ -29,16 +29,11 @@ VALUE_DIFFERS = "wikipedia_value_differs"
 VALUE_AMBIGUOUS = "wikipedia_value_ambiguous"
 COARSE_PLACE = "coarse_place"
 
-# Birth date templates whose positional arguments are year, month and day.
 _BIRTH_TEMPLATES = frozenset({"birth date", "birth date and age", "bda", "dob"})
-# Display options of those templates; they do not change the date.
 _DISPLAY_OPTIONS = frozenset({"df", "mf"})
 _MARKUP = re.compile(
     r"<!--.*?-->|<ref[^>/]*/>|<ref[^>]*>.*?</ref\s*>|</?[a-z][^>]*>", re.I | re.S
 )
-# Matched at the last "(" only. With a leading \s* and .sub, the earlier pattern
-# was tried at each space that _mask leaves for a reference, and each try read
-# the whole run of spaces.
 _TRAILING_NOTE = re.compile(r"\([^()]*\)\s*$")
 _NOTE_START = re.compile(r"<!--|<ref", re.I)
 _COMMENT_CLOSE = re.compile(r"-->")
@@ -52,7 +47,6 @@ _WRITTEN_DATES = (
     re.compile(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})"),
 )
 
-
 def is_coarse_birth_place(predicate: str, flags: Iterable[str]) -> bool:
     """True for a ``born_in`` fact whose place is less specific than the infobox's.
 
@@ -61,7 +55,6 @@ def is_coarse_birth_place(predicate: str, flags: Iterable[str]) -> bool:
     page names a district of Seoul (ADR 027).
     """
     return predicate == "born_in" and COARSE_PLACE in flags
-
 
 @dataclass(frozen=True)
 class PersonInfoboxCheck:
@@ -77,7 +70,6 @@ class PersonInfoboxCheck:
     rejection_reason: str | None = None
     observed: EvidenceItem | None = None
 
-
 def person_infobox_check(
     predicate: str,
     page: WikipediaPage,
@@ -89,7 +81,6 @@ def person_infobox_check(
     field = PERSON_BIRTH_FIELDS.get(predicate)
     if field is None or not page.wikitext:
         return PersonInfoboxCheck()
-    # The collector already checked the identity; a wrong page must still fail here.
     if page.is_redirect or not subject_id or page.wikidata_id != subject_id:
         return PersonInfoboxCheck()
     span = first_infobox_fields(page.wikitext, PERSON_INFOBOX_TYPES).get(field)
@@ -99,14 +90,12 @@ def person_infobox_check(
         return _birth_date_check(page, field, span, time)
     return _birth_place_check(page, field, span, value_names)
 
-
 def _birth_date_check(
     page: WikipediaPage,
     field: str,
     span: tuple[int, int],
     time: TimeValue | None,
 ) -> PersonInfoboxCheck:
-    # Month precision and anything outside the gate are left without a verdict.
     if (
         time is None
         or time.calendar != GREGORIAN_CALENDAR
@@ -125,7 +114,6 @@ def _birth_date_check(
     if stated[: len(expected)] == expected:
         return PersonInfoboxCheck(evidence=item)
     return PersonInfoboxCheck(rejection_reason=VALUE_DIFFERS, observed=item)
-
 
 def _birth_place_check(
     page: WikipediaPage,
@@ -151,7 +139,6 @@ def _birth_place_check(
         if any(" ".join(name.split()).casefold() in wanted for name in item.names):
             start, end = _without_trailing_notes(page.wikitext, item.start, item.end)
             found = infobox_item_evidence(page, field, start, end)
-            # An item before the match is more specific, so the value is coarser.
             return PersonInfoboxCheck(
                 evidence=found if position == 0 else _flagged(found, COARSE_PLACE)
             )
@@ -159,27 +146,20 @@ def _birth_place_check(
     observed = infobox_item_evidence(
         page, field, *_without_trailing_notes(page.wikitext, first, last)
     )
-    # An item the rule cannot read, or one that qualifies the value ("Nam
-    # District, Busan" for "Nam District"), may or may not name the same
-    # place, so it is no divergence.
     unclear = any(not item.names or _qualifies(item.names, wanted) for item in items)
     return PersonInfoboxCheck(
         rejection_reason=VALUE_AMBIGUOUS if unclear else VALUE_DIFFERS, observed=observed
     )
 
-
 def _qualifies(names: Iterable[str], wanted: set[str]) -> bool:
-    """True when a name is a wanted name followed by a comma and more text."""
     return any(
         "," in name and " ".join(name.split(",", 1)[0].split()).casefold() in wanted
         for name in names
     )
 
-
 def _unreadable_field(
     page: WikipediaPage, field: str, span: tuple[int, int]
 ) -> PersonInfoboxCheck:
-    """A field with text that yields no item is ambiguous; an empty one says nothing."""
     visible = _visible(page.wikitext, span)
     if visible is None:
         return PersonInfoboxCheck()
@@ -187,7 +167,6 @@ def _unreadable_field(
         rejection_reason=VALUE_AMBIGUOUS,
         observed=infobox_item_evidence(page, field, *visible),
     )
-
 
 def _flagged(item: EvidenceItem, flag: str) -> EvidenceItem:
     return EvidenceItem(
@@ -200,9 +179,7 @@ def _flagged(item: EvidenceItem, flag: str) -> EvidenceItem:
         (*item.flags, flag),
     )
 
-
 def _visible(wikitext: str, span: tuple[int, int]) -> tuple[int, int] | None:
-    """Return the field text without references, comments and tags, or None when blank."""
     masked = _mask(wikitext[span[0] : span[1]])
     stripped = masked.strip()
     if not stripped:
@@ -210,14 +187,10 @@ def _visible(wikitext: str, span: tuple[int, int]) -> tuple[int, int] | None:
     start = span[0] + len(masked) - len(masked.lstrip())
     return start, start + len(stripped)
 
-
 def _mask(text: str) -> str:
-    """Blank references, comments and tags, keeping every other offset."""
     return _MARKUP.sub(lambda found: " " * len(found.group(0)), text)
 
-
 def _stated_date(wikitext: str, start: int, end: int) -> tuple[int, ...] | None:
-    """Read the one date a ``birth_date`` value states, or None when it is not clear."""
     raw = wikitext[start:end]
     masked = _mask(raw)
     note = masked.rfind("(")
@@ -243,14 +216,7 @@ def _stated_date(wikitext: str, start: int, end: int) -> tuple[int, ...] | None:
             return _calendar_date(int(found.group("year")), number, int(found.group("day")))
     return None
 
-
 def _unwrapped_nowrap(template: str) -> str:
-    """Return the birth date template inside ``{{nowrap|...}}``, else ``template``.
-
-    Only a wrapper with exactly one positional argument that is itself one whole
-    birth date template is removed. Text, notes or other templates inside the
-    wrapper keep it as it is, and ``_template_date`` then reads it as ambiguous.
-    """
     pieces = _split_top_level(template, 2, len(template) - 2, "|")
     name = " ".join(template[pieces[0][0] : pieces[0][1]].replace("_", " ").split()).lower()
     if name != "nowrap" or len(pieces) != 2:
@@ -263,7 +229,6 @@ def _unwrapped_nowrap(template: str) -> str:
         inner[inner_pieces[0][0] : inner_pieces[0][1]].replace("_", " ").split()
     ).lower()
     return inner if inner_name in _BIRTH_TEMPLATES else template
-
 
 def _template_date(template: str) -> tuple[int, ...] | None:
     pieces = _split_top_level(template, 2, len(template) - 2, "|")
@@ -284,7 +249,6 @@ def _template_date(template: str) -> tuple[int, ...] | None:
     year, month, day = (int(part) for part in positional)
     return _calendar_date(year, month, day)
 
-
 def _calendar_date(year: int, month: int, day: int) -> tuple[int, ...] | None:
     try:
         date(year, month, day)
@@ -292,37 +256,19 @@ def _calendar_date(year: int, month: int, day: int) -> tuple[int, ...] | None:
         return None
     return year, month, day
 
-
 def _without_trailing_notes(wikitext: str, start: int, end: int) -> tuple[int, int]:
-    """Cut the references and comments that follow an item out of its span."""
     chunk = wikitext[start:end]
     notes = _trailing_notes_start(chunk)
     if notes is not None:
         chunk = chunk[:notes]
     return start, start + len(chunk.rstrip())
 
-
 def _trailing_notes_start(text: str) -> int | None:
-    """Return where the comments and references that end ``text`` begin, or None.
-
-    A note is a comment, a self-closing ``<ref .../>`` or a ``<ref ...>`` with
-    a closing tag, and only whitespace may come between notes and after the
-    last one. The result is the first position from which the rest of
-    ``text`` is such a run. A comment may close at any later ``-->`` and a
-    reference at any later ``</ref>``, so "Busan<ref>a</ref>, Korea<ref>b</ref>"
-    is cut after "Busan", as the single pattern this replaces cut it. That
-    pattern tried each way to close each note, which is exponential in the
-    number of notes; read from right to left, each position is decided once.
-    """
     size = len(text)
     starts = {found.start() for found in _NOTE_START.finditer(text)}
     comment_closes = {found.start() for found in _COMMENT_CLOSE.finditer(text)}
     ref_closes = {found.start(): found.end() for found in _REF_CLOSE.finditer(text)}
-    # rest_is_notes[i]: text[i:] is blank or starts, after spaces, with a note
-    # that can end where the rest is again blank or such a run.
     rest_is_notes = [False] * size + [True]
-    # The last "-->" and "</ref>" followed by such a rest: a note that opens
-    # before one of them can close there.
     comment_close = ref_close = None
     next_bracket = next_bracket_or_slash = None
     first = None
@@ -342,10 +288,8 @@ def _trailing_notes_start(text: str) -> int | None:
         if index not in starts:
             continue
         if text.startswith("<!--", index):
-            # The body of a comment starts after "<!--", so "<!-->" does not close it.
             is_note = comment_close is not None and comment_close >= index + 4
         else:
-            # "<ref" is followed by its attributes, then "/>" or ">".
             slash = next_bracket_or_slash
             is_note = (
                 slash is not None

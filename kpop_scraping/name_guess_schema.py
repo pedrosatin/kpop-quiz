@@ -58,17 +58,14 @@ CLUES_ALLOWED_FIELDS = frozenset(
 _DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _NORMALIZED_NAME_PATTERN = re.compile(r"^[A-Z]+$")
 
-
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise ValueError(f"Invalid name guess puzzle schema: {message}")
-
 
 _require_hash = partial(require_hash, _require)
 _require_qid = partial(require_qid, _require)
 _require_bilingual_text = partial(require_bilingual_text, _require)
 _validate_evidence = partial(validate_evidence, _require)
-
 
 def _require_date(value: Any, field_name: str) -> None:
     _require(
@@ -82,7 +79,6 @@ def _require_date(value: Any, field_name: str) -> None:
             f"Invalid name guess puzzle schema: {field_name} is not a calendar date"
         ) from exc
 
-
 def normalize_name(name: str) -> str:
     """Normalize a display name to uppercase ASCII alphabetic characters.
 
@@ -91,7 +87,6 @@ def normalize_name(name: str) -> str:
     """
     decomposed = unicodedata.normalize("NFKD", name)
     return "".join(c.upper() for c in decomposed if "A" <= c.upper() <= "Z")
-
 
 def compute_guess_feedback(target: str, guess: str) -> list[str]:
     """Compute positional feedback ('correct', 'present', 'absent') for a guess.
@@ -114,13 +109,11 @@ def compute_guess_feedback(target: str, guess: str) -> list[str]:
     result: list[str | None] = [None] * n
     letter_counts: Counter[str] = Counter(target)
 
-    # Pass 1: exact matches (correct)
     for i in range(n):
         if guess[i] == target[i]:
             result[i] = "correct"
             letter_counts[guess[i]] -= 1
 
-    # Pass 2: letters present elsewhere or absent
     for i in range(n):
         if result[i] is None:
             g_char = guess[i]
@@ -131,7 +124,6 @@ def compute_guess_feedback(target: str, guess: str) -> list[str]:
                 result[i] = "absent"
 
     return [str(status) for status in result]
-
 
 def generate_share_summary(
     reference_date: str,
@@ -155,7 +147,6 @@ def generate_share_summary(
         lines.append(row)
 
     return "\n".join(lines)
-
 
 def _validate_clues(clues: Any) -> None:
     _require(isinstance(clues, dict), "target.clues must be an object")
@@ -187,7 +178,6 @@ def _validate_clues(clues: Any) -> None:
     if "description" in clues:
         _require_bilingual_text(clues["description"], "target.clues.description")
 
-
 def _validate_target_evidence(ev_list: Any) -> None:
     _require(isinstance(ev_list, list), "target.evidence must be a list")
     _require(
@@ -195,7 +185,6 @@ def _validate_target_evidence(ev_list: Any) -> None:
     )
     for ev_idx, ev in enumerate(ev_list):
         _validate_evidence(ev, f"target.evidence[{ev_idx}]")
-
 
 def _validate_target(target: Any, word_length: int) -> str:
     _require(isinstance(target, dict), "target must be an object")
@@ -232,7 +221,6 @@ def _validate_target(target: Any, word_length: int) -> str:
 
     return normalized_name
 
-
 def _validate_valid_guesses(
     valid_guesses: Any, word_length: int, normalized_name: str
 ) -> None:
@@ -257,7 +245,6 @@ def _validate_valid_guesses(
         f"target.normalized_name ('{normalized_name}') must be in valid_guesses",
     )
 
-
 def validate_name_guess_puzzle(payload: dict[str, Any]) -> None:
     """Validate that payload conforms to kpop-name-guess-puzzle-v1 specification.
 
@@ -276,14 +263,12 @@ def validate_name_guess_puzzle(payload: dict[str, Any]) -> None:
     _require_hash(payload["dataset_version"], "dataset_version")
     _require_date(payload["reference_date"], "reference_date")
 
-    # Word length
     word_length = payload["word_length"]
     _require(
         type(word_length) is int and 3 <= word_length <= 10,
         "word_length must be an integer between 3 and 10",
     )
 
-    # Max attempts
     max_attempts = payload["max_attempts"]
     _require(
         type(max_attempts) is int and 4 <= max_attempts <= 8,
@@ -297,7 +282,6 @@ def validate_name_guess_puzzle(payload: dict[str, Any]) -> None:
         "puzzle_id does not match the SHA-256 of the canonical payload without puzzle_id",
     )
 
-
 def name_guess_puzzle_id(payload: dict[str, Any]) -> str:
     """Identity of a puzzle: SHA-256 of its canonical JSON without ``puzzle_id``.
 
@@ -305,7 +289,6 @@ def name_guess_puzzle_id(payload: dict[str, Any]) -> str:
     labels included, must be covered by it.
     """
     return hash_payload({k: v for k, v in payload.items() if k != "puzzle_id"})
-
 
 def write_name_guess_puzzle_atomic(target_path: Path, payload: dict[str, Any]) -> bytes:
     """Validate and atomically write a name guess puzzle JSON file."""

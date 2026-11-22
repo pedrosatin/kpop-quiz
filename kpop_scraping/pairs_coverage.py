@@ -19,7 +19,6 @@ VERSION = "pairs-coverage-v1"
 SEMANTICS = "listed_in_current_members_of_each_cited_revision"
 LINK = re.compile(r"\[\[([^\[\]|#:\n]+)(?:\|[^\[\]\n]+)?\]\]")
 
-
 def strict_roster(text: str) -> tuple[list[str], tuple[int, int]]:
     """Accept only an entirely accounted-for list; unsupported text fails closed."""
     fields = infobox_fields(text)
@@ -41,7 +40,6 @@ def strict_roster(text: str) -> tuple[list[str], tuple[int, int]]:
     if len(set(names)) != len(names):
         raise ValueError("duplicate_roster_names")
     return names, span
-
 
 def measure(connection: sqlite3.Connection, raw_root: Path, size: int = 4) -> dict:
     """Read accepted facts and hash-verified snapshots without mutating either."""
@@ -110,7 +108,6 @@ def measure(connection: sqlite3.Connection, raw_root: Path, size: int = 4) -> di
         except (OSError, ValueError, KeyError, TypeError) as exc:
             excluded[str(exc) if isinstance(exc, ValueError) else type(exc).__name__] += 1
     sample = None
-    # Bounded, conservative search. Private representatives yield one matching.
     searched = 0
     for groups in itertools.combinations(sorted(rosters), size):
         searched += 1
@@ -151,7 +148,6 @@ def measure(connection: sqlite3.Connection, raw_root: Path, size: int = 4) -> di
               "sample": sample}
     report["report_id"] = hash_payload(report)
     return report
-
 
 def _inside_field(locator: str, span: tuple[int, int], language: str,
                   page_id: int, revision_id: int) -> bool:

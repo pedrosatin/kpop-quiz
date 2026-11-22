@@ -2,9 +2,7 @@ import type { Messages } from "../../i18n/catalog";
 
 export type GridFeedback =
   | { kind: "right" | "wrong"; name: string; n: number }
-  // A group already refused in the cell: no guess spent, so no verdict color.
   | { kind: "repeat"; name: string; n: number }
-  // n changes on every share, so the same message is announced again.
   | { kind: "copied" | "shareFailed"; n: number };
 
 export function gridBarState(isComplete: boolean, feedback: GridFeedback | null): string {
@@ -28,7 +26,6 @@ export function GridFeedbackMessage({
   messages: Messages;
 }) {
   if (isComplete) {
-    // A new key replaces the paragraph, so a second copy is announced again.
     if (feedback?.kind === "copied") {
       return <p key={feedback.n}>{messages.copiedToClipboard}</p>;
     }

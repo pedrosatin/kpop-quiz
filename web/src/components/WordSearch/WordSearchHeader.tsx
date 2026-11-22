@@ -4,7 +4,6 @@ import type { Locale } from "../../lib/quiz-types";
 interface WordSearchHeaderProps {
   puzzle: WordSearchPuzzle;
   locale: Locale;
-  /** Inside a group-page section (already an h2), demote to h3. Defaults to 2. */
   headingLevel?: 2 | 3;
 }
 

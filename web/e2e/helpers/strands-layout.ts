@@ -1,7 +1,3 @@
-/**
- * Layout metrics for the Strands board and sticky action bar.
- * Kept as a plain function so Playwright page.evaluate can serialize it.
- */
 export function measureStrandsLayout() {
   const actionsEl = document.querySelector(".word-search-actions, .game-actions") as HTMLElement | null;
   const messageEl = document.querySelector(
