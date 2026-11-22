@@ -113,7 +113,7 @@ function buildAjv(): Ajv2020 {
   return ajv;
 }
 
-describe("published artifacts vs schemas/ (ADR 053)", () => {
+describe("published JSON under public/data vs schemas/ (ADR 053)", () => {
   const relativePaths = listJsonFiles(DATA_ROOT);
   const withSchema: Array<{ relativePath: string; schemaFile: string }> = [];
   const withoutSchema: Array<{ relativePath: string; listEntry: string }> = [];
@@ -130,11 +130,11 @@ describe("published artifacts vs schemas/ (ADR 053)", () => {
     }
   }
 
-  it("maps every published JSON to a schema or to ARTIFACTS_WITHOUT_SCHEMA", () => {
+  it("maps every published JSON to a schema or names it in ARTIFACTS_WITHOUT_SCHEMA", () => {
     expect(unknown, `artefatos novos sem mapa nem lista: ${unknown.join(", ")}`).toEqual([]);
   });
 
-  it("keeps ARTIFACTS_WITHOUT_SCHEMA as the named allow-list from ADR 053", () => {
+  it("matches ARTIFACTS_WITHOUT_SCHEMA to the ADR 053 allow-list", () => {
     expect([...ARTIFACTS_WITHOUT_SCHEMA].sort()).toEqual(
       [
         "catalog-manifest-v1.json",
@@ -172,12 +172,12 @@ describe("published artifacts vs schemas/ (ADR 053)", () => {
     expect(
       failures,
       failures.length > 0
-        ? `artefatos publicados falharam no próprio schema (não afrouxar schema nem teste; decidir):\n${failures.join("\n")}`
+        ? `artefatos publicados falharam no próprio schema (corrija o artefato ou o schema; não afrouxe a validação sem ADR):\n${failures.join("\n")}`
         : undefined,
     ).toEqual([]);
   });
 
-  it("reports the artifact→schema map and the unschemaed set for the ADR inventory", () => {
+  it("counts artifacts per schema and the ones without schema for the ADR inventory", () => {
     const schemaCounts = new Map<string, number>();
     for (const { schemaFile } of withSchema) {
       schemaCounts.set(schemaFile, (schemaCounts.get(schemaFile) ?? 0) + 1);

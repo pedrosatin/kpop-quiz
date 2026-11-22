@@ -30,7 +30,7 @@ Nos artefatos reais de Conexões o schema e a guarda manual concordam. Nos quatr
 3. um item do tabuleiro que nenhuma categoria referencia;
 4. duas categorias com o mesmo `id` e corpos diferentes (`uniqueItems` compara objetos inteiros).
 
-Embutir Ajv no navegador acrescentava ~35 KB por ilha sem cobrir essas regras: a segurança extra esperada não aparecia. Em 22/11/2026 o operador decidiu manter as guardas manuais em tempo de execução e validar contra os schemas só nos testes.
+Embutir Ajv no navegador acrescentava ~35 KB por ilha sem cobrir essas regras: o validador gerado aceitava os quatro casos que a guarda manual recusa. Em 22/11/2026 o operador decidiu manter as guardas manuais em tempo de execução e validar contra os schemas só nos testes.
 
 ## Decisão
 
