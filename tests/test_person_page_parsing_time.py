@@ -90,9 +90,14 @@ class TrailingNotesTest(unittest.TestCase):
             "[[Seoul]] <ref>a <!-- b --> c</ref>": "[[Seoul]]",
             "[[Seoul]]<ref>a</ref> ": "[[Seoul]]",
             "<ref>a</ref>": "",
-            "Busan<ref>a</ref>, Korea<ref>b</ref>": "Busan",
-            "Busan<!-- a -->, Korea<!-- b -->": "Busan",
-            "Busan<ref name=a/>, Korea<ref>b</ref>": "Busan",
+            "Busan<ref>a</ref>, Korea<ref>b</ref>": "Busan<ref>a</ref>, Korea",
+            "Busan<!-- a -->, Korea<!-- b -->": "Busan<!-- a -->, Korea",
+            "Busan<ref name=a/>, Korea<ref>b</ref>": "Busan<ref name=a/>, Korea",
+            "Busan<!-- a --> mid <!-- b -->": "Busan<!-- a --> mid",
+            "Busan<ref name=x/>": "Busan",
+            "Busan<ref name=\"city\" group=note>a</ref>": "Busan",
+            "x<!--a--> <!--b-->": "x",
+            "a<ref>b</ref>  <ref name=x/>": "a",
         }
         for text, kept in cases.items():
             with self.subTest(text=text):
@@ -103,9 +108,12 @@ class TrailingNotesTest(unittest.TestCase):
             "[[Seoul]]<ref>a</ref> x",
             "[[Seoul]]<ref>a",
             "[[Seoul]]<!-->",
+            "[[Seoul]]<!-- unclosed",
             "[[Seoul]]<ref name=a / x>",
             "[[Seoul]]<ref>a</ref></ref> x",
             "[[Seoul]] </ref>",
+            "Busan<ref>a</ref>, Korea<ref>open",
+            "Busan<!-- a -->, Korea<!-- open",
         ):
             with self.subTest(text=text):
                 self.assertEqual(self.cut(text), text)

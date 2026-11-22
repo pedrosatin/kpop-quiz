@@ -35,8 +35,6 @@ _MARKUP = re.compile(
     r"<!--.*?-->|<ref[^>/]*/>|<ref[^>]*>.*?</ref\s*>|</?[a-z][^>]*>", re.I | re.S
 )
 _TRAILING_NOTE = re.compile(r"\([^()]*\)\s*$")
-_NOTE_START = re.compile(r"<!--|<ref", re.I)
-_COMMENT_CLOSE = re.compile(r"-->")
 _REF_CLOSE = re.compile(r"</ref\s*>", re.I)
 _PIPED_LINK = re.compile(r"\[\[(?:[^\[\]|]*\|)?([^\[\]|]*)\]\]")
 _MONTH_NUMBER = {name.lower(): number for number, name in enumerate(MONTHS, start=1)}
@@ -264,43 +262,58 @@ def _without_trailing_notes(wikitext: str, start: int, end: int) -> tuple[int, i
     return start, start + len(chunk.rstrip())
 
 def _trailing_notes_start(text: str) -> int | None:
+    ends_at = {end: begin for begin, end in _complete_note_spans(text)}
+    if not ends_at:
+        return None
+    cursor = len(text)
+    cut = None
+    while cursor > 0:
+        while cursor > 0 and text[cursor - 1].isspace():
+            cursor -= 1
+        begin = ends_at.get(cursor)
+        if begin is None:
+            break
+        cut = begin
+        cursor = begin
+    return cut
+
+def _complete_note_spans(text: str) -> list[tuple[int, int]]:
+    spans: list[tuple[int, int]] = []
+    index = 0
     size = len(text)
-    starts = {found.start() for found in _NOTE_START.finditer(text)}
-    comment_closes = {found.start() for found in _COMMENT_CLOSE.finditer(text)}
-    ref_closes = {found.start(): found.end() for found in _REF_CLOSE.finditer(text)}
-    rest_is_notes = [False] * size + [True]
-    comment_close = ref_close = None
-    next_bracket = next_bracket_or_slash = None
-    first = None
-    for index in range(size - 1, -1, -1):
-        char = text[index]
-        if char == ">":
-            next_bracket = next_bracket_or_slash = index
-        elif char == "/":
-            next_bracket_or_slash = index
-        if comment_close is None and index in comment_closes and rest_is_notes[index + 3]:
-            comment_close = index
-        if ref_close is None and index in ref_closes and rest_is_notes[ref_closes[index]]:
-            ref_close = index
-        if char.isspace():
-            rest_is_notes[index] = rest_is_notes[index + 1]
-            continue
-        if index not in starts:
-            continue
+    while index < size:
         if text.startswith("<!--", index):
-            is_note = comment_close is not None and comment_close >= index + 4
-        else:
-            slash = next_bracket_or_slash
-            is_note = (
-                slash is not None
-                and text.startswith("/>", slash)
-                and rest_is_notes[slash + 2]
-            ) or (
-                next_bracket is not None
-                and ref_close is not None
-                and ref_close > next_bracket
-            )
-        if is_note:
-            rest_is_notes[index] = True
-            first = index
-    return first
+            close = text.find("-->", index + 4)
+            if close < 0:
+                break
+            spans.append((index, close + 3))
+            index = close + 3
+            continue
+        if text[index : index + 4].lower() == "<ref":
+            end = _ref_note_end(text, index)
+            if end is None:
+                break
+            spans.append((index, end))
+            index = end
+            continue
+        index += 1
+    return spans
+
+def _ref_note_end(text: str, start: int) -> int | None:
+    slash = None
+    gt = None
+    for index in range(start + 4, len(text)):
+        char = text[index]
+        if char == "/":
+            slash = index
+        elif char == ">":
+            gt = index
+            break
+    if gt is None:
+        return None
+    if slash is not None and slash < gt and text.startswith("/>", slash):
+        return gt + 1
+    close = _REF_CLOSE.search(text, gt + 1)
+    if close is None:
+        return None
+    return close.end()

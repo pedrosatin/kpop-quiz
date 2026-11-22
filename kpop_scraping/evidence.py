@@ -11,7 +11,7 @@ from .entities import PRECISION_DAY, PRECISION_MONTH, PRECISION_YEAR, Statement,
 from .infobox import field_items, infobox_fields
 from .sources import RELIABLE, UNRELIABLE, UNREVIEWED, classify_source
 
-EVIDENCE_RULES_VERSION = "text-evidence-v10"
+EVIDENCE_RULES_VERSION = "text-evidence-v11"
 MIN_NAME_LENGTH = 4
 MIN_CREDIT_NAME_LENGTH = 2
 MAX_SNIPPET_LENGTH = 300
