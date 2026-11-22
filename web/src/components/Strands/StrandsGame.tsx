@@ -39,7 +39,7 @@ export function StrandsGame({
     setStatus("loading");
     setErrorKind(undefined);
     try {
-      const data = await loadStrandsPuzzle(locale, baseUrl);
+      const data = await loadStrandsPuzzle(baseUrl);
       setLoadedPuzzle(data);
       setStatus("ready");
     } catch (err) {

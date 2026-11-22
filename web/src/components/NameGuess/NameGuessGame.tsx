@@ -22,7 +22,7 @@ export function NameGuessGame({ puzzle: initialPuzzle, locale, baseUrl }: NameGu
     setStatus("loading");
     setErrorKind(undefined);
     try {
-      const data = await loadNameGuessPuzzle(locale, baseUrl);
+      const data = await loadNameGuessPuzzle(baseUrl);
       setLoadedPuzzle(data);
       setStatus("ready");
     } catch (err) {

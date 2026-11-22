@@ -1,4 +1,3 @@
-import type { Locale } from "../lib/quiz-types";
 import {
   dailyReferenceDate,
   isMissingDailyResponse,
@@ -133,7 +132,6 @@ function dataUrl(filename: string, baseUrl: string): string {
  * structural guard and then the identity check.
  */
 export async function loadCodeGroupsPuzzle(
-  _locale: Locale,
   baseUrl?: string,
   today: string = dailyReferenceDate(),
 ): Promise<CodeGroupsPuzzle> {

@@ -3,7 +3,6 @@ import {
   isStrandsPuzzle,
   type StrandsPuzzle,
 } from "../lib/strands-types";
-import type { Locale } from "../lib/quiz-types";
 import { isRecord } from "../lib/guards";
 import {
   dailyReferenceDate,
@@ -73,7 +72,6 @@ async function accept(puzzle: StrandsPuzzle): Promise<StrandsPuzzle> {
  * back to data/next/ via loadNextDailyWhenMissing.
  */
 export async function loadStrandsPuzzle(
-  _locale: Locale,
   baseUrl?: string,
   today: string = dailyReferenceDate(),
 ): Promise<StrandsPuzzle> {

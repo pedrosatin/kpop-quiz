@@ -226,7 +226,7 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     setStatus("loading");
     setErrorKind(undefined);
     try {
-      const data = await loadIntersectionGrid(locale, baseUrl);
+      const data = await loadIntersectionGrid(baseUrl);
       setCorrected(data.corrected);
       setChallengeDate(data.challengeDate);
       const restored = restoreGame(data, data.challengeDate);

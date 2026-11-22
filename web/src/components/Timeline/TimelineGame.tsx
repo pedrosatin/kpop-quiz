@@ -27,7 +27,7 @@ export function TimelineGame({
     setStatus("loading");
     setErrorKind(undefined);
     try {
-      const data = await loadTimelinePuzzle(locale, baseUrl);
+      const data = await loadTimelinePuzzle(baseUrl);
       setLoadedPuzzle(data);
       setStatus("ready");
     } catch (err) {

@@ -16,7 +16,7 @@ export function CodeGroupsGame({ locale, baseUrl }: { locale: Locale; baseUrl?: 
     setStatus("loading");
     setErrorKind(undefined);
     try {
-      setPuzzle(await loadCodeGroupsPuzzle(locale, baseUrl));
+      setPuzzle(await loadCodeGroupsPuzzle(baseUrl));
       setStatus("ready");
     } catch (err) {
       setErrorKind(err instanceof CodeGroupsArtifactError ? err.kind : "invalid");

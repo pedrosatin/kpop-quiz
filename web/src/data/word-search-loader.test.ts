@@ -17,7 +17,7 @@ describe("published word search puzzle loader and validator", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(validPuzzle)));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await loadWordSearchPuzzle("pt-BR", "/base");
+    const result = await loadWordSearchPuzzle("/base");
     expect(result.schema_version).toBe("kpop-word-search-puzzle-v1");
     expect(result.dimensions.rows).toBe(12);
     expect(result.dimensions.cols).toBe(12);
@@ -27,7 +27,7 @@ describe("published word search puzzle loader and validator", () => {
 
   it("distinguishes a missing artifact with 404", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
-    await expect(loadWordSearchPuzzle("pt-BR")).rejects.toEqual(
+    await expect(loadWordSearchPuzzle()).rejects.toEqual(
       new WordSearchArtifactError("missing")
     );
   });
@@ -40,7 +40,7 @@ describe("published word search puzzle loader and validator", () => {
         : new Response(null, { status: 404 })
     );
     vi.stubGlobal("fetch", fetch);
-    const result = await loadWordSearchPuzzle("pt-BR", "/base", today);
+    const result = await loadWordSearchPuzzle("/base", today);
     expect(result.reference_date).toBe(today);
     expect(fetch).toHaveBeenCalledWith("/base/data/next/word-search.daily.json");
   });
@@ -53,7 +53,7 @@ describe("published word search puzzle loader and validator", () => {
         ? new Response(JSON.stringify(tomorrow), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     ));
-    await expect(loadWordSearchPuzzle("pt-BR", "/base", "2026-09-18")).rejects.toEqual(
+    await expect(loadWordSearchPuzzle("/base", "2026-09-18")).rejects.toEqual(
       new WordSearchArtifactError("missing"),
     );
   });
@@ -61,7 +61,7 @@ describe("published word search puzzle loader and validator", () => {
   it("keeps missing when next/ is also 404", async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
     vi.stubGlobal("fetch", fetch);
-    await expect(loadWordSearchPuzzle("pt-BR", "/base", validPuzzle.reference_date)).rejects.toEqual(
+    await expect(loadWordSearchPuzzle("/base", validPuzzle.reference_date)).rejects.toEqual(
       new WordSearchArtifactError("missing"),
     );
     expect(fetch).toHaveBeenCalledWith("/base/data/next/word-search.daily.json");
@@ -73,21 +73,21 @@ describe("published word search puzzle loader and validator", () => {
         ? new Response(JSON.stringify({ not: "word-search" }), { headers: { "content-type": "application/json" } })
         : new Response(null, { status: 404 })
     ));
-    await expect(loadWordSearchPuzzle("pt-BR", "/base", validPuzzle.reference_date)).rejects.toEqual(
+    await expect(loadWordSearchPuzzle("/base", validPuzzle.reference_date)).rejects.toEqual(
       new WordSearchArtifactError("missing"),
     );
   });
 
   it("rejects non-ok HTTP responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("error", { status: 500 })));
-    await expect(loadWordSearchPuzzle("pt-BR")).rejects.toEqual(
+    await expect(loadWordSearchPuzzle()).rejects.toEqual(
       new WordSearchArtifactError("invalid")
     );
   });
 
   it("rejects malformed JSON at the browser boundary", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{")));
-    await expect(loadWordSearchPuzzle("pt-BR")).rejects.toEqual(
+    await expect(loadWordSearchPuzzle()).rejects.toEqual(
       new WordSearchArtifactError("invalid")
     );
   });
