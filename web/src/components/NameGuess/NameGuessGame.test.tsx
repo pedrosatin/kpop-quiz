@@ -737,7 +737,7 @@ describe("NameGuessGame component", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        // Clone so noteDailyBoard does not mark the shared fixture stale for later tests.
+        // Return a copy so noteDailyBoard does not mark the shared fixture stale for later tests.
         json: async () => structuredClone(puzzle),
       })
     );

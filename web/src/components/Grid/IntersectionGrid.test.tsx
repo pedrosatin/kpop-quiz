@@ -644,16 +644,11 @@ describe("IntersectionGrid orchestrator component", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(title).not.toHaveFocus();
     expect(document.body).toHaveFocus();
-    // DailyNext may write dailySetLines for the day share; match counts stay put.
-    const after = loadPlayerStats();
-    expect(after.overall).toMatchObject({
-      played: before.overall.played,
-      won: before.overall.won,
-    });
-    expect(after.games.grid).toMatchObject({
-      played: before.games.grid.played,
-      won: before.games.grid.won,
-    });
+    // DailyNext can save dailySetLines for the day share. Everything else in
+    // the stats stays as it was.
+    const { dailySetLines: _beforeLines, ...beforeRest } = before;
+    const { dailySetLines: _afterLines, ...afterRest } = loadPlayerStats();
+    expect(afterRest).toEqual(beforeRest);
   });
 
   it("drops a save that names a group the cell does not accept", async () => {
