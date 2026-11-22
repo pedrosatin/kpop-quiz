@@ -1,8 +1,13 @@
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { CONSENT_BUILD, SITE_BUILD_FIXTURE_TIMEOUT_MS, serveSiteBuild } from "./fixtures/site-builds";
 import { CONSENT_BANNER_HEIGHT_VAR, CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
-import { isPublished } from "./helpers/published";
-import { serveFixedQuiz } from "./helpers/fixed-daily";
+import {
+  serveFixedConnections,
+  serveFixedCrossword,
+  serveFixedGrid,
+  serveFixedNameGuess,
+  serveFixedQuiz,
+} from "./helpers/fixed-daily";
 import { LOCAL_BUILD_TAG } from "./target";
 
 // The banner only renders when a GA4 id is built in, which the default dist
@@ -139,12 +144,13 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(scrollWidth).toBeLessThanOrEqual(innerWidth);
 }
 
-// Daily files the boards below need; the grid and the crossword keep their
-// own missing states.
-const PUBLISHED_FILES: Partial<Record<"guess" | "grid" | "connections" | "crossword", string>> = {
-  guess: "name-guess.daily.json",
-  connections: "connections.daily.json",
-};
+/** Frozen daily fixtures for each board under the consent build (layout only; no guard clock). */
+const serveFixedBoard = {
+  guess: serveFixedNameGuess,
+  grid: serveFixedGrid,
+  connections: serveFixedConnections,
+  crossword: serveFixedCrossword,
+} as const;
 
 for (const locale of locales) {
   for (const viewport of phones) {
@@ -182,10 +188,11 @@ for (const locale of locales) {
 
   test(`consent ${locale.id} 360x740: boards start in view and their bars stay above the banner`, { tag: LOCAL_BUILD_TAG }, async ({ page, consentURL }) => {
     await page.setViewportSize({ width: 360, height: 740 });
+    // Same page visits four boards; setFixedTime after the first install avoids a second clock.install.
+    let clockInstalled = false;
     for (const game of ["guess", "grid", "connections", "crossword"] as const) {
-      // A day may go out without one of these boards (helpers/published.ts).
-      const file = PUBLISHED_FILES[game];
-      if (file && !(await isPublished(page.request, consentURL, file))) continue;
+      await serveFixedBoard[game](page, { guardClock: clockInstalled ? false : true });
+      clockInstalled = true;
       await openWithBanner(page, consentURL + locale.games[game]);
       await expect(page.locator(boards[game])).toBeVisible({ timeout: 30_000 });
       expect((await bannerBox(page)).height).toBeLessThanOrEqual(PHONE_BANNER_MAX);
