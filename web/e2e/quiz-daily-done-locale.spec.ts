@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 import { test } from "./fixtures/consent";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
-import { quizProgressStorageKey } from "../src/components/Quiz/storage";
+import { buildQuizProgressSave, quizProgressStorageKey } from "../src/components/Quiz/storage";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { Locale } from "../src/lib/quiz-types";
 import { gamePlayed } from "./helpers/player-stats";
@@ -26,6 +26,9 @@ const copy = {
     next: /Próxima pergunta|Ver resultado/,
     result: "Fim da partida",
     playGeneral: "Jogar o Quiz geral",
+    openSetup: "Montar partida",
+    setupKicker: "Antes de começar",
+    generalNote: (question: number) => `Quiz geral na pergunta ${question} de 10.`,
     daily: /Quiz do dia/,
     doneNotice: "Você já concluiu o Quiz do dia de hoje. Este é o resultado salvo, e ele conta uma vez nas estatísticas.",
     countdown: /^Novo desafio em \d{2}:\d{2}:\d{2}$/,
@@ -40,6 +43,9 @@ const copy = {
     next: /Next question|See results/,
     result: "Game over",
     playGeneral: "Play the general quiz",
+    openSetup: "Set up a round",
+    setupKicker: "Before you start",
+    generalNote: (question: number) => `General quiz at question ${question} of 10.`,
     daily: /Daily quiz/,
     doneNotice: "You already finished today's daily quiz. This is your saved result, and it counts once in your stats.",
     countdown: /^New puzzle in \d{2}:\d{2}:\d{2}$/,
@@ -116,8 +122,59 @@ for (const locale of ["pt-BR", "en"] as const) {
     expect(await gamePlayed(page, "quiz")).toBe(1);
     expect(await readSlot(page, slot(locale, "daily"))).toBe(daySave);
 
-    // The same result after a reload, and the general quiz still plays.
+    // The same result after a reload, with a general round left in progress.
+    const generalSession = fixedQuizSession(`${locale}.standard`);
+    const generalSave = buildQuizProgressSave({
+      session: generalSession,
+      sessionSource: "published",
+      locale,
+      playMode: "standard",
+      theme: "history",
+      decades: [],
+      timerEnabled: false,
+      machineState: "question.ready",
+      questionIndex: 3,
+      selectedId: null,
+      timedOut: false,
+      score: 0,
+      revealedClues: [],
+      history: generalSession.questions.slice(0, 3).map((question) => ({
+        question,
+        selectedOptionId: question.options[0]!.id,
+        isCorrect: false,
+        cluesUsedCount: 0,
+      })),
+      questionDeadlineMs: null,
+      startedAtMs: Date.now() - 60_000,
+      elapsedSeconds: 60,
+      gaveUp: false,
+      replayNotice: "ok",
+    });
+    await page.evaluate(
+      ({ key, raw }) => window.localStorage.setItem(key, raw),
+      { key: slot(locale, "history"), raw: JSON.stringify(generalSave) },
+    );
     await page.reload();
+    await expect(page.getByTestId("game-result").getByText(t.doneNotice)).toBeVisible({ timeout: 30_000 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByTestId("quiz-daily-done-general-note")).toHaveText(t.generalNote(4));
+    const openSetup = page.getByTestId("quiz-open-setup");
+    await expect(openSetup).toHaveText(t.openSetup);
+    const openBox = (await openSetup.boundingBox())!;
+    expect(openBox.height).toBeGreaterThanOrEqual(44);
+    expect(openBox.y).toBeGreaterThanOrEqual(0);
+    expect(openBox.y + openBox.height).toBeLessThanOrEqual(844);
+    await openSetup.click();
+    await expect(page.getByTestId("game-setup")).toBeVisible({ timeout: 30_000 });
+    const kicker = page.locator(".quiz-setup .kicker");
+    await expect(kicker).toHaveText(t.setupKicker);
+    const kickerBox = (await kicker.boundingBox())!;
+    expect(kickerBox.y).toBeGreaterThanOrEqual(0);
+    expect(kickerBox.y + kickerBox.height).toBeLessThanOrEqual(844);
+
+    // Drop the seeded general save so "Jogar o Quiz geral" opens a fresh setup.
+    await page.evaluate((key) => window.localStorage.removeItem(key), slot(locale, "history"));
+    await page.goto(joinBaseUrl(baseURL!, `${t.path}?theme=daily&mode=standard`));
     await expect(page.getByTestId("game-result").getByText(t.doneNotice)).toBeVisible({ timeout: 30_000 });
     const general = page.getByTestId("quiz-play-general");
     const box = (await general.boundingBox())!;

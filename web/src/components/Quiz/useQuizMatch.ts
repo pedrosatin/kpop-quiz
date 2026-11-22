@@ -27,6 +27,11 @@ export function useQuizMatch() {
   const focusRestoredRef = useRef(false);
   /** Set when the player leaves the daily result for the general quiz; its setup title takes focus. */
   const focusSetupRef = useRef(false);
+  /**
+   * Set when the player opens the general setup from the finished daily screen
+   * without restoring a saved general round (so they can change mode).
+   */
+  const skipResumeRef = useRef(false);
   const loadRequestRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
   const gaveUpRef = useRef(false);
@@ -58,6 +63,7 @@ export function useQuizMatch() {
     focusQuestionRef,
     focusRestoredRef,
     focusSetupRef,
+    skipResumeRef,
     loadRequestRef,
     startTimeRef,
     gaveUpRef,

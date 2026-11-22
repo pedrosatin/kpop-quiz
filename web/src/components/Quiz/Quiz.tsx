@@ -21,7 +21,7 @@ import { useQuizFocus } from "./useQuizFocus";
 import { useQuizMatch } from "./useQuizMatch";
 import { useQuizProgressAutosave, useQuizProgressWriter } from "./useQuizProgress";
 import { useQuizSettings } from "./useQuizSettings";
-import { useGeneralResume } from "./useGeneralResume";
+import { useDailyDoneGeneralResume, useGeneralResume } from "./useGeneralResume";
 import { useOtherLocaleRound } from "./useOtherLocaleRound";
 import { useQuizTimer } from "./useQuizTimer";
 import type { QuizDecadeValue, QuizTheme } from "./url-params";
@@ -37,6 +37,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
   const settings = useQuizSettings(locale, initialAvailableDecades);
   const match = useQuizMatch();
   const generalResume = useGeneralResume(locale, settings);
+  const dailyDoneGeneralResume = useDailyDoneGeneralResume(locale, settings);
   const otherLocaleRound = useOtherLocaleRound(locale);
   const [hydrated, setHydrated] = useState(false);
   const analytics = useQuizAnalytics(locale, settings, match);
@@ -89,6 +90,7 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
       secondsLeft={secondsLeft}
       focus={focus}
       generalResume={generalResume}
+      dailyDoneGeneralResume={dailyDoneGeneralResume}
       otherLocaleRound={otherLocaleRound}
       actions={{
         load,
@@ -110,6 +112,14 @@ export function Quiz({ locale, initialAvailableDecades = [] }: {
           match.setState("loading");
           match.focusSetupRef.current = true;
           match.focusRestoredRef.current = true;
+          selectTheme("history");
+        },
+        openSetup: () => {
+          // Same theme switch as playGeneral, but skip restoring a saved
+          // general round so the player can change mode on the setup.
+          match.setState("loading");
+          match.focusSetupRef.current = true;
+          match.skipResumeRef.current = true;
           selectTheme("history");
         },
       }}

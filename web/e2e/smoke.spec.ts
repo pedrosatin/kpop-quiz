@@ -98,7 +98,10 @@ test.describe("daily artifact boot contract", () => {
   test("never accepts a page whose state disagrees with what the day published", async ({ page, baseURL }) => {
     const published = await isPublished(page.request, baseURL!, "connections.daily.json");
     // Published file: a page that reports it missing fails the boot. Day
-    // without the file: an invalid state is not the missing one.
+    // without the file: an invalid state is not the missing one. After
+    // midnight in Sao Paulo the loader reads next/ when the main file is
+    // missing (ADR 037), so next/ is refused too or the board would load.
+    await page.route("**/data/next/connections.daily.json", (r) => r.fulfill({ status: 404, body: "" }));
     await page.route("**/data/connections.daily.json", (r) => published
       ? r.fulfill({ status: 404, body: "" })
       : r.fulfill({ json: { schema_version: "broken" } }));

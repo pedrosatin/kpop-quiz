@@ -283,14 +283,28 @@ export interface Messages {
   generalGameTitle: string;
   /** Description of the general quiz card while a round of it is saved in progress: where it stopped. */
   quizGeneralInProgress: (question: number, total: number) => string;
+  /** Short note on the finished daily screen when a general round is in progress in this language. */
+  quizDailyDoneGeneralNote: (question: number, total: number) => string;
   /** Setup notice: a round of the daily or general quiz is saved in progress in the other language. */
   quizOtherLocaleRound: (daily: boolean, question: number, total: number) => string;
   /** Link of that notice: resumes the round on the other language's page. */
   quizOtherLocaleResume: string;
   /** Short form of that notice and link for the setup's action bar; two lines at most at 360px. */
   quizOtherLocaleHint: (question: number) => string;
+  /**
+   * Setup notice when the other language's save no longer matches the live
+   * artifact: no "Continuar" link, only the explanation.
+   */
+  quizOtherLocaleStale: (daily: boolean) => string;
+  /** Short stale notice for the setup's action bar; two lines at most at 360px. */
+  quizOtherLocaleStaleHint: string;
   /** On today's finished daily quiz: opens the general quiz setup. */
   quizPlayGeneral: string;
+  /**
+   * On today's finished daily quiz: opens the general setup without restoring
+   * a saved general round, so the player can change mode.
+   */
+  quizOpenSetup: string;
   /** Above the saved result shown when the daily quiz is picked after the day was finished. */
   quizDailyDoneResult: string;
   /** Daily quiz finished today with no saved result to show (another language, an earlier board). */
@@ -795,11 +809,16 @@ const catalogs: Record<Locale, Messages> = {
     collectionTitle: "Escolha o jogo",
     generalGameTitle: "Quiz geral",
     quizGeneralInProgress: (question, total) => `Você parou na pergunta ${question} de ${total}. Escolha para continuar.`,
+    quizDailyDoneGeneralNote: (question, total) => `Quiz geral na pergunta ${question} de ${total}.`,
     quizOtherLocaleRound: (daily, question, total) =>
       `Você tem ${daily ? "um Quiz do dia" : "um Quiz geral"} em andamento em inglês, na pergunta ${question} de ${total}. Começar uma partida aqui não apaga a outra.`,
     quizOtherLocaleResume: "Continuar em inglês",
     quizOtherLocaleHint: (question) => `Partida em inglês na pergunta ${question} · Continuar em inglês`,
+    quizOtherLocaleStale: (daily) =>
+      `Você tem ${daily ? "um Quiz do dia" : "um Quiz geral"} em andamento em inglês que já não pode continuar com os dados atuais.`,
+    quizOtherLocaleStaleHint: "Partida em inglês já não pode continuar",
     quizPlayGeneral: "Jogar o Quiz geral",
+    quizOpenSetup: "Montar partida",
     quizDailyDoneResult: "Você já concluiu o Quiz do dia de hoje. Este é o resultado salvo, e ele conta uma vez nas estatísticas.",
     quizDailyDoneBody: "Você já concluiu o Quiz do dia de hoje, e a partida conta uma vez nas estatísticas. O resultado detalhado não ficou salvo aqui.",
     generalGameDescription: "Perguntas sobre história, lançamentos e integrantes.",
@@ -1371,11 +1390,16 @@ const catalogs: Record<Locale, Messages> = {
     collectionTitle: "Choose a game",
     generalGameTitle: "General quiz",
     quizGeneralInProgress: (question, total) => `You stopped at question ${question} of ${total}. Pick it to continue.`,
+    quizDailyDoneGeneralNote: (question, total) => `General quiz at question ${question} of ${total}.`,
     quizOtherLocaleRound: (daily, question, total) =>
       `You have a ${daily ? "daily quiz" : "general quiz"} in progress in Portuguese, at question ${question} of ${total}. Starting a game here does not delete it.`,
     quizOtherLocaleResume: "Continue in Portuguese",
     quizOtherLocaleHint: (question) => `Game in Portuguese at question ${question} · Continue in Portuguese`,
+    quizOtherLocaleStale: (daily) =>
+      `You have a ${daily ? "daily quiz" : "general quiz"} in progress in Portuguese, but it no longer matches today's quiz data.`,
+    quizOtherLocaleStaleHint: "Your game in Portuguese can no longer continue",
     quizPlayGeneral: "Play the general quiz",
+    quizOpenSetup: "Set up a round",
     quizDailyDoneResult: "You already finished today's daily quiz. This is your saved result, and it counts once in your stats.",
     quizDailyDoneBody: "You already finished today's daily quiz, and it counts once in your stats. The detailed result is not saved here.",
     generalGameDescription: "Questions about history, releases and members.",

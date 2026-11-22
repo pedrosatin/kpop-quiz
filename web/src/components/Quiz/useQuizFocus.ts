@@ -23,14 +23,18 @@ export function useQuizFocus({ state, questionIndex, restoredVisit, focusQuestio
   // its question takes the focus instead of the page.
   // "Jogar o Quiz geral" unmounts with the result it sits on. The general
   // quiz then opens either a saved round, whose question takes the focus
-  // above, or its setup, whose title takes it here.
+  // above, or its setup, whose title takes it here. preventScroll plus
+  // scrolling the setup card keeps the kicker "Antes de começar" on screen
+  // at 390px instead of letting focus() pin the h2 to the top edge.
   useEffect(() => {
     if (focusRestoredRef.current && (state === "question.ready" || state === "question.answered")) {
       headingRef.current?.focus();
       focusRestoredRef.current = false;
       focusSetupRef.current = false;
     } else if (focusSetupRef.current && state === "setup") {
-      setupHeadingRef.current?.focus();
+      const heading = setupHeadingRef.current;
+      heading?.focus({ preventScroll: true });
+      heading?.closest(".quiz-setup")?.scrollIntoView?.({ block: "start" });
       focusSetupRef.current = false;
       focusRestoredRef.current = false;
     }

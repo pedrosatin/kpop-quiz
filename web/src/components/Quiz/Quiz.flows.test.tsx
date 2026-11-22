@@ -63,6 +63,7 @@ const dailyVariants = {
 } as const;
 const ptRaw = `${JSON.stringify(ptSession)}\n`;
 const ptHash = createHash("sha256").update(ptRaw).digest("hex");
+const enRaw = `${JSON.stringify(enSession)}\n`;
 const messages = getMessages("pt-BR");
 const historyConfig = { locale: "pt-BR", playMode: "standard", theme: "history", decades: [] } as const;
 const historySlot = quizProgressStorageKey({ ...historyConfig, decades: [] });
@@ -96,6 +97,7 @@ function sessionResponse(url: string, sessionsManifest: unknown): Response {
     const variant = Object.values(dailyVariants).find(({ hash }) => url.includes(hash));
     return new Response(variant?.raw ?? dailyRaw);
   }
+  if (url.includes("session.en.")) return new Response(enRaw);
   return new Response(ptRaw);
 }
 
@@ -890,7 +892,7 @@ describe("Quiz flows", () => {
       expect(isGameMatchRecorded("quiz", `daily-${dailyDate()}`)).toBe(true);
     });
 
-    it("shows the result finished in another mode instead of the day in this one", async () => {
+    it("shows DailyDone when the finished save is from another mode's published session", async () => {
       onDailyDate();
       saveQuizProgress(finishedDailySave(dailyPtSession as QuizSession));
       recordMatchOnce("quiz", `daily-${dailyDate()}`, false, dailyDate());
@@ -899,12 +901,60 @@ describe("Quiz flows", () => {
 
       render(<Quiz locale="pt-BR" />);
 
-      expect(await screen.findByRole("heading", { name: "Fim da partida" })).toBeInTheDocument();
-      expect(screen.getByText(messages.quizDailyDoneResult)).toBeInTheDocument();
-      expect(screen.getByText("3/10")).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: messages.dailyDoneTitle })).toBeInTheDocument();
+      expect(screen.getByText(messages.quizDailyDoneBody)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: messages.quizOpenSetup })).toBeInTheDocument();
       expect(screen.queryByTestId("game-start")).toBeNull();
       expect(window.localStorage.getItem(quizProgressStorageKey({ ...historyConfig, playMode: "assisted", theme: "daily", decades: [] }))).toBeNull();
       expect(loadPlayerStats()).toEqual(stats);
+    });
+
+    it("ignores a finished save from an earlier board of the same date in another mode", async () => {
+      onDailyDate();
+      const oldBoard = structuredClone(dailyVariants["pt-BR.assisted"].session) as QuizSession;
+      oldBoard.session_id = "c".repeat(64);
+      oldBoard.dataset_version = "d".repeat(64);
+      saveQuizProgress(finishedDailySave(oldBoard, { playMode: "assisted" }));
+      recordMatchOnce("quiz", `daily-${dailyDate()}`, false, dailyDate());
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+
+      render(<Quiz locale="pt-BR" />);
+
+      expect(await screen.findByRole("heading", { name: messages.dailyDoneTitle })).toBeInTheDocument();
+      expect(screen.queryByText(messages.quizDailyDoneResult)).toBeNull();
+      expect(screen.getByRole("button", { name: messages.quizOpenSetup })).toBeInTheDocument();
+    });
+
+    it("shows the general in-progress note and opens setup without restoring that round", async () => {
+      onDailyDate();
+      const round = await drawCatalogRound();
+      const questions = round.session.questions;
+      saveQuizProgress(roundSave(round.session, "catalog", {
+        questionIndex: 3,
+        history: questions.slice(0, 3).map((question) => ({
+          question, selectedOptionId: question.options[0]!.id, isCorrect: false, cluesUsedCount: 0,
+        })),
+        replayNotice: "ok",
+      }));
+      saveQuizProgress(finishedDailySave(dailyPtSession as QuizSession));
+      recordMatchOnce("quiz", `daily-${dailyDate()}`, false, dailyDate());
+      window.history.replaceState(null, "", "/?theme=daily&mode=standard");
+
+      render(<Quiz locale="pt-BR" />);
+
+      expect(await screen.findByText(messages.quizDailyDoneResult)).toBeInTheDocument();
+      expect(screen.getByTestId("quiz-daily-done-general-note")).toHaveTextContent(
+        messages.quizDailyDoneGeneralNote(4, 10),
+      );
+      const openSetup = screen.getByRole("button", { name: messages.quizOpenSetup });
+      expect(openSetup.tagName).toBe("BUTTON");
+
+      fireEvent.click(openSetup);
+      await waitForSetup();
+      expect(screen.getByRole("heading", { name: "Monte sua partida" })).toBeInTheDocument();
+      const generalCard = screen.getByRole("radio", { name: /Quiz geral/ }).closest("label")!;
+      expect(generalCard).toHaveTextContent(messages.quizGeneralInProgress(4, 10));
+      expect(screen.queryByRole("heading", { name: questions[3]!.prompt })).toBeNull();
     });
 
     it("says the day is done when it counts and no result is saved here, and still offers the general quiz", async () => {
@@ -1114,6 +1164,22 @@ describe("Quiz flows", () => {
       expect(screen.queryByTestId("quiz-other-locale-round")).toBeNull();
       expect(readSlot()).toMatchObject({ locale: "pt-BR", machine_state: "question.ready" });
       expect(window.localStorage.getItem(enSlot)).toBe(saved);
+    });
+
+    it("explains that the other language round cannot continue when the live session drifted", async () => {
+      const drifted = structuredClone(enSession) as QuizSession;
+      drifted.session_id = "a".repeat(64);
+      const stale = enGeneralAt(8);
+      stale.session_id = drifted.session_id;
+      stale.session = drifted;
+      window.localStorage.setItem(quizProgressStorageKey({ ...enConfig, decades: [] }), JSON.stringify(stale));
+
+      await renderSetup();
+
+      expect(await resumeNotice()).toHaveTextContent(messages.quizOtherLocaleStale(false));
+      expect(screen.queryByRole("link", { name: messages.quizOtherLocaleResume })).toBeNull();
+      expect(screen.getByTestId("quiz-other-locale-hint")).toHaveTextContent(messages.quizOtherLocaleStaleHint);
+      expect(screen.getByTestId("quiz-other-locale-hint").tagName).not.toBe("A");
     });
 
     it("tells the English setup about today's Portuguese daily round", async () => {
