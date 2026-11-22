@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { isGridPublication, isPublicationDate } from "./grid-publication";
 import { GridArtifactError, loadIntersectionGrid } from "./grid-loader";
 import grid from "../tests/fixtures/grid.daily.json";
+import publication13 from "../tests/fixtures/grid-publication.2026-11-13.json";
+import reusedGrid12 from "../tests/fixtures/grid.reused-20261112.json";
 const day = grid.reference_date;
 const marker = { schema_version: "kpop-grid-publication-v1", reference_date: day, grid_reference_date: day, grid_id: grid.grid_id, replaces: ["b".repeat(64)] };
 function serve(routes: Record<string, unknown>, mainStatus = 404) {
@@ -85,7 +87,12 @@ it.each([404, 200])("legitimate reuse admits an authorized or legacy origin (%s)
   for (const origin of [null, marker]) {
     serve({ [`/data/grid-publication.${today}.json`]: reuse,
       ...(origin ? { [`/data/grid-publication.${day}.json`]: origin } : {}), "/data/grid.daily.json": grid }, status);
-    expect(await loadIntersectionGrid("en", "/", today)).toMatchObject({ grid_id: grid.grid_id, corrected: false });
+    expect(await loadIntersectionGrid("en", "/", today)).toMatchObject({
+      grid_id: grid.grid_id,
+      corrected: false,
+      challengeDate: today,
+      reference_date: grid.reference_date,
+    });
   }
 });
 it("reuse permission cannot bypass invalid origin metadata", async () => {
@@ -93,4 +100,22 @@ it("reuse permission cannot bypass invalid origin metadata", async () => {
   serve({ [`/data/grid-publication.${today}.json`]: { ...marker, reference_date: today, replaces: [] },
     [`/data/grid-publication.${day}.json`]: { ...marker, grid_id: "bad" }, "/data/grid.daily.json": grid });
   await expect(loadIntersectionGrid("en", "/", today)).rejects.toEqual(new GridArtifactError("invalid"));
+});
+
+it("stamps challengeDate today for the real 2026-11-13 reuse publication", async () => {
+  const today = publication13.reference_date;
+  serve({
+    [`/data/grid-publication.${today}.json`]: publication13,
+    [`/data/grid-publication.${publication13.grid_reference_date}.json`]: {
+      ...publication13,
+      reference_date: publication13.grid_reference_date,
+      grid_reference_date: publication13.grid_reference_date,
+    },
+    "/data/grid.daily.json": reusedGrid12,
+  });
+  const result = await loadIntersectionGrid("en", "/", today);
+  expect(result.grid_id).toBe(publication13.grid_id);
+  expect(result.reference_date).toBe("2026-11-12");
+  expect(result.challengeDate).toBe("2026-11-13");
+  expect(result.corrected).toBe(false);
 });

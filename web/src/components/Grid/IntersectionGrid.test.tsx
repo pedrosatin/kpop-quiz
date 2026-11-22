@@ -2,11 +2,20 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/pre
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CELL_GUARD_MS, IntersectionGrid, nextCellAfterGuess } from "./IntersectionGrid";
 import { getMessages } from "../../i18n/catalog";
-import type { Locale } from "../../lib/quiz-types";
+import type { IntersectionGrid as IntersectionGridType, Locale } from "../../lib/quiz-types";
 import { setGameAnalyticsConsent } from "../../lib/game-analytics";
-import { createInitialPlayerStats, loadPlayerStats, markGameMatchRecorded, savePlayerStats } from "../../lib/player-stats";
+import {
+  createInitialPlayerStats,
+  loadPlayerStats,
+  markGameMatchRecorded,
+  recordMatchOnce,
+  savePlayerStats,
+} from "../../lib/player-stats";
+import { completedDailyGames } from "../../lib/daily-progress";
 import validGridJson from "../../tests/fixtures/grid.daily.json";
 import legacyGridJson from "../../tests/fixtures/grid.published-legacy-20261026.json";
+import publication13 from "../../tests/fixtures/grid-publication.2026-11-13.json";
+import reusedGridJson from "../../tests/fixtures/grid.reused-20261112.json";
 import { throwOnLocalStorage } from "../../test/throwing-storage";
 import { cellKey, type GridCellState } from "./types";
 
@@ -68,6 +77,9 @@ describe("IntersectionGrid orchestrator component", () => {
   beforeEach(() => {
     localStorage.clear();
     clock = 1000;
+    // Same calendar day as the fixture board so the save stays on the legacy key.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(`${validGridJson.reference_date}T15:00:00Z`));
     vi.spyOn(performance, "now").mockImplementation(() => clock);
     vi.stubGlobal(
       "fetch",
@@ -772,7 +784,9 @@ describe("IntersectionGrid orchestrator component", () => {
 });
 
 describe("IntersectionGrid with a grid published before the Formado/Formed wording", () => {
-  const legacyKey = `kpop-grid-${legacyGridJson.grid_id}`;
+  // Board of 2026-10-26 served on a later day: dated save key (ADR 047).
+  const challengeDay = "2026-10-28";
+  const legacyKey = `kpop-grid-${legacyGridJson.grid_id}-${challengeDay}`;
   const answer = (legacyGridJson.cells.find((c) => c.row_index === 0 && c.col_index === 0)!).valid_entity_ids[0]!;
   const answerName = legacyGridJson.candidate_pool.find((c) => c.id === answer)!.names;
 
@@ -785,6 +799,8 @@ describe("IntersectionGrid with a grid published before the Formado/Formed wordi
   beforeEach(() => {
     localStorage.clear();
     clock = 1000;
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(`${challengeDay}T15:00:00Z`));
     vi.spyOn(performance, "now").mockImplementation(() => clock);
     // Reused by the fallback: the artifact is an earlier day's, as published.
     vi.stubGlobal("fetch", vi.fn(async (url: string) =>
@@ -795,6 +811,7 @@ describe("IntersectionGrid with a grid published before the Formado/Formed wordi
 
   afterEach(() => {
     localStorage.clear();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -848,6 +865,103 @@ describe("IntersectionGrid with a grid published before the Formado/Formed wordi
     expect(screen.getByText("8 guesses left")).toBeInTheDocument();
     expect(cellButton(0, 0)).toHaveAccessibleName(new RegExp(answerName.en));
     expect(screen.getByText("Formed in the 2000s")).toBeInTheDocument();
+  });
+});
+
+/**
+ * Integration: publication of 2026-11-13 reuses the board of 2026-11-12
+ * (ADR 047). A finished legacy save from the origin day must not restore or
+ * count on the reuse day without a new play.
+ */
+describe("IntersectionGrid reused Grade of 2026-11-13 with a finished origin save", () => {
+  const reuseDay = publication13.reference_date; // 2026-11-13
+  const originDay = publication13.grid_reference_date!; // 2026-11-12
+  const reusedGrid = reusedGridJson as unknown as IntersectionGridType;
+  const originKey = `kpop-grid-${reusedGrid.grid_id}`;
+  const reuseKey = `kpop-grid-${reusedGrid.grid_id}-${reuseDay}`;
+
+  function finishedCells(): Record<string, GridCellState> {
+    const cells = emptyCells();
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        const entityId = reusedGrid.cells[r * 3 + c]!.valid_entity_ids[0];
+        cells[cellKey(r, c)] = { solved: true, failed: false, entityId: entityId! };
+      }
+    }
+    return cells;
+  }
+
+  function stubReuseFetch() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes(`grid-publication.${reuseDay}.json`)) {
+          return new Response(JSON.stringify(publication13));
+        }
+        if (url.includes(`grid-publication.${originDay}.json`)) {
+          return new Response(
+            JSON.stringify({
+              ...publication13,
+              reference_date: originDay,
+              grid_reference_date: originDay,
+            }),
+          );
+        }
+        if (url.includes("/next/")) {
+          return new Response(null, { status: 404 });
+        }
+        if (url.includes("grid.daily.json")) {
+          return new Response(JSON.stringify(reusedGridJson));
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    clock = 1000;
+    vi.useFakeTimers({ toFake: ["Date"] });
+    // São Paulo noon on the reuse day.
+    vi.setSystemTime(new Date(`${reuseDay}T15:00:00-03:00`));
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    stubReuseFetch();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    setGameAnalyticsConsent("", false);
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("opens a fresh board on the reuse day and leaves played and the Grade tab alone", async () => {
+    // Finished save under the legacy key from the origin day (12/11).
+    localStorage.setItem(originKey, JSON.stringify({ guessesUsed: 9, cells: finishedCells() }));
+    recordMatchOnce("grid", `grid-${originDay}`, true, originDay);
+    const playedBefore = loadPlayerStats().games.grid.played;
+    const streakBefore = loadPlayerStats().overall.currentStreak;
+    const statsBefore = JSON.stringify(loadPlayerStats());
+
+    expect(localStorage.getItem(reuseKey)).toBeNull();
+    expect(completedDailyGames(reuseDay).has("grid")).toBe(false);
+
+    render(<IntersectionGrid locale="pt-BR" messages={ptMessages} />);
+
+    // Dated key for 13/11 is empty, so the board must open fresh (not restored).
+    await waitFor(() => expect(screen.getByRole("grid")).toBeInTheDocument());
+    expect(screen.getByText("9 palpites restantes")).toBeInTheDocument();
+    expect(screen.getByText("0 de 9 casas certas")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Fim da partida" })).not.toBeInTheDocument();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(loadPlayerStats().games.grid.played).toBe(playedBefore);
+    expect(loadPlayerStats().overall.currentStreak).toBe(streakBefore);
+    expect(JSON.stringify(loadPlayerStats())).toBe(statsBefore);
+    expect(completedDailyGames(reuseDay).has("grid")).toBe(false);
+    expect(localStorage.getItem(originKey)).not.toBeNull();
+    expect(localStorage.getItem(reuseKey)).toBeNull();
   });
 });
 

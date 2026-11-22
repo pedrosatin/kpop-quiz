@@ -26,10 +26,11 @@ describe("published intersection grid loader and validator", () => {
     const result = await loadIntersectionGrid("pt-BR", "/base", validGrid.reference_date);
     expect(result.schema_version).toBe("kpop-intersection-grid-v1");
     expect(result.cells).toHaveLength(9);
+    expect(result.challengeDate).toBe(validGrid.reference_date);
     expect(fetch).toHaveBeenCalledWith(`/base/data/grid.daily.json?d=${validGrid.reference_date}`, { cache: "no-store" });
   });
 
-  it("keeps a reused grid from an earlier day", async () => {
+  it("keeps a reused grid from an earlier day and stamps today's challenge date", async () => {
     const fetch = vi.fn(async (url: string) =>
       url.includes("/next/")
         ? new Response(null, { status: 404 })
@@ -39,8 +40,9 @@ describe("published intersection grid loader and validator", () => {
 
     const result = await loadIntersectionGrid("pt-BR", "/", "2099-01-01");
     expect(result.reference_date).toBe(validGrid.reference_date);
+    expect(result.challengeDate).toBe("2099-01-01");
     expect(fetch).toHaveBeenCalledWith("/data/grid.daily.json?d=2099-01-01", { cache: "no-store" });
-    // The grid keeps its own rule: a reused board still counts for its date.
+    // The loader never marks a reused board stale; the challenge date is today (ADR 047).
     expect(staleDailyDate(result)).toBeUndefined();
   });
 
@@ -58,8 +60,9 @@ describe("published intersection grid loader and validator", () => {
     expect(result.col_criteria.map((c) => c.id)).toEqual(legacyMain.col_criteria.map((c) => c.id));
     expect(result.col_criteria.map((c) => c.label.en)).toEqual(["Formed in the 2000s", "Formed in the 2010s", "5 or fewer members"]);
     // The wording change keeps the shape the schema validates.
-    const { corrected, ...shown } = result;
+    const { corrected, challengeDate, ...shown } = result;
     expect(corrected).toBe(false);
+    expect(challengeDate).toBe("2026-10-28");
     expect(isIntersectionGrid(shown)).toBe(true);
   });
 

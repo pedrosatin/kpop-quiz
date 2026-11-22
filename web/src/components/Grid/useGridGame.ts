@@ -18,8 +18,17 @@ import {
 
 const MAX_GUESSES = 9;
 
-export function gridMatchId(grid: IntersectionGrid): string {
-  return `grid-${grid.reference_date || grid.grid_id}`;
+/** Publication day of the challenge; falls back to the board date or today. */
+export function gridChallengeDate(grid: IntersectionGrid, challengeDate?: string): string {
+  return challengeDate || grid.reference_date || dailyReferenceDate();
+}
+
+export function gridMatchId(grid: IntersectionGrid, challengeDate?: string): string {
+  // Empty board date keeps the legacy match id keyed by grid_id, even when a
+  // publication day is supplied (a board without a date has no challenge day).
+  if (!grid.reference_date) return `grid-${grid.grid_id}`;
+  if (challengeDate) return `grid-${challengeDate}`;
+  return `grid-${grid.reference_date}`;
 }
 
 export function isGridWin(solvedCount: number): boolean {
@@ -27,15 +36,26 @@ export function isGridWin(solvedCount: number): boolean {
 }
 
 /**
- * Round for the finished grid. The grid loader never notes a board as stale,
- * so this skips that check (unlike `dailyBoardRound`).
+ * Round for the finished grid. Uses the publication day (ADR 047), so a board
+ * reused from an earlier day counts as today's challenge. The grid loader never
+ * notes a board as stale, so this skips that check (unlike `dailyBoardRound`).
  */
-export function gridDailyRound(grid: IntersectionGrid): DailyRound {
-  return { matchId: gridMatchId(grid), date: grid.reference_date || dailyReferenceDate() };
+export function gridDailyRound(grid: IntersectionGrid, challengeDate?: string): DailyRound {
+  const date = gridChallengeDate(grid, challengeDate);
+  return { matchId: gridMatchId(grid, challengeDate), date };
 }
 
-function gridStorageKey(grid: IntersectionGrid): string {
-  return `kpop-grid-${grid.grid_id}`;
+/**
+ * localStorage key for one challenge day of this board (ADR 047).
+ * Same-day boards keep `kpop-grid-<grid_id>` so mid-game saves from before the
+ * dated-key deploy still restore. Reused boards use `kpop-grid-<grid_id>-<day>`
+ * so a finish on the origin day is not restored or counted on the reuse day.
+ */
+export function gridStorageKey(grid: IntersectionGrid, challengeDate: string): string {
+  if (!grid.reference_date || grid.reference_date === challengeDate) {
+    return `kpop-grid-${grid.grid_id}`;
+  }
+  return `kpop-grid-${grid.grid_id}-${challengeDate}`;
 }
 
 function countSolved(cells: Record<string, GridStoredCell>): number {
@@ -80,8 +100,8 @@ function nameCells(
  * group twice or counts more guesses than allowed is dropped, so a stale or
  * edited save never shows a board the player did not reach.
  */
-function loadSavedGrid(grid: IntersectionGrid): GridStoredState | null {
-  const raw = getLocalStorageItem(gridStorageKey(grid));
+function loadSavedGrid(grid: IntersectionGrid, challengeDate: string): GridStoredState | null {
+  const raw = getLocalStorageItem(gridStorageKey(grid, challengeDate));
   if (!raw) return null;
   let saved: unknown;
   try {
@@ -187,8 +207,8 @@ function canSelectCell(status: GridGameStatus, cell: GridStoredCell | undefined)
   return status === "ready" && !cell?.solved;
 }
 
-function restoreGame(grid: IntersectionGrid) {
-  const saved = loadSavedGrid(grid);
+function restoreGame(grid: IntersectionGrid, challengeDate: string) {
+  const saved = loadSavedGrid(grid, challengeDate);
   const cells = saved?.cells ?? createEmptyCells();
   const guesses = saved?.guessesUsed ?? 0;
   const gaveUp = saved?.gaveUp === true;
@@ -199,6 +219,7 @@ function restoreGame(grid: IntersectionGrid) {
 
 export function useGridGame(locale: Locale, baseUrl?: string) {
   const [corrected, setCorrected] = useState(false);
+  const [challengeDate, setChallengeDate] = useState<string>("");
   const [grid, setGrid] = useState<IntersectionGrid | null>(null);
   const [status, setStatus] = useState<GridGameStatus>("loading");
   const [errorKind, setErrorKind] = useState<"missing" | "invalid" | undefined>();
@@ -214,7 +235,10 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     {
       game: "grid",
       locale,
-      isDaily: () => grid !== null && !isDailyMatchRecorded("grid", grid.reference_date, gridMatchId(grid)),
+      isDaily: () =>
+        grid !== null
+        && challengeDate !== ""
+        && !isDailyMatchRecorded("grid", challengeDate, gridMatchId(grid, challengeDate)),
       outcome: status !== "complete" ? null : gaveUp ? "give_up" : isGridWin(countSolved(storedCells)) ? "win" : "loss",
     },
     status === "complete",
@@ -227,7 +251,8 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     try {
       const data = await loadIntersectionGrid(locale, baseUrl);
       setCorrected(data.corrected);
-      const restored = restoreGame(data);
+      setChallengeDate(data.challengeDate);
+      const restored = restoreGame(data, data.challengeDate);
       setCells(restored.cells);
       setGuessesUsed(restored.guesses);
       setGaveUp(restored.gaveUp);
@@ -256,10 +281,10 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
   // untouched board is not saved: loading a grid writes nothing. A give-up
   // is saved even with zero guesses, so the result survives a reload.
   useEffect(() => {
-    if (!grid || status === "loading" || status === "error" || (guessesUsed === 0 && !gaveUp)) return;
+    if (!grid || !challengeDate || status === "loading" || status === "error" || (guessesUsed === 0 && !gaveUp)) return;
     const state: GridStoredState = { guessesUsed, cells: storedCells, ...(gaveUp ? { gaveUp: true as const } : {}) };
-    setLocalStorageItem(gridStorageKey(grid), JSON.stringify(state));
-  }, [grid, status, guessesUsed, gaveUp, storedCells]);
+    setLocalStorageItem(gridStorageKey(grid, challengeDate), JSON.stringify(state));
+  }, [grid, challengeDate, status, guessesUsed, gaveUp, storedCells]);
 
   const selectCell = useCallback((row: number, col: number) => {
     if (!canSelectCell(status, storedCells[cellKey(row, col)])) return;
@@ -325,8 +350,8 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
 
   const restartGame = useCallback(() => {
     analytics.reset();
-    if (grid) {
-      removeLocalStorageItem(gridStorageKey(grid));
+    if (grid && challengeDate) {
+      removeLocalStorageItem(gridStorageKey(grid, challengeDate));
     }
     setCells(createEmptyCells());
     setUsedEntityIds(new Set());
@@ -335,10 +360,11 @@ export function useGridGame(locale: Locale, baseUrl?: string) {
     setSelectedCell(null);
     setUniquenessError(null);
     setStatus("ready");
-  }, [grid]);
+  }, [grid, challengeDate]);
 
   return {
     corrected,
+    challengeDate,
     grid,
     status: pickerStatus(status, selectedCell),
     errorKind,

@@ -17,6 +17,7 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
   const {
     grid,
     corrected,
+    challengeDate,
     status,
     errorKind,
     selectedCell,
@@ -58,6 +59,7 @@ export function IntersectionGrid({ locale, baseUrl, messages: propMessages }: In
     <IntersectionGridContent
       grid={grid}
       corrected={corrected}
+      challengeDate={challengeDate}
       locale={locale}
       messages={messages}
       status={status}

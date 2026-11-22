@@ -33,6 +33,7 @@ function sampleCellStates(solvedIndexes: [number, number][] = []): Record<string
 function renderResults(overrides: Partial<Parameters<typeof GridResults>[0]> = {}) {
   const props = {
     grid: validGrid,
+    challengeDate: validGrid.reference_date,
     cellStates: sampleCellStates([[0, 0]]),
     guessesUsed: 3,
     onCopied: vi.fn(),
@@ -205,6 +206,7 @@ describe("GridResults component", () => {
     render(
       <GridResults
         grid={validGrid}
+        challengeDate={validGrid.reference_date}
         cellStates={sampleCellStates()}
         guessesUsed={9}
         locale="pt-BR"

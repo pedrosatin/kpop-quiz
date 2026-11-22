@@ -48,6 +48,9 @@ const cases: { game: GameId; date: string; open: () => void }[] = [
     game: "grid",
     date: gridJson.reference_date,
     open: () => {
+      // Same calendar day as the fixture so challengeDate matches the recorded date.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(`${gridJson.reference_date}T15:00:00Z`));
       vi.stubGlobal(
         "fetch",
         vi.fn(async (url: string) => url.includes("grid-publication.") ? new Response(null, { status: 404 }) : new Response(JSON.stringify(gridJson))),
@@ -70,6 +73,7 @@ describe("DailyDone after a republished board", () => {
   afterEach(() => {
     cleanup();
     localStorage.clear();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });

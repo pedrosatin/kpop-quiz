@@ -34,7 +34,9 @@ export interface GridStoredCell {
 }
 
 /**
- * What localStorage keeps of one grid, under `kpop-grid-<grid_id>`:
+ * What localStorage keeps of one grid challenge. Same-day boards use
+ * `kpop-grid-<grid_id>`; a board reused on a later publication day uses
+ * `kpop-grid-<grid_id>-<challengeDate>` (ADR 047):
  * `{ guessesUsed: 0..9, cells: { "row,col": GridStoredCell } }` with all
  * nine cells. A solved cell has `entityId`; a failed one may have
  * `lastAttemptId` and `triedIds`. All are candidate pool QIDs.
