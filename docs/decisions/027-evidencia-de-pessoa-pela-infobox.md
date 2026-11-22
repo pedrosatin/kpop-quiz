@@ -49,6 +49,12 @@ Nos dois casos o texto lido na infobox e o localizador ficam em `fact_issues` (c
 
 `wikipedia:en:pageid=<pageid>:revid=<revid>#wikitext[início:fim]`, em pontos de código Unicode do wikitext da revisão. Para data, o intervalo é o do template ou do texto da data; quando a data está dentro de `{{nowrap|...}}` permitido, o intervalo cobre o invólucro inteiro, como a página o escreveu. Para local, é o do item. Referências e comentários que seguem o valor ficam fora do intervalo. `fact_evidence.snippet` guarda o campo e o valor, como `birth_date = {{Birth date and age|1993|1|12}}` ou `birth_date = {{nowrap|{{birth date and age|1993|1|12}}}}`.
 
+### Notas finais no valor
+
+Referências (`<ref …>`, `<ref …/>`) e comentários HTML (`<!-- … -->`) no fim do valor do campo ou do item são removidos antes da comparação e ficam fora do localizador. Cada nota fecha no próprio `</ref>` ou `-->`: o texto entre duas notas consecutivas permanece (por exemplo, `Busan<ref>a</ref>, Korea<ref>b</ref>` preserva `, Korea`). Nota sem fechamento no trecho não é cortada. O scanner percorre o trecho uma vez, em tempo linear no tamanho do texto.
+
+Adendo de 2026-11-22: a remoção gulosa anterior (um comentário podia fechar em qualquer `-->` posterior e uma ref em qualquer `</ref>` posterior) foi corrigida; `EVIDENCE_RULES_VERSION` passa a `text-evidence-v11`. Na cópia de auditoria medida (base de 03–04/11 com 629 páginas de pessoa aceitas) nenhum fato `born_on`/`born_in` mudou de status nem de evidência; a base de produção pode divergir.
+
 ### Coleta
 
 Na extração de fatos, para cada pessoa com `born_on` ou `born_in` sem referência confiável e com sitelink `enwiki`, o pipeline resolve o título (lotes de 20, em sequência, com `maxlag`), guarda a revisão como snapshot imutável (ADR-002) em `source_pages` e `source_revisions` sem criar entrada de catálogo, e baixa o wikitext em lotes de 50 para `source_revision_wikitext` (ADR-019). Revisões já guardadas não são baixadas de novo. A migração 10 cria `person_source_pages`, uma linha por pessoa com a revisão mantida ou o motivo da recusa (`page_missing`, `page_redirect`, `page_disambiguation`, `page_wikidata_mismatch`, `wikitext_unavailable`). A execução só coleta quando recebe um cliente de pessoa, e a CLI só o fornece com `--person-evidence` (seção Ativação). O resumo da página é guardado pelo snapshot da revisão, mas o validador recebe a página sem resumo.
