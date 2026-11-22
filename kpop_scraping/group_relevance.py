@@ -93,7 +93,8 @@ class PageviewClient:
             f"{PAGEVIEWS_API}/en.wikipedia/all-access/user/"
             f"{quote(clean_title.replace(' ', '_'), safe='')}/daily/{start}/{end}"
         )
-        for attempt in range(self.retries + 1):
+        attempt = 0
+        while True:
             try:
                 with open_url(
                     url,
@@ -115,7 +116,7 @@ class PageviewClient:
                 time.sleep(_retry_delay(attempt, 0, None))
             else:
                 return self._measurement(clean_title, start_date, end_date, url, payload)
-        raise AssertionError("retry loop exited unexpectedly")
+            attempt += 1
 
     @staticmethod
     def _measurement(

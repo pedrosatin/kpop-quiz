@@ -224,6 +224,18 @@ class GroupPageviewTest(unittest.TestCase):
                 client.fetch("Example", "2026-01-01", "2026-01-01")
             self.assertEqual(mock_sleep.call_count, 2)
 
+    @patch("kpop_scraping.group_relevance.time.sleep")
+    @patch("kpop_scraping.http_request.urlopen")
+    def test_client_fetch_retries_zero_fails_on_first_error(self, mock_urlopen, mock_sleep):
+        from urllib.error import URLError
+
+        mock_urlopen.side_effect = URLError("Network down")
+        client = PageviewClient(AGENT, retries=0)
+        with self.assertRaisesRegex(PageviewError, "failed after retries"):
+            client.fetch("Example", "2026-01-01", "2026-01-01")
+        self.assertEqual(mock_urlopen.call_count, 1)
+        mock_sleep.assert_not_called()
+
     def test_measurement_rejects_missing_days(self):
         with self.assertRaisesRegex(PageviewError, "contains no days"):
             PageviewClient._measurement("Example", "2026-01-01", "2026-01-02", "url", {"items": []})
@@ -304,13 +316,5 @@ class GroupPageviewTest(unittest.TestCase):
             mock_sleep.assert_called_once_with(2.0)
 
 
-    def test_client_fetch_exhausts_retries_unexpected_exit(self):
-        client = PageviewClient(AGENT)
-        client.retries = -1
-        with self.assertRaisesRegex(AssertionError, "retry loop exited unexpectedly"):
-            client.fetch("Example", "2026-01-01", "2026-01-01")
-
 if __name__ == "__main__":
-
-
     unittest.main()
