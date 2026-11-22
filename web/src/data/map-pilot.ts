@@ -1,6 +1,6 @@
 import eventData from "../../../data/map-pilot/deadline-events.json";
 import worldMap from "./map-pilot/world-map.json";
-import { ISO_DATE_PATTERN, isNonBlankString, isRecord, matchesPattern } from "../lib/guards";
+import { isLenientIsoDate, isNonBlankString, isRecord } from "../lib/guards";
 import { isHttpsUrl } from "../lib/https-url";
 
 export interface MapPilotEvent {
@@ -95,16 +95,6 @@ export function mapPilotCountryLabel(country: MapPilotCountry, locale: "pt-BR" |
     : country.label;
 }
 
-/**
- * A YYYY-MM-DD date that reads back the same through Date. Unlike `isIsoDate`
- * in the shared guards, it accepts the years 0000 to 0099.
- */
-function isParsedIsoDate(value: unknown): value is string {
-  if (!matchesPattern(value, ISO_DATE_PATTERN)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
-}
-
 /** A listed concert the artist headlines. It accepts extra keys. */
 function isListedConcert(event: Record<string, unknown>): boolean {
   return event.predicate === "announced_performance_city"
@@ -112,12 +102,12 @@ function isListedConcert(event: Record<string, unknown>): boolean {
     && event.status === "accepted"
     && event.event_type === "concert"
     && (event.billing_role === "headliner" || event.billing_role === "co_headliner")
-    && isParsedIsoDate(event.event_date);
+    && isLenientIsoDate(event.event_date);
 }
 
 /** The ids that place the event on the map, and the sources that cite it. */
 function hasEventPlaceAndSources(event: Record<string, unknown>): boolean {
-  return isParsedIsoDate(event.source_checked_at)
+  return isLenientIsoDate(event.source_checked_at)
     && typeof event.event_mbid === "string"
     && typeof event.country_wikidata_id === "string"
     && typeof event.country_iso_3166_1 === "string"
@@ -142,7 +132,7 @@ export function isMapPilotDataset(value: unknown): value is MapPilotDataset {
   if (!isRecord(value)) return false;
   if (
     value.schema_version !== "kpop-map-pilot-events-v2"
-    || !isParsedIsoDate(value.reference_date)
+    || !isLenientIsoDate(value.reference_date)
     || typeof value.country_crosswalk_id !== "string"
     || !Array.isArray(value.events)
     || value.events.length === 0
