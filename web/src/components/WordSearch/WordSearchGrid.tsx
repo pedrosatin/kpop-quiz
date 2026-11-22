@@ -1,21 +1,34 @@
 import { useEffect, useRef } from "preact/hooks";
-import type { WordSearchPuzzle } from "../../lib/word-search-types";
 import type { CellCoord } from "./types";
 import { sameCell } from "./geometry";
 import { pointerPosition, releasePointer } from "./pointer";
-import { getMessages } from "../../i18n/catalog";
-import type { Locale } from "../../lib/quiz-types";
 import { WordSearchCell } from "./word-search-cell";
 import { cellKey } from "./word-search-state";
 
-interface WordSearchGridProps {
-  puzzle: WordSearchPuzzle;
-  locale: Locale;
+/** Minimum board shape shared by Word Search and Strands. */
+export interface LetterGridBoard {
+  dimensions: { rows: number; cols: number };
+  grid: string[][];
+}
+
+export interface WordSearchGridProps {
+  board: LetterGridBoard;
+  gridLabel: string;
+  cellAria: (
+    row: number,
+    col: number,
+    letter: string,
+    selected: boolean,
+    found: boolean,
+    revealed?: boolean,
+  ) => string;
   focusedCell: CellCoord;
   anchorCell: CellCoord | null;
   activePath: CellCoord[];
   foundCellsMap: Map<string, number>;
   revealedCells?: Set<string>;
+  /** Extra class on a found cell (for example a spangram highlight). */
+  cellExtraClass?: (row: number, col: number) => string | undefined;
   /** Positions in cell units; they may fall between cells or off the grid. */
   onCellPointerDown: (row: number, col: number, pointerId: number) => void;
   onCellPointerEnter: (row: number, col: number, pointerId: number) => void;
@@ -23,21 +36,27 @@ interface WordSearchGridProps {
   onKeyDown: (e: KeyboardEvent) => void;
 }
 
+/**
+ * Shared letter grid used by Word Search and Strands. Pointer and keyboard
+ * semantics stay in the caller; this component only renders cells and routes
+ * pointer coordinates in cell units.
+ */
 export function WordSearchGrid({
-  puzzle,
-  locale,
+  board,
+  gridLabel,
+  cellAria,
   focusedCell,
   anchorCell,
   activePath,
   foundCellsMap,
   revealedCells,
+  cellExtraClass,
   onCellPointerDown,
   onCellPointerEnter,
   onCellPointerUp,
   onKeyDown,
 }: WordSearchGridProps) {
-  const t = getMessages(locale).wordSearch;
-  const { rows, cols } = puzzle.dimensions;
+  const { rows, cols } = board.dimensions;
   const gridRef = useRef<HTMLDivElement>(null);
 
   const activeCoordSet = new Set(activePath.map(cellKey));
@@ -51,14 +70,13 @@ export function WordSearchGrid({
     }
   }, [focusedCell]);
 
-  const positionOf = (e: PointerEvent) => pointerPosition(gridRef.current, puzzle.dimensions, e);
+  const positionOf = (e: PointerEvent) => pointerPosition(gridRef.current, board.dimensions, e);
 
   const handleGridPointerDown = (e: PointerEvent) => {
     const position = positionOf(e);
     if (!position) return;
     e.preventDefault();
     releasePointer(e);
-    // The raw position, so a press tells a tap from a drag by how far it went.
     onCellPointerDown(position.row, position.col, e.pointerId);
   };
 
@@ -78,7 +96,7 @@ export function WordSearchGrid({
       ref={gridRef}
       class="word-search-grid"
       role="grid"
-      aria-label={t.gridLabel}
+      aria-label={gridLabel}
       tabIndex={-1}
       onKeyDown={onKeyDown}
       onPointerDown={handleGridPointerDown}
@@ -89,16 +107,16 @@ export function WordSearchGrid({
         "--grid-cols": cols,
       }}
     >
-      {puzzle.grid.map((rowLetters, r) => (
+      {board.grid.map((rowLetters, r) => (
         <div class="word-search-row" role="row" key={`row-${r}`}>
           {rowLetters.map((letter, c) => {
             const here = { row: r, col: c };
             const key = cellKey(here);
             const color = foundCellsMap.get(key);
+            const extra = cellExtraClass?.(r, c);
             return (
               <WordSearchCell
                 key={key}
-                t={t}
                 row={r}
                 col={c}
                 letter={letter}
@@ -107,6 +125,15 @@ export function WordSearchGrid({
                 revealed={color === undefined && (revealedCells?.has(key) ?? false)}
                 anchor={sameCell(anchorCell, here)}
                 focused={sameCell(focusedCell, here)}
+                ariaLabel={cellAria(
+                  r,
+                  c,
+                  letter,
+                  activeCoordSet.has(key),
+                  color !== undefined,
+                  color === undefined && (revealedCells?.has(key) ?? false),
+                )}
+                extraClass={extra}
               />
             );
           })}

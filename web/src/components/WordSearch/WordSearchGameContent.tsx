@@ -102,8 +102,9 @@ export function WordSearchGameContent({
 
         <div class="word-search-board">
           <WordSearchGrid
-            puzzle={puzzle}
-            locale={locale}
+            board={puzzle}
+            gridLabel={t.gridLabel}
+            cellAria={t.cellAria}
             focusedCell={focusedCell}
             anchorCell={anchorCell}
             activePath={activePath}
