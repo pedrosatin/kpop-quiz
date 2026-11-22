@@ -234,6 +234,8 @@ export interface Messages {
   generalGameTitle: string;
   /** Description of the general quiz card while a round of it is saved in progress: where it stopped. */
   quizGeneralInProgress: (question: number, total: number) => string;
+  /** Short note on the finished daily screen when a general round is in progress in this language. */
+  quizDailyDoneGeneralNote: (question: number, total: number) => string;
   /** Setup notice: a round of the daily or general quiz is saved in progress in the other language. */
   quizOtherLocaleRound: (daily: boolean, question: number, total: number) => string;
   /** Link of that notice: resumes the round on the other language's page. */
@@ -757,6 +759,7 @@ const catalogs: Record<Locale, Messages> = {
     collectionTitle: "Escolha o jogo",
     generalGameTitle: "Quiz geral",
     quizGeneralInProgress: (question, total) => `Você parou na pergunta ${question} de ${total}. Escolha para continuar.`,
+    quizDailyDoneGeneralNote: (question, total) => `Quiz geral na pergunta ${question} de ${total}.`,
     quizOtherLocaleRound: (daily, question, total) =>
       `Você tem ${daily ? "um Quiz do dia" : "um Quiz geral"} em andamento em inglês, na pergunta ${question} de ${total}. Começar uma partida aqui não apaga a outra.`,
     quizOtherLocaleResume: "Continuar em inglês",
@@ -1295,6 +1298,7 @@ const catalogs: Record<Locale, Messages> = {
     collectionTitle: "Choose a game",
     generalGameTitle: "General quiz",
     quizGeneralInProgress: (question, total) => `You stopped at question ${question} of ${total}. Pick it to continue.`,
+    quizDailyDoneGeneralNote: (question, total) => `General quiz at question ${question} of ${total}.`,
     quizOtherLocaleRound: (daily, question, total) =>
       `You have a ${daily ? "daily quiz" : "general quiz"} in progress in Portuguese, at question ${question} of ${total}. Starting a game here does not delete it.`,
     quizOtherLocaleResume: "Continue in Portuguese",

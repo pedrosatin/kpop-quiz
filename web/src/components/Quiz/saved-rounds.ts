@@ -54,6 +54,41 @@ export function findOtherLocaleRound(locale: Locale, today: string = dailyRefere
 }
 
 /**
+ * Rebuild the catalog session the other language's page would load for this
+ * save, then compare. A question that left the catalog is incompatible.
+ */
+async function checkCatalogSaveCompatibility(
+  save: QuizProgressSave,
+): Promise<QuizProgressCompatResult> {
+  const catalog = await loadQuizCatalog(save.locale, save.play_mode);
+  const byId = new Map(catalog.questions.map((question) => [question.id, question]));
+  const questions = save.session.questions.map((question) => byId.get(question.id));
+  if (questions.some((question) => question === undefined)) return "incompatible";
+  const session = await buildCatalogSession(
+    catalog,
+    questions as QuizQuestion[],
+    save.decades,
+  );
+  return checkQuizProgressCompatibility(save, {
+    locale: save.locale,
+    playMode: save.play_mode,
+    theme: save.theme,
+    decades: save.decades,
+    session,
+    sessionSource: "catalog",
+    catalogVersion: catalog.catalogVersion,
+  });
+}
+
+function isArtifactCompatError(
+  error: unknown,
+): error is QuizArtifactError | CatalogArtifactError | CatalogSelectionError {
+  return error instanceof QuizArtifactError
+    || error instanceof CatalogArtifactError
+    || error instanceof CatalogSelectionError;
+}
+
+/**
  * Whether a save from the other language still matches the live artifact its
  * page would load. The setup offers "Continuar" only when this returns "ok";
  * otherwise it explains that the round can no longer continue.
@@ -63,24 +98,7 @@ export async function checkOtherLocaleSaveCompatibility(
 ): Promise<QuizProgressCompatResult> {
   try {
     if (save.session_source === "catalog" && save.theme !== "daily") {
-      const catalog = await loadQuizCatalog(save.locale, save.play_mode);
-      const byId = new Map(catalog.questions.map((question) => [question.id, question]));
-      const questions = save.session.questions.map((question) => byId.get(question.id));
-      if (questions.some((question) => question === undefined)) return "incompatible";
-      const session = await buildCatalogSession(
-        catalog,
-        questions as QuizQuestion[],
-        save.decades,
-      );
-      return checkQuizProgressCompatibility(save, {
-        locale: save.locale,
-        playMode: save.play_mode,
-        theme: save.theme,
-        decades: save.decades,
-        session,
-        sessionSource: "catalog",
-        catalogVersion: catalog.catalogVersion,
-      });
+      return await checkCatalogSaveCompatibility(save);
     }
 
     const { session } = await loadQuizSessionWithAvailability(
@@ -99,11 +117,7 @@ export async function checkOtherLocaleSaveCompatibility(
       sessionSource: "published",
     });
   } catch (error) {
-    if (
-      error instanceof QuizArtifactError
-      || error instanceof CatalogArtifactError
-      || error instanceof CatalogSelectionError
-    ) {
+    if (isArtifactCompatError(error)) {
       return error.kind === "missing" || error.kind === "unavailable" ? "incompatible" : "invalid";
     }
     throw error;

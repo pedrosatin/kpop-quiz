@@ -137,7 +137,7 @@ function QuizResultScreen({
       onPlayGeneral={actions.playGeneral}
       onOpenSetup={dailyDate ? actions.openSetup : undefined}
       generalNote={dailyDate && dailyDoneGeneralResume
-        ? messages.quizGeneralInProgress(dailyDoneGeneralResume.question, dailyDoneGeneralResume.total)
+        ? messages.quizDailyDoneGeneralNote(dailyDoneGeneralResume.question, dailyDoneGeneralResume.total)
         : undefined}
       {...(shareUrl !== undefined ? { shareUrl } : {})}
     />
@@ -169,11 +169,11 @@ function DailyDoneActions({
   return (
     <>
       {generalResume ? (
-        <p class="game-actions-message" role="status" data-testid="quiz-daily-done-general-note">
-          {messages.quizGeneralInProgress(generalResume.question, generalResume.total)}
+        <p class="quiz-daily-done-note" role="status" data-testid="quiz-daily-done-general-note">
+          {messages.quizDailyDoneGeneralNote(generalResume.question, generalResume.total)}
         </p>
       ) : null}
-      <div class="btn-row">
+      <div class="quiz-daily-done-actions">
         <button class="btn btn-secondary" type="button" data-testid="quiz-open-setup" onClick={actions.openSetup}>
           {messages.quizOpenSetup}
         </button>
@@ -225,7 +225,7 @@ function QuizDailyDoneScreen({
       onPlayGeneral={actions.playGeneral}
       onOpenSetup={actions.openSetup}
       generalNote={dailyDoneGeneralResume
-        ? messages.quizGeneralInProgress(dailyDoneGeneralResume.question, dailyDoneGeneralResume.total)
+        ? messages.quizDailyDoneGeneralNote(dailyDoneGeneralResume.question, dailyDoneGeneralResume.total)
         : undefined}
     />
   );

@@ -944,7 +944,7 @@ describe("Quiz flows", () => {
 
       expect(await screen.findByText(messages.quizDailyDoneResult)).toBeInTheDocument();
       expect(screen.getByTestId("quiz-daily-done-general-note")).toHaveTextContent(
-        messages.quizGeneralInProgress(4, 10),
+        messages.quizDailyDoneGeneralNote(4, 10),
       );
       const openSetup = screen.getByRole("button", { name: messages.quizOpenSetup });
       expect(openSetup.tagName).toBe("BUTTON");

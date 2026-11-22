@@ -518,6 +518,51 @@
   gap: var(--space-4);
 }
 
+/* Finished daily: short note and the two next actions on one equal-width row
+   so DailyNext stays above the fold at 390×844 with a general round in progress. */
+.quiz-daily-done-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.quiz-daily-done-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.quiz-daily-done-actions .btn {
+  width: 100%;
+  min-height: var(--control-height);
+}
+
+@media (max-width: 40rem) {
+  .quiz-result:has(.daily-next) .quiz-result-summary {
+    gap: var(--space-2);
+  }
+
+  .quiz-result:has(.daily-next) .result-title {
+    margin-bottom: 0;
+  }
+
+  .quiz-result:has(.daily-next) [data-testid="quiz-replay-notice"] {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.35;
+  }
+
+  .quiz-result:has(.daily-next) .btn-row {
+    gap: var(--space-2);
+  }
+
+  .quiz-result:has(.daily-next) .daily-next {
+    margin-top: var(--space-1);
+  }
+}
+
 /* From 60rem the title and buttons sit at the left of the stats, and
    the review runs in two columns. Items fill each row left to right, the
    same order as the DOM, and an opened source grows its own row only. */
@@ -550,8 +595,15 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .quiz-result-summary > .btn-row,
+  .quiz-result-summary > .quiz-daily-done-actions,
+  .quiz-result-summary > .quiz-daily-done-note,
+  .quiz-result-summary > .daily-next {
+    grid-column: 1;
+    justify-self: stretch;
+  }
+
   .quiz-result-summary > .btn-row {
-    grid-area: actions;
     align-items: flex-start;
     justify-content: flex-start;
   }

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import dailyPtSession from "../../tests/fixtures/session.daily.pt-BR.standard.8c1ff312324883f8b724318e6bf7c132293eb9ee53ff8f8e0e5c2072562738f4.json";
 import ptSession from "../../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
+import { CatalogArtifactError, type QuizCatalog } from "../../data/catalog-loader";
+import { CatalogSelectionError } from "../../data/catalog-session";
+import { QuizArtifactError } from "../../data/session-loader";
 import type { Locale, PlayMode, QuizSession } from "../../lib/quiz-types";
 import { dailySeedDate } from "./daily-seed";
 import { checkOtherLocaleSaveCompatibility, findFinishedDailySave, findOtherLocaleRound } from "./saved-rounds";
@@ -22,6 +25,24 @@ vi.mock("../../data/session-loader", async (importOriginal) => {
   };
 });
 
+vi.mock("../../data/catalog-loader", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../data/catalog-loader")>();
+  return {
+    ...actual,
+    loadQuizCatalog: vi.fn(),
+  };
+});
+
+vi.mock("../../data/catalog-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../data/catalog-session")>();
+  return {
+    ...actual,
+    buildCatalogSession: vi.fn(),
+  };
+});
+
+import { loadQuizCatalog } from "../../data/catalog-loader";
+import { buildCatalogSession } from "../../data/catalog-session";
 import { loadQuizSessionWithAvailability } from "../../data/session-loader";
 
 const daily = dailyPtSession as QuizSession;
@@ -37,6 +58,7 @@ function save({
   questionIndex = 0,
   startedAtMs = 1_000,
   decades = [],
+  sessionSource = "published",
 }: {
   session?: QuizSession;
   locale?: Locale;
@@ -46,11 +68,12 @@ function save({
   questionIndex?: number;
   startedAtMs?: number;
   decades?: (1990 | 2000 | 2010 | 2020)[];
+  sessionSource?: "catalog" | "published";
 } = {}) {
   const answered = machineState === "results" ? session.questions.length : questionIndex;
   return buildQuizProgressSave({
     session,
-    sessionSource: "published",
+    sessionSource,
     locale,
     playMode,
     theme,
@@ -71,6 +94,32 @@ function save({
     gaveUp: false,
     replayNotice: null,
   });
+}
+
+const CATALOG_VERSION = "catalog-test-v1";
+
+function catalogSession(base: QuizSession = general): QuizSession {
+  const session = structuredClone(base) as QuizSession;
+  session.catalog_version = CATALOG_VERSION;
+  return session;
+}
+
+function catalogFixture(session: QuizSession): QuizCatalog {
+  return {
+    catalogVersion: CATALOG_VERSION,
+    datasetVersion: session.dataset_version,
+    referenceDate: session.questions[0]!.reference_date,
+    locale: session.config.language,
+    playMode: session.config.play_mode,
+    questions: session.questions,
+    pools: {
+      all: session.questions.map((_, index) => index),
+      "decade.1990": [],
+      "decade.2000": [],
+      "decade.2010": [],
+      "decade.2020": [],
+    },
+  };
 }
 
 afterEach(() => {
@@ -149,6 +198,8 @@ describe("findFinishedDailySave", () => {
 
 describe("checkOtherLocaleSaveCompatibility", () => {
   const loadLive = vi.mocked(loadQuizSessionWithAvailability);
+  const loadCatalog = vi.mocked(loadQuizCatalog);
+  const buildCatalog = vi.mocked(buildCatalogSession);
 
   it("returns ok when the live published session still matches the save", async () => {
     const live = structuredClone(general) as QuizSession;
@@ -169,6 +220,109 @@ describe("checkOtherLocaleSaveCompatibility", () => {
     loadLive.mockResolvedValue({ session: drifted, availableDecades: [], decades: [] });
 
     await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("incompatible");
+  });
+
+  it("returns ok when a non-daily catalog save still matches the live catalog", async () => {
+    const live = catalogSession();
+    live.config = { ...live.config, language: "en" };
+    const enSave = save({ session: live, locale: "en", questionIndex: 2, sessionSource: "catalog" });
+    const catalog = catalogFixture(live);
+    loadCatalog.mockResolvedValue(catalog);
+    buildCatalog.mockResolvedValue(live);
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("ok");
+    expect(loadCatalog).toHaveBeenCalledWith("en", "standard");
+    expect(buildCatalog).toHaveBeenCalledWith(catalog, live.questions, []);
+    expect(loadLive).not.toHaveBeenCalled();
+  });
+
+  it("returns incompatible when a catalog question left the live catalog", async () => {
+    const live = catalogSession();
+    live.config = { ...live.config, language: "en" };
+    const enSave = save({ session: live, locale: "en", questionIndex: 2, sessionSource: "catalog" });
+    const full = catalogFixture(live);
+    loadCatalog.mockResolvedValue({
+      ...full,
+      questions: live.questions.slice(1),
+      pools: {
+        ...full.pools,
+        all: live.questions.slice(1).map((_, index) => index),
+      },
+    });
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("incompatible");
+    expect(buildCatalog).not.toHaveBeenCalled();
+  });
+
+  it("maps a missing published artifact to incompatible", async () => {
+    const enSave = save({
+      session: { ...structuredClone(general) as QuizSession, config: { ...general.config, language: "en" } },
+      locale: "en",
+      questionIndex: 1,
+    });
+    loadLive.mockRejectedValue(new QuizArtifactError("missing"));
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("incompatible");
+  });
+
+  it("maps an invalid published artifact to invalid", async () => {
+    const enSave = save({
+      session: { ...structuredClone(general) as QuizSession, config: { ...general.config, language: "en" } },
+      locale: "en",
+      questionIndex: 1,
+    });
+    loadLive.mockRejectedValue(new QuizArtifactError("invalid"));
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("invalid");
+  });
+
+  it("maps a missing catalog artifact to incompatible", async () => {
+    const live = catalogSession();
+    live.config = { ...live.config, language: "en" };
+    const enSave = save({ session: live, locale: "en", questionIndex: 1, sessionSource: "catalog" });
+    loadCatalog.mockRejectedValue(new CatalogArtifactError("missing", "manifest not published"));
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("incompatible");
+  });
+
+  it("maps an invalid catalog artifact to invalid", async () => {
+    const live = catalogSession();
+    live.config = { ...live.config, language: "en" };
+    const enSave = save({ session: live, locale: "en", questionIndex: 1, sessionSource: "catalog" });
+    loadCatalog.mockRejectedValue(new CatalogArtifactError("invalid", "shard hash"));
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("invalid");
+  });
+
+  it("maps an unavailable catalog selection to incompatible", async () => {
+    const live = catalogSession();
+    live.config = { ...live.config, language: "en" };
+    const enSave = save({ session: live, locale: "en", questionIndex: 1, sessionSource: "catalog" });
+    loadCatalog.mockResolvedValue(catalogFixture(live));
+    buildCatalog.mockRejectedValue(new CatalogSelectionError("unavailable", "not enough questions"));
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("incompatible");
+  });
+
+  it("maps an invalid catalog selection to invalid", async () => {
+    const live = catalogSession();
+    live.config = { ...live.config, language: "en" };
+    const enSave = save({ session: live, locale: "en", questionIndex: 1, sessionSource: "catalog" });
+    loadCatalog.mockResolvedValue(catalogFixture(live));
+    buildCatalog.mockRejectedValue(new CatalogSelectionError("invalid", "bad selection"));
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).resolves.toBe("invalid");
+  });
+
+  it("rethrows a network or TypeError from the live load", async () => {
+    const enSave = save({
+      session: { ...structuredClone(general) as QuizSession, config: { ...general.config, language: "en" } },
+      locale: "en",
+      questionIndex: 1,
+    });
+    loadLive.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    await expect(checkOtherLocaleSaveCompatibility(enSave)).rejects.toThrow(TypeError);
   });
 });
 

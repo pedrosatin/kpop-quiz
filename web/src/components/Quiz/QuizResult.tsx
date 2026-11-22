@@ -101,7 +101,7 @@ export function QuizResult({
         />
         {notice && <p class="game-actions-message" role="status" data-testid="quiz-replay-notice">{notice}</p>}
         {generalNote && (
-          <p class="game-actions-message" role="status" data-testid="quiz-daily-done-general-note">
+          <p class="quiz-daily-done-note" role="status" data-testid="quiz-daily-done-general-note">
             {generalNote}
           </p>
         )}
@@ -123,17 +123,21 @@ export function QuizResult({
               {messages.restart}
             </button>
           )}
-          {dailyDate && onOpenSetup && (
-            <button class="btn btn-secondary" type="button" data-testid="quiz-open-setup" onClick={onOpenSetup}>
-              {messages.quizOpenSetup}
-            </button>
-          )}
-          {dailyDate && onPlayGeneral && (
-            <button class="btn btn-secondary" type="button" data-testid="quiz-play-general" onClick={onPlayGeneral}>
-              {messages.quizPlayGeneral}
-            </button>
-          )}
         </div>
+        {dailyDate && (onOpenSetup || onPlayGeneral) ? (
+          <div class="quiz-daily-done-actions">
+            {onOpenSetup ? (
+              <button class="btn btn-secondary" type="button" data-testid="quiz-open-setup" onClick={onOpenSetup}>
+                {messages.quizOpenSetup}
+              </button>
+            ) : null}
+            {onPlayGeneral ? (
+              <button class="btn btn-secondary" type="button" data-testid="quiz-play-general" onClick={onPlayGeneral}>
+                {messages.quizPlayGeneral}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {dailyDate && dayShareText ? (
           <DailyNext game="quiz" locale={locale} shareText={dayShareText} referenceDate={dailyDate} />
         ) : null}
