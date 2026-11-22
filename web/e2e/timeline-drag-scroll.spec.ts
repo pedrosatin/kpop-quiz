@@ -1,9 +1,9 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/consent";
 import { expectBoardDirectReady } from "./helpers/boot";
-import { skipUnlessPublished } from "./helpers/published";
 import { settleEffects } from "./helpers/passive-effects";
 import { cardIds, savedOrder } from "./helpers/timeline-board";
+import { serveFixedTimeline } from "./helpers/fixed-daily";
 
 // Drags the first card with the mouse to the last position while the page
 // scrolls, in a window too short to show the whole board.
@@ -85,8 +85,8 @@ function moved(order: readonly string[], from: number, to: number): string[] {
   return next;
 }
 
-async function openBoardAtFirstCard(page: Page, baseURL: string, path: string): Promise<{ opening: string[]; scrollY: number }> {
-  await skipUnlessPublished(page, baseURL, "timeline.daily.json");
+async function openBoardAtFirstCard(page: Page, _baseURL: string, path: string): Promise<{ opening: string[]; scrollY: number }> {
+  await serveFixedTimeline(page);
   await page.goto(`${base}${path}`);
   await expectBoardDirectReady(page);
   await page.locator(".timeline-card").first().evaluate((card) => card.scrollIntoView({ block: "start" }));

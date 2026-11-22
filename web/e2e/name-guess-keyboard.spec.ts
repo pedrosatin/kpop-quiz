@@ -1,15 +1,7 @@
-import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/consent";
 import { expectBoardDirectReady } from "./helpers/boot";
-import { loadPreferNextDaily } from "./helpers/daily-artifact";
+import { fixedNameGuess, serveFixedNameGuess } from "./helpers/fixed-daily";
 import { joinBaseUrl } from "../src/lib/join-base-url";
-
-interface NameGuessDaily {
-  reference_date: string;
-  word_length: number;
-  target: { normalized_name: string };
-  valid_guesses: string[];
-}
 
 const ACCENTED: Record<string, string> = { A: "Á", C: "Ç", E: "È", I: "Í", N: "Ñ", O: "Ö", U: "Ü" };
 
@@ -33,8 +25,8 @@ const locales = [
 ];
 
 /** A valid wrong guess with at least one letter that has an accented form. */
-async function pickGuess(page: Page, baseURL: string): Promise<{ guess: string; length: number }> {
-  const puzzle = await loadPreferNextDaily<NameGuessDaily>(page.request, baseURL, "name-guess.daily.json");
+function pickGuess(): { guess: string; length: number } {
+  const puzzle = fixedNameGuess;
   const guess = puzzle.valid_guesses.find(
     (word) => word !== puzzle.target.normalized_name
       && word.length === puzzle.word_length
@@ -49,7 +41,7 @@ async function pickGuess(page: Page, baseURL: string): Promise<{ guess: string; 
  * keydown whose key is the accented letter. Playwright's keyboard only knows
  * the US layout, so this goes through the browser's input pipeline (CDP).
  */
-async function typeAccented(page: Page, accented: string): Promise<void> {
+async function typeAccented(page: import("@playwright/test").Page, accented: string): Promise<void> {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Dead", code: "Quote", windowsVirtualKeyCode: 222 });
   await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Dead", code: "Quote", windowsVirtualKeyCode: 222 });
@@ -63,7 +55,8 @@ test.describe("name guess keyboard input", () => {
 
   for (const locale of locales) {
     test(`${locale.id}: accented keys type the base letter, a full row says its length, Enter submits`, async ({ page, baseURL }) => {
-      const { guess, length } = await pickGuess(page, baseURL!);
+      const { guess, length } = pickGuess();
+      await serveFixedNameGuess(page);
       await page.goto(joinBaseUrl(baseURL!, locale.path));
       await expectBoardDirectReady(page);
 
@@ -91,17 +84,29 @@ test.describe("name guess keyboard input", () => {
     });
 
     test(`${locale.id}: Enter on a focused letter key submits, Space types the letter once`, async ({ page, baseURL }) => {
-      const { guess } = await pickGuess(page, baseURL!);
+      const { guess } = pickGuess();
+      await serveFixedNameGuess(page);
       await page.goto(joinBaseUrl(baseURL!, locale.path));
       await expectBoardDirectReady(page);
 
-      for (const letter of guess.slice(0, -1)) await page.keyboard.press(letter.toLowerCase());
       const board = page.getByTestId("game-board");
+      const row1 = board.getByRole("group", { name: locale.row(1), exact: true });
+      const prefix = guess.slice(0, -1);
+      for (let i = 0; i < prefix.length; i += 1) {
+        await page.keyboard.press(prefix[i]!.toLowerCase());
+        // Wait for the board cell before the next key so focus/Space do not
+        // race a pending re-render of the virtual keyboard after addLetter.
+        await expect(row1.getByRole("img").nth(i)).toHaveAttribute(
+          "aria-label",
+          locale.tile(i + 1, prefix[i]!),
+        );
+      }
+
       const lastKey = board.locator(`[data-key="${guess.at(-1)}"]`);
       await lastKey.focus();
+      await expect(lastKey).toBeFocused();
       await page.keyboard.press("Space");
 
-      const row1 = board.getByRole("group", { name: locale.row(1), exact: true });
       await expect(row1.getByRole("img").last()).toHaveAttribute("aria-label", locale.tile(guess.length, guess.at(-1)!));
       await expect(row1.getByRole("img").first()).toHaveAttribute("data-status", "active");
 

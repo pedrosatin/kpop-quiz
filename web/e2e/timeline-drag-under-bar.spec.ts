@@ -1,9 +1,9 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/consent";
 import { expectBoardDirectReady } from "./helpers/boot";
-import { skipUnlessPublished } from "./helpers/published";
 import { settleEffects } from "./helpers/passive-effects";
 import { cardIds, savedOrder } from "./helpers/timeline-board";
+import { serveFixedTimeline } from "./helpers/fixed-daily";
 
 // Drags a Timeline card under the sticky action bar in a common laptop window.
 //
@@ -93,8 +93,8 @@ function moved(order: readonly string[], from: number, to: number): string[] {
   return next;
 }
 
-async function openBoard(page: Page, baseURL: string, path: string): Promise<string[]> {
-  await skipUnlessPublished(page, baseURL, "timeline.daily.json");
+async function openBoard(page: Page, _baseURL: string, path: string): Promise<string[]> {
+  await serveFixedTimeline(page);
   await page.goto(`${base}${path}`);
   await expectBoardDirectReady(page);
   const opening = await cardIds(page);

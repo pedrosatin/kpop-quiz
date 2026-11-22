@@ -3,7 +3,7 @@ import { test, expect } from "./fixtures/consent";
 import { SMOKE_ROUTES } from "./fixtures/routes";
 import { bootRoute } from "./helpers/boot";
 import { isPublished } from "./helpers/published";
-import { crosswordDaily, routeCrosswordDaily } from "./helpers/crossword-daily";
+import { crosswordDaily, freezeCrosswordClock, routeCrosswordDaily } from "./helpers/crossword-daily";
 
 function isCloudflareProduction(baseURL: string): boolean {
   try {
@@ -81,6 +81,9 @@ test.describe("crossword boot contract", () => {
   });
 
   test("fails on an invalid artifact instead of accepting the empty-day state", async ({ page, baseURL }) => {
+    // Pin the clock to the sealed day so a corrupt envelope reads as invalid,
+    // not as a date mismatch (missing).
+    await freezeCrosswordClock(page);
     const daily = await crosswordDaily();
     await page.route("**/data/next/crossword.daily.json", (r) => r.fulfill({ status: 404, body: "" }));
     await page.route("**/data/crossword.daily.json", (r) => r.fulfill({ json: { ...daily, attempts: 2 } }));

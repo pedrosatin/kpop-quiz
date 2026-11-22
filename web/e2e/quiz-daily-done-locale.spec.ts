@@ -5,8 +5,8 @@ import { quizProgressStorageKey } from "../src/components/Quiz/storage";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import type { Locale } from "../src/lib/quiz-types";
 import { gamePlayed } from "./helpers/player-stats";
-import { crossGuard, installGuardClock } from "./helpers/guard-clock";
-import { skipUnlessPublished } from "./helpers/published";
+import { crossGuard } from "./helpers/guard-clock";
+import { fixedQuizSession, serveFixedQuiz } from "./helpers/fixed-daily";
 
 /**
  * Playtest 2026-11-11, bugs 4 and 5. A daily quiz finished today opens its
@@ -53,16 +53,12 @@ const copy = {
 const other = (locale: Locale): Locale => (locale === "pt-BR" ? "en" : "pt-BR");
 const id = (locale: Locale) => (locale === "pt-BR" ? "pt" : "en");
 
-test.beforeEach(async ({ page, baseURL }) => {
-  await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
-  const manifest = await (await page.request.get(joinBaseUrl(baseURL!, "/data/manifest-v2.json"))).json();
-  const entry = manifest.sessions["daily.pt-BR.standard"];
-  test.skip(!entry, "the day was published without the daily quiz");
-  const session = await (await page.request.get(joinBaseUrl(baseURL!, `/data/${entry.path}`))).json();
+test.beforeEach(async ({ page }) => {
+  const session = fixedQuizSession("daily.pt-BR.standard");
   const date = /^kpop-daily-(\d{4}-\d{2}-\d{2})$/.exec(session.config.seed)?.[1];
-  test.skip(!date, "the daily session has no dated seed");
-  // The daily game keys on the date; the clock starts on the published day and keeps running.
-  await installGuardClock(page, new Date(`${date}T15:00:00Z`));
+  expect(date, "the frozen daily session has a dated seed").toBeTruthy();
+  // Serve after the clock so the frozen day matches the session seed.
+  await serveFixedQuiz(page, { instant: new Date(`${date}T15:00:00Z`) });
   await page.setViewportSize({ width: 360, height: 800 });
 });
 
@@ -137,7 +133,7 @@ for (const locale of ["pt-BR", "en"] as const) {
 
   test(`switching language mid-round offers the round back (${id(locale)} to ${id(other(locale))})`, async ({ page, baseURL }) => {
     test.setTimeout(90_000);
-    await skipUnlessPublished(page, baseURL!, "manifest-v2.json", "catalog-manifest-v1.json");
+    await serveFixedQuiz(page, { hideCatalog: false });
     await page.goto(joinBaseUrl(baseURL!, `${t.path}?theme=history&mode=standard`));
     await expect(page.getByTestId("game-start")).toBeEnabled({ timeout: 30_000 });
     await page.getByTestId("game-start").click();

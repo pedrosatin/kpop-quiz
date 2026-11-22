@@ -1,9 +1,9 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures/consent";
 import { expectBoardDirectReady } from "./helpers/boot";
-import { skipUnlessPublished } from "./helpers/published";
 import { settleEffects } from "./helpers/passive-effects";
 import { cardIds, savedOrder } from "./helpers/timeline-board";
+import { serveFixedTimeline } from "./helpers/fixed-daily";
 
 // Orders the Timeline with the keyboard in common laptop windows.
 //
@@ -53,8 +53,8 @@ async function settle(page: Page): Promise<void> {
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 }
 
-async function openBoard(page: Page, baseURL: string): Promise<string[]> {
-  await skipUnlessPublished(page, baseURL, "timeline.daily.json");
+async function openBoard(page: Page, _baseURL: string): Promise<string[]> {
+  await serveFixedTimeline(page);
   await page.goto(`${base}${PATH}`);
   await expectBoardDirectReady(page);
   const opening = await cardIds(page);

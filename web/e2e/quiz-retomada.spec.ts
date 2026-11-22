@@ -7,8 +7,8 @@ import {
 } from "../src/components/Quiz/storage";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { openQuizCustomize } from "./pages/quiz.page";
-import { skipUnlessPublished } from "./helpers/published";
 import type { Locale } from "../src/lib/quiz-types";
+import { serveFixedQuiz } from "./helpers/fixed-daily";
 
 /**
  * Q04 local resume: reload keeps identity, selection, clues, deadline and
@@ -23,8 +23,8 @@ import type { Locale } from "../src/lib/quiz-types";
 
 // A day may go out without the quiz sessions; the rounds here then need the
 // question catalog.
-test.beforeEach(async ({ page, baseURL }) => {
-  await skipUnlessPublished(page, baseURL!, "manifest-v2.json", "catalog-manifest-v1.json");
+test.beforeEach(async ({ page }) => {
+  await serveFixedQuiz(page, { hideCatalog: false });
 });
 
 const viewports = [

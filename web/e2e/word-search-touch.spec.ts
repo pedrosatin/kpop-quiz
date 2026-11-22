@@ -3,19 +3,13 @@ import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { gridPositionAt, nearestCell } from "../src/components/WordSearch/geometry";
 import { getMessages } from "../src/i18n/catalog";
 import { expect, test } from "./fixtures/consent-build";
-import { loadPreferNextDaily } from "./helpers/daily-artifact";
 import { matrixCases } from "./helpers/pairwise";
-import { skipUnlessPublished } from "./helpers/published";
 import { LOCAL_BUILD_TAG } from "./target";
+import { fixedWordSearch, serveFixedWordSearch } from "./helpers/fixed-daily";
 
 // Each test opens its own page and writes nowhere shared, so the file can
 // spread its tests across workers (see playwright.config.ts).
 test.describe.configure({ mode: "parallel" });
-
-// Every case plays the published word search, which a day may go out without.
-test.beforeEach(async ({ page, consentURL }) => {
-  await skipUnlessPublished(page, consentURL, "word-search.daily.json");
-});
 
 /**
  * Word search on a touch phone: a tap at the center of a cell marks that
@@ -23,6 +17,7 @@ test.beforeEach(async ({ page, consentURL }) => {
  * does not count says why in the live region, a marked start can be
  * cancelled, and the whole word list shows without a sideways scroll while
  * the bar and the consent banner leave the last rows of the grid in reach.
+ * The frozen word-search fixture is served before navigation.
  */
 
 interface Word {
@@ -59,6 +54,7 @@ async function open(page: Page, url: string, banner: "open" | "rejected") {
   if (banner === "rejected") {
     await page.addInitScript((key) => window.localStorage.setItem(key, "rejected"), CONSENT_STORAGE_KEY);
   }
+  await serveFixedWordSearch(page);
   await page.goto(url);
   await expect(page.locator(".word-search-cell").first()).toBeVisible();
   if (banner === "open") await expect(page.locator(".consent-banner")).toBeVisible();
@@ -234,7 +230,7 @@ for (const row of touchMatrix) {
 
       test("a drag that strays beside the line still finds the name", async ({ page, consentURL }) => {
         await open(page, consentURL + path, "rejected");
-        const puzzle = await loadPreferNextDaily<Daily>(page.request, consentURL, "word-search.daily.json");
+        const puzzle = fixedWordSearch;
         const word = puzzle.words[0]!;
         const start = await centerOf(page, word.start_row, word.start_col);
         const end = await centerOf(page, word.end_row, word.end_col);
@@ -254,7 +250,7 @@ for (const row of touchMatrix) {
 
       test("a piece of a name, a tap off the line and a miss each say why in the status region", async ({ page, consentURL }) => {
         await open(page, consentURL + path, "rejected");
-        const puzzle = await loadPreferNextDaily<Daily>(page.request, consentURL, "word-search.daily.json");
+        const puzzle = fixedWordSearch;
         const letter = (row: number, col: number) => page.locator(cellSelector(row, col)).locator(".cell-letter").innerText();
         const texts = new Set<string>();
 

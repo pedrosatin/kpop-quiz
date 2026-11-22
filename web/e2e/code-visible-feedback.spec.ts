@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { fixedCodeGroups } from "./helpers/fixed-daily";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { matrixCases } from "./helpers/pairwise";
 import { reloadPersisted } from "./helpers/passive-effects";
@@ -9,7 +9,7 @@ import { reloadPersisted } from "./helpers/passive-effects";
 test.describe.configure({ mode: "parallel" });
 
 // The committed public example fixes the answer and the available symbols.
-const puzzle = JSON.parse(readFileSync(new URL("../public/data/code-groups.pilot.json", import.meta.url), "utf8"));
+const puzzle = fixedCodeGroups;
 const secret: string[] = puzzle.secret;
 const unused: string[] = puzzle.symbols.map((symbol: { qid: string }) => symbol.qid).filter((id: string) => !secret.includes(id));
 

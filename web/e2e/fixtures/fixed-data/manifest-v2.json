@@ -1,0 +1,66 @@
+{
+  "dataset_version": "66d8c248713399e5945af64da9ab9bca4124508f31a64416ee1a9a5fc263dc84",
+  "schema_version": "kpop-quiz-web-manifest-v2",
+  "sessions": {
+    "daily.en.assisted": {
+      "path": "session.daily.en.assisted.ae8f80adbe2ccf9fcfac07767028b0809c45e6ccdab797ec61610f24105c415a.json",
+      "session_id": "bfe7bc9c48b9c85a4d6ffbc869ab9257882aabce7c220271781ec39a1a78a02c",
+      "sha256": "ae8f80adbe2ccf9fcfac07767028b0809c45e6ccdab797ec61610f24105c415a"
+    },
+    "daily.en.expert": {
+      "path": "session.daily.en.expert.c9661572c2df430303c26668702f8692421a8046a56368eae3356d7b06536584.json",
+      "session_id": "4540a727259552d74508ab800b4dcd9dc2f7028c83b79883808db315993f055f",
+      "sha256": "c9661572c2df430303c26668702f8692421a8046a56368eae3356d7b06536584"
+    },
+    "daily.en.standard": {
+      "path": "session.daily.en.standard.1a1a74810580122e5068c9c8c5fa1ee38cf10408d969ce71de1e3767b12170cc.json",
+      "session_id": "c921266f049d65608cf72a7523bbef64c2857094c1eb00abc20a56d467fc0216",
+      "sha256": "1a1a74810580122e5068c9c8c5fa1ee38cf10408d969ce71de1e3767b12170cc"
+    },
+    "daily.pt-BR.assisted": {
+      "path": "session.daily.pt-BR.assisted.e55534fbb7fa52f6bb20125e0b081524e990c5927dc81dcfa4917775ad7f05d9.json",
+      "session_id": "f46ef64cb79542d6dd3a2586c84dc245adf700eb9b195cf2890d8e9125589c1c",
+      "sha256": "e55534fbb7fa52f6bb20125e0b081524e990c5927dc81dcfa4917775ad7f05d9"
+    },
+    "daily.pt-BR.expert": {
+      "path": "session.daily.pt-BR.expert.b1c273981141ee7918902cc0d83c833f1a4fbdac2e1315e8b6996817a805a344.json",
+      "session_id": "3d5f8dcdd5b9eb3daf24a4f07b13bc596b7341a810f3aacb8fcfe87a52475402",
+      "sha256": "b1c273981141ee7918902cc0d83c833f1a4fbdac2e1315e8b6996817a805a344"
+    },
+    "daily.pt-BR.standard": {
+      "path": "session.daily.pt-BR.standard.41af10aecaeecdb836daa90f9ad6a51bef05a72e9caaa2caa77ec55ad050d6e6.json",
+      "session_id": "8c40122c3d7b7afaba1ba1bf732dab7d5be31b97d19b04b923282f6d677ee74b",
+      "sha256": "41af10aecaeecdb836daa90f9ad6a51bef05a72e9caaa2caa77ec55ad050d6e6"
+    },
+    "en.assisted": {
+      "path": "session.en.assisted.8598d0247158f7b116e2b66afba89c3097878dc087f8b4a755a6a924a910fbcb.json",
+      "session_id": "8c79bc5f9603600707cd7f3a4125389f73bc5f8b0ab64e0f841829c2586970f4",
+      "sha256": "8598d0247158f7b116e2b66afba89c3097878dc087f8b4a755a6a924a910fbcb"
+    },
+    "en.expert": {
+      "path": "session.en.expert.3989d668cb9f05454ec87d599b3876ccfa04a81174874ed781571e85a47b0ca2.json",
+      "session_id": "ffad85f31b3105a013613d81cebda1aa1b614a36f49bc6a7cbda3f436da42045",
+      "sha256": "3989d668cb9f05454ec87d599b3876ccfa04a81174874ed781571e85a47b0ca2"
+    },
+    "en.standard": {
+      "path": "session.en.standard.9c44914efa4be2eee52cf11ea63f542c8e913e01b5a58dc63d3627ed003e8c0e.json",
+      "session_id": "5f80658dc2efabc42f69977de22ac65032a12eae46a5e8835100dcdba58e0301",
+      "sha256": "9c44914efa4be2eee52cf11ea63f542c8e913e01b5a58dc63d3627ed003e8c0e"
+    },
+    "pt-BR.assisted": {
+      "path": "session.pt-BR.assisted.fa5f191cdb87584a302ac221ddc4c4520c49c5cc9ef79f1242b4219558f7a56e.json",
+      "session_id": "056b61a649c5779ae696e61933d6c3bc8dfd0e05db71b21645da34d168682023",
+      "sha256": "fa5f191cdb87584a302ac221ddc4c4520c49c5cc9ef79f1242b4219558f7a56e"
+    },
+    "pt-BR.expert": {
+      "path": "session.pt-BR.expert.987d0b408ebba093fcebd95e04199ff967a4af740d1a2a82e1307b8ba4cba591.json",
+      "session_id": "8afbbad9b3f30fe8b13613f463bb55897c91f1be545ebe6783c2706dc255b6ac",
+      "sha256": "987d0b408ebba093fcebd95e04199ff967a4af740d1a2a82e1307b8ba4cba591"
+    },
+    "pt-BR.standard": {
+      "path": "session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json",
+      "session_id": "e46b6b288177b8ab8f0dc54f19c612004cc51fa8b9effdfb0ee1133bb113a08b",
+      "sha256": "cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47"
+    }
+  }
+}

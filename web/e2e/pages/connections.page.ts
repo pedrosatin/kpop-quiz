@@ -1,45 +1,36 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { SUBMIT_GUARD_MS } from "../../src/components/Connections/ConnectionsGameContent";
+import type { ConnectionsPuzzle } from "../../src/lib/quiz-types";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
-import { loadPreferNextDaily } from "../helpers/daily-artifact";
+import { fixedConnections, serveFixedConnections } from "../helpers/fixed-daily";
 import { crossGuard } from "../helpers/guard-clock";
 import { hiddenNote, visibleLabels } from "../helpers/visible-names";
-import { skipUnlessPublished } from "../helpers/published";
 
 /** Buffer past Submit guard so a second Enviar is not swallowed. */
 const SUBMIT_CLICK_WAIT_MS = SUBMIT_GUARD_MS + 50;
 
 const CONNECTIONS_PATH = "/pt-br/conexoes/";
 
-interface ConnectionsDaily {
-  reference_date: string;
-  items: Array<{
-    id: string;
-    canonical_name: string;
-    labels: Record<string, string>;
-  }>;
-  categories: Array<{ id: string; item_ids: string[] }>;
-}
-
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export class ConnectionsPage {
+  private puzzle: ConnectionsPuzzle = fixedConnections;
+
   constructor(
     private readonly page: Page,
     private readonly baseURL: string,
   ) {}
 
   /**
-   * Opens the page of the day's board. The test is skipped when the day was
-   * published without data/connections.daily.json, unless the test serves the file itself
-   * (`served`).
+   * Opens the frozen board. Pass `served: true` when the test already routed
+   * its own artifact (custom boards keep that payload).
    */
   async open({ served = false }: { served?: boolean } = {}): Promise<void> {
-    if (!served) await skipUnlessPublished(this.page, this.baseURL, "connections.daily.json");
+    if (!served) this.puzzle = await serveFixedConnections(this.page);
     const url = joinBaseUrl(this.baseURL, CONNECTIONS_PATH);
     const response = await this.page.goto(url);
     expect(response, "navigation must return a response").not.toBeNull();
@@ -53,11 +44,7 @@ export class ConnectionsPage {
    * tile on the board still shows a hidden note.
    */
   async expectVisibleNames(locale: "pt-BR" | "en" = "pt-BR"): Promise<void> {
-    const puzzle = await loadPreferNextDaily<ConnectionsDaily>(
-      this.page.request,
-      this.baseURL,
-      "connections.daily.json",
-    );
+    const puzzle = this.puzzle;
     const visible = visibleLabels(puzzle.items, locale);
     const board = this.page.getByTestId("game-board");
     for (const item of puzzle.items) {
@@ -78,11 +65,7 @@ export class ConnectionsPage {
 
   /** Four distinct wrong groups (one tile from each category) → lost. */
   async loseWithWrongGuesses(): Promise<void> {
-    const puzzle = await loadPreferNextDaily<ConnectionsDaily>(
-      this.page.request,
-      this.baseURL,
-      "connections.daily.json",
-    );
+    const puzzle = this.puzzle;
     const visible = visibleLabels(puzzle.items, "pt-BR");
     const board = this.page.getByTestId("game-board");
 

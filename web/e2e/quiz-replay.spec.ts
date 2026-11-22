@@ -6,7 +6,7 @@ import { test } from "./fixtures/consent";
 import { NEXT_GUARD_MS } from "../src/components/Quiz/AnswerFeedback";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { crossGuard, installGuardClock } from "./helpers/guard-clock";
-import { skipUnlessPublished } from "./helpers/published";
+import { serveFixedQuiz } from "./helpers/fixed-daily";
 
 // Each test opens its own page and writes nowhere shared, so the file can
 // spread its tests across workers (see playwright.config.ts).
@@ -92,7 +92,7 @@ test("decade filter with an empty catalog pool shows unavailability", async ({ p
 });
 
 test("daily theme keeps the published session and skips catalog shards", async ({ page, baseURL }) => {
-  await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
+  await serveFixedQuiz(page, { hideCatalog: false });
   const catalogHits: string[] = [];
   await page.route("**/data/catalog**", (route) => {
     catalogHits.push(route.request().url());
@@ -136,7 +136,7 @@ for (const locale of [
   test(`missing catalog falls back to legacy sessions and says so beside Play again (${locale.id})`, async ({ page, baseURL }) => {
     test.setTimeout(90_000);
     await installGuardClock(page);
-    await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
+    await serveFixedQuiz(page, { hideCatalog: false });
     await page.route("**/data/catalog-manifest-v1.json", (route) =>
       route.fulfill({ status: 404, body: "" }),
     );

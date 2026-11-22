@@ -3,8 +3,8 @@ import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
 import { GAME_ACTIONS_HEIGHT_VAR } from "../src/lib/sticky-bar-space";
 import { expect, test } from "./fixtures/consent-build";
 import { routeCrosswordDaily } from "./helpers/crossword-daily";
-import { skipUnlessPublished } from "./helpers/published";
 import { LOCAL_BUILD_TAG } from "./target";
+import { serveFixedQuiz, serveFixedTimeline, serveFixedWordSearch } from "./helpers/fixed-daily";
 
 /**
  * On a phone the sticky .game-actions bar, and the consent banner under it,
@@ -213,7 +213,7 @@ for (const locale of locales) {
 
       for (const banner of ["open", "rejected"] as const) {
         test(`word search, banner ${banner}: the last row and the controls stay above the bar`, async ({ page, consentURL }) => {
-          await skipUnlessPublished(page, consentURL, "word-search.daily.json");
+          await serveFixedWordSearch(page);
           await open(page, consentURL + locale.wordSearch, banner);
           const cells = page.locator(".word-search-cell");
           await expect(cells.first()).toBeVisible();
@@ -226,7 +226,7 @@ for (const locale of locales) {
       }
 
       test("quiz: the revision link of an open source is reachable", async ({ page, consentURL }) => {
-        await skipUnlessPublished(page, consentURL, "manifest-v2.json");
+        await serveFixedQuiz(page);
         await open(page, consentURL + locale.quiz, "open");
         await page.getByTestId("game-start").click();
         const board = page.getByTestId("game-board");
@@ -243,7 +243,7 @@ for (const locale of locales) {
       });
 
       test("timeline: the last card's controls stay above the bar", async ({ page, consentURL }) => {
-        await skipUnlessPublished(page, consentURL, "timeline.daily.json");
+        await serveFixedTimeline(page);
         await open(page, consentURL + locale.timeline, "open");
         await expect(page.locator(".timeline-btn").first()).toBeVisible();
         await expectEndReachable(page, "the last card's control");

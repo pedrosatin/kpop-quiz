@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { joinBaseUrl } from "../../src/lib/join-base-url";
 import { expectBoardDirectReady } from "../helpers/boot";
-import { skipUnlessPublished } from "../helpers/published";
+import { serveFixedTimeline } from "../helpers/fixed-daily";
 
 const TIMELINE_PATH = "/pt-br/linha-do-tempo/";
 
@@ -13,12 +13,11 @@ export class TimelinePage {
   ) {}
 
   /**
-   * Opens the page of the day's board. The test is skipped when the day was
-   * published without data/timeline.daily.json, unless the test serves the file itself
-   * (`served`).
+   * Opens the frozen board. Pass `served: true` when the test already routed
+   * its own artifact.
    */
   async open({ served = false }: { served?: boolean } = {}): Promise<void> {
-    if (!served) await skipUnlessPublished(this.page, this.baseURL, "timeline.daily.json");
+    if (!served) await serveFixedTimeline(this.page);
     const url = joinBaseUrl(this.baseURL, TIMELINE_PATH);
     const response = await this.page.goto(url);
     expect(response, "navigation must return a response").not.toBeNull();

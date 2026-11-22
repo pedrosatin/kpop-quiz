@@ -1,10 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 import { joinBaseUrl } from "../src/lib/join-base-url";
 import { RESULT_GUARD_MS } from "../src/components/Results/use-result-action-guard";
-import { dailyReferenceDate } from "../src/data/daily-artifact";
 import { buildCrosswordDaily, buildCrosswordOmissionRecord, buildOmittedCrosswordDaily } from "../src/test/crossword-daily-fixture";
-import { crosswordDaily, pilotBoard, routeCrosswordDaily } from "./helpers/crossword-daily";
-import { crossGuard, installGuardClock } from "./helpers/guard-clock";
+import { crosswordDaily, FIXED_CROSSWORD_DATE, pilotBoard, routeCrosswordDaily } from "./helpers/crossword-daily";
+import { crossGuard } from "./helpers/guard-clock";
 import { delayPassiveEffects, settleEffects } from "./helpers/passive-effects";
 import { gamePlayed } from "./helpers/player-stats";
 
@@ -20,6 +19,7 @@ const copy = {
 } as const;
 
 test.beforeEach(async ({ page }) => {
+  // routeCrosswordDaily freezes the page clock to FIXED_CROSSWORD_DATE.
   await routeCrosswordDaily(page);
 });
 
@@ -83,7 +83,7 @@ for (const lag of ["normal", "delayed effects"] as const) {
 }
 
 test("share falls back to a text field with the date and without answers", async ({ page, baseURL }) => {
-  await installGuardClock(page);
+  // Clock already frozen in beforeEach via routeCrosswordDaily.
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
     Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
@@ -110,7 +110,7 @@ test("missing and invalid boards offer retry without a fallback", async ({ page,
   invalid.entries[0].sources[0].locator = invalid.entries[0].sources[0].locator.replace(/\[\d+:\d+\]$/, "[20:10]");
   const daily = await crosswordDaily();
   const invalidDaily = await crosswordDaily(invalid);
-  const today = dailyReferenceDate();
+  const today = FIXED_CROSSWORD_DATE;
   // Without today's record, empty envelopes are "missing". A played record in
   // the dist (published ahead) would otherwise fail closed as "invalid".
   await page.route(`**/data/crossword-publication.${today}.json`, (route) => route.fulfill({ status: 404, body: "" }));
@@ -137,10 +137,10 @@ test("missing and invalid boards offer retry without a fallback", async ({ page,
 
 test("a day published as omitted says there is no crossword and plays no earlier board", async ({ page, baseURL }) => {
   // Today is omitted in data/next/ while data/ still holds yesterday's board.
-  const yesterday = new Date(`${dailyReferenceDate()}T00:00:00Z`);
+  const yesterday = new Date(`${FIXED_CROSSWORD_DATE}T00:00:00Z`);
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   const stale = await buildCrosswordDaily(puzzle, yesterday.toISOString().slice(0, 10));
-  const omitted = await buildOmittedCrosswordDaily(dailyReferenceDate());
+  const omitted = await buildOmittedCrosswordDaily(FIXED_CROSSWORD_DATE);
   await page.route("**/data/crossword.daily.json", (route) => route.fulfill({ json: stale }));
   await page.route("**/data/next/crossword.daily.json", (route) => route.fulfill({ json: omitted }));
   await page.goto(joinBaseUrl(baseURL!, prefix + copy["pt-br"].path));
@@ -154,7 +154,7 @@ for (const [cause, reason] of [
 ] as const) {
   test(`a day omitted by a ${cause} says the crossword is unavailable, not late`, async ({ page, baseURL }) => {
     // No envelope for today: only its record, published ahead in data/next/.
-    const today = dailyReferenceDate();
+    const today = FIXED_CROSSWORD_DATE;
     await page.route("**/data/crossword.daily.json", (route) => route.fulfill({ status: 404, body: "" }));
     await page.route("**/data/next/crossword.daily.json", (route) => route.fulfill({ status: 404, body: "" }));
     await page.route(`**/data/next/crossword-publication.${today}.json`, (route) => route.fulfill({ json: buildCrosswordOmissionRecord(today, reason) }));

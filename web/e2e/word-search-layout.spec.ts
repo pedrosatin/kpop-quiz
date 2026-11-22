@@ -1,9 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import { joinBaseUrl } from "../src/lib/join-base-url";
-import { loadPreferNextDaily } from "./helpers/daily-artifact";
 import { matrixCases } from "./helpers/pairwise";
 import { reloadPersisted } from "./helpers/passive-effects";
-import { skipUnlessPublished } from "./helpers/published";
+import { fixedWordSearch, serveFixedWordSearch } from "./helpers/fixed-daily";
 
 // Each test opens its own page and writes nowhere shared, so the file can
 // spread its tests across workers (see playwright.config.ts).
@@ -16,11 +15,6 @@ test.describe.configure({ mode: "parallel" });
  * (12 cases, 3 each) are time the CI spends on pictures nobody opens.
  */
 const SHOTS = Boolean(process.env.WORD_SEARCH_LAYOUT_SHOTS);
-
-interface Daily {
-  reference_date: string;
-  words: { start_row: number; start_col: number; end_row: number; end_col: number }[];
-}
 
 async function expectContained(page: Page) {
   const geometry = await page.locator(".word-search-actions").evaluate((bar) => {
@@ -65,7 +59,6 @@ for (const row of layoutMatrix) {
         // A day may go out without the word search (helpers/published.ts).
         const published = await browser.newContext();
         try {
-          await skipUnlessPublished(await published.newPage(), baseURL!, "word-search.daily.json");
         } finally {
           await published.close();
         }
@@ -74,6 +67,8 @@ for (const row of layoutMatrix) {
         if (consent === "rejected") await context.addInitScript(() => localStorage.setItem("kpop-quiz-consent", "rejected"));
         const page = await context.newPage();
         try {
+          await serveFixedWordSearch(page);
+          const puzzle = fixedWordSearch;
           await page.goto(joinBaseUrl(baseURL!, locale === "pt" ? "/pt-br/caca-palavras/" : "/en/word-search/"));
           await expect(page.locator(".word-search-cell").first()).toBeVisible();
           // Staging deliberately omits the consent island; exercise the same game
@@ -85,7 +80,6 @@ for (const row of layoutMatrix) {
           await page.locator(".how-to-play > summary").click();
           await expect(page.locator(".how-to-play")).toHaveAttribute("open", "");
           await page.locator(".how-to-play > summary").click();
-          const puzzle = await loadPreferNextDaily<Daily>(page.request, baseURL!, "word-search.daily.json");
           const select = async (index: number) => {
             const word = puzzle.words[index]!;
             for (const [row, col] of [[word.start_row, word.start_col], [word.end_row, word.end_col]]) {

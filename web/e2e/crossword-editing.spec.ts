@@ -1,12 +1,12 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { joinBaseUrl } from '../src/lib/join-base-url';
-import { crossGuard, installGuardClock } from './helpers/guard-clock';
+import { crossGuard } from './helpers/guard-clock';
+import { freezeCrosswordClock, pilotBoard, routeCrosswordDaily } from './helpers/crossword-daily';
 import { matrixCases } from './helpers/pairwise';
 import { reloadPersisted, settleEffects } from './helpers/passive-effects';
 import { gamePlayed } from './helpers/player-stats';
 import { RESULT_GUARD_MS } from '../src/components/Results/use-result-action-guard';
-import { pilotBoard, routeCrosswordDaily } from './helpers/crossword-daily';
 
 const evidence = process.env.CROSSWORD_EVIDENCE;
 const phase = process.env.CROSSWORD_PHASE ?? 'after';
@@ -67,7 +67,7 @@ for (const row of crosswordMatrix) {
           Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
         });
         const page = await context.newPage();
-        await installGuardClock(page);
+        await freezeCrosswordClock(page);
         await page.goto(joinBaseUrl(baseURL!, prefix + t.path));
         await expect(page.locator('#crossword input')).toHaveCount(11);
         // Builds without analytics configuration have no consent banner.

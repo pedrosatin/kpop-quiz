@@ -1,7 +1,8 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CONSENT_STORAGE_KEY } from "../src/components/Consent/ConsentBanner";
-import { crossGuard, installGuardClock } from "./helpers/guard-clock";
+import { serveFixedMap } from "./helpers/fixed-daily";
+import { crossGuard } from "./helpers/guard-clock";
 
 // Each test opens its own page and writes nowhere shared, so the file can
 // spread its tests across workers (see playwright.config.ts).
@@ -35,8 +36,8 @@ const SMALL = [
 ] as const;
 
 async function openMap(page: Page) {
-  // The map guards (zoom, Next) are crossed by moving the page clock.
-  await installGuardClock(page);
+  // Pins the page clock to the frozen day and installs the guard clock for zoom/Next.
+  await serveFixedMap(page);
   await page.addInitScript((key) => window.localStorage.setItem(key, "rejected"), CONSENT_STORAGE_KEY);
   await page.goto("/pt-br/mapa/");
   // The targets render once the map box is measured.

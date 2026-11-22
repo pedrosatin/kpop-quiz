@@ -1,6 +1,14 @@
 import { expect, test } from "./fixtures/consent";
-import { routeCrosswordDaily } from "./helpers/crossword-daily";
-import { skipUnlessPublished } from "./helpers/published";
+import {
+  serveFixedConnections,
+  serveFixedCrossword,
+  serveFixedGrid,
+  serveFixedMap,
+  serveFixedNameGuess,
+  serveFixedQuiz,
+  serveFixedTimeline,
+  serveFixedWordSearch,
+} from "./helpers/fixed-daily";
 
 const base = process.env.ASTRO_BASE?.replace(/\/$/, "") ?? "";
 
@@ -63,26 +71,30 @@ const quizLocales = [
   },
 ] as const;
 
+/**
+ * Origin guard first, then the frozen fixture routes (last registered wins),
+ * then navigation. Calling serve* before the catch-all lets the origin guard
+ * hide the fixtures and the board falls back to live/missing data.
+ */
 async function openBoard(
   page: import("@playwright/test").Page,
   baseURL: string,
   path: string,
+  serve: (page: import("@playwright/test").Page) => Promise<unknown>,
   viewport = { width: 390, height: 844 },
 ) {
   const origin = new URL(baseURL).origin;
   await page.route("**/*", (route) =>
     new URL(route.request().url()).origin === origin ? route.continue() : route.abort()
   );
-  // The build publishes no daily crossword; the audited board stands in as today's.
-  await routeCrosswordDaily(page);
+  await serve(page);
   await page.setViewportSize(viewport);
   await page.goto(`${base}${path}`);
 }
 
 for (const locale of quizLocales) {
   test(`${locale.id} quiz: cancel keeps the round and confirm ends it`, async ({ page, baseURL }) => {
-    await skipUnlessPublished(page, baseURL!, "manifest-v2.json");
-    await openBoard(page, baseURL!, locale.quizPath, { width: 360, height: 800 });
+    await openBoard(page, baseURL!, locale.quizPath, serveFixedQuiz, { width: 360, height: 800 });
     await page.getByTestId("game-start").click();
     await expect(page.getByTestId("game-board")).toBeVisible();
 
@@ -100,7 +112,7 @@ for (const locale of quizLocales) {
   });
 
   test(`${locale.id} grid: Escape keeps the board and confirm reveals answers`, async ({ page, baseURL }) => {
-    await openBoard(page, baseURL!, locale.gridPath);
+    await openBoard(page, baseURL!, locale.gridPath, serveFixedGrid);
     const board = page.getByTestId("game-board");
     const missing = page.getByTestId("game-missing");
     await expect(board.or(missing)).toBeVisible();
@@ -123,18 +135,38 @@ for (const locale of quizLocales) {
 }
 
 const remainingGiveUpGames = [
-  { name: "connections", paths: { pt: "/pt-br/conexoes/", en: "/en/connections/" } },
-  { name: "name-guess", paths: { pt: "/pt-br/adivinhe/", en: "/en/guess/" } },
-  { name: "timeline", paths: { pt: "/pt-br/linha-do-tempo/", en: "/en/timeline/" } },
-  { name: "map", paths: { pt: "/pt-br/mapa/", en: "/en/map/" } },
-  { name: "word-search", paths: { pt: "/pt-br/caca-palavras/", en: "/en/word-search/" } },
+  {
+    name: "connections",
+    paths: { pt: "/pt-br/conexoes/", en: "/en/connections/" },
+    serve: serveFixedConnections,
+  },
+  {
+    name: "name-guess",
+    paths: { pt: "/pt-br/adivinhe/", en: "/en/guess/" },
+    serve: serveFixedNameGuess,
+  },
+  {
+    name: "timeline",
+    paths: { pt: "/pt-br/linha-do-tempo/", en: "/en/timeline/" },
+    serve: serveFixedTimeline,
+  },
+  {
+    name: "map",
+    paths: { pt: "/pt-br/mapa/", en: "/en/map/" },
+    serve: serveFixedMap,
+  },
+  {
+    name: "word-search",
+    paths: { pt: "/pt-br/caca-palavras/", en: "/en/word-search/" },
+    serve: serveFixedWordSearch,
+  },
 ] as const;
 
 for (const locale of locales) {
   for (const game of remainingGiveUpGames) {
     const path = game.paths[locale.id as "pt" | "en"];
     test(`${locale.id} ${game.name}: cancel keeps play and confirm ends it`, async ({ page, baseURL }) => {
-      await openBoard(page, baseURL!, path);
+      await openBoard(page, baseURL!, path, game.serve);
       const board = page.getByTestId("game-board");
       const missing = page.getByTestId("game-missing");
       await expect(board.or(missing)).toBeVisible();
@@ -159,7 +191,7 @@ for (const locale of locales) {
 
   test(`${locale.id} crossword: cancel keeps the board and confirm reveals answers`, async ({ page, baseURL }) => {
     const path = locale.id === "pt" ? "/pt-br/cruzadinha/" : "/en/crossword/";
-    await openBoard(page, baseURL!, path);
+    await openBoard(page, baseURL!, path, serveFixedCrossword);
     const board = page.getByTestId("game-board");
     const missing = page.getByTestId("game-missing");
     await expect(board.or(missing)).toBeVisible();
