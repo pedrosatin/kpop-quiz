@@ -86,6 +86,55 @@ export interface WordSearchMessages {
   cellAria: (row: number, col: number, letter: string, isSelected: boolean, isFound: boolean, isRevealed?: boolean) => string;
 }
 
+export interface StrandsMessages {
+  title: string;
+  gridLabel: string;
+  themeLabel: string;
+  wordsHeading: string;
+  wordsFound: string;
+  spangramLabel: string;
+  spangramFound: string;
+  spangramPending: string;
+  timerLabel: string;
+  lettersCount: (count: number) => string;
+  selectionLabel: string;
+  selectionHint: string;
+  pathHint: (letters: string) => string;
+  foundState: string;
+  progress: (found: number, total: number) => string;
+  progressAnnouncement: (found: number, total: number, spangramFound: boolean) => string;
+  /** Status after a find: name plus running word count. */
+  foundFeedback: (name: string, found: number, total: number) => string;
+  /** Status after finding the spangram: name plus running word count. */
+  spangramFeedback: (name: string, found: number, total: number) => string;
+  repeatFeedback: (name: string) => string;
+  missFeedback: (letters: string) => string;
+  tooShortFeedback: string;
+  cancelFeedback: string;
+  /** Confirms the current trail (same as Enter). */
+  confirm: string;
+  /** Clears the current trail (same as Escape). */
+  clear: string;
+  congratulations: string;
+  resultSummary: (total: number, time: string) => string;
+  loading: string;
+  loadError: string;
+  artifactMissing: string;
+  /** Wrong schema_version or identity hash. */
+  incompatibleVersion: string;
+  /** Network failure while fetching the artifact. */
+  offline: string;
+  retry: string;
+  cellAria: (
+    row: number,
+    col: number,
+    letter: string,
+    isSelected: boolean,
+    isFound: boolean,
+    isSpangram?: boolean,
+  ) => string;
+}
+
 export interface Messages {
   meta: Record<SeoRouteKey, SeoMeta>;
   /** Static copy under each game page (How to play, data sources, FAQ). */
@@ -355,6 +404,7 @@ export interface Messages {
   crosswordIntro: string;
   crosswordHowToPlay: string[];
   wordSearch: WordSearchMessages;
+  strands: StrandsMessages;
   gameNavLabel: string;
   gameQuiz: string;
   gameGrid: string;
@@ -973,6 +1023,48 @@ const catalogs: Record<Locale, Messages> = {
         return `Linha ${row + 1}, coluna ${col + 1}, letra ${letter}${state}`;
       },
     },
+    strands: {
+      title: "Palavras conectadas",
+      gridLabel: "Grade de letras conectadas",
+      themeLabel: "Tema",
+      wordsHeading: "Palavras do tema",
+      wordsFound: "Encontradas",
+      spangramLabel: "Spangram",
+      spangramFound: "spangram encontrado",
+      spangramPending: "spangram ainda não encontrado",
+      timerLabel: "Tempo",
+      lettersCount: (count) => (count === 1 ? "1 letra" : `${count} letras`),
+      selectionLabel: "Trilha:",
+      selectionHint:
+        "Ligue letras vizinhas. Toque ou Espaço estende a trilha; Confirmar ou Enter confirma; Limpar ou Esc descarta.",
+      pathHint: (letters) => `Trilha: ${letters}.`,
+      foundState: "encontrada",
+      progress: (found, total) => `${found} de ${total}`,
+      progressAnnouncement: (found, total, spangramFound) =>
+        `${found} de ${total} palavras.${spangramFound ? " Spangram encontrado." : " Spangram ainda não encontrado."}`,
+      foundFeedback: (name, found, total) => `Achou: ${name}. ${found} de ${total} palavras.`,
+      spangramFeedback: (name, found, total) => `Spangram: ${name}. ${found} de ${total} palavras.`,
+      repeatFeedback: (name) => `Você já achou ${name}.`,
+      missFeedback: (letters) => `${letters} não é uma palavra do tema.`,
+      tooShortFeedback: "A trilha precisa de pelo menos três letras.",
+      cancelFeedback: "Trilha cancelada.",
+      confirm: "Confirmar",
+      clear: "Limpar",
+      congratulations: "Parabéns!",
+      resultSummary: (total, time) => `${total} palavras em ${time}.`,
+      loading: "Carregando as palavras conectadas de hoje...",
+      loadError: "Não foi possível carregar o jogo.",
+      artifactMissing: "As palavras conectadas de hoje ainda não foram publicadas.",
+      incompatibleVersion: "Esta versão do tabuleiro não é compatível com o site.",
+      offline: "Sem conexão. Tente de novo quando a rede voltar.",
+      retry: "Tentar novamente",
+      cellAria: (row, col, letter, isSelected, isFound, isSpangram = false) => {
+        const state = isFound
+          ? isSpangram ? ", spangram encontrado" : ", encontrada"
+          : isSelected ? ", na trilha" : "";
+        return `Linha ${row + 1}, coluna ${col + 1}, letra ${letter}${state}`;
+      },
+    },
     gameNavLabel: "Jogos de K-pop",
     gameQuiz: gameNames["pt-BR"].quiz,
     gameGrid: gameNames["pt-BR"].grid,
@@ -1503,6 +1595,48 @@ const catalogs: Record<Locale, Messages> = {
       retry: "Try again",
       cellAria: (row, col, letter, isSelected, isFound, isRevealed = false) => {
         const state = isFound ? ", found" : isRevealed ? ", revealed" : isSelected ? ", selected" : "";
+        return `Row ${row + 1}, column ${col + 1}, letter ${letter}${state}`;
+      },
+    },
+    strands: {
+      title: "Strands",
+      gridLabel: "Connected letter grid",
+      themeLabel: "Theme",
+      wordsHeading: "Theme words",
+      wordsFound: "Found",
+      spangramLabel: "Spangram",
+      spangramFound: "spangram found",
+      spangramPending: "spangram not found yet",
+      timerLabel: "Time",
+      lettersCount: (count) => (count === 1 ? "1 letter" : `${count} letters`),
+      selectionLabel: "Path:",
+      selectionHint:
+        "Link neighboring letters. Tap or Space extends the path; Submit or Enter confirms; Clear or Esc clears it.",
+      pathHint: (letters) => `Path: ${letters}.`,
+      foundState: "found",
+      progress: (found, total) => `${found} of ${total}`,
+      progressAnnouncement: (found, total, spangramFound) =>
+        `${found} of ${total} words.${spangramFound ? " Spangram found." : " Spangram not found yet."}`,
+      foundFeedback: (name, found, total) => `Found: ${name}. ${found} of ${total} words.`,
+      spangramFeedback: (name, found, total) => `Spangram: ${name}. ${found} of ${total} words.`,
+      repeatFeedback: (name) => `You already found ${name}.`,
+      missFeedback: (letters) => `${letters} is not a theme word.`,
+      tooShortFeedback: "The path needs at least three letters.",
+      cancelFeedback: "Path canceled.",
+      confirm: "Submit",
+      clear: "Clear",
+      congratulations: "Well done!",
+      resultSummary: (total, time) => `${total} words in ${time}.`,
+      loading: "Loading today's strands...",
+      loadError: "The game could not be loaded.",
+      artifactMissing: "Today's strands puzzle has not been published yet.",
+      incompatibleVersion: "This board version is not compatible with the site.",
+      offline: "You're offline. Try again once you're connected.",
+      retry: "Try again",
+      cellAria: (row, col, letter, isSelected, isFound, isSpangram = false) => {
+        const state = isFound
+          ? isSpangram ? ", spangram found" : ", found"
+          : isSelected ? ", on path" : "";
         return `Row ${row + 1}, column ${col + 1}, letter ${letter}${state}`;
       },
     },

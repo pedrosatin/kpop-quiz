@@ -1,8 +1,6 @@
-import type { Messages } from "../../i18n/catalog";
 import { cellClass } from "./pointer";
 
 interface WordSearchCellProps {
-  t: Messages["wordSearch"];
   row: number;
   col: number;
   letter: string;
@@ -13,6 +11,9 @@ interface WordSearchCellProps {
   anchor: boolean;
   /** The one cell of the grid reached by Tab (roving tabindex). */
   focused: boolean;
+  ariaLabel: string;
+  /** Extra CSS class (for example a spangram highlight). */
+  extraClass?: string | undefined;
 }
 
 /**
@@ -20,18 +21,30 @@ interface WordSearchCellProps {
  * state in words, so the selection, a found word and a revealed one do not
  * rest on color alone.
  */
-export function WordSearchCell({ t, row, col, letter, color, selected, revealed, anchor, focused }: WordSearchCellProps) {
+export function WordSearchCell({
+  row,
+  col,
+  letter,
+  color,
+  selected,
+  revealed,
+  anchor,
+  focused,
+  ariaLabel,
+  extraClass,
+}: WordSearchCellProps) {
   const found = color !== undefined;
+  const base = cellClass({ selected, color, revealed, anchor });
   return (
     <button
       type="button"
       role="gridcell"
-      class={cellClass({ selected, color, revealed, anchor })}
+      class={extraClass ? `${base} ${extraClass}` : base}
       data-row={row}
       data-col={col}
       data-found={found ? "true" : undefined}
       tabIndex={focused ? 0 : -1}
-      aria-label={t.cellAria(row, col, letter, selected, found, revealed)}
+      aria-label={ariaLabel}
     >
       <span class="cell-letter">{letter}</span>
     </button>

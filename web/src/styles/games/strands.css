@@ -1,0 +1,64 @@
+/*
+  Strands reuses the Word Search letter grid, chips and action bar. This file
+  only adds theme/spangram markers, a taller progress row and room for the
+  Confirm / Clear buttons beside Give up.
+*/
+
+.strands {
+  --ws-list: 5.5rem;
+}
+
+.strands-theme-label {
+  margin: 0 0 var(--space-1);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.word-search-cell.is-spangram.is-found {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.word-search-item.is-spangram {
+  font-weight: 600;
+}
+
+.word-search-item.is-spangram.is-found {
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.strands-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+/* Confirm and Clear stay mounted (disabled when empty) so the bar height
+   does not jump; .btn already targets 44px via --control-height. */
+.strands .word-search-actions > .btn {
+  min-height: var(--control-height);
+}
+
+@media (max-width: 420px) {
+  .strands {
+    /* Message + progress + two button rows (Confirm/Clear + Give up). */
+    --ws-actions: 10.25rem;
+  }
+}
+
+.strands-result {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.strands-result-title {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.strands-state .loading-message,
+.strands-state .state-error {
+  margin: 0;
+}
