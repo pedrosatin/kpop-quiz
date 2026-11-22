@@ -81,7 +81,7 @@ export function isCodeGroupsPuzzle(value: unknown): value is CodeGroupsPuzzle {
   if (!isRecord(value)) return false;
   const p = value as unknown as CodeGroupsPuzzle;
   if (p.schema_version !== "code-groups-pilot-v1" || p.mode !== "pilot" || p.max_attempts !== 10) return false;
-  if (Object.keys(value).length !== PUZZLE_FIELDS.length) return false;
+  if (!hasExactKeys(value, PUZZLE_FIELDS)) return false;
   if (![p.puzzle_id, p.dataset_version, p.seed, p.reference_date].every(isNonBlankString)) return false;
   if (!isHash(p.puzzle_id) || !isHash(p.dataset_version)) return false;
   if (!isLenientIsoDate(p.reference_date)) return false;
