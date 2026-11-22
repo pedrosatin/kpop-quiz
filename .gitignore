@@ -4,6 +4,7 @@
 *.csv
 
 __pycache__
+.hypothesis/
 /data/raw/
 /graphify-out/
 /web/node_modules
