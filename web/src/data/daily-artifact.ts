@@ -64,6 +64,38 @@ export function staleDailyDate(board: object | null | undefined): string | undef
   return board ? staleBoards.get(board) : undefined;
 }
 
+/** True when the host has no JSON for this URL (404 or an HTML fallback page). */
+export function isMissingDailyResponse(response: Response): boolean {
+  const contentType = response.headers?.get?.("content-type");
+  return response.status === 404
+    || (response.ok && !!contentType?.startsWith("text/html"));
+}
+
+/**
+ * When the main daily file is absent, try data/next/. Accepts a board whose
+ * reference_date is today or earlier (noted stale when earlier). A future
+ * board, a failed fetch, or an invalid payload yields null so the loader can
+ * keep reporting missing.
+ */
+export async function loadNextDailyWhenMissing<T extends { reference_date: string }>(
+  filename: string,
+  baseUrl: string,
+  isValid: (value: unknown) => value is T,
+  today: string = dailyReferenceDate(),
+): Promise<T | null> {
+  try {
+    const response = await fetch(nextDataUrl(filename, baseUrl));
+    if (isMissingDailyResponse(response) || !response.ok) return null;
+    const payload: unknown = await response.json();
+    if (isValid(payload) && payload.reference_date <= today) {
+      return noteDailyBoard(payload, payload.reference_date, today);
+    }
+  } catch {
+    // Keep missing.
+  }
+  return null;
+}
+
 /**
  * Newer of the main artifact and its next/ copy, never past today, noted as
  * stale when neither is today's. Any failure to load or validate the next/

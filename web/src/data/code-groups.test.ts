@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import daily from "../../public/data/code-groups.daily.json";
 import pilot from "../../public/data/code-groups.pilot.json";
-import { isCodeGroupsPuzzle } from "./code-groups";
+import { CodeGroupsArtifactError, isCodeGroupsPuzzle, loadCodeGroupsPuzzle } from "./code-groups";
 import { guardAfterChange, guardRows, withoutEachField, type GuardCase } from "../test/guard-table";
 
 /** Gives the first symbol `revisionId` and the Wikidata link that cites it. */
@@ -75,5 +76,55 @@ const CODE_GROUPS_CALENDAR_DATES = [
 describe("code-groups calendar date policy", () => {
   it.each(CODE_GROUPS_CALENDAR_DATES)("$label ($value): accepted is $accepted", ({ value, accepted }) => {
     expect(guardAfterChange(pilot, (p) => { p.reference_date = value; }, isCodeGroupsPuzzle)).toBe(accepted);
+  });
+});
+
+describe("code-groups next/ fallback when the main file is missing", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("loads next/ after midnight when its reference_date is today", async () => {
+    const today = daily.reference_date;
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(daily), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    );
+    vi.stubGlobal("fetch", fetch);
+    const result = await loadCodeGroupsPuzzle("pt-BR", "/base", today);
+    expect(result.puzzle_id).toBe(daily.puzzle_id);
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/code-groups.daily.json");
+  });
+
+  it("keeps missing before midnight when next/ is still tomorrow", async () => {
+    const tomorrow = structuredClone(daily);
+    tomorrow.reference_date = "2099-01-02";
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(tomorrow), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    ));
+    await expect(loadCodeGroupsPuzzle("pt-BR", "/base", "2099-01-01")).rejects.toEqual(
+      new CodeGroupsArtifactError("missing"),
+    );
+  });
+
+  it("keeps missing when next/ is also 404", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetch);
+    await expect(loadCodeGroupsPuzzle("pt-BR", "/base", daily.reference_date)).rejects.toEqual(
+      new CodeGroupsArtifactError("missing"),
+    );
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/code-groups.daily.json");
+  });
+
+  it("keeps missing when next/ has an invalid artifact", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify({ not: "code-groups" }), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    ));
+    await expect(loadCodeGroupsPuzzle("pt-BR", "/base", daily.reference_date)).rejects.toEqual(
+      new CodeGroupsArtifactError("missing"),
+    );
   });
 });

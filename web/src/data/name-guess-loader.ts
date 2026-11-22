@@ -3,7 +3,12 @@ import {
   type NameGuessPuzzle,
   type Locale,
 } from "../lib/quiz-types";
-import { preferNextDaily } from "./daily-artifact";
+import {
+  dailyReferenceDate,
+  isMissingDailyResponse,
+  loadNextDailyWhenMissing,
+  preferNextDaily,
+} from "./daily-artifact";
 
 export class NameGuessArtifactError extends Error {
   constructor(public readonly kind: "missing" | "invalid") {
@@ -23,10 +28,12 @@ function dataUrl(filename: string, baseUrl: string): string {
  */
 export async function loadNameGuessPuzzle(
   _locale: Locale,
-  baseUrl?: string
+  baseUrl?: string,
+  today: string = dailyReferenceDate(),
 ): Promise<NameGuessPuzzle> {
   const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
-  const targetUrl = dataUrl("name-guess.daily.json", effectiveBaseUrl);
+  const filename = "name-guess.daily.json";
+  const targetUrl = dataUrl(filename, effectiveBaseUrl);
 
   let response: Response;
   try {
@@ -35,7 +42,9 @@ export async function loadNameGuessPuzzle(
     throw new NameGuessArtifactError("invalid");
   }
 
-  if (response.status === 404) {
+  if (isMissingDailyResponse(response)) {
+    const fromNext = await loadNextDailyWhenMissing(filename, effectiveBaseUrl, isNameGuessPuzzle, today);
+    if (fromNext) return fromNext;
     throw new NameGuessArtifactError("missing");
   }
   if (!response.ok) {
@@ -53,5 +62,5 @@ export async function loadNameGuessPuzzle(
     throw new NameGuessArtifactError("invalid");
   }
 
-  return preferNextDaily(payload, "name-guess.daily.json", effectiveBaseUrl, isNameGuessPuzzle);
+  return preferNextDaily(payload, filename, effectiveBaseUrl, isNameGuessPuzzle, today);
 }

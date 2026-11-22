@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dailyReferenceDate, preferNextDaily, secondsUntilNextDaily, staleDailyDate } from "./daily-artifact";
-import { loadQuizSession } from "./session-loader";
+import {
+  dailyReferenceDate,
+  isMissingDailyResponse,
+  loadNextDailyWhenMissing,
+  preferNextDaily,
+  secondsUntilNextDaily,
+  staleDailyDate,
+} from "./daily-artifact";
+import { loadQuizSession, QuizArtifactError } from "./session-loader";
 import ptSession from "../tests/fixtures/session.pt-BR.standard.cfd5c3457b985e8171255a5b4fe7b8328ef25c5f5d9e5a4632f5179120fc1d47.json";
 import manifest from "../tests/fixtures/manifest-v2.json";
 
@@ -55,6 +62,64 @@ describe("secondsUntilNextDaily", () => {
     // Summer time used to start on the first Sunday of November and end in February.
     expect(secondsUntilNextDaily(new Date("2026-11-01T03:00:00Z"))).toBe(86400);
     expect(secondsUntilNextDaily(new Date("2027-01-15T15:00:00Z"))).toBe(12 * 3600);
+  });
+});
+
+describe("isMissingDailyResponse", () => {
+  const response = (status: number, contentType?: string) =>
+    new Response(status === 204 ? null : "{}", {
+      status,
+      headers: contentType ? { "content-type": contentType } : {},
+    });
+
+  it.each([
+    { status: 404, contentType: undefined, missing: true, label: "a 404" },
+    { status: 200, contentType: "text/html; charset=utf-8", missing: true, label: "an HTML fallback page" },
+    { status: 200, contentType: "application/json", missing: false, label: "a JSON file" },
+    { status: 200, contentType: undefined, missing: false, label: "a body with no content type" },
+    { status: 403, contentType: undefined, missing: false, label: "a 403" },
+    { status: 500, contentType: "text/html", missing: false, label: "a 500 error page" },
+    { status: 503, contentType: undefined, missing: false, label: "a 503" },
+  ])("treats $label as missing: $missing", ({ status, contentType, missing }) => {
+    expect(isMissingDailyResponse(response(status, contentType))).toBe(missing);
+  });
+});
+
+describe("loadNextDailyWhenMissing", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("loads next/ when its day has arrived", async () => {
+    vi.stubGlobal("fetch", routeFetch({
+      "/data/next/grid.daily.json": { reference_date: "2026-09-25", label: "next" },
+    }));
+    await expect(loadNextDailyWhenMissing("grid.daily.json", "/", isDated, "2026-09-25"))
+      .resolves.toMatchObject({ label: "next" });
+  });
+
+  it("returns null before midnight when next/ is still tomorrow", async () => {
+    vi.stubGlobal("fetch", routeFetch({
+      "/data/next/grid.daily.json": { reference_date: "2026-09-26", label: "next" },
+    }));
+    await expect(loadNextDailyWhenMissing("grid.daily.json", "/", isDated, "2026-09-25"))
+      .resolves.toBeNull();
+  });
+
+  it("returns null when next/ is missing or invalid", async () => {
+    vi.stubGlobal("fetch", routeFetch({}));
+    await expect(loadNextDailyWhenMissing("grid.daily.json", "/", isDated, "2026-09-25"))
+      .resolves.toBeNull();
+    vi.stubGlobal("fetch", routeFetch({ "/data/next/grid.daily.json": { label: "no date" } }));
+    await expect(loadNextDailyWhenMissing("grid.daily.json", "/", isDated, "2026-09-25"))
+      .resolves.toBeNull();
+  });
+
+  it("notes an earlier next/ board as stale", async () => {
+    vi.stubGlobal("fetch", routeFetch({
+      "/data/next/grid.daily.json": { reference_date: "2026-09-24", label: "old" },
+    }));
+    const board = await loadNextDailyWhenMissing("grid.daily.json", "/", isDated, "2026-09-25");
+    expect(board?.label).toBe("old");
+    expect(staleDailyDate(board)).toBe("2026-09-24");
   });
 });
 
@@ -226,5 +291,63 @@ describe("daily quiz session of an earlier day", () => {
     const session = await loadQuizSession("pt-BR", "standard", "daily", "/");
     expect(session.config.seed).toBe("kpop-daily-2026-09-25");
     expect(staleDailyDate(session)).toBeUndefined();
+  });
+});
+
+describe("daily quiz when the main directory has no daily session", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("loads next/ after midnight when the main manifest is absent", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T04:00:00Z"));
+    const next = await dailyArtifacts("2026-09-25");
+    vi.stubGlobal("fetch", routeFetch({
+      "/data/next/manifest-v2.json": next.manifest,
+      [`/data/next/${next.path}`]: next.bytes,
+    }));
+    const session = await loadQuizSession("pt-BR", "standard", "daily", "/");
+    expect(session.config.seed).toBe("kpop-daily-2026-09-25");
+    expect(staleDailyDate(session)).toBeUndefined();
+  });
+
+  it("keeps missing before midnight when next/ is still tomorrow", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T02:00:00Z"));
+    const next = await dailyArtifacts("2026-09-25");
+    vi.stubGlobal("fetch", routeFetch({
+      "/data/next/manifest-v2.json": next.manifest,
+      [`/data/next/${next.path}`]: next.bytes,
+    }));
+    await expect(loadQuizSession("pt-BR", "standard", "daily", "/")).rejects.toEqual(
+      new QuizArtifactError("missing"),
+    );
+  });
+
+  it("keeps missing when next/ is also absent", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T04:00:00Z"));
+    vi.stubGlobal("fetch", routeFetch({}));
+    await expect(loadQuizSession("pt-BR", "standard", "daily", "/")).rejects.toEqual(
+      new QuizArtifactError("missing"),
+    );
+  });
+
+  it("keeps missing when next/ has an invalid daily session", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-25T04:00:00Z"));
+    const next = await dailyArtifacts("2026-09-25");
+    const badManifest = structuredClone(next.manifest) as Record<string, any>;
+    badManifest.sessions["daily.pt-BR.standard"].sha256 = "a".repeat(64);
+    badManifest.sessions["daily.pt-BR.standard"].path = `session.daily.pt-BR.standard.${"a".repeat(64)}.json`;
+    vi.stubGlobal("fetch", routeFetch({
+      "/data/next/manifest-v2.json": badManifest,
+      [`/data/next/${next.path}`]: next.bytes,
+    }));
+    await expect(loadQuizSession("pt-BR", "standard", "daily", "/")).rejects.toEqual(
+      new QuizArtifactError("missing"),
+    );
   });
 });

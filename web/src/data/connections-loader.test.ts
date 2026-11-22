@@ -27,6 +27,52 @@ describe("published connections puzzle loader and validator", () => {
     await expect(loadConnectionsPuzzle("pt-BR")).rejects.toEqual(new ConnectionsArtifactError("missing"));
   });
 
+  it("falls back to data/next/ when the main file is 404 and next/ is today", async () => {
+    const today = validPuzzle.reference_date;
+    const fetch = vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(validPuzzle), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    );
+    vi.stubGlobal("fetch", fetch);
+    const result = await loadConnectionsPuzzle("pt-BR", "/base", today);
+    expect(result.reference_date).toBe(today);
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/connections.daily.json");
+  });
+
+  it("keeps missing before midnight when next/ is still tomorrow", async () => {
+    const tomorrow = structuredClone(validPuzzle);
+    tomorrow.reference_date = "2026-09-18";
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify(tomorrow), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    ));
+    await expect(loadConnectionsPuzzle("pt-BR", "/base", "2026-09-17")).rejects.toEqual(
+      new ConnectionsArtifactError("missing"),
+    );
+  });
+
+  it("keeps missing when next/ is also 404", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetch);
+    await expect(loadConnectionsPuzzle("pt-BR", "/base", validPuzzle.reference_date)).rejects.toEqual(
+      new ConnectionsArtifactError("missing"),
+    );
+    expect(fetch).toHaveBeenCalledWith("/base/data/next/connections.daily.json");
+  });
+
+  it("keeps missing when next/ has an invalid artifact", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      url.includes("/next/")
+        ? new Response(JSON.stringify({ not: "connections" }), { headers: { "content-type": "application/json" } })
+        : new Response(null, { status: 404 })
+    ));
+    await expect(loadConnectionsPuzzle("pt-BR", "/base", validPuzzle.reference_date)).rejects.toEqual(
+      new ConnectionsArtifactError("missing"),
+    );
+  });
+
   it("rejects non-ok HTTP responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("error", { status: 500 })));
     await expect(loadConnectionsPuzzle("pt-BR")).rejects.toEqual(new ConnectionsArtifactError("invalid"));

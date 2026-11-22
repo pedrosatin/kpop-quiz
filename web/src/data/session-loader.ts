@@ -125,6 +125,28 @@ async function nextDailySession(current: QuizSession, sessionKey: string, locale
   }
 }
 
+/** Daily session from data/next/ alone when the main directory has none for today. */
+async function dailyFromNextOnly(
+  sessionKey: string,
+  locale: Locale,
+  playMode: PlayMode,
+  baseUrl: string,
+): Promise<QuizSession | null> {
+  const today = dailyReferenceDate();
+  try {
+    return await withManifest(baseUrl, "next/", async (manifest) => {
+      const entry = manifest.sessions[sessionKey];
+      if (!entry) throw new QuizArtifactError("missing");
+      const session = await readSession(entry, manifest, locale, playMode, null, baseUrl, "next/");
+      const nextDate = dailySessionDate(session);
+      if (nextDate === null || nextDate > today) return null;
+      return noteDailyBoard(session, nextDate, today);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Runs `read` against the manifest of `dir`, preferring the one with the
  * enriched sessions. Anything that goes wrong with it (absent, malformed, a
@@ -192,8 +214,16 @@ export async function loadQuizSessionWithAvailability(
   theme: QuizTheme = "history", baseUrl?: string, decades: readonly QuizDecadeValue[] = [],
 ): Promise<LoadedQuizSession> {
   const effectiveBaseUrl = baseUrl ?? import.meta.env.BASE_URL;
-  return withManifest(effectiveBaseUrl, "", (manifest) =>
-    loadFromManifest(manifest, locale, playMode, theme, effectiveBaseUrl, decades));
+  try {
+    return await withManifest(effectiveBaseUrl, "", (manifest) =>
+      loadFromManifest(manifest, locale, playMode, theme, effectiveBaseUrl, decades));
+  } catch (error) {
+    if (theme === "daily" && error instanceof QuizArtifactError && error.kind === "missing") {
+      const fromNext = await dailyFromNextOnly(`daily.${locale}.${playMode}`, locale, playMode, effectiveBaseUrl);
+      if (fromNext) return { session: fromNext, availableDecades: [], decades: [] };
+    }
+    throw error;
+  }
 }
 
 async function loadFromManifest(
@@ -214,8 +244,23 @@ async function loadFromManifest(
   }
   const sessionKey = theme === "daily" ? `daily.${locale}.${playMode}` : `${locale}.${playMode}`;
   const entry = manifest.sessions[sessionKey];
-  if (!entry) throw new QuizArtifactError("missing");
-  const session = await readSession(entry, manifest, locale, playMode, null, effectiveBaseUrl);
+  if (!entry) {
+    if (theme === "daily") {
+      const fromNext = await dailyFromNextOnly(sessionKey, locale, playMode, effectiveBaseUrl);
+      if (fromNext) return { session: fromNext, availableDecades: available, decades: [] };
+    }
+    throw new QuizArtifactError("missing");
+  }
+  let session: QuizSession;
+  try {
+    session = await readSession(entry, manifest, locale, playMode, null, effectiveBaseUrl);
+  } catch (error) {
+    if (theme === "daily" && error instanceof QuizArtifactError && error.kind === "missing") {
+      const fromNext = await dailyFromNextOnly(sessionKey, locale, playMode, effectiveBaseUrl);
+      if (fromNext) return { session: fromNext, availableDecades: available, decades: [] };
+    }
+    throw error;
+  }
   if (theme !== "daily") return { session, availableDecades: available, decades: [] };
   const daily = await nextDailySession(session, sessionKey, locale, playMode, effectiveBaseUrl) ?? session;
   return { session: noteDailyBoard(daily, dailySessionDate(daily)), availableDecades: available, decades: [] };
