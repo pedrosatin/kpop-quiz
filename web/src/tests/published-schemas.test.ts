@@ -7,36 +7,18 @@ import { describe, expect, it } from "vitest";
 const WEB_ROOT = join(import.meta.dirname, "../..");
 const DATA_ROOT = join(WEB_ROOT, "public/data");
 const SCHEMAS_ROOT = join(WEB_ROOT, "../schemas");
+const ARTIFACT_MAP_PATH = join(SCHEMAS_ROOT, "artifact-map.json");
 
-const SCHEMA_BY_BASENAME: Readonly<Record<string, string>> = {
-  "connections.daily.json": "connections-puzzle-v1.json",
-  "grid.daily.json": "intersection-grid-v1.json",
-  "name-guess.daily.json": "name-guess-v1.json",
-  "word-search.daily.json": "word-search-puzzle-v1.json",
-  "word-search.json": "word-search-puzzle-v1.json",
-  "timeline.daily.json": "timeline-puzzle-v2.json",
-  "code-groups.daily.json": "code-groups-pilot-v1.json",
-  "code-groups.pilot.json": "code-groups-pilot-v1.json",
-  "crossword.daily.json": "crossword-daily-v1.json",
-  "crossword-pilot.json": "crossword-pilot-v1.json",
-  "strands.daily.json": "strands-puzzle-v1.json",
+type ArtifactMap = {
+  by_basename: Record<string, string>;
+  patterns: Array<{ regex: string; schema?: string; list_entry?: string }>;
+  without_schema: string[];
+  map_pilot_prefix: string;
 };
 
-const GRID_PUBLICATION_RE = /^grid-publication\.\d{4}-\d{2}-\d{2}\.json$/;
-const SESSION_RE = /^session\..+\.json$/;
-const CROSSWORD_PUBLICATION_RE = /^crossword-publication\.\d{4}-\d{2}-\d{2}\.json$/;
-const CATALOG_SHARD_RE = /^catalog\..+\.json$/;
+const artifactMap = JSON.parse(readFileSync(ARTIFACT_MAP_PATH, "utf8")) as ArtifactMap;
 
-const ARTIFACTS_WITHOUT_SCHEMA: readonly string[] = [
-  "daily-set.json",
-  "manifest.json",
-  "manifest-v2.json",
-  "manifest-v3.json",
-  "catalog-manifest-v1.json",
-  "crossword-publication.<date>.json",
-  "catalog.<locale>.<mode>.<sha256>.json",
-  "map-pilot/**",
-];
+const ARTIFACTS_WITHOUT_SCHEMA: readonly string[] = artifactMap.without_schema;
 
 type Resolution =
   | { kind: "schema"; schemaFile: string }
@@ -45,36 +27,29 @@ type Resolution =
 
 function resolveArtifact(relativePath: string): Resolution {
   const base = basename(relativePath);
-  const underMapPilot = relativePath === "map-pilot" || relativePath.startsWith(`map-pilot/`);
+  const prefix = artifactMap.map_pilot_prefix;
+  const underMapPilot = relativePath === prefix || relativePath.startsWith(`${prefix}/`);
 
   if (underMapPilot) {
     return { kind: "unschemaed", listEntry: "map-pilot/**" };
   }
-  if (SCHEMA_BY_BASENAME[base]) {
-    return { kind: "schema", schemaFile: SCHEMA_BY_BASENAME[base] };
+  if (artifactMap.by_basename[base]) {
+    return { kind: "schema", schemaFile: artifactMap.by_basename[base] };
   }
-  if (GRID_PUBLICATION_RE.test(base)) {
-    return { kind: "schema", schemaFile: "grid-publication-v1.json" };
-  }
-  if (SESSION_RE.test(base)) {
-    return { kind: "schema", schemaFile: "quiz-session-v2.json" };
-  }
-  if (CROSSWORD_PUBLICATION_RE.test(base)) {
-    return { kind: "unschemaed", listEntry: "crossword-publication.<date>.json" };
-  }
-  if (base === "catalog-manifest-v1.json") {
-    return { kind: "unschemaed", listEntry: "catalog-manifest-v1.json" };
-  }
-  if (CATALOG_SHARD_RE.test(base)) {
-    return { kind: "unschemaed", listEntry: "catalog.<locale>.<mode>.<sha256>.json" };
-  }
-  if (
-    base === "daily-set.json" ||
-    base === "manifest.json" ||
-    base === "manifest-v2.json" ||
-    base === "manifest-v3.json"
-  ) {
+  const exactWithout = artifactMap.without_schema.filter(
+    (entry) => !entry.includes("*") && !entry.includes("<"),
+  );
+  if (exactWithout.includes(base)) {
     return { kind: "unschemaed", listEntry: base };
+  }
+  for (const pattern of artifactMap.patterns) {
+    if (!new RegExp(pattern.regex).test(base)) continue;
+    if (pattern.schema) {
+      return { kind: "schema", schemaFile: pattern.schema };
+    }
+    if (pattern.list_entry) {
+      return { kind: "unschemaed", listEntry: pattern.list_entry };
+    }
   }
   return { kind: "unknown" };
 }
@@ -103,7 +78,7 @@ function buildAjv(): Ajv2020 {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   addFormats(ajv);
   for (const entry of readdirSync(SCHEMAS_ROOT)) {
-    if (!entry.endsWith(".json")) continue;
+    if (!entry.endsWith(".json") || entry === "artifact-map.json") continue;
     const schema = loadSchema(entry) as { $id?: string };
     if (!schema.$id) {
       schema.$id = entry;

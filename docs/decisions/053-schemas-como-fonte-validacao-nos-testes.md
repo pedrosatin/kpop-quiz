@@ -38,7 +38,9 @@ Embutir Ajv no navegador acrescentava ~35 KB por ilha sem cobrir essas regras: o
 
 2. **Validação contra schema só em teste.**
    - **Web:** Vitest valida cada artefato publicado em `web/public/data/` (e `next/`) que tem schema correspondente, com `ajv` e `ajv-formats` como *devDependency* de `web/`. O código de produto (`web/src/components/`, carregadores, ilhas) não importa Ajv.
-   - **Python:** os testes do publicador validam a saída com `jsonschema` (ticket 07). A dependência entra só em `requirements-ci.txt`. O coletor e o publicador em produção continuam só com a biblioteca padrão.
+   - **Python:** `tests/test_published_schemas.py` roda o publicador com fixtures (sem rede), valida a saída e também `web/public/data/` com `jsonschema` (Draft 2020-12). A dependência entra só em `requirements-ci.txt`. Sem ela, esses testes pulam com motivo explícito e `python -m unittest discover -v` segue. O coletor e o publicador em produção continuam só com a biblioteca padrão.
+
+2b. **Mapa compartilhado.** `schemas/artifact-map.json` é a fonte única do mapa artefato → schema e da lista nomeada dos sem schema. O Vitest (`web/src/tests/published-schemas.test.ts`) e o unittest Python (`tests/published_schema_map.py`) leem esse arquivo. Um JSON publicado fora do mapa e fora da lista falha nos dois lados.
 
 3. **Guardas manuais em tempo de execução.** `web/src/lib/*-types.ts` e `web/src/data/*-loader.ts` continuam sendo a validação no navegador. Elas cobrem a forma que o schema descreve e as regras de conteúdo da ADR 026, inclusive as quatro divergências medidas no protótipo de Conexões.
 
@@ -51,7 +53,7 @@ Embutir Ajv no navegador acrescentava ~35 KB por ilha sem cobrir essas regras: o
    - data de referência fixa do catálogo e conferência de `catalog_version`;
    - regras de publicação (troca de tabuleiro, reaproveitamento, omit).
 
-5. **Artefatos ainda sem schema JSON** em `schemas/` (o teste Vitest os lista por nome; um arquivo novo fora do mapa e fora dessa lista falha):
+5. **Artefatos ainda sem schema JSON** em `schemas/` (listados em `schemas/artifact-map.json` → `without_schema`; um arquivo novo fora do mapa e fora dessa lista falha):
    - manifesto e shards do catálogo estático (`catalog-manifest-v1.json` e `catalog.*.json`, ADR 026);
    - `manifest.json`, `manifest-v2.json` e `manifest-v3.json` das sessões do Quiz;
    - `daily-set.json`;
@@ -62,6 +64,10 @@ Embutir Ajv no navegador acrescentava ~35 KB por ilha sem cobrir essas regras: o
 
 7. **Chaves e datas nas guardas alinhadas ao schema e a `guards.ts`.** Quando o schema declara `additionalProperties: false`, a guarda correspondente usa `hasExactKeys` (obrigatórias e opcionais nomeadas), sem aceitar chave a mais nem chave com nome errado na mesma contagem. Datas de calendário passam por `isIsoDate` (estrita) ou `isLenientIsoDate` (anos 0000–0099), nunca só pelo formato `YYYY-MM-DD`. O Caça-palavras usa `isIsoDate` na `reference_date` (tabuleiro diário, como Conexões/Grade/Adivinhe/Linha do Tempo). Código, Cruzadinha e Mapa mantêm `isLenientIsoDate` (política já caracterizada na PR #489).
 
+8. **Listas de campos no Python de produção.** Os conjuntos `ROOT_KEYS` / `ENTRY_KEYS` / `SOURCE_KEYS` / `CELL_KEYS` do `crossword_cli`, o `FIELDS` de `crossword_publication` e os `frozenset` dos `*_schema.py` permanecem: o publicador e os validadores de runtime usam só a biblioteca padrão e não podem passar a importar `jsonschema`. A validação nos testes cobre a mesma forma em tempo de CI; tirar as listas quebraria a checagem em produção e no `--verify` do cron.
+
+9. **Cron diário.** Depois de `artifacts:verify` e antes do upload, o job de geração em `daily-puzzles-cron.yml` instala `requirements-ci.txt` e roda `PublishedWebDataSchemasTest` sobre `web/public/data/`. Um artefato presente que viole o schema falha o job antes da publicação. Artefato omitido (ADR 037 / ADR 051) não é erro: o teste só classifica e valida os JSON que existem. O passo `web_publish --verify` continua; o teste de schemas acrescenta a leitura de `schemas/*.json`.
+
 ## Critério para rever a decisão
 
 Reabrir a validação no navegador (ou outra abordagem) se ocorrer qualquer um destes fatos:
@@ -70,18 +76,21 @@ Reabrir a validação no navegador (ou outra abordagem) se ocorrer qualquer um d
 2. a tripla manutenção (schema + Python + TypeScript) produzir divergências de formato em produção que os testes contra schema não tenham pegado a tempo;
 3. o operador pedir explicitamente a revisão.
 
-Enquanto isso, estender um schema ou acrescentar um artefato ao mapa do teste Vitest é o caminho normal; não exige reabrir Ajv no cliente.
+Enquanto isso, estender um schema ou acrescentar um artefato em `schemas/artifact-map.json` é o caminho normal; não exige reabrir Ajv no cliente.
 
 ## Alternativas consideradas
 
 - **Ajv standalone no build, importado pelas ilhas** (proposta anterior): fonte única no cliente, mas +35 KB por ilha no protótipo de Conexões e sem as regras de partição/dificuldade. Rejeitada em 22/11/2026.
 - **Só guardas manuais, sem ler `schemas/` nos testes do web:** mantém o risco de o artefato publicado divergir do schema sem o Vitest perceber. Rejeitada: o schema é a fonte do formato e precisa de um leitor no web além do Python.
 - **Gerar TypeScript a partir do schema (tipos ou zod):** fora do escopo desta fatia; não altera a decisão de onde roda a validação.
+- **Mapa duplicado no Vitest e no unittest:** rejeitada em favor de `schemas/artifact-map.json` compartilhado.
+- **Remover as listas de campos do Python de produção:** rejeitada; o coletor/publicador não pode depender de `jsonschema`.
 
 ## Consequências
 
 - DevDependencies novas no web: `ajv` e `ajv-formats`, usadas só em teste.
-- Teste Vitest com mapa explícito artefato → schema e lista nomeada dos sem schema.
-- Bundle de produção permanece sem Ajv; a prova é comparar os JS de `dist/_astro/` antes e depois desta fatia.
-- Ticket 07 implementa o lado Python; 04 a 06 ficam `wontfix`.
-- Reverter esta fatia: remover a ADR, o teste Vitest e as duas devDependencies.
+- `jsonschema` (e transitivas) em `requirements-ci.txt`, usadas só em teste.
+- Mapa único em `schemas/artifact-map.json`; Vitest e unittest Python leem dele.
+- Bundle de produção permanece sem Ajv; o coletor permanece só com a biblioteca padrão.
+- Tickets 04 a 06 ficam `wontfix`; o ticket 07 fecha o lado Python e o passo de schemas no cron.
+- Reverter esta fatia: remover o mapa compartilhado, o teste Python, o passo do cron, a entrada `jsonschema` em `requirements-ci.txt` e, se for o caso, o teste Vitest e as duas devDependencies.

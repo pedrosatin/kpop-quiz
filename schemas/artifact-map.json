@@ -1,0 +1,44 @@
+{
+  "by_basename": {
+    "connections.daily.json": "connections-puzzle-v1.json",
+    "grid.daily.json": "intersection-grid-v1.json",
+    "name-guess.daily.json": "name-guess-v1.json",
+    "word-search.daily.json": "word-search-puzzle-v1.json",
+    "word-search.json": "word-search-puzzle-v1.json",
+    "timeline.daily.json": "timeline-puzzle-v2.json",
+    "code-groups.daily.json": "code-groups-pilot-v1.json",
+    "code-groups.pilot.json": "code-groups-pilot-v1.json",
+    "crossword.daily.json": "crossword-daily-v1.json",
+    "crossword-pilot.json": "crossword-pilot-v1.json",
+    "strands.daily.json": "strands-puzzle-v1.json"
+  },
+  "patterns": [
+    {
+      "regex": "^grid-publication\\.\\d{4}-\\d{2}-\\d{2}\\.json$",
+      "schema": "grid-publication-v1.json"
+    },
+    {
+      "regex": "^session\\..+\\.json$",
+      "schema": "quiz-session-v2.json"
+    },
+    {
+      "regex": "^crossword-publication\\.\\d{4}-\\d{2}-\\d{2}\\.json$",
+      "list_entry": "crossword-publication.<date>.json"
+    },
+    {
+      "regex": "^catalog\\..+\\.json$",
+      "list_entry": "catalog.<locale>.<mode>.<sha256>.json"
+    }
+  ],
+  "without_schema": [
+    "daily-set.json",
+    "manifest.json",
+    "manifest-v2.json",
+    "manifest-v3.json",
+    "catalog-manifest-v1.json",
+    "crossword-publication.<date>.json",
+    "catalog.<locale>.<mode>.<sha256>.json",
+    "map-pilot/**"
+  ],
+  "map_pilot_prefix": "map-pilot"
+}
