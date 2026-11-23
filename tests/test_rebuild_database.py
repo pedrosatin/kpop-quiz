@@ -605,14 +605,16 @@ class WorkflowTests(unittest.TestCase):
         # None of them carries a condition: with continue-on-error on the
         # rebuild step the job is still successful when they start.
         following = self.names[self.names.index(RESTORE_STEP) + 1:]
-        self.assertEqual(following[:5], [
+        self.assertEqual(following[:7], [
             "Generate daily puzzles",
             "Verify published artifacts",
+            "Install CI Python deps for schema check",
+            "Validate generated artifacts against JSON Schemas",
             "Refuse undeclared board swaps",
             "Build static web app",
             "Detect changes in published data",
         ])
-        for name in following[:5]:
+        for name in following[:7]:
             self.assertNotRegex(self.text[name], r"\n\s+if:", name)
 
     def test_attempts_and_waits_fit_in_the_step_timeout(self):

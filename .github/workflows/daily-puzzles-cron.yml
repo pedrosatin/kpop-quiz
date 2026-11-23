@@ -161,6 +161,15 @@ jobs:
         working-directory: web
         run: npm run artifacts:verify
 
+      # JSON Schema check (ADR 053): catches shape drift before upload.
+      # Omitted games (ADR 037) leave no file; only present artifacts are
+      # classified and validated. Unknown basenames fail the step.
+      - name: Install CI Python deps for schema check
+        run: python -m pip install --require-hashes --only-binary ':all:' -r requirements-ci.txt
+
+      - name: Validate generated artifacts against JSON Schemas
+        run: python -m unittest tests.test_published_schemas.PublishedWebDataSchemasTest -v
+
       # A date already published keeps its boards unless the run asked to
       # --regenerate or the runner declared the swap (see board_swap_gate).
       - name: Refuse undeclared board swaps
