@@ -64,6 +64,10 @@ Embutir Ajv no navegador acrescentava ~35 KB por ilha sem cobrir essas regras: o
 
 7. **Chaves e datas nas guardas alinhadas ao schema e a `guards.ts`.** Quando o schema declara `additionalProperties: false`, a guarda correspondente usa `hasExactKeys` (obrigatórias e opcionais nomeadas), sem aceitar chave a mais nem chave com nome errado na mesma contagem. Datas de calendário passam por `isIsoDate` (estrita) ou `isLenientIsoDate` (anos 0000–0099), nunca só pelo formato `YYYY-MM-DD`. O Caça-palavras usa `isIsoDate` na `reference_date` (tabuleiro diário, como Conexões/Grade/Adivinhe/Linha do Tempo). Código, Cruzadinha e Mapa mantêm `isLenientIsoDate` (política já caracterizada na PR #489).
 
+8. **Listas de campos no Python de produção.** Os conjuntos `ROOT_KEYS` / `ENTRY_KEYS` / `SOURCE_KEYS` / `CELL_KEYS` do `crossword_cli`, o `FIELDS` de `crossword_publication` e os `frozenset` dos `*_schema.py` permanecem: o publicador e os validadores de runtime usam só a biblioteca padrão e não podem passar a importar `jsonschema`. A validação nos testes cobre a mesma forma em tempo de CI; tirar as listas quebraria a checagem em produção e no `--verify` do cron.
+
+9. **Cron diário.** Depois de `artifacts:verify` e antes do upload, o job de geração em `daily-puzzles-cron.yml` instala `requirements-ci.txt` e roda `PublishedWebDataSchemasTest` sobre `web/public/data/`. Um artefato presente que viole o schema falha o job antes da publicação. Artefato omitido (ADR 037 / ADR 051) não é erro: o teste só classifica e valida os JSON que existem. O passo `web_publish --verify` continua; o teste de schemas acrescenta a leitura de `schemas/*.json`.
+
 ## Critério para rever a decisão
 
 Reabrir a validação no navegador (ou outra abordagem) se ocorrer qualquer um destes fatos:
@@ -73,10 +77,6 @@ Reabrir a validação no navegador (ou outra abordagem) se ocorrer qualquer um d
 3. o operador pedir explicitamente a revisão.
 
 Enquanto isso, estender um schema ou acrescentar um artefato em `schemas/artifact-map.json` é o caminho normal; não exige reabrir Ajv no cliente.
-
-8. **Listas de campos no Python de produção.** Os conjuntos `ROOT_KEYS` / `ENTRY_KEYS` / `SOURCE_KEYS` / `CELL_KEYS` do `crossword_cli`, o `FIELDS` de `crossword_publication` e os `frozenset` dos `*_schema.py` permanecem: o publicador e os validadores de runtime usam só a biblioteca padrão e não podem passar a importar `jsonschema`. A validação nos testes cobre a mesma forma em tempo de CI; tirar as listas quebraria a checagem em produção e no `--verify` do cron.
-
-9. **Cron diário.** Depois de `artifacts:verify` e antes do upload, o job de geração em `daily-puzzles-cron.yml` instala `requirements-ci.txt` e roda `PublishedWebDataSchemasTest` sobre `web/public/data/`. Um artefato presente que viole o schema falha o job antes da publicação. Artefato omitido (ADR 037 / ADR 051) não é erro: o teste só classifica e valida os JSON que existem. O passo `web_publish --verify` continua; o teste de schemas acrescenta a leitura de `schemas/*.json`.
 
 ## Alternativas consideradas
 

@@ -118,7 +118,7 @@ class PublishedSchemasTest(unittest.TestCase):
 
     def test_publisher_output_validates_against_schemas(self):
         sessions = _load_json(FIXTURES / "sessions.json")
-        crossword = _load_json(PUBLISHED / CROSSWORD_DAILY_FILENAME)
+        crossword = _load_json(FIXTURES / CROSSWORD_DAILY_FILENAME)
         with tempfile.TemporaryDirectory(prefix="published_schemas_") as directory:
             output = Path(directory)
             publish(
