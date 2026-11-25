@@ -1530,7 +1530,7 @@ const catalogs: Record<Locale, Messages> = {
     connectionsWrong: "Wrong. These 4 names are not a category.",
     connectionsSolved: (label) => `Category found: ${label}.`,
     connectionsSourceItem: (name, project, revision) => `${name}: ${project}, revision ${revision}.`,
-    nameGuessTitle: "Guess the Name: K-pop Wordle",
+    nameGuessTitle: "K-pop Wordle: Guess the Idol or Group",
     nameGuessEyebrow: "6 guesses · 1 name a day",
     nameGuessIntro: "Find today's K-pop artist or group. After each guess, colors show which letters are right.",
     nameGuess: {

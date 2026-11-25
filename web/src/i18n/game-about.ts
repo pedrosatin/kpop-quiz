@@ -115,6 +115,11 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
             answer:
               "O palpite precisa estar na lista de nomes aceitos, que reúne os nomes e apelidos do catálogo com o mesmo número de letras da resposta e alguns nomes conhecidos do K-pop. Um nome fora dessa lista é recusado e a tentativa não conta.",
           },
+          {
+            question: "Tem um Wordle de K-pop novo todo dia?",
+            answer:
+              "Sim. O nome novo entra no ar à meia-noite no horário de Brasília (03:00 UTC) e é o mesmo para todos os jogadores do dia, então o resultado compartilhado pode ser comparado. Só o nome do dia está disponível; ainda não há arquivo de dias anteriores.",
+          },
           { question: "Em quais idiomas dá para jogar?", answer: ptLanguages("/en/guess/") },
         ],
       },
@@ -329,6 +334,11 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
         ],
         faq: [
           {
+            question: "What are the connections in K-pop Connections?",
+            answer:
+              "Each board hides 4 connections, one for each set of 4 names. A connection is something the 4 groups share: the same record label or agency, the same formation decade or the same number of members. A category's label appears when you solve it, and Show source explains each one at the end of the game.",
+          },
+          {
             question: "Why does a name seem to fit two groups?",
             answer:
               "A name can fit more than one category, but only one split completes all four groups. If two splits work, the board is thrown out.",
@@ -363,6 +373,11 @@ export const gameAbout: Record<Locale, GameAboutMessages> = {
             question: "Why wasn't my word accepted?",
             answer:
               "A guess has to be on the list of accepted names, which combines the catalog's names and aliases with the same number of letters as the answer plus a few well-known K-pop names. A name that isn't on the list is refused and the attempt doesn't count.",
+          },
+          {
+            question: "Is there a new K-pop Wordle every day?",
+            answer:
+              "Yes. A new name goes live at midnight São Paulo time (03:00 UTC), and everyone gets the same one that day, so shared results can be compared. Only today's name is available to play; there is no archive of past days yet.",
           },
           { question: "Which languages can I play in?", answer: enLanguages("/pt-br/adivinhe/") },
         ],
