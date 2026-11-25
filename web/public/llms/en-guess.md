@@ -1,4 +1,4 @@
-# Guess the Name: K-pop Wordle
+# K-pop Wordle: Guess the Idol or Group
 
 Canonical: https://kpopquiz.online/en/guess/
 Also in Portuguese: https://kpopquiz.online/pt-br/adivinhe/
